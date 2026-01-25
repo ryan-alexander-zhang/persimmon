@@ -1,0 +1,14 @@
+/**
+ * Domain services for the {@code biz} context.
+ *
+ * <p>Domain services model business operations that do not naturally fit into a single entity or
+ * aggregate. They should be stateless and contain domain logic only.</p>
+ *
+ * <h2>Usage</h2>
+ * <ul>
+ *   <li>Prefer moving logic into the model first; use services when necessary.</li>
+ *   <li>Services may coordinate multiple aggregates via domain ports.</li>
+ * </ul>
+ */
+package com.ryan.persimmon.domain.biz.service;
+

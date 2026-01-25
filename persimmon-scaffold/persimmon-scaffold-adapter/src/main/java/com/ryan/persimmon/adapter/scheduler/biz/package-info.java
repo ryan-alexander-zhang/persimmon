@@ -1,0 +1,8 @@
+/**
+ * Scheduler adapter package for the {@code biz} business context (optional).
+ *
+ * <p><strong>Optional:</strong> use when the {@code biz} context needs scheduled workflows such as
+ * periodic reconciliation, cleanup, or deadline processing.</p>
+ */
+package com.ryan.persimmon.adapter.scheduler.biz;
+
