@@ -1,0 +1,8 @@
+/**
+ * Application bootstrap entry point.
+ *
+ * <p>Holds the main application startup class (e.g. Spring Boot {@code Application} main) and any
+ * minimal bootstrapping code required to start the system.</p>
+ */
+package com.ryan.persimmon.start.bootstrap;
+
