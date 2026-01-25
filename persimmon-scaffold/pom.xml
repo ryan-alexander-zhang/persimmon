@@ -19,16 +19,57 @@
     <maven.compiler.target>21</maven.compiler.target>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <archunit.version>1.4.1</archunit.version>
+    <junit.jupiter.version>5.10.2</junit.jupiter.version>
   </properties>
 
   <version>1.0-SNAPSHOT</version>
 
   <dependencyManagement>
     <dependencies>
+      <!-- Module Dependencies -->
+      <dependency>
+        <groupId>com.ryan.persimmon</groupId>
+        <artifactId>persimmon-scaffold-domain</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.ryan.persimmon</groupId>
+        <artifactId>persimmon-scaffold-app</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.ryan.persimmon</groupId>
+        <artifactId>persimmon-scaffold-infra</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.ryan.persimmon</groupId>
+        <artifactId>persimmon-scaffold-adapter</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.ryan.persimmon</groupId>
+        <artifactId>persimmon-scaffold-start</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <!-- Test Dependencies -->
       <dependency>
         <groupId>com.tngtech.archunit</groupId>
         <artifactId>archunit</artifactId>
         <version>${archunit.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>com.tngtech.archunit</groupId>
+        <artifactId>archunit-junit5</artifactId>
+        <version>${archunit.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.junit.jupiter</groupId>
+        <artifactId>junit-jupiter</artifactId>
+        <version>${junit.jupiter.version}</version>
         <scope>test</scope>
       </dependency>
     </dependencies>
