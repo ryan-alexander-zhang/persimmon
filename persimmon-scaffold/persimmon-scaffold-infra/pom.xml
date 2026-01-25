@@ -17,4 +17,15 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 
+  <dependencies>
+    <dependency>
+      <groupId>com.ryan.persimmon</groupId>
+      <artifactId>persimmon-scaffold-domain</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.ryan.persimmon</groupId>
+      <artifactId>persimmon-scaffold-app</artifactId>
+    </dependency>
+  </dependencies>
+
 </project>
