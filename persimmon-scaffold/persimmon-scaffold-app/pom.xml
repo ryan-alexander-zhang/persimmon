@@ -18,9 +18,17 @@
   </properties>
 
   <dependencies>
+    <!-- Module Dependencies -->
     <dependency>
       <groupId>com.ryan.persimmon</groupId>
       <artifactId>persimmon-scaffold-domain</artifactId>
+    </dependency>
+
+    <!-- Lombok Dependency -->
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <scope>provided</scope>
     </dependency>
   </dependencies>
 

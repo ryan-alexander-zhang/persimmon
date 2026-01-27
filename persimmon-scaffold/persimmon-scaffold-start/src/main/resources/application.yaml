@@ -1,0 +1,7 @@
+spring:
+  application:
+    name: persimmon
+  profiles:
+    active: local
+server:
+  port: 9080
