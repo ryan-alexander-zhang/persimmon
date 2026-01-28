@@ -55,9 +55,10 @@ public class ClassDependencyChecksTest {
   @ArchTest
   static final ArchRule only_start_may_access_infra =
     noClasses()
-      .that().resideOutsideOfPackage(START_PACKAGE)
+      // Exclude infra itself; otherwise infra-to-infra dependencies would be forbidden,
+      // making normal infrastructure internal composition impossible.
+      .that().resideOutsideOfPackages(START_PACKAGE, INFRA_PACKAGE)
       .should().accessClassesThat().resideInAPackage(INFRA_PACKAGE)
       .allowEmptyShould(true)
       .because("Only the start module should wire infrastructure; other layers must stay decoupled.");
 }
-
