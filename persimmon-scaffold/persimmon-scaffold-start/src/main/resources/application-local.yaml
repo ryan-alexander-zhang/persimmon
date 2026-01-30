@@ -3,3 +3,10 @@ spring:
     url: jdbc:postgresql://localhost:5432/persimmon_scaffold
     username: postgres
     password: postgres
+  flyway:
+    enabled: true
+    baselineOnMigrate: true
+    locations: classpath:db/migration
+    # MUST set false to true in production
+    clean-disabled: false
+    baseline-version: 0.0.0
