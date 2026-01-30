@@ -1,0 +1,19 @@
+version: "3.9"
+services:
+  db:
+    image: postgres:18.1
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: persimmon_scaffold
+    ports:
+      - "5432:5432"
+    volumes:
+      - persimmon_scaffold_db_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+volumes:
+  persimmon_scaffold_db_data:
