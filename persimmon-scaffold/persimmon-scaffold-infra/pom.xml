@@ -45,6 +45,20 @@
       <artifactId>mybatis-plus-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
+
+    <!-- JDBC Dependency -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-jdbc</artifactId>
+    </dependency>
+
+    <!-- PostgreSQL JDBC Driver -->
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+
   </dependencies>
 
 </project>

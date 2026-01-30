@@ -1,0 +1,5 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/persimmon_scaffold
+    username: postgres
+    password: postgres
