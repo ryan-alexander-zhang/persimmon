@@ -16,27 +16,30 @@ public class AnnotationChecksTest {
   /**
    * Annotation check: domain must not use framework/technical annotations.
    *
-   * <p>This check is intentionally implemented using annotation package prefixes to avoid introducing
-   * compile-time dependencies on specific frameworks.</p>
+   * <p>This check is intentionally implemented using annotation package prefixes to avoid
+   * introducing compile-time dependencies on specific frameworks.
    */
   @ArchTest
   static final ArchRule domain_should_not_use_spring_annotations =
-    classes()
-      .that().resideInAPackage(DOMAIN_PACKAGE)
-      .should(AnnotationPredicates.notBeAnnotatedWithAnyInPackage("org.springframework"))
-      .allowEmptyShould(true)
-      .because("Domain must stay framework-free; Spring stereotypes belong to adapters/infra/start only.");
+      classes()
+          .that()
+          .resideInAPackage(DOMAIN_PACKAGE)
+          .should(AnnotationPredicates.notBeAnnotatedWithAnyInPackage("org.springframework"))
+          .allowEmptyShould(true)
+          .because(
+              "Domain must stay framework-free; Spring stereotypes belong to adapters/infra/start only.");
 
   /**
    * Annotation check: domain must not use persistence annotations.
    *
-   * <p>Optional/Reserved: enable/tune as you pick a persistence technology.</p>
+   * <p>Optional/Reserved: enable/tune as you pick a persistence technology.
    */
   @ArchTest
   static final ArchRule domain_should_not_use_persistence_annotations =
-    classes()
-      .that().resideInAPackage(DOMAIN_PACKAGE)
-      .should(AnnotationPredicates.notBeAnnotatedWithAnyInPackage("jakarta.persistence"))
-      .allowEmptyShould(true)
-      .because("Persistence annotations should not leak into domain types.");
+      classes()
+          .that()
+          .resideInAPackage(DOMAIN_PACKAGE)
+          .should(AnnotationPredicates.notBeAnnotatedWithAnyInPackage("jakarta.persistence"))
+          .allowEmptyShould(true)
+          .because("Persistence annotations should not leak into domain types.");
 }

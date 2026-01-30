@@ -10,9 +10,10 @@ import java.util.Objects;
  * Tiny assertion helpers for enforcing domain invariants consistently.
  *
  * <p>Purpose: keep domain code expressive and ensure consistent exception types/codes/messages
- * across aggregates and entities.</p>
+ * across aggregates and entities.
  *
- * <p>Example:</p>
+ * <p>Example:
+ *
  * <pre>{@code
  * DomainAssertions.state(
  *     orderStatus == OrderStatus.CREATED,
@@ -38,7 +39,8 @@ public final class DomainAssertions {
    *
    * @throws DomainRuleViolationException if {@code condition} is false
    */
-  public static void state(boolean condition, String code, String message, Map<String, Object> details) {
+  public static void state(
+      boolean condition, String code, String message, Map<String, Object> details) {
     if (!condition) {
       throw new DomainRuleViolationException(code, message, details);
     }
@@ -68,11 +70,12 @@ public final class DomainAssertions {
   /**
    * Asserts a non-blank string requirement and returns the value for fluent usage.
    *
-   * <p>Blank means empty or consisting only of whitespace.</p>
+   * <p>Blank means empty or consisting only of whitespace.
    *
    * @throws DomainRuleViolationException if {@code value} is null or blank
    */
-  public static String nonBlank(String value, String code, String message, Map<String, Object> details) {
+  public static String nonBlank(
+      String value, String code, String message, Map<String, Object> details) {
     if (value == null || value.isBlank()) {
       throw new DomainRuleViolationException(code, message, details);
     }
@@ -84,7 +87,8 @@ public final class DomainAssertions {
    *
    * @throws DomainRuleViolationException if {@code value} is null or empty
    */
-  public static <T extends Collection<?>> T nonEmpty(T value, String code, String message, Map<String, Object> details) {
+  public static <T extends Collection<?>> T nonEmpty(
+      T value, String code, String message, Map<String, Object> details) {
     if (value == null || value.isEmpty()) {
       throw new DomainRuleViolationException(code, message, details);
     }
@@ -96,7 +100,8 @@ public final class DomainAssertions {
    *
    * @throws DomainRuleViolationException if {@code value} is not positive
    */
-  public static long positive(long value, String code, String message, Map<String, Object> details) {
+  public static long positive(
+      long value, String code, String message, Map<String, Object> details) {
     if (value <= 0) {
       throw new DomainRuleViolationException(code, message, details);
     }
@@ -106,11 +111,12 @@ public final class DomainAssertions {
   /**
    * Asserts a positive (strictly greater than zero) BigDecimal requirement.
    *
-   * <p>This is useful for money/amount-like value objects where integer types are not suitable.</p>
+   * <p>This is useful for money/amount-like value objects where integer types are not suitable.
    *
    * @throws DomainRuleViolationException if {@code value} is null or not positive
    */
-  public static BigDecimal positive(BigDecimal value, String code, String message, Map<String, Object> details) {
+  public static BigDecimal positive(
+      BigDecimal value, String code, String message, Map<String, Object> details) {
     Objects.requireNonNull(details, "details must not be null");
     if (value == null || value.signum() <= 0) {
       throw new DomainRuleViolationException(code, message, details);

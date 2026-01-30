@@ -14,40 +14,46 @@ public class ContainmentChecksTest {
   /**
    * Containment check: controllers belong to the web controller package.
    *
-   * <p>Optional/Reserved: this is naming-convention based and can be tuned later.</p>
+   * <p>Optional/Reserved: this is naming-convention based and can be tuned later.
    */
   @ArchTest
   static final ArchRule controllers_should_reside_in_web_controller_package =
-    classes()
-      .that().haveSimpleNameEndingWith("Controller")
-      .should().resideInAPackage("..adapter.web..controller..")
-      .allowEmptyShould(true)
-      .because("HTTP controllers should be placed under adapter.web.<bc>.controller for discoverability.");
+      classes()
+          .that()
+          .haveSimpleNameEndingWith("Controller")
+          .should()
+          .resideInAPackage("..adapter.web..controller..")
+          .allowEmptyShould(true)
+          .because(
+              "HTTP controllers should be placed under adapter.web.<bc>.controller for discoverability.");
 
   /**
    * Containment check: repository implementations belong to infra repository impl packages.
    *
-   * <p>Optional/Reserved: adjust suffix/pattern to your implementation naming scheme.</p>
+   * <p>Optional/Reserved: adjust suffix/pattern to your implementation naming scheme.
    */
   @ArchTest
   static final ArchRule repository_impls_should_reside_in_infra_repository_impl_package =
-    classes()
-      .that().haveSimpleNameEndingWith("RepositoryImpl")
-      .should().resideInAPackage("..infra.repository..impl..")
-      .allowEmptyShould(true)
-      .because("Repository implementations should be isolated in infra.repository.<bc>.impl.");
+      classes()
+          .that()
+          .haveSimpleNameEndingWith("RepositoryImpl")
+          .should()
+          .resideInAPackage("..infra.repository..impl..")
+          .allowEmptyShould(true)
+          .because("Repository implementations should be isolated in infra.repository.<bc>.impl.");
 
   /**
    * Containment check: application command handlers belong under app.<bc>.command.handler.
    *
-   * <p>Optional/Reserved: this is a convention aligned with the DDD layout doc.</p>
+   * <p>Optional/Reserved: this is a convention aligned with the DDD layout doc.
    */
   @ArchTest
   static final ArchRule command_handlers_should_reside_in_app_command_handler_package =
-    classes()
-      .that().haveSimpleNameEndingWith("CommandHandler")
-      .should().resideInAPackage("..app..command.handler..")
-      .allowEmptyShould(true)
-      .because("Command handlers should be grouped under app.<bc>.command.handler.");
+      classes()
+          .that()
+          .haveSimpleNameEndingWith("CommandHandler")
+          .should()
+          .resideInAPackage("..app..command.handler..")
+          .allowEmptyShould(true)
+          .because("Command handlers should be grouped under app.<bc>.command.handler.");
 }
-

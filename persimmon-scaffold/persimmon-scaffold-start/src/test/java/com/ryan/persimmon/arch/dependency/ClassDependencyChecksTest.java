@@ -20,45 +20,53 @@ public class ClassDependencyChecksTest {
    * Class dependency check: domain must not even "reach" into other layers through type references.
    *
    * <p>Compared to package rules, this makes it explicit that forbidden type-level dependencies
-   * (imports, member types, method calls) are not allowed.</p>
+   * (imports, member types, method calls) are not allowed.
    */
   @ArchTest
   static final ArchRule domain_must_not_access_other_layers =
-    noClasses()
-      .that().resideInAPackage(DOMAIN_PACKAGE)
-      .should().accessClassesThat().resideInAnyPackage(APP_PACKAGE, ADAPTER_PACKAGE, INFRA_PACKAGE, START_PACKAGE)
-      .because("Domain must not reference other layers at the type level.");
+      noClasses()
+          .that()
+          .resideInAPackage(DOMAIN_PACKAGE)
+          .should()
+          .accessClassesThat()
+          .resideInAnyPackage(APP_PACKAGE, ADAPTER_PACKAGE, INFRA_PACKAGE, START_PACKAGE)
+          .because("Domain must not reference other layers at the type level.");
 
-  /**
-   * Class dependency check: adapter must not access domain (strict policy A).
-   */
+  /** Class dependency check: adapter must not access domain (strict policy A). */
   @ArchTest
   static final ArchRule adapter_must_not_access_domain =
-    noClasses()
-      .that().resideInAPackage(ADAPTER_PACKAGE)
-      .should().accessClassesThat().resideInAPackage(DOMAIN_PACKAGE)
-      .because("Inbound adapters must depend on application DTOs/services, not on domain types directly.");
+      noClasses()
+          .that()
+          .resideInAPackage(ADAPTER_PACKAGE)
+          .should()
+          .accessClassesThat()
+          .resideInAPackage(DOMAIN_PACKAGE)
+          .because(
+              "Inbound adapters must depend on application DTOs/services, not on domain types directly.");
 
-  /**
-   * Class dependency check: app must not access infra directly.
-   */
+  /** Class dependency check: app must not access infra directly. */
   @ArchTest
   static final ArchRule app_must_not_access_infra =
-    noClasses()
-      .that().resideInAPackage(APP_PACKAGE)
-      .should().accessClassesThat().resideInAPackage(INFRA_PACKAGE)
-      .because("Application must depend on ports, not on infrastructure implementations.");
+      noClasses()
+          .that()
+          .resideInAPackage(APP_PACKAGE)
+          .should()
+          .accessClassesThat()
+          .resideInAPackage(INFRA_PACKAGE)
+          .because("Application must depend on ports, not on infrastructure implementations.");
 
-  /**
-   * Class dependency check: only start may access infra.
-   */
+  /** Class dependency check: only start may access infra. */
   @ArchTest
   static final ArchRule only_start_may_access_infra =
-    noClasses()
-      // Exclude infra itself; otherwise infra-to-infra dependencies would be forbidden,
-      // making normal infrastructure internal composition impossible.
-      .that().resideOutsideOfPackages(START_PACKAGE, INFRA_PACKAGE)
-      .should().accessClassesThat().resideInAPackage(INFRA_PACKAGE)
-      .allowEmptyShould(true)
-      .because("Only the start module should wire infrastructure; other layers must stay decoupled.");
+      noClasses()
+          // Exclude infra itself; otherwise infra-to-infra dependencies would be forbidden,
+          // making normal infrastructure internal composition impossible.
+          .that()
+          .resideOutsideOfPackages(START_PACKAGE, INFRA_PACKAGE)
+          .should()
+          .accessClassesThat()
+          .resideInAPackage(INFRA_PACKAGE)
+          .allowEmptyShould(true)
+          .because(
+              "Only the start module should wire infrastructure; other layers must stay decoupled.");
 }

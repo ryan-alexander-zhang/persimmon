@@ -10,12 +10,15 @@ public final class AnnotationPredicates {
 
   private AnnotationPredicates() {}
 
-  public static ArchCondition<JavaClass> notBeAnnotatedWithAnyInPackage(String annotationPackagePrefix) {
-    String normalizedPrefix = annotationPackagePrefix.endsWith(".")
-      ? annotationPackagePrefix
-      : annotationPackagePrefix + ".";
+  public static ArchCondition<JavaClass> notBeAnnotatedWithAnyInPackage(
+      String annotationPackagePrefix) {
+    String normalizedPrefix =
+        annotationPackagePrefix.endsWith(".")
+            ? annotationPackagePrefix
+            : annotationPackagePrefix + ".";
 
-    return new ArchCondition<>("not be annotated with any annotation in package " + normalizedPrefix) {
+    return new ArchCondition<>(
+        "not be annotated with any annotation in package " + normalizedPrefix) {
       @Override
       public void check(JavaClass item, ConditionEvents events) {
         for (JavaAnnotation<?> annotation : item.getAnnotations()) {
@@ -26,7 +29,8 @@ public final class AnnotationPredicates {
             return;
           }
         }
-        events.add(SimpleConditionEvent.satisfied(item, item.getName() + " has no matching annotations"));
+        events.add(
+            SimpleConditionEvent.satisfied(item, item.getName() + " has no matching annotations"));
       }
     };
   }

@@ -14,14 +14,18 @@ public class InheritanceChecksTest {
   /**
    * Inheritance check: domain exceptions should be unchecked (RuntimeException).
    *
-   * <p>Optional/Reserved: adjust if you introduce a domain-specific base exception type.</p>
+   * <p>Optional/Reserved: adjust if you introduce a domain-specific base exception type.
    */
   @ArchTest
   static final ArchRule domain_exceptions_should_be_runtime_exceptions =
-    classes()
-      .that().resideInAPackage("..domain..exception..")
-      .and().doNotHaveSimpleName("package-info")
-      .should().beAssignableTo(RuntimeException.class)
-      .allowEmptyShould(true)
-      .because("Domain exceptions typically represent business rule violations and are commonly unchecked.");
+      classes()
+          .that()
+          .resideInAPackage("..domain..exception..")
+          .and()
+          .doNotHaveSimpleName("package-info")
+          .should()
+          .beAssignableTo(RuntimeException.class)
+          .allowEmptyShould(true)
+          .because(
+              "Domain exceptions typically represent business rule violations and are commonly unchecked.");
 }
