@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.Version;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.Getter;
@@ -15,6 +16,7 @@ public class BasePO {
   @TableId(type = IdType.INPUT)
   private UUID id;
 
+  @Version
   @TableField("row_version")
   private Integer rowVersion;
 

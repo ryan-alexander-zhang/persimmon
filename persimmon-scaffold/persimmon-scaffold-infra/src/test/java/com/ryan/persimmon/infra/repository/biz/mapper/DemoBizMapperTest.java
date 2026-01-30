@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import com.baomidou.mybatisplus.test.autoconfigure.MybatisPlusTest;
 import com.ryan.persimmon.infra.common.database.AutoFillObjectHandler;
+import com.ryan.persimmon.infra.common.database.MybatisPlusConfig;
 import com.ryan.persimmon.infra.common.database.UuidTypeHandler;
 import com.ryan.persimmon.infra.repository.biz.po.DemoBizPO;
 import java.util.List;
@@ -31,7 +32,12 @@ import org.springframework.test.annotation.Rollback;
       "spring.sql.init.schema-locations=classpath:schema.sql",
     })
 @AutoConfigureTestDatabase(replace = Replace.NONE)
-@Import({DemoBizMapperTest.MapperConfig.class, UuidTypeHandler.class, AutoFillObjectHandler.class})
+@Import({
+  DemoBizMapperTest.MapperConfig.class,
+  UuidTypeHandler.class,
+  AutoFillObjectHandler.class,
+  MybatisPlusConfig.class
+})
 @TestMethodOrder(OrderAnnotation.class)
 class DemoBizMapperTest {
   private final String name = "test-01";
@@ -84,12 +90,52 @@ class DemoBizMapperTest {
 
   @Test
   @Order(4)
+  @Rollback(false)
+  void testOptimisticLock() {
+    DemoBizPO current = demoBizMapper.selectById(id);
+    assertNotNull(current);
+    assertNotNull(current.getRowVersion());
+
+    Integer v0 = current.getRowVersion();
+
+    // 1) Update with correct rowVersion should succeed and increment version by 1
+    DemoBizPO ok = new DemoBizPO();
+    ok.setId(id);
+    ok.setRowVersion(v0);
+    ok.setName("test-optimistic-ok");
+    ok.setStatus("UPDATING");
+
+    int updated1 = demoBizMapper.updateById(ok);
+    assertEquals(1, updated1);
+
+    DemoBizPO afterOk = demoBizMapper.selectById(id);
+    assertNotNull(afterOk);
+    assertEquals(v0 + 1, afterOk.getRowVersion());
+    assertEquals("test-optimistic-ok", afterOk.getName());
+
+    // 2) Update again with a stale `rowVersion`, expect failure (return 0) and no data overwrite
+    DemoBizPO stale = new DemoBizPO();
+    stale.setId(id);
+    stale.setRowVersion(v0); // Old version
+    stale.setName("test-optimistic-stale");
+    stale.setStatus("FAILED");
+
+    int updated2 = demoBizMapper.updateById(stale);
+    assertEquals(0, updated2);
+
+    DemoBizPO afterStale = demoBizMapper.selectById(id);
+    assertNotNull(afterStale);
+    assertEquals(v0 + 1, afterStale.getRowVersion());
+    assertEquals("test-optimistic-ok", afterStale.getName());
+  }
+
+  @Test
+  @Order(5)
   @Rollback(value = false)
   void testDelete() {
     int i = demoBizMapper.deleteById(id);
     assertEquals(1, i);
   }
-
 
   @Configuration
   @MapperScan("com.ryan.persimmon.infra.repository.biz.mapper")
