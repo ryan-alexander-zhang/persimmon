@@ -3,6 +3,7 @@ package com.ryan.persimmon.infra.repository.biz.mapper;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.baomidou.mybatisplus.test.autoconfigure.MybatisPlusTest;
+import com.ryan.persimmon.infra.common.database.AutoFillObjectHandler;
 import com.ryan.persimmon.infra.common.database.UuidTypeHandler;
 import com.ryan.persimmon.infra.repository.biz.po.DemoBizPO;
 import java.util.List;
@@ -30,7 +31,7 @@ import org.springframework.test.annotation.Rollback;
       "spring.sql.init.schema-locations=classpath:schema.sql",
     })
 @AutoConfigureTestDatabase(replace = Replace.NONE)
-@Import({DemoBizMapperTest.MapperConfig.class, UuidTypeHandler.class})
+@Import({DemoBizMapperTest.MapperConfig.class, UuidTypeHandler.class, AutoFillObjectHandler.class})
 @TestMethodOrder(OrderAnnotation.class)
 class DemoBizMapperTest {
   private final String name = "test-01";
@@ -57,15 +58,38 @@ class DemoBizMapperTest {
     assertFalse(list.isEmpty());
     assertEquals(1, list.size());
     assertEquals(name, list.getFirst().getName());
+    assertNotNull(list.getFirst().getCreatedAt());
+    assertNotNull(list.getFirst().getUpdatedAt());
   }
 
   @Test
   @Order(3)
   @Rollback(value = false)
+  void testUpdate() {
+    // query first
+    DemoBizPO demoBizPO = demoBizMapper.selectById(id);
+
+    DemoBizPO newDemoBizPO = new DemoBizPO();
+    newDemoBizPO.setId(id);
+    newDemoBizPO.setName("test-02");
+    newDemoBizPO.setStatus("UPDATING");
+
+    int update = demoBizMapper.updateById(newDemoBizPO);
+    assertEquals(1, update);
+
+    // query again
+    DemoBizPO updated = demoBizMapper.selectById(id);
+    assertTrue(updated.getUpdatedAt().isAfter(demoBizPO.getUpdatedAt()));
+  }
+
+  @Test
+  @Order(4)
+  @Rollback(value = false)
   void testDelete() {
     int i = demoBizMapper.deleteById(id);
     assertEquals(1, i);
   }
+
 
   @Configuration
   @MapperScan("com.ryan.persimmon.infra.repository.biz.mapper")

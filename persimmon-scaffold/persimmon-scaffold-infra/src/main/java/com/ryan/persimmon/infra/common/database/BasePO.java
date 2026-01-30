@@ -1,5 +1,6 @@
 package com.ryan.persimmon.infra.common.database;
 
+import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
@@ -17,10 +18,10 @@ public class BasePO {
   @TableField("row_version")
   private Integer rowVersion;
 
-  @TableField("created_at")
+  @TableField(value = "created_at", fill = FieldFill.INSERT)
   private Instant createdAt;
 
-  @TableField("updated_at")
+  @TableField(value = "updated_at", fill = FieldFill.INSERT_UPDATE)
   private Instant updatedAt;
 
   @TableField("deleted_at")
