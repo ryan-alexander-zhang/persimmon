@@ -12,12 +12,16 @@ import com.ryan.persimmon.app.common.outbox.service.OutboxRelayService;
 import com.ryan.persimmon.app.common.time.AppClock;
 import com.ryan.persimmon.infra.event.outbox.mapper.OutboxEventMapper;
 import com.ryan.persimmon.infra.event.outbox.store.MybatisOutboxStore;
+import com.ryan.persimmon.infra.event.mq.KafkaOutboxTransport;
 import java.time.Duration;
 import java.time.Instant;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.kafka.core.KafkaTemplate;
 
 @Configuration
 public class OutboxWiringConfig {
@@ -47,7 +51,17 @@ public class OutboxWiringConfig {
   }
 
   @Bean
-  public OutboxTransport outboxTransport() {
+  @ConditionalOnProperty(name = "persimmon.outbox.transport", havingValue = "kafka")
+  public OutboxTransport kafkaOutboxTransport(
+      KafkaTemplate<String, String> kafkaTemplate,
+      @Value("${persimmon.outbox.kafka.topic:persimmon-outbox}") String topic,
+      @Value("${persimmon.outbox.kafka.send-timeout-ms:5000}") long sendTimeoutMs) {
+    return new KafkaOutboxTransport(kafkaTemplate, topic, Duration.ofMillis(sendTimeoutMs));
+  }
+
+  @Bean
+  @ConditionalOnMissingBean(OutboxTransport.class)
+  public OutboxTransport defaultOutboxTransport() {
     return new LoggingOutboxTransport();
   }
 
