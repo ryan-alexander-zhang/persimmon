@@ -1,4 +1,4 @@
-package com.ryan.persimmon.adapter.scheduler.biz.job;
+package com.ryan.persimmon.adapter.scheduler.system.job;
 
 import com.ryan.persimmon.app.common.outbox.service.OutboxRelayService;
 import org.springframework.beans.factory.annotation.Value;
