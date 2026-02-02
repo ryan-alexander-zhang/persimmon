@@ -68,9 +68,6 @@ public final class UuidV7Generators {
       lsb &= 0x3FFF_FFFF_FFFF_FFFFL; // clear variant bits
       lsb |= 0x8000_0000_0000_0000L; // set variant to 10
 
-      // Mix randA into msb's timestamp+counter lower bits to improve distribution.
-      msb ^= (randA & 0x0000_0000_0000_FFFFL);
-
       return new UUID(msb, lsb);
     }
   }
