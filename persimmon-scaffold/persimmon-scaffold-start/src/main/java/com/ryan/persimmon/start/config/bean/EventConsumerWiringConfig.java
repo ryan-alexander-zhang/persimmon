@@ -37,7 +37,7 @@ public class EventConsumerWiringConfig {
   public EventDispatcher defaultEventDispatcher(
       InboxStore inboxStore,
       AppClock clock,
-      @Value("${persimmon.outbox.kafka.consumer-group:persimmon-outbox-consumer}") String consumerName,
+      @Value("${persimmon.outbox.kafka.consumer.group-id:persimmon-outbox-consumer}") String consumerName,
       List<EventHandler> handlers,
       PlatformTransactionManager txManager) {
     DefaultEventDispatcher delegate = new DefaultEventDispatcher(inboxStore, clock, consumerName, handlers);

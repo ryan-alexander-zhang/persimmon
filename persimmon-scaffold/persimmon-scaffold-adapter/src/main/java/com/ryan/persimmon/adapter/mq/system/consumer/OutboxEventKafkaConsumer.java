@@ -22,9 +22,9 @@ public class OutboxEventKafkaConsumer {
   }
 
   @KafkaListener(
-      topics = "${persimmon.outbox.kafka.topic:persimmon-outbox}",
-      groupId = "${persimmon.outbox.kafka.consumer-group:persimmon-outbox-consumer}",
-      concurrency = "${persimmon.outbox.kafka.consumer-concurrency:1}")
+      topics = "${persimmon.outbox.topic:persimmon-outbox}",
+      groupId = "${persimmon.outbox.kafka.consumer.group-id:persimmon-outbox-consumer}",
+      concurrency = "${persimmon.outbox.kafka.consumer.concurrency:1}")
   public void onMessage(ConsumerRecord<String, String> record) throws Exception {
     Map<String, String> headers = new HashMap<>();
     for (Header h : record.headers()) {
@@ -54,4 +54,3 @@ public class OutboxEventKafkaConsumer {
     return v;
   }
 }
-

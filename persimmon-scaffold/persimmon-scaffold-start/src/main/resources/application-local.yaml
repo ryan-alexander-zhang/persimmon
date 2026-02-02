@@ -12,11 +12,11 @@ spring:
     baseline-version: 0.0.0
   kafka:
     bootstrap-servers: localhost:9092
-    consumer:
-      group-id: ${spring.application.name}
 
 persimmon:
   outbox:
+    # Shared topic name used by both producer and consumer.
+    topic: persimmon-outbox
     # Options: kafka | (unset -> logging/noop)
     transport: kafka
     retry:
@@ -29,7 +29,8 @@ persimmon:
       batch-size: 100
       fixed-delay-ms: 1000
     kafka:
-      topic: persimmon-outbox
-      send-timeout-ms: 5000
-      consumer-group: persimmon-outbox-consumer
-      consumer-concurrency: 1
+      producer:
+        send-timeout-ms: 5000
+      consumer:
+        group-id: persimmon-outbox-consumer
+        concurrency: 1

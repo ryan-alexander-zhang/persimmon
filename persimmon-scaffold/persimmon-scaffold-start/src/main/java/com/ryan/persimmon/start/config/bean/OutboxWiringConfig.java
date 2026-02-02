@@ -64,8 +64,8 @@ public class OutboxWiringConfig {
   @ConditionalOnProperty(name = "persimmon.outbox.transport", havingValue = "kafka")
   public OutboxTransport kafkaOutboxTransport(
       KafkaTemplate<String, String> kafkaTemplate,
-      @Value("${persimmon.outbox.kafka.topic:persimmon-outbox}") String topic,
-      @Value("${persimmon.outbox.kafka.send-timeout-ms:5000}") long sendTimeoutMs) {
+      @Value("${persimmon.outbox.topic:persimmon-outbox}") String topic,
+      @Value("${persimmon.outbox.kafka.producer.send-timeout-ms:5000}") long sendTimeoutMs) {
     return new KafkaOutboxTransport(kafkaTemplate, topic, Duration.ofMillis(sendTimeoutMs));
   }
 
