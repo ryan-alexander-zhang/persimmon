@@ -30,6 +30,9 @@ import org.springframework.test.annotation.Rollback;
       "spring.datasource.driver-class-name=org.postgresql.Driver",
       "spring.sql.init.mode=always",
       "spring.sql.init.schema-locations=classpath:schema.sql",
+      "mybatis-plus.global-config.db-config.logic-delete-field=deletedAt",
+      "mybatis-plus.global-config.db-config.logic-delete-value=now()",
+      "mybatis-plus.global-config.db-config.logic-not-delete-value=null"
     })
 @AutoConfigureTestDatabase(replace = Replace.NONE)
 @Import({
