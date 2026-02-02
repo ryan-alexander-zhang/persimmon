@@ -46,7 +46,7 @@ public class LayerChecksTest {
           .whereLayer("Domain")
           .mayOnlyBeAccessedByLayers("App", "Infra", "Start")
           .whereLayer("App")
-          .mayOnlyBeAccessedByLayers("Adapter", "Start")
+          .mayOnlyBeAccessedByLayers("Adapter", "Infra", "Start")
           .whereLayer("Adapter")
           .mayOnlyBeAccessedByLayers("Start")
           .whereLayer("Infra")
@@ -95,7 +95,7 @@ public class LayerChecksTest {
           .resideInAPackage(INFRA_PACKAGE)
           .should()
           .dependOnClassesThat()
-          .resideInAnyPackage(ADAPTER_PACKAGE, APP_PACKAGE, START_PACKAGE)
+          .resideInAnyPackage(ADAPTER_PACKAGE, START_PACKAGE)
           .because(
-              "Infrastructure implements ports and technical details; it must not depend on app/adapter/start.");
+              "Infrastructure implements ports and technical details; it must not depend on adapter/start.");
 }

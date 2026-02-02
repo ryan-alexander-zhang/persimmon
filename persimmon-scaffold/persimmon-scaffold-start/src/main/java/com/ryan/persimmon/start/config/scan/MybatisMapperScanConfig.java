@@ -7,7 +7,11 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @Slf4j
 @MapperScan(
-    basePackages = {"com.ryan.persimmon.infra.repository", "com.ryan.persimmon.infra.query"})
+    basePackages = {
+      "com.ryan.persimmon.infra.repository",
+      "com.ryan.persimmon.infra.query",
+      "com.ryan.persimmon.infra.event.outbox"
+    })
 public class MybatisMapperScanConfig {
 
   public MybatisMapperScanConfig() {

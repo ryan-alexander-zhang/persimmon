@@ -69,6 +69,12 @@
       <artifactId>flyway-database-postgresql</artifactId>
     </dependency>
 
+    <!-- JSON (for outbox headers/payload handling) -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-json</artifactId>
+    </dependency>
+
     <!-- Kafka Dependency -->
     <dependency>
       <groupId>org.springframework.kafka</groupId>

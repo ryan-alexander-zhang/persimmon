@@ -1,6 +1,5 @@
 package com.ryan.persimmon.infra.common.database;
 
-import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
@@ -12,19 +11,13 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class BasePO {
+public class BasePO extends AuditTimestampsPO {
   @TableId(type = IdType.INPUT)
   private UUID id;
 
   @Version
   @TableField("row_version")
   private Integer rowVersion;
-
-  @TableField(value = "created_at", fill = FieldFill.INSERT)
-  private Instant createdAt;
-
-  @TableField(value = "updated_at", fill = FieldFill.INSERT_UPDATE)
-  private Instant updatedAt;
 
   @TableField("deleted_at")
   private Instant deletedAt;
