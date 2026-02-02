@@ -1,4 +1,4 @@
-package com.ryan.persimmon.app.common.outbox;
+package com.ryan.persimmon.app.common.outbox.service;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -7,7 +7,6 @@ import com.ryan.persimmon.app.common.outbox.port.OutboxStore;
 import com.ryan.persimmon.app.common.outbox.port.OutboxTransport;
 import com.ryan.persimmon.app.common.outbox.retry.ExponentialBackoffRetryPolicy;
 import com.ryan.persimmon.app.common.outbox.retry.RetryPolicy;
-import com.ryan.persimmon.app.common.outbox.service.OutboxRelayService;
 import com.ryan.persimmon.app.common.time.AppClock;
 import java.time.Duration;
 import java.time.Instant;

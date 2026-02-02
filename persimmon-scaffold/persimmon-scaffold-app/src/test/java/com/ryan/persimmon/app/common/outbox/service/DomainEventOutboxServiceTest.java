@@ -1,4 +1,4 @@
-package com.ryan.persimmon.app.common.outbox;
+package com.ryan.persimmon.app.common.outbox.service;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -6,9 +6,7 @@ import com.ryan.persimmon.app.common.outbox.model.DomainEventContext;
 import com.ryan.persimmon.app.common.outbox.model.OutboxMessage;
 import com.ryan.persimmon.app.common.outbox.port.OutboxPayloadSerializer;
 import com.ryan.persimmon.app.common.outbox.port.OutboxStore;
-import com.ryan.persimmon.app.common.outbox.service.DomainEventOutboxService;
 import com.ryan.persimmon.domain.common.event.DomainEvent;
-import com.ryan.persimmon.domain.common.event.HasDomainEvents;
 import com.ryan.persimmon.domain.common.id.UuidV7Id;
 import com.ryan.persimmon.domain.common.model.AggregateRoot;
 import java.time.Instant;
