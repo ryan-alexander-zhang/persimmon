@@ -6,4 +6,3 @@ import com.ryan.persimmon.app.common.outbox.model.OutboxMessage;
 public interface OutboxTransport {
   void publish(OutboxMessage message) throws Exception;
 }
-

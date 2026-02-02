@@ -14,7 +14,8 @@ public class DomainEventOutboxService {
   private final OutboxStore outboxStore;
   private final OutboxPayloadSerializer payloadSerializer;
 
-  public DomainEventOutboxService(OutboxStore outboxStore, OutboxPayloadSerializer payloadSerializer) {
+  public DomainEventOutboxService(
+      OutboxStore outboxStore, OutboxPayloadSerializer payloadSerializer) {
     this.outboxStore = outboxStore;
     this.payloadSerializer = payloadSerializer;
   }
@@ -41,4 +42,3 @@ public class DomainEventOutboxService {
     outboxStore.append(messages);
   }
 }
-

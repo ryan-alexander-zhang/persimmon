@@ -116,17 +116,6 @@ public class MybatisOutboxStore implements OutboxStore {
     mapper.markDead(eventId, now, lastError);
   }
 
-  private String serializeHeaders(Map<String, String> headers) {
-    if (headers == null || headers.isEmpty()) {
-      return null;
-    }
-    try {
-      return objectMapper.writeValueAsString(headers);
-    } catch (JsonProcessingException e) {
-      throw new IllegalStateException("Failed to serialize outbox headers.", e);
-    }
-  }
-
   private Map<String, String> deserializeHeaders(String headersJson) {
     if (headersJson == null || headersJson.isBlank()) {
       return Map.of();
@@ -135,6 +124,17 @@ public class MybatisOutboxStore implements OutboxStore {
       return objectMapper.readValue(headersJson, HEADERS_TYPE);
     } catch (JsonProcessingException e) {
       return Map.of();
+    }
+  }
+
+  private String serializeHeaders(Map<String, String> headers) {
+    if (headers == null || headers.isEmpty()) {
+      return null;
+    }
+    try {
+      return objectMapper.writeValueAsString(headers);
+    } catch (JsonProcessingException e) {
+      throw new IllegalStateException("Failed to serialize outbox headers.", e);
     }
   }
 }

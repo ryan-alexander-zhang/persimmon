@@ -6,4 +6,3 @@ import java.time.Instant;
 public interface AppClock {
   Instant now();
 }
-

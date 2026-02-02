@@ -22,4 +22,3 @@ public class AuditTimestampsPO {
   @TableField(value = "updated_at", fill = FieldFill.INSERT_UPDATE)
   private Instant updatedAt;
 }
-

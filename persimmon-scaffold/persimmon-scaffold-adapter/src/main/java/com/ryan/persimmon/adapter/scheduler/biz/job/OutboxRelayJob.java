@@ -22,4 +22,3 @@ public class OutboxRelayJob {
     outboxRelayService.relayOnce(batchSize);
   }
 }
-

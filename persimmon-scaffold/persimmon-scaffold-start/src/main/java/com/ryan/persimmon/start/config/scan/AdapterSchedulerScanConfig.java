@@ -14,4 +14,3 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 @ComponentScan(basePackages = {"com.ryan.persimmon.adapter.scheduler"})
 public class AdapterSchedulerScanConfig {}
-

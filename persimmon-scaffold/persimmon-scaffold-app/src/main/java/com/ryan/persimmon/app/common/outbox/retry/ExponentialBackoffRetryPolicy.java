@@ -26,4 +26,3 @@ public final class ExponentialBackoffRetryPolicy implements RetryPolicy {
     return backoff.compareTo(maxBackoff) > 0 ? maxBackoff : backoff;
   }
 }
-

@@ -19,8 +19,8 @@ public interface OutboxStore {
   /**
    * Claims a batch of messages for sending.
    *
-   * <p>Implementations should ensure at-most-one relay worker claims a message at a time (e.g.,
-   * row locks + status update).
+   * <p>Implementations should ensure at-most-one relay worker claims a message at a time (e.g., row
+   * locks + status update).
    */
   List<OutboxMessage> claimNextBatch(int batchSize, Instant now);
 

@@ -31,7 +31,8 @@ public class OutboxWiringConfig {
   public RetryPolicy outboxRetryPolicy(
       @Value("${persimmon.outbox.retry.base-seconds:1}") long baseSeconds,
       @Value("${persimmon.outbox.retry.max-seconds:300}") long maxSeconds) {
-    return new ExponentialBackoffRetryPolicy(Duration.ofSeconds(baseSeconds), Duration.ofSeconds(maxSeconds));
+    return new ExponentialBackoffRetryPolicy(
+        Duration.ofSeconds(baseSeconds), Duration.ofSeconds(maxSeconds));
   }
 
   @Bean
@@ -74,8 +75,7 @@ public class OutboxWiringConfig {
       RetryPolicy retryPolicy,
       AppClock clock,
       @Value("${persimmon.outbox.retry.max-attempts:10}") int maxAttempts) {
-    return new OutboxRelayService(
-        outboxStore, outboxTransport, retryPolicy, clock, maxAttempts);
+    return new OutboxRelayService(outboxStore, outboxTransport, retryPolicy, clock, maxAttempts);
   }
 
   @Slf4j

@@ -38,7 +38,8 @@ public class OutboxRelayService {
         outboxStore.markSent(message.eventId(), clock.now());
       } catch (Exception e) {
         int nextAttempt = message.attempts() + 1;
-        String lastError = e.getClass().getName() + ": " + (e.getMessage() == null ? "" : e.getMessage());
+        String lastError =
+            e.getClass().getName() + ": " + (e.getMessage() == null ? "" : e.getMessage());
         if (nextAttempt >= maxAttempts) {
           outboxStore.markDead(message.eventId(), now, lastError);
         } else {

@@ -10,4 +10,3 @@ import java.util.UUID;
 public interface UuidV7Generator {
   UUID next();
 }
-

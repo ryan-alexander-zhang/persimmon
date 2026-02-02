@@ -19,4 +19,3 @@ public record DomainEventContext(
     return new DomainEventContext(aggregateType, aggregateId, Map.of());
   }
 }
-

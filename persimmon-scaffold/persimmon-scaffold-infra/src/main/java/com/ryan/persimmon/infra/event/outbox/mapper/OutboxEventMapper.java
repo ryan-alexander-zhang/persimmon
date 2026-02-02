@@ -151,7 +151,9 @@ public interface OutboxEventMapper extends BaseMapper<OutboxEventPO> {
       where event_id = #{eventId}
       """)
   int markDead(
-      @Param("eventId") UUID eventId, @Param("now") Instant now, @Param("lastError") String lastError);
+      @Param("eventId") UUID eventId,
+      @Param("now") Instant now,
+      @Param("lastError") String lastError);
 
   @Update(
       """

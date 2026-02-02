@@ -6,4 +6,3 @@ import java.time.Duration;
 public interface RetryPolicy {
   Duration nextBackoff(int nextAttempt);
 }
-
