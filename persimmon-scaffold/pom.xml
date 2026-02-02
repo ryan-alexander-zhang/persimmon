@@ -21,6 +21,7 @@
     <archunit.version>1.4.1</archunit.version>
     <spring-boot.version>3.5.10</spring-boot.version>
     <mybatis-plus-bom.version>3.5.15</mybatis-plus-bom.version>
+    <uuid-creator.version>5.3.7</uuid-creator.version>
   </properties>
 
   <version>1.0-SNAPSHOT</version>
@@ -84,6 +85,13 @@
         <version>${mybatis-plus-bom.version}</version>
         <type>pom</type>
         <scope>import</scope>
+      </dependency>
+
+      <!-- UUID Creator (UUID v7 support) -->
+      <dependency>
+        <groupId>com.github.f4b6a3</groupId>
+        <artifactId>uuid-creator</artifactId>
+        <version>${uuid-creator.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
