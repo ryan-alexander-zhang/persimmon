@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.test.autoconfigure.MybatisPlusTest;
 import com.ryan.persimmon.infra.common.database.AutoFillObjectHandler;
 import com.ryan.persimmon.infra.common.database.MybatisPlusConfig;
 import com.ryan.persimmon.infra.common.database.UuidTypeHandler;
+import com.ryan.persimmon.infra.common.id.UuidV7Generators;
 import com.ryan.persimmon.infra.repository.biz.po.DemoBizPO;
 import java.util.List;
 import java.util.UUID;
@@ -44,7 +45,8 @@ import org.springframework.test.annotation.Rollback;
 @TestMethodOrder(OrderAnnotation.class)
 class DemoBizMapperTest {
   private final String name = "test-01";
-  private final UUID id = UUID.fromString("019c0e02-a181-786f-8d5b-11c4de115f92");
+  private static final UuidV7Generators uuidV7Generators = new UuidV7Generators();
+  private static final UUID id = uuidV7Generators.next();
   @Autowired private DemoBizMapper demoBizMapper;
 
   @Test

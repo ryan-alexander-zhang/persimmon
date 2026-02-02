@@ -1,7 +1,7 @@
 package com.ryan.persimmon.infra.common.id;
 
-import com.ryan.persimmon.app.common.id.UuidV7Generator;
 import com.github.f4b6a3.uuid.UuidCreator;
+import com.ryan.persimmon.app.common.id.UuidV7Generator;
 import java.util.UUID;
 
 /**
@@ -16,19 +16,8 @@ import java.util.UUID;
  *   <li>Ensures RFC 4122 variant bits and version 7 bits are correctly set.
  * </ul>
  */
-public final class UuidV7Generators implements UuidV7Generator{
+public final class UuidV7Generators implements UuidV7Generator {
 
-  /**
-   * Generates a time-ordered UUID v7.
-   * <p>
-   * UUID v7 features:
-   * - Time-ordered (millisecond precision timestamp prefix)
-   * - Database index friendly (reduces B-tree fragmentation)
-   * - Naturally sortable by creation time
-   * - RFC 9562 compliant
-   *
-   * @return a new UUID v7 instance
-   */
   @Override
   public UUID next() {
     return UuidCreator.getTimeOrderedEpoch();
