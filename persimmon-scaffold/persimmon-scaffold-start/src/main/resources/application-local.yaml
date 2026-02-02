@@ -10,3 +10,7 @@ spring:
     # MUST set false to true in production
     clean-disabled: false
     baseline-version: 0.0.0
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: ${spring.application.name}
