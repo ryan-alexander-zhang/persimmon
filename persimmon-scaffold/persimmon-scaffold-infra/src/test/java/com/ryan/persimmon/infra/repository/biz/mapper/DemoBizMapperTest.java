@@ -44,9 +44,9 @@ import org.springframework.test.annotation.Rollback;
 })
 @TestMethodOrder(OrderAnnotation.class)
 class DemoBizMapperTest {
-  private final String name = "test-01";
   private static final UuidV7Generators uuidV7Generators = new UuidV7Generators();
   private static final UUID id = uuidV7Generators.next();
+  private final String name = "test-01";
   @Autowired private DemoBizMapper demoBizMapper;
 
   @Test

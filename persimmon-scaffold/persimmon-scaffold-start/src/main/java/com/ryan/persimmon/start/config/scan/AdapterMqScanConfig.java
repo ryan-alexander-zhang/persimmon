@@ -7,11 +7,10 @@ import org.springframework.kafka.annotation.EnableKafka;
 /**
  * Enables MQ consumers and limits component scanning to adapter MQ packages only.
  *
- * <p>This keeps the default application component scan narrow while still allowing MQ consumers
- * to run.
+ * <p>This keeps the default application component scan narrow while still allowing MQ consumers to
+ * run.
  */
 @Configuration
 @EnableKafka
 @ComponentScan(basePackages = {"com.ryan.persimmon.adapter.mq"})
 public class AdapterMqScanConfig {}
-

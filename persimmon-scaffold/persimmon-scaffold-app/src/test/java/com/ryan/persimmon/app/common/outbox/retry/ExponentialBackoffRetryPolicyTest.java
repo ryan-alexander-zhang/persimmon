@@ -19,4 +19,3 @@ class ExponentialBackoffRetryPolicyTest {
     assertEquals(Duration.ofSeconds(10), policy.nextBackoff(100));
   }
 }
-

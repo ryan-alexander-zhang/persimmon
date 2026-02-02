@@ -6,4 +6,3 @@ import com.ryan.persimmon.domain.common.event.DomainEvent;
 public interface OutboxEventTypeResolver {
   String resolve(DomainEvent event);
 }
-

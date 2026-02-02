@@ -40,6 +40,18 @@ class OutboxRelayServiceTest {
     assertEquals(0, row.attempts);
   }
 
+  private static OutboxMessage message(UUID eventId, Instant occurredAt) {
+    return new OutboxMessage(
+        eventId,
+        occurredAt,
+        "Agg",
+        UUID.fromString("019c0e02-a181-786f-8d5b-11c4de115f98"),
+        "Event",
+        "{}",
+        Map.of(),
+        0);
+  }
+
   @Test
   void relayOnce_should_retry_until_success_and_respect_nextRetryAt() {
     UUID eventId = UUID.fromString("019c0e02-a181-786f-8d5b-11c4de115f96");
@@ -115,18 +127,6 @@ class OutboxRelayServiceTest {
     assertEquals(3, row.attempts);
     assertNotNull(row.deadAt);
     assertNull(row.nextRetryAt);
-  }
-
-  private static OutboxMessage message(UUID eventId, Instant occurredAt) {
-    return new OutboxMessage(
-        eventId,
-        occurredAt,
-        "Agg",
-        UUID.fromString("019c0e02-a181-786f-8d5b-11c4de115f98"),
-        "Event",
-        "{}",
-        Map.of(),
-        0);
   }
 
   private static final class MutableClock implements AppClock {

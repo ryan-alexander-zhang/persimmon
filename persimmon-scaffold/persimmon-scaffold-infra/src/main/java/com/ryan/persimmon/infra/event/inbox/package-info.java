@@ -5,4 +5,3 @@
  * duplicate business side effects.
  */
 package com.ryan.persimmon.infra.event.inbox;
-

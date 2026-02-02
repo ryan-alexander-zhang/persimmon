@@ -5,4 +5,3 @@
  * (BC), such as outbox topic consumers.
  */
 package com.ryan.persimmon.adapter.mq.system;
-

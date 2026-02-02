@@ -42,4 +42,3 @@ public class MybatisInboxStore implements InboxStore {
     }
   }
 }
-

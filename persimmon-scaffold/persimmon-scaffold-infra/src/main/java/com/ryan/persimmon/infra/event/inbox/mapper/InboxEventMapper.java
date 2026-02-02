@@ -20,4 +20,3 @@ public interface InboxEventMapper extends BaseMapper<InboxEventPO> {
   long countByEventAndConsumer(
       @Param("eventId") UUID eventId, @Param("consumerName") String consumerName);
 }
-

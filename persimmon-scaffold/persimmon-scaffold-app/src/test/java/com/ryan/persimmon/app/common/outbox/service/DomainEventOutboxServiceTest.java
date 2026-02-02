@@ -37,7 +37,8 @@ class DomainEventOutboxServiceTest {
           DomainEventType ann = e.getClass().getAnnotation(DomainEventType.class);
           return ann == null ? e.getClass().getName() : ann.value();
         };
-    DomainEventOutboxService service = new DomainEventOutboxService(store, serializer, typeResolver);
+    DomainEventOutboxService service =
+        new DomainEventOutboxService(store, serializer, typeResolver);
 
     DomainEventContext ctx =
         new DomainEventContext("TestAggregate", aggregateId, Map.of("traceId", "t-1"));
@@ -71,7 +72,8 @@ class DomainEventOutboxServiceTest {
     DomainEventOutboxService service =
         new DomainEventOutboxService(store, e -> "{}", e -> e.getClass().getName());
 
-    service.recordPulledDomainEvents(aggregate, DomainEventContext.of("TestAggregate", aggregateId));
+    service.recordPulledDomainEvents(
+        aggregate, DomainEventContext.of("TestAggregate", aggregateId));
 
     assertTrue(store.appended.isEmpty());
   }
@@ -122,7 +124,8 @@ class DomainEventOutboxServiceTest {
   }
 
   @DomainEventType("test.test-event.v1")
-  private record TestEvent(UUID eventId, Instant occurredAt, String payload) implements DomainEvent {
+  private record TestEvent(UUID eventId, Instant occurredAt, String payload)
+      implements DomainEvent {
     private TestEvent {
       DomainEvent.validate(eventId, occurredAt);
     }

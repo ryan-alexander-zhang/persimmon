@@ -6,4 +6,3 @@ import com.ryan.persimmon.app.common.event.model.ConsumedEvent;
 public interface EventDispatcher {
   void dispatch(ConsumedEvent event) throws Exception;
 }
-

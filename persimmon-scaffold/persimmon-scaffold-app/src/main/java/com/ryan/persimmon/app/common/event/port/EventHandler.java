@@ -9,4 +9,3 @@ public interface EventHandler {
 
   void handle(ConsumedEvent event) throws Exception;
 }
-

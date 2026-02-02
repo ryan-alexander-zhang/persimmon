@@ -10,4 +10,3 @@ public interface InboxStore {
 
   void markProcessed(ConsumedEvent event, String consumerName, Instant processedAt);
 }
-

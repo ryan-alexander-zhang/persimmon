@@ -24,21 +24,6 @@ public class DefaultEventDispatcher implements EventDispatcher {
     this.handlersByType = indexByEventType(handlers);
   }
 
-  @Override
-  public void dispatch(ConsumedEvent event) throws Exception {
-    if (inboxStore.isProcessed(event.eventId(), consumerName)) {
-      return;
-    }
-
-    EventHandler handler = handlersByType.get(event.eventType());
-    if (handler == null) {
-      throw new IllegalStateException("No handler registered for eventType=" + event.eventType());
-    }
-
-    handler.handle(event);
-    inboxStore.markProcessed(event, consumerName, clock.now());
-  }
-
   private static Map<String, EventHandler> indexByEventType(List<EventHandler> handlers) {
     Map<String, EventHandler> map = new HashMap<>();
     for (EventHandler handler : handlers) {
@@ -53,5 +38,19 @@ public class DefaultEventDispatcher implements EventDispatcher {
     }
     return Map.copyOf(map);
   }
-}
 
+  @Override
+  public void dispatch(ConsumedEvent event) throws Exception {
+    if (inboxStore.isProcessed(event.eventId(), consumerName)) {
+      return;
+    }
+
+    EventHandler handler = handlersByType.get(event.eventType());
+    if (handler == null) {
+      throw new IllegalStateException("No handler registered for eventType=" + event.eventType());
+    }
+
+    handler.handle(event);
+    inboxStore.markProcessed(event, consumerName, clock.now());
+  }
+}

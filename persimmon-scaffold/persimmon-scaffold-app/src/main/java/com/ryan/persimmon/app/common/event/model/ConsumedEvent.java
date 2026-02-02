@@ -17,4 +17,3 @@ public record ConsumedEvent(
     headers = headers == null ? Map.of() : Map.copyOf(headers);
   }
 }
-

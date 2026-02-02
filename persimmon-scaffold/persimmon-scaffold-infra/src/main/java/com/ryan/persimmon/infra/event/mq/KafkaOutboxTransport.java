@@ -1,7 +1,7 @@
 package com.ryan.persimmon.infra.event.mq;
 
-import com.ryan.persimmon.app.common.outbox.model.OutboxMessage;
 import com.ryan.persimmon.app.common.outbox.model.OutboxHeaders;
+import com.ryan.persimmon.app.common.outbox.model.OutboxMessage;
 import com.ryan.persimmon.app.common.outbox.port.OutboxTransport;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
