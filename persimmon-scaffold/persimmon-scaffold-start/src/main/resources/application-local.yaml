@@ -14,3 +14,22 @@ spring:
     bootstrap-servers: localhost:9092
     consumer:
       group-id: ${spring.application.name}
+
+persimmon:
+  outbox:
+    # Options: kafka | (unset -> logging/noop)
+    transport: kafka
+    retry:
+      base-seconds: 1
+      max-seconds: 300
+      max-attempts: 10
+    relay:
+      worker-id: local
+      lease-seconds: 30
+      batch-size: 100
+      fixed-delay-ms: 1000
+    kafka:
+      topic: persimmon-outbox
+      send-timeout-ms: 5000
+      consumer-group: persimmon-outbox-consumer
+      consumer-concurrency: 1
