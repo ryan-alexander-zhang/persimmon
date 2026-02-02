@@ -2,6 +2,7 @@ package com.ryan.persimmon.app.common.outbox.service;
 
 import com.ryan.persimmon.app.common.outbox.model.DomainEventContext;
 import com.ryan.persimmon.app.common.outbox.model.OutboxMessage;
+import com.ryan.persimmon.app.common.outbox.port.OutboxEventTypeResolver;
 import com.ryan.persimmon.app.common.outbox.port.OutboxPayloadSerializer;
 import com.ryan.persimmon.app.common.outbox.port.OutboxStore;
 import com.ryan.persimmon.domain.common.event.DomainEvent;
@@ -13,11 +14,15 @@ import java.util.List;
 public class DomainEventOutboxService {
   private final OutboxStore outboxStore;
   private final OutboxPayloadSerializer payloadSerializer;
+  private final OutboxEventTypeResolver eventTypeResolver;
 
   public DomainEventOutboxService(
-      OutboxStore outboxStore, OutboxPayloadSerializer payloadSerializer) {
+      OutboxStore outboxStore,
+      OutboxPayloadSerializer payloadSerializer,
+      OutboxEventTypeResolver eventTypeResolver) {
     this.outboxStore = outboxStore;
     this.payloadSerializer = payloadSerializer;
+    this.eventTypeResolver = eventTypeResolver;
   }
 
   public void recordPulledDomainEvents(HasDomainEvents aggregate, DomainEventContext context) {
@@ -34,7 +39,7 @@ public class DomainEventOutboxService {
               event.occurredAt(),
               context.aggregateType(),
               context.aggregateId(),
-              event.getClass().getName(),
+              eventTypeResolver.resolve(event),
               payloadSerializer.serialize(event),
               context.headers(),
               0));

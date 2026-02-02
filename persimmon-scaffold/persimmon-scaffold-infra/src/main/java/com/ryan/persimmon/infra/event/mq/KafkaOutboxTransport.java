@@ -1,6 +1,7 @@
 package com.ryan.persimmon.infra.event.mq;
 
 import com.ryan.persimmon.app.common.outbox.model.OutboxMessage;
+import com.ryan.persimmon.app.common.outbox.model.OutboxHeaders;
 import com.ryan.persimmon.app.common.outbox.port.OutboxTransport;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -11,12 +12,6 @@ import org.springframework.kafka.core.KafkaTemplate;
 
 /** Kafka implementation of {@link OutboxTransport}. */
 public class KafkaOutboxTransport implements OutboxTransport {
-  public static final String HEADER_EVENT_ID = "eventId";
-  public static final String HEADER_EVENT_TYPE = "eventType";
-  public static final String HEADER_OCCURRED_AT = "occurredAt";
-  public static final String HEADER_AGGREGATE_TYPE = "aggregateType";
-  public static final String HEADER_AGGREGATE_ID = "aggregateId";
-
   private final KafkaTemplate<String, String> kafkaTemplate;
   private final String topic;
   private final Duration sendTimeout;
@@ -33,11 +28,11 @@ public class KafkaOutboxTransport implements OutboxTransport {
     String key = message.eventId().toString();
     ProducerRecord<String, String> record = new ProducerRecord<>(topic, key, message.payload());
 
-    addHeader(record, HEADER_EVENT_ID, message.eventId().toString());
-    addHeader(record, HEADER_EVENT_TYPE, message.eventType());
-    addHeader(record, HEADER_OCCURRED_AT, message.occurredAt().toString());
-    addHeader(record, HEADER_AGGREGATE_TYPE, message.aggregateType());
-    addHeader(record, HEADER_AGGREGATE_ID, message.aggregateId().toString());
+    addHeader(record, OutboxHeaders.EVENT_ID, message.eventId().toString());
+    addHeader(record, OutboxHeaders.EVENT_TYPE, message.eventType());
+    addHeader(record, OutboxHeaders.OCCURRED_AT, message.occurredAt().toString());
+    addHeader(record, OutboxHeaders.AGGREGATE_TYPE, message.aggregateType());
+    addHeader(record, OutboxHeaders.AGGREGATE_ID, message.aggregateId().toString());
 
     for (Map.Entry<String, String> e : message.headers().entrySet()) {
       if (e.getKey() == null || e.getKey().isBlank() || e.getValue() == null) {
@@ -54,4 +49,3 @@ public class KafkaOutboxTransport implements OutboxTransport {
     record.headers().add(key, value.getBytes(StandardCharsets.UTF_8));
   }
 }
-

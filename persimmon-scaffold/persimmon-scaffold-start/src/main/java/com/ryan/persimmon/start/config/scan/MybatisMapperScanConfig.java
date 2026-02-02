@@ -10,7 +10,8 @@ import org.springframework.context.annotation.Configuration;
     basePackages = {
       "com.ryan.persimmon.infra.repository",
       "com.ryan.persimmon.infra.query",
-      "com.ryan.persimmon.infra.event.outbox"
+      "com.ryan.persimmon.infra.event.outbox",
+      "com.ryan.persimmon.infra.event.inbox"
     })
 public class MybatisMapperScanConfig {
 

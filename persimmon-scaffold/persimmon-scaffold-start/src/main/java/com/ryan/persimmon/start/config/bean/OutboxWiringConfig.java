@@ -2,6 +2,7 @@ package com.ryan.persimmon.start.config.bean;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ryan.persimmon.app.common.outbox.model.OutboxMessage;
+import com.ryan.persimmon.app.common.outbox.port.OutboxEventTypeResolver;
 import com.ryan.persimmon.app.common.outbox.port.OutboxPayloadSerializer;
 import com.ryan.persimmon.app.common.outbox.port.OutboxStore;
 import com.ryan.persimmon.app.common.outbox.port.OutboxTransport;
@@ -51,6 +52,15 @@ public class OutboxWiringConfig {
   }
 
   @Bean
+  public OutboxEventTypeResolver outboxEventTypeResolver() {
+    return event -> {
+      com.ryan.persimmon.domain.common.event.DomainEventType ann =
+          event.getClass().getAnnotation(com.ryan.persimmon.domain.common.event.DomainEventType.class);
+      return ann != null && !ann.value().isBlank() ? ann.value() : event.getClass().getName();
+    };
+  }
+
+  @Bean
   @ConditionalOnProperty(name = "persimmon.outbox.transport", havingValue = "kafka")
   public OutboxTransport kafkaOutboxTransport(
       KafkaTemplate<String, String> kafkaTemplate,
@@ -78,8 +88,10 @@ public class OutboxWiringConfig {
 
   @Bean
   public DomainEventOutboxService domainEventOutboxService(
-      OutboxStore outboxStore, OutboxPayloadSerializer outboxPayloadSerializer) {
-    return new DomainEventOutboxService(outboxStore, outboxPayloadSerializer);
+      OutboxStore outboxStore,
+      OutboxPayloadSerializer outboxPayloadSerializer,
+      OutboxEventTypeResolver outboxEventTypeResolver) {
+    return new DomainEventOutboxService(outboxStore, outboxPayloadSerializer, outboxEventTypeResolver);
   }
 
   @Bean

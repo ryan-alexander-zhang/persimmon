@@ -1,0 +1,41 @@
+package com.ryan.persimmon.infra.event.inbox.po;
+
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
+import com.ryan.persimmon.infra.common.database.AuditTimestampsPO;
+import java.time.Instant;
+import java.util.UUID;
+import lombok.Getter;
+import lombok.Setter;
+
+@TableName("inbox_event")
+@Getter
+@Setter
+public class InboxEventPO extends AuditTimestampsPO {
+  @TableId(value = "id", type = IdType.INPUT)
+  private UUID id;
+
+  @TableField("event_id")
+  private UUID eventId;
+
+  @TableField("consumer_name")
+  private String consumerName;
+
+  @TableField("event_type")
+  private String eventType;
+
+  @TableField("occurred_at")
+  private Instant occurredAt;
+
+  @TableField("aggregate_type")
+  private String aggregateType;
+
+  @TableField("aggregate_id")
+  private UUID aggregateId;
+
+  @TableField("processed_at")
+  private Instant processedAt;
+}
+
