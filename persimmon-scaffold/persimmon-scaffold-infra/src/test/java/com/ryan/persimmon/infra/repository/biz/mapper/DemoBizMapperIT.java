@@ -37,13 +37,13 @@ import org.springframework.test.annotation.Rollback;
     })
 @AutoConfigureTestDatabase(replace = Replace.NONE)
 @Import({
-  DemoBizMapperTest.MapperConfig.class,
+  DemoBizMapperIT.MapperConfig.class,
   UuidTypeHandler.class,
   AutoFillObjectHandler.class,
   MybatisPlusConfig.class
 })
 @TestMethodOrder(OrderAnnotation.class)
-class DemoBizMapperTest {
+class DemoBizMapperIT {
   private static final UuidV7Generators uuidV7Generators = new UuidV7Generators();
   private static final UUID id = uuidV7Generators.next();
   private final String name = "test-01";
