@@ -65,7 +65,7 @@ class WorkflowStoreIT {
         "biz-1",
         "demo",
         1,
-        WorkflowInstanceStatus.RUNNING.name(),
+        WorkflowInstanceStatus.RUNNING,
         "{\"k\":\"v\"}",
         0,
         "s1",

@@ -50,7 +50,7 @@ public class WorkflowStartService {
         bizKey,
         definition.workflowType(),
         definition.version(),
-        WorkflowInstanceStatus.RUNNING.name(),
+        WorkflowInstanceStatus.RUNNING,
         contextJson,
         0,
         firstStepType,

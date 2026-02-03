@@ -2,6 +2,7 @@ package com.ryan.persimmon.app.common.workflow.port;
 
 import com.ryan.persimmon.app.common.workflow.model.WorkflowTask;
 import com.ryan.persimmon.domain.common.workflow.WorkflowInstance;
+import com.ryan.persimmon.domain.common.workflow.WorkflowInstanceStatus;
 import com.ryan.persimmon.domain.common.workflow.WorkflowStepStatus;
 import java.time.Instant;
 import java.util.List;
@@ -21,7 +22,7 @@ public interface WorkflowStore {
       String bizKey,
       String workflowType,
       int workflowVersion,
-      String status,
+      WorkflowInstanceStatus status,
       String contextJson,
       int currentStepSeq,
       String currentStepType,
@@ -65,7 +66,7 @@ public interface WorkflowStore {
 
   void updateInstance(
       UUID instanceId,
-      String status,
+      WorkflowInstanceStatus status,
       int currentStepSeq,
       String currentStepType,
       String contextJson,

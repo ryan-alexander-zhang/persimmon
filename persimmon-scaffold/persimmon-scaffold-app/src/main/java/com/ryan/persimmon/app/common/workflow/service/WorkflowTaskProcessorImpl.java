@@ -129,7 +129,7 @@ public class WorkflowTaskProcessorImpl implements WorkflowTaskProcessor {
   private void persistAndOutbox(WorkflowInstance instance, Instant now) {
     workflowStore.updateInstance(
         instance.getInstanceId(),
-        instance.getStatus().name(),
+        instance.getStatus(),
         instance.getCurrentStepSeq(),
         instance.getCurrentStepType(),
         instance.getContextJson(),

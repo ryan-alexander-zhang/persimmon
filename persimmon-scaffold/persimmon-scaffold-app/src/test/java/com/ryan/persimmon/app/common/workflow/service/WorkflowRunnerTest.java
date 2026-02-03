@@ -411,7 +411,7 @@ class WorkflowRunnerTest {
         String bizKey,
         String workflowType,
         int workflowVersion,
-        String status,
+        WorkflowInstanceStatus status,
         String contextJson,
         int currentStepSeq,
         String currentStepType,
@@ -482,7 +482,7 @@ class WorkflowRunnerTest {
     @Override
     public void updateInstance(
         UUID instanceId,
-        String status,
+        WorkflowInstanceStatus status,
         int currentStepSeq,
         String currentStepType,
         String contextJson,
@@ -490,7 +490,7 @@ class WorkflowRunnerTest {
         Instant failedAt,
         Instant now) {
       InstanceRow row = instances.get(instanceId);
-      row.status = status;
+      row.status = status.name();
       row.currentStepSeq = currentStepSeq;
       row.currentStepType = currentStepType;
       row.contextJson = contextJson;

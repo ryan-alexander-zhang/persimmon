@@ -116,7 +116,7 @@ public class MybatisWorkflowStore implements WorkflowStore {
       String bizKey,
       String workflowType,
       int workflowVersion,
-      String status,
+      WorkflowInstanceStatus status,
       String contextJson,
       int currentStepSeq,
       String currentStepType,
@@ -127,7 +127,7 @@ public class MybatisWorkflowStore implements WorkflowStore {
     po.setBizKey(bizKey);
     po.setWorkflowType(workflowType);
     po.setWorkflowVersion(workflowVersion);
-    po.setStatus(status);
+    po.setStatus(status.name());
     po.setCurrentStepSeq(currentStepSeq);
     po.setCurrentStepType(currentStepType);
     po.setContextJson(contextJson);
@@ -245,7 +245,7 @@ public class MybatisWorkflowStore implements WorkflowStore {
   @Override
   public void updateInstance(
       UUID instanceId,
-      String status,
+      WorkflowInstanceStatus status,
       int currentStepSeq,
       String currentStepType,
       String contextJson,
@@ -254,7 +254,7 @@ public class MybatisWorkflowStore implements WorkflowStore {
       Instant now) {
     WorkflowInstancePO po = new WorkflowInstancePO();
     po.setInstanceId(instanceId);
-    po.setStatus(status);
+    po.setStatus(status.name());
     po.setCurrentStepSeq(currentStepSeq);
     po.setCurrentStepType(currentStepType);
     po.setContextJson(contextJson);
