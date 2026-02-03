@@ -10,6 +10,8 @@ import com.ryan.persimmon.app.common.outbox.retry.ExponentialBackoffRetryPolicy;
 import com.ryan.persimmon.app.common.outbox.retry.RetryPolicy;
 import com.ryan.persimmon.app.common.outbox.service.DomainEventOutboxService;
 import com.ryan.persimmon.app.common.outbox.service.OutboxRelayService;
+import com.ryan.persimmon.app.common.runtime.DefaultWorkerIdProvider;
+import com.ryan.persimmon.app.common.runtime.WorkerIdProvider;
 import com.ryan.persimmon.app.common.time.AppClock;
 import com.ryan.persimmon.infra.event.mq.KafkaOutboxTransport;
 import com.ryan.persimmon.infra.event.outbox.mapper.OutboxEventMapper;
@@ -17,6 +19,7 @@ import com.ryan.persimmon.infra.event.outbox.store.MybatisOutboxStore;
 import java.time.Duration;
 import java.time.Instant;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.util.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -76,14 +79,28 @@ public class OutboxWiringConfig {
   }
 
   @Bean
+  public WorkerIdProvider workerIdProvider(
+      @Value("${spring.application.name:persimmon}") String applicationName,
+      @Value("${persimmon.worker-id:}") String workerIdOverride) {
+    if (StringUtils.hasText(workerIdOverride)) {
+      return DefaultWorkerIdProvider.of(workerIdOverride);
+    }
+    return DefaultWorkerIdProvider.create(applicationName);
+  }
+
+  @Bean
   public OutboxStore outboxStore(
       OutboxEventMapper outboxEventMapper,
       ObjectMapper objectMapper,
       AppClock clock,
-      @Value("${persimmon.outbox.relay.worker-id:local}") String workerId,
+      WorkerIdProvider workerIdProvider,
       @Value("${persimmon.outbox.relay.lease-seconds:30}") long leaseSeconds) {
     return new MybatisOutboxStore(
-        outboxEventMapper, objectMapper, clock, workerId, Duration.ofSeconds(leaseSeconds));
+        outboxEventMapper,
+        objectMapper,
+        clock,
+        workerIdProvider.workerId(),
+        Duration.ofSeconds(leaseSeconds));
   }
 
   @Bean
