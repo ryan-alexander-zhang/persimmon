@@ -78,6 +78,29 @@ class DomainEventOutboxServiceTest {
     assertTrue(store.appended.isEmpty());
   }
 
+  @Test
+  void recordPulledDomainEvents_should_not_be_affected_by_mutating_input_headers_map() {
+    UUID aggregateId = UUID.fromString("019c0e02-a181-786f-8d5b-11c4de115f99");
+    TestAggregate aggregate = new TestAggregate(new TestAggregateId(aggregateId));
+
+    UUID eventId = UUID.fromString("019c0e02-a181-786f-8d5b-11c4de115f9a");
+    Instant occurredAt = Instant.parse("2026-02-02T00:00:00Z");
+    aggregate.raiseTest(new TestEvent(eventId, occurredAt, "hello"));
+
+    CapturingOutboxStore store = new CapturingOutboxStore();
+    DomainEventOutboxService service =
+        new DomainEventOutboxService(store, e -> "{}", e -> e.getClass().getName());
+
+    java.util.Map<String, String> headers = new java.util.HashMap<>();
+    headers.put("traceId", "t-1");
+    DomainEventContext ctx = new DomainEventContext("TestAggregate", aggregateId, headers);
+
+    headers.put("traceId", "mutated");
+    service.recordPulledDomainEvents(aggregate, ctx);
+
+    assertEquals(java.util.Map.of("traceId", "t-1"), store.appended.getFirst().headers());
+  }
+
   private static final class CapturingOutboxStore implements OutboxStore {
     private final List<OutboxMessage> appended = new ArrayList<>();
 

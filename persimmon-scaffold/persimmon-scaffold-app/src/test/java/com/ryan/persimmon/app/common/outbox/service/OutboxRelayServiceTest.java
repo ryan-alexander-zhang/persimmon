@@ -40,6 +40,19 @@ class OutboxRelayServiceTest {
     assertEquals(0, row.attempts);
   }
 
+  @Test
+  void relayOnce_should_be_noop_when_no_messages_due() {
+    Instant t0 = Instant.parse("2026-02-02T00:00:00Z");
+    MutableClock clock = new MutableClock(t0);
+    InMemoryOutboxStore store = new InMemoryOutboxStore(clock);
+
+    OutboxTransport ok = m -> {};
+    RetryPolicy retryPolicy = new ExponentialBackoffRetryPolicy(Duration.ofSeconds(1), Duration.ofSeconds(10));
+
+    OutboxRelayService relay = new OutboxRelayService(store, ok, retryPolicy, clock, 3);
+    relay.relayOnce(10);
+  }
+
   private static OutboxMessage message(UUID eventId, Instant occurredAt) {
     return new OutboxMessage(
         eventId,
@@ -127,6 +140,24 @@ class OutboxRelayServiceTest {
     assertEquals(3, row.attempts);
     assertNotNull(row.deadAt);
     assertNull(row.nextRetryAt);
+  }
+
+  @Test
+  void relayOnce_should_capture_exception_class_in_lastError() {
+    UUID eventId = UUID.fromString("019c0e02-a181-786f-8d5b-11c4de115f9b");
+    Instant t0 = Instant.parse("2026-02-02T00:00:00Z");
+    MutableClock clock = new MutableClock(t0);
+    InMemoryOutboxStore store = new InMemoryOutboxStore(clock);
+    store.append(List.of(message(eventId, t0)));
+
+    OutboxTransport alwaysFail = m -> {
+      throw new IllegalStateException("boom");
+    };
+    RetryPolicy retryPolicy = new ExponentialBackoffRetryPolicy(Duration.ofSeconds(1), Duration.ofSeconds(60));
+    OutboxRelayService relay = new OutboxRelayService(store, alwaysFail, retryPolicy, clock, 10);
+
+    relay.relayOnce(10);
+    assertTrue(store.get(eventId).lastError.startsWith("java.lang.IllegalStateException:"));
   }
 
   private static final class MutableClock implements AppClock {
@@ -288,4 +319,3 @@ class OutboxRelayServiceTest {
     }
   }
 }
-
