@@ -1,6 +1,7 @@
 package com.ryan.persimmon.app.common.workflow.definition;
 
 import java.util.List;
+
 /**
  * Code-defined strict linear workflow (responsibility chain).
  *

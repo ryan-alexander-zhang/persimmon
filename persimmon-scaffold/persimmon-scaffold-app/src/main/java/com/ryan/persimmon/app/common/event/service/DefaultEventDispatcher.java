@@ -54,7 +54,8 @@ public class DefaultEventDispatcher implements EventDispatcher {
       handler.handle(event);
       inboxStore.markProcessed(event.eventId(), consumerName, clock.now());
     } catch (Exception e) {
-      String lastError = e.getClass().getName() + ": " + (e.getMessage() == null ? "" : e.getMessage());
+      String lastError =
+          e.getClass().getName() + ": " + (e.getMessage() == null ? "" : e.getMessage());
       inboxStore.markFailed(event.eventId(), consumerName, clock.now(), lastError);
       throw e;
     }

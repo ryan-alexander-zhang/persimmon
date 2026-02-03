@@ -27,11 +27,14 @@ public final class ConfigurableWorkflowRetryPolicy implements WorkflowRetryPolic
     if (step != null && step.getMaxAttempts() != null) {
       return step.getMaxAttempts();
     }
-    return wf.getDefaultMaxAttempts() != null ? wf.getDefaultMaxAttempts() : props.getDefaultMaxAttempts();
+    return wf.getDefaultMaxAttempts() != null
+        ? wf.getDefaultMaxAttempts()
+        : props.getDefaultMaxAttempts();
   }
 
   @Override
-  public Duration nextBackoff(String workflowType, String stepType, int attemptNumber, String lastError) {
+  public Duration nextBackoff(
+      String workflowType, String stepType, int attemptNumber, String lastError) {
     long base = props.getBaseBackoffMs();
     long max = props.getMaxBackoffMs();
 

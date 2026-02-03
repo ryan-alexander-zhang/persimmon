@@ -58,7 +58,9 @@ public class OutboxWiringConfig {
   public OutboxEventTypeResolver outboxEventTypeResolver() {
     return event -> {
       com.ryan.persimmon.domain.common.event.DomainEventType ann =
-          event.getClass().getAnnotation(com.ryan.persimmon.domain.common.event.DomainEventType.class);
+          event
+              .getClass()
+              .getAnnotation(com.ryan.persimmon.domain.common.event.DomainEventType.class);
       return ann != null && !ann.value().isBlank() ? ann.value() : event.getClass().getName();
     };
   }
@@ -108,7 +110,8 @@ public class OutboxWiringConfig {
       OutboxStore outboxStore,
       OutboxPayloadSerializer outboxPayloadSerializer,
       OutboxEventTypeResolver outboxEventTypeResolver) {
-    return new DomainEventOutboxService(outboxStore, outboxPayloadSerializer, outboxEventTypeResolver);
+    return new DomainEventOutboxService(
+        outboxStore, outboxPayloadSerializer, outboxEventTypeResolver);
   }
 
   @Bean

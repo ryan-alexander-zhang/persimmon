@@ -13,4 +13,3 @@ public class IdWiringConfig {
     return new UuidV7Generators();
   }
 }
-

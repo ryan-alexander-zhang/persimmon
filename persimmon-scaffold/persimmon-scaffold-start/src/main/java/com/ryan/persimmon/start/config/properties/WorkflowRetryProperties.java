@@ -39,4 +39,3 @@ public class WorkflowRetryProperties {
     private Long maxBackoffMs;
   }
 }
-

@@ -11,13 +11,20 @@ class WorkflowDefinitionTest {
 
   @Test
   void constructor_validatesInputs() {
-    assertThrows(IllegalArgumentException.class, () -> new WorkflowDefinition(null, 1, List.of("s1")));
-    assertThrows(IllegalArgumentException.class, () -> new WorkflowDefinition(" ", 1, List.of("s1")));
-    assertThrows(IllegalArgumentException.class, () -> new WorkflowDefinition("demo", 0, List.of("s1")));
-    assertThrows(IllegalArgumentException.class, () -> new WorkflowDefinition("demo", -1, List.of("s1")));
+    assertThrows(
+        IllegalArgumentException.class, () -> new WorkflowDefinition(null, 1, List.of("s1")));
+    assertThrows(
+        IllegalArgumentException.class, () -> new WorkflowDefinition(" ", 1, List.of("s1")));
+    assertThrows(
+        IllegalArgumentException.class, () -> new WorkflowDefinition("demo", 0, List.of("s1")));
+    assertThrows(
+        IllegalArgumentException.class, () -> new WorkflowDefinition("demo", -1, List.of("s1")));
     assertThrows(IllegalArgumentException.class, () -> new WorkflowDefinition("demo", 1, null));
-    assertThrows(IllegalArgumentException.class, () -> new WorkflowDefinition("demo", 1, List.of()));
-    assertThrows(IllegalArgumentException.class, () -> new WorkflowDefinition("demo", 1, List.of("s1", " ")));
+    assertThrows(
+        IllegalArgumentException.class, () -> new WorkflowDefinition("demo", 1, List.of()));
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new WorkflowDefinition("demo", 1, List.of("s1", " ")));
   }
 
   @Test
@@ -44,4 +51,3 @@ class WorkflowDefinitionTest {
     assertThrows(IndexOutOfBoundsException.class, () -> def.stepTypeAt(2));
   }
 }
-

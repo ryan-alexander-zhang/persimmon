@@ -13,4 +13,3 @@ public interface WorkflowRetryPolicy {
    */
   Duration nextBackoff(String workflowType, String stepType, int attemptNumber, String lastError);
 }
-

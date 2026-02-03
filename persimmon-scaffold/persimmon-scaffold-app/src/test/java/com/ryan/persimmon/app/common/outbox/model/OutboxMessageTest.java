@@ -30,4 +30,3 @@ class OutboxMessageTest {
     assertEquals(Map.of("traceId", "t-1"), m1.headers());
   }
 }
-

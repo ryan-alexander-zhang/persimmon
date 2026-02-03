@@ -85,6 +85,58 @@ class WorkflowRunnerTest {
     assertEquals("READY", row.steps.get(1).status);
   }
 
+  private static WorkflowRunner createRunner(
+      FakeWorkflowStore store,
+      Instant now,
+      List<WorkflowStepHandler> handlers,
+      WorkflowDefinitionProvider provider) {
+    OutboxStore noopOutbox =
+        new OutboxStore() {
+          @Override
+          public void append(List<com.ryan.persimmon.app.common.outbox.model.OutboxMessage> messages) {}
+
+          @Override
+          public List<com.ryan.persimmon.app.common.outbox.model.OutboxMessage> claimNextBatch(
+              int batchSize, Instant now) {
+            return List.of();
+          }
+
+          @Override
+          public void markSent(UUID eventId, Instant sentAt) {}
+
+          @Override
+          public void markFailed(UUID eventId, Instant now, Instant nextRetryAt, String lastError) {}
+
+          @Override
+          public void markDead(UUID eventId, Instant now, String lastError) {}
+        };
+    OutboxPayloadSerializer serializer = event -> "{}";
+    OutboxEventTypeResolver typeResolver = event -> event.getClass().getName();
+    DomainEventOutboxService outboxService = new DomainEventOutboxService(noopOutbox, serializer, typeResolver);
+
+    WorkflowStepHandlerRegistry handlerRegistry = new WorkflowStepHandlerRegistry(handlers);
+    AppClock clock = () -> now;
+    WorkflowRetryPolicy retryPolicy =
+        new WorkflowRetryPolicy() {
+          @Override
+          public int maxAttempts(String workflowType, String stepType) {
+            return 3;
+          }
+
+          @Override
+          public Duration nextBackoff(String workflowType, String stepType, int attemptNumber, String lastError) {
+            return Duration.ofSeconds(1);
+          }
+        };
+    WorkflowTaskProcessor processor =
+        new WorkflowTaskProcessorImpl(store, handlerRegistry, outboxService, retryPolicy, clock);
+    return new WorkflowRunner(store, processor, clock);
+  }
+
+  private static WorkflowDefinitionProvider demoDefinition() {
+    return () -> new WorkflowDefinition("demo", 1, List.of("s1", "s2"));
+  }
+
   @Test
   void waiting_setsWaitingStatusAndCanBeWokenUp() {
     Instant now = Instant.parse("2026-02-03T00:00:00Z");
@@ -256,58 +308,6 @@ class WorkflowRunnerTest {
     assertEquals(WorkflowInstanceStatus.FAILED.name(), row.status);
   }
 
-  private static WorkflowDefinitionProvider demoDefinition() {
-    return () -> new WorkflowDefinition("demo", 1, List.of("s1", "s2"));
-  }
-
-  private static WorkflowRunner createRunner(
-      FakeWorkflowStore store,
-      Instant now,
-      List<WorkflowStepHandler> handlers,
-      WorkflowDefinitionProvider provider) {
-    OutboxStore noopOutbox =
-        new OutboxStore() {
-          @Override
-          public void append(List<com.ryan.persimmon.app.common.outbox.model.OutboxMessage> messages) {}
-
-          @Override
-          public List<com.ryan.persimmon.app.common.outbox.model.OutboxMessage> claimNextBatch(
-              int batchSize, Instant now) {
-            return List.of();
-          }
-
-          @Override
-          public void markSent(UUID eventId, Instant sentAt) {}
-
-          @Override
-          public void markFailed(UUID eventId, Instant now, Instant nextRetryAt, String lastError) {}
-
-          @Override
-          public void markDead(UUID eventId, Instant now, String lastError) {}
-        };
-    OutboxPayloadSerializer serializer = event -> "{}";
-    OutboxEventTypeResolver typeResolver = event -> event.getClass().getName();
-    DomainEventOutboxService outboxService = new DomainEventOutboxService(noopOutbox, serializer, typeResolver);
-
-    WorkflowStepHandlerRegistry handlerRegistry = new WorkflowStepHandlerRegistry(handlers);
-    AppClock clock = () -> now;
-    WorkflowRetryPolicy retryPolicy =
-        new WorkflowRetryPolicy() {
-          @Override
-          public int maxAttempts(String workflowType, String stepType) {
-            return 3;
-          }
-
-          @Override
-          public Duration nextBackoff(String workflowType, String stepType, int attemptNumber, String lastError) {
-            return Duration.ofSeconds(1);
-          }
-        };
-    WorkflowTaskProcessor processor =
-        new WorkflowTaskProcessorImpl(store, handlerRegistry, outboxService, retryPolicy, clock);
-    return new WorkflowRunner(store, processor, clock);
-  }
-
   private static final class FakeWorkflowStore implements WorkflowStore {
     private final Instant now;
     private final Map<UUID, InstanceRow> instances = new HashMap<>();
@@ -421,6 +421,25 @@ class WorkflowRunnerTest {
     }
 
     @Override
+    public void insertStep(
+        UUID instanceId,
+        int stepSeq,
+        String stepType,
+        WorkflowStepStatus status,
+        int maxAttempts,
+        Instant nextRunAt,
+        Instant now) {
+      instances.get(instanceId).steps.put(stepSeq, StepRow.with(stepType, status.name(), maxAttempts, nextRunAt));
+    }
+
+    @Override
+    public void insertSteps(List<WorkflowStepToInsert> steps) {
+      for (WorkflowStepToInsert s : steps) {
+        insertStep(s.instanceId(), s.stepSeq(), s.stepType(), s.status(), s.maxAttempts(), s.nextRunAt(), s.now());
+      }
+    }
+
+    @Override
     public void markStepDone(UUID instanceId, int stepSeq, Instant now) {
       StepRow step = instances.get(instanceId).steps.get(stepSeq);
       step.status = "DONE";
@@ -516,6 +535,7 @@ class WorkflowRunnerTest {
     }
 
     private static final class InstanceRow {
+      private final Map<Integer, StepRow> steps = new HashMap<>();
       private UUID instanceId;
       private String workflowType;
       private int workflowVersion;
@@ -526,7 +546,6 @@ class WorkflowRunnerTest {
       private Instant startedAt;
       private Instant completedAt;
       private Instant failedAt;
-      private final Map<Integer, StepRow> steps = new HashMap<>();
     }
 
     private static final class StepRow {
@@ -547,25 +566,6 @@ class WorkflowRunnerTest {
         row.maxAttempts = maxAttempts;
         row.nextRunAt = nextRunAt;
         return row;
-      }
-    }
-
-    @Override
-    public void insertStep(
-        UUID instanceId,
-        int stepSeq,
-        String stepType,
-        WorkflowStepStatus status,
-        int maxAttempts,
-        Instant nextRunAt,
-        Instant now) {
-      instances.get(instanceId).steps.put(stepSeq, StepRow.with(stepType, status.name(), maxAttempts, nextRunAt));
-    }
-
-    @Override
-    public void insertSteps(List<WorkflowStepToInsert> steps) {
-      for (WorkflowStepToInsert s : steps) {
-        insertStep(s.instanceId(), s.stepSeq(), s.stepType(), s.status(), s.maxAttempts(), s.nextRunAt(), s.now());
       }
     }
   }

@@ -207,6 +207,15 @@ class DefaultEventDispatcherTest {
       row.lastError = lastError;
     }
 
+    private Row find(UUID eventId, String consumerName) {
+      for (Row row : rows) {
+        if (row.eventId.equals(eventId) && row.consumerName.equals(consumerName)) {
+          return row;
+        }
+      }
+      return null;
+    }
+
     boolean isProcessed(UUID eventId, String consumerName) {
       Row row = find(eventId, consumerName);
       return row != null && "PROCESSED".equals(row.status);
@@ -220,15 +229,6 @@ class DefaultEventDispatcherTest {
     String lastError(UUID eventId, String consumerName) {
       Row row = find(eventId, consumerName);
       return row == null ? null : row.lastError;
-    }
-
-    private Row find(UUID eventId, String consumerName) {
-      for (Row row : rows) {
-        if (row.eventId.equals(eventId) && row.consumerName.equals(consumerName)) {
-          return row;
-        }
-      }
-      return null;
     }
 
     private static final class Row {

@@ -34,4 +34,3 @@ class DomainEventContextTest {
     assertEquals(Map.of(), ctx.headers());
   }
 }
-

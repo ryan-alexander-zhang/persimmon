@@ -54,13 +54,10 @@ public interface WorkflowStore {
   String getStepType(UUID instanceId, int stepSeq);
 
   void markStepWaiting(
-      UUID instanceId,
-      int stepSeq,
-      String waitingEventType,
-      Instant deadlineAt,
-      Instant now);
+      UUID instanceId, int stepSeq, String waitingEventType, Instant deadlineAt, Instant now);
 
-  void markStepRetry(UUID instanceId, int stepSeq, Instant nextRunAt, String lastError, Instant now);
+  void markStepRetry(
+      UUID instanceId, int stepSeq, Instant nextRunAt, String lastError, Instant now);
 
   void markStepDead(UUID instanceId, int stepSeq, String lastError, Instant now);
 

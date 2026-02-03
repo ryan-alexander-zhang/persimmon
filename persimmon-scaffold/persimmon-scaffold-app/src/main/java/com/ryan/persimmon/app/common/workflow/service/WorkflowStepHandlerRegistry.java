@@ -24,7 +24,8 @@ public class WorkflowStepHandlerRegistry {
   public WorkflowStepHandler require(String workflowType, String stepType) {
     WorkflowStepHandler handler = handlers.get(new Key(workflowType, stepType));
     if (handler == null) {
-      throw new IllegalStateException("Workflow step handler not found: " + workflowType + "#" + stepType);
+      throw new IllegalStateException(
+          "Workflow step handler not found: " + workflowType + "#" + stepType);
     }
     return handler;
   }

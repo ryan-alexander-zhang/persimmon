@@ -8,4 +8,3 @@ public enum WorkflowStepStatus {
   DONE,
   DEAD
 }
-

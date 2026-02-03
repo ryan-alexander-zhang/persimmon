@@ -11,7 +11,8 @@ public class WorkflowRunner {
   private final WorkflowTaskProcessor taskProcessor;
   private final AppClock clock;
 
-  public WorkflowRunner(WorkflowStore workflowStore, WorkflowTaskProcessor taskProcessor, AppClock clock) {
+  public WorkflowRunner(
+      WorkflowStore workflowStore, WorkflowTaskProcessor taskProcessor, AppClock clock) {
     this.workflowStore = workflowStore;
     this.taskProcessor = taskProcessor;
     this.clock = clock;
@@ -32,4 +33,3 @@ public class WorkflowRunner {
     }
   }
 }
-

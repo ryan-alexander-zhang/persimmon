@@ -7,10 +7,11 @@ import java.util.List;
 /**
  * Result of executing a workflow step.
  *
- * <p>This engine is strictly linear (responsibility chain). Next step is determined by the
- * workflow definition order, not by step handlers.
+ * <p>This engine is strictly linear (responsibility chain). Next step is determined by the workflow
+ * definition order, not by step handlers.
  */
-public sealed interface StepResult permits StepResult.Completed, StepResult.Waiting, StepResult.Retry, StepResult.Dead {
+public sealed interface StepResult
+    permits StepResult.Completed, StepResult.Waiting, StepResult.Retry, StepResult.Dead {
 
   /** Step completed successfully, advance to the next step in the definition (or finish). */
   record Completed() implements StepResult {}

@@ -6,4 +6,3 @@ import com.ryan.persimmon.app.common.workflow.model.WorkflowTask;
 public interface WorkflowTaskProcessor {
   void process(WorkflowTask task);
 }
-

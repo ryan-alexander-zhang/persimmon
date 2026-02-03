@@ -26,20 +26,21 @@ public final class WorkflowDefinitionRegistry {
     }
   }
 
-  public WorkflowDefinition require(String workflowType, int version) {
-    WorkflowDefinition def = definitions.get(new Key(workflowType, version));
-    if (def == null) {
-      throw new IllegalStateException("Workflow definition not found: " + workflowType + " v" + version);
-    }
-    return def;
-  }
-
   public WorkflowDefinition requireLatest(String workflowType) {
     Integer version = latestVersionByType.get(workflowType);
     if (version == null) {
       throw new IllegalStateException("Workflow definition not found: " + workflowType);
     }
     return require(workflowType, version);
+  }
+
+  public WorkflowDefinition require(String workflowType, int version) {
+    WorkflowDefinition def = definitions.get(new Key(workflowType, version));
+    if (def == null) {
+      throw new IllegalStateException(
+          "Workflow definition not found: " + workflowType + " v" + version);
+    }
+    return def;
   }
 
   private record Key(String workflowType, int version) {

@@ -4,4 +4,3 @@ public enum WorkflowTaskType {
   READY_STEP,
   WAITING_TIMEOUT
 }
-

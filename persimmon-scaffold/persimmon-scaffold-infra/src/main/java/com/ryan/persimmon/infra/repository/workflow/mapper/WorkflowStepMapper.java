@@ -117,7 +117,8 @@ public interface WorkflowStepMapper {
       limit #{batchSize}
       for update skip locked
       """)
-  List<WorkflowStepPO> lockNextReadyBatch(@Param("now") Instant now, @Param("batchSize") int batchSize);
+  List<WorkflowStepPO> lockNextReadyBatch(
+      @Param("now") Instant now, @Param("batchSize") int batchSize);
 
   @Select(
       """
@@ -187,7 +188,9 @@ public interface WorkflowStepMapper {
         and status = 'PENDING'
       """)
   int activatePending(
-      @Param("instanceId") UUID instanceId, @Param("stepSeq") int stepSeq, @Param("now") Instant now);
+      @Param("instanceId") UUID instanceId,
+      @Param("stepSeq") int stepSeq,
+      @Param("now") Instant now);
 
   @Update(
       """

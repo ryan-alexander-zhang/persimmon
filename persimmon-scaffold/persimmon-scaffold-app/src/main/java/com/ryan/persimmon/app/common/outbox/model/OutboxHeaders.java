@@ -7,5 +7,6 @@ public final class OutboxHeaders {
   public static final String OCCURRED_AT = "occurredAt";
   public static final String AGGREGATE_TYPE = "aggregateType";
   public static final String AGGREGATE_ID = "aggregateId";
+
   private OutboxHeaders() {}
 }

@@ -24,7 +24,8 @@ class StepResultTest {
 
     src.clear();
     assertEquals(1, w1.outboundEvents().size());
-    assertThrows(UnsupportedOperationException.class, () -> w1.outboundEvents().add(new FakeEvent()));
+    assertThrows(
+        UnsupportedOperationException.class, () -> w1.outboundEvents().add(new FakeEvent()));
   }
 
   private static final class FakeEvent implements DomainEvent {
@@ -39,4 +40,3 @@ class StepResultTest {
     }
   }
 }
-

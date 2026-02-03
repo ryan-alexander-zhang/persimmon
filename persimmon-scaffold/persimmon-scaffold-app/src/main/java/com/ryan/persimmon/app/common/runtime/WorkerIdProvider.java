@@ -5,4 +5,3 @@ package com.ryan.persimmon.app.common.runtime;
 public interface WorkerIdProvider {
   String workerId();
 }
-

@@ -116,16 +116,6 @@ public class WorkflowTaskProcessorImpl implements WorkflowTaskProcessor {
     persistAndOutbox(instance, now);
   }
 
-  private boolean tryMarkRetry(
-      UUID instanceId, int stepSeq, Instant nextRunAt, String lastError, Instant now) {
-    try {
-      workflowStore.markStepRetry(instanceId, stepSeq, nextRunAt, lastError, now);
-      return true;
-    } catch (IllegalStateException e) {
-      return false;
-    }
-  }
-
   private void persistAndOutbox(WorkflowInstance instance, Instant now) {
     workflowStore.updateInstance(
         instance.getInstanceId(),
@@ -139,5 +129,15 @@ public class WorkflowTaskProcessorImpl implements WorkflowTaskProcessor {
     outboxService.recordPulledDomainEvents(
         instance,
         new DomainEventContext(AGGREGATE_TYPE, instance.getInstanceId(), Map.of()));
+  }
+
+  private boolean tryMarkRetry(
+      UUID instanceId, int stepSeq, Instant nextRunAt, String lastError, Instant now) {
+    try {
+      workflowStore.markStepRetry(instanceId, stepSeq, nextRunAt, lastError, now);
+      return true;
+    } catch (IllegalStateException e) {
+      return false;
+    }
   }
 }

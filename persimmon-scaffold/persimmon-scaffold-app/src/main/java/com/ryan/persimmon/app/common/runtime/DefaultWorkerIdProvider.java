@@ -19,16 +19,12 @@ public final class DefaultWorkerIdProvider implements WorkerIdProvider {
     return new DefaultWorkerIdProvider(app + ":" + host + ":" + pid + ":" + suffix);
   }
 
-  public static DefaultWorkerIdProvider of(String workerId) {
-    if (workerId == null || workerId.isBlank()) {
-      throw new IllegalArgumentException("workerId must not be blank.");
+  private static String normalize(String value) {
+    if (value == null || value.isBlank()) {
+      return "unknown";
     }
-    return new DefaultWorkerIdProvider(workerId.trim());
-  }
-
-  @Override
-  public String workerId() {
-    return workerId;
+    String trimmed = value.trim().toLowerCase(Locale.ROOT);
+    return trimmed.replaceAll("[^a-z0-9_.-]", "-");
   }
 
   private static String detectHostname() {
@@ -43,12 +39,16 @@ public final class DefaultWorkerIdProvider implements WorkerIdProvider {
     }
   }
 
-  private static String normalize(String value) {
-    if (value == null || value.isBlank()) {
-      return "unknown";
+  public static DefaultWorkerIdProvider of(String workerId) {
+    if (workerId == null || workerId.isBlank()) {
+      throw new IllegalArgumentException("workerId must not be blank.");
     }
-    String trimmed = value.trim().toLowerCase(Locale.ROOT);
-    return trimmed.replaceAll("[^a-z0-9_.-]", "-");
+    return new DefaultWorkerIdProvider(workerId.trim());
+  }
+
+  @Override
+  public String workerId() {
+    return workerId;
   }
 }
 

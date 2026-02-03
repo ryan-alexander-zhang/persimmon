@@ -175,14 +175,6 @@ class WorkflowStoreIT {
         stepSeq);
   }
 
-  private Integer stepAttempts(UUID instanceId, int stepSeq) {
-    return jdbcTemplate.queryForObject(
-        "select attempts from workflow_step where instance_id = ? and step_seq = ?",
-        Integer.class,
-        instanceId,
-        stepSeq);
-  }
-
   private String stepLockedBy(UUID instanceId, int stepSeq) {
     return jdbcTemplate.queryForObject(
         "select locked_by from workflow_step where instance_id = ? and step_seq = ?",
@@ -195,6 +187,14 @@ class WorkflowStoreIT {
     return jdbcTemplate.queryForObject(
         "select waiting_event_type from workflow_step where instance_id = ? and step_seq = ?",
         String.class,
+        instanceId,
+        stepSeq);
+  }
+
+  private Integer stepAttempts(UUID instanceId, int stepSeq) {
+    return jdbcTemplate.queryForObject(
+        "select attempts from workflow_step where instance_id = ? and step_seq = ?",
+        Integer.class,
         instanceId,
         stepSeq);
   }

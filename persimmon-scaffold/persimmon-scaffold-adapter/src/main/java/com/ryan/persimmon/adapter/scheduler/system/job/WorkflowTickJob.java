@@ -9,13 +9,17 @@ import org.springframework.stereotype.Component;
 
 @Component
 @ConditionalOnBean(WorkflowRunner.class)
-@ConditionalOnProperty(name = "persimmon.workflow.runner.enabled", havingValue = "true", matchIfMissing = false)
+@ConditionalOnProperty(
+    name = "persimmon.workflow.runner.enabled",
+    havingValue = "true",
+    matchIfMissing = false)
 public class WorkflowTickJob {
   private final WorkflowRunner workflowRunner;
   private final int batchSize;
 
   public WorkflowTickJob(
-      WorkflowRunner workflowRunner, @Value("${persimmon.workflow.runner.batch-size:50}") int batchSize) {
+      WorkflowRunner workflowRunner,
+      @Value("${persimmon.workflow.runner.batch-size:50}") int batchSize) {
     this.workflowRunner = workflowRunner;
     this.batchSize = batchSize;
   }
@@ -25,4 +29,3 @@ public class WorkflowTickJob {
     workflowRunner.tick(batchSize);
   }
 }
-

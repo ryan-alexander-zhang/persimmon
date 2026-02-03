@@ -40,6 +40,18 @@ class OutboxRelayServiceTest {
     assertEquals(0, row.attempts);
   }
 
+  private static OutboxMessage message(UUID eventId, Instant occurredAt) {
+    return new OutboxMessage(
+        eventId,
+        occurredAt,
+        "Agg",
+        UUID.fromString("019c0e02-a181-786f-8d5b-11c4de115f98"),
+        "Event",
+        "{}",
+        Map.of(),
+        0);
+  }
+
   @Test
   void relayOnce_should_be_noop_when_no_messages_due() {
     Instant t0 = Instant.parse("2026-02-02T00:00:00Z");
@@ -51,18 +63,6 @@ class OutboxRelayServiceTest {
 
     OutboxRelayService relay = new OutboxRelayService(store, ok, retryPolicy, clock, 3);
     relay.relayOnce(10);
-  }
-
-  private static OutboxMessage message(UUID eventId, Instant occurredAt) {
-    return new OutboxMessage(
-        eventId,
-        occurredAt,
-        "Agg",
-        UUID.fromString("019c0e02-a181-786f-8d5b-11c4de115f98"),
-        "Event",
-        "{}",
-        Map.of(),
-        0);
   }
 
   @Test

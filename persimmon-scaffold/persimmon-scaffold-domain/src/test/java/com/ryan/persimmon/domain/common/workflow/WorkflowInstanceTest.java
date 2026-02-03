@@ -13,11 +13,9 @@ import org.junit.jupiter.api.Test;
 
 class WorkflowInstanceTest {
 
-  private static final UUID INSTANCE_ID =
-      UUID.fromString("019c0e02-a181-786f-8d5b-11c4de115fc0");
+  private static final UUID INSTANCE_ID = UUID.fromString("019c0e02-a181-786f-8d5b-11c4de115fc0");
 
-  private static final UUID EVENT_ID_V7 =
-      UUID.fromString("019c0e02-a181-786f-8d5b-11c4de115fc1");
+  private static final UUID EVENT_ID_V7 = UUID.fromString("019c0e02-a181-786f-8d5b-11c4de115fc1");
 
   @Test
   void recordEvent_validatesAndStoresEvents() {
@@ -73,13 +71,7 @@ class WorkflowInstanceTest {
     Instant startedAt = Instant.parse("2026-02-03T00:00:00Z");
     Instant completedAt = startedAt.plusSeconds(10);
     instance.restore(
-        WorkflowInstanceStatus.COMPLETED,
-        1,
-        "s2",
-        "{\"x\":1}",
-        startedAt,
-        completedAt,
-        null);
+        WorkflowInstanceStatus.COMPLETED, 1, "s2", "{\"x\":1}", startedAt, completedAt, null);
 
     assertEquals(WorkflowInstanceStatus.COMPLETED, instance.getStatus());
     assertEquals(1, instance.getCurrentStepSeq());
@@ -96,4 +88,3 @@ class WorkflowInstanceTest {
     }
   }
 }
-

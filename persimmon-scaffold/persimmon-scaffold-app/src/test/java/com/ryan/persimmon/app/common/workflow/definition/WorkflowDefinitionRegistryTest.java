@@ -42,7 +42,8 @@ class WorkflowDefinitionRegistryTest {
   @Test
   void require_missingThrows() {
     WorkflowDefinitionRegistry registry =
-        new WorkflowDefinitionRegistry(List.of(() -> new WorkflowDefinition("demo", 1, List.of("s1"))));
+        new WorkflowDefinitionRegistry(
+            List.of(() -> new WorkflowDefinition("demo", 1, List.of("s1"))));
     assertThrows(IllegalStateException.class, () -> registry.require("demo", 2));
     assertThrows(IllegalStateException.class, () -> registry.requireLatest("missing"));
   }

@@ -19,4 +19,3 @@ public class WorkflowSignalService {
     return workflowStore.wakeUpWaitingStep(instanceId, waitingEventType, now);
   }
 }
-

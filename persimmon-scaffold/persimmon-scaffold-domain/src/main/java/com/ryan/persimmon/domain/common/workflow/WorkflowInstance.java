@@ -12,18 +12,14 @@ public class WorkflowInstance implements HasDomainEvents {
   private final UUID instanceId;
   private final String workflowType;
   private final int workflowVersion;
-
+  private final List<DomainEvent> domainEvents = new ArrayList<>();
   private WorkflowInstanceStatus status;
   private int currentStepSeq;
   private String currentStepType;
-
   private String contextJson;
-
   private Instant startedAt;
   private Instant completedAt;
   private Instant failedAt;
-
-  private final List<DomainEvent> domainEvents = new ArrayList<>();
 
   public WorkflowInstance(UUID instanceId, String workflowType, int workflowVersion) {
     this.instanceId = instanceId;

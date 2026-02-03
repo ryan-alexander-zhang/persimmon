@@ -98,7 +98,8 @@ public class MybatisWorkflowStore implements WorkflowStore {
     if (po == null) {
       throw new IllegalStateException("Workflow instance not found: " + instanceId);
     }
-    WorkflowInstance instance = new WorkflowInstance(po.getInstanceId(), po.getWorkflowType(), po.getWorkflowVersion());
+    WorkflowInstance instance =
+        new WorkflowInstance(po.getInstanceId(), po.getWorkflowType(), po.getWorkflowVersion());
     instance.restore(
         WorkflowInstanceStatus.valueOf(po.getStatus()),
         po.getCurrentStepSeq() == null ? 0 : po.getCurrentStepSeq(),
@@ -197,7 +198,8 @@ public class MybatisWorkflowStore implements WorkflowStore {
   public void markStepDone(UUID instanceId, int stepSeq, Instant now) {
     int updated = stepMapper.markDone(instanceId, stepSeq, workerId, now);
     if (updated != 1) {
-      throw new IllegalStateException("Failed to mark workflow step DONE: " + instanceId + " seq=" + stepSeq);
+      throw new IllegalStateException(
+          "Failed to mark workflow step DONE: " + instanceId + " seq=" + stepSeq);
     }
   }
 
@@ -219,9 +221,11 @@ public class MybatisWorkflowStore implements WorkflowStore {
   @Override
   public void markStepWaiting(
       UUID instanceId, int stepSeq, String waitingEventType, Instant deadlineAt, Instant now) {
-    int updated = stepMapper.markWaiting(instanceId, stepSeq, waitingEventType, deadlineAt, workerId, now);
+    int updated =
+        stepMapper.markWaiting(instanceId, stepSeq, waitingEventType, deadlineAt, workerId, now);
     if (updated != 1) {
-      throw new IllegalStateException("Failed to mark workflow step WAITING: " + instanceId + " seq=" + stepSeq);
+      throw new IllegalStateException(
+          "Failed to mark workflow step WAITING: " + instanceId + " seq=" + stepSeq);
     }
   }
 
@@ -230,7 +234,8 @@ public class MybatisWorkflowStore implements WorkflowStore {
       UUID instanceId, int stepSeq, Instant nextRunAt, String lastError, Instant now) {
     int updated = stepMapper.markRetry(instanceId, stepSeq, nextRunAt, lastError, workerId, now);
     if (updated != 1) {
-      throw new IllegalStateException("Failed to mark workflow step READY: " + instanceId + " seq=" + stepSeq);
+      throw new IllegalStateException(
+          "Failed to mark workflow step READY: " + instanceId + " seq=" + stepSeq);
     }
   }
 
@@ -238,7 +243,8 @@ public class MybatisWorkflowStore implements WorkflowStore {
   public void markStepDead(UUID instanceId, int stepSeq, String lastError, Instant now) {
     int updated = stepMapper.markDead(instanceId, stepSeq, lastError, workerId, now);
     if (updated != 1) {
-      throw new IllegalStateException("Failed to mark workflow step DEAD: " + instanceId + " seq=" + stepSeq);
+      throw new IllegalStateException(
+          "Failed to mark workflow step DEAD: " + instanceId + " seq=" + stepSeq);
     }
   }
 
