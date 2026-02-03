@@ -41,7 +41,7 @@ public class DefaultEventDispatcher implements EventDispatcher {
 
   @Override
   public void dispatch(ConsumedEvent event) throws Exception {
-    if (inboxStore.isProcessed(event.eventId(), consumerName)) {
+    if (!inboxStore.tryStart(event, consumerName, clock.now())) {
       return;
     }
 
@@ -50,7 +50,13 @@ public class DefaultEventDispatcher implements EventDispatcher {
       throw new IllegalStateException("No handler registered for eventType=" + event.eventType());
     }
 
-    handler.handle(event);
-    inboxStore.markProcessed(event, consumerName, clock.now());
+    try {
+      handler.handle(event);
+      inboxStore.markProcessed(event.eventId(), consumerName, clock.now());
+    } catch (Exception e) {
+      String lastError = e.getClass().getName() + ": " + (e.getMessage() == null ? "" : e.getMessage());
+      inboxStore.markFailed(event.eventId(), consumerName, clock.now(), lastError);
+      throw e;
+    }
   }
 }

@@ -17,12 +17,7 @@ public class MybatisInboxStore implements InboxStore {
   }
 
   @Override
-  public boolean isProcessed(UUID eventId, String consumerName) {
-    return mapper.countByEventAndConsumer(eventId, consumerName) > 0;
-  }
-
-  @Override
-  public void markProcessed(ConsumedEvent event, String consumerName, Instant processedAt) {
+  public boolean tryStart(ConsumedEvent event, String consumerName, Instant startedAt) {
     InboxEventPO po = new InboxEventPO();
     po.setId(UUID.randomUUID());
     po.setEventId(event.eventId());
@@ -31,14 +26,29 @@ public class MybatisInboxStore implements InboxStore {
     po.setOccurredAt(event.occurredAt());
     po.setAggregateType(event.aggregateType());
     po.setAggregateId(event.aggregateId());
-    po.setProcessedAt(processedAt);
-    po.setCreatedAt(processedAt);
-    po.setUpdatedAt(processedAt);
+    po.setStatus("PROCESSING");
+    po.setStartedAt(startedAt);
+    po.setProcessedAt(null);
+    po.setLastError(null);
+    po.setCreatedAt(startedAt);
+    po.setUpdatedAt(startedAt);
 
     try {
       mapper.insert(po);
+      return true;
     } catch (DuplicateKeyException ignore) {
-      // already processed by this consumer; ignore
+      // already exists: allow retry only if status is FAILED.
+      return mapper.tryClaimFailed(event.eventId(), consumerName, startedAt) == 1;
     }
+  }
+
+  @Override
+  public void markProcessed(UUID eventId, String consumerName, Instant processedAt) {
+    mapper.markProcessed(eventId, consumerName, processedAt);
+  }
+
+  @Override
+  public void markFailed(UUID eventId, String consumerName, Instant failedAt, String lastError) {
+    mapper.markFailed(eventId, consumerName, failedAt, lastError);
   }
 }

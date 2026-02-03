@@ -35,6 +35,15 @@ public class InboxEventPO extends AuditTimestampsPO {
   @TableField("aggregate_id")
   private UUID aggregateId;
 
+  @TableField("status")
+  private String status;
+
+  @TableField("started_at")
+  private Instant startedAt;
+
   @TableField("processed_at")
   private Instant processedAt;
+
+  @TableField("last_error")
+  private String lastError;
 }

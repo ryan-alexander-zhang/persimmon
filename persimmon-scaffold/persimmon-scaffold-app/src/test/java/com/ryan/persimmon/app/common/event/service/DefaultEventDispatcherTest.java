@@ -102,6 +102,45 @@ class DefaultEventDispatcherTest {
     assertEquals(1, ok.calls);
   }
 
+  @Test
+  void dispatch_should_mark_failed_when_handler_throws() {
+    Instant t0 = Instant.parse("2026-02-02T00:00:00Z");
+    UUID eventId = UUID.fromString("019c0e02-a181-786f-8d5b-11c4de115fb7");
+    ConsumedEvent event =
+        new ConsumedEvent(
+            eventId,
+            "boom.event.v1",
+            t0,
+            "Agg",
+            UUID.fromString("019c0e02-a181-786f-8d5b-11c4de115fb8"),
+            "{}",
+            Map.of());
+
+    InMemoryInbox inbox = new InMemoryInbox();
+    EventHandler boom =
+        new EventHandler() {
+          @Override
+          public String eventType() {
+            return "boom.event.v1";
+          }
+
+          @Override
+          public void handle(ConsumedEvent event) {
+            throw new IllegalStateException("boom");
+          }
+        };
+
+    DefaultEventDispatcher dispatcher = new DefaultEventDispatcher(inbox, () -> t0, "c1", List.of(boom));
+
+    assertThrows(IllegalStateException.class, () -> dispatcher.dispatch(event));
+    assertEquals("FAILED", inbox.status(eventId, "c1"));
+    assertNotNull(inbox.lastError(eventId, "c1"));
+
+    // retry should be allowed (FAILED -> PROCESSING -> FAILED)
+    assertThrows(IllegalStateException.class, () -> dispatcher.dispatch(event));
+    assertEquals("FAILED", inbox.status(eventId, "c1"));
+  }
+
   private static final class CountingHandler implements EventHandler {
     private final String type;
     private int calls = 0;
@@ -122,16 +161,90 @@ class DefaultEventDispatcherTest {
   }
 
   private static final class InMemoryInbox implements InboxStore {
-    private final List<String> processed = new ArrayList<>();
+    private final List<Row> rows = new ArrayList<>();
 
     @Override
-    public boolean isProcessed(UUID eventId, String consumerName) {
-      return processed.contains(consumerName + ":" + eventId);
+    public boolean tryStart(ConsumedEvent event, String consumerName, Instant startedAt) {
+      Row row = find(event.eventId(), consumerName);
+      if (row == null) {
+        rows.add(new Row(consumerName, event.eventId(), "PROCESSING", startedAt, null));
+        return true;
+      }
+      if ("FAILED".equals(row.status)) {
+        row.status = "PROCESSING";
+        row.lastError = null;
+        row.processedAt = null;
+        return true;
+      }
+      return false;
     }
 
     @Override
-    public void markProcessed(ConsumedEvent event, String consumerName, Instant processedAt) {
-      processed.add(consumerName + ":" + event.eventId());
+    public void markProcessed(UUID eventId, String consumerName, Instant processedAt) {
+      Row row = find(eventId, consumerName);
+      if (row == null) {
+        throw new IllegalStateException("not started");
+      }
+      if (!"PROCESSING".equals(row.status)) {
+        return;
+      }
+      row.status = "PROCESSED";
+      row.processedAt = processedAt;
+      row.lastError = null;
+    }
+
+    @Override
+    public void markFailed(UUID eventId, String consumerName, Instant failedAt, String lastError) {
+      Row row = find(eventId, consumerName);
+      if (row == null) {
+        throw new IllegalStateException("not started");
+      }
+      if (!"PROCESSING".equals(row.status)) {
+        return;
+      }
+      row.status = "FAILED";
+      row.processedAt = failedAt;
+      row.lastError = lastError;
+    }
+
+    boolean isProcessed(UUID eventId, String consumerName) {
+      Row row = find(eventId, consumerName);
+      return row != null && "PROCESSED".equals(row.status);
+    }
+
+    String status(UUID eventId, String consumerName) {
+      Row row = find(eventId, consumerName);
+      return row == null ? null : row.status;
+    }
+
+    String lastError(UUID eventId, String consumerName) {
+      Row row = find(eventId, consumerName);
+      return row == null ? null : row.lastError;
+    }
+
+    private Row find(UUID eventId, String consumerName) {
+      for (Row row : rows) {
+        if (row.eventId.equals(eventId) && row.consumerName.equals(consumerName)) {
+          return row;
+        }
+      }
+      return null;
+    }
+
+    private static final class Row {
+      private final String consumerName;
+      private final UUID eventId;
+      private String status;
+      private Instant processedAt;
+      private String lastError;
+
+      private Row(String consumerName, UUID eventId, String status, Instant processedAt, String lastError) {
+        this.consumerName = consumerName;
+        this.eventId = eventId;
+        this.status = status;
+        this.processedAt = processedAt;
+        this.lastError = lastError;
+      }
     }
   }
 }
