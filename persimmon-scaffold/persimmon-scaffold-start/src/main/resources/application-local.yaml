@@ -14,6 +14,8 @@ spring:
     bootstrap-servers: localhost:9092
 
 persimmon:
+  # Optional override for DB lock leases (outbox/workflow). When unset, a readable+unique value is generated.
+  # worker-id: persimmon:localhost:12345:deadbeef
   outbox:
     # Shared topic name used by both producer and consumer.
     topic: persimmon-outbox
@@ -24,7 +26,6 @@ persimmon:
       max-seconds: 300
       max-attempts: 10
     relay:
-      worker-id: local
       lease-seconds: 30
       batch-size: 100
       fixed-delay-ms: 1000
@@ -34,3 +35,21 @@ persimmon:
       consumer:
         group-id: persimmon-outbox-consumer
         concurrency: 1
+  workflow:
+    lease-seconds: 30
+    retry:
+      default-max-attempts: 10
+      base-backoff-ms: 1000
+      max-backoff-ms: 300000
+      # workflows:
+      #   tenant.create:
+      #     default-max-attempts: 20
+      #     steps:
+      #       HARBOR_CREATE_ROBOT:
+      #         max-attempts: 3
+      #         base-backoff-ms: 2000
+      #         max-backoff-ms: 60000
+    runner:
+      enabled: true
+      batch-size: 50
+      fixed-delay-ms: 1000
