@@ -93,6 +93,8 @@ class WorkflowRunnerTest {
     UUID instanceId = UUID.randomUUID();
     store.seedInstance(instanceId, "demo", 1, "s1", now, 3);
 
+    java.util.concurrent.atomic.AtomicBoolean firstCall = new java.util.concurrent.atomic.AtomicBoolean(true);
+
     WorkflowStepHandler s1 =
         new WorkflowStepHandler() {
           @Override
@@ -107,7 +109,10 @@ class WorkflowRunnerTest {
 
           @Override
           public StepResult execute(WorkflowInstance instance, WorkflowTaskType taskType) {
-            return new StepResult.Waiting("evt.x", Duration.ofSeconds(10), List.of());
+            if (firstCall.getAndSet(false)) {
+              return new StepResult.Waiting("evt.x", Duration.ofSeconds(10), List.of());
+            }
+            return new StepResult.Completed();
           }
         };
 
