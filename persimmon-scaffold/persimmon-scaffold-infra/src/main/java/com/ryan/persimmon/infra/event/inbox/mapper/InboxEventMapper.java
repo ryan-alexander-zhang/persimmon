@@ -73,4 +73,22 @@ public interface InboxEventMapper extends BaseMapper<InboxEventPO> {
       @Param("consumerName") String consumerName,
       @Param("failedAt") Instant failedAt,
       @Param("lastError") String lastError);
+
+  @Update(
+      """
+      update inbox_event
+      set
+        status = 'DEAD',
+        dead_at = #{deadAt},
+        last_error = #{lastError},
+        updated_at = #{deadAt}
+      where event_id = #{eventId}
+        and consumer_name = #{consumerName}
+        and status = 'PROCESSING'
+      """)
+  int markDead(
+      @Param("eventId") UUID eventId,
+      @Param("consumerName") String consumerName,
+      @Param("deadAt") Instant deadAt,
+      @Param("lastError") String lastError);
 }

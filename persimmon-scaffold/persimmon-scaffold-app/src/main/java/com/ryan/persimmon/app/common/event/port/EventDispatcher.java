@@ -4,5 +4,5 @@ import com.ryan.persimmon.app.common.event.model.ConsumedEvent;
 
 /** Application entry point for consuming integration events. */
 public interface EventDispatcher {
-  void dispatch(ConsumedEvent event) throws Exception;
+  void dispatch(ConsumedEvent event);
 }

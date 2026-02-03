@@ -29,6 +29,7 @@ public class MybatisInboxStore implements InboxStore {
     po.setStatus("PROCESSING");
     po.setStartedAt(startedAt);
     po.setProcessedAt(null);
+    po.setDeadAt(null);
     po.setLastError(null);
     po.setCreatedAt(startedAt);
     po.setUpdatedAt(startedAt);
@@ -50,5 +51,10 @@ public class MybatisInboxStore implements InboxStore {
   @Override
   public void markFailed(UUID eventId, String consumerName, Instant failedAt, String lastError) {
     mapper.markFailed(eventId, consumerName, failedAt, lastError);
+  }
+
+  @Override
+  public void markDead(UUID eventId, String consumerName, Instant deadAt, String lastError) {
+    mapper.markDead(eventId, consumerName, deadAt, lastError);
   }
 }

@@ -2,6 +2,7 @@ package com.ryan.persimmon.app.common.event.service;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.ryan.persimmon.app.common.event.exception.EventHandlingException;
 import com.ryan.persimmon.app.common.event.model.ConsumedEvent;
 import com.ryan.persimmon.app.common.event.port.EventHandler;
 import com.ryan.persimmon.app.common.event.port.InboxStore;
@@ -16,7 +17,7 @@ import org.junit.jupiter.api.Test;
 class DefaultEventDispatcherTest {
 
   @Test
-  void dispatch_should_be_idempotent_by_eventId_and_consumer() throws Exception {
+  void dispatch_should_be_idempotent_by_eventId_and_consumer() {
     Instant t0 = Instant.parse("2026-02-02T00:00:00Z");
     UUID eventId = UUID.fromString("019c0e02-a181-786f-8d5b-11c4de115faa");
     ConsumedEvent event =
@@ -79,7 +80,7 @@ class DefaultEventDispatcherTest {
   }
 
   @Test
-  void ctor_should_ignore_blank_eventType_handlers() throws Exception {
+  void ctor_should_ignore_blank_eventType_handlers() {
     Instant t0 = Instant.parse("2026-02-02T00:00:00Z");
     UUID eventId = UUID.fromString("019c0e02-a181-786f-8d5b-11c4de115fae");
     ConsumedEvent event =
@@ -126,19 +127,59 @@ class DefaultEventDispatcherTest {
 
           @Override
           public void handle(ConsumedEvent event) {
-            throw new IllegalStateException("boom");
+            throw EventHandlingException.retryable(
+                "TEMP", "boom", new IllegalStateException("boom"));
           }
         };
 
     DefaultEventDispatcher dispatcher = new DefaultEventDispatcher(inbox, () -> t0, "c1", List.of(boom));
 
-    assertThrows(IllegalStateException.class, () -> dispatcher.dispatch(event));
+    assertThrows(EventHandlingException.class, () -> dispatcher.dispatch(event));
     assertEquals("FAILED", inbox.status(eventId, "c1"));
     assertNotNull(inbox.lastError(eventId, "c1"));
 
     // retry should be allowed (FAILED -> PROCESSING -> FAILED)
-    assertThrows(IllegalStateException.class, () -> dispatcher.dispatch(event));
+    assertThrows(EventHandlingException.class, () -> dispatcher.dispatch(event));
     assertEquals("FAILED", inbox.status(eventId, "c1"));
+  }
+
+  @Test
+  void dispatch_should_mark_dead_and_not_throw_when_handler_fails_nonRetryable() {
+    Instant t0 = Instant.parse("2026-02-02T00:00:00Z");
+    UUID eventId = UUID.fromString("019c0e02-a181-786f-8d5b-11c4de115fb9");
+    ConsumedEvent event =
+        new ConsumedEvent(
+            eventId,
+            "dead.event.v1",
+            t0,
+            "Agg",
+            UUID.fromString("019c0e02-a181-786f-8d5b-11c4de115fba"),
+            "{}",
+            Map.of());
+
+    InMemoryInbox inbox = new InMemoryInbox();
+    EventHandler dead =
+        new EventHandler() {
+          @Override
+          public String eventType() {
+            return "dead.event.v1";
+          }
+
+          @Override
+          public void handle(ConsumedEvent event) {
+            throw EventHandlingException.nonRetryable(
+                "PERM", "nope", new IllegalArgumentException("bad"));
+          }
+        };
+
+    DefaultEventDispatcher dispatcher = new DefaultEventDispatcher(inbox, () -> t0, "c1", List.of(dead));
+
+    assertDoesNotThrow(() -> dispatcher.dispatch(event));
+    assertEquals("DEAD", inbox.status(eventId, "c1"));
+
+    // repeated delivery should be ignored
+    assertDoesNotThrow(() -> dispatcher.dispatch(event));
+    assertEquals("DEAD", inbox.status(eventId, "c1"));
   }
 
   private static final class CountingHandler implements EventHandler {
@@ -204,6 +245,20 @@ class DefaultEventDispatcherTest {
       }
       row.status = "FAILED";
       row.processedAt = failedAt;
+      row.lastError = lastError;
+    }
+
+    @Override
+    public void markDead(UUID eventId, String consumerName, Instant deadAt, String lastError) {
+      Row row = find(eventId, consumerName);
+      if (row == null) {
+        throw new IllegalStateException("not started");
+      }
+      if (!"PROCESSING".equals(row.status)) {
+        return;
+      }
+      row.status = "DEAD";
+      row.processedAt = deadAt;
       row.lastError = lastError;
     }
 

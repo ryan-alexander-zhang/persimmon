@@ -44,6 +44,9 @@ public class InboxEventPO extends AuditTimestampsPO {
   @TableField("processed_at")
   private Instant processedAt;
 
+  @TableField("dead_at")
+  private Instant deadAt;
+
   @TableField("last_error")
   private String lastError;
 }

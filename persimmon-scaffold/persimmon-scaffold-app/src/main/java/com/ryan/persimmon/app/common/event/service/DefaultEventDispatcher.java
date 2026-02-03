@@ -1,6 +1,7 @@
 package com.ryan.persimmon.app.common.event.service;
 
 import com.ryan.persimmon.app.common.event.model.ConsumedEvent;
+import com.ryan.persimmon.app.common.event.exception.EventHandlingException;
 import com.ryan.persimmon.app.common.event.port.EventDispatcher;
 import com.ryan.persimmon.app.common.event.port.EventHandler;
 import com.ryan.persimmon.app.common.event.port.InboxStore;
@@ -40,7 +41,7 @@ public class DefaultEventDispatcher implements EventDispatcher {
   }
 
   @Override
-  public void dispatch(ConsumedEvent event) throws Exception {
+  public void dispatch(ConsumedEvent event) {
     if (!inboxStore.tryStart(event, consumerName, clock.now())) {
       return;
     }
@@ -53,11 +54,20 @@ public class DefaultEventDispatcher implements EventDispatcher {
     try {
       handler.handle(event);
       inboxStore.markProcessed(event.eventId(), consumerName, clock.now());
-    } catch (Exception e) {
+    } catch (RuntimeException e) {
       String lastError =
           e.getClass().getName() + ": " + (e.getMessage() == null ? "" : e.getMessage());
+      if (e instanceof EventHandlingException ex) {
+        if (ex.retryable()) {
+          inboxStore.markFailed(event.eventId(), consumerName, clock.now(), lastError);
+          throw ex;
+        }
+        inboxStore.markDead(event.eventId(), consumerName, clock.now(), lastError);
+        return;
+      }
+
       inboxStore.markFailed(event.eventId(), consumerName, clock.now(), lastError);
-      throw e;
+      throw EventHandlingException.retryable("EVENT_HANDLER_ERROR", "Handler execution failed.", e);
     }
   }
 }

@@ -21,4 +21,7 @@ public interface InboxStore {
 
   /** Marks a previously started event as failed (so it can be retried). */
   void markFailed(UUID eventId, String consumerName, Instant failedAt, String lastError);
+
+  /** Marks a previously started event as dead (non-retryable terminal failure). */
+  void markDead(UUID eventId, String consumerName, Instant deadAt, String lastError);
 }

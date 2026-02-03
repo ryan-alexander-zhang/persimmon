@@ -47,13 +47,7 @@ public class EventConsumerWiringConfig {
     return event ->
         tx.executeWithoutResult(
             status -> {
-              try {
-                delegate.dispatch(event);
-              } catch (RuntimeException e) {
-                throw e;
-              } catch (Exception e) {
-                throw new RuntimeException(e);
-              }
+              delegate.dispatch(event);
             });
   }
 
