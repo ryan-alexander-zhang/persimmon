@@ -171,7 +171,7 @@ public interface OutboxEventMapper extends BaseMapper<OutboxEventPO> {
       @Param("lastError") String lastError,
       @Param("lockedBy") String lockedBy);
 
-  @Update(
+  @Select(
       """
       select
         event_id,
