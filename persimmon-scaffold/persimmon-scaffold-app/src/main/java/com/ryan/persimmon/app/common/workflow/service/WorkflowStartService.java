@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.transaction.annotation.Transactional;
 
 public class WorkflowStartService {
   private final WorkflowStore workflowStore;
@@ -36,6 +37,7 @@ public class WorkflowStartService {
   }
 
   /** Starts the latest version of the given workflow type. */
+  @Transactional
   public UUID start(String workflowType, String bizKey, String contextJson) {
     Instant now = clock.now();
     WorkflowDefinition definition = definitionRegistry.requireLatest(workflowType);
