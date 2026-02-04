@@ -96,13 +96,17 @@ public class OutboxWiringConfig {
       ObjectMapper objectMapper,
       AppClock clock,
       WorkerIdProvider workerIdProvider,
-      @Value("${persimmon.outbox.relay.lease-seconds:30}") long leaseSeconds) {
+      RetryPolicy retryPolicy,
+      @Value("${persimmon.outbox.relay.lease-seconds:30}") long leaseSeconds,
+      @Value("${persimmon.outbox.retry.max-attempts:10}") int maxAttempts) {
     return new MybatisOutboxStore(
         outboxEventMapper,
         objectMapper,
         clock,
         workerIdProvider.workerId(),
-        Duration.ofSeconds(leaseSeconds));
+        Duration.ofSeconds(leaseSeconds),
+        retryPolicy,
+        maxAttempts);
   }
 
   @Bean

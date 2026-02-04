@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ryan.persimmon.app.common.outbox.model.OutboxMessage;
 import com.ryan.persimmon.app.common.outbox.port.OutboxStore;
+import com.ryan.persimmon.app.common.outbox.retry.RetryPolicy;
 import com.ryan.persimmon.app.common.time.AppClock;
 import com.ryan.persimmon.infra.event.outbox.mapper.OutboxEventMapper;
 import com.ryan.persimmon.infra.event.outbox.po.OutboxEventPO;
@@ -25,18 +26,24 @@ public class MybatisOutboxStore implements OutboxStore {
   private final AppClock clock;
   private final String workerId;
   private final Duration lease;
+  private final RetryPolicy retryPolicy;
+  private final int maxAttempts;
 
   public MybatisOutboxStore(
       OutboxEventMapper mapper,
       ObjectMapper objectMapper,
       AppClock clock,
       String workerId,
-      Duration lease) {
+      Duration lease,
+      RetryPolicy retryPolicy,
+      int maxAttempts) {
     this.mapper = mapper;
     this.objectMapper = objectMapper;
     this.clock = clock;
     this.workerId = workerId;
     this.lease = lease;
+    this.retryPolicy = retryPolicy;
+    this.maxAttempts = maxAttempts;
   }
 
   @Override
@@ -73,7 +80,7 @@ public class MybatisOutboxStore implements OutboxStore {
   @Override
   @Transactional
   public List<OutboxMessage> claimNextBatch(int batchSize, Instant now) {
-    mapper.releaseExpiredLocks(now);
+    requeueExpiredLeases(batchSize, now);
 
     List<OutboxEventPO> locked = mapper.lockNextBatchForSending(now, batchSize);
     if (locked.isEmpty()) {
@@ -82,7 +89,10 @@ public class MybatisOutboxStore implements OutboxStore {
 
     Instant lockedUntil = now.plus(lease);
     for (OutboxEventPO po : locked) {
-      mapper.markSending(po.getEventId(), workerId, lockedUntil, now);
+      int updated = mapper.markSending(po.getEventId(), workerId, lockedUntil, now);
+      if (updated != 1) {
+        throw new IllegalStateException("Failed to mark outbox event SENDING: " + po.getEventId());
+      }
     }
 
     List<OutboxMessage> result = new ArrayList<>(locked.size());
@@ -103,17 +113,20 @@ public class MybatisOutboxStore implements OutboxStore {
 
   @Override
   public void markSent(UUID eventId, Instant sentAt) {
-    mapper.markSent(eventId, sentAt);
+    // Late updates must not overwrite newer state (e.g., reclaimed lease by another worker).
+    mapper.markSent(eventId, workerId, sentAt, sentAt);
   }
 
   @Override
   public void markFailed(UUID eventId, Instant now, Instant nextRetryAt, String lastError) {
-    mapper.markFailed(eventId, now, nextRetryAt, lastError);
+    // Late updates must not overwrite newer state (e.g., reclaimed lease by another worker).
+    mapper.markFailed(eventId, now, nextRetryAt, lastError, workerId);
   }
 
   @Override
   public void markDead(UUID eventId, Instant now, String lastError) {
-    mapper.markDead(eventId, now, lastError);
+    // Late updates must not overwrite newer state (e.g., reclaimed lease by another worker).
+    mapper.markDead(eventId, now, lastError, workerId);
   }
 
   private Map<String, String> deserializeHeaders(String headersJson) {
@@ -135,6 +148,23 @@ public class MybatisOutboxStore implements OutboxStore {
       return objectMapper.writeValueAsString(headers);
     } catch (JsonProcessingException e) {
       throw new IllegalStateException("Failed to serialize outbox headers.", e);
+    }
+  }
+
+  private void requeueExpiredLeases(int batchSize, Instant now) {
+    if (batchSize <= 0) {
+      return;
+    }
+    List<OutboxEventPO> expired = mapper.lockExpiredSendingBatch(now, batchSize);
+    for (OutboxEventPO po : expired) {
+      int attempts = po.getAttempts() == null ? 0 : po.getAttempts();
+      int nextAttempt = attempts + 1;
+      if (nextAttempt >= maxAttempts) {
+        mapper.markLeaseExpiredDead(po.getEventId(), now);
+        continue;
+      }
+      Instant nextRetryAt = now.plus(retryPolicy.nextBackoff(nextAttempt));
+      mapper.markLeaseExpiredReady(po.getEventId(), now, nextRetryAt);
     }
   }
 }

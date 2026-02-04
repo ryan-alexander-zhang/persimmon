@@ -95,6 +95,7 @@ public interface OutboxEventMapper extends BaseMapper<OutboxEventPO> {
         locked_until = #{lockedUntil},
         updated_at = #{now}
       where event_id = #{eventId}
+        and status = 'READY'
       """)
   int markSending(
       @Param("eventId") UUID eventId,
@@ -113,8 +114,15 @@ public interface OutboxEventMapper extends BaseMapper<OutboxEventPO> {
         last_error = null,
         updated_at = #{sentAt}
       where event_id = #{eventId}
+        and status = 'SENDING'
+        and locked_by = #{lockedBy}
+        and (locked_until is null or locked_until >= #{now})
       """)
-  int markSent(@Param("eventId") UUID eventId, @Param("sentAt") Instant sentAt);
+  int markSent(
+      @Param("eventId") UUID eventId,
+      @Param("lockedBy") String lockedBy,
+      @Param("sentAt") Instant sentAt,
+      @Param("now") Instant now);
 
   @Update(
       """
@@ -129,12 +137,16 @@ public interface OutboxEventMapper extends BaseMapper<OutboxEventPO> {
         locked_until = null,
         updated_at = #{now}
       where event_id = #{eventId}
+        and status = 'SENDING'
+        and locked_by = #{lockedBy}
+        and (locked_until is null or locked_until >= #{now})
       """)
   int markFailed(
       @Param("eventId") UUID eventId,
       @Param("now") Instant now,
       @Param("nextRetryAt") Instant nextRetryAt,
-      @Param("lastError") String lastError);
+      @Param("lastError") String lastError,
+      @Param("lockedBy") String lockedBy);
 
   @Update(
       """
@@ -149,23 +161,71 @@ public interface OutboxEventMapper extends BaseMapper<OutboxEventPO> {
         locked_until = null,
         updated_at = #{now}
       where event_id = #{eventId}
+        and status = 'SENDING'
+        and locked_by = #{lockedBy}
+        and (locked_until is null or locked_until >= #{now})
       """)
   int markDead(
       @Param("eventId") UUID eventId,
       @Param("now") Instant now,
-      @Param("lastError") String lastError);
+      @Param("lastError") String lastError,
+      @Param("lockedBy") String lockedBy);
+
+  @Update(
+      """
+      select
+        event_id,
+        attempts,
+        locked_by,
+        locked_until
+      from outbox_event
+      where status = 'SENDING'
+        and locked_until is not null
+        and locked_until < #{now}
+      order by locked_until asc
+      limit #{batchSize}
+      for update skip locked
+      """)
+  List<OutboxEventPO> lockExpiredSendingBatch(
+      @Param("now") Instant now, @Param("batchSize") int batchSize);
 
   @Update(
       """
       update outbox_event
       set
         status = 'READY',
+        attempts = attempts + 1,
+        next_retry_at = #{nextRetryAt},
+        last_error = 'LEASE_EXPIRED',
         locked_by = null,
         locked_until = null,
         updated_at = #{now}
-      where status = 'SENDING'
+      where event_id = #{eventId}
+        and status = 'SENDING'
         and locked_until is not null
         and locked_until < #{now}
       """)
-  int releaseExpiredLocks(@Param("now") Instant now);
+  int markLeaseExpiredReady(
+      @Param("eventId") UUID eventId,
+      @Param("now") Instant now,
+      @Param("nextRetryAt") Instant nextRetryAt);
+
+  @Update(
+      """
+      update outbox_event
+      set
+        status = 'DEAD',
+        attempts = attempts + 1,
+        next_retry_at = null,
+        last_error = 'LEASE_EXPIRED',
+        dead_at = #{now},
+        locked_by = null,
+        locked_until = null,
+        updated_at = #{now}
+      where event_id = #{eventId}
+        and status = 'SENDING'
+        and locked_until is not null
+        and locked_until < #{now}
+      """)
+  int markLeaseExpiredDead(@Param("eventId") UUID eventId, @Param("now") Instant now);
 }
