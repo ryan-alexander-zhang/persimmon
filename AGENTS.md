@@ -30,8 +30,8 @@ Use the matching skill for ANY change that primarily affects these paths.
 **Infra (`persimmon-scaffold/persimmon-scaffold-infra`)**
 - `src/main/java/**/infra/**/po/**` or `**/mapper/**` → `infra-mybatis-po-mapper-generator`
 - `src/main/java/**/infra/**/store/**` → `infra-store-implementation-generator`
-- `src/main/java/**/infra/repository/**` (BC repositories) → `infra-bc-repository-generator`
-- `src/main/java/**/infra/query/**` (BC queries/CQRS read side) → `infra-bc-query-generator`
+- `src/main/java/**/infra/repository/biz/**` (BC repositories) → `infra-bc-repository-generator`
+- `src/main/java/**/infra/query/biz/**` (BC queries/CQRS read side) → `infra-bc-query-generator`
 - `src/main/java/**/infra/gateway/**` (system integrations) → `infra-system-gateway-generator`
 - `src/main/resources/db/migration/**` → `infra-flyway-migration-generator`
 - `src/main/java/**/infra/**/event/mq/**` → `infra-mq-transport-generator`

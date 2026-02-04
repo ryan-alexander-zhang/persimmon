@@ -1,5 +1,8 @@
 # Templates — Flyway Migration
 
+## Minimal file tree (typical)
+- `persimmon-scaffold/persimmon-scaffold-infra/src/main/resources/db/migration/V<semver>__<desc>.sql`
+
 ## Naming
 - `V<semver>__<feature>_<object>.sql`
 
@@ -18,4 +21,3 @@
 ## Reference starting points
 - `persimmon-scaffold/persimmon-scaffold-infra/src/main/resources/db/migration/V1.0.5__inbox_event_processing.sql`
 - `persimmon-scaffold/persimmon-scaffold-infra/src/main/resources/db/migration/V1.0.4__workflow_instance_step.sql`
-

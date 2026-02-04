@@ -26,7 +26,8 @@ description: "Generates scheduler jobs in adapter layer with consistent packagin
 ## Implementation Rules
 - Jobs should call app-layer services/ports only.
 - Keep jobs thin: read config, call service, handle logging/metrics.
-- Worker identity must be injected via `WorkerIdProvider` (app/common).
+- Only inject `WorkerIdProvider` when the job itself must compute a worker identity.
+  - Prefer worker identity to be used inside infra stores (lease locking) rather than in adapter jobs.
 
 ## Reference Implementations
 - `persimmon-scaffold/persimmon-scaffold-adapter/src/main/java/com/ryan/persimmon/adapter/scheduler/system/job/OutboxRelayJob.java`

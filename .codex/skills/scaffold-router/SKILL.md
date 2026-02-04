@@ -20,6 +20,11 @@ This skill is a *meta-skill*: it does not generate code by itself unless a suita
    - the type of artifact requested (PO/Mapper/Flyway/Job/Consumer/etc.)
 3) Select one generator skill. Always apply `scaffold-architecture-guardrails` as a checklist.
 
+### Precedence rule
+When multiple path patterns match, choose the **most specific** one:
+- `infra/repository/**`, `infra/query/**`, `infra/gateway/**` override the generic `infra/**/po|mapper` mapping.
+- `db/migration/**` overrides generic infra mappings.
+
 ## Path → skill mapping
 - `persimmon-scaffold/persimmon-scaffold-domain/**` → `domain-*` skills
 - `persimmon-scaffold/persimmon-scaffold-app/**` → `app-*` skills
@@ -29,12 +34,12 @@ This skill is a *meta-skill*: it does not generate code by itself unless a suita
 
 More specific:
 - `**/db/migration/**` → `infra-flyway-migration-generator`
-- `**/infra/repository/**` → `infra-bc-repository-generator`
-- `**/infra/query/**` → `infra-bc-query-generator`
+- `**/infra/repository/biz/**` → `infra-bc-repository-generator`
+- `**/infra/query/biz/**` → `infra-bc-query-generator`
 - `**/infra/gateway/**` → `infra-system-gateway-generator`
 - `**/infra/**/po/**` or `**/infra/**/mapper/**` → `infra-mybatis-po-mapper-generator`
 - `**/adapter/scheduler/**` → `adapter-scheduler-job-generator`
-- `**/start/src/main/resources/**.yml` / `**.yaml` → `start-yaml-config-generator`
+- `**/persimmon-scaffold-start/src/main/resources/**.yml` / `**.yaml` → `start-yaml-config-generator`
 
 ## One question policy
 Ask **one** question when routing is ambiguous. Prefer multiple-choice.

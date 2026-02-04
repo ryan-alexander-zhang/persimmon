@@ -39,6 +39,8 @@ description: "Manages start-module YAML keys: create/rename/remove config keys, 
 ## Reference Implementations
 - YAML baseline:
   - `persimmon-scaffold/persimmon-scaffold-start/src/main/resources/application.yaml`
+  - `persimmon-scaffold/persimmon-scaffold-start/src/main/resources/application-local.yaml`
+  - `persimmon-scaffold/persimmon-scaffold-start/src/main/resources/application-example.yaml`
 - Guardrails:
   - `.codex/skills/start-config-schema-guardrails/SKILL.md`
 
@@ -48,4 +50,3 @@ description: "Manages start-module YAML keys: create/rename/remove config keys, 
 ## Pitfalls
 - Introducing ambiguous keys like `outbox.kafka.topic` used by consumer.
 - Leaving dead/unused keys in YAML after renames.
-

@@ -13,7 +13,11 @@ description: "Global guardrails for Persimmon Scaffold: layers, dependencies, na
 - `start`: wiring/configuration, YAML keys, Bean configs, component scanning.
 
 ## Naming conventions
-- Prefer explicit names: `*Store` for persistence port/impl, `*Transport` for message transport, `*Job` for scheduler entrypoint.
+- Prefer explicit names:
+  - `*Repository`: domain persistence ports (domain-facing, business semantics)
+  - `*Store`: app-common persistence ports for technical tables (outbox/inbox/workflow)
+  - `*Transport`: message transport/publisher implementations (Kafka, etc.)
+  - `*Job`: scheduler entrypoint (adapter)
 - Event identifiers:
   - `eventId`: unique per produced event (UUID/ULID).
   - `aggregateId`: domain aggregate identity; not necessarily unique per event.
@@ -44,4 +48,3 @@ description: "Global guardrails for Persimmon Scaffold: layers, dependencies, na
 - [ ] DB changes have Flyway migration
 - [ ] Outbox/Inbox/Workflow updates guarded by predicates
 - [ ] Unit tests for logic, IT for store/mappers when needed
-

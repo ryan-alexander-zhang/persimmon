@@ -8,6 +8,16 @@ Prefer copying existing implementations and adapting names/predicates rather tha
 - `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/<feature>/po/<Xxx>PO.java`
 - `persimmon-scaffold/persimmon-scaffold-infra/src/test/java/.../<Xxx>StoreIT.java` (DB semantics)
 
+## Skeleton signatures
+- `public final class MybatisXxxStore implements XxxStore {`
+  - `public void append(List<XxxMessage> messages) { ... }`
+  - `@Transactional`
+  - `public List<XxxMessage> claimNextBatch(int batchSize, Instant now) { ... }`
+  - `public void markSent(UUID id, Instant sentAt) { ... }`
+  - `public void markFailed(UUID id, Instant now, Instant nextRetryAt, String lastError) { ... }`
+  - `public void markDead(UUID id, Instant now, String lastError) { ... }`
+  - `}`
+
 ## Store checklist template (claim + update)
 - Claim method:
   - `@Transactional`
@@ -22,4 +32,3 @@ Prefer copying existing implementations and adapting names/predicates rather tha
 - Outbox: `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/event/outbox/store/MybatisOutboxStore.java`
 - Inbox: `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/event/inbox/store/MybatisInboxStore.java`
 - Workflow: `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/repository/workflow/store/MybatisWorkflowStore.java`
-
