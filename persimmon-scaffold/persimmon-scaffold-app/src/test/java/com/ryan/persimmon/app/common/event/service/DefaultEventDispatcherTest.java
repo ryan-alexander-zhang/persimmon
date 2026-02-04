@@ -45,7 +45,7 @@ class DefaultEventDispatcherTest {
   }
 
   @Test
-  void dispatch_should_throw_when_no_handler_registered() {
+  void dispatch_should_mark_dead_when_no_handler_registered() {
     Instant t0 = Instant.parse("2026-02-02T00:00:00Z");
     UUID eventId = UUID.fromString("019c0e02-a181-786f-8d5b-11c4de115fac");
     ConsumedEvent event =
@@ -62,8 +62,13 @@ class DefaultEventDispatcherTest {
     DefaultEventDispatcher dispatcher =
         new DefaultEventDispatcher(inbox, () -> t0, "c1", List.of());
 
-    assertThrows(IllegalStateException.class, () -> dispatcher.dispatch(event));
+    assertDoesNotThrow(() -> dispatcher.dispatch(event));
+    assertEquals("DEAD", inbox.status(eventId, "c1"));
     assertFalse(inbox.isProcessed(eventId, "c1"));
+
+    // repeated delivery should be ignored
+    assertDoesNotThrow(() -> dispatcher.dispatch(event));
+    assertEquals("DEAD", inbox.status(eventId, "c1"));
   }
 
   @Test

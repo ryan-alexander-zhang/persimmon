@@ -42,31 +42,37 @@ public class DefaultEventDispatcher implements EventDispatcher {
 
   @Override
   public void dispatch(ConsumedEvent event) {
-    if (!inboxStore.tryStart(event, consumerName, clock.now())) {
+    Instant now = clock.now();
+    if (!inboxStore.tryStart(event, consumerName, now)) {
       return;
     }
 
     EventHandler handler = handlersByType.get(event.eventType());
     if (handler == null) {
-      throw new IllegalStateException("No handler registered for eventType=" + event.eventType());
+      inboxStore.markDead(
+          event.eventId(),
+          consumerName,
+          now,
+          "NO_HANDLER: " + (event.eventType() == null ? "" : event.eventType()));
+      return;
     }
 
     try {
       handler.handle(event);
-      inboxStore.markProcessed(event.eventId(), consumerName, clock.now());
+      inboxStore.markProcessed(event.eventId(), consumerName, now);
     } catch (RuntimeException e) {
       String lastError =
           e.getClass().getName() + ": " + (e.getMessage() == null ? "" : e.getMessage());
       if (e instanceof EventHandlingException ex) {
         if (ex.retryable()) {
-          inboxStore.markFailed(event.eventId(), consumerName, clock.now(), lastError);
+          inboxStore.markFailed(event.eventId(), consumerName, now, lastError);
           throw ex;
         }
-        inboxStore.markDead(event.eventId(), consumerName, clock.now(), lastError);
+        inboxStore.markDead(event.eventId(), consumerName, now, lastError);
         return;
       }
 
-      inboxStore.markFailed(event.eventId(), consumerName, clock.now(), lastError);
+      inboxStore.markFailed(event.eventId(), consumerName, now, lastError);
       throw EventHandlingException.retryable("EVENT_HANDLER_ERROR", "Handler execution failed.", e);
     }
   }
