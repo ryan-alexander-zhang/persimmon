@@ -30,6 +30,9 @@ Use the matching skill for ANY change that primarily affects these paths.
 **Infra (`persimmon-scaffold/persimmon-scaffold-infra`)**
 - `src/main/java/**/infra/**/po/**` or `**/mapper/**` → `infra-mybatis-po-mapper-generator`
 - `src/main/java/**/infra/**/store/**` → `infra-store-implementation-generator`
+- `src/main/java/**/infra/repository/**` (BC repositories) → `infra-bc-repository-generator`
+- `src/main/java/**/infra/query/**` (BC queries/CQRS read side) → `infra-bc-query-generator`
+- `src/main/java/**/infra/gateway/**` (system integrations) → `infra-system-gateway-generator`
 - `src/main/resources/db/migration/**` → `infra-flyway-migration-generator`
 - `src/main/java/**/infra/**/event/mq/**` → `infra-mq-transport-generator`
 - `src/test/java/**` with DB dependency → `infra-integration-test-generator`
@@ -41,6 +44,7 @@ Use the matching skill for ANY change that primarily affects these paths.
 
 **Start (`persimmon-scaffold/persimmon-scaffold-start`)**
 - `src/main/java/**/start/config/bean/**` → `start-wiring-config-generator`
+- `src/main/resources/**.yml` / `**.yaml` → `start-yaml-config-generator`
 - YAML key naming / config schema decisions → `start-config-schema-guardrails`
 
 ### Intent routing (when path is not known yet)
@@ -48,4 +52,3 @@ If the user asks for an artifact without providing a path, use `scaffold-router`
 1) decide the correct module + package based on `package-info.java` patterns,
 2) select the most specific generator skill above,
 3) enforce `scaffold-architecture-guardrails` checklist.
-

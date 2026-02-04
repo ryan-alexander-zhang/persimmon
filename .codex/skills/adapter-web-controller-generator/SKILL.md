@@ -5,11 +5,29 @@ description: "Generates web adapters (controllers/dtos/assemblers) that map HTTP
 
 # Adapter Web Controller Generator
 
-## Use for
+> Follow `.codex/skills/GENERATOR_SKILL_STRUCTURE.md`.
+
+## Use For
 - `com.ryan.persimmon.adapter.web.*`
 
-## Rules
+## Inputs Required
+- Endpoint path + method
+- Request/response schema
+- Called app use-case (command/query)
+
+## Outputs
+- `.../adapter/web/biz/controller/<XxxController>.java`
+- DTOs under `.../adapter/web/biz/dto`
+- Assembler under `.../adapter/web/biz/assembler` when mapping is non-trivial
+
+## Naming & Packaging
+- Follow BC-first `adapter.web.biz.*` packages
+- Shared only in `adapter.web.common`
+
+## Implementation Rules
 - Controllers validate/parse inputs and call app handlers/services.
 - No domain rules implemented here.
 - DTOs should be adapter-specific (do not reuse domain objects as request/response).
 
+## Pitfalls
+- Exposing infra POs in web responses.

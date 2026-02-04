@@ -29,8 +29,12 @@ This skill is a *meta-skill*: it does not generate code by itself unless a suita
 
 More specific:
 - `**/db/migration/**` → `infra-flyway-migration-generator`
+- `**/infra/repository/**` → `infra-bc-repository-generator`
+- `**/infra/query/**` → `infra-bc-query-generator`
+- `**/infra/gateway/**` → `infra-system-gateway-generator`
 - `**/infra/**/po/**` or `**/infra/**/mapper/**` → `infra-mybatis-po-mapper-generator`
 - `**/adapter/scheduler/**` → `adapter-scheduler-job-generator`
+- `**/start/src/main/resources/**.yml` / `**.yaml` → `start-yaml-config-generator`
 
 ## One question policy
 Ask **one** question when routing is ambiguous. Prefer multiple-choice.
@@ -39,4 +43,3 @@ Common disambiguations:
 - unit test vs integration test
 - event retry semantics (retryable vs non-retryable)
 - storage choice (single table vs 2 tables) where applicable
-

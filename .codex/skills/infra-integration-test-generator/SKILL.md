@@ -5,11 +5,29 @@ description: "Generates DB integration tests (*IT) that run via Failsafe and val
 
 # Infra Integration Test Generator
 
-## Use for
+> Follow `.codex/skills/GENERATOR_SKILL_STRUCTURE.md`.
+
+## Use For
 - Any infra code relying on DB semantics (SQL, locking, constraints).
 
-## Rules
+## Inputs Required
+- Target store/mapper and the behaviors to validate (leases, status transitions)
+- DB expectation (local Postgres vs container) consistent with current project setup
+
+## Outputs
+- `persimmon-scaffold/persimmon-scaffold-infra/src/test/java/.../<Xxx>IT.java`
+
+## Naming & Packaging
+- Test class name ends with `IT` so it runs under Failsafe in `mvn verify`.
+
+## Implementation Rules
 - Name tests `*IT` so they run in `mvn verify`.
 - Tests must create/cleanup their own data.
 - Prefer asserting semantic behavior (claiming, transitions) over exact SQL.
 
+## Reference Implementations
+- `persimmon-scaffold/persimmon-scaffold-infra/src/test/java/com/ryan/persimmon/infra/event/outbox/OutboxStoreIT.java`
+- `persimmon-scaffold/persimmon-scaffold-infra/src/test/java/com/ryan/persimmon/infra/repository/workflow/WorkflowStoreIT.java`
+
+## Pitfalls
+- Writing ITs as `*Test` (won't run in CI if only verify is executed).
