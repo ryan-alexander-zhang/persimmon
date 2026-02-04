@@ -1,8 +1,8 @@
 # Templates — Infra PO/Mapper (MyBatis / MyBatis-Plus)
 
 ## Minimal file tree (typical)
-- `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/<feature>/po/<XxxPO>.java`
-- `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/<feature>/mapper/<XxxMapper>.java`
+- `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/<feature>/po/<XxxPO>.java`
+- `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/<feature>/mapper/<XxxMapper>.java`
 
 ## PO skeleton (fields mirror migration)
 Use `OutboxEventPO` / `WorkflowStepPO` as reference; keep PO as persistence-only.
@@ -24,5 +24,5 @@ Checklist for any `markXxx(...)`:
 - if leased: `and locked_by = ? and locked_until >= now`
 
 ## Reference starting points
-- `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/event/outbox/mapper/OutboxEventMapper.java`
-- `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/repository/workflow/mapper/WorkflowStepMapper.java`
+- `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/event/outbox/mapper/OutboxEventMapper.java`
+- `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/repository/workflow/mapper/WorkflowStepMapper.java`

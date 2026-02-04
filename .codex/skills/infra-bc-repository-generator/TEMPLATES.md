@@ -7,10 +7,10 @@
 - `infra/repository/<bc>/impl`
 
 ## Minimal file tree (typical)
-- `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/repository/<bc>/po/<XxxPO>.java`
-- `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/repository/<bc>/mapper/<XxxMapper>.java`
-- `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/repository/<bc>/converter/<XxxConverter>.java`
-- `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/repository/<bc>/impl/<XxxRepositoryImpl>.java`
+- `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/repository/<bc>/po/<XxxPO>.java`
+- `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/repository/<bc>/mapper/<XxxMapper>.java`
+- `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/repository/<bc>/converter/<XxxConverter>.java`
+- `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/repository/<bc>/impl/<XxxRepositoryImpl>.java`
 
 ## Skeleton signatures
 Converter:
@@ -36,4 +36,4 @@ Repository implementation:
 - Translate persistence errors.
 
 ## Reference packages
-- `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/repository/biz/**`
+- `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/repository/biz/**`

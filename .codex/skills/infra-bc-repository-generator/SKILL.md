@@ -9,12 +9,12 @@ description: "Generates BC-first repository implementation in infra: PO/Mapper/C
 
 ## Use For
 - Write-side persistence for a business context under:
-  - `com.ryan.persimmon.infra.repository.<bc>.po`
-  - `com.ryan.persimmon.infra.repository.<bc>.mapper`
-  - `com.ryan.persimmon.infra.repository.<bc>.converter`
-  - `com.ryan.persimmon.infra.repository.<bc>.impl`
+  - `{{basePackage}}.infra.repository.<bc>.po`
+  - `{{basePackage}}.infra.repository.<bc>.mapper`
+  - `{{basePackage}}.infra.repository.<bc>.converter`
+  - `{{basePackage}}.infra.repository.<bc>.impl`
 - Implementing domain repository ports:
-  - `com.ryan.persimmon.domain.<bc>.repository.*`
+  - `{{basePackage}}.domain.<bc>.repository.*`
 
 ## Inputs Required
 - Business context name (`<bc>`), e.g. `biz`
@@ -30,7 +30,7 @@ description: "Generates BC-first repository implementation in infra: PO/Mapper/C
 ## Outputs
 - Flyway migration(s) if new table(s) are needed
 - PO:
-  - `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/repository/<bc>/po/<XxxPO>.java`
+  - `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/repository/<bc>/po/<XxxPO>.java`
 - Mapper:
   - `.../infra/repository/<bc>/mapper/<XxxMapper>.java`
 - Converter:
@@ -57,11 +57,11 @@ description: "Generates BC-first repository implementation in infra: PO/Mapper/C
 
 ## Reference Implementations
 - Package rules:
-  - `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/repository/package-info.java`
-  - `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/repository/biz/impl/package-info.java`
+  - `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/repository/package-info.java`
+  - `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/repository/biz/impl/package-info.java`
 - Mapper/PO baseline:
-  - `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/repository/biz/po/package-info.java`
-  - `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/repository/biz/mapper/package-info.java`
+  - `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/repository/biz/po/package-info.java`
+  - `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/repository/biz/mapper/package-info.java`
 
 ## Tests
 - If behavior depends on DB constraints (unique/check) or transaction semantics, add `*IT`.
@@ -69,4 +69,3 @@ description: "Generates BC-first repository implementation in infra: PO/Mapper/C
 ## Pitfalls
 - Putting conversion logic in repository impl (should be in converter).
 - Using BaseMapper for conditional transitions that require strict predicates.
-

@@ -12,18 +12,18 @@ description: "Generates domain model types (Aggregate/Entity/VO/Enum/Exception) 
 - Domain exceptions and domain-level constants
 
 ## Inputs Required
-- Target package under `com.ryan.persimmon.domain.biz.*` (BC-first) or `com.ryan.persimmon.domain.common.*` (cross-cutting)
+- Target package under `{{basePackage}}.domain.biz.*` (BC-first) or `{{basePackage}}.domain.common.*` (cross-cutting)
 - Type kind: `Aggregate/Entity/VO/Enum/Exception`
 - Public API expectations (which getters are truly needed)
 - Invariant rules (validation, allowed transitions)
 
 ## Outputs
-- `persimmon-scaffold/persimmon-scaffold-domain/src/main/java/.../<Type>.java`
-- Optional: `persimmon-scaffold/persimmon-scaffold-domain/src/test/java/.../<Type>Test.java`
+- `{{domainModuleDir}}/src/main/java/{{basePackagePath}}/.../<Type>.java`
+- Optional: `{{domainModuleDir}}/src/test/java/{{basePackagePath}}/.../<Type>Test.java`
 
 ## Naming & Packaging
-- Business semantics go under `com.ryan.persimmon.domain.biz.<context>.*`
-- Cross-cutting goes under `com.ryan.persimmon.domain.common.*`
+- Business semantics go under `{{basePackage}}.domain.biz.<context>.*`
+- Cross-cutting goes under `{{basePackage}}.domain.common.*`
 - Prefer `*Id` / `*Type` / `*Status` for identity/type/status.
 
 ## Implementation Rules
@@ -33,9 +33,9 @@ description: "Generates domain model types (Aggregate/Entity/VO/Enum/Exception) 
 - Keep domain types framework-free.
 
 ## Reference Implementations
-- `persimmon-scaffold/persimmon-scaffold-domain/src/main/java/com/ryan/persimmon/domain/common/workflow/WorkflowInstance.java`
-- `persimmon-scaffold/persimmon-scaffold-domain/src/main/java/com/ryan/persimmon/domain/common/workflow/WorkflowStepStatus.java`
-- `persimmon-scaffold/persimmon-scaffold-domain/src/main/java/com/ryan/persimmon/domain/common/event/DomainEvent.java`
+- `{{domainModuleDir}}/src/main/java/{{basePackagePath}}/domain/common/workflow/WorkflowInstance.java`
+- `{{domainModuleDir}}/src/main/java/{{basePackagePath}}/domain/common/workflow/WorkflowStepStatus.java`
+- `{{domainModuleDir}}/src/main/java/{{basePackagePath}}/domain/common/event/DomainEvent.java`
 
 ## Tests
 - Add unit tests when invariants or parsing logic exist; keep tests framework-free.
@@ -45,7 +45,7 @@ description: "Generates domain model types (Aggregate/Entity/VO/Enum/Exception) 
 - Putting business rules in `domain.common`.
 
 ## Output checklist
-- [ ] Located under `com.ryan.persimmon.domain.**`
+- [ ] Located under `{{basePackage}}.domain.**`
 - [ ] No Lombok
 - [ ] Minimal methods, meaningful names
 - [ ] Unit tests for invariants when non-trivial

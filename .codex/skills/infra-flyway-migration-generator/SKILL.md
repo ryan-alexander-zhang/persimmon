@@ -8,7 +8,7 @@ description: "Generates Flyway SQL migrations consistent with scaffold rules (no
 > Follow `.codex/skills/GENERATOR_SKILL_STRUCTURE.md`.
 
 ## Use For
-- `persimmon-scaffold-infra/src/main/resources/db/migration/Vx__*.sql`
+- `{{infraModuleDir}}/src/main/resources/db/migration/Vx__*.sql`
 
 ## Inputs Required
 - Target table(s) + columns + constraints
@@ -17,7 +17,7 @@ description: "Generates Flyway SQL migrations consistent with scaffold rules (no
 
 ## Outputs
 - A new migration file with the next version number:
-  - `persimmon-scaffold/persimmon-scaffold-infra/src/main/resources/db/migration/Vx__<desc>.sql`
+  - `{{infraModuleDir}}/src/main/resources/db/migration/Vx__<desc>.sql`
 
 ## Naming & Packaging
 - Prefer descriptive names: `V1.0.X__outbox_event.sql`, `V1.0.X__workflow_instance_step.sql`
@@ -28,8 +28,8 @@ description: "Generates Flyway SQL migrations consistent with scaffold rules (no
 - Backfill data when adding new NOT NULL columns; keep migration rerunnable where possible.
 
 ## Reference Implementations
-- `persimmon-scaffold/persimmon-scaffold-infra/src/main/resources/db/migration/V1.0.5__inbox_event_processing.sql`
-- `persimmon-scaffold/persimmon-scaffold-infra/src/main/resources/db/migration/V1.0.4__workflow_instance_step.sql`
+- `{{infraModuleDir}}/src/main/resources/db/migration/V1.0.5__inbox_event_processing.sql`
+- `{{infraModuleDir}}/src/main/resources/db/migration/V1.0.4__workflow_instance_step.sql`
 
 ## Tests
 - Add/adjust `*IT` if migration changes affect claim/update semantics.

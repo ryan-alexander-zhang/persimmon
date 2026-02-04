@@ -8,7 +8,7 @@ description: "Generates Kafka-based transport implementations in infra (producer
 > Follow `.codex/skills/GENERATOR_SKILL_STRUCTURE.md`.
 
 ## Use For
-- `com.ryan.persimmon.infra.event.mq.*`
+- `{{basePackage}}.infra.event.mq.*`
 
 ## Inputs Required
 - Broker type (Kafka)
@@ -33,8 +33,8 @@ description: "Generates Kafka-based transport implementations in infra (producer
 - Topic naming should distinguish producer vs consumer semantics in config keys.
 
 ## Reference Implementations
-- `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/event/mq/KafkaOutboxTransport.java`
-- `persimmon-scaffold/persimmon-scaffold-app/src/main/java/com/ryan/persimmon/app/common/outbox/model/OutboxHeaders.java`
+- `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/event/mq/KafkaOutboxTransport.java`
+- `{{appModuleDir}}/src/main/java/{{basePackagePath}}/app/common/outbox/model/OutboxHeaders.java`
 
 ## Tests
 - Unit tests for envelope/header mapping if non-trivial.

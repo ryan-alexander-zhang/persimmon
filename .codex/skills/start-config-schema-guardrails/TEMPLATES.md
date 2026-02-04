@@ -14,4 +14,3 @@ This is a guardrail skill. It does not generate code artifacts.
 2) Update wiring (`start/config/bean/**`)
 3) Update adapter annotations placeholders (e.g., `@KafkaListener`) if they use the key
 4) Remove old keys when requested (no fallback)
-

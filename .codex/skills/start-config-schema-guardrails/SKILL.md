@@ -27,8 +27,8 @@ Make config keys unambiguous and consistent across producer/consumer concerns.
   - update `start` module `application*.yml`
 
 ## Reference Implementations
-- `persimmon-scaffold/persimmon-scaffold-start/src/main/resources/application.yaml`
-- `persimmon-scaffold/persimmon-scaffold-start/src/main/resources/application-local.yaml`
+- `{{startModuleDir}}/src/main/resources/application.yaml`
+- `{{startModuleDir}}/src/main/resources/application-local.yaml`
 
 ## Output checklist
 - [ ] New keys documented in YAML

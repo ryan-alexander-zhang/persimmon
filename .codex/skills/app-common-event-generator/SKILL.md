@@ -8,8 +8,8 @@ description: "Generates/extends app-common event system (outbox/inbox, dispatche
 > Follow `.codex/skills/GENERATOR_SKILL_STRUCTURE.md`.
 
 ## Use For
-- `com.ryan.persimmon.app.common.event.*`
-- Adding event handlers under `com.ryan.persimmon.app.biz.event.handler`
+- `{{basePackage}}.app.common.event.*`
+- Adding event handlers under `{{basePackage}}.app.biz.event.handler`
 
 ## Inputs Required
 - `eventType` (stable string contract)
@@ -34,9 +34,9 @@ description: "Generates/extends app-common event system (outbox/inbox, dispatche
 - Retry semantics via `EventHandlingException` (retryable vs non-retryable).
 
 ## Reference Implementations
-- `persimmon-scaffold/persimmon-scaffold-app/src/main/java/com/ryan/persimmon/app/common/event/service/DefaultEventDispatcher.java`
-- `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/event/inbox/store/MybatisInboxStore.java`
-- `persimmon-scaffold/persimmon-scaffold-adapter/src/main/java/com/ryan/persimmon/adapter/mq/system/consumer/OutboxEventKafkaConsumer.java`
+- `{{appModuleDir}}/src/main/java/{{basePackagePath}}/app/common/event/service/DefaultEventDispatcher.java`
+- `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/event/inbox/store/MybatisInboxStore.java`
+- `{{adapterModuleDir}}/src/main/java/{{basePackagePath}}/adapter/mq/system/consumer/OutboxEventKafkaConsumer.java`
 
 ## Tests
 - Unit tests for dispatcher behavior, handler selection, exception mapping.

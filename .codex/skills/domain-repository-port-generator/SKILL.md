@@ -8,7 +8,7 @@ description: "Generates domain repository ports (interfaces) and contracts witho
 > Follow `.codex/skills/GENERATOR_SKILL_STRUCTURE.md`.
 
 ## Use For
-- `com.ryan.persimmon.domain.biz.repository.*` interfaces
+- `{{basePackage}}.domain.biz.repository.*` interfaces
 
 ## Inputs Required
 - Aggregate name + identifier type
@@ -16,7 +16,7 @@ description: "Generates domain repository ports (interfaces) and contracts witho
 - Consistency expectations (optimistic locking? unique constraints?)
 
 ## Outputs
-- `persimmon-scaffold/persimmon-scaffold-domain/src/main/java/.../<XxxRepository>.java`
+- `{{domainModuleDir}}/src/main/java/{{basePackagePath}}/.../<XxxRepository>.java`
 
 ## Naming & Packaging
 - Port names: `*Repository` (domain) or `*Gateway` (external systems)
@@ -27,7 +27,7 @@ description: "Generates domain repository ports (interfaces) and contracts witho
 - Methods should express domain intent (e.g., `save`, `findById`), not table operations.
 
 ## Reference Implementations
-- `persimmon-scaffold/persimmon-scaffold-domain/src/main/java/com/ryan/persimmon/domain/biz/repository/package-info.java`
+- `{{domainModuleDir}}/src/main/java/{{basePackagePath}}/domain/biz/repository/package-info.java`
 
 ## Tests
 - Usually none for pure interfaces.

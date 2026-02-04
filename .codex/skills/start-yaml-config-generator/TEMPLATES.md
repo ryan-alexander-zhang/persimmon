@@ -1,10 +1,10 @@
 # Templates — Start YAML Config
 
 ## Minimal file tree (typical)
-- `persimmon-scaffold/persimmon-scaffold-start/src/main/resources/application.yaml`
-- `persimmon-scaffold/persimmon-scaffold-start/src/main/resources/application-local.yaml`
-- `persimmon-scaffold/persimmon-scaffold-start/src/main/java/com/ryan/persimmon/start/config/bean/<XxxWiringConfig>.java` (when keys are used by wiring)
-- `persimmon-scaffold/persimmon-scaffold-adapter/src/main/java/com/ryan/persimmon/adapter/**` (when placeholders are used by adapters)
+- `{{startModuleDir}}/src/main/resources/application.yaml`
+- `{{startModuleDir}}/src/main/resources/application-local.yaml`
+- `{{startModuleDir}}/src/main/java/{{basePackagePath}}/start/config/bean/<XxxWiringConfig>.java` (when keys are used by wiring)
+- `{{adapterModuleDir}}/src/main/java/{{basePackagePath}}/adapter/**` (when placeholders are used by adapters)
 
 ## Skeleton patterns
 YAML groups (example style from current project):
@@ -21,5 +21,5 @@ YAML groups (example style from current project):
 4) Update any adapter annotations using placeholders (e.g., `@KafkaListener`)
 
 ## Reference YAML
-- `persimmon-scaffold/persimmon-scaffold-start/src/main/resources/application.yaml`
-- `persimmon-scaffold/persimmon-scaffold-start/src/main/resources/application-local.yaml`
+- `{{startModuleDir}}/src/main/resources/application.yaml`
+- `{{startModuleDir}}/src/main/resources/application-local.yaml`

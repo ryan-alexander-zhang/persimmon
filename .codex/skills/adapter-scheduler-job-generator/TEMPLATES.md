@@ -1,8 +1,8 @@
 # Templates — Scheduler Job
 
 ## Minimal file tree (typical)
-- `persimmon-scaffold/persimmon-scaffold-adapter/src/main/java/com/ryan/persimmon/adapter/scheduler/system/job/<XxxJob>.java`
-- `persimmon-scaffold/persimmon-scaffold-start/src/main/resources/application-local.yaml` (job keys)
+- `{{adapterModuleDir}}/src/main/java/{{basePackagePath}}/adapter/scheduler/system/job/<XxxJob>.java`
+- `{{startModuleDir}}/src/main/resources/application-local.yaml` (job keys)
 
 ## Job skeleton pattern
 - `@Component`
@@ -17,4 +17,4 @@
     - `}`
 
 ## Reference starting point
-- `persimmon-scaffold/persimmon-scaffold-adapter/src/main/java/com/ryan/persimmon/adapter/scheduler/system/job/OutboxRelayJob.java`
+- `{{adapterModuleDir}}/src/main/java/{{basePackagePath}}/adapter/scheduler/system/job/OutboxRelayJob.java`

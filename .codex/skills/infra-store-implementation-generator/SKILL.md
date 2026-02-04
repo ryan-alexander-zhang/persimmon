@@ -8,7 +8,7 @@ description: "Generates infra Store implementations (Mybatis*Store) with correct
 > Follow `.codex/skills/GENERATOR_SKILL_STRUCTURE.md`.
 
 ## Use For
-- `com.ryan.persimmon.infra.**.store.*`
+- `{{basePackage}}.infra.**.store.*`
 
 ## Inputs Required
 - Port interface to implement (app/common or app/biz port)
@@ -37,9 +37,9 @@ description: "Generates infra Store implementations (Mybatis*Store) with correct
   - lease validity (`locked_until`)
 
 ## Reference Implementations
-- `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/event/outbox/store/MybatisOutboxStore.java`
-- `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/event/inbox/store/MybatisInboxStore.java`
-- `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/repository/workflow/store/MybatisWorkflowStore.java`
+- `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/event/outbox/store/MybatisOutboxStore.java`
+- `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/event/inbox/store/MybatisInboxStore.java`
+- `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/repository/workflow/store/MybatisWorkflowStore.java`
 
 ## Tests
 - `*IT` verifying concurrency-safe transitions and edge cases (lease expiry).

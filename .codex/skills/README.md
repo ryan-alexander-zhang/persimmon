@@ -8,6 +8,7 @@ Start here:
 
 Generator skill standard:
 - `.codex/skills/GENERATOR_SKILL_STRUCTURE.md`
+- `.codex/skills/VARIABLES.md`
 
 Infra generators aligned to `package-info.java`:
 - `infra-bc-repository-generator` (BC-first write-side repositories: `infra.repository.<bc>.*`)

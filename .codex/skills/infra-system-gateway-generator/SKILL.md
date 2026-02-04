@@ -9,11 +9,11 @@ description: "Generates system-first external integration: client/dto/gateway im
 
 ## Use For
 - External integrations organized by remote system name under:
-  - `com.ryan.persimmon.infra.gateway.<system>.client`
-  - `com.ryan.persimmon.infra.gateway.<system>.dto`
-  - `com.ryan.persimmon.infra.gateway.<system>.impl`
+  - `{{basePackage}}.infra.gateway.<system>.client`
+  - `{{basePackage}}.infra.gateway.<system>.dto`
+  - `{{basePackage}}.infra.gateway.<system>.impl`
 - Implementing domain gateway ports:
-  - `com.ryan.persimmon.domain.<bc>.gateway.*`
+  - `{{basePackage}}.domain.<bc>.gateway.*`
 
 ## Inputs Required
 - System name (`<system>`), e.g. `kubernetes`, `harbor`, `payment`
@@ -49,8 +49,8 @@ description: "Generates system-first external integration: client/dto/gateway im
 
 ## Reference Implementations
 - Package rules:
-  - `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/gateway/package-info.java`
-  - `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/gateway/system/impl/package-info.java`
+  - `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/gateway/package-info.java`
+  - `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/gateway/system/impl/package-info.java`
 
 ## Tests
 - Unit tests for error translation rules are recommended.
@@ -58,4 +58,3 @@ description: "Generates system-first external integration: client/dto/gateway im
 ## Pitfalls
 - Letting client exceptions propagate to app/domain (breaks retry classification).
 - Mixing DTOs and domain models in the same package.
-

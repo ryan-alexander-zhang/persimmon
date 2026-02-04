@@ -8,7 +8,7 @@ description: "Generates web adapters (controllers/dtos/assemblers) that map HTTP
 > Follow `.codex/skills/GENERATOR_SKILL_STRUCTURE.md`.
 
 ## Use For
-- `com.ryan.persimmon.adapter.web.*`
+- `{{basePackage}}.adapter.web.*`
 
 ## Inputs Required
 - Endpoint path + method

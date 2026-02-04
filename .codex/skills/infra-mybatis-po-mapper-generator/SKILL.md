@@ -8,8 +8,8 @@ description: "Generates MyBatis/MyBatis-Plus PO + Mapper patterns for infra, cho
 > Follow `.codex/skills/GENERATOR_SKILL_STRUCTURE.md`.
 
 ## Use For
-- PO under `com.ryan.persimmon.infra.**.po`
-- Mapper under `com.ryan.persimmon.infra.**.mapper`
+- PO under `{{basePackage}}.infra.**.po`
+- Mapper under `{{basePackage}}.infra.**.mapper`
 
 ## Inputs Required
 - Table name + columns + constraints (from Flyway migration)
@@ -35,9 +35,9 @@ description: "Generates MyBatis/MyBatis-Plus PO + Mapper patterns for infra, cho
 - Keep PO focused on persistence; convert to domain/app types at boundaries.
 
 ## Reference Implementations
-- `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/event/outbox/po/OutboxEventPO.java`
-- `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/event/outbox/mapper/OutboxEventMapper.java`
-- `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/repository/workflow/mapper/WorkflowStepMapper.java`
+- `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/event/outbox/po/OutboxEventPO.java`
+- `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/event/outbox/mapper/OutboxEventMapper.java`
+- `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/repository/workflow/mapper/WorkflowStepMapper.java`
 
 ## Tests
 - Add `*IT` for any mapper using `FOR UPDATE SKIP LOCKED` or status transitions.

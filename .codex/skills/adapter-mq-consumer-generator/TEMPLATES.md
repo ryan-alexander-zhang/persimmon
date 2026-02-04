@@ -1,8 +1,8 @@
 # Templates — MQ Consumer (Kafka)
 
 ## Minimal file tree (typical)
-- `persimmon-scaffold/persimmon-scaffold-adapter/src/main/java/com/ryan/persimmon/adapter/mq/system/consumer/<XxxConsumer>.java`
-- `persimmon-scaffold/persimmon-scaffold-start/src/main/resources/application-local.yaml` (topic/group/concurrency keys)
+- `{{adapterModuleDir}}/src/main/java/{{basePackagePath}}/adapter/mq/system/consumer/<XxxConsumer>.java`
+- `{{startModuleDir}}/src/main/resources/application-local.yaml` (topic/group/concurrency keys)
 
 ## Consumer skeleton pattern
 - `@Component`
@@ -17,4 +17,4 @@
     - `}`
 
 ## Reference starting point
-- `persimmon-scaffold/persimmon-scaffold-adapter/src/main/java/com/ryan/persimmon/adapter/mq/system/consumer/OutboxEventKafkaConsumer.java`
+- `{{adapterModuleDir}}/src/main/java/{{basePackagePath}}/adapter/mq/system/consumer/OutboxEventKafkaConsumer.java`

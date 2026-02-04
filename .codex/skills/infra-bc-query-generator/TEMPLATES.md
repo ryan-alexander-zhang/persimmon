@@ -6,9 +6,9 @@
 - `infra/query/<bc>/impl`
 
 ## Minimal file tree (typical)
-- `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/query/<bc>/dto/<XxxRowDTO>.java`
-- `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/query/<bc>/mapper/<XxxQueryMapper>.java`
-- `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/query/<bc>/impl/<XxxQueryPortImpl>.java` (when app defines a port)
+- `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/query/<bc>/dto/<XxxRowDTO>.java`
+- `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/query/<bc>/mapper/<XxxQueryMapper>.java`
+- `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/query/<bc>/impl/<XxxQueryPortImpl>.java` (when app defines a port)
 
 ## Skeleton signatures
 Mapper:
@@ -29,4 +29,4 @@ Impl:
 - Skip the port and call infra directly only if your architecture explicitly allows it.
 
 ## Reference packages
-- `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/query/biz/**`
+- `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/query/biz/**`

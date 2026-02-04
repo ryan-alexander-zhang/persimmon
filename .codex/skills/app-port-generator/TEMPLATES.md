@@ -1,9 +1,9 @@
 # Templates — App Port
 
 ## Minimal file tree (typical)
-- `persimmon-scaffold/persimmon-scaffold-app/src/main/java/com/ryan/persimmon/app/biz/port/out/<XxxGateway>.java`
-- `persimmon-scaffold/persimmon-scaffold-app/src/main/java/com/ryan/persimmon/app/biz/port/<XxxQueryPort>.java` (optional)
-- `persimmon-scaffold/persimmon-scaffold-app/src/main/java/com/ryan/persimmon/app/common/<feature>/port/<XxxStore>.java`
+- `{{appModuleDir}}/src/main/java/{{basePackagePath}}/app/biz/port/out/<XxxGateway>.java`
+- `{{appModuleDir}}/src/main/java/{{basePackagePath}}/app/biz/port/<XxxQueryPort>.java` (optional)
+- `{{appModuleDir}}/src/main/java/{{basePackagePath}}/app/common/<feature>/port/<XxxStore>.java`
 
 ## Skeleton signatures
 Gateway (business capability, domain/app types only):
@@ -21,6 +21,5 @@ Store (technical persistence for app-common patterns):
   - `}`
 
 ## Reference ports
-- `persimmon-scaffold/persimmon-scaffold-app/src/main/java/com/ryan/persimmon/app/common/outbox/port/OutboxStore.java`
-- `persimmon-scaffold/persimmon-scaffold-app/src/main/java/com/ryan/persimmon/app/common/event/port/InboxStore.java`
-
+- `{{appModuleDir}}/src/main/java/{{basePackagePath}}/app/common/outbox/port/OutboxStore.java`
+- `{{appModuleDir}}/src/main/java/{{basePackagePath}}/app/common/event/port/InboxStore.java`

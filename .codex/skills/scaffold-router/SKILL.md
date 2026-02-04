@@ -5,6 +5,8 @@ description: "Routes tasks to the correct Maven module/package and selects the r
 
 # Scaffold Router
 
+> Variables are defined in `.codex/skills/VARIABLES.md`.
+
 ## Goal
 Given a change request, choose:
 1) **Maven module** (`domain/app/infra/adapter/start`)
@@ -15,10 +17,14 @@ This skill is a *meta-skill*: it does not generate code by itself unless a suita
 
 ## Routing algorithm (must follow)
 1) If the user provides a file path, route by **path** (see mapping below).
-2) If not, infer module + package from:
+2) Resolve `{{domainModuleDir}}/{{appModuleDir}}/{{infraModuleDir}}/{{adapterModuleDir}}/{{startModuleDir}}`:
+   - Prefer scanning `pom.xml` and locating modules by `artifactId` suffix (`-domain/-app/-infra/-adapter/-start`).
+3) Resolve `{{basePackage}}` / `{{basePackagePath}}` from `src/main/java/**/package-info.java` if not provided.
+4) If module/package is still ambiguous, ask **one** question to confirm.
+5) Infer module + package from:
    - existing `package-info.java` patterns in the target module
    - the type of artifact requested (PO/Mapper/Flyway/Job/Consumer/etc.)
-3) Select one generator skill. Always apply `scaffold-architecture-guardrails` as a checklist.
+6) Select one generator skill. Always apply `scaffold-architecture-guardrails` as a checklist.
 
 ### Precedence rule
 When multiple path patterns match, choose the **most specific** one:
@@ -26,11 +32,7 @@ When multiple path patterns match, choose the **most specific** one:
 - `db/migration/**` overrides generic infra mappings.
 
 ## Path → skill mapping
-- `persimmon-scaffold/persimmon-scaffold-domain/**` → `domain-*` skills
-- `persimmon-scaffold/persimmon-scaffold-app/**` → `app-*` skills
-- `persimmon-scaffold/persimmon-scaffold-infra/**` → `infra-*` skills
-- `persimmon-scaffold/persimmon-scaffold-adapter/**` → `adapter-*` skills
-- `persimmon-scaffold/persimmon-scaffold-start/**` → `start-*` skills
+The mapping below is **module-agnostic**. Apply it within the selected module directory.
 
 More specific:
 - `**/db/migration/**` → `infra-flyway-migration-generator`
@@ -39,7 +41,7 @@ More specific:
 - `**/infra/gateway/**` → `infra-system-gateway-generator`
 - `**/infra/**/po/**` or `**/infra/**/mapper/**` → `infra-mybatis-po-mapper-generator`
 - `**/adapter/scheduler/**` → `adapter-scheduler-job-generator`
-- `**/persimmon-scaffold-start/src/main/resources/**.yml` / `**.yaml` → `start-yaml-config-generator`
+- `**/start/src/main/resources/**.yml` / `**.yaml` → `start-yaml-config-generator`
 
 ## One question policy
 Ask **one** question when routing is ambiguous. Prefer multiple-choice.

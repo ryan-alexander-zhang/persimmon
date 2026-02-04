@@ -1,11 +1,11 @@
 # Templates — Domain Model
 
 ## Minimal file tree (typical)
-- `persimmon-scaffold/persimmon-scaffold-domain/src/main/java/com/ryan/persimmon/domain/biz/<bc>/model/aggregate/<XxxAggregate>.java`
-- `persimmon-scaffold/persimmon-scaffold-domain/src/main/java/com/ryan/persimmon/domain/biz/<bc>/model/entity/<XxxEntity>.java`
-- `persimmon-scaffold/persimmon-scaffold-domain/src/main/java/com/ryan/persimmon/domain/biz/<bc>/model/vo/<XxxVO>.java`
-- `persimmon-scaffold/persimmon-scaffold-domain/src/main/java/com/ryan/persimmon/domain/biz/<bc>/model/enums/<XxxStatus>.java`
-- `persimmon-scaffold/persimmon-scaffold-domain/src/main/java/com/ryan/persimmon/domain/biz/<bc>/exception/<XxxException>.java`
+- `{{domainModuleDir}}/src/main/java/{{basePackagePath}}/domain/biz/<bc>/model/aggregate/<XxxAggregate>.java`
+- `{{domainModuleDir}}/src/main/java/{{basePackagePath}}/domain/biz/<bc>/model/entity/<XxxEntity>.java`
+- `{{domainModuleDir}}/src/main/java/{{basePackagePath}}/domain/biz/<bc>/model/vo/<XxxVO>.java`
+- `{{domainModuleDir}}/src/main/java/{{basePackagePath}}/domain/biz/<bc>/model/enums/<XxxStatus>.java`
+- `{{domainModuleDir}}/src/main/java/{{basePackagePath}}/domain/biz/<bc>/exception/<XxxException>.java`
 
 ## Skeleton signatures
 
@@ -30,5 +30,4 @@ Exception:
 - `public class XxxException extends DomainException { ... }` (or context-specific exception)
 
 ## Reference implementation to copy style from
-- `persimmon-scaffold/persimmon-scaffold-domain/src/main/java/com/ryan/persimmon/domain/common/workflow/WorkflowInstance.java`
-
+- `{{domainModuleDir}}/src/main/java/{{basePackagePath}}/domain/common/workflow/WorkflowInstance.java`

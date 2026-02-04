@@ -9,10 +9,10 @@ description: "Generates CQRS/read-side query infrastructure for a BC: query DTO/
 
 ## Use For
 - Read-side query implementations under:
-  - `com.ryan.persimmon.infra.query.<bc>.dto`
-  - `com.ryan.persimmon.infra.query.<bc>.mapper`
-  - `com.ryan.persimmon.infra.query.<bc>.impl`
-- Supporting application query services (typically under `com.ryan.persimmon.app.biz.query.*`)
+  - `{{basePackage}}.infra.query.<bc>.dto`
+  - `{{basePackage}}.infra.query.<bc>.mapper`
+  - `{{basePackage}}.infra.query.<bc>.impl`
+- Supporting application query services (typically under `{{basePackage}}.app.biz.query.*`)
 
 ## Inputs Required
 - Business context name (`<bc>`), e.g. `biz`
@@ -21,18 +21,18 @@ description: "Generates CQRS/read-side query infrastructure for a BC: query DTO/
 - Storage source:
   - existing write table(s) or dedicated read model/projection
 - Whether an app query port is needed:
-  - If app wants an abstraction, generate `com.ryan.persimmon.app.biz.port.*` (optional by design)
+  - If app wants an abstraction, generate `{{basePackage}}.app.biz.port.*` (optional by design)
 
 ## Outputs
 - Query DTO:
-  - `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/query/<bc>/dto/<XxxQueryDTO>.java`
+  - `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/query/<bc>/dto/<XxxQueryDTO>.java`
 - Mapper:
   - `.../infra/query/<bc>/mapper/<XxxQueryMapper>.java`
 - Implementation:
   - `.../infra/query/<bc>/impl/<XxxQueryPortImpl>.java` (implements app port when used)
 - Optional app port + app query DTO:
-  - `persimmon-scaffold/persimmon-scaffold-app/src/main/java/com/ryan/persimmon/app/biz/port/<XxxQueryPort>.java`
-  - `persimmon-scaffold/persimmon-scaffold-app/src/main/java/com/ryan/persimmon/app/biz/query/dto/<XxxResultDTO>.java`
+  - `{{appModuleDir}}/src/main/java/{{basePackagePath}}/app/biz/port/<XxxQueryPort>.java`
+  - `{{appModuleDir}}/src/main/java/{{basePackagePath}}/app/biz/query/dto/<XxxResultDTO>.java`
 - Tests:
   - Unit tests for mapping logic
   - `*IT` if query SQL is non-trivial or relies on indexes/constraints
@@ -49,10 +49,10 @@ description: "Generates CQRS/read-side query infrastructure for a BC: query DTO/
 
 ## Reference Implementations
 - Package rules:
-  - `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/query/package-info.java`
-  - `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/query/biz/impl/package-info.java`
+  - `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/query/package-info.java`
+  - `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/query/biz/impl/package-info.java`
 - App port guidance:
-  - `persimmon-scaffold/persimmon-scaffold-app/src/main/java/com/ryan/persimmon/app/biz/port/package-info.java`
+  - `{{appModuleDir}}/src/main/java/{{basePackagePath}}/app/biz/port/package-info.java`
 
 ## Tests
 - Prefer unit tests for mapping; use `*IT` for SQL correctness.
@@ -60,4 +60,3 @@ description: "Generates CQRS/read-side query infrastructure for a BC: query DTO/
 ## Pitfalls
 - Reusing infra query DTOs as web DTOs (adapter owns web DTOs).
 - Accidentally depending on `domain` aggregates in read models.
-

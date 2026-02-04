@@ -8,7 +8,7 @@ description: "Generates start-module wiring configs (Bean configs/Scan configs) 
 > Follow `.codex/skills/GENERATOR_SKILL_STRUCTURE.md`.
 
 ## Use For
-- `com.ryan.persimmon.start.config.bean.*`
+- `{{basePackage}}.start.config.bean.*`
 
 ## Inputs Required
 - Which port(s) to bind to which implementation(s)
@@ -31,8 +31,8 @@ description: "Generates start-module wiring configs (Bean configs/Scan configs) 
 - YAML keys must be aligned with `start-config-schema-guardrails`.
 
 ## Reference Implementations
-- `persimmon-scaffold/persimmon-scaffold-start/src/main/java/com/ryan/persimmon/start/config/bean/OutboxWiringConfig.java`
-- `persimmon-scaffold/persimmon-scaffold-start/src/main/java/com/ryan/persimmon/start/config/bean/WorkflowWiringConfig.java`
+- `{{startModuleDir}}/src/main/java/{{basePackagePath}}/start/config/bean/OutboxWiringConfig.java`
+- `{{startModuleDir}}/src/main/java/{{basePackagePath}}/start/config/bean/WorkflowWiringConfig.java`
 
 ## Pitfalls
 - Embedding 50+ lines of logic inside anonymous beans (hard to test).

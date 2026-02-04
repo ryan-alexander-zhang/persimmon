@@ -1,10 +1,10 @@
 # Templates — Adapter Web Controller
 
 ## Minimal file tree (typical)
-- `persimmon-scaffold/persimmon-scaffold-adapter/src/main/java/com/ryan/persimmon/adapter/web/biz/controller/<XxxController>.java`
-- `persimmon-scaffold/persimmon-scaffold-adapter/src/main/java/com/ryan/persimmon/adapter/web/biz/dto/<XxxRequest>.java`
-- `persimmon-scaffold/persimmon-scaffold-adapter/src/main/java/com/ryan/persimmon/adapter/web/biz/dto/<XxxResponse>.java`
-- `persimmon-scaffold/persimmon-scaffold-adapter/src/main/java/com/ryan/persimmon/adapter/web/biz/assembler/<XxxAssembler>.java` (optional)
+- `{{adapterModuleDir}}/src/main/java/{{basePackagePath}}/adapter/web/biz/controller/<XxxController>.java`
+- `{{adapterModuleDir}}/src/main/java/{{basePackagePath}}/adapter/web/biz/dto/<XxxRequest>.java`
+- `{{adapterModuleDir}}/src/main/java/{{basePackagePath}}/adapter/web/biz/dto/<XxxResponse>.java`
+- `{{adapterModuleDir}}/src/main/java/{{basePackagePath}}/adapter/web/biz/assembler/<XxxAssembler>.java` (optional)
 
 ## Skeleton signatures
 - `@RestController`
@@ -24,5 +24,4 @@ Assembler (only when mapping is non-trivial):
   - `}`
 
 ## Reference packages
-- `persimmon-scaffold/persimmon-scaffold-adapter/src/main/java/com/ryan/persimmon/adapter/web/biz/controller/package-info.java`
-
+- `{{adapterModuleDir}}/src/main/java/{{basePackagePath}}/adapter/web/biz/controller/package-info.java`

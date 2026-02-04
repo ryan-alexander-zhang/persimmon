@@ -3,10 +3,10 @@
 Prefer copying existing implementations and adapting names/predicates rather than writing from scratch.
 
 ## File skeleton
-- `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/<feature>/store/Mybatis<Xxx>Store.java`
-- `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/<feature>/mapper/<Xxx>Mapper.java`
-- `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/<feature>/po/<Xxx>PO.java`
-- `persimmon-scaffold/persimmon-scaffold-infra/src/test/java/.../<Xxx>StoreIT.java` (DB semantics)
+- `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/<feature>/store/Mybatis<Xxx>Store.java`
+- `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/<feature>/mapper/<Xxx>Mapper.java`
+- `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/<feature>/po/<Xxx>PO.java`
+- `{{infraModuleDir}}/src/test/java/.../<Xxx>StoreIT.java` (DB semantics)
 
 ## Skeleton signatures
 - `public final class MybatisXxxStore implements XxxStore {`
@@ -29,6 +29,6 @@ Prefer copying existing implementations and adapting names/predicates rather tha
   - MUST include lease predicate (`locked_until`) when used
 
 ## Reference starting points
-- Outbox: `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/event/outbox/store/MybatisOutboxStore.java`
-- Inbox: `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/event/inbox/store/MybatisInboxStore.java`
-- Workflow: `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/repository/workflow/store/MybatisWorkflowStore.java`
+- Outbox: `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/event/outbox/store/MybatisOutboxStore.java`
+- Inbox: `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/event/inbox/store/MybatisInboxStore.java`
+- Workflow: `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/repository/workflow/store/MybatisWorkflowStore.java`

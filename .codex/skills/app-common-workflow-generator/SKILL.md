@@ -8,7 +8,7 @@ description: "Generates/extends the workflow engine in app-common: step handlers
 > Follow `.codex/skills/GENERATOR_SKILL_STRUCTURE.md`.
 
 ## Use For
-- `com.ryan.persimmon.app.common.workflow.*`
+- `{{basePackage}}.app.common.workflow.*`
 
 ## Inputs Required
 - `workflowType` (stable string)
@@ -33,10 +33,10 @@ description: "Generates/extends the workflow engine in app-common: step handlers
 - State transitions must be guarded (status predicates at store boundary).
 
 ## Reference Implementations
-- `persimmon-scaffold/persimmon-scaffold-app/src/main/java/com/ryan/persimmon/app/common/workflow/service/WorkflowRunner.java`
-- `persimmon-scaffold/persimmon-scaffold-app/src/main/java/com/ryan/persimmon/app/common/workflow/service/WorkflowTaskProcessorImpl.java`
-- `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/repository/workflow/store/MybatisWorkflowStore.java`
-- `persimmon-scaffold/persimmon-scaffold-domain/src/main/java/com/ryan/persimmon/domain/common/workflow/WorkflowStepStatus.java`
+- `{{appModuleDir}}/src/main/java/{{basePackagePath}}/app/common/workflow/service/WorkflowRunner.java`
+- `{{appModuleDir}}/src/main/java/{{basePackagePath}}/app/common/workflow/service/WorkflowTaskProcessorImpl.java`
+- `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/repository/workflow/store/MybatisWorkflowStore.java`
+- `{{domainModuleDir}}/src/main/java/{{basePackagePath}}/domain/common/workflow/WorkflowStepStatus.java`
 
 ## Tests
 - Unit tests for definition/registry/step results/policies.

@@ -29,8 +29,8 @@ description: "Generates app-layer use cases (Command/Handler/Assembler/DTO) foll
 
 ## Naming & Packaging
 - Follow existing `package-info.java` packages:
-  - `com.ryan.persimmon.app.biz.command.*`
-  - `com.ryan.persimmon.app.biz.query.*`
+  - `{{basePackage}}.app.biz.command.*`
+  - `{{basePackage}}.app.biz.query.*`
 - Keep adapter DTOs out of app packages.
 
 ## Implementation Rules
@@ -39,8 +39,8 @@ description: "Generates app-layer use cases (Command/Handler/Assembler/DTO) foll
 - Separate command DTOs, assemblers, and handlers as per existing structure.
 
 ## Reference Implementations
-- `persimmon-scaffold/persimmon-scaffold-app/src/main/java/com/ryan/persimmon/app/biz/command/package-info.java`
-- `persimmon-scaffold/persimmon-scaffold-app/src/main/java/com/ryan/persimmon/app/common/workflow/service/WorkflowStartService.java`
+- `{{appModuleDir}}/src/main/java/{{basePackagePath}}/app/biz/command/package-info.java`
+- `{{appModuleDir}}/src/main/java/{{basePackagePath}}/app/common/workflow/service/WorkflowStartService.java`
 
 ## Tests
 - Unit tests validate:

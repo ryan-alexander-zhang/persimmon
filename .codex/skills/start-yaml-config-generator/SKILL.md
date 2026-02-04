@@ -9,8 +9,8 @@ description: "Manages start-module YAML keys: create/rename/remove config keys, 
 
 ## Use For
 - Any change that requires updating YAML under:
-  - `persimmon-scaffold/persimmon-scaffold-start/src/main/resources/*.yml`
-  - `persimmon-scaffold/persimmon-scaffold-start/src/main/resources/*.yaml`
+  - `{{startModuleDir}}/src/main/resources/*.yml`
+  - `{{startModuleDir}}/src/main/resources/*.yaml`
 
 ## Inputs Required
 - Which feature the keys belong to:
@@ -38,9 +38,9 @@ description: "Manages start-module YAML keys: create/rename/remove config keys, 
 
 ## Reference Implementations
 - YAML baseline:
-  - `persimmon-scaffold/persimmon-scaffold-start/src/main/resources/application.yaml`
-  - `persimmon-scaffold/persimmon-scaffold-start/src/main/resources/application-local.yaml`
-  - `persimmon-scaffold/persimmon-scaffold-start/src/main/resources/application-example.yaml`
+  - `{{startModuleDir}}/src/main/resources/application.yaml`
+  - `{{startModuleDir}}/src/main/resources/application-local.yaml`
+  - `{{startModuleDir}}/src/main/resources/application-example.yaml`
 - Guardrails:
   - `.codex/skills/start-config-schema-guardrails/SKILL.md`
 

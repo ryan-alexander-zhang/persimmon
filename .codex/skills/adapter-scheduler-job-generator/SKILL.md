@@ -8,7 +8,7 @@ description: "Generates scheduler jobs in adapter layer with consistent packagin
 > Follow `.codex/skills/GENERATOR_SKILL_STRUCTURE.md`.
 
 ## Use For
-- `com.ryan.persimmon.adapter.scheduler.system.job.*`
+- `{{basePackage}}.adapter.scheduler.system.job.*`
 
 ## Inputs Required
 - Job purpose (what app service it triggers)
@@ -30,7 +30,7 @@ description: "Generates scheduler jobs in adapter layer with consistent packagin
   - Prefer worker identity to be used inside infra stores (lease locking) rather than in adapter jobs.
 
 ## Reference Implementations
-- `persimmon-scaffold/persimmon-scaffold-adapter/src/main/java/com/ryan/persimmon/adapter/scheduler/system/job/OutboxRelayJob.java`
+- `{{adapterModuleDir}}/src/main/java/{{basePackagePath}}/adapter/scheduler/system/job/OutboxRelayJob.java`
 
 ## Pitfalls
 - Putting business logic into jobs.

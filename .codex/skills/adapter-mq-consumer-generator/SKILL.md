@@ -8,7 +8,7 @@ description: "Generates MQ consumers in adapter layer that use inbox idempotency
 > Follow `.codex/skills/GENERATOR_SKILL_STRUCTURE.md`.
 
 ## Use For
-- `com.ryan.persimmon.adapter.mq.*`
+- `{{basePackage}}.adapter.mq.*`
 
 ## Inputs Required
 - Topic + groupId + concurrency requirements
@@ -31,7 +31,7 @@ description: "Generates MQ consumers in adapter layer that use inbox idempotency
 - Missing handler must not poison processing; ensure dispatcher marks inbox `DEAD`.
 
 ## Reference Implementations
-- `persimmon-scaffold/persimmon-scaffold-adapter/src/main/java/com/ryan/persimmon/adapter/mq/system/consumer/OutboxEventKafkaConsumer.java`
+- `{{adapterModuleDir}}/src/main/java/{{basePackagePath}}/adapter/mq/system/consumer/OutboxEventKafkaConsumer.java`
 
 ## Pitfalls
 - Swallowing exceptions that should trigger framework retry (depends on retry strategy).

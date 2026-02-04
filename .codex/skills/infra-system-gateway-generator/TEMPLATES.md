@@ -6,10 +6,10 @@
 - `infra/gateway/<system>/impl`
 
 ## Minimal file tree (typical)
-- `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/gateway/<system>/client/<XxxClient>.java`
-- `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/gateway/<system>/dto/<XxxRequest>.java`
-- `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/gateway/<system>/dto/<XxxResponse>.java`
-- `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/gateway/<system>/impl/<XxxGatewayImpl>.java`
+- `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/gateway/<system>/client/<XxxClient>.java`
+- `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/gateway/<system>/dto/<XxxRequest>.java`
+- `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/gateway/<system>/dto/<XxxResponse>.java`
+- `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/gateway/<system>/impl/<XxxGatewayImpl>.java`
 
 ## Skeleton signatures
 Client:
@@ -29,4 +29,4 @@ Gateway impl:
   - terminal failures (e.g., validation / conflict) with clear codes
 
 ## Reference packages
-- `persimmon-scaffold/persimmon-scaffold-infra/src/main/java/com/ryan/persimmon/infra/gateway/system/**`
+- `{{infraModuleDir}}/src/main/java/{{basePackagePath}}/infra/gateway/system/**`

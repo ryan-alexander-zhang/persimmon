@@ -15,7 +15,7 @@ description: "Generates DB integration tests (*IT) that run via Failsafe and val
 - DB expectation (local Postgres vs container) consistent with current project setup
 
 ## Outputs
-- `persimmon-scaffold/persimmon-scaffold-infra/src/test/java/.../<Xxx>IT.java`
+- `{{infraModuleDir}}/src/test/java/.../<Xxx>IT.java`
 
 ## Naming & Packaging
 - Test class name ends with `IT` so it runs under Failsafe in `mvn verify`.
@@ -26,8 +26,8 @@ description: "Generates DB integration tests (*IT) that run via Failsafe and val
 - Prefer asserting semantic behavior (claiming, transitions) over exact SQL.
 
 ## Reference Implementations
-- `persimmon-scaffold/persimmon-scaffold-infra/src/test/java/com/ryan/persimmon/infra/event/outbox/OutboxStoreIT.java`
-- `persimmon-scaffold/persimmon-scaffold-infra/src/test/java/com/ryan/persimmon/infra/repository/workflow/WorkflowStoreIT.java`
+- `{{infraModuleDir}}/src/test/java/{{basePackagePath}}/infra/event/outbox/OutboxStoreIT.java`
+- `{{infraModuleDir}}/src/test/java/{{basePackagePath}}/infra/repository/workflow/WorkflowStoreIT.java`
 
 ## Pitfalls
 - Writing ITs as `*Test` (won't run in CI if only verify is executed).
