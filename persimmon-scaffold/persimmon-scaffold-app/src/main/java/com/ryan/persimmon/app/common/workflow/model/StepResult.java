@@ -13,6 +13,22 @@ import java.util.List;
 public sealed interface StepResult
     permits StepResult.Completed, StepResult.Waiting, StepResult.Retry, StepResult.Dead {
 
+  static Completed completed() {
+    return new Completed();
+  }
+
+  static Waiting waiting(String waitingEventType, Duration timeout, List<DomainEvent> outboundEvents) {
+    return new Waiting(waitingEventType, timeout, outboundEvents);
+  }
+
+  static Retry retry(String lastError) {
+    return new Retry(lastError);
+  }
+
+  static Dead dead(String lastError) {
+    return new Dead(lastError);
+  }
+
   /** Step completed successfully, advance to the next step in the definition (or finish). */
   record Completed() implements StepResult {}
 

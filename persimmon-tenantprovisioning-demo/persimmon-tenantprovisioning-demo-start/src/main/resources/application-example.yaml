@@ -1,0 +1,73 @@
+# Example configuration template.
+# Copy what you need into `application-local.yaml` (or your own profile file).
+
+spring:
+  application:
+    name: persimmon
+  datasource:
+    url: jdbc:postgresql://localhost:5432/persimmon_scaffold
+    username: postgres
+    password: postgres
+  flyway:
+    enabled: true
+    baselineOnMigrate: true
+    locations: classpath:db/migration
+    # MUST set false to true in production
+    clean-disabled: false
+    baseline-version: 0.0.0
+  kafka:
+    bootstrap-servers: localhost:9092
+
+server:
+  port: 9080
+
+mybatis-plus:
+  global-config:
+    db-config:
+      logic-delete-field: deletedAt
+      logic-delete-value: now()
+      logic-not-delete-value: null
+
+persimmon:
+  # Optional override for DB lock leases (outbox/workflow). When unset, a readable+unique value is generated.
+  # worker-id: persimmon:localhost:12345:deadbeef
+  outbox:
+    topic: persimmon-outbox
+    # Options: kafka | (unset -> logging/noop)
+    transport: kafka
+    retry:
+      base-seconds: 1
+      max-seconds: 300
+      max-attempts: 10
+    relay:
+      lease-seconds: 30
+      batch-size: 100
+      fixed-delay-ms: 1000
+    kafka:
+      producer:
+        send-timeout-ms: 5000
+      consumer:
+        group-id: persimmon-outbox-consumer
+        concurrency: 1
+  workflow:
+    lease-seconds: 30
+    retry:
+      default-max-attempts: 10
+      base-backoff-ms: 1000
+      max-backoff-ms: 300000
+      # workflows:
+      #   tenant.create:
+      #     default-max-attempts: 20
+      #     base-backoff-ms: 1000
+      #     max-backoff-ms: 120000
+      #     steps:
+      #       K8S_CREATE_NAMESPACE:
+      #         max-attempts: 5
+      #       HARBOR_CREATE_ROBOT:
+      #         max-attempts: 3
+      #         base-backoff-ms: 2000
+      #         max-backoff-ms: 60000
+    runner:
+      enabled: true
+      batch-size: 50
+      fixed-delay-ms: 1000
