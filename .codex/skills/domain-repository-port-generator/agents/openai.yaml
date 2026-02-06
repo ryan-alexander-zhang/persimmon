@@ -1,0 +1,5 @@
+interface:
+  display_name: "Domain Repository Port Generator"
+  short_description: "Generate framework-free domain repository ports"
+  default_prompt: "Use $domain-repository-port-generator to define a new domain repository port interface (no persistence details)."
+

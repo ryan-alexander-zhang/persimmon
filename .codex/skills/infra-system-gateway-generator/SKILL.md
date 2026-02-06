@@ -7,6 +7,8 @@ description: "Generates system-first external integration: client/dto/gateway im
 
 > Follow `.codex/skills/GENERATOR_SKILL_STRUCTURE.md`.
 
+Templates: See `references/templates.md`.
+
 ## Use For
 - External integrations organized by remote system name under:
   - `{{basePackage}}.infra.gateway.<system>.client`

@@ -1,0 +1,5 @@
+interface:
+  display_name: "Adapter MQ Consumer Generator"
+  short_description: "Generate MQ consumers with inbox idempotency"
+  default_prompt: "Use $adapter-mq-consumer-generator to generate an MQ consumer aligned with the inbox pattern."
+

@@ -1,0 +1,5 @@
+interface:
+  display_name: "Start Wiring Config Generator"
+  short_description: "Generate wiring configs and extracted policy classes"
+  default_prompt: "Use $start-wiring-config-generator to add/update wiring configs and extract complex policy logic into testable classes."
+

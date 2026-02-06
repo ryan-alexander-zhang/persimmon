@@ -7,6 +7,8 @@ description: "Generates CQRS/read-side query infrastructure for a BC: query DTO/
 
 > Follow `.codex/skills/GENERATOR_SKILL_STRUCTURE.md`.
 
+Templates: See `references/templates.md`.
+
 ## Use For
 - Read-side query implementations under:
   - `{{basePackage}}.infra.query.<bc>.dto`

@@ -1,0 +1,5 @@
+interface:
+  display_name: "Start YAML Config Generator"
+  short_description: "Update YAML keys and sync wiring/adapters"
+  default_prompt: "Use $start-yaml-config-generator to update YAML keys and synchronize wiring and adapter placeholders without fallback."
+

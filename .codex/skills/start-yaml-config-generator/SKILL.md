@@ -7,6 +7,8 @@ description: "Manages start-module YAML keys: create/rename/remove config keys, 
 
 > Follow `.codex/skills/GENERATOR_SKILL_STRUCTURE.md`.
 
+Templates: See `references/templates.md`.
+
 ## Use For
 - Any change that requires updating YAML under:
   - `{{startModuleDir}}/src/main/resources/*.yml`

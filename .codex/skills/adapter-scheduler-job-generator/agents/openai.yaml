@@ -1,0 +1,5 @@
+interface:
+  display_name: "Adapter Scheduler Job Generator"
+  short_description: "Generate thin scheduled jobs for app services"
+  default_prompt: "Use $adapter-scheduler-job-generator to generate a thin scheduled job that delegates to app services."
+

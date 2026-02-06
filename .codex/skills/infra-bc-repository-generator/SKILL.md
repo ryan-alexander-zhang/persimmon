@@ -7,6 +7,8 @@ description: "Generates BC-first repository implementation in infra: PO/Mapper/C
 
 > Follow `.codex/skills/GENERATOR_SKILL_STRUCTURE.md`.
 
+Templates: See `references/templates.md`.
+
 ## Use For
 - Write-side persistence for a business context under:
   - `{{basePackage}}.infra.repository.<bc>.po`

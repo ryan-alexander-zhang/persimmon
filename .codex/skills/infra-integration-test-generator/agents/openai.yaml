@@ -1,0 +1,5 @@
+interface:
+  display_name: "Infra Integration Test Generator"
+  short_description: "Generate DB integration tests (*IT) for infra"
+  default_prompt: "Use $infra-integration-test-generator to add a new *IT validating mapper/store DB semantics and concurrency predicates."
+

@@ -5,6 +5,8 @@ description: "Global guardrails for Persimmon Scaffold: layers, dependencies, na
 
 # Architecture Guardrails (Global)
 
+Templates: See `references/templates.md`.
+
 ## Layers & dependencies (conceptual)
 - `domain`: pure domain model. No frameworks. **No Lombok**. Minimal public API.
 - `app`: orchestration/use-cases, ports, app-common components. May use `spring-tx` annotations (only).

@@ -7,6 +7,8 @@ description: "Generates start-module wiring configs (Bean configs/Scan configs) 
 
 > Follow `.codex/skills/GENERATOR_SKILL_STRUCTURE.md`.
 
+Templates: See `references/templates.md`.
+
 ## Use For
 - `{{basePackage}}.start.config.bean.*`
 

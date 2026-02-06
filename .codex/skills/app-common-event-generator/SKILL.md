@@ -7,6 +7,8 @@ description: "Generates/extends app-common event system (outbox/inbox, dispatche
 
 > Follow `.codex/skills/GENERATOR_SKILL_STRUCTURE.md`.
 
+Templates: See `references/templates.md`.
+
 ## Use For
 - `{{basePackage}}.app.common.event.*`
 - Adding event handlers under `{{basePackage}}.app.biz.event.handler`

@@ -1,0 +1,5 @@
+interface:
+  display_name: "App Port Generator"
+  short_description: "Generate app ports with clear contracts/errors"
+  default_prompt: "Use $app-port-generator to define a new app port with explicit retry/error semantics."
+

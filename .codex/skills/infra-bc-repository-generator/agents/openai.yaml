@@ -1,0 +1,5 @@
+interface:
+  display_name: "Infra BC Repository Generator"
+  short_description: "Generate infra BC repos (PO/Mapper/Conv/Impl)"
+  default_prompt: "Use $infra-bc-repository-generator to generate a BC-first repository implementation for a domain repository port."
+

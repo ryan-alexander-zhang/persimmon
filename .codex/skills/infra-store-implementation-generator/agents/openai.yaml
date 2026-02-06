@@ -1,0 +1,5 @@
+interface:
+  display_name: "Infra Store Implementation Generator"
+  short_description: "Generate MyBatis stores with claim/lease safety"
+  default_prompt: "Use $infra-store-implementation-generator to implement a MyBatis store with claim/lease logic and predicate-guarded updates."
+

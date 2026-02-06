@@ -1,0 +1,5 @@
+interface:
+  display_name: "Domain Model Generator"
+  short_description: "Generate domain model types (no Lombok)"
+  default_prompt: "Use $domain-model-generator to generate a new domain aggregate/entity/VO/enum with minimal API and no Lombok."
+

@@ -5,6 +5,8 @@ description: "Defines configuration naming conventions and schema rules (YAML ke
 
 # Start Config Schema Guardrails
 
+Templates: See `references/templates.md`.
+
 ## Goal
 Make config keys unambiguous and consistent across producer/consumer concerns.
 

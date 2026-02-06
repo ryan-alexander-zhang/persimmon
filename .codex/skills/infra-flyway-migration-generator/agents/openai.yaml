@@ -1,0 +1,5 @@
+interface:
+  display_name: "Infra Flyway Migration Generator"
+  short_description: "Generate Flyway migrations (no FKs, safe backfill)"
+  default_prompt: "Use $infra-flyway-migration-generator to create a Flyway migration with correct constraints, indexes, and no foreign keys."
+

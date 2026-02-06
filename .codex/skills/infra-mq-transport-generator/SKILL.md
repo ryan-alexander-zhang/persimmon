@@ -7,6 +7,8 @@ description: "Generates Kafka-based transport implementations in infra (producer
 
 > Follow `.codex/skills/GENERATOR_SKILL_STRUCTURE.md`.
 
+Templates: See `references/templates.md`.
+
 ## Use For
 - `{{basePackage}}.infra.event.mq.*`
 
