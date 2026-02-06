@@ -1,0 +1,5 @@
+interface:
+  display_name: "Infra System Gateway Generator"
+  short_description: "Generate system-first gateway clients and impls"
+  default_prompt: "Use $infra-system-gateway-generator to create a system-first gateway (client/dto/impl) with clear error translation."
+

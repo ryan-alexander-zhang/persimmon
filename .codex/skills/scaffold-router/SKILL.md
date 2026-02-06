@@ -7,6 +7,8 @@ description: "Routes tasks to the correct Maven module/package and selects the r
 
 > Variables are defined in `.codex/skills/VARIABLES.md`.
 
+Templates: See `references/templates.md`.
+
 ## Goal
 Given a change request, choose:
 1) **Maven module** (`domain/app/infra/adapter/start`)

@@ -7,6 +7,8 @@ description: "Generates domain model types (Aggregate/Entity/VO/Enum/Exception) 
 
 > Follow `.codex/skills/GENERATOR_SKILL_STRUCTURE.md`.
 
+Templates: See `references/templates.md`.
+
 ## Use For
 - New aggregates/entities/value objects/enums under `persimmon-scaffold-domain`
 - Domain exceptions and domain-level constants

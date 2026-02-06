@@ -7,6 +7,8 @@ description: "Generates/extends the workflow engine in app-common: step handlers
 
 > Follow `.codex/skills/GENERATOR_SKILL_STRUCTURE.md`.
 
+Templates: See `references/templates.md`.
+
 ## Use For
 - `{{basePackage}}.app.common.workflow.*`
 

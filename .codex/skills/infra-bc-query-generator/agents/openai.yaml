@@ -1,0 +1,5 @@
+interface:
+  display_name: "Infra BC Query Generator"
+  short_description: "Generate infra read-side queries (CQRS optional)"
+  default_prompt: "Use $infra-bc-query-generator to generate a read-side query mapper/DTO/impl aligned with infra.query.<bc>.*."
+

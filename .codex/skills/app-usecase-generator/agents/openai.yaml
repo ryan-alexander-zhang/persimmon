@@ -1,0 +1,5 @@
+interface:
+  display_name: "App Use Case Generator"
+  short_description: "Generate app command/query use cases + tests"
+  default_prompt: "Use $app-usecase-generator to generate a command/query use case with DTOs, handler/service, and unit tests."
+

@@ -1,0 +1,5 @@
+interface:
+  display_name: "Scaffold Router"
+  short_description: "Route tasks to modules/packages and skills"
+  default_prompt: "Use $scaffold-router to determine the correct module, package, and generator skill for this change."
+

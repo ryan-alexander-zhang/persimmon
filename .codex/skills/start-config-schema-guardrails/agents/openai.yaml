@@ -1,0 +1,5 @@
+interface:
+  display_name: "Start Config Schema Guardrails"
+  short_description: "Guardrails for YAML config naming and schema"
+  default_prompt: "Use $start-config-schema-guardrails to propose unambiguous YAML key names and schema rules for start wiring."
+

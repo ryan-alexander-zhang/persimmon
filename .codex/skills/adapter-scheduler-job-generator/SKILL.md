@@ -7,6 +7,8 @@ description: "Generates scheduler jobs in adapter layer with consistent packagin
 
 > Follow `.codex/skills/GENERATOR_SKILL_STRUCTURE.md`.
 
+Templates: See `references/templates.md`.
+
 ## Use For
 - `{{basePackage}}.adapter.scheduler.system.job.*`
 

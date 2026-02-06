@@ -7,6 +7,8 @@ description: "Generates app-layer use cases (Command/Handler/Assembler/DTO) foll
 
 > Follow `.codex/skills/GENERATOR_SKILL_STRUCTURE.md`.
 
+Templates: See `references/templates.md`.
+
 ## Use For
 - `app/biz/command/**` and `app/biz/query/**`
 

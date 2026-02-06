@@ -7,6 +7,8 @@ description: "Generates domain repository ports (interfaces) and contracts witho
 
 > Follow `.codex/skills/GENERATOR_SKILL_STRUCTURE.md`.
 
+Templates: See `references/templates.md`.
+
 ## Use For
 - `{{basePackage}}.domain.biz.repository.*` interfaces
 

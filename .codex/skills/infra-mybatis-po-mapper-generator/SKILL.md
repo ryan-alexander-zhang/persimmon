@@ -7,6 +7,8 @@ description: "Generates MyBatis/MyBatis-Plus PO + Mapper patterns for infra, cho
 
 > Follow `.codex/skills/GENERATOR_SKILL_STRUCTURE.md`.
 
+Templates: See `references/templates.md`.
+
 ## Use For
 - PO under `{{basePackage}}.infra.**.po`
 - Mapper under `{{basePackage}}.infra.**.mapper`

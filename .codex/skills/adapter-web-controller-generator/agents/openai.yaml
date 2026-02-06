@@ -1,0 +1,5 @@
+interface:
+  display_name: "Adapter Web Controller Generator"
+  short_description: "Generate web controllers/DTOs without biz logic"
+  default_prompt: "Use $adapter-web-controller-generator to generate a web controller with adapter DTOs and no business logic."
+

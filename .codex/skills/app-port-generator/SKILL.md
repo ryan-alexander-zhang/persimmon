@@ -7,6 +7,8 @@ description: "Generates app-layer ports (out ports/stores/gateways) with clear r
 
 > Follow `.codex/skills/GENERATOR_SKILL_STRUCTURE.md`.
 
+Templates: See `references/templates.md`.
+
 ## Use For
 - `{{basePackage}}.app.biz.port.*` and app-common ports
 

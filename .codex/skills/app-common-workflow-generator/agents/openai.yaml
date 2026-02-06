@@ -1,0 +1,5 @@
+interface:
+  display_name: "App Common Workflow Generator"
+  short_description: "Generate linear workflow steps and retries"
+  default_prompt: "Use $app-common-workflow-generator to add a linear workflow step handler with retry/WAITING semantics."
+

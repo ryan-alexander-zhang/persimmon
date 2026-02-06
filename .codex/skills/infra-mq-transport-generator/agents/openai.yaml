@@ -1,0 +1,5 @@
+interface:
+  display_name: "Infra MQ Transport Generator"
+  short_description: "Generate Kafka transports with stable envelopes"
+  default_prompt: "Use $infra-mq-transport-generator to implement a Kafka transport with stable envelope headers and correct keying."
+

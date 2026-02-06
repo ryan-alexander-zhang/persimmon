@@ -7,6 +7,8 @@ description: "Generates infra Store implementations (Mybatis*Store) with correct
 
 > Follow `.codex/skills/GENERATOR_SKILL_STRUCTURE.md`.
 
+Templates: See `references/templates.md`.
+
 ## Use For
 - `{{basePackage}}.infra.**.store.*`
 

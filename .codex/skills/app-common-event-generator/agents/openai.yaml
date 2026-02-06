@@ -1,0 +1,5 @@
+interface:
+  display_name: "App Common Event Generator"
+  short_description: "Generate event handlers and dispatcher rules"
+  default_prompt: "Use $app-common-event-generator to add a new integration event handler and update dispatch/idempotency logic."
+

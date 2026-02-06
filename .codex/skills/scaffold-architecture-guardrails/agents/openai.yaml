@@ -1,0 +1,5 @@
+interface:
+  display_name: "Scaffold Architecture Guardrails"
+  short_description: "Guardrails for layers, naming, DB, concurrency"
+  default_prompt: "Use $scaffold-architecture-guardrails to validate the change against layer rules, naming, migrations, and concurrency safety."
+

@@ -1,0 +1,5 @@
+interface:
+  display_name: "Infra MyBatis PO/Mapper Generator"
+  short_description: "Generate MyBatis PO/Mapper with safe predicates"
+  default_prompt: "Use $infra-mybatis-po-mapper-generator to generate a PO + Mapper with correct claim/transition predicates."
+

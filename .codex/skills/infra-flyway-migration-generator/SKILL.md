@@ -7,6 +7,8 @@ description: "Generates Flyway SQL migrations consistent with scaffold rules (no
 
 > Follow `.codex/skills/GENERATOR_SKILL_STRUCTURE.md`.
 
+Templates: See `references/templates.md`.
+
 ## Use For
 - `{{infraModuleDir}}/src/main/resources/db/migration/Vx__*.sql`
 

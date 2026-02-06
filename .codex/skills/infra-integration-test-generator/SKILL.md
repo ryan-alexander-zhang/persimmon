@@ -7,6 +7,8 @@ description: "Generates DB integration tests (*IT) that run via Failsafe and val
 
 > Follow `.codex/skills/GENERATOR_SKILL_STRUCTURE.md`.
 
+Templates: See `references/templates.md`.
+
 ## Use For
 - Any infra code relying on DB semantics (SQL, locking, constraints).
 

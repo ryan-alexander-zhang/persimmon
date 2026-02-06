@@ -7,6 +7,8 @@ description: "Generates web adapters (controllers/dtos/assemblers) that map HTTP
 
 > Follow `.codex/skills/GENERATOR_SKILL_STRUCTURE.md`.
 
+Templates: See `references/templates.md`.
+
 ## Use For
 - `{{basePackage}}.adapter.web.*`
 
