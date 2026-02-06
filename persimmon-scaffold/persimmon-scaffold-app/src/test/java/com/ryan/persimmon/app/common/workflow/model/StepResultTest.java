@@ -15,17 +15,24 @@ class StepResultTest {
 
   @Test
   void waiting_normalizesOutboundEventsToImmutableList() {
-    StepResult.Waiting w0 = new StepResult.Waiting("evt.x", Duration.ofSeconds(1), null);
+    StepResult.Waiting w0 = StepResult.waiting("evt.x", Duration.ofSeconds(1), null);
     assertEquals(0, w0.outboundEvents().size());
 
     List<DomainEvent> src = new ArrayList<>();
     src.add(new FakeEvent());
-    StepResult.Waiting w1 = new StepResult.Waiting("evt.x", Duration.ofSeconds(1), src);
+    StepResult.Waiting w1 = StepResult.waiting("evt.x", Duration.ofSeconds(1), src);
 
     src.clear();
     assertEquals(1, w1.outboundEvents().size());
     assertThrows(
         UnsupportedOperationException.class, () -> w1.outboundEvents().add(new FakeEvent()));
+  }
+
+  @Test
+  void helpers_createExpectedTypes() {
+    assertEquals(StepResult.Completed.class, StepResult.completed().getClass());
+    assertEquals(StepResult.Retry.class, StepResult.retry("x").getClass());
+    assertEquals(StepResult.Dead.class, StepResult.dead("x").getClass());
   }
 
   private static final class FakeEvent implements DomainEvent {

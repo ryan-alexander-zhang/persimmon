@@ -48,6 +48,9 @@ class WorkflowInstanceTest {
     assertEquals("{\"k\":\"v\"}", instance.getContextJson());
     assertEquals(t0, instance.getStartedAt());
 
+    instance.updateContextJson("{\"k\":\"v2\"}");
+    assertEquals("{\"k\":\"v2\"}", instance.getContextJson());
+
     instance.advanceTo(1, "s2");
     assertEquals(1, instance.getCurrentStepSeq());
     assertEquals("s2", instance.getCurrentStepType());
