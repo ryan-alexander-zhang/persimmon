@@ -139,6 +139,29 @@ public interface WorkflowStepMapper {
   List<WorkflowStepPO> lockNextTimedOutWaitingBatch(
       @Param("now") Instant now, @Param("batchSize") int batchSize);
 
+  @Select(
+      """
+      select
+        instance_id,
+        step_seq,
+        step_type,
+        attempts,
+        max_attempts,
+        status,
+        next_run_at,
+        waiting_event_type,
+        deadline_at,
+        locked_by,
+        locked_until,
+        last_error,
+        created_at,
+        updated_at
+      from workflow_step
+      where instance_id = #{instanceId}
+      order by step_seq asc
+      """)
+  List<WorkflowStepPO> selectByInstanceId(@Param("instanceId") UUID instanceId);
+
   @Update(
       """
       update workflow_step

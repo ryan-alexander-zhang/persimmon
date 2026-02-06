@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
@@ -44,8 +45,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
   AutoFillObjectHandler.class,
   MybatisPlusConfig.class
 })
+@EnabledIfSystemProperty(named = "it.postgres", matches = "true")
 class OutboxStoreIT {
-
   @Autowired private OutboxEventMapper outboxEventMapper;
   @Autowired private JdbcTemplate jdbcTemplate;
 
@@ -128,7 +129,7 @@ class OutboxStoreIT {
     assertEquals("SENT", status(eventId));
     assertNull(nextRetryAt(eventId));
     assertNull(lastError(eventId));
-  }
+}
 
   private String status(UUID eventId) {
     return jdbcTemplate.queryForObject(

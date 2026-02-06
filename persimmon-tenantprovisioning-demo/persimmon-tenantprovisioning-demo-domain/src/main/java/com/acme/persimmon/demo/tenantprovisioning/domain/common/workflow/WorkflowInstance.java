@@ -55,6 +55,10 @@ public class WorkflowInstance implements HasDomainEvents {
     return contextJson;
   }
 
+  public void updateContextJson(String contextJson) {
+    this.contextJson = contextJson;
+  }
+
   public Instant getStartedAt() {
     return startedAt;
   }

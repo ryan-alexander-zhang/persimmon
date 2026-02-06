@@ -21,6 +21,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
@@ -46,8 +47,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
   AutoFillObjectHandler.class,
   MybatisPlusConfig.class
 })
+@EnabledIfSystemProperty(named = "it.postgres", matches = "true")
 class WorkflowStoreIT {
-
   @Autowired private WorkflowInstanceMapper instanceMapper;
   @Autowired private WorkflowStepMapper stepMapper;
   @Autowired private JdbcTemplate jdbcTemplate;

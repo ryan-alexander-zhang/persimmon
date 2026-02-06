@@ -30,7 +30,7 @@
 - [x] Audit columns base model (`BasePO`: created/updated/deleted timestamps, createdBy/updatedBy)
 - [x] Auto-fill timestamps on insert/update (`AutoFillObjectHandler`)
 - [x] UUID database type handler for Postgres (`UuidTypeHandler`)
-- [x] Demo repository artifacts (`DemoBizPO`, `DemoBizMapper`) + init schema and partial unique index
+- [x] Demo repository artifacts (`TenantPO`, `TenantMapper`) + init schema and partial unique index
 - [x] MyBatis-Plus repository test coverage for CRUD + optimistic lock + logic delete
 
 ## persimmon-scaffold-start

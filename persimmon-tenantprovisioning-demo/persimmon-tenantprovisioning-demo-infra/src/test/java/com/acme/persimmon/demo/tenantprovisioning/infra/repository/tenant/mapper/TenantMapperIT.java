@@ -1,4 +1,4 @@
-package com.acme.persimmon.demo.tenantprovisioning.infra.repository.biz.mapper;
+package com.acme.persimmon.demo.tenantprovisioning.infra.repository.tenant.mapper;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -7,13 +7,14 @@ import com.acme.persimmon.demo.tenantprovisioning.infra.common.database.AutoFill
 import com.acme.persimmon.demo.tenantprovisioning.infra.common.database.MybatisPlusConfig;
 import com.acme.persimmon.demo.tenantprovisioning.infra.common.database.UuidTypeHandler;
 import com.acme.persimmon.demo.tenantprovisioning.infra.common.id.UuidV7Generators;
-import com.acme.persimmon.demo.tenantprovisioning.infra.repository.biz.po.DemoBizPO;
+import com.acme.persimmon.demo.tenantprovisioning.infra.repository.tenant.po.TenantPO;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
@@ -37,112 +38,115 @@ import org.springframework.test.annotation.Rollback;
     })
 @AutoConfigureTestDatabase(replace = Replace.NONE)
 @Import({
-  DemoBizMapperIT.MapperConfig.class,
+  TenantMapperIT.MapperConfig.class,
   UuidTypeHandler.class,
   AutoFillObjectHandler.class,
   MybatisPlusConfig.class
 })
 @TestMethodOrder(OrderAnnotation.class)
-class DemoBizMapperIT {
+@EnabledIfSystemProperty(named = "it.postgres", matches = "true")
+class TenantMapperIT {
   private static final UuidV7Generators uuidV7Generators = new UuidV7Generators();
   private static final UUID id = uuidV7Generators.next();
-  private final String name = "test-01";
-  @Autowired private DemoBizMapper demoBizMapper;
+
+  @Autowired private TenantMapper tenantMapper;
 
   @Test
   @Order(1)
-  @Rollback(value = false)
+  @Rollback(false)
   void testInsert() {
-    DemoBizPO demoBizPO = new DemoBizPO();
-    demoBizPO.setName(name);
-    demoBizPO.setStatus("CREATING");
-    demoBizPO.setId(id);
-    int insert = demoBizMapper.insert(demoBizPO);
+    TenantPO po = new TenantPO();
+    po.setId(id);
+    po.setName("Acme");
+    po.setEmail("acme@example.com");
+    po.setPlan("BASIC");
+    po.setStatus("PROVISIONING");
+    int insert = tenantMapper.insert(po);
     assertEquals(1, insert);
   }
 
   @Test
   @Order(2)
   void testSelect() {
-    List<DemoBizPO> list = demoBizMapper.selectList(null);
+    List<TenantPO> list = tenantMapper.selectList(null);
     assertNotNull(list);
     assertFalse(list.isEmpty());
-    assertEquals(1, list.size());
-    assertEquals(name, list.getFirst().getName());
-    assertNotNull(list.getFirst().getCreatedAt());
-    assertNotNull(list.getFirst().getUpdatedAt());
+    TenantPO first = list.getFirst();
+    assertEquals(id, first.getId());
+    assertEquals("Acme", first.getName());
+    assertNotNull(first.getCreatedAt());
+    assertNotNull(first.getUpdatedAt());
+    assertNull(first.getDeletedAt());
   }
 
   @Test
   @Order(3)
-  @Rollback(value = false)
+  @Rollback(false)
   void testUpdate() {
-    // query first
-    DemoBizPO demoBizPO = demoBizMapper.selectById(id);
+    TenantPO before = tenantMapper.selectById(id);
+    assertNotNull(before);
 
-    DemoBizPO newDemoBizPO = new DemoBizPO();
-    newDemoBizPO.setId(id);
-    newDemoBizPO.setName("test-02");
-    newDemoBizPO.setStatus("UPDATING");
+    TenantPO patch = new TenantPO();
+    patch.setId(id);
+    patch.setName("Acme-2");
+    patch.setStatus("ACTIVE");
+    int updated = tenantMapper.updateById(patch);
+    assertEquals(1, updated);
 
-    int update = demoBizMapper.updateById(newDemoBizPO);
-    assertEquals(1, update);
-
-    // query again
-    DemoBizPO updated = demoBizMapper.selectById(id);
-    assertTrue(updated.getUpdatedAt().isAfter(demoBizPO.getUpdatedAt()));
+    TenantPO after = tenantMapper.selectById(id);
+    assertNotNull(after);
+    assertEquals("Acme-2", after.getName());
+    assertEquals("ACTIVE", after.getStatus());
+    assertTrue(after.getUpdatedAt().isAfter(before.getUpdatedAt()));
   }
 
   @Test
   @Order(4)
   @Rollback(false)
   void testOptimisticLock() {
-    DemoBizPO current = demoBizMapper.selectById(id);
+    TenantPO current = tenantMapper.selectById(id);
     assertNotNull(current);
     assertNotNull(current.getRowVersion());
-
     Integer v0 = current.getRowVersion();
 
-    // 1) Update with correct rowVersion should succeed and increment version by 1
-    DemoBizPO ok = new DemoBizPO();
+    TenantPO ok = new TenantPO();
     ok.setId(id);
     ok.setRowVersion(v0);
-    ok.setName("test-optimistic-ok");
-    ok.setStatus("UPDATING");
-
-    int updated1 = demoBizMapper.updateById(ok);
+    ok.setStatus("ACTIVE");
+    ok.setName("Acme-optimistic-ok");
+    int updated1 = tenantMapper.updateById(ok);
     assertEquals(1, updated1);
 
-    DemoBizPO afterOk = demoBizMapper.selectById(id);
+    TenantPO afterOk = tenantMapper.selectById(id);
     assertNotNull(afterOk);
     assertEquals(v0 + 1, afterOk.getRowVersion());
-    assertEquals("test-optimistic-ok", afterOk.getName());
 
-    // 2) Update again with a stale `rowVersion`, expect failure (return 0) and no data overwrite
-    DemoBizPO stale = new DemoBizPO();
+    TenantPO stale = new TenantPO();
     stale.setId(id);
-    stale.setRowVersion(v0); // Old version
-    stale.setName("test-optimistic-stale");
+    stale.setRowVersion(v0);
+    stale.setName("Acme-optimistic-stale");
     stale.setStatus("FAILED");
-
-    int updated2 = demoBizMapper.updateById(stale);
+    int updated2 = tenantMapper.updateById(stale);
     assertEquals(0, updated2);
 
-    DemoBizPO afterStale = demoBizMapper.selectById(id);
+    TenantPO afterStale = tenantMapper.selectById(id);
     assertNotNull(afterStale);
     assertEquals(v0 + 1, afterStale.getRowVersion());
-    assertEquals("test-optimistic-ok", afterStale.getName());
+    assertEquals("Acme-optimistic-ok", afterStale.getName());
   }
 
   @Test
   @Order(5)
-  @Rollback(value = false)
+  @Rollback(false)
   void testDelete() {
-    int i = demoBizMapper.deleteById(id);
-    assertEquals(1, i);
+    int deleted = tenantMapper.deleteById(id);
+    assertEquals(1, deleted);
+    TenantPO after = tenantMapper.selectById(id);
+    assertNotNull(after);
+    assertNotNull(after.getDeletedAt());
   }
 
   @Configuration
-  @MapperScan("com.acme.persimmon.demo.tenantprovisioning.infra.repository.biz.mapper")
+  @MapperScan("com.acme.persimmon.demo.tenantprovisioning.infra.repository.tenant.mapper")
   static class MapperConfig {}
 }

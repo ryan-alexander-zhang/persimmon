@@ -68,6 +68,29 @@ public interface WorkflowInstanceMapper {
       """)
   WorkflowInstancePO selectForUpdate(@Param("instanceId") UUID instanceId);
 
+  @Select(
+      """
+      select
+        instance_id,
+        biz_key,
+        workflow_type,
+        workflow_version,
+        status,
+        current_step_seq,
+        current_step_type,
+        context_json,
+        started_at,
+        completed_at,
+        failed_at,
+        created_at,
+        updated_at
+      from workflow_instance
+      where biz_key = #{bizKey}
+      order by created_at desc
+      limit 1
+      """)
+  WorkflowInstancePO selectLatestByBizKey(@Param("bizKey") String bizKey);
+
   @Update(
       """
       update workflow_instance

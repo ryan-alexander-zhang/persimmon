@@ -14,8 +14,9 @@ create table if not exists public.tenant
     updated_by  uuid,
     deleted_at  timestamptz,
     constraint ck_tenant_status check (status in ('PROVISIONING', 'ACTIVE', 'FAILED'))
-    );
+);
 
 create unique index if not exists uk_tenant_email on public.tenant (email) where deleted_at is null;
 
 create index if not exists idx_tenant_status on public.tenant (status);
+

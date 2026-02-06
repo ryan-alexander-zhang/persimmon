@@ -73,7 +73,7 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
         <configuration>
-          <mainClass>com.ryan.persimmon.start.bootstrap.Application</mainClass>
+          <mainClass>com.acme.persimmon.demo.tenantprovisioning.start.bootstrap.Application</mainClass>
           <excludes>
             <exclude>
               <groupId>org.projectlombok</groupId>
