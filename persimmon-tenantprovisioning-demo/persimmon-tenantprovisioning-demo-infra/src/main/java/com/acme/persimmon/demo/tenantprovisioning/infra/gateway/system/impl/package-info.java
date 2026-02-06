@@ -1,7 +1,7 @@
 /**
  * Gateway port implementations for {@code system}.
  *
- * <p>Implements domain gateway ports (e.g. {@code com.acme.persimmon.demo.tenantprovisioning.domain.biz.gateway.*}) by
+ * <p>Implements domain gateway ports (e.g. {@code com.acme.persimmon.demo.tenantprovisioning.domain.tenant.gateway.*}) by
  * using clients and integration DTOs defined under {@code infra.gateway.system}.
  *
  * <h2>Usage</h2>

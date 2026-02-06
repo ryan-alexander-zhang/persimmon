@@ -1,6 +1,6 @@
 package com.acme.persimmon.demo.tenantprovisioning.infra.gateway.harbor;
 
-import com.acme.persimmon.demo.tenantprovisioning.domain.biz.gateway.HarborGateway;
+import com.acme.persimmon.demo.tenantprovisioning.domain.tenant.gateway.HarborGateway;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -38,4 +38,3 @@ public final class MockHarborGateway implements HarborGateway {
     return "mock-secret-" + uuid.toString().replace("-", "");
   }
 }
-

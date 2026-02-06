@@ -1,6 +1,6 @@
 package com.acme.persimmon.demo.tenantprovisioning.infra.gateway.kubernetes;
 
-import com.acme.persimmon.demo.tenantprovisioning.domain.biz.gateway.KubernetesGateway;
+import com.acme.persimmon.demo.tenantprovisioning.domain.tenant.gateway.KubernetesGateway;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -29,4 +29,3 @@ public final class MockKubernetesGateway implements KubernetesGateway {
     secrets.putIfAbsent(key, data == null ? Map.of() : Map.copyOf(data));
   }
 }
-

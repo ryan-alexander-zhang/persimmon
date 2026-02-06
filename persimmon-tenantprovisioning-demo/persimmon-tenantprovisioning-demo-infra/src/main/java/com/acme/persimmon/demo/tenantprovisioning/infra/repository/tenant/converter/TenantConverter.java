@@ -1,8 +1,8 @@
 package com.acme.persimmon.demo.tenantprovisioning.infra.repository.tenant.converter;
 
-import com.acme.persimmon.demo.tenantprovisioning.domain.biz.model.aggregate.Tenant;
-import com.acme.persimmon.demo.tenantprovisioning.domain.biz.model.enums.TenantStatus;
-import com.acme.persimmon.demo.tenantprovisioning.domain.biz.model.vo.TenantId;
+import com.acme.persimmon.demo.tenantprovisioning.domain.tenant.model.aggregate.Tenant;
+import com.acme.persimmon.demo.tenantprovisioning.domain.tenant.model.enums.TenantStatus;
+import com.acme.persimmon.demo.tenantprovisioning.domain.tenant.model.vo.TenantId;
 import com.acme.persimmon.demo.tenantprovisioning.infra.repository.tenant.po.TenantPO;
 
 public final class TenantConverter {
@@ -36,4 +36,3 @@ public final class TenantConverter {
         version);
   }
 }
-

@@ -1,17 +1,17 @@
 package com.acme.persimmon.demo.tenantprovisioning.start.config.bean;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.acme.persimmon.demo.tenantprovisioning.app.biz.command.handler.CreateTenantCommandHandler;
-import com.acme.persimmon.demo.tenantprovisioning.app.biz.event.handler.HarborProjectReadyEventHandler;
-import com.acme.persimmon.demo.tenantprovisioning.app.biz.port.out.TenantQueryPort;
-import com.acme.persimmon.demo.tenantprovisioning.app.biz.query.service.TenantQueryService;
-import com.acme.persimmon.demo.tenantprovisioning.app.biz.workflow.TenantProvisioningContextCodec;
-import com.acme.persimmon.demo.tenantprovisioning.app.biz.workflow.definition.TenantProvisioningWorkflowDefinitionProvider;
-import com.acme.persimmon.demo.tenantprovisioning.app.biz.workflow.step.HarborCreateProjectStepHandler;
-import com.acme.persimmon.demo.tenantprovisioning.app.biz.workflow.step.HarborCreateRobotStepHandler;
-import com.acme.persimmon.demo.tenantprovisioning.app.biz.workflow.step.K8sCreateNamespaceStepHandler;
-import com.acme.persimmon.demo.tenantprovisioning.app.biz.workflow.step.K8sCreateSecretStepHandler;
-import com.acme.persimmon.demo.tenantprovisioning.app.biz.workflow.step.TenantMarkActiveStepHandler;
+import com.acme.persimmon.demo.tenantprovisioning.app.tenant.command.handler.CreateTenantCommandHandler;
+import com.acme.persimmon.demo.tenantprovisioning.app.tenant.event.handler.HarborProjectReadyEventHandler;
+import com.acme.persimmon.demo.tenantprovisioning.app.tenant.port.out.TenantQueryPort;
+import com.acme.persimmon.demo.tenantprovisioning.app.tenant.query.service.TenantQueryService;
+import com.acme.persimmon.demo.tenantprovisioning.app.tenant.workflow.TenantProvisioningContextCodec;
+import com.acme.persimmon.demo.tenantprovisioning.app.tenant.workflow.definition.TenantProvisioningWorkflowDefinitionProvider;
+import com.acme.persimmon.demo.tenantprovisioning.app.tenant.workflow.step.HarborCreateProjectStepHandler;
+import com.acme.persimmon.demo.tenantprovisioning.app.tenant.workflow.step.HarborCreateRobotStepHandler;
+import com.acme.persimmon.demo.tenantprovisioning.app.tenant.workflow.step.K8sCreateNamespaceStepHandler;
+import com.acme.persimmon.demo.tenantprovisioning.app.tenant.workflow.step.K8sCreateSecretStepHandler;
+import com.acme.persimmon.demo.tenantprovisioning.app.tenant.workflow.step.TenantMarkActiveStepHandler;
 import com.acme.persimmon.demo.tenantprovisioning.app.common.event.port.EventHandler;
 import com.acme.persimmon.demo.tenantprovisioning.app.common.id.UuidV7Generator;
 import com.acme.persimmon.demo.tenantprovisioning.app.common.outbox.service.DomainEventOutboxService;
@@ -20,9 +20,9 @@ import com.acme.persimmon.demo.tenantprovisioning.app.common.workflow.definition
 import com.acme.persimmon.demo.tenantprovisioning.app.common.workflow.port.WorkflowStepHandler;
 import com.acme.persimmon.demo.tenantprovisioning.app.common.workflow.service.WorkflowSignalService;
 import com.acme.persimmon.demo.tenantprovisioning.app.common.workflow.service.WorkflowStartService;
-import com.acme.persimmon.demo.tenantprovisioning.domain.biz.gateway.HarborGateway;
-import com.acme.persimmon.demo.tenantprovisioning.domain.biz.gateway.KubernetesGateway;
-import com.acme.persimmon.demo.tenantprovisioning.domain.biz.repository.TenantRepository;
+import com.acme.persimmon.demo.tenantprovisioning.domain.tenant.gateway.HarborGateway;
+import com.acme.persimmon.demo.tenantprovisioning.domain.tenant.gateway.KubernetesGateway;
+import com.acme.persimmon.demo.tenantprovisioning.domain.tenant.repository.TenantRepository;
 import com.acme.persimmon.demo.tenantprovisioning.infra.gateway.harbor.MockHarborGateway;
 import com.acme.persimmon.demo.tenantprovisioning.infra.gateway.kubernetes.MockKubernetesGateway;
 import com.acme.persimmon.demo.tenantprovisioning.infra.query.tenant.impl.MybatisTenantQueryPort;
@@ -130,4 +130,3 @@ public class TenantDemoWiringConfig {
     return new HarborProjectReadyEventHandler(workflowSignalService, objectMapper);
   }
 }
-

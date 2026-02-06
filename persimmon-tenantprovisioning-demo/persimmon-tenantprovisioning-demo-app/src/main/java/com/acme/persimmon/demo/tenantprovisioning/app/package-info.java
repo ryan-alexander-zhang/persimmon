@@ -8,7 +8,7 @@
  * <h2>Structure rule</h2>
  *
  * <p><strong>BC-first</strong>: all business use cases live under {@code
- * com.acme.persimmon.demo.tenantprovisioning.app.biz.*}. Only cross-cutting, non-business utilities belong under {@code
+ * com.acme.persimmon.demo.tenantprovisioning.app.tenant.*}. Only cross-cutting, non-business utilities belong under {@code
  * com.acme.persimmon.demo.tenantprovisioning.app.common}.
  */
 package com.acme.persimmon.demo.tenantprovisioning.app;

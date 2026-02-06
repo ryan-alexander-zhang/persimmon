@@ -1,10 +1,10 @@
 package com.acme.persimmon.demo.tenantprovisioning.infra.query.tenant.impl;
 
-import com.acme.persimmon.demo.tenantprovisioning.app.biz.port.out.TenantQueryPort;
-import com.acme.persimmon.demo.tenantprovisioning.app.biz.query.dto.TenantDTO;
-import com.acme.persimmon.demo.tenantprovisioning.app.biz.query.dto.TenantProvisioningDTO;
-import com.acme.persimmon.demo.tenantprovisioning.app.biz.query.dto.WorkflowInstanceDTO;
-import com.acme.persimmon.demo.tenantprovisioning.app.biz.query.dto.WorkflowStepDTO;
+import com.acme.persimmon.demo.tenantprovisioning.app.tenant.port.out.TenantQueryPort;
+import com.acme.persimmon.demo.tenantprovisioning.app.tenant.query.dto.TenantDTO;
+import com.acme.persimmon.demo.tenantprovisioning.app.tenant.query.dto.TenantProvisioningDTO;
+import com.acme.persimmon.demo.tenantprovisioning.app.tenant.query.dto.WorkflowInstanceDTO;
+import com.acme.persimmon.demo.tenantprovisioning.app.tenant.query.dto.WorkflowStepDTO;
 import com.acme.persimmon.demo.tenantprovisioning.infra.repository.tenant.mapper.TenantMapper;
 import com.acme.persimmon.demo.tenantprovisioning.infra.repository.tenant.po.TenantPO;
 import com.acme.persimmon.demo.tenantprovisioning.infra.repository.workflow.mapper.WorkflowInstanceMapper;
@@ -87,4 +87,3 @@ public class MybatisTenantQueryPort implements TenantQueryPort {
     return Optional.of(new TenantProvisioningDTO(tenantId, workflowDto, stepDtos));
   }
 }
-

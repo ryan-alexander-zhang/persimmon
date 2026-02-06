@@ -7,7 +7,7 @@
  * <h2>Structure rule</h2>
  *
  * <p><strong>BC-first</strong>: all business-semantic domain types live under a business context
- * package, i.e. {@code com.acme.persimmon.demo.tenantprovisioning.domain.biz.*}. Only non-business, generic abstractions
+ * package, i.e. {@code com.acme.persimmon.demo.tenantprovisioning.domain.tenant.*}. Only non-business, generic abstractions
  * belong under {@code com.acme.persimmon.demo.tenantprovisioning.domain.common}.
  *
  * <h2>Dependencies</h2>

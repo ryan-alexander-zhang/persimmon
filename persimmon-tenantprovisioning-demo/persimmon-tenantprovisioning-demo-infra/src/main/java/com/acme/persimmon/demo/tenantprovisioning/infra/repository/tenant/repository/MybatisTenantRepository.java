@@ -1,9 +1,9 @@
 package com.acme.persimmon.demo.tenantprovisioning.infra.repository.tenant.repository;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
-import com.acme.persimmon.demo.tenantprovisioning.domain.biz.model.aggregate.Tenant;
-import com.acme.persimmon.demo.tenantprovisioning.domain.biz.model.vo.TenantId;
-import com.acme.persimmon.demo.tenantprovisioning.domain.biz.repository.TenantRepository;
+import com.acme.persimmon.demo.tenantprovisioning.domain.tenant.model.aggregate.Tenant;
+import com.acme.persimmon.demo.tenantprovisioning.domain.tenant.model.vo.TenantId;
+import com.acme.persimmon.demo.tenantprovisioning.domain.tenant.repository.TenantRepository;
 import com.acme.persimmon.demo.tenantprovisioning.infra.repository.tenant.converter.TenantConverter;
 import com.acme.persimmon.demo.tenantprovisioning.infra.repository.tenant.mapper.TenantMapper;
 import com.acme.persimmon.demo.tenantprovisioning.infra.repository.tenant.po.TenantPO;
@@ -49,4 +49,3 @@ public class MybatisTenantRepository implements TenantRepository {
     return Optional.ofNullable(TenantConverter.toDomain(po));
   }
 }
-
