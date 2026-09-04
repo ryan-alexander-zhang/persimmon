@@ -1,0 +1,8 @@
+{
+  "template": "ryan-alexander-zhang/ai-native-project-template",
+  "ref": "main",
+  "commit": "1c88a684ef87074412fb92d7d901f48156725900",
+  "vars": {
+    "PROJECT_NAME": "persimmon"
+  }
+}

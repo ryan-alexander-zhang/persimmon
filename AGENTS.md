@@ -1,0 +1,109 @@
+# Guidelines 
+## 1. Think Before Coding
+
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
+
+Before implementing:
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them - don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+## 2. Simplicity First
+
+**Minimum code that solves the problem. Nothing speculative.**
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+## 3. Surgical Changes
+
+**Touch only what you must. Clean up only your own mess.**
+
+When editing existing code:
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it - don't delete it.
+
+When your changes create orphans:
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+The test: Every changed line should trace directly to the user's request.
+
+## 4. Goal-Driven Execution
+
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
+
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+## 5. Language Consistency
+
+**Use one canonical term for one concept.**
+
+- Use `CONTEXT.md` as the project glossary. If it does not exist, create it from `CONTEXT_TEMPLATE.md`.
+- If a term conflicts with `CONTEXT.md`, stop and resolve it before moving on.
+- If language is vague or overloaded, propose one precise term and test it against concrete scenarios.
+- If the stated behavior conflicts with the code or docs, call out the mismatch explicitly.
+- Update `CONTEXT.md` as soon as a term is resolved. Keep it glossary-only: no implementation details, specs, or design decisions.
+
+## 6. Document Workflow
+
+- For document work, including status transitions, follow `DOCUMENT.md`.
+- As soon as a `spec`, `rule`, or `design` draft is written or substantively changed — and
+  before a human is asked to review it — a subagent that did not write it audits it: first
+  against that folder's `README.md`, then against the content itself. Name the missing
+  rules, cases, and GWTs, the readings taken silently, and every value it cannot confirm.
+  Each finding becomes an amendment or a named Open Question; what only a domain owner can
+  settle is never left as an assumption.
+- When writing the acceptance for a `spec` or a `rule`, derive the set per `ACCEPTANCE.md`.
+
+## 7. Output Discipline
+
+If one sentence answers it, answer in one sentence. Expand only when the user asks for
+detail. Keep the formatting as short as the content: prose for short answers, no headings
+or bullets over a single conclusion. This applies to documents too.
+
+## 8. Development Workflow
+
+- For implementation work, follow `DEVELOPMENT.md`.
+- After implementation, follow `TESTING.md`.
+- Use `ARCHITECTURE.md` as the architecture index. If it does not exist, create it from `ARCHITECTURE_TEMPLATE.md`.
+- Before the first implementation `plan` turns `open`, fill the project-derived root guides
+  from their templates and the `active` decisions/designs: `ARCHITECTURE.md`, the Commands in
+  `DEVELOPMENT.md`, the project-specific values in `TESTING.md` / `CODE_STYLE.md` /
+  `CODE_QUALITY.md`. Never implement while a root guide the work depends on still holds
+  template placeholders.
+- When a quality gate fails (format / complexity / duplication / static analysis / coverage)
+  or a review flags complexity or duplication, refactor per `CODE_QUALITY.md`: solve it — do
+  not raise a threshold or suppress a finding to make the build pass.
+- When you discover a bug or defect during any task, before fixing it, create a
+  `docs/issue` doc: analyze the root cause from first principles and reproduce it
+  with a failing test, following `docs/issue/README.md`. Only then apply the fix.
+- Never write code or tests against a `draft` doc; it must be `active` (or `open` for a work item) first.
+- Before a feature-sized `plan` becomes `resolved`, have a subagent verify from the docs that every linked `spec`/`rule` GWT has a passing test and that no `spec-<n>-FR-<i>` or `rule-<n>-BR-<i>` is unverified, then record a `docs/record/` acceptance checklist linking the GWT ids. Any gap blocks `resolved`.
+
+## 9. Autopilot Mode
+
+- When invoked as `/autopilot <prompt>` (or asked to run `AUTOPILOT.md`), follow `AUTOPILOT.md`:
+  one intake round, then unattended through to a PR on an `autopilot/` branch. The human rounds
+  in §1, §5, §6 and `DOCUMENT.md` are replaced exactly as that file states; a choice made in a
+  human's place is a `decision` with `decided_by: agent`.
