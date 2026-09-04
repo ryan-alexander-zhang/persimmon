@@ -35,7 +35,7 @@ constrains: [design-00001-docs-whiteboard]
 | 2 | 模板仓库删除 `tools/whiteboard/`、迁走的实例文档与 `CONTEXT.md`；README 改为一段指向本仓库的说明 | 模板回到「只有骨架与根指南」的本意 |
 | 3 | `whiteboard.config.yaml` 留在模板（并随 `ainpt new` 进入每个项目） | 它是 `rule-00001` 的机器可读载体，声明的是项目自己的文档流程；也是白板识别一个项目根目录的标志 |
 | 4 | 不保留 git 历史，以 `ainpt new` 的干净拷贝为起点 | issue / plan / record 文档已是这段历史的书面版；filter-repo 再叠骨架的成本不值 |
-| 5 | 本轮不改动代码位置（仍在 `tools/whiteboard/`）与启动方式（向上找 `whiteboard.config.yaml`） | 迁移与重构分开落地，保证迁移本身零行为变更、测试原样通过 |
+| 5 | 本轮不改动代码位置（仍在 `tools/whiteboard/`）与启动方式（向上找 `whiteboard.config.yaml`） | 迁移与重构分开落地，保证迁移本身零行为变更、测试原样通过（追注：迁移当日 1 例在模板 HEAD 上就已失败，与迁移无关，见 `issue-00027`） |
 | 6 | 下一步方向：多 workspace——用户目录下的注册表记录多个项目根目录，一个进程按 workspace 分实例，UI 提供切换器；`ainpt new` 完成时自动注册 | 见 `idea-00004-multi-workspace`；该方向经 prd → spec 再落地，本决定只定方向 |
 
 ## 3. 考虑过的其他选项

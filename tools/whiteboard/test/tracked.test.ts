@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { lstatSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { findRepoRoot } from '../src/config.ts'
@@ -30,10 +30,14 @@ describe('the files a fresh clone has to get', () => {
   // `git merge-file`, which refuses any file git calls binary — a NUL byte in
   // the first 8000 bytes. One raw control byte in a tracked source is an
   // unresolvable conflict in every project that updates (issue-00021).
+  // A symlink's blob is its target path — text by construction — so the
+  // heuristic is asked of what git merges, not of what the link points at
+  // (issue-00027: reading through a link to a directory throws EISDIR).
   it('tracks only files git can merge as text', () => {
-    const binary = [...tracked].filter((path) =>
-      readFileSync(join(repoRoot, path)).subarray(0, 8000).includes(0),
-    )
+    const binary = [...tracked].filter((path) => {
+      const file = join(repoRoot, path)
+      return !lstatSync(file).isSymbolicLink() && readFileSync(file).subarray(0, 8000).includes(0)
+    })
     expect(binary).toEqual([])
   })
 })
