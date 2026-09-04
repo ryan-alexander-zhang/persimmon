@@ -1,112 +1,49 @@
-# AI-Native Project Template
+# persimmon
 
-This repository is a docs-first template for starting an AI-native software
-project.
+A local, single-user docs whiteboard for repositories built on
+[ai-native-project-template](https://github.com/ryan-alexander-zhang/ai-native-project-template):
+the `docs/` tree is rendered as a board (documents are nodes, front matter
+relations are edges), and every action — review, promote, ask, co-write,
+annotate — writes back to the Markdown files and commits.
 
-It gives you a small, opinionated operating baseline for humans and coding
-agents:
+The Markdown files stay the only source of truth. The board is a view and an
+operations console over a repository; it can be discarded and rebuilt at any time.
 
-- root workflow docs for architecture, development, testing, security, style,
-  commits, and PRs
-- a project glossary template for keeping product, code, and docs vocabulary
-  consistent
-- a `docs/` taxonomy for durable product, engineering, and operational docs
-- test-level guides that let each repo choose its own unit and E2E stack while
-  pinning integration testing to Testcontainers and API testing to Bruno by
-  default
-- a local docs whiteboard that renders the `docs/` tree as a board and drives
-  the review / promote / ask / co-write workflow
+This repository is also a project on the template: its own `docs/` holds the
+whiteboard's idea, prd, specs, rules, decisions, designs, plans, issues, and
+acceptance records, and this board is what renders them.
 
-This is not a full application starter. It does not assume a frontend stack,
-backend stack, or deployment platform. You bring the runtime code and keep the
-workflow and documentation structure.
-
-## What To Customize First
-
-Start here after creating a repo from this template:
-
-1. Update [ARCHITECTURE.md](ARCHITECTURE.md) with the intended system shape.
-2. Update [AGENTS.md](AGENTS.md) with repo-specific working rules for agents.
-3. Create `CONTEXT.md` from [CONTEXT_TEMPLATE.md](CONTEXT_TEMPLATE.md) and
-   record the first project terms that need consistent usage.
-4. Fill in the commands and project choices in:
-   - [DEVELOPMENT.md](DEVELOPMENT.md)
-   - [TESTING.md](TESTING.md)
-   - [UNIT_TESTING.md](UNIT_TESTING.md)
-   - [INTEGRATION_TESTING.md](INTEGRATION_TESTING.md)
-   - [API_TESTING.md](API_TESTING.md)
-   - [E2E_TESTING.md](E2E_TESTING.md)
-   - [CODE_QUALITY.md](CODE_QUALITY.md)
-5. Use [docs/README.md](docs/README.md) to decide where durable docs belong.
-6. Add your runtime code in the structure that fits the project.
-
-## What To Customize vs Keep
-
-**Language / framework — fill in per project:**
-
-- [ARCHITECTURE.md](ARCHITECTURE.md) — tech stack, module structure, boundaries
-- [DEVELOPMENT.md](DEVELOPMENT.md) — the setup / build / test / lint / run commands
-- [UNIT_TESTING.md](UNIT_TESTING.md) — choose the unit framework
-- [E2E_TESTING.md](E2E_TESTING.md) — choose the E2E framework
-- [INTEGRATION_TESTING.md](INTEGRATION_TESTING.md) — Testcontainers is pinned; fill in commands and environment
-- [API_TESTING.md](API_TESTING.md) — Bruno is pinned; fill in base URL, auth, and command
-- [CODE_QUALITY.md](CODE_QUALITY.md) — fill in the build-failing gates and any tuned
-  threshold; the metrics and refactoring SOP stay as written
-
-**Project / domain — fill in, but not language-driven:**
-
-- [AGENTS.md](AGENTS.md) — repo-specific agent rules
-- `CONTEXT.md` (from [CONTEXT_TEMPLATE.md](CONTEXT_TEMPLATE.md)) — domain glossary
-- [REVIEW.md](REVIEW.md) — review checklist (starts empty)
-- [THIRDPARTY.md](THIRDPARTY.md) — external reference-only sources
-- [ACCEPTANCE.md](ACCEPTANCE.md) — the derivation rules stay as written; fill in the
-  omissions this domain actually produces
-
-**Generic policy — keep as-is unless you are deliberately changing the way of working:**
-
-- [CODE_STYLE.md](CODE_STYLE.md), [COMMIT.md](COMMIT.md), [PR.md](PR.md),
-  [DOCUMENT.md](DOCUMENT.md), [SECURITY.md](SECURITY.md),
-  [TESTING.md](TESTING.md) (policy only — the framework choices live in the
-  `*_TESTING.md` guides), and the [docs/](docs/README.md) taxonomy
-
-## Docs Whiteboard
-
-A local, single-user board over `docs/`: documents are nodes, front matter
-relations are edges, and every action (review, promote, ask, co-write, annotate)
-writes back to the Markdown files and commits.
+## Quick Start
 
 ```bash
-cd tools/whiteboard && npm install && npm run build && npm start   # http://localhost:4173
+cd tools/whiteboard
+npm install
+npm run build
+npm start            # http://localhost:4173, honours PORT
 ```
 
-Behavior is configured in [whiteboard.config.yaml](whiteboard.config.yaml); commands
-and details in [tools/whiteboard/README.md](tools/whiteboard/README.md).
+The board walks up from the directory it is launched in to the nearest
+`whiteboard.config.yaml` and serves that repository's `docs/`. Commands, the
+configuration contract, and the local `.whiteboard/` state are documented in
+[tools/whiteboard/README.md](tools/whiteboard/README.md).
 
 ## Repo Map
 
 - [AGENTS.md](AGENTS.md): behavior rules for coding agents in this repo
-- [ARCHITECTURE.md](ARCHITECTURE.md): top-level architecture summary
-- [CONTEXT_TEMPLATE.md](CONTEXT_TEMPLATE.md): format spec for the `CONTEXT.md`
-  project glossary
-- [DEVELOPMENT.md](DEVELOPMENT.md): implementation workflow and Definition of Done
+- [ARCHITECTURE.md](ARCHITECTURE.md): architecture index for the whiteboard
+- [CONTEXT.md](CONTEXT.md): the project glossary
+- [DEVELOPMENT.md](DEVELOPMENT.md): implementation workflow, commands, Definition of Done
 - [DOCUMENT.md](DOCUMENT.md): document management rules
-- [AUTOPILOT.md](AUTOPILOT.md): unattended idea-to-PR run
-- [ACCEPTANCE.md](ACCEPTANCE.md): how to derive the acceptance criteria a requirement owes
-- [TESTING.md](TESTING.md): test-level policy and testing Definition of Done
-- [CODE_QUALITY.md](CODE_QUALITY.md): quality gates and refactoring order
-- [REVIEW.md](REVIEW.md): project-specific review checklist (starts empty)
-- [THIRDPARTY.md](THIRDPARTY.md): register of external reference-only sources
+- [TESTING.md](TESTING.md) and [UNIT_TESTING.md](UNIT_TESTING.md): test policy and the unit stack
+- [CODE_QUALITY.md](CODE_QUALITY.md): quality gates
+- [whiteboard.config.yaml](whiteboard.config.yaml): the flow configuration this repo's board reads
 - [docs/README.md](docs/README.md): source of truth for the docs taxonomy
-- [tools/whiteboard/README.md](tools/whiteboard/README.md): the docs whiteboard
+- [tools/whiteboard/README.md](tools/whiteboard/README.md): the board itself
 
-## Suggested Adoption Flow
+## Origin
 
-Use the template in this order:
-
-1. Lock the working agreements at the repo root.
-2. Capture product and engineering intent under `docs/`.
-3. Add runtime code only after the architecture and workflow boundaries are
-   clear enough for agents to follow.
-
-That keeps the repo usable by both humans and agents before the implementation
-surface grows.
+The whiteboard was developed inside the template repository and moved here so
+that one installed board can serve any number of template projects instead of
+every project carrying its own copy. The move and the direction it sets are
+recorded in
+[decision-00019](docs/decision/decision-00019-whiteboard-standalone-repo.md).

@@ -1,27 +1,36 @@
 # Unit Testing
 
-Use this file to record the project-specific unit testing choice for this repo.
+The project-specific unit testing choice for this repo.
 
 ## Test Framework
 
-Framework: `<fill in for this project>`. Note the short reason it is the chosen default.
-
-This level has no template default. The repo template only pins
-[INTEGRATION_TESTING.md](INTEGRATION_TESTING.md) to Testcontainers; pick the
-unit framework that fits the project's language and toolchain.
+Framework: `vitest`. It runs the TypeScript server modules and the React web
+modules from one config, is the default test runner for a Vite project, and its
+`@vitest/coverage-v8` reporter carries the coverage gate without a second tool.
 
 ## Command
 
-List the command used to run unit tests locally and in CI.
+From `tools/whiteboard/`:
+
+- `npm test` — run the suite once
+- `npm run test:coverage` — run with the coverage report
 
 ## Scope
 
-Define what unit tests must cover and what should stay out of unit tests.
+Unit tests cover the server modules under `src/` (parsing, config, workflow,
+stores, session and git layers, API handlers) and the web modules under
+`web/src/` (models, layout, rendering helpers, components), exercising each
+requirement's GWT examples. Fixtures are written to a temporary directory; no
+test touches this repository's `docs/`, except the config tests that load the
+root `whiteboard.config.yaml` as the reference configuration.
 
 ## Gate
 
-Define the minimum rule that must pass for unit testing at this repo.
+The suite passes, and coverage over `src/` and `web/src/` meets the bar in
+[TESTING.md](TESTING.md). The measured scope excludes `web/src/main.tsx` and
+the vendored `web/src/components/ui/**`, per [CODE_QUALITY.md](CODE_QUALITY.md) §2.
 
 ## Report
 
-Describe where to check unit test results, coverage, or CI output.
+`npm run test:coverage` prints the summary and writes the HTML report to
+`tools/whiteboard/coverage/` (git-ignored).

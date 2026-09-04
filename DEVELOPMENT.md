@@ -79,13 +79,13 @@ Use this stage when the change needs durable docs, notes, or decisions.
 
 ## Commands
 
-Canonical commands for this repo (fill in for the project):
+Canonical commands for this repo, run from `tools/whiteboard/`:
 
-- Setup: `<command>`
-- Test: `<command>`
-- Lint: `<command>`
-- Build: `<command>`
-- Run: `<command>`
+- Setup: `npm install`
+- Test: `npm test` (coverage: `npm run test:coverage`)
+- Lint: `npm run typecheck` (no separate linter yet — see [CODE_QUALITY.md](CODE_QUALITY.md) §2)
+- Build: `npm run build`
+- Run: `npm start` (serves the built UI on `PORT`, default 4173)
 
 ## Development Matrix
 
