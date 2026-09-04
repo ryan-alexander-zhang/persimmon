@@ -2,7 +2,7 @@
 id: design-00001-docs-whiteboard
 type: design
 status: active
-informs: [spec-00001-docs-whiteboard, spec-00002-whiteboard-governance, spec-00003-whiteboard-parallel-sessions, spec-00005-whiteboard-ask-threads, spec-00006-whiteboard-co-write, spec-00007-doc-annotations, spec-00009-whiteboard-agent-settings, spec-00010-whiteboard-directory-groups-and-exclude]
+informs: [spec-00001-docs-whiteboard, spec-00002-whiteboard-governance, spec-00003-whiteboard-parallel-sessions, spec-00005-whiteboard-ask-threads, spec-00006-whiteboard-co-write, spec-00007-doc-annotations, spec-00009-whiteboard-agent-settings, spec-00010-whiteboard-directory-groups-and-exclude, spec-00011-multi-workspace]
 ---
 
 # Design: Docs 白板 MVP
