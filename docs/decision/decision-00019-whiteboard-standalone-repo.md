@@ -71,3 +71,11 @@ constrains: [design-00001-docs-whiteboard, prd-00003-multi-workspace, spec-00011
 - `design-00001-docs-whiteboard` §8：「不影响模板本体」的前提不再成立，据实校正为「本仓库即白板仓库」。
 - 模板仓库的 README 与 `template.json`：不得再引入白板代码；`whiteboard.config.yaml` 继续随模板分发。
 - 后续 workspace 工作（`idea-00004-multi-workspace` 起）落地时，须把代码位置与启动方式的重构一并记录，并回填本决定的 `constrains`。
+
+## 第二十八轮追注（多 workspace）
+
+§2 第 5 条「本轮不改动代码位置」与 §3 被否决的「顺带提到仓库根」，都是迁移
+当轮的裁决；代码位置的重构随 `spec-00011-multi-workspace` 落地
+（`plan-00027` T2，2026-09-07）：代码已在白板仓库根，`tools/` 不再存在，
+包名 `@ryan-alexander-zhang/persimmon`、命令 `persimmon`。§5 要求的「一并
+记录」由 `design-00003` §10 承担，`constrains` 已回填。

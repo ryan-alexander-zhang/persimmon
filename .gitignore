@@ -77,7 +77,7 @@ downloads/
 eggs/
 .eggs/
 #   Anchored: a bare `lib/` matches at every depth and swallowed
-#   tools/whiteboard/web/src/lib/ (issue-00017). setuptools writes this one at
+#   web/src/lib/ (issue-00017). setuptools writes this one at
 #   the repo root, which is all this rule ever meant.
 /lib/
 lib64/
@@ -288,9 +288,8 @@ node_modules/
 npm-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-#   Vite build output and coverage reports (the `dist/` and `coverage.*` entries
-#   above cover Python builds and Go profiles, not these paths)
-tools/*/dist/
+#   Coverage reports and the Vite cache (the bare `dist/` above already covers
+#   the Vite build output at the repo root)
 coverage/
 .vite/
 

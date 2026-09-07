@@ -1,18 +1,24 @@
 {
-  "name": "docs-whiteboard",
+  "name": "@ryan-alexander-zhang/persimmon",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "engines": {
     "node": ">=23.6"
   },
   "description": "Visual operations board for the docs workflow",
   "bin": {
-    "whiteboard": "./bin/whiteboard.js"
+    "persimmon": "./bin/persimmon.js"
   },
+  "files": [
+    "bin/",
+    "src/",
+    "dist/web/",
+    "scripts/"
+  ],
   "scripts": {
     "postinstall": "node scripts/fix-pty-permissions.js",
-    "start": "node bin/whiteboard.js",
+    "prepack": "npm run build",
+    "start": "node bin/persimmon.js",
     "dev": "vite",
     "build": "vite build",
     "test": "vitest run",

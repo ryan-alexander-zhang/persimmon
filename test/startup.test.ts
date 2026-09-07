@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { makeRepo } from './helpers.ts'
 
-const ENTRY = new URL('../bin/whiteboard.js', import.meta.url).pathname
+const ENTRY = new URL('../bin/persimmon.js', import.meta.url).pathname
 
 /** Boot the CLI the way a user does: from somewhere in the repo, on a free port. */
 function boot(cwd: string) {

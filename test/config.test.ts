@@ -562,7 +562,7 @@ describe('findRepoRoot', () => {
 
 describe('the config shipped with this repo', () => {
   it('loads and matches rule-00001 product flow', () => {
-    const config = loadFlowConfig(new URL('../../../whiteboard.config.yaml', import.meta.url).pathname)
+    const config = loadFlowConfig(new URL('../whiteboard.config.yaml', import.meta.url).pathname)
     // rule-00001-AC-1.1 and AC-1.2: the kind split the board runs on
     expect(config.types.idea).toBe('living')
     expect(config.types.prd).toBe('living')
@@ -593,7 +593,7 @@ describe('the config shipped with this repo', () => {
    * — a focus line that is not about its own type buys nothing.
    */
   it('carries one distinct focus line for each of the five clarifiable types', () => {
-    const config = loadFlowConfig(new URL('../../../whiteboard.config.yaml', import.meta.url).pathname)
+    const config = loadFlowConfig(new URL('../whiteboard.config.yaml', import.meta.url).pathname)
 
     expect(Object.keys(config.focus)).toEqual(['idea', 'prd', 'spec', 'rule', 'design'])
     expect(new Set(Object.values(config.focus)).size).toBe(5)
@@ -610,7 +610,7 @@ describe('the config shipped with this repo', () => {
    * creation is their only way into existence.
    */
   it('declares ten flow entry types: the two product-flow starters and the eight advance-less carriers', () => {
-    expect(loadFlowConfig(new URL('../../../whiteboard.config.yaml', import.meta.url).pathname).entry).toEqual([
+    expect(loadFlowConfig(new URL('../whiteboard.config.yaml', import.meta.url).pathname).entry).toEqual([
       'idea',
       'prd',
       'design',
@@ -626,7 +626,7 @@ describe('the config shipped with this repo', () => {
 
   /** spec-00003-FR-3: the cap this repo runs on, spelled out rather than left to the default. */
   it('declares a session cap of five', () => {
-    expect(loadFlowConfig(new URL('../../../whiteboard.config.yaml', import.meta.url).pathname).maxSessions).toBe(5)
+    expect(loadFlowConfig(new URL('../whiteboard.config.yaml', import.meta.url).pathname).maxSessions).toBe(5)
   })
 
   /**
@@ -636,7 +636,7 @@ describe('the config shipped with this repo', () => {
    * allowed to every type and never looked up (design-00001 §2).
    */
   it('gives every declared type a relation matrix entry', () => {
-    const config = loadFlowConfig(new URL('../../../whiteboard.config.yaml', import.meta.url).pathname)
+    const config = loadFlowConfig(new URL('../whiteboard.config.yaml', import.meta.url).pathname)
 
     expect(Object.keys(config.carries).sort()).toEqual(Object.keys(config.types).sort())
     expect(config.carries.idea).toEqual([])
@@ -650,7 +650,7 @@ describe('the config shipped with this repo', () => {
    * this test a tidy-up reorder would silently rearrange the whiteboard.
    */
   it('declares the types in the column order the board reads left to right', () => {
-    const config = loadFlowConfig(new URL('../../../whiteboard.config.yaml', import.meta.url).pathname)
+    const config = loadFlowConfig(new URL('../whiteboard.config.yaml', import.meta.url).pathname)
 
     expect(Object.keys(config.types)).toEqual([
       'idea',

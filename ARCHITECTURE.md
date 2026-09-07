@@ -14,9 +14,9 @@ For the single document owner of a repository built on ai-native-project-templat
 
 | Constraint | Source |
 | --- | --- |
-| Single user, single repository per process, `localhost` only | [spec-00001](docs/spec/spec-00001-docs-whiteboard.md) |
-| Behaviour is driven by `whiteboard.config.yaml`; a missing or invalid config is fatal, there is no built-in default | spec-00001-FR-15 |
-| Node.js ≥ 23.6 (TypeScript type stripping; `node-pty` native module) | `tools/whiteboard/package.json` |
+| Single user, `localhost` only; one process serves many workspaces | [spec-00011](docs/spec/spec-00011-multi-workspace.md) |
+| Behaviour is driven by `whiteboard.config.yaml`; a missing or invalid config makes that workspace unavailable, there is no built-in default | spec-00011-FR-6 |
+| Node.js ≥ 23.6 (TypeScript type stripping; `node-pty` native module) | `package.json` |
 | Every write goes through git; the working tree must be a git repository | [design-00001](docs/design/design-00001-docs-whiteboard.md) §6 |
 
 ## 3. Context & Scope
@@ -53,14 +53,13 @@ persimmon/
 ├── docs/                    # this project's own docs, rendered by this board
 ├── whiteboard.config.yaml   # flow config this repo's board reads (rule-00001 carrier)
 ├── .whiteboard/             # local state: sessions, asks, annotations, agents.json (git-ignored)
-└── tools/whiteboard/
-    ├── bin/whiteboard.js    # entry: find repo root, load config, start Board
-    ├── src/                 # server: config, docRepository, docService, workflow, requirements,
-    │                        #   sessionManager, headless, cowrite, annotations, askStore, gitLayer,
-    │                        #   watcher, server (HTTP/WS API)
-    ├── web/src/             # React UI: Board canvas, Inspector, Editor, Terminal, Sidebar, panels
-    ├── test/, web/test/     # vitest suites
-    └── dist/web/            # built UI served by `npm start`
+├── bin/persimmon.js         # entry: find repo root, load config, start Board
+├── src/                     # server: config, docRepository, docService, workflow, requirements,
+│                            #   sessionManager, headless, cowrite, annotations, askStore, gitLayer,
+│                            #   watcher, server (HTTP/WS API)
+├── web/src/                 # React UI: Board canvas, Inspector, Editor, Terminal, Sidebar, panels
+├── test/, web/test/         # vitest suites
+└── dist/web/                # built UI served by `npm start`
 ```
 
 ```mermaid
@@ -141,8 +140,6 @@ Security: [SECURITY.md](SECURITY.md). Style: [CODE_STYLE.md](CODE_STYLE.md). Qua
 
 | Item | Impact | Mitigation |
 | --- | --- | --- |
-| One process serves one repository | A user with several template projects runs several boards | Multi-workspace direction in decision-00019; idea in [idea-00004](docs/idea/idea-00004-multi-workspace.md) |
-| Code still lives under `tools/whiteboard/` with the config tests reading the root `whiteboard.config.yaml` | Repository layout reflects its template origin, not a standalone product | Restructure when the workspace work starts; the decision leaves the layout unchanged |
 | No format / complexity gate yet | Style drift is caught only in review | Listed as open in CODE_QUALITY.md §2 |
 
 ## 12. Glossary

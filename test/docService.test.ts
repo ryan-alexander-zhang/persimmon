@@ -1013,7 +1013,7 @@ describe('newDocument and create', () => {
   const newIdea = (id: string) => doc({ id, type: 'idea', status: 'draft' }, '# A new idea\n')
   // The shipped design template itself, so the body the create hands out is the
   // one the repo really drafts from (docs/design/TEMPLATE.md).
-  const DESIGN_TEMPLATE = readFileSync(new URL('../../../docs/design/TEMPLATE.md', import.meta.url).pathname, 'utf8')
+  const DESIGN_TEMPLATE = readFileSync(new URL('../docs/design/TEMPLATE.md', import.meta.url).pathname, 'utf8')
 
   // rule-00001-AC-26.1: the number is the highest plus one, the template is the type's
   it('allocates the next number and hands back the type template', () => {

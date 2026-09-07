@@ -21,8 +21,8 @@ describe('the files a fresh clone has to get', () => {
   // `@/lib/utils` is imported by every vendored shadcn component, so a clone
   // without it fails to import all of the web test files, not one of them.
   it('tracks the module every vendored ui component imports', () => {
-    expect([...tracked].filter((path) => path === 'tools/whiteboard/web/src/lib/utils.ts')).toEqual([
-      'tools/whiteboard/web/src/lib/utils.ts',
+    expect([...tracked].filter((path) => path === 'web/src/lib/utils.ts')).toEqual([
+      'web/src/lib/utils.ts',
     ])
   })
 

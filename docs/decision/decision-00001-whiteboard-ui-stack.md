@@ -69,14 +69,14 @@ shadcn/ui **不是运行时依赖**：组件源码拷进仓库。被拷入的组
 - **拷入的组件成为本仓库代码**。`THIRDPARTY.md` 只覆盖「不 vendored 的参考
   代码」，因此这些文件不归它管，而是像自有代码一样进 git、进评审。
 - 由此产生一个门禁问题：`TESTING.md` 要求可执行代码 90% 覆盖率，而拷入的组件
-  多数分支我们从不使用。处置是把 `tools/whiteboard/web/src/components/ui/**`
+  多数分支我们从不使用。处置是把 `web/src/components/ui/**`
   排除出覆盖率统计。**这条排除有边界**：
   - 只覆盖 shadcn CLI 生成后**未经修改**的文件。任何被我们改动（超出 CLI 输出）
     的文件必须移出该目录、或从排除名单中单独摘出，按 `TESTING.md` 的 90% 计
     ——否则「可以直接改这些文件」就变成了对自有代码免测。
   - 只适用于该目录，**不构成全仓覆盖率政策的先例**。
   - 按 `CODE_QUALITY.md` §6 第 3 档（Suppress：可见 + 有理由）落地：在
-    `tools/whiteboard/vitest.config.ts` 的 `coverage.exclude` 增加该目录并就地
+    `vitest.config.ts` 的 `coverage.exclude` 增加该目录并就地
     写明上述边界，同时在 `CODE_QUALITY.md` §2 门禁表的 Coverage 行记录 scope。
     （不是 §3——§3 是阈值偏离，本处置不动阈值，只缩小统计范围。）
   - `TESTING.md` 要求例外「approved in advance」，因此本决定进入 `active` 之前
@@ -95,7 +95,7 @@ shadcn/ui **不是运行时依赖**：组件源码拷进仓库。被拷入的组
 
 **不变的**
 
-- 后端与 `docs/` 数据模型不受影响；本决定只约束 `tools/whiteboard/web/`。
+- 后端与 `docs/` 数据模型不受影响；本决定只约束 `web/`。
   （唯一的例外是节点种类 living/work 的下发方式，见 design-00002 §4——它需要
   一次 API 或数据来源的选择，不属于本决定。）
 - React Flow 与 CodeMirror、xterm 保留；它们各自解决画布、编辑、终端，与本层不冲突。

@@ -79,7 +79,7 @@ Use this stage when the change needs durable docs, notes, or decisions.
 
 ## Commands
 
-Canonical commands for this repo, run from `tools/whiteboard/`:
+Canonical commands for this repo, run from the repository root:
 
 - Setup: `npm install`
 - Test: `npm test` (coverage: `npm run test:coverage`)

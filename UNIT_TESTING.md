@@ -10,7 +10,7 @@ modules from one config, is the default test runner for a Vite project, and its
 
 ## Command
 
-From `tools/whiteboard/`:
+From the repository root:
 
 - `npm test` — run the suite once
 - `npm run test:coverage` — run with the coverage report
@@ -33,4 +33,4 @@ the vendored `web/src/components/ui/**`, per [CODE_QUALITY.md](CODE_QUALITY.md) 
 ## Report
 
 `npm run test:coverage` prints the summary and writes the HTML report to
-`tools/whiteboard/coverage/` (git-ignored).
+`coverage/` (git-ignored).
