@@ -5,7 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { toast } from 'sonner'
 import type { DocGraph, DocNode } from '../../src/docRepository.ts'
 import { Board } from '../src/Board.tsx'
-import { ApiError, type AskThread, type SessionListing, api } from '../src/api.ts'
+import { ApiError, type AskThread, type SessionListing, boardApi } from '../src/api.ts'
+
+// Every read goes under the workspace the harness registers (design-00003 §6).
+const api = boardApi('alpha')
 
 // Rendering the whole board and pushing a refresh through it is heavier than the
 // default five seconds allows on a loaded machine; none of these cases measures

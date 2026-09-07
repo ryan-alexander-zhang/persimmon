@@ -27,7 +27,7 @@ import {
   type EffectiveAgent,
   type HeadlessDecl,
   type LocalAgentSettings,
-  api,
+  boardApi,
 } from './api.ts'
 import {
   type AgentCard,
@@ -58,6 +58,9 @@ const SOURCE: Record<AgentSource, { label: string; variant: 'secondary' | 'defau
 }
 
 export interface SettingsDialogProps {
+  /** The workspace whose agent settings these are (design-00003 §6). */
+  wid: string
+
   open: boolean
   onOpenChange: (open: boolean) => void
   /**
@@ -79,7 +82,8 @@ export interface SettingsDialogProps {
  * keep true, so a save that will not do comes back as a refusal and is shown
  * where it belongs (design-00002 §18.3).
  */
-export function SettingsDialog({ open, onOpenChange, onSaved }: SettingsDialogProps) {
+export function SettingsDialog({ wid, open, onOpenChange, onSaved }: SettingsDialogProps) {
+  const api = boardApi(wid)
   const [view, setView] = useState<AgentSettingsView>()
   /** The local layer being edited; a save PUTs this whole (design-00001 §13.3). */
   const [local, setLocal] = useState<LocalAgentSettings>({})

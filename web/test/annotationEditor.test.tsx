@@ -5,7 +5,10 @@ import { useState } from 'react'
 import { EditorView } from 'codemirror'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CONTEXT_CODE_POINTS } from '../../src/annotationAnchor.ts'
-import { api } from '../src/api.ts'
+import { boardApi } from '../src/api.ts'
+
+// Every read goes under the workspace the harness registers (design-00003 §6).
+const api = boardApi('alpha')
 import type { MarkRange } from '../src/annotationMarks.ts'
 import { type EditorAnnotate, Editor, type EditorMode } from '../src/Editor.tsx'
 import { LOCATED_CLASS, MARK_CLASS } from '../src/previewSourcePos.ts'
@@ -84,6 +87,7 @@ function Editing({
         open the other document
       </button>
       <Editor
+        wid="alpha"
         docId={docId}
         mode={mode}
         onMode={setMode}

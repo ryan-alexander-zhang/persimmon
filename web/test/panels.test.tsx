@@ -4,7 +4,10 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { toast } from 'sonner'
 import type { SessionListing } from '../src/api.ts'
-import { ApiError, api } from '../src/api.ts'
+import { ApiError, boardApi } from '../src/api.ts'
+
+// Every read goes under the workspace the harness registers (design-00003 §6).
+const api = boardApi('alpha')
 import { Editor } from '../src/Editor.tsx'
 import { Terminal } from '../src/Terminal.tsx'
 
@@ -70,7 +73,7 @@ describe('the editor', () => {
   })
 
   it('opens the whole file, front matter included', async () => {
-    render(<Editor docId="prd-00001-x" mode="source" onMode={vi.fn()} onSaved={vi.fn()} onClose={vi.fn()} />)
+    render(<Editor wid="alpha" docId="prd-00001-x" mode="source" onMode={vi.fn()} onSaved={vi.fn()} onClose={vi.fn()} />)
 
     await waitFor(() => expect(screen.getByTestId('editor-host').textContent).toContain('status: draft'))
   })
@@ -79,7 +82,7 @@ describe('the editor', () => {
   it('saves the edited text against the hash it opened', async () => {
     const save = vi.spyOn(api, 'save').mockResolvedValue({ committed: true })
     const onSaved = vi.fn()
-    render(<Editor docId="prd-00001-x" mode="source" onMode={vi.fn()} onSaved={onSaved} onClose={vi.fn()} />)
+    render(<Editor wid="alpha" docId="prd-00001-x" mode="source" onMode={vi.fn()} onSaved={onSaved} onClose={vi.fn()} />)
     await waitFor(() => expect(screen.getByTestId('editor-host').textContent).toContain('# X'))
 
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
@@ -92,7 +95,7 @@ describe('the editor', () => {
   // spec-00001-AC-5.1 as the user sees it
   it('shows the conflict and tells the user to reopen', async () => {
     vi.spyOn(api, 'save').mockRejectedValue(new ApiError(409, 'prd-00001-x changed on disk since it was opened'))
-    render(<Editor docId="prd-00001-x" mode="source" onMode={vi.fn()} onSaved={vi.fn()} onClose={vi.fn()} />)
+    render(<Editor wid="alpha" docId="prd-00001-x" mode="source" onMode={vi.fn()} onSaved={vi.fn()} onClose={vi.fn()} />)
     await waitFor(() => expect(screen.getByTestId('editor-host').textContent).toContain('# X'))
 
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
@@ -106,7 +109,7 @@ describe('the editor', () => {
 
   it('shows any other refusal as it came back', async () => {
     vi.spyOn(api, 'save').mockRejectedValue(new ApiError(500, 'disk is on fire'))
-    render(<Editor docId="prd-00001-x" mode="source" onMode={vi.fn()} onSaved={vi.fn()} onClose={vi.fn()} />)
+    render(<Editor wid="alpha" docId="prd-00001-x" mode="source" onMode={vi.fn()} onSaved={vi.fn()} onClose={vi.fn()} />)
     await waitFor(() => expect(screen.getByTestId('editor-host').textContent).toContain('# X'))
 
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
@@ -117,7 +120,7 @@ describe('the editor', () => {
   it('does not save before the document has loaded', async () => {
     const save = vi.spyOn(api, 'save').mockResolvedValue({ committed: true })
     vi.spyOn(api, 'doc').mockReturnValue(new Promise(() => {}))
-    render(<Editor docId="prd-00001-x" mode="source" onMode={vi.fn()} onSaved={vi.fn()} onClose={vi.fn()} />)
+    render(<Editor wid="alpha" docId="prd-00001-x" mode="source" onMode={vi.fn()} onSaved={vi.fn()} onClose={vi.fn()} />)
 
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
 
@@ -126,7 +129,7 @@ describe('the editor', () => {
 
   it('closes on request', async () => {
     const onClose = vi.fn()
-    render(<Editor docId="prd-00001-x" mode="source" onMode={vi.fn()} onSaved={vi.fn()} onClose={onClose} />)
+    render(<Editor wid="alpha" docId="prd-00001-x" mode="source" onMode={vi.fn()} onSaved={vi.fn()} onClose={onClose} />)
 
     await userEvent.click(screen.getByRole('button', { name: 'Close' }))
 
@@ -185,7 +188,7 @@ describe('the terminal panel', () => {
 
   // spec-00001-AC-12.1 as the user sees it
   it('writes what the session prints into the terminal', async () => {
-    const { container } = render(<Terminal onClose={vi.fn()} onStop={vi.fn()} session={RUNNING} />)
+    const { container } = render(<Terminal wid="alpha" onClose={vi.fn()} onStop={vi.fn()} session={RUNNING} />)
 
     FakeSocket.last.emit('hello from the agent\r\n')
 
@@ -194,14 +197,14 @@ describe('the terminal panel', () => {
 
   // spec-00001-AC-12.5 as the user sees it — the fit is reported, not kept
   it('sends the size the terminal fitted to as soon as it attaches', async () => {
-    render(<Terminal onClose={vi.fn()} onStop={vi.fn()} session={RUNNING} />)
+    render(<Terminal wid="alpha" onClose={vi.fn()} onStop={vi.fn()} session={RUNNING} />)
 
     await waitFor(() => expect(sizeFrames()[0]).toEqual({ cols: 100, rows: 40 }))
   })
 
   // spec-00001-AC-12.6 as the user sees it — dragging the panel divider
   it('fits again and sends the new size when the panel changes size', async () => {
-    render(<Terminal onClose={vi.fn()} onStop={vi.fn()} session={RUNNING} />)
+    render(<Terminal wid="alpha" onClose={vi.fn()} onStop={vi.fn()} session={RUNNING} />)
     await waitFor(() => expect(sizeFrames().length).toBeGreaterThan(0))
 
     panelSize.cols = 60
@@ -215,7 +218,7 @@ describe('the terminal panel', () => {
   // that is not a size to draw at: the session keeps the one it had. (node-pty
   // throws outright on a zero size, so an unfiltered fit would break the session.)
   it('sends no size while the panel is collapsed to nothing', async () => {
-    render(<Terminal onClose={vi.fn()} onStop={vi.fn()} session={RUNNING} />)
+    render(<Terminal wid="alpha" onClose={vi.fn()} onStop={vi.fn()} session={RUNNING} />)
     await waitFor(() => expect(sizeFrames().length).toBeGreaterThan(0))
     const sent = sizeFrames().length
 
@@ -230,7 +233,7 @@ describe('the terminal panel', () => {
   // The same rule for the other degenerate answer: an unmeasurable terminal has
   // no size to report, and the default 80×24 is not one to invent for it.
   it('sends no size while the terminal cannot be measured at all', async () => {
-    render(<Terminal onClose={vi.fn()} onStop={vi.fn()} session={RUNNING} />)
+    render(<Terminal wid="alpha" onClose={vi.fn()} onStop={vi.fn()} session={RUNNING} />)
     await waitFor(() => expect(sizeFrames().length).toBeGreaterThan(0))
     const sent = sizeFrames().length
 
@@ -241,14 +244,14 @@ describe('the terminal panel', () => {
   })
 
   it('closes the socket when the panel goes away', () => {
-    const { unmount } = render(<Terminal onClose={vi.fn()} onStop={vi.fn()} session={RUNNING} />)
+    const { unmount } = render(<Terminal wid="alpha" onClose={vi.fn()} onStop={vi.fn()} session={RUNNING} />)
     unmount()
     expect(FakeSocket.last.closed).toBe(true)
   })
 
   it('closes on request', async () => {
     const onClose = vi.fn()
-    render(<Terminal onClose={onClose} onStop={vi.fn()} />)
+    render(<Terminal wid="alpha" onClose={onClose} onStop={vi.fn()} />)
 
     await userEvent.click(screen.getByRole('button', { name: 'Close' }))
 
@@ -258,7 +261,7 @@ describe('the terminal panel', () => {
   // spec-00001-AC-49.1 at the entry — the way out of a stuck session (issue-00010)
   it('stops the session on request while it is running', async () => {
     const onStop = vi.fn()
-    render(<Terminal onClose={vi.fn()} onStop={onStop} session={RUNNING} />)
+    render(<Terminal wid="alpha" onClose={vi.fn()} onStop={onStop} session={RUNNING} />)
 
     await userEvent.click(screen.getByRole('button', { name: 'Stop the agent session' }))
 
@@ -267,13 +270,13 @@ describe('the terminal panel', () => {
 
   // spec-00001-AC-49.7 — there is no process left to end, so the entry is gone
   it('offers no stop for a session that has already ended', () => {
-    render(<Terminal onClose={vi.fn()} onStop={vi.fn()} session={{ ...RUNNING, status: 'exited' }} />)
+    render(<Terminal wid="alpha" onClose={vi.fn()} onStop={vi.fn()} session={{ ...RUNNING, status: 'exited' }} />)
 
     expect(screen.queryByRole('button', { name: 'Stop the agent session' })).toBeNull()
   })
 
   it('offers no stop when there is no session at all', () => {
-    render(<Terminal onClose={vi.fn()} onStop={vi.fn()} />)
+    render(<Terminal wid="alpha" onClose={vi.fn()} onStop={vi.fn()} />)
 
     expect(screen.queryByRole('button', { name: 'Stop the agent session' })).toBeNull()
   })

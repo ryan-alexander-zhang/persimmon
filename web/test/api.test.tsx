@@ -1,6 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ApiError, api } from '../src/api.ts'
+import { ApiError, boardApi } from '../src/api.ts'
+
+// Every read goes under the workspace the harness registers (design-00003 §6).
+const api = boardApi('alpha')
 
 function mockFetch(status: number, payload: unknown) {
   const fetchMock = vi.fn(async () => ({
@@ -19,7 +22,7 @@ describe('the api client', () => {
   it('reads the graph', async () => {
     const fetchMock = mockFetch(200, { nodes: [], edges: [], issues: [], diagnostics: [], idOwners: {} })
     expect(await api.graph()).toEqual({ nodes: [], edges: [], issues: [], diagnostics: [], idOwners: {} })
-    expect(fetchMock).toHaveBeenCalledWith('/api/graph', expect.objectContaining({ method: 'GET' }))
+    expect(fetchMock).toHaveBeenCalledWith('/w/alpha/api/graph', expect.objectContaining({ method: 'GET' }))
   })
 
   // the requirement panel and the sub-canvas share this one payload (design-00001 §7)
@@ -27,7 +30,7 @@ describe('the api client', () => {
     const fetchMock = mockFetch(200, { items: [], unattributed: [] })
 
     expect(await api.items('spec-00001-x')).toEqual({ items: [], unattributed: [] })
-    expect(fetchMock).toHaveBeenCalledWith('/api/docs/spec-00001-x/items', expect.objectContaining({ method: 'GET' }))
+    expect(fetchMock).toHaveBeenCalledWith('/w/alpha/api/docs/spec-00001-x/items', expect.objectContaining({ method: 'GET' }))
   })
 
   it('sends an edit with its base hash', async () => {
@@ -35,7 +38,7 @@ describe('the api client', () => {
     await api.save('prd-00001-x', 'body', 'abc')
 
     expect(fetchMock).toHaveBeenCalledWith(
-      '/api/docs/prd-00001-x',
+      '/w/alpha/api/docs/prd-00001-x',
       expect.objectContaining({ method: 'PUT', body: JSON.stringify({ content: 'body', baseHash: 'abc' }) }),
     )
   })
@@ -46,7 +49,7 @@ describe('the api client', () => {
 
     expect(await api.clarify('prd-00001-x')).toMatchObject({ kind: 'clarify' })
     expect(fetchMock).toHaveBeenCalledWith(
-      '/api/sessions/clarify',
+      '/w/alpha/api/sessions/clarify',
       expect.objectContaining({ method: 'POST', body: JSON.stringify({ docId: 'prd-00001-x' }) }),
     )
   })
@@ -61,7 +64,7 @@ describe('the api client', () => {
       threadId: 't-1',
     })
     expect(fetchMock).toHaveBeenCalledWith(
-      '/api/sessions/ask',
+      '/w/alpha/api/sessions/ask',
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({ docId: 'record-00001-x', question: 'why?' }),
@@ -79,14 +82,14 @@ describe('the api client', () => {
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
-      '/api/sessions/ask',
+      '/w/alpha/api/sessions/ask',
       expect.objectContaining({
         body: JSON.stringify({ docId: 'record-00001-x', question: 'and then?', threadId: 't-1' }),
       }),
     )
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      '/api/sessions/ask',
+      '/w/alpha/api/sessions/ask',
       expect.objectContaining({
         body: JSON.stringify({ docId: 'record-00001-x', question: 'why?', threadId: 't-1', resend: true }),
       }),
@@ -94,14 +97,14 @@ describe('the api client', () => {
   })
 
   // spec-00005-FR-9 — the ask list is its own resource: it outlives the document
-  // it is about, so it hangs under no `/api/docs/:id/` (design-00001 §7)
+  // it is about, so it hangs under no `/w/alpha/api/docs/:id/` (design-00001 §7)
   it('reads the ask list of a document', async () => {
     const threads = [{ id: 't-1', agent: 'claude', exchanges: [] }]
     const fetchMock = mockFetch(200, { threads })
 
     expect(await api.asks('record-00001-x')).toEqual(threads)
     expect(fetchMock).toHaveBeenCalledWith(
-      '/api/asks/record-00001-x',
+      '/w/alpha/api/asks/record-00001-x',
       expect.objectContaining({ method: 'GET' }),
     )
   })
@@ -112,7 +115,7 @@ describe('the api client', () => {
 
     expect(await api.audit('spec-00001-x')).toMatchObject({ kind: 'audit' })
     expect(fetchMock).toHaveBeenCalledWith(
-      '/api/sessions/audit',
+      '/w/alpha/api/sessions/audit',
       expect.objectContaining({ method: 'POST', body: JSON.stringify({ docId: 'spec-00001-x' }) }),
     )
   })
@@ -121,7 +124,7 @@ describe('the api client', () => {
     const fetchMock = mockFetch(200, { committed: true })
     await api.accept('prd-00001-x')
     expect(fetchMock).toHaveBeenCalledWith(
-      '/api/docs/prd-00001-x/review',
+      '/w/alpha/api/docs/prd-00001-x/review',
       expect.objectContaining({ body: JSON.stringify({ action: 'accept' }) }),
     )
   })
@@ -130,7 +133,7 @@ describe('the api client', () => {
     const fetchMock = mockFetch(200, { id: 's1' })
     await api.advance('idea-00001-x', 'prd')
     expect(fetchMock).toHaveBeenCalledWith(
-      '/api/sessions',
+      '/w/alpha/api/sessions',
       expect.objectContaining({ body: JSON.stringify({ sourceId: 'idea-00001-x', targetType: 'prd' }) }),
     )
   })
@@ -144,12 +147,12 @@ describe('the api client', () => {
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
-      '/api/sessions/clarify',
+      '/w/alpha/api/sessions/clarify',
       expect.objectContaining({ body: JSON.stringify({ docId: 'prd-00001-x', agent: 'codex' }) }),
     )
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      '/api/sessions',
+      '/w/alpha/api/sessions',
       expect.objectContaining({
         body: JSON.stringify({ sourceId: 'idea-00001-x', targetType: 'prd', agent: 'codex' }),
       }),
@@ -166,12 +169,12 @@ describe('the api client', () => {
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
-      '/api/create?type=idea',
+      '/w/alpha/api/create?type=idea',
       expect.objectContaining({ method: 'GET' }),
     )
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      '/api/docs',
+      '/w/alpha/api/docs',
       expect.objectContaining({ method: 'POST', body: JSON.stringify({ id: 'idea-00002-notes', content: 'body' }) }),
     )
   })
@@ -183,8 +186,8 @@ describe('the api client', () => {
     await api.sessionTranscript('s1')
 
     expect(fetchMock.mock.calls.map((call) => (call as unknown as [string])[0])).toEqual([
-      '/api/sessions/history',
-      '/api/sessions/history/s1',
+      '/w/alpha/api/sessions/history',
+      '/w/alpha/api/sessions/history/s1',
     ])
   })
 
@@ -197,11 +200,11 @@ describe('the api client', () => {
     await api.sessions()
 
     expect(fetchMock.mock.calls.map((call) => (call as unknown as [string])[0])).toEqual([
-      '/api/docs/a/transitions',
-      '/api/docs/a/next-steps',
-      '/api/docs/a',
-      '/api/docs/a/status',
-      '/api/sessions',
+      '/w/alpha/api/docs/a/transitions',
+      '/w/alpha/api/docs/a/next-steps',
+      '/w/alpha/api/docs/a',
+      '/w/alpha/api/docs/a/status',
+      '/w/alpha/api/sessions',
     ])
   })
 
@@ -229,7 +232,7 @@ describe('the api client', () => {
     const fetchMock = mockFetch(200, { id: 's1', kind: 'clarify', sourceId: 'prd-00001-x', status: 'exited' })
 
     expect(await api.stopSession('s1')).toMatchObject({ status: 'exited' })
-    expect(fetchMock).toHaveBeenCalledWith('/api/sessions/s1', expect.objectContaining({ method: 'DELETE' }))
+    expect(fetchMock).toHaveBeenCalledWith('/w/alpha/api/sessions/s1', expect.objectContaining({ method: 'DELETE' }))
   })
 
   it('raises the refusal the board reports, with its status', async () => {
@@ -296,7 +299,7 @@ describe('the api client', () => {
     const fetchMock = mockFetch(200, payload)
 
     expect(await api.agentSettings()).toEqual(payload)
-    expect(fetchMock).toHaveBeenCalledWith('/api/settings/agents', expect.objectContaining({ method: 'GET' }))
+    expect(fetchMock).toHaveBeenCalledWith('/w/alpha/api/settings/agents', expect.objectContaining({ method: 'GET' }))
   })
 
   // spec-00009-FR-5 — the local layer goes over the wire whole, never key by key
@@ -307,7 +310,7 @@ describe('the api client', () => {
     await api.saveAgentSettings(local)
 
     expect(fetchMock).toHaveBeenCalledWith(
-      '/api/settings/agents',
+      '/w/alpha/api/settings/agents',
       expect.objectContaining({ method: 'PUT', body: JSON.stringify(local) }),
     )
   })
@@ -340,7 +343,7 @@ describe('the api client', () => {
 /**
  * issue-00016: a node key is not always a document id. An anomalous document —
  * no id in its front matter, or an id it collides on — is keyed by its file
- * path, and a path carries slashes. Every `/api/docs/:id` call has to encode
+ * path, and a path carries slashes. Every `/w/alpha/api/docs/:id` call has to encode
  * the key, or the slashes are read as further path segments and the request
  * never reaches the document.
  */
@@ -351,13 +354,13 @@ describe('addressing a document whose key is a file path', () => {
   it('encodes the key when reading the document', async () => {
     const fetchMock = mockFetch(200, { path: PATH_KEY, content: '', hash: 'h' })
     await api.doc(PATH_KEY)
-    expect(fetchMock).toHaveBeenCalledWith(`/api/docs/${ENCODED}`, expect.anything())
+    expect(fetchMock).toHaveBeenCalledWith(`/w/alpha/api/docs/${ENCODED}`, expect.anything())
   })
 
   it('encodes the key when saving the document — the repair path of spec-00002-FR-9', async () => {
     const fetchMock = mockFetch(200, { committed: true })
     await api.save(PATH_KEY, 'fixed', 'h')
-    expect(fetchMock).toHaveBeenCalledWith(`/api/docs/${ENCODED}`, expect.objectContaining({ method: 'PUT' }))
+    expect(fetchMock).toHaveBeenCalledWith(`/w/alpha/api/docs/${ENCODED}`, expect.objectContaining({ method: 'PUT' }))
   })
 
   it('encodes the key on every other call that addresses a document', async () => {
@@ -369,11 +372,11 @@ describe('addressing a document whose key is a file path', () => {
     await api.accept(PATH_KEY)
 
     expect(fetchMock.mock.calls.map(([url]: unknown[]) => url)).toEqual([
-      `/api/docs/${ENCODED}/items`,
-      `/api/docs/${ENCODED}/transitions`,
-      `/api/docs/${ENCODED}/next-steps`,
-      `/api/docs/${ENCODED}/status`,
-      `/api/docs/${ENCODED}/review`,
+      `/w/alpha/api/docs/${ENCODED}/items`,
+      `/w/alpha/api/docs/${ENCODED}/transitions`,
+      `/w/alpha/api/docs/${ENCODED}/next-steps`,
+      `/w/alpha/api/docs/${ENCODED}/status`,
+      `/w/alpha/api/docs/${ENCODED}/review`,
     ])
   })
 })

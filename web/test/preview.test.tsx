@@ -4,7 +4,10 @@ import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { toast } from 'sonner'
-import { api } from '../src/api.ts'
+import { boardApi } from '../src/api.ts'
+
+// Every read goes under the workspace the harness registers (design-00003 §6).
+const api = boardApi('alpha')
 import { Editor, type EditorMode } from '../src/Editor.tsx'
 import { Preview } from '../src/Preview.tsx'
 import { stripFrontMatter } from '../src/frontMatter.ts'
@@ -164,7 +167,7 @@ describe('the preview', () => {
  */
 function Editing({ docId }: { docId: string }) {
   const [mode, setMode] = useState<EditorMode>('source')
-  return <Editor docId={docId} mode={mode} onMode={setMode} onSaved={vi.fn()} onClose={vi.fn()} />
+  return <Editor wid="alpha" docId={docId} mode={mode} onMode={setMode} onSaved={vi.fn()} onClose={vi.fn()} />
 }
 
 describe('the editor preview toggle', () => {

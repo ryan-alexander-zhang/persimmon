@@ -5,7 +5,10 @@ import { MarkerType } from '@xyflow/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DocEdge, DocGraph, DocNode } from '../../src/docRepository.ts'
 import { Board } from '../src/Board.tsx'
-import { type SessionListing, api } from '../src/api.ts'
+import { type SessionListing, boardApi } from '../src/api.ts'
+
+// Every read goes under the workspace the harness registers (design-00003 §6).
+const api = boardApi('alpha')
 import { matchDocuments, relationsOf, suppressedNodes, toFlowEdges, toFlowNodes } from '../src/canvasModel.ts'
 import { onFlowError } from '../src/flowError.ts'
 
@@ -1341,7 +1344,7 @@ describe('a directory group on the canvas', () => {
     served = []
     // Collapsed by default is the state with no key at all (spec-00010-AC-6.5);
     // an expanded set left by another case would be this one's starting point.
-    localStorage.removeItem('whiteboard-directory-groups-expanded')
+    localStorage.removeItem('w:alpha:whiteboard-directory-groups-expanded')
   })
 
   afterEach(() => vi.restoreAllMocks())

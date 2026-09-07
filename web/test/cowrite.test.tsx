@@ -8,7 +8,10 @@ import { TooltipProvider } from '@/components/ui/tooltip'
 import { Board } from '../src/Board.tsx'
 import { CO_WRITE_LOCK, DISK_MOVED } from '../src/Editor.tsx'
 import { CO_WRITING, DOC_BUSY, Toolbar, type ToolbarProps } from '../src/Toolbar.tsx'
-import { ApiError, type ConfigPayload, type SessionListing, api } from '../src/api.ts'
+import { ApiError, type ConfigPayload, type SessionListing, boardApi } from '../src/api.ts'
+
+// Every read goes under the workspace the harness registers (design-00003 §6).
+const api = boardApi('alpha')
 import { readMaterials } from '../src/cowriteMaterials.ts'
 
 // Rendering the whole board, launching a session and pushing a refresh through

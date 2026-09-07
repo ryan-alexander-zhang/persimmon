@@ -8,6 +8,8 @@ import type { TypeGroup } from './sidebarModel.ts'
 import { statusColour, statusLabel, typeIcon } from './status.ts'
 
 export interface SidebarProps {
+  /** The workspace whose expanded type groups these are — the state is stored under it (design-00003 §6). */
+  wid: string
   /** Every document on the board, grouped and ordered as the canvas columns are. */
   groups: TypeGroup[]
   /** The board's selection, which is what a row is highlighted by (spec-00008-FR-3). */
@@ -102,13 +104,13 @@ function Row({ node, selected, level, rowRef, onPick }: RowProps) {
  * groups' expanded state is **not** kept here: it is the board's, shared with
  * the canvas.
  */
-export function Sidebar({ groups, selected, expandedGroups, onToggleGroup, onPick }: SidebarProps) {
-  const [expanded, setExpanded] = useState<string[]>(readExpanded)
+export function Sidebar({ wid, groups, selected, expandedGroups, onToggleGroup, onPick }: SidebarProps) {
+  const [expanded, setExpanded] = useState<string[]>(() => readExpanded(wid))
   const selectedRow = useRef<HTMLButtonElement>(null)
 
   function toggle(key: string) {
     const next = expanded.includes(key) ? expanded.filter((one) => one !== key) : [...expanded, key]
-    writeExpanded(next)
+    writeExpanded(wid, next)
     setExpanded(next)
   }
 
@@ -122,7 +124,7 @@ export function Sidebar({ groups, selected, expandedGroups, onToggleGroup, onPic
     const group = groups.find((one) => one.nodes.some((node) => node.id === selected))
     if (group === undefined || expanded.includes(group.key)) return
     const next = [...expanded, group.key]
-    writeExpanded(next)
+    writeExpanded(wid, next)
     setExpanded(next)
     // Only the selection may reopen a group, so the effect watches nothing else.
   }, [selected])

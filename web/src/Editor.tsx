@@ -20,7 +20,7 @@ import {
   traces,
 } from './annotationMarks.ts'
 import { type Selected, editorAnchor, previewAnchor } from './annotationSelection.ts'
-import { ApiError, type AnnotationType, type DocContent, api } from './api.ts'
+import { ApiError, type AnnotationType, type DocContent, boardApi } from './api.ts'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Preview } from './Preview.tsx'
@@ -83,6 +83,8 @@ export const CO_WRITE_LOCK = 'the agent is writing this document'
 export const DISK_MOVED = 'this document changed on disk; your unsaved edits are kept, and saving will report the conflict'
 
 export interface EditorProps {
+  /** The workspace this document belongs to; every read below goes under its prefix (design-00003 §6). */
+  wid: string
   docId: string
   /**
    * The prefilled buffer of a document that is not on disk yet (spec-00001-FR-53).
@@ -133,6 +135,7 @@ export interface EditorProps {
 
 /** Edits the whole file, front matter included, and refuses to clobber a changed file. */
 export function Editor({
+  wid,
   docId,
   draft,
   mode,
@@ -146,6 +149,7 @@ export function Editor({
   onSaved,
   onClose,
 }: EditorProps) {
+  const api = boardApi(wid)
   const host = useRef<HTMLDivElement>(null)
   const view = useRef<EditorView>(null)
   const previewHost = useRef<HTMLDivElement>(null)

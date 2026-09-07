@@ -4,7 +4,10 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { DocGraph, DocNode } from '../../src/docRepository.ts'
 import { Board } from '../src/Board.tsx'
-import { type ConfigPayload, type EffectiveAgent, api } from '../src/api.ts'
+import { type ConfigPayload, type EffectiveAgent, boardApi } from '../src/api.ts'
+
+// Every read goes under the workspace the harness registers (design-00003 §6).
+const api = boardApi('alpha')
 
 function node(overrides: Partial<DocNode> = {}): DocNode {
   return {

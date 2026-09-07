@@ -1,7 +1,7 @@
 import { ArrowLeft, Bot, History } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { type SessionHistoryEntry, type SessionHistoryMeta, api } from './api.ts'
+import { type SessionHistoryEntry, type SessionHistoryMeta, boardApi } from './api.ts'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -14,6 +14,9 @@ import {
 import { stamp } from './status.ts'
 
 export interface SessionHistoryProps {
+  /** The workspace whose history this is (design-00003 §6). */
+  wid: string
+
   open: boolean
   onOpenChange: (open: boolean) => void
 }
@@ -25,7 +28,8 @@ export interface SessionHistoryProps {
  *
  * Newest first: the session you want to look at is nearly always the last one.
  */
-export function SessionHistory({ open, onOpenChange }: SessionHistoryProps) {
+export function SessionHistory({ wid, open, onOpenChange }: SessionHistoryProps) {
+  const api = boardApi(wid)
   const [records, setRecords] = useState<SessionHistoryMeta[]>()
   const [reading, setReading] = useState<SessionHistoryEntry>()
 

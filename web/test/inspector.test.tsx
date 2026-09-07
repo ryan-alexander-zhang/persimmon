@@ -7,7 +7,10 @@ import type { DocEdge, DocGraph, DocNode } from '../../src/docRepository.ts'
 import type { AcceptanceRow, Criterion, ItemsView, RequirementItem } from '../../src/requirements.ts'
 import { requirementView } from '../../src/requirements.ts'
 import { Board } from '../src/Board.tsx'
-import { api } from '../src/api.ts'
+import { boardApi } from '../src/api.ts'
+
+// Every read goes under the workspace the harness registers (design-00003 §6).
+const api = boardApi('alpha')
 import { evidenceOf } from '../src/canvasModel.ts'
 
 function node(overrides: Partial<DocNode> = {}): DocNode {

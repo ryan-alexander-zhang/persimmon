@@ -12,8 +12,11 @@ import {
   type ConfigPayload,
   type EffectiveAgent,
   type HeadlessDecl,
-  api,
+  boardApi,
 } from '../src/api.ts'
+
+// Every read goes under the workspace the harness registers (design-00003 §6).
+const api = boardApi('alpha')
 
 const HEADLESS: HeadlessDecl = {
   first: ['-p', '{question}'],

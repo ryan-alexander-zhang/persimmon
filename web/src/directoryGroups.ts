@@ -14,12 +14,21 @@
 
 const EXPANDED_KEY = 'whiteboard-directory-groups-expanded'
 
+/**
+ * Stored under the workspace whose directories the keys name (design-00003 §6);
+ * values written before there were workspaces are not migrated, for the reason
+ * given in `sidebar.ts`.
+ */
+function scoped(wid: string): string {
+  return `w:${wid}:${EXPANDED_KEY}`
+}
+
 /** The expand keys of the open groups; no key means every group is collapsed (spec-00010-AC-6.5). */
-export function readExpandedGroups(): string[] {
-  const stored = localStorage.getItem(EXPANDED_KEY)
+export function readExpandedGroups(wid: string): string[] {
+  const stored = localStorage.getItem(scoped(wid))
   return stored === null ? [] : (JSON.parse(stored) as string[])
 }
 
-export function writeExpandedGroups(keys: string[]): void {
-  localStorage.setItem(EXPANDED_KEY, JSON.stringify(keys))
+export function writeExpandedGroups(wid: string, keys: string[]): void {
+  localStorage.setItem(scoped(wid), JSON.stringify(keys))
 }

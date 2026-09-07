@@ -17,7 +17,7 @@ import {
   type EffectiveAgent,
   type SessionInfo,
   type SessionListing,
-  api,
+  boardApi,
 } from './api.ts'
 import type { EditorMode } from './Editor.tsx'
 import { connectEvents } from './eventSocket.ts'
@@ -25,6 +25,7 @@ import { prefillFrontMatter } from './frontMatter.ts'
 import { readExpandedGroups, writeExpandedGroups } from './directoryGroups.ts'
 import { layoutGraph, orderedColumns } from './layout.ts'
 import { useDesktopNotifications } from './notify.ts'
+import { useWorkspaceMemory } from './workspace.ts'
 
 const EMPTY_GRAPH: DocGraph = { nodes: [], edges: [], issues: [], diagnostics: [], idOwners: {} }
 
@@ -74,7 +75,14 @@ function refusalText(error: unknown): string {
  * panel row's own act, which the board owns because half of it is the canvas
  * moving (spec-00004-FR-5).
  */
-export function useBoard(openSession: (session: SessionListing) => void) {
+export function useBoard(wid: string, openSession: (session: SessionListing) => void) {
+  /**
+   * This workspace's whole API surface, bound to its `wid` (design-00003 §6).
+   * One client per workspace and kept, so it is a dependency like any other
+   * value: it changes exactly when the workspace does, which is what makes the
+   * reads and the docs-change channel below follow a switch.
+   */
+  const api = boardApi(wid)
   const [graph, setGraph] = useState<DocGraph>(EMPTY_GRAPH)
   /**
    * Which directory groups are open, by expand key (spec-00010-FR-6). The state
@@ -82,7 +90,7 @@ export function useBoard(openSession: (session: SessionListing) => void) {
    * re-lays out the whole canvas and both places read the same set
    * (design-00002 §19.3).
    */
-  const [expandedGroups, setExpandedGroups] = useState<string[]>(readExpandedGroups)
+  const [expandedGroups, setExpandedGroups] = useState<string[]>(() => readExpandedGroups(wid))
   const [kinds, setKinds] = useState<Record<string, DocKind>>({})
   // Relation field order drives the relation list's grouping (spec-00001-FR-30).
   const [relationOrder, setRelationOrder] = useState<string[]>([])
@@ -238,6 +246,21 @@ export function useBoard(openSession: (session: SessionListing) => void) {
    * the diff below is right as long as it sees every reading, in order.
    */
   const reading = useRef<Promise<unknown>>(Promise.resolve())
+  /**
+   * The workspace the board is on, readable from a read that has already been
+   * issued. Every read carries the `wid` it went out under and its answer is
+   * dropped when that is no longer the current one (design-00003 §6) — the same
+   * discipline `reading` above keeps for order, for the same reason: an answer
+   * applied out of its context is worse than no answer (issue-00018).
+   */
+  const onWorkspace = useRef(wid)
+  /**
+   * The editor a workspace was left on, waiting for that workspace's graph. It
+   * is put back only once the document is known to be there: raised before the
+   * graph lands it would read a document that may have gone, and a 404 toast is
+   * not what close-nearest means (spec-00011-FR-8, AC-8.5).
+   */
+  const restoredEditor = useRef<{ editing: string; draft?: string; mode: EditorMode } | undefined>(undefined)
 
   /**
    * The one grouping and the one layout, from one memo: the canvas folds these
@@ -260,10 +283,10 @@ export function useBoard(openSession: (session: SessionListing) => void) {
       const next = expandedGroups.includes(expandKey)
         ? expandedGroups.filter((one) => one !== expandKey)
         : [...expandedGroups, expandKey]
-      writeExpandedGroups(next)
+      writeExpandedGroups(wid, next)
       setExpandedGroups(next)
     },
-    [expandedGroups],
+    [expandedGroups, wid],
   )
 
   // The desktop side of the same two events (spec-00004): it is fed from the
@@ -305,12 +328,15 @@ export function useBoard(openSession: (session: SessionListing) => void) {
 
   /** The coverage payload, re-read (spec-00002-AC-10.4). A failure is the toast every read gets. */
   const readCoverage = useCallback(async () => {
+    const issued = wid
     try {
-      setCoverage(await api.coverage())
+      const rows = await api.coverage()
+      if (onWorkspace.current !== issued) return
+      setCoverage(rows)
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : String(error))
+      if (onWorkspace.current === issued) toast.error(error instanceof Error ? error.message : String(error))
     }
-  }, [])
+  }, [api, wid])
 
   /**
    * Open or close the coverage view. Closing lets the payload go: the view is
@@ -334,9 +360,13 @@ export function useBoard(openSession: (session: SessionListing) => void) {
    */
   const readAsks = useCallback(async (): Promise<AskThread[]> => {
     const docId = listed.current
+    const issued = wid
     if (docId === undefined) return []
     try {
       const next = await api.asks(docId)
+      // Another workspace's threads are not this one's list, whatever document
+      // it is on (design-00003 §6).
+      if (onWorkspace.current !== issued) return []
       // The answer is only good for the list it was asked about. Two reads can be
       // in flight — a refresh's and a switch's — and a slow one landing last
       // would paint another document's threads, or the closed list's
@@ -352,6 +382,7 @@ export function useBoard(openSession: (session: SessionListing) => void) {
       // A list that could not be read is a list nobody may be shown: leaving the
       // last document's threads painted under this document's name is worse than
       // an empty list with the reason said out loud.
+      if (onWorkspace.current !== issued) return []
       if (listed.current === docId) {
         setThreads([])
         setLocated(undefined)
@@ -359,7 +390,7 @@ export function useBoard(openSession: (session: SessionListing) => void) {
       toast.error(error instanceof Error ? error.message : String(error))
       return []
     }
-  }, [])
+  }, [api, wid])
 
   /**
    * The open editor's annotations, re-read (design-00002 §16.8's sixth item):
@@ -370,9 +401,11 @@ export function useBoard(openSession: (session: SessionListing) => void) {
    */
   const readAnnotations = useCallback(async () => {
     const docId = annotating.current
+    const issued = wid
     if (docId === undefined) return
     try {
       const view = await api.annotations(docId)
+      if (onWorkspace.current !== issued) return
       // Only good for the editor it was asked about, for the reason the ask
       // list's read is: two reads can be in flight and the slow one must not
       // paint another document's annotations.
@@ -382,13 +415,14 @@ export function useBoard(openSession: (session: SessionListing) => void) {
         current !== undefined && view.annotations.some((one) => one.id === current) ? current : undefined,
       )
     } catch (error) {
+      if (onWorkspace.current !== issued) return
       if (annotating.current === docId) {
         setAnnotations(undefined)
         setLocatedAnnotation(undefined)
       }
       toast.error(error instanceof Error ? error.message : String(error))
     }
-  }, [])
+  }, [api, wid])
 
   /**
    * Everything that belonged to the document the editor was on. **One** list of
@@ -411,6 +445,50 @@ export function useBoard(openSession: (session: SessionListing) => void) {
   }, [])
 
   /**
+   * A switch of workspace (design-00003 §6, spec-00011-FR-8): the data state
+   * goes — none of it is this workspace's — and the presentation state of the
+   * one being entered comes back, held by id. What each id points at is settled
+   * by the read that follows, which is the same close-nearest the refresh path
+   * runs: nothing is resolved here (spec-00011-AC-8.4, AC-8.5).
+   *
+   * `seen` going back to «nothing read yet» is what makes the first listing of a
+   * workspace a baseline rather than news (spec-00011-FR-17, design-00003 §9),
+   * and the expanded groups come back off this workspace's own key
+   * (spec-00011-FR-11).
+   */
+  useWorkspaceMemory(wid, { selected, terminalOpen, shownId, editing, draft, editorMode }, (saved) => {
+    onWorkspace.current = wid
+    // The read queue is one workspace's: what is still in flight for the one
+    // being left is discarded by the guard above, and the workspace being
+    // entered must not wait behind it (design-00003 §6, issue-00018).
+    reading.current = Promise.resolve()
+    setGraph(EMPTY_GRAPH)
+    setSessions([])
+    seen.current = undefined
+    setItems(undefined)
+    setTransitions([])
+    setNextSteps([])
+    setEditing(undefined)
+    setDraft(undefined)
+    setEditorMode('source')
+    setDisk(undefined)
+    cowriting.current = undefined
+    setCoverage(undefined)
+    setCoverageOpen(false)
+    viewing.current = false
+    forget(undefined)
+    setExpandedGroups(readExpandedGroups(wid))
+    restoredEditor.current =
+      saved?.editing === undefined
+        ? undefined
+        : { editing: saved.editing, draft: saved.draft, mode: saved.editorMode }
+    setSelected(saved?.selected)
+    setTerminalOpen(saved?.terminalOpen === true)
+    shownRef.current = saved?.shownId
+    setShownId(saved?.shownId)
+  })
+
+  /**
    * The cowrite target's text on disk (spec-00006-FR-4). Asked for only while
    * that document's editor is open, like the coverage view's read and the ask
    * list's: not in a cowrite, nothing is asked for.
@@ -422,6 +500,7 @@ export function useBoard(openSession: (session: SessionListing) => void) {
    */
   const readCowriteTarget = useCallback(async (next: DocGraph) => {
     const docId = cowriting.current
+    const issued = wid
     if (docId === undefined) return
     if (!next.nodes.some((node) => node.id === docId)) {
       setEditing(undefined)
@@ -429,13 +508,15 @@ export function useBoard(openSession: (session: SessionListing) => void) {
       return
     }
     try {
-      setDisk({ docId, content: await api.doc(docId) })
+      const content = await api.doc(docId)
+      if (onWorkspace.current !== issued) return
+      setDisk({ docId, content })
     } catch (error) {
       // The buffer is left alone: a read that failed is a reload that did not
       // happen, and the reason is worth saying out loud (design-00002 §15).
-      toast.error(error instanceof Error ? error.message : String(error))
+      if (onWorkspace.current === issued) toast.error(error instanceof Error ? error.message : String(error))
     }
-  }, [])
+  }, [api, wid])
 
   /**
    * The one way the board takes the docs in again (spec-00001-FR-44): all three
@@ -453,12 +534,31 @@ export function useBoard(openSession: (session: SessionListing) => void) {
    * (spec-00003-AC-5.6).
    */
   const read = useCallback(async () => {
+    const issued = wid
     const [next, listing] = await Promise.all([api.graph(), api.sessions()])
+    // A workspace left while its graph was in flight gets no say in what the one
+    // now on show holds (design-00003 §6, spec-00011-FR-8).
+    if (onWorkspace.current !== issued) return next
     const first = seen.current === undefined
     announce(listing)
     setGraph(next)
     setSessions(listing)
-    if (first) {
+    // The editor this workspace was left on, put back now that its documents are
+    // known. Gone from the graph and it stays closed and nothing else does — the
+    // close-nearest of a refresh, on a switch (spec-00011-AC-8.5). A draft is on
+    // no document yet (spec-00001-FR-53), so it always comes back.
+    const editor = restoredEditor.current
+    restoredEditor.current = undefined
+    if (editor !== undefined && (editor.draft !== undefined || next.nodes.some((one) => one.id === editor.editing))) {
+      forget(editor.editing)
+      setEditing(editor.editing)
+      setDraft(editor.draft)
+      setEditorMode(editor.mode)
+    }
+    // A workspace comes back with the session it was left on already held, and
+    // that is not «nothing has been shown yet» — the pick below is for a board
+    // that has none (spec-00011-AC-8.3, design-00003 §6).
+    if (first && shownRef.current === undefined) {
       // Nothing has been shown yet, so the board picks: the newest running
       // session — the one a reconnecting board reattaches to — or, with nothing
       // running, the newest there was, so the panel still says how it ended
@@ -503,7 +603,7 @@ export function useBoard(openSession: (session: SessionListing) => void) {
     // (design-00002 §16.8).
     await readAnnotations()
     return next
-  }, [readCoverage, readAsks, readCowriteTarget, readAnnotations])
+  }, [api, wid, forget, readCoverage, readAsks, readCowriteTarget, readAnnotations])
 
   /**
    * The one way in, and one read at a time (see `reading` above). A read that
@@ -518,11 +618,13 @@ export function useBoard(openSession: (session: SessionListing) => void) {
 
   /** Hold a document as the selection and read what its toolbar offers. */
   const load = useCallback(async (id: string) => {
+    const issued = wid
     setSelected(id)
     const [nextTransitions, steps] = await Promise.all([api.transitions(id), api.nextSteps(id)])
+    if (onWorkspace.current !== issued) return
     setTransitions(nextTransitions)
     setNextSteps(steps)
-  }, [])
+  }, [api, wid])
 
   const select = useCallback(
     async (id: string) => {
@@ -673,7 +775,7 @@ export function useBoard(openSession: (session: SessionListing) => void) {
       await refresh()
       return true
     },
-    [refresh],
+    [api, refresh],
   )
 
   /**
@@ -714,7 +816,7 @@ export function useBoard(openSession: (session: SessionListing) => void) {
       await refresh()
       return true
     },
-    [refresh],
+    [api, refresh],
   )
 
   /**
@@ -740,7 +842,7 @@ export function useBoard(openSession: (session: SessionListing) => void) {
         return undefined
       }
     },
-    [refresh],
+    [api, refresh],
   )
 
   /**
@@ -759,14 +861,14 @@ export function useBoard(openSession: (session: SessionListing) => void) {
       await refresh()
       return true
     },
-    [refresh],
+    [api, refresh],
   )
 
   const removeAnnotation = useCallback(
     (docId: string, annotationId: string) => {
       void run(() => api.removeAnnotation(docId, annotationId))
     },
-    [run],
+    [api, run],
   )
 
   /**
@@ -854,7 +956,7 @@ export function useBoard(openSession: (session: SessionListing) => void) {
         setSubmitting(false)
       }
     },
-    [refresh, unsavedBuffer],
+    [api, refresh, unsavedBuffer],
   )
 
   /**
@@ -872,14 +974,14 @@ export function useBoard(openSession: (session: SessionListing) => void) {
       if (id === undefined) return
       await run(() => api.stopSession(id))
     },
-    [run],
+    [api, run],
   )
 
   const advance = useCallback(
     async (sourceId: string, targetType: string) => {
       await startSession(() => api.advance(sourceId, targetType, agent))
     },
-    [startSession, agent],
+    [api, startSession, agent],
   )
 
   /**
@@ -919,7 +1021,7 @@ export function useBoard(openSession: (session: SessionListing) => void) {
     } catch (error) {
       toast.error(refusalText(error))
     }
-  }, [forget])
+  }, [api, forget])
 
   /**
    * A created document exists from here on, so the prefilled buffer is done with
@@ -978,7 +1080,7 @@ export function useBoard(openSession: (session: SessionListing) => void) {
       .find((one) => one.nodes.some((node) => node.id === selected))
     if (group === undefined || expandedGroups.includes(group.expandKey)) return
     const next = [...expandedGroups, group.expandKey]
-    writeExpandedGroups(next)
+    writeExpandedGroups(wid, next)
     setExpandedGroups(next)
     // Only the selection may open a group, so the effect watches nothing else.
   }, [selected])
@@ -1021,9 +1123,11 @@ export function useBoard(openSession: (session: SessionListing) => void) {
   useEffect(() => {
     // Config first: laying out before the column order lands would place every
     // node in the unknown-type bucket and then move it (spec-00001-AC-1.12).
+    const issued = wid
     void (async () => {
       try {
         const config = await api.config()
+        if (onWorkspace.current !== issued) return
         typeOrder.current = Object.keys(config.types)
         setKinds(config.types)
         setRelationOrder(config.relations)
@@ -1038,20 +1142,20 @@ export function useBoard(openSession: (session: SessionListing) => void) {
       } catch (error) {
         // A board with no column order still beats no board: the graph is the
         // thing the user came for, so draw it and say why it looks odd.
-        toast.error(error instanceof Error ? error.message : String(error))
+        if (onWorkspace.current === issued) toast.error(error instanceof Error ? error.message : String(error))
       }
       await refresh()
     })()
-  }, [refresh, applyAgents])
+  }, [api, wid, refresh, applyAgents])
 
   // docs/ moves under the board more often than the board moves it — an agent
   // or an editor elsewhere — so the change is pushed and the board re-reads
   // (spec-00001-FR-42). No channel means no push, which costs the board nothing
   // else (spec-00001-FR-43).
   useEffect(() => {
-    const link = connectEvents(() => void refresh())
+    const link = connectEvents(wid, () => void refresh())
     return () => link.close()
-  }, [refresh])
+  }, [refresh, wid])
 
   return {
     graph,

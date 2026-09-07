@@ -128,6 +128,25 @@ if (typeof window !== 'undefined') {
   }
   Object.defineProperty(globalThis, 'WebSocket', { configurable: true, writable: true, value: SilentSocket })
 
+  // Every board now runs inside a workspace, and the page reads the registry
+  // before it can address one (design-00003 §6). One registered, available
+  // workspace here keeps that gap in the harness, the way the WebSocket stub
+  // above does: a suite that renders the board lands on `alpha` and spies on
+  // `boardApi('alpha')`. A test that cares about the registry stubs its own
+  // fetch over this one.
+  const workspaces = {
+    workspaces: [{ id: 'alpha', name: 'alpha', path: '/tmp/alpha', availability: 'available', sessions: [] }],
+  }
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const url = String(typeof input === 'string' || input instanceof URL ? input : input.url)
+    if (url.endsWith('/api/workspaces')) {
+      return { ok: true, status: 200, statusText: 'OK', json: async () => workspaces } as Response
+    }
+    // Everything else is a call the test forgot to stub, which is what an
+    // unreachable server was before this stub existed.
+    throw new TypeError(`fetch failed: ${url}`)
+  }) as typeof fetch
+
   // React Flow reads the canvas transform through it; jsdom has no CSSOM view.
   globalThis.DOMMatrixReadOnly ??= class {
     m22 = 1

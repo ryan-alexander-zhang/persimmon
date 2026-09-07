@@ -4,7 +4,10 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DocGraph, DocNode } from '../../src/docRepository.ts'
 import type { AcceptanceRow, Criterion, ItemsView, RequirementItem } from '../../src/requirements.ts'
-import { type SessionListing, api } from '../src/api.ts'
+import { type SessionListing, boardApi } from '../src/api.ts'
+
+// Every read goes under the workspace the harness registers (design-00003 §6).
+const api = boardApi('alpha')
 import { Board } from '../src/Board.tsx'
 import { type EventLink, FIRST_RETRY_MS, MAX_RETRY_MS, connectEvents } from '../src/eventSocket.ts'
 
@@ -237,7 +240,7 @@ describe('the docs-change channel', () => {
   const links: EventLink[] = []
   /** Opened links are closed again: one left dialling would outlive its test. */
   const open = (onChange: () => void) => {
-    const link = connectEvents(onChange)
+    const link = connectEvents('alpha', onChange)
     links.push(link)
     return link
   }
@@ -742,7 +745,7 @@ describe('a refresh rebuilding the directory groups', () => {
   beforeEach(() => {
     serve()
     graph = GROUPED
-    localStorage.removeItem('whiteboard-directory-groups-expanded')
+    localStorage.removeItem('w:alpha:whiteboard-directory-groups-expanded')
     vi.spyOn(api, 'config').mockResolvedValue({
       types: { design: 'living', spec: 'living', reference: 'living', analysis: 'work' },
       relations: ['verifies'],

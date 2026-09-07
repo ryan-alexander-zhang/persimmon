@@ -7,7 +7,10 @@ export interface EventLink {
 }
 
 /**
- * The docs-change channel (spec-00001-FR-42). Every frame is the same bare
+ * The docs-change channel of one workspace (spec-00001-FR-42), addressed under
+ * its `/w/<wid>` prefix (design-00003 §5): the `wid` is bound into the dial, so
+ * a switch closes this one and opens the next workspace's rather than moving a
+ * shared base underneath it (design-00003 §6). Every frame is the same bare
  * signal — «something under docs/ moved» — and so is every connection, which is
  * how the board catches up on what changed while it was not listening
  * (spec-00001-AC-43.2).
@@ -16,8 +19,21 @@ export interface EventLink {
  * board keeps working off what it has and dials again on a widening delay, and
  * nothing about the failure reaches the user (spec-00001-FR-43, design-00002 §10).
  */
-export function connectEvents(onChange: () => void): EventLink {
-  const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/events`
+export function connectEvents(wid: string, onChange: () => void): EventLink {
+  return dialEvents(`/w/${encodeURIComponent(wid)}/api/events`, onChange)
+}
+
+/**
+ * The host's own channel (design-00003 §5): a bare signal that the registry or
+ * some live workspace's sessions moved, which the page answers by re-reading
+ * `GET /api/workspaces`. Same silence-on-failure discipline as the docs channel.
+ */
+export function connectWorkspaceEvents(onChange: () => void): EventLink {
+  return dialEvents('/api/workspaces/events', onChange)
+}
+
+function dialEvents(path: string, onChange: () => void): EventLink {
+  const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${path}`
   let socket: WebSocket | undefined
   let retryIn = FIRST_RETRY_MS
   let timer: ReturnType<typeof setTimeout> | undefined

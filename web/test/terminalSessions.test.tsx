@@ -181,16 +181,16 @@ describe('the terminal panel with several sessions', () => {
    * replay and nothing to rebuild (design-00002 §12).
    */
   it('keeps each session own terminal alive across a switch and back', async () => {
-    const { rerender } = render(<Terminal onClose={vi.fn()} onStop={vi.fn()} session={A} />)
+    const { rerender } = render(<Terminal wid="alpha" onClose={vi.fn()} onStop={vi.fn()} session={A} />)
     await waitFor(() => expect(xterms.made).toHaveLength(1))
     const first = xterms.made[0]!
     act(() => socketOf('a').emit('what A printed\r\n'))
     // The reader scrolls back through A's output before switching away.
     first.viewportY = 42
 
-    rerender(<Terminal onClose={vi.fn()} onStop={vi.fn()} session={B} />)
+    rerender(<Terminal wid="alpha" onClose={vi.fn()} onStop={vi.fn()} session={B} />)
     await waitFor(() => expect(xterms.made).toHaveLength(2))
-    rerender(<Terminal onClose={vi.fn()} onStop={vi.fn()} session={A} />)
+    rerender(<Terminal wid="alpha" onClose={vi.fn()} onStop={vi.fn()} session={A} />)
 
     // The very same terminal, not a second one made for the same session.
     expect(xterms.made).toHaveLength(2)
@@ -206,9 +206,9 @@ describe('the terminal panel with several sessions', () => {
   // Each session has a channel of its own, so output and keystrokes cannot cross
   // between them (spec-00003-AC-1.2 at the terminal).
   it('dials a channel of its own for each session', async () => {
-    const { rerender } = render(<Terminal onClose={vi.fn()} onStop={vi.fn()} session={A} />)
+    const { rerender } = render(<Terminal wid="alpha" onClose={vi.fn()} onStop={vi.fn()} session={A} />)
     await waitFor(() => expect(xterms.made).toHaveLength(1))
-    rerender(<Terminal onClose={vi.fn()} onStop={vi.fn()} session={B} />)
+    rerender(<Terminal wid="alpha" onClose={vi.fn()} onStop={vi.fn()} session={B} />)
     await waitFor(() => expect(xterms.made).toHaveLength(2))
 
     act(() => socketOf('b').emit('what B printed\r\n'))
@@ -227,7 +227,7 @@ describe('the terminal panel with several sessions', () => {
    * more.
    */
   it('sends size frames only from the session on show', async () => {
-    const { rerender } = render(<Terminal onClose={vi.fn()} onStop={vi.fn()} session={A} />)
+    const { rerender } = render(<Terminal wid="alpha" onClose={vi.fn()} onStop={vi.fn()} session={A} />)
     await waitFor(() => expect(sizeFrames('a')).toEqual([{ cols: 100, rows: 40 }]))
     panelSize.cols = 60
     panelSize.rows = 20
@@ -235,7 +235,7 @@ describe('the terminal panel with several sessions', () => {
     await waitFor(() => expect(sizeFrames('a').at(-1)).toEqual({ cols: 60, rows: 20 }))
     const sentToA = sizeFrames('a').length
 
-    rerender(<Terminal onClose={vi.fn()} onStop={vi.fn()} session={B} />)
+    rerender(<Terminal wid="alpha" onClose={vi.fn()} onStop={vi.fn()} session={B} />)
 
     // B is told the size that is current, and A is told nothing more.
     await waitFor(() => expect(sizeFrames('b')).toEqual([{ cols: 60, rows: 20 }]))
@@ -251,10 +251,10 @@ describe('the terminal panel with several sessions', () => {
    * running sessions is the cap on them: past it, the one nobody is watching goes.
    */
   it('keeps no more terminals than the session cap allows', async () => {
-    const { rerender } = render(<Terminal onClose={vi.fn()} onStop={vi.fn()} session={A} keep={1} />)
+    const { rerender } = render(<Terminal wid="alpha" onClose={vi.fn()} onStop={vi.fn()} session={A} keep={1} />)
     await waitFor(() => expect(xterms.made).toHaveLength(1))
 
-    rerender(<Terminal onClose={vi.fn()} onStop={vi.fn()} session={B} keep={1} />)
+    rerender(<Terminal wid="alpha" onClose={vi.fn()} onStop={vi.fn()} session={B} keep={1} />)
 
     await waitFor(() => expect(xterms.made[0]!.disposed).toBe(true))
     expect(socketOf('a').closed).toBe(true)
@@ -264,9 +264,9 @@ describe('the terminal panel with several sessions', () => {
   // The panel going away is the end of every terminal it held: nothing else holds
   // them, so a channel left open would be one nobody can close.
   it('closes every session channel when the panel itself goes away', async () => {
-    const { rerender, unmount } = render(<Terminal onClose={vi.fn()} onStop={vi.fn()} session={A} />)
+    const { rerender, unmount } = render(<Terminal wid="alpha" onClose={vi.fn()} onStop={vi.fn()} session={A} />)
     await waitFor(() => expect(xterms.made).toHaveLength(1))
-    rerender(<Terminal onClose={vi.fn()} onStop={vi.fn()} session={B} />)
+    rerender(<Terminal wid="alpha" onClose={vi.fn()} onStop={vi.fn()} session={B} />)
     await waitFor(() => expect(xterms.made).toHaveLength(2))
 
     unmount()
@@ -279,10 +279,10 @@ describe('the terminal panel with several sessions', () => {
   // A theme change is not a new terminal: retuning the live ones costs no output
   // and no scroll position (design-00002 §5).
   it('retunes the terminals it has when the theme changes', async () => {
-    const { rerender } = render(<Terminal onClose={vi.fn()} onStop={vi.fn()} session={A} dark={false} />)
+    const { rerender } = render(<Terminal wid="alpha" onClose={vi.fn()} onStop={vi.fn()} session={A} dark={false} />)
     await waitFor(() => expect(xterms.made).toHaveLength(1))
 
-    rerender(<Terminal onClose={vi.fn()} onStop={vi.fn()} session={A} dark />)
+    rerender(<Terminal wid="alpha" onClose={vi.fn()} onStop={vi.fn()} session={A} dark />)
 
     expect(xterms.made).toHaveLength(1)
     expect(xterms.made[0]!.options.theme).toMatchObject({ background: '#09090b' })
@@ -290,7 +290,7 @@ describe('the terminal panel with several sessions', () => {
 
   // spec-00003-FR-5 / design-00002 §3 — the header says which session this is
   it('names the kind and the target document of the session on show', async () => {
-    render(<Terminal onClose={vi.fn()} onStop={vi.fn()} session={B} />)
+    render(<Terminal wid="alpha" onClose={vi.fn()} onStop={vi.fn()} session={B} />)
 
     const panel = screen.getByLabelText('Agent session')
     expect(panel.textContent).toContain('audit')
@@ -301,14 +301,14 @@ describe('the terminal panel with several sessions', () => {
   // spec-00003-AC-6.1 at the terminal — awaiting is derived from the payload, not
   // a fifth status (design-00002 §3)
   it('shows a running session that has gone quiet as awaiting', async () => {
-    render(<Terminal onClose={vi.fn()} onStop={vi.fn()} session={{ ...A, awaiting: true }} />)
+    render(<Terminal wid="alpha" onClose={vi.fn()} onStop={vi.fn()} session={{ ...A, awaiting: true }} />)
 
     expect(screen.getByLabelText('Agent session').textContent).toContain('awaiting')
     await waitFor(() => expect(xterms.made).toHaveLength(1))
   })
 
   it.each(['exited', 'failed', 'terminated'] as const)('shows an ended session as %s', async (status) => {
-    render(<Terminal onClose={vi.fn()} onStop={vi.fn()} session={{ ...A, status }} />)
+    render(<Terminal wid="alpha" onClose={vi.fn()} onStop={vi.fn()} session={{ ...A, status }} />)
 
     expect(screen.getByLabelText('Agent session').textContent).toContain(status)
     await waitFor(() => expect(xterms.made).toHaveLength(1))
@@ -320,7 +320,7 @@ describe('the terminal panel with several sessions', () => {
    * are still running.
    */
   it('offers no stop while the session on show has ended', async () => {
-    render(<Terminal onClose={vi.fn()} onStop={vi.fn()} session={{ ...A, status: 'terminated' }} />)
+    render(<Terminal wid="alpha" onClose={vi.fn()} onStop={vi.fn()} session={{ ...A, status: 'terminated' }} />)
 
     expect(screen.queryByRole('button', { name: 'Stop the agent session' })).toBeNull()
     await waitFor(() => expect(xterms.made).toHaveLength(1))

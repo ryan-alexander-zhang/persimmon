@@ -5,7 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { toast } from 'sonner'
 import type { DocGraph, DocNode } from '../../src/docRepository.ts'
 import type { ItemsView } from '../../src/requirements.ts'
-import { api } from '../src/api.ts'
+import { boardApi } from '../src/api.ts'
+
+// Every read goes under the workspace the harness registers (design-00003 §6).
+const api = boardApi('alpha')
 import { InlineMarkdown } from '../src/InlineMarkdown.tsx'
 import { Inspector } from '../src/Inspector.tsx'
 

@@ -9,6 +9,15 @@ import { Button } from '@/components/ui/button'
 import { type TerminalLink, connectTerminal } from './terminalSocket.ts'
 
 export interface TerminalProps {
+  /** The workspace the session belongs to: it names the channel and keys the pool (design-00003 §6). */
+  wid: string
+  /**
+   * Where the terminals are kept. The board holds one across every workspace, so
+   * a switch — which takes this panel out of the tree — costs a session neither
+   * its output nor its scroll position (spec-00011-AC-8.3, design-00002 §12).
+   * Left out, the panel keeps its own and ends them when it goes.
+   */
+  pool?: TerminalPool
   onClose: () => void
   /** End the session on show, and no other (spec-00001-FR-49, spec-00003-FR-5). */
   onStop: () => void
@@ -55,7 +64,7 @@ function themeOf(dark?: boolean): ITheme {
  * replaying a buffer could restore the first but never the second
  * (spec-00003-AC-5.1, design-00002 §12).
  */
-interface Instance {
+export interface Instance {
   xterm: Xterm
   fit: FitAddon
   link: TerminalLink
@@ -66,7 +75,16 @@ interface Instance {
   used: number
 }
 
+/** The terminals in hand, keyed `wid:sessionId` (design-00002 §12, twenty-eighth round). */
+export type TerminalPool = Map<string, Instance>
+
 let clock = 0
+
+/** Every terminal in a pool, ended (design-00002 §12). */
+export function shutPool(pool: TerminalPool): void {
+  for (const instance of pool.values()) shut(instance)
+  pool.clear()
+}
 
 function shut(instance: Instance): void {
   instance.link.close()
@@ -79,12 +97,17 @@ function shut(instance: Instance): void {
  * recently shown one goes, since the sessions worth their megabyte are the ones
  * being watched (design-00002 §12).
  */
-function instanceFor(pool: Map<string, Instance>, id: string, keep: number, dark?: boolean): Instance {
+function instanceFor(pool: TerminalPool, wid: string, sessionId: string, keep: number, dark?: boolean): Instance {
+  const id = `${wid}:${sessionId}`
   const held = pool.get(id)
   if (held) return held
   const bound = Math.max(1, keep)
-  while (pool.size >= bound) {
-    const oldest = [...pool.entries()].reduce((a, b) => (a[1].used <= b[1].used ? a : b))
+  // The cap is one workspace's, so only its own terminals are weighed against
+  // it: the ceiling over the pool is the sum of the open workspaces' caps
+  // (design-00002 §12, twenty-eighth round).
+  const mine = () => [...pool.entries()].filter(([key]) => key.startsWith(`${wid}:`))
+  while (mine().length >= bound) {
+    const oldest = mine().reduce((a, b) => (a[1].used <= b[1].used ? a : b))
     shut(oldest[1])
     pool.delete(oldest[0])
   }
@@ -93,7 +116,7 @@ function instanceFor(pool: Map<string, Instance>, id: string, keep: number, dark
   const xterm = new Xterm({ fontSize: 12, theme: themeOf(dark) })
   const fit = new FitAddon()
   xterm.loadAddon(fit)
-  const link = connectTerminal(id, (data) => xterm.write(data))
+  const link = connectTerminal(wid, sessionId, (data) => xterm.write(data))
   xterm.onData((data) => link.send(data))
   const made: Instance = { xterm, fit, link, host, opened: false, used: 0 }
   pool.set(id, made)
@@ -114,10 +137,13 @@ function instanceFor(pool: Map<string, Instance>, id: string, keep: number, dark
  * no end-of-line rewriting happens here either: doing it twice would return the
  * cursor to column one on every line feed a TUI emits mid-row.
  */
-export function Terminal({ onClose, onStop, session, dark, keep = DEFAULT_KEEP }: TerminalProps) {
+export function Terminal({ wid, pool: kept, onClose, onStop, session, dark, keep = DEFAULT_KEEP }: TerminalProps) {
   const host = useRef<HTMLDivElement>(null)
-  // The terminals, one per session, outliving every switch between them.
-  const pool = useRef(new Map<string, Instance>())
+  // The terminals, one per session, outliving every switch between them. Only
+  // the panel's own is ended when the panel goes: a pool handed down belongs to
+  // the board and outlives a workspace switch (design-00003 §6).
+  const own = useRef<TerminalPool>(new Map())
+  const pool = kept ?? own.current
   // Read when an instance is made rather than depended on, so a theme change
   // does not rebuild anything: the instances are retuned in place below.
   const isDark = useRef(dark)
@@ -128,7 +154,7 @@ export function Terminal({ onClose, onStop, session, dark, keep = DEFAULT_KEEP }
   useEffect(() => {
     const mount = host.current
     if (!mount || sessionId === undefined) return
-    const instance = instanceFor(pool.current, sessionId, keep, isDark.current)
+    const instance = instanceFor(pool, wid, sessionId, keep, isDark.current)
     mount.append(instance.host)
     if (!instance.opened) {
       instance.xterm.open(instance.host)
@@ -162,23 +188,23 @@ export function Terminal({ onClose, onStop, session, dark, keep = DEFAULT_KEEP }
       // neither its output nor where the user had scrolled to (spec-00003-AC-5.1).
       instance.host.remove()
     }
-  }, [sessionId, keep])
+  }, [wid, sessionId, keep])
 
   // A theme change is not a new terminal: retuning the live ones keeps every
   // session's output and scroll exactly where they were (design-00002 §5).
   useEffect(() => {
-    for (const instance of pool.current.values()) instance.xterm.options.theme = themeOf(dark)
+    for (const instance of pool.values()) instance.xterm.options.theme = themeOf(dark)
   }, [dark])
 
-  // The panel itself going away is the end of the terminals: nothing holds them
-  // after this, so a socket left open would be a socket nobody can close.
+  // The panel itself going away is the end of the terminals it made: nothing
+  // holds those after this, so a socket left open would be one nobody can close.
+  // A pool handed down is the board's, and the board ends it (design-00003 §6).
   useEffect(() => {
-    const held = pool.current
+    const held = own.current
     return () => {
-      for (const instance of held.values()) shut(instance)
-      held.clear()
+      if (kept === undefined) shutPool(held)
     }
-  }, [])
+  }, [kept])
 
   return (
     <section aria-label="Agent session" className="flex h-full min-h-0 flex-col">

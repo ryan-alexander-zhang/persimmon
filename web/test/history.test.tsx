@@ -4,7 +4,10 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { toast } from 'sonner'
 import type { SessionHistoryMeta } from '../../src/sessionHistory.ts'
-import { ApiError, api } from '../src/api.ts'
+import { ApiError, boardApi } from '../src/api.ts'
+
+// Every read goes under the workspace the harness registers (design-00003 §6).
+const api = boardApi('alpha')
 import { SessionHistory } from '../src/SessionHistory.tsx'
 
 function record(overrides: Partial<SessionHistoryMeta> = {}): SessionHistoryMeta {
@@ -31,7 +34,7 @@ afterEach(() => {
 })
 
 function open() {
-  render(<SessionHistory open onOpenChange={vi.fn()} />)
+  render(<SessionHistory wid="alpha" open onOpenChange={vi.fn()} />)
 }
 
 describe('the session history', () => {
@@ -155,7 +158,7 @@ describe('the session history', () => {
 
   it('reads nothing while it is closed', () => {
     const history = vi.spyOn(api, 'sessionHistory').mockResolvedValue([])
-    render(<SessionHistory open={false} onOpenChange={vi.fn()} />)
+    render(<SessionHistory wid="alpha" open={false} onOpenChange={vi.fn()} />)
 
     expect(history).not.toHaveBeenCalled()
   })

@@ -3,7 +3,10 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testi
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DocGraph, DocNode } from '../../src/docRepository.ts'
-import { type SessionListing, api } from '../src/api.ts'
+import { type SessionListing, boardApi } from '../src/api.ts'
+
+// Every read goes under the workspace the harness registers (design-00003 §6).
+const api = boardApi('alpha')
 import { NODE_HEIGHT, NODE_WIDTH, layoutGraph, orderedColumns } from '../src/layout.ts'
 
 const setCenter = vi.fn()
@@ -194,7 +197,7 @@ describe('going to a document inside a collapsed directory group', () => {
   }
 
   beforeEach(() => {
-    localStorage.removeItem('whiteboard-directory-groups-expanded')
+    localStorage.removeItem('w:alpha:whiteboard-directory-groups-expanded')
     // The terminal a session brings up dials a socket the moment it mounts.
     vi.stubGlobal(
       'WebSocket',

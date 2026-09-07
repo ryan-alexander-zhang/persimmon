@@ -6,7 +6,10 @@ import { toast } from 'sonner'
 import type { DocGraph, DocNode } from '../../src/docRepository.ts'
 import { Board } from '../src/Board.tsx'
 import { SessionPanel } from '../src/SessionPanel.tsx'
-import { type SessionListing, api } from '../src/api.ts'
+import { type SessionListing, boardApi } from '../src/api.ts'
+
+// Every read goes under the workspace the harness registers (design-00003 §6).
+const api = boardApi('alpha')
 import { CAP_REACHED, DOC_BUSY } from '../src/Toolbar.tsx'
 
 // Rendering the whole board and pushing a refresh through it is heavier than the

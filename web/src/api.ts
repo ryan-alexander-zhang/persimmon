@@ -9,6 +9,8 @@ import type { ActionResult, CoverageRow } from '../../src/docService.ts'
 import type { ItemsView } from '../../src/requirements.ts'
 import type { SessionHistoryEntry, SessionHistoryMeta } from '../../src/sessionHistory.ts'
 import type { SessionInfo, SessionListing } from '../../src/sessionManager.ts'
+import type { Availability } from '../../src/workspaceAvailability.ts'
+import type { WorkspaceEntry } from '../../src/workspaceRegistry.ts'
 
 export type {
   Annotation,
@@ -29,6 +31,8 @@ export type {
   SessionHistoryMeta,
   SessionInfo,
   SessionListing,
+  Availability,
+  WorkspaceEntry,
 }
 
 /**
@@ -261,130 +265,180 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
  * document — the defect of issue-00016. Express 5 hands `%2F` back to `:id` as
  * a slash, so the encoding is the whole fix and the routes are untouched.
  */
-function at(key: string): string {
-  return `/api/docs/${encodeURIComponent(key)}`
+function at(base: string, key: string): string {
+  return `${base}/api/docs/${encodeURIComponent(key)}`
 }
 
-export const api = {
-  graph: () => request<DocGraph>('GET', '/api/graph'),
-  // The global coverage view's one read (spec-00002-FR-10). Asked for only while
-  // the view is open: it is the heaviest read the board has (design-00001 §6).
-  coverage: () => request<CoverageRow[]>('GET', '/api/coverage'),
-  config: () => request<ConfigPayload>('GET', '/api/config'),
-  doc: (id: string) => request<DocContent>('GET', at(id)),
-  items: (id: string) => request<ItemsView>('GET', `${at(id)}/items`),
-  save: (id: string, content: string, baseHash: string) =>
-    request<ActionResult>('PUT', at(id), { content, baseHash }),
-  transitions: (id: string) => request<string[]>('GET', `${at(id)}/transitions`),
-  setStatus: (id: string, to: string) => request<ActionResult>('POST', `${at(id)}/status`, { to }),
-  accept: (id: string) => request<ActionResult>('POST', `${at(id)}/review`, { action: 'accept' }),
-  nextSteps: (id: string) => request<FlowStep[]>('GET', `${at(id)}/next-steps`),
-  /**
-   * Every session the server holds — running and ended alike, oldest first
-   * (`GET /api/sessions`, design-00001 §7). The whole list, not a pick off it:
-   * the session panel lists them all (spec-00003-FR-4), the top bar counts them
-   * (FR-6), the node markers read the running ones (FR-10), and a board opening
-   * fresh reattaches to one of them (FR-9). Which one the terminal shows is the
-   * board's own presentation state, never the payload's (FR-5).
-   */
-  sessions: async (): Promise<SessionListing[]> => {
-    const { sessions } = await request<{ sessions: SessionListing[] }>('GET', '/api/sessions')
-    return sessions
+/**
+ * One workspace's whole API surface, addressed under its `/w/<wid>` prefix
+ * (design-00003 §5, §6). A factory rather than a mutable module-level base: only
+ * binding the `wid` into each call makes a switch raceless — a base swapped
+ * halfway leaves the reads already in flight addressing the wrong workspace.
+ */
+function buildBoardApi(wid: string) {
+  const base = `/w/${encodeURIComponent(wid)}`
+  return {
+    graph: () => request<DocGraph>('GET', `${base}/api/graph`),
+    // The global coverage view's one read (spec-00002-FR-10). Asked for only while
+    // the view is open: it is the heaviest read the board has (design-00001 §6).
+    coverage: () => request<CoverageRow[]>('GET', `${base}/api/coverage`),
+    config: () => request<ConfigPayload>('GET', `${base}/api/config`),
+    doc: (id: string) => request<DocContent>('GET', at(base, id)),
+    items: (id: string) => request<ItemsView>('GET', `${at(base, id)}/items`),
+    save: (id: string, content: string, baseHash: string) =>
+      request<ActionResult>('PUT', at(base, id), { content, baseHash }),
+    transitions: (id: string) => request<string[]>('GET', `${at(base, id)}/transitions`),
+    setStatus: (id: string, to: string) => request<ActionResult>('POST', `${at(base, id)}/status`, { to }),
+    accept: (id: string) => request<ActionResult>('POST', `${at(base, id)}/review`, { action: 'accept' }),
+    nextSteps: (id: string) => request<FlowStep[]>('GET', `${at(base, id)}/next-steps`),
+    /**
+     * Every session the server holds — running and ended alike, oldest first
+     * (`GET /api/sessions`, design-00001 §7). The whole list, not a pick off it:
+     * the session panel lists them all (spec-00003-FR-4), the top bar counts them
+     * (FR-6), the node markers read the running ones (FR-10), and a board opening
+     * fresh reattaches to one of them (FR-9). Which one the terminal shows is the
+     * board's own presentation state, never the payload's (FR-5).
+     */
+    sessions: async (): Promise<SessionListing[]> => {
+      const { sessions } = await request<{ sessions: SessionListing[] }>('GET', `${base}/api/sessions`)
+      return sessions
+    },
+    // Every session entry may name which agent runs it; leaving it out is what a
+    // single-agent config does, and the server then takes the first
+    // (spec-00001-FR-55). `undefined` drops out of the body on its own, so an
+    // unspecified agent is an absent field, not a null one.
+    advance: (sourceId: string, targetType: string, agent?: string) =>
+      request<SessionInfo>('POST', `${base}/api/sessions`, { sourceId, targetType, agent }),
+    // Clarify and audit are sessions, not writes: the agent does the questioning
+    // and the auditing in the terminal (spec-00001-FR-9, FR-50).
+    clarify: (docId: string, agent?: string) => request<SessionInfo>('POST', `${base}/api/sessions/clarify`, { docId, agent }),
+    audit: (docId: string, agent?: string) => request<SessionInfo>('POST', `${base}/api/sessions/audit`, { docId, agent }),
+    /**
+     * One question on one document (spec-00005-FR-1). It is a session too, but a
+     * headless one: what comes back is the call's registry session and the thread
+     * the question landed on, and there is no terminal to open (FR-3).
+     */
+    ask: (submit: AskSubmit) =>
+      request<{ sessionId: string; threadId: string }>('POST', `${base}/api/sessions/ask`, submit),
+    /**
+     * One cowrite session (spec-00006-FR-1, FR-2). What comes back is the session
+     * and the document it is on — which the create form only learns here, since the
+     * number is the server's — and, for that form alone, the `error` of a filing
+     * whose commit failed: the file is on disk and the session goes ahead, so it is
+     * a notice rather than a refusal (spec-00001-FR-20, design-00001 §11.2).
+     */
+    cowrite: (submit: CowriteSubmit) =>
+      request<{ sessionId: string; docId: string; error?: string }>('POST', `${base}/api/sessions/cowrite`, submit),
+    /**
+     * A document's ask list (spec-00005-FR-9). Asked for only while the list is
+     * on show — it is the fourth item of the one refresh path, and a board that is
+     * not showing a list has nothing to do with the answer (design-00002 §10).
+     * A document with no list yet answers with no threads, never an error.
+     */
+    asks: async (docId: string): Promise<AskThread[]> => {
+      const { threads } = await request<{ threads: AskThread[] }>(
+        'GET',
+        `${base}/api/asks/${encodeURIComponent(docId)}`,
+      )
+      return threads
+    },
+    /**
+     * A document's annotations, each with where its anchor lands on the disk just
+     * now, the batches of its submitted issues, and the submit statement
+     * (design-00001 §12.3). Read while that document's **editor** is open, not
+     * merely its list: the traces have to be right in the two other view states
+     * too (design-00002 §16.8).
+     */
+    annotations: (docId: string) =>
+      request<AnnotationListView>('GET', `${base}/api/annotations/${encodeURIComponent(docId)}`),
+    addAnnotation: (docId: string, input: AnnotationInput) =>
+      request<{ annotation: Annotation }>('POST', `${base}/api/annotations/${encodeURIComponent(docId)}`, input),
+    changeAnnotation: (docId: string, annotationId: string, change: AnnotationChange) =>
+      request<{ annotation: Annotation }>(
+        'PATCH',
+        `${base}/api/annotations/${encodeURIComponent(docId)}/${encodeURIComponent(annotationId)}`,
+        change,
+      ),
+    removeAnnotation: (docId: string, annotationId: string) =>
+      request<{ annotationId: string }>(
+        'DELETE',
+        `${base}/api/annotations/${encodeURIComponent(docId)}/${encodeURIComponent(annotationId)}`,
+      ),
+    /**
+     * One unified submit of a document's unsubmitted annotations
+     * (spec-00007-FR-5). 4xx means the batch did not happen at all; 200 means it
+     * ran and every per-annotation outcome is in the payload (design-00001 §12.3).
+     */
+    submitAnnotations: (docId: string, submit: AnnotationSubmit) =>
+      request<SubmitResult>('POST', `${base}/api/annotations/${encodeURIComponent(docId)}/submit`, submit),
+    // The way out of a session that will not end by itself; what comes back is the
+    // session as it finished (spec-00001-FR-49). The session is named: the stop
+    // acts on the one the terminal is showing (spec-00003-FR-5).
+    stopSession: (id: string) => request<SessionInfo>('DELETE', `${base}/api/sessions/${encodeURIComponent(id)}`),
+    // Creating is two steps, and only the second one writes: the prefill takes a
+    // number and a template, the save creates the file (spec-00001-FR-53). The
+    // path is its own rather than under `/api/docs/:id` — there is no id yet.
+    createPrefill: (type: string) =>
+      request<CreatePrefill>('GET', `${base}/api/create?type=${encodeURIComponent(type)}`),
+    createDoc: (id: string, content: string) => request<ActionResult>('POST', `${base}/api/docs`, { id, content }),
+    /**
+     * Both agent layers as they stand (spec-00009-FR-7). Read on every open of the
+     * settings panel rather than kept: a local file edited by hand shows its error
+     * the next time the panel is opened (design-00002 §18.1).
+     */
+    agentSettings: () => request<AgentSettingsView>('GET', `${base}/api/settings/agents`),
+    /**
+     * The local layer, saved whole (spec-00009-FR-5). What comes back is the list
+     * the save just made effective, which is what the page it was saved from shows
+     * from then on — no re-read of the config, and no other page told
+     * (spec-00009-FR-8, design-00001 §13.3).
+     */
+    saveAgentSettings: (local: LocalAgentSettings) =>
+      request<AgentSettingsSaved>('PUT', `${base}/api/settings/agents`, local),
+    // The sessions that have already ended, and any one of them read whole
+    // (spec-00001-FR-54).
+    sessionHistory: () => request<SessionHistoryMeta[]>('GET', `${base}/api/sessions/history`),
+    sessionTranscript: (id: string) => request<SessionHistoryEntry>('GET', `${base}/api/sessions/history/${id}`),
+  }
+}
+
+export type BoardApi = ReturnType<typeof buildBoardApi>
+
+/**
+ * One client per workspace, kept: the identity is a hook dependency all over
+ * `useBoard`, and a fresh object each render would tear the docs-change channel
+ * down and dial it again (design-00002 §10).
+ */
+const clients = new Map<string, BoardApi>()
+
+export function boardApi(wid: string): BoardApi {
+  const held = clients.get(wid)
+  if (held !== undefined) return held
+  const made = buildBoardApi(wid)
+  clients.set(wid, made)
+  return made
+}
+
+/** One workspace as `GET /api/workspaces` carries it (design-00003 §5). */
+export interface WorkspaceSummary extends WorkspaceEntry {
+  availability: Availability
+  /** The one sentence that says what to fix; only an unavailable entry carries it (design-00003 §3). */
+  error?: string
+  /** The live instance's sessions, which the switcher counts and the notifications diff (design-00003 §9); `[]` for one not running. */
+  sessions: Array<Pick<SessionListing, 'id' | 'kind' | 'sourceId' | 'status' | 'awaiting'>>
+}
+
+/**
+ * The three host-level calls, which carry no workspace of their own
+ * (design-00003 §5). The registry is the host's, not any board's, so these
+ * paths keep the single `/api` they always had.
+ */
+export const hostApi = {
+  workspaces: async (): Promise<WorkspaceSummary[]> => {
+    const { workspaces } = await request<{ workspaces: WorkspaceSummary[] }>('GET', '/api/workspaces')
+    return workspaces
   },
-  // Every session entry may name which agent runs it; leaving it out is what a
-  // single-agent config does, and the server then takes the first
-  // (spec-00001-FR-55). `undefined` drops out of the body on its own, so an
-  // unspecified agent is an absent field, not a null one.
-  advance: (sourceId: string, targetType: string, agent?: string) =>
-    request<SessionInfo>('POST', '/api/sessions', { sourceId, targetType, agent }),
-  // Clarify and audit are sessions, not writes: the agent does the questioning
-  // and the auditing in the terminal (spec-00001-FR-9, FR-50).
-  clarify: (docId: string, agent?: string) => request<SessionInfo>('POST', '/api/sessions/clarify', { docId, agent }),
-  audit: (docId: string, agent?: string) => request<SessionInfo>('POST', '/api/sessions/audit', { docId, agent }),
-  /**
-   * One question on one document (spec-00005-FR-1). It is a session too, but a
-   * headless one: what comes back is the call's registry session and the thread
-   * the question landed on, and there is no terminal to open (FR-3).
-   */
-  ask: (submit: AskSubmit) =>
-    request<{ sessionId: string; threadId: string }>('POST', '/api/sessions/ask', submit),
-  /**
-   * One cowrite session (spec-00006-FR-1, FR-2). What comes back is the session
-   * and the document it is on — which the create form only learns here, since the
-   * number is the server's — and, for that form alone, the `error` of a filing
-   * whose commit failed: the file is on disk and the session goes ahead, so it is
-   * a notice rather than a refusal (spec-00001-FR-20, design-00001 §11.2).
-   */
-  cowrite: (submit: CowriteSubmit) =>
-    request<{ sessionId: string; docId: string; error?: string }>('POST', '/api/sessions/cowrite', submit),
-  /**
-   * A document's ask list (spec-00005-FR-9). Asked for only while the list is
-   * on show — it is the fourth item of the one refresh path, and a board that is
-   * not showing a list has nothing to do with the answer (design-00002 §10).
-   * A document with no list yet answers with no threads, never an error.
-   */
-  asks: async (docId: string): Promise<AskThread[]> => {
-    const { threads } = await request<{ threads: AskThread[] }>(
-      'GET',
-      `/api/asks/${encodeURIComponent(docId)}`,
-    )
-    return threads
-  },
-  /**
-   * A document's annotations, each with where its anchor lands on the disk just
-   * now, the batches of its submitted issues, and the submit statement
-   * (design-00001 §12.3). Read while that document's **editor** is open, not
-   * merely its list: the traces have to be right in the two other view states
-   * too (design-00002 §16.8).
-   */
-  annotations: (docId: string) =>
-    request<AnnotationListView>('GET', `/api/annotations/${encodeURIComponent(docId)}`),
-  addAnnotation: (docId: string, input: AnnotationInput) =>
-    request<{ annotation: Annotation }>('POST', `/api/annotations/${encodeURIComponent(docId)}`, input),
-  changeAnnotation: (docId: string, annotationId: string, change: AnnotationChange) =>
-    request<{ annotation: Annotation }>(
-      'PATCH',
-      `/api/annotations/${encodeURIComponent(docId)}/${encodeURIComponent(annotationId)}`,
-      change,
-    ),
-  removeAnnotation: (docId: string, annotationId: string) =>
-    request<{ annotationId: string }>(
-      'DELETE',
-      `/api/annotations/${encodeURIComponent(docId)}/${encodeURIComponent(annotationId)}`,
-    ),
-  /**
-   * One unified submit of a document's unsubmitted annotations
-   * (spec-00007-FR-5). 4xx means the batch did not happen at all; 200 means it
-   * ran and every per-annotation outcome is in the payload (design-00001 §12.3).
-   */
-  submitAnnotations: (docId: string, submit: AnnotationSubmit) =>
-    request<SubmitResult>('POST', `/api/annotations/${encodeURIComponent(docId)}/submit`, submit),
-  // The way out of a session that will not end by itself; what comes back is the
-  // session as it finished (spec-00001-FR-49). The session is named: the stop
-  // acts on the one the terminal is showing (spec-00003-FR-5).
-  stopSession: (id: string) => request<SessionInfo>('DELETE', `/api/sessions/${encodeURIComponent(id)}`),
-  // Creating is two steps, and only the second one writes: the prefill takes a
-  // number and a template, the save creates the file (spec-00001-FR-53). The
-  // path is its own rather than under `/api/docs/:id` — there is no id yet.
-  createPrefill: (type: string) =>
-    request<CreatePrefill>('GET', `/api/create?type=${encodeURIComponent(type)}`),
-  createDoc: (id: string, content: string) => request<ActionResult>('POST', '/api/docs', { id, content }),
-  /**
-   * Both agent layers as they stand (spec-00009-FR-7). Read on every open of the
-   * settings panel rather than kept: a local file edited by hand shows its error
-   * the next time the panel is opened (design-00002 §18.1).
-   */
-  agentSettings: () => request<AgentSettingsView>('GET', '/api/settings/agents'),
-  /**
-   * The local layer, saved whole (spec-00009-FR-5). What comes back is the list
-   * the save just made effective, which is what the page it was saved from shows
-   * from then on — no re-read of the config, and no other page told
-   * (spec-00009-FR-8, design-00001 §13.3).
-   */
-  saveAgentSettings: (local: LocalAgentSettings) =>
-    request<AgentSettingsSaved>('PUT', '/api/settings/agents', local),
-  // The sessions that have already ended, and any one of them read whole
-  // (spec-00001-FR-54).
-  sessionHistory: () => request<SessionHistoryMeta[]>('GET', '/api/sessions/history'),
-  sessionTranscript: (id: string) => request<SessionHistoryEntry>('GET', `/api/sessions/history/${id}`),
+  addWorkspace: (path: string, name?: string) =>
+    request<{ workspace: WorkspaceEntry }>('POST', '/api/workspaces', { path, name }),
+  removeWorkspace: (wid: string) => request<unknown>('DELETE', `/api/workspaces/${encodeURIComponent(wid)}`),
 }

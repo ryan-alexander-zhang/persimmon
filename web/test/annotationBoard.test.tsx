@@ -7,7 +7,10 @@ import type { DocGraph, DocNode } from '../../src/docRepository.ts'
 import type { AnnotationListView, SubmitResult } from '../../src/annotations.ts'
 import { EditorView } from 'codemirror'
 import { Board } from '../src/Board.tsx'
-import { ApiError, type AskThread, type SessionListing, api } from '../src/api.ts'
+import { ApiError, type AskThread, type SessionListing, boardApi } from '../src/api.ts'
+
+// Every read goes under the workspace the harness registers (design-00003 §6).
+const api = boardApi('alpha')
 import { BLOCKED_TEXT, SUBMIT_REFUSAL } from '../src/annotationRows.ts'
 
 vi.setConfig({ testTimeout: 30_000 })

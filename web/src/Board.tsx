@@ -26,7 +26,7 @@ import {
   Terminal as TerminalIcon,
   TriangleAlert,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Toaster, toast } from 'sonner'
 import type { DocNode } from '../../src/docRepository.ts'
 import { Badge } from '@/components/ui/badge'
@@ -42,7 +42,7 @@ import { Button } from '@/components/ui/button'
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable'
 import { useDefaultLayout } from 'react-resizable-panels'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { type SessionListing, api } from './api.ts'
+import { type SessionListing, boardApi } from './api.ts'
 import { AnnotationList } from './AnnotationList.tsx'
 import { annotationRows } from './annotationRows.ts'
 import { AskEntry } from './AskEntry.tsx'
@@ -64,7 +64,7 @@ import { SessionPanel } from './SessionPanel.tsx'
 import { SettingsDialog } from './SettingsDialog.tsx'
 import { Sidebar } from './Sidebar.tsx'
 import { AcceptanceRowNode, CriterionNode, ItemNode } from './SubNodes.tsx'
-import { Terminal } from './Terminal.tsx'
+import { Terminal, type TerminalPool, shutPool } from './Terminal.tsx'
 import { ThemeMenu } from './ThemeMenu.tsx'
 import { Toolbar } from './Toolbar.tsx'
 import {
@@ -83,6 +83,7 @@ import { typeGroups } from './sidebarModel.ts'
 import { detailTarget, subCanvas } from './subCanvas.ts'
 import { useTheme } from './theme.ts'
 import { useBoard } from './useBoard.ts'
+import { type WorkspaceState, useWorkspace, useWorkspaceMemory } from './workspace.ts'
 
 type DocNodeData = {
   node: DocNode
@@ -174,11 +175,13 @@ function minimapClass(node: FlowNode): string {
   return doc.ok ? `minimap-status-${doc.status}` : 'minimap-anomaly'
 }
 
-function Canvas() {
+function Canvas({ wid }: { wid: string }) {
+  // Every read this board makes goes under its workspace's prefix (design-00003 §6).
+  const api = boardApi(wid)
   // A clicked desktop notification lands exactly where the session panel's row
   // lands (spec-00004-FR-5): `goToSession` below is that one act, held here
   // because half of it is the canvas moving.
-  const board = useBoard(goToSession)
+  const board = useBoard(wid, goToSession)
   const theme = useTheme()
   const { fitView, setCenter } = useReactFlow()
   const [searching, setSearching] = useState(false)
@@ -219,6 +222,32 @@ function Canvas() {
   // (spec-00008-FR-5). Put away, it is not rendered at all — the terminal
   // panel's shape, not a zero-width panel (design-00002 §17.1).
   const [sidebarOpen, setSidebarOpen] = useState(readSidebarOpen)
+  /**
+   * Every workspace's terminals, keyed `wid:sessionId` and held here rather than
+   * in the panel: switching workspace unmounts the panel, and an instance
+   * disposed then would cost the session its output and its scroll position
+   * (spec-00011-AC-8.3, design-00002 §12).
+   */
+  const terminals = useRef<TerminalPool>(new Map())
+  useEffect(() => {
+    const held = terminals.current
+    // The board going away is the end of them: nothing holds them after this.
+    return () => shutPool(held)
+  }, [])
+
+  /**
+   * The board's own half of the presentation state one workspace is left on
+   * (design-00003 §6): the drilldown and the sub-canvas detail. What each id
+   * points at is settled by the effects below, which are the same close-nearest
+   * a refresh runs — a drilled document deleted while the user was away closes
+   * the drilldown and leaves the rest standing (spec-00011-AC-8.5).
+   */
+  useWorkspaceMemory(wid, { drilled, detail }, (saved) => {
+    setDrilled(saved?.drilled)
+    setDetail(saved?.detail)
+    setInspecting(undefined)
+    setPendingFocus(undefined)
+  })
   // v4 has no autoSaveId; this hook is the persistence path (localStorage by default).
   const rows = useDefaultLayout({ id: 'whiteboard-rows', panelIds: ['work', 'terminal'] })
   const columns = useDefaultLayout({ id: 'whiteboard-columns', panelIds: ['canvas', 'editor'] })
@@ -751,6 +780,10 @@ function Canvas() {
               <>
                 <ResizablePanel id="sidebar" defaultSize={18} minSize={12}>
                   <Sidebar
+                    // A different workspace is a different list with expanded
+                    // state of its own (design-00003 §6).
+                    key={wid}
+                    wid={wid}
                     groups={groups}
                     selected={board.selected}
                     expandedGroups={board.expandedGroups}
@@ -856,6 +889,7 @@ function Canvas() {
                     <ResizableHandle withHandle />
                     <ResizablePanel id="editor" defaultSize={38} minSize={20}>
                       <Editor
+                        wid={wid}
                         docId={board.editing}
                         draft={board.draft}
                         mode={board.editorMode}
@@ -960,6 +994,11 @@ function Canvas() {
             <ResizableHandle withHandle />
             <ResizablePanel id="terminal" defaultSize={35} minSize={15}>
               <Terminal
+                wid={wid}
+                // The pool is the board's, not the panel's: a workspace switch
+                // takes the panel out of the tree and must cost no session its
+                // output or its scroll position (spec-00011-AC-8.3).
+                pool={terminals.current}
                 session={board.shownSession}
                 dark={theme.isDark}
                 // One terminal per session is kept alive, and the cap on
@@ -1045,22 +1084,46 @@ function Canvas() {
         // it, so the list is not closed on the way (spec-00005-FR-7).
         onStop={(session) => void board.stopSession(session.id)}
       />
-      <SessionHistory open={history} onOpenChange={setHistory} />
+      <SessionHistory wid={wid} open={history} onOpenChange={setHistory} />
       {/* A save changes the agent lists of this page at once and of no other
           (spec-00009-FR-8); the dialog stays open, since more than one entry may
           be on the way (design-00002 §18.4). */}
-      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} onSaved={board.applyAgents} />
+      <SettingsDialog wid={wid} open={settingsOpen} onOpenChange={setSettingsOpen} onSaved={board.applyAgents} />
       <Toaster position="bottom-right" theme={theme.isDark ? 'dark' : 'light'} richColors closeButton />
     </div>
     </JumpContext.Provider>
   )
 }
 
+/**
+ * The page before a workspace is settled on, and when the one the URL names
+ * cannot be opened (spec-00011-FR-9). A placeholder: the switcher, the empty
+ * state and the designed page states are T9's — this one only has to say what
+ * happened and to address no workspace's API (spec-00011-AC-9.3).
+ */
+function WorkspacePlaceholder({ state }: { state: Exclude<WorkspaceState, { status: 'ready' }> }) {
+  const said =
+    state.status === 'loading'
+      ? 'Opening…'
+      : state.status === 'empty'
+        ? 'No workspace is registered.'
+        : state.status === 'unregistered'
+          ? `No workspace ${state.wid} is registered.`
+          : state.reason
+  return (
+    <div role="status" className="text-muted-foreground flex h-full items-center justify-center p-8 text-sm">
+      {said}
+    </div>
+  )
+}
+
 export function Board() {
+  const workspace = useWorkspace()
+  if (workspace.state.status !== 'ready') return <WorkspacePlaceholder state={workspace.state} />
   return (
     <ReactFlowProvider>
       <TooltipProvider>
-        <Canvas />
+        <Canvas wid={workspace.state.wid} />
       </TooltipProvider>
     </ReactFlowProvider>
   )

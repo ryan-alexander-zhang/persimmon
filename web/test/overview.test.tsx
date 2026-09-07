@@ -6,7 +6,10 @@ import { toast } from 'sonner'
 import type { DocGraph, DocNode } from '../../src/docRepository.ts'
 import type { ItemsView } from '../../src/requirements.ts'
 import { Board } from '../src/Board.tsx'
-import { type CoverageRow, api } from '../src/api.ts'
+import { type CoverageRow, boardApi } from '../src/api.ts'
+
+// Every read goes under the workspace the harness registers (design-00003 §6).
+const api = boardApi('alpha')
 
 // Opening the board, drilling into a sub-canvas and pushing a change through it
 // is heavy, and the suite runs its files side by side; the default five seconds
