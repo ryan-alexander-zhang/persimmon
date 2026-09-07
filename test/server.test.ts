@@ -1,4 +1,4 @@
-import type { Server } from 'node:http'
+import { type Server, createServer } from 'node:http'
 import { appendFileSync, chmodSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -15,6 +15,7 @@ import { clarifyStatePath } from '../src/sessionTasks.ts'
 import {
   SESSION_WAIT,
   armWatch,
+  boundPort,
   commitCount,
   doc,
   git,
@@ -94,16 +95,17 @@ function boardOnRepo(
   spawnHeadless?: SpawnHeadless,
 ) {
   const board = new Board({ repoRoot, docsDir, config, spawn, spawnHeadless, awaitThresholdMs })
-  const server = board.listen(0)
+  // Bound to the address the calls below dial, so the port is this board's own (issue-00028).
+  const server = board.listen(0, '127.0.0.1')
   servers.push(server)
   // The http server only announces its close once every socket has gone, and a
   // test may leave one open; letting go of the file watches here keeps a suite
   // of several dozen boards from running the process out of descriptors.
   watching.push(board)
-  const port = (server.address() as { port: number }).port
+  const port = boundPort(server)
 
   const call = async (method: string, path: string, body?: unknown) => {
-    const response = await fetch(`http://127.0.0.1:${port}${path}`, {
+    const response = await fetch(`http://127.0.0.1:${await port}${path}`, {
       method,
       headers: body ? { 'content-type': 'application/json' } : undefined,
       body: body ? JSON.stringify(body) : undefined,
@@ -163,6 +165,30 @@ function scriptedAgents() {
 afterEach(async () => {
   for (const server of servers.splice(0)) server.close()
   await Promise.all(watching.splice(0).map((board) => board.watcher.close()))
+})
+
+/**
+ * issue-00028: the address bound is the address dialled. A wildcard bind takes
+ * the port only on the wildcard address, so a process holding `127.0.0.1:P`
+ * keeps answering the calls the tests make there — silently, since the board
+ * came up without complaint. Naming the address turns that theft into a refusal.
+ */
+describe('the port a board serves on', () => {
+  it('refuses to come up on a port a loopback listener already holds', async () => {
+    const squatter = createServer()
+    await new Promise<void>((resolve) => void squatter.listen(0, '127.0.0.1', resolve))
+    servers.push(squatter)
+    const port = (squatter.address() as { port: number }).port
+
+    const { repoRoot, docsDir } = makeRepo({ 'idea/a.md': ACTIVE_IDEA })
+    const board = new Board({ repoRoot, docsDir, config: testConfig() })
+    watching.push(board)
+    const server = board.listen(port, '127.0.0.1')
+    servers.push(server)
+
+    const failure = await new Promise<NodeJS.ErrnoException>((resolve) => void server.on('error', resolve))
+    expect(failure.code).toBe('EADDRINUSE')
+  })
 })
 
 describe('GET /api/graph', () => {
@@ -686,10 +712,10 @@ describe('sessions', () => {
         kill: () => {},
       }),
     })
-    const server = board.listen(0)
+    const server = board.listen(0, '127.0.0.1')
     servers.push(server)
     watching.push(board)
-    const port = (server.address() as { port: number }).port
+    const port = await boundPort(server)
     const advance = (sourceId: string) =>
       fetch(`http://127.0.0.1:${port}/api/sessions`, {
         method: 'POST',
@@ -1210,11 +1236,11 @@ describe('terminal size frames', () => {
         resize: (cols: number, rows: number) => void sizes.push({ cols, rows }),
       }),
     })
-    const server = board.listen(0)
+    const server = board.listen(0, '127.0.0.1')
     servers.push(server)
     watching.push(board)
     const session = board.sessions.start({ kind: 'audit', sourceId: 'idea-00001-x', instruction: 'audit this' })
-    return { board, sizes, typed, session, port: (server.address() as { port: number }).port }
+    return { board, sizes, typed, session, port: boundPort(server) }
   }
 
   /**
@@ -1236,7 +1262,7 @@ describe('terminal size frames', () => {
   // spec-00001-AC-12.5
   it('resizes the session pty to the size the attached terminal reports', async () => {
     const { sizes, port, session } = boardWithRecordingPty()
-    const socket = await attach(port, session.id)
+    const socket = await attach(await port, session.id)
 
     socket.send(sizeFrame(100, 40))
 
@@ -1247,7 +1273,7 @@ describe('terminal size frames', () => {
   // spec-00001-AC-12.6 — the panel moved, so the size the pty holds moves with it
   it('resizes the pty again for every later size frame', async () => {
     const { sizes, port, session } = boardWithRecordingPty()
-    const socket = await attach(port, session.id)
+    const socket = await attach(await port, session.id)
 
     socket.send(sizeFrame(100, 40))
     socket.send(sizeFrame(80, 24))
@@ -1263,7 +1289,7 @@ describe('terminal size frames', () => {
 
   it('keeps a size frame out of stdin, and a keystroke out of the size', async () => {
     const { sizes, typed, port, session } = boardWithRecordingPty()
-    const socket = await attach(port, session.id)
+    const socket = await attach(await port, session.id)
 
     socket.send(sizeFrame(100, 40))
     socket.send('{"cols":9,"rows":9}')
@@ -1279,7 +1305,7 @@ describe('terminal size frames', () => {
 
   it('drops a control frame it cannot read as a size, and carries on', async () => {
     const { sizes, typed, port, session } = boardWithRecordingPty()
-    const socket = await attach(port, session.id)
+    const socket = await attach(await port, session.id)
 
     socket.send(Buffer.from('not json at all'))
     socket.send(Buffer.from(JSON.stringify({ cols: 'wide', rows: null })))
@@ -1319,7 +1345,7 @@ describe('the terminal socket', () => {
     ])
     const { body: started } = await call('POST', '/api/sessions', { sourceId: 'idea-00001-x', targetType: 'prd' })
 
-    const terminal = connect(port, started.id)
+    const terminal = connect(await port, started.id)
     await terminal.opened
     await vi.waitFor(() => expect(terminal.text).toContain('got:Write one new prd document'), SESSION_WAIT)
     // The line-reading stand-in completes the instruction's last line only once
@@ -1340,13 +1366,13 @@ describe('the terminal socket', () => {
     ])
     const { body: started } = await call('POST', '/api/sessions', { sourceId: 'idea-00001-x', targetType: 'prd' })
 
-    const first = connect(port, started.id)
+    const first = connect(await port, started.id)
     await first.opened
     await vi.waitFor(() => expect(first.text).toContain('printed early'), SESSION_WAIT)
     first.socket.close()
     await first.closed
 
-    const second = connect(port, started.id)
+    const second = connect(await port, started.id)
     await second.opened
     await vi.waitFor(() => expect(second.text).toContain('printed early'), SESSION_WAIT)
     second.socket.close()
@@ -1365,8 +1391,8 @@ describe('the terminal socket', () => {
     const { body: advance } = await call('POST', '/api/sessions', { sourceId: 'idea-00001-x', targetType: 'prd' })
     const { body: clarify } = await call('POST', '/api/sessions/clarify', { docId: 'spec-00001-b' })
 
-    const first = connect(port, advance.id)
-    const second = connect(port, clarify.id)
+    const first = connect(await port, advance.id)
+    const second = connect(await port, clarify.id)
     await Promise.all([first.opened, second.opened])
 
     await vi.waitFor(() => expect(first.text).toContain('got:Write one new prd document'), SESSION_WAIT)
@@ -1378,14 +1404,14 @@ describe('the terminal socket', () => {
 
   it('closes a terminal opened on no session at all', async () => {
     const { port } = boardOn({})
-    const terminal = connect(port)
+    const terminal = connect(await port)
     await terminal.closed
     expect(terminal.text).toBe('')
   })
 
   it('closes a terminal opened on a session id it does not know', async () => {
     const { port } = boardOn({})
-    const terminal = connect(port, 'no-such-session')
+    const terminal = connect(await port, 'no-such-session')
     await terminal.closed
     expect(terminal.text).toBe('')
   })
@@ -1423,8 +1449,8 @@ describe('the docs-change socket', () => {
    * would go unheard — a board reconnecting into it re-reads anyway
    * (spec-00001-FR-43), so it is the test, not the board, that must not race.
    */
-  async function subscribe(open: { port: number; board: Board }) {
-    const socket = new WebSocket(`ws://127.0.0.1:${open.port}/api/events`)
+  async function subscribe(open: { port: Promise<number>; board: Board }) {
+    const socket = new WebSocket(`ws://127.0.0.1:${await open.port}/api/events`)
     let signals = 0
     socket.addEventListener('message', () => {
       signals += 1
@@ -1505,7 +1531,7 @@ describe('the docs-change socket', () => {
     const { port, board } = open
     const watching = await subscribe(open)
 
-    await fetch(`http://127.0.0.1:${port}/api/sessions`, {
+    await fetch(`http://127.0.0.1:${await port}/api/sessions`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ sourceId: 'idea-00001-x', targetType: 'prd' }),
@@ -1526,7 +1552,7 @@ describe('the docs-change socket', () => {
     const { port, board } = open
     const watching = await subscribe(open)
 
-    await fetch(`http://127.0.0.1:${port}/api/sessions`, {
+    await fetch(`http://127.0.0.1:${await port}/api/sessions`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ sourceId: 'idea-00001-x', targetType: 'prd' }),
@@ -1643,7 +1669,7 @@ describe('the docs-change socket', () => {
 
   it('refuses an upgrade on any other path', async () => {
     const { port } = await watchingBoard()
-    const stray = new WebSocket(`ws://127.0.0.1:${port}/api/nothing-here`)
+    const stray = new WebSocket(`ws://127.0.0.1:${await port}/api/nothing-here`)
     stray.addEventListener('error', () => {})
 
     await new Promise<void>((resolve) => stray.addEventListener('close', () => resolve()))
@@ -3565,7 +3591,7 @@ describe('ask threads', () => {
     const { call, board, port } = askBoard()
     const { body } = await ask(call, { docId: 'spec-00001-b', question: 'why two gates?' })
 
-    const socket = new WebSocket(`ws://127.0.0.1:${port}/api/terminal?sessionId=${body.sessionId}`)
+    const socket = new WebSocket(`ws://127.0.0.1:${await port}/api/terminal?sessionId=${body.sessionId}`)
     const closed = new Promise<void>((resolve) => socket.addEventListener('close', () => resolve()))
 
     await closed

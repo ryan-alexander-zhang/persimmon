@@ -653,11 +653,14 @@ export class Board {
 
   /**
    * Serve on a port of this board's own: an http server for its routes, with the
-   * upgrades routed by path to the two sockets `attach()` opened.
+   * upgrades routed by path to the two sockets `attach()` opened. `host` binds
+   * the one address the caller will dial, so the port is actually this board's
+   * and not merely free on the wildcard address (issue-00028); left out, the
+   * bind stays the wildcard one this path has always used.
    */
-  listen(port: number): Server {
+  listen(port: number, host?: string): Server {
     const { handleUpgrade } = this.attach()
-    const server = this.app.listen(port)
+    const server = host === undefined ? this.app.listen(port) : this.app.listen(port, host)
     server.on('upgrade', (request, socket, head) => {
       // The kind is the path under `/api/`, which is what a host reads off the
       // tail of `/w/:wid/api/...` as well (design-00003 §5); anything else

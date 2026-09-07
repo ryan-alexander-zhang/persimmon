@@ -4,7 +4,7 @@ import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { MINIMAL_CONFIG, freePort, makeRepo } from './helpers.ts'
+import { MINIMAL_CONFIG, boundPort, freePort, makeRepo } from './helpers.ts'
 
 /**
  * The entry point as a lifecycle: it comes up on the port it is given, refuses a
@@ -78,7 +78,12 @@ describe('starting the board', () => {
     made.push(repoRoot)
     writeFileSync(join(repoRoot, 'whiteboard.config.yaml'), MINIMAL_CONFIG)
     const port = await freePort()
-    const held = createServer().listen(port)
+    // On loopback, where the entry point binds: a wildcard holder would leave
+    // the port still bindable there, so the test would assert a refusal of a
+    // port the process could in fact have had (issue-00028). Waited for, since
+    // a named bind lands a tick later and `boot()` blocks this event loop.
+    const held = createServer().listen(port, '127.0.0.1')
+    await boundPort(held)
 
     const result = boot(repoRoot, makeHome(), port)
     held.close()

@@ -98,7 +98,8 @@ async function hosted(
     const { pathname } = new URL(request.url ?? '/', 'http://host')
     handleUpgrade(pathname.slice(1), request, socket, head)
   })
-  await new Promise<void>((resolve) => void server.listen(0, resolve))
+  // Bound to the address the calls below dial, so the port is this board's own (issue-00028).
+  await new Promise<void>((resolve) => void server.listen(0, '127.0.0.1', resolve))
   opened.push({ board, server })
   return { board, docsDir, port: (server.address() as { port: number }).port }
 }

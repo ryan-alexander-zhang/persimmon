@@ -1,4 +1,5 @@
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -9,7 +10,7 @@ import { Host } from '../src/host.ts'
 import type { Board, BoardOptions } from '../src/server.ts'
 import type { PtyProcess, SpawnPty } from '../src/sessionManager.ts'
 import type { WorkspaceEntry } from '../src/workspaceRegistry.ts'
-import { armWatch, commitCount, doc, git, makeRepo } from './helpers.ts'
+import { armWatch, boundPort, commitCount, doc, git, makeRepo } from './helpers.ts'
 
 /**
  * The host of design-00003 §4/§5/§7: the instance table and its laziness, the
@@ -122,11 +123,12 @@ function hostOn(workspaces: WorkspaceEntry[], seams: Pick<BoardOptions, 'spawn'>
   writeFileSync(registryPath, `${JSON.stringify({ version: 1, workspaces }, null, 2)}\n`)
   const host = new Host({ registryPath, version: '9.9.9', ...seams })
   hosts.push(host)
-  const server = host.listen(0)
-  const port = (server.address() as { port: number }).port
+  // Bound to the address the calls below dial, so the port is this host's own (issue-00028).
+  const server = host.listen(0, '127.0.0.1')
+  const port = boundPort(server)
 
   const call = async (method: string, path: string, body?: unknown) => {
-    const response = await fetch(`http://127.0.0.1:${port}${path}`, {
+    const response = await fetch(`http://127.0.0.1:${await port}${path}`, {
       method,
       headers: body ? { 'content-type': 'application/json' } : undefined,
       body: body ? JSON.stringify(body) : undefined,
@@ -146,8 +148,8 @@ function parsed(text: string): any {
 }
 
 /** A socket through the host's one upgrade listener; `opened` is false if it was destroyed or refused. */
-async function connect(port: number, path: string) {
-  const socket = new WebSocket(`ws://127.0.0.1:${port}${path}`)
+async function connect(port: Promise<number>, path: string) {
+  const socket = new WebSocket(`ws://127.0.0.1:${await port}${path}`)
   sockets.push(socket)
   const frames: string[] = []
   socket.addEventListener('message', (event) => void frames.push(String(event.data)))
@@ -834,6 +836,28 @@ describe('shutting the host down', () => {
 
     expect(commitCount(open.alpha.path)).toBe(commits.alpha)
     expect(commitCount(open.demo.path)).toBe(commits.demo)
+  })
+
+  /**
+   * issue-00028: the process binds loopback, as spec-00011 §6 and
+   * ARCHITECTURE.md §2 have it, so a listener already on `127.0.0.1:P` is a
+   * refusal rather than a second server the port silently answers past.
+   */
+  it('refuses to come up on a port a loopback listener already holds', async () => {
+    const squatter = createServer()
+    await new Promise<void>((resolve) => void squatter.listen(0, '127.0.0.1', resolve))
+    const port = (squatter.address() as { port: number }).port
+    const registryPath = join(temporary('wb-registry-'), 'workspaces.json')
+    writeFileSync(registryPath, `${JSON.stringify({ version: 1, workspaces: [] }, null, 2)}\n`)
+    const host = new Host({ registryPath, version: '9.9.9' })
+    hosts.push(host)
+
+    const failure = await new Promise<NodeJS.ErrnoException>((resolve) => {
+      host.listen(port).on('error', resolve)
+    })
+
+    expect(failure.code).toBe('EADDRINUSE')
+    squatter.close()
   })
 
   // spec-00011-FR-18: an ill-formed registry refuses the start, before a port is taken

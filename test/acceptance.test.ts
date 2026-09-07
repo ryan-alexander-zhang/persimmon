@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { spawnPty } from '../src/pty.ts'
 import { Board } from '../src/server.ts'
-import { SESSION_WAIT, doc, git, makeRepo, relationEdge, testConfig } from './helpers.ts'
+import { SESSION_WAIT, boundPort, doc, git, makeRepo, relationEdge, testConfig } from './helpers.ts'
 
 /**
  * The acceptance path of plan-00001: the five stories walked end to end over the
@@ -35,12 +35,13 @@ function startBoard(agentArgs: string[], files: Record<string, string> = { 'idea
   const config = testConfig()
   config.agents[0] = { ...config.agents[0]!, args: agentArgs }
   const board = new Board({ repoRoot, docsDir, config, spawn: spawnPty })
-  const server = board.listen(0)
+  // Bound to the address the calls below dial, so the port is this board's own (issue-00028).
+  const server = board.listen(0, '127.0.0.1')
   servers.push(server)
-  const port = (server.address() as { port: number }).port
+  const port = boundPort(server)
 
   const call = async (method: string, path: string, body?: unknown) => {
-    const response = await fetch(`http://127.0.0.1:${port}${path}`, {
+    const response = await fetch(`http://127.0.0.1:${await port}${path}`, {
       method,
       headers: body ? { 'content-type': 'application/json' } : undefined,
       body: body ? JSON.stringify(body) : undefined,
@@ -173,9 +174,9 @@ describe('the whiteboard acceptance path', () => {
     ] as const) {
       config.agents[0] = { ...config.agents[0]!, args: ['-e', product(front, 'x.md')] }
       const board = new Board({ repoRoot, docsDir, config, spawn: spawnPty })
-      const server = board.listen(0)
+      const server = board.listen(0, '127.0.0.1')
       servers.push(server)
-      const port = (server.address() as { port: number }).port
+      const port = await boundPort(server)
 
       await fetch(`http://127.0.0.1:${port}/api/sessions`, {
         method: 'POST',

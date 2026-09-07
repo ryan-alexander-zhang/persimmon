@@ -68,10 +68,14 @@ export class Host {
    * Serve on the one http server the process has (design-00003 §1). An
    * ill-formed registry refuses the start here, before the port is taken
    * (spec-00011-FR-18): the error is thrown for the CLI to print.
+   *
+   * The bind is loopback by default — the constraint spec-00011 §6 and
+   * ARCHITECTURE.md §2 already state, and the address the CLI's handshake
+   * probes, so probe and bind ask the same question (issue-00028).
    */
-  listen(port: number): Server {
+  listen(port: number, host = '127.0.0.1'): Server {
     this.registry.read()
-    const server = this.app.listen(port)
+    const server = this.app.listen(port, host)
     server.on('upgrade', (request, socket, head) => void this.upgrade(request, socket, head))
     this.server = server
     return server

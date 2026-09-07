@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { createServer } from 'node:net'
+import { type Server, createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { expect, vi } from 'vitest'
@@ -155,13 +155,25 @@ agents:
 `
 
 /**
+ * The port a server bound to, once it has. A bind that names its address goes
+ * through a lookup and lands a tick after the call, unlike the wildcard form
+ * that reports its port straight away (issue-00028).
+ */
+export function boundPort(server: Server): Promise<number> {
+  return new Promise((resolve) => server.once('listening', () => resolve((server.address() as { port: number }).port)))
+}
+
+/**
  * A port nothing is listening on, bound and let go of again. The CLI's start
  * handshake probes the port before it takes it (design-00003 §8), so `PORT=0`
  * is not a port it can be pointed at — an ephemeral port asked for beforehand is.
+ *
+ * Probed on the address the caller will bind, since a port free on the wildcard
+ * address can still be held on loopback (issue-00028).
  */
 export function freePort(): Promise<number> {
   return new Promise((resolve) => {
-    const server = createServer().listen(0, () => {
+    const server = createServer().listen(0, '127.0.0.1', () => {
       const { port } = server.address() as { port: number }
       server.close(() => resolve(port))
     })

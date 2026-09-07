@@ -135,10 +135,13 @@ function judged(entries) {
  * nobody, or somebody else. A timeout counts as occupied — a running process
  * busy with a synchronous read can answer late, and reading a timeout as
  * anything but «taken» is what would start a second process on a held port.
+ *
+ * The address is the one `Host.listen()` binds, so the probe and the bind name
+ * the same `(address, port)` pair rather than two different ones (issue-00028).
  */
 async function probe() {
   try {
-    const response = await fetch(`http://localhost:${port}/api/instance`, { signal: AbortSignal.timeout(1000) })
+    const response = await fetch(`http://127.0.0.1:${port}/api/instance`, { signal: AbortSignal.timeout(1000) })
     const instance = response.ok ? await response.json().catch(() => null) : null
     return instance?.app === 'persimmon' ? { kind: 'running', version: instance.version } : { kind: 'occupied' }
   } catch (error) {

@@ -165,7 +165,8 @@ function hold(server: Server, port: number): void {
 async function runningHost(home: string): Promise<number> {
   const host = new Host({ registryPath: registryPathOf(home), version: '9.9.9' })
   hosts.push(host)
-  const server = host.listen(0)
+  // Bound to the address the callers below dial, so the port is this host's own (issue-00028).
+  const server = host.listen(0, '127.0.0.1')
   await new Promise((resolve) => server.once('listening', resolve))
   return (server.address() as { port: number }).port
 }
