@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { expect, vi } from 'vitest'
@@ -140,6 +141,31 @@ export async function armWatch(watcher: DocsWatcher, docsDir: string): Promise<v
   stop()
   rmSync(probe)
   await new Promise((resolve) => setTimeout(resolve, 4 * DEBOUNCE_MS))
+}
+
+/** The smallest flow config that loads: what a directory needs to be a project at all (spec-00001-FR-15). */
+export const MINIMAL_CONFIG = `types:
+  idea: { kind: living }
+relations: [parent]
+flow: {}
+focus:
+  idea: is it worth doing, and for whom
+agents:
+  claude: { command: claude }
+`
+
+/**
+ * A port nothing is listening on, bound and let go of again. The CLI's start
+ * handshake probes the port before it takes it (design-00003 §8), so `PORT=0`
+ * is not a port it can be pointed at — an ephemeral port asked for beforehand is.
+ */
+export function freePort(): Promise<number> {
+  return new Promise((resolve) => {
+    const server = createServer().listen(0, () => {
+      const { port } = server.address() as { port: number }
+      server.close(() => resolve(port))
+    })
+  })
 }
 
 export function git(repoRoot: string, ...args: string[]): string {
