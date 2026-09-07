@@ -35,7 +35,10 @@ class ChannelSocket {
 
   constructor(readonly url: string) {
     if (ChannelSocket.throwOnConstruct) throw new Error('the board cannot even dial')
-    ChannelSocket.opened.push(this)
+    // The host's own channel is the notification layer's, not this board's
+    // (design-00003 §5, §9): the cases below count and drive the docs channel,
+    // so that one is not recorded here.
+    if (!url.endsWith('/api/workspaces/events')) ChannelSocket.opened.push(this)
   }
 
   addEventListener(type: string, listener: (event: { data: string }) => void) {

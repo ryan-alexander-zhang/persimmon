@@ -84,7 +84,8 @@ import { typeGroups } from './sidebarModel.ts'
 import { detailTarget, subCanvas } from './subCanvas.ts'
 import { useTheme } from './theme.ts'
 import { useBoard } from './useBoard.ts'
-import { useWorkspace, useWorkspaceMemory } from './workspace.ts'
+import { type WorkspaceHandle, useWorkspace, useWorkspaceMemory } from './workspace.ts'
+import { useWorkspaceNotifications } from './workspaceNotifications.ts'
 
 type DocNodeData = {
   node: DocNode
@@ -176,13 +177,18 @@ function minimapClass(node: FlowNode): string {
   return doc.ok ? `minimap-status-${doc.status}` : 'minimap-anomaly'
 }
 
-function Canvas({ wid, switcher }: { wid: string; switcher: ReactNode }) {
+function Canvas({ wid, workspace, switcher }: { wid: string; workspace: WorkspaceHandle; switcher: ReactNode }) {
   // Every read this board makes goes under its workspace's prefix (design-00003 §6).
   const api = boardApi(wid)
-  // A clicked desktop notification lands exactly where the session panel's row
-  // lands (spec-00004-FR-5): `goToSession` below is that one act, held here
-  // because half of it is the canvas moving.
-  const board = useBoard(wid, goToSession)
+  const board = useBoard(wid)
+  /**
+   * Every open workspace's desktop notifications (spec-00011-FR-17). The switch
+   * they are turned on at is here too, so the one hook that owns the permission
+   * owns the union read as well (design-00003 §9); a clicked notice lands
+   * exactly where the session panel's row lands — `goToSession` below is that
+   * one act, held here because half of it is the canvas moving (spec-00004-FR-5).
+   */
+  const notify = useWorkspaceNotifications(goToNotified)
   const theme = useTheme()
   const { fitView, setCenter } = useReactFlow()
   const [searching, setSearching] = useState(false)
@@ -213,6 +219,11 @@ function Canvas({ wid, switcher }: { wid: string; switcher: ReactNode }) {
   // which for a document inside a collapsed group is only after the group has
   // opened (spec-00010-AC-7.1, design-00002 §19.3).
   const [pendingFocus, setPendingFocus] = useState<{ id: string; width: number; centred: boolean }>()
+  // The session a notification click asked for in a workspace that was not the
+  // current one: the switch has emptied this board, and the session can only be
+  // resolved once that workspace's own listing has landed
+  // (spec-00011-AC-17.2, design-00003 §9).
+  const [notified, setNotified] = useState<{ wid: string; id: string }>()
   // React Flow's own measurement of the canvas, which is the width `setCenter`
   // and `fitView` divide by. It lands a frame after the panel mounts, so it —
   // not the commit that mounted the panel — is the signal that the layout is
@@ -504,6 +515,16 @@ function Canvas({ wid, switcher }: { wid: string; switcher: ReactNode }) {
     if (at) setCenter(at.x + NODE_WIDTH / 2, at.y + NODE_HEIGHT / 2, { zoom: 1, duration: 300 })
   }
 
+  // The switch a clicked notification asked for has landed and this workspace's
+  // sessions are in: what is left is the ordinary act, so the notice's three-way
+  // close-nearest is the session panel row's own and there is no second reading
+  // of it (spec-00011-AC-17.2, design-00003 §9).
+  useEffect(() => {
+    if (notified === undefined || notified.wid !== wid || !board.sessionsRead) return
+    setNotified(undefined)
+    goToSessionId(notified.id)
+  }, [notified, wid, board.sessionsRead, board.sessions])
+
   // The centring above ran against the full canvas; the inspector then takes a
   // third of it, which leaves the node — and the right end of its floating
   // toolbar — under the panel's edge. Centre again once the canvas has actually
@@ -569,6 +590,43 @@ function Canvas({ wid, switcher }: { wid: string; switcher: ReactNode }) {
    */
   function goToSession(session: SessionListing) {
     if (board.showSession(session.id)) focus(session.sourceId)
+  }
+
+  /**
+   * The same act off a session id alone, which is all a notification carries
+   * (spec-00011-AC-17.7). It is resolved against this board's own listing: a
+   * session the server no longer holds is refused by `showSession`, where that
+   * refusal already lives (spec-00004-AC-5.2).
+   */
+  function goToSessionId(id: string) {
+    const session = board.sessions.find((one) => one.id === id)
+    if (session === undefined) board.showSession(id)
+    else goToSession(session)
+  }
+
+  /**
+   * A clicked desktop notification, which names the workspace it came from
+   * (spec-00011-FR-17). Another workspace has to become the current one first,
+   * and a refusal — removed, or its directory gone — is the whole of what
+   * happens: the view does not move (spec-00011-AC-17.4, AC-17.5). The session
+   * itself waits for that workspace's listing, since `showSession` resolves
+   * against the board that is showing (design-00003 §9).
+   */
+  async function goToNotified(from: string, sessionId: string) {
+    if (from === wid) {
+      goToSessionId(sessionId)
+      return
+    }
+    // The registry as it is now, not as the page last read it: the workspace may
+    // have been removed, or lost its directory, since the notice went out — and
+    // the refusal has to be the current answer (design-00003 §9).
+    await workspace.reload()
+    const refusal = workspace.switchWorkspace(from)
+    if (refusal !== undefined) {
+      toast.error(refusal)
+      return
+    }
+    setNotified({ wid: from, id: sessionId })
   }
 
   /** Put the sidebar away or bring it back, and remember which (spec-00008-FR-5). */
@@ -757,7 +815,7 @@ function Canvas({ wid, switcher }: { wid: string; switcher: ReactNode }) {
           {/* Being called back when the board is not in front of the user is a
               choice made once and remembered, so its switch is resident next to
               the theme (spec-00004-FR-1, design-00002 §3). */}
-          <NotifySwitch state={board.notifyState} onToggle={board.toggleNotify} />
+          <NotifySwitch state={notify.state} onToggle={notify.toggle} />
           {/* Where the two agent layers are read and the local one written
               (spec-00009-FR-7). Before the theme toggle, and a dialog rather
               than a slot: settings are not an act upon a document
@@ -1107,7 +1165,11 @@ export function Board() {
       <TooltipProvider>
         {/* The switcher is built here, where the one `useWorkspace` is, and put
             in whichever bar is on show — the board's or the page's (design-00003 §6). */}
-        <Canvas wid={workspace.state.wid} switcher={<WorkspaceSwitcher workspace={workspace} />} />
+        <Canvas
+          wid={workspace.state.wid}
+          workspace={workspace}
+          switcher={<WorkspaceSwitcher workspace={workspace} />}
+        />
       </TooltipProvider>
     </ReactFlowProvider>
   )

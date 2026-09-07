@@ -1,13 +1,36 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import type { SessionListing } from './api.ts'
 
 /**
  * Desktop notifications: what calls the user back when the board is not in front
  * of them (spec-00004). Nothing here reaches the server — the events are the
- * session listing the board already re-reads, and the whole feature is the page's
+ * session summary the page already re-reads, and the whole feature is the page's
  * own (decision-00010 §5).
  */
+
+/**
+ * One session of one workspace, as this layer needs it. Everything is derived
+ * before it gets here — which is what lets the dedupe, the replacement and the
+ * catch-up below be one implementation over the union of every open workspace
+ * rather than one per board (spec-00011-FR-17, design-00003 §9).
+ */
+export interface NoticeSubject {
+  /**
+   * `${wid}:${sessionId}`: the unit the away stint is counted in and the unit a
+   * notice replaces another in are both «this session of this workspace»
+   * (spec-00011-FR-17, design-00002 §13).
+   */
+  key: string
+  /** Where a click has to land, which may not be the workspace on show (AC-17.2). */
+  wid: string
+  sessionId: string
+  /** `${name} · ${kind} · ${sourceId}`, and the whole of what a title carries (AC-17.7). */
+  title: string
+  status: string
+  awaiting: boolean
+  /** Over, however it got there (spec-00003-FR-7): a catch-up owes it nothing. */
+  ended: boolean
+}
 
 /**
  * The switch's boolean, in the same local layer the panel sizes live in
@@ -59,22 +82,23 @@ function wantedNow(): boolean {
 }
 
 /**
- * The desktop notifications of one page (spec-00004). `sessions` is the listing
- * the board already holds — the events are differences between two readings of
- * it, which the caller diffs and reports through `waiting` and `ended`; `open` is
- * what a click does once the session has been found, the same act the session
- * panel's row performs (spec-00004-FR-5).
+ * The desktop notifications of one page (spec-00004). `subjects` is every open
+ * workspace's sessions as the page last read them — the events are differences
+ * between two readings of that, which the caller diffs and reports through
+ * `waiting` and `ended`; `open` is what a click does, and it names the workspace
+ * because the session may not be on the board that is showing
+ * (spec-00004-FR-5, spec-00011-FR-17).
  */
-export function useDesktopNotifications(sessions: SessionListing[], open: (session: SessionListing) => void) {
+export function useDesktopNotifications(subjects: NoticeSubject[], open: (wid: string, sessionId: string) => void) {
   const [wanted, setWanted] = useState(wantedNow)
   const [permission, setPermission] = useState(permissionNow)
 
   // Everything a notification is posted from is read through a ref: the posting
-  // hangs off the board's refresh, which must not be rebuilt when the switch
-  // moves (it would re-dial the docs-change channel, design-00002 §10).
+  // hangs off the union read, whose one ordered queue must not be rebuilt when
+  // the switch moves (design-00003 §9, design-00002 §10).
   const switchedOn = useRef(wanted)
   const away = useRef(isAway())
-  const listing = useRef(sessions)
+  const held = useRef(subjects)
   const opener = useRef(open)
   /**
    * The sessions whose waiting notice has gone out and is still the last word.
@@ -97,8 +121,9 @@ export function useDesktopNotifications(sessions: SessionListing[], open: (sessi
    */
   const returned = useRef(new Set<string>())
   /**
-   * The notification each session has standing, so the next one of that session
-   * can take its place. «同一会话同刻至多一条» is the page's own to keep: a tag
+   * The notification each subject has standing, so the next one of that session
+   * of that workspace can take its place — one key, one notice standing
+   * (spec-00011-FR-17). «同一会话同刻至多一条» is the page's own to keep: a tag
    * cannot be leaned on for it — on macOS Chrome a tag whose notification has
    * been dismissed is never displayed again, so the second notice of a session
    * was silently dropped (issue-00019).
@@ -113,19 +138,20 @@ export function useDesktopNotifications(sessions: SessionListing[], open: (sessi
 
   useEffect(() => {
     switchedOn.current = wanted
-    listing.current = sessions
+    held.current = subjects
     opener.current = open
-  }, [wanted, sessions, open])
+  }, [wanted, subjects, open])
 
   /**
    * One notification, or none. Nothing is posted while the switch is off, while
    * the permission is anything but granted, or while the page is in front of the
    * user — the badge and the toast are what carry those (spec-00004-FR-4). The
-   * title and the body are built out of the kind, the document id and the state,
-   * and out of nothing else: a notification lands in the system's notification
-   * centre (spec-00004-FR-6).
+   * title and the body are the subject's own, built out of the workspace's
+   * display name, the kind, the document id and the state, and out of nothing
+   * else: a notification lands in the system's notification centre
+   * (spec-00004-FR-6, spec-00011-AC-17.7).
    */
-  const post = useCallback((session: SessionListing, status: string): boolean => {
+  const post = useCallback((subject: NoticeSubject, status: string): boolean => {
     const api = notifier()
     // The permission is read here and not remembered: a browser can take it back
     // while the page is not being looked at, and what that must produce is
@@ -135,16 +161,16 @@ export function useDesktopNotifications(sessions: SessionListing[], open: (sessi
     // Never a stack of one session's notices, and never a tag reused: the one
     // that session has standing is closed here, by us (spec-00004-FR-6,
     // issue-00019).
-    standing.current.get(session.id)?.close()
+    standing.current.get(subject.key)?.close()
     posted.current += 1
-    const notice = new api(`${session.kind} · ${session.sourceId}`, {
-      tag: `${session.id}:${posted.current}`,
+    const notice = new api(subject.title, {
+      tag: `${subject.key}:${posted.current}`,
       body: status,
     })
-    standing.current.set(session.id, notice)
+    standing.current.set(subject.key, notice)
     /** Gone from the screen, however it went: there is nothing left to replace. */
     const forget = () => {
-      if (standing.current.get(session.id) === notice) standing.current.delete(session.id)
+      if (standing.current.get(subject.key) === notice) standing.current.delete(subject.key)
     }
     notice.onclose = forget
     notice.onclick = () => {
@@ -152,15 +178,12 @@ export function useDesktopNotifications(sessions: SessionListing[], open: (sessi
       // Best effort, and said as such: whether the window comes forward is the
       // browser's and the system's to decide (spec-00004-FR-5).
       window.focus()
-      // Resolved against the listing as it stands now, not as it was when the
-      // notice went out: a session the server no longer holds — it restarted —
-      // is refused, and the view does not move (spec-00004-AC-5.2).
-      const current = listing.current.find((one) => one.id === session.id)
-      if (current === undefined) {
-        toast.error(`no session ${session.id} on the board`)
-        return
-      }
-      opener.current(current)
+      // Where the notice came from, not where the page happens to be: the
+      // caller switches workspace if it has to and resolves the session
+      // against that board's own listing, which is also where a session the
+      // server no longer holds is refused (spec-00004-AC-5.2,
+      // spec-00011-AC-17.2, design-00003 §9).
+      opener.current(subject.wid, subject.sessionId)
     }
     return true
   }, [])
@@ -171,11 +194,11 @@ export function useDesktopNotifications(sessions: SessionListing[], open: (sessi
    * already waiting when the board first read the listing is served here too.
    */
   const postWaiting = useCallback(
-    (session: SessionListing) => {
-      if (notified.current.has(session.id)) return
-      if (post(session, 'awaiting')) {
-        notified.current.add(session.id)
-        returned.current.delete(session.id)
+    (subject: NoticeSubject) => {
+      if (notified.current.has(subject.key)) return
+      if (post(subject, 'awaiting')) {
+        notified.current.add(subject.key)
+        returned.current.delete(subject.key)
       }
     },
     [post],
@@ -187,17 +210,17 @@ export function useDesktopNotifications(sessions: SessionListing[], open: (sessi
    * printing at its idle prompt (issue-00020).
    */
   const waiting = useCallback(
-    (session: SessionListing) => {
-      if (returned.current.delete(session.id)) notified.current.delete(session.id)
-      postWaiting(session)
+    (subject: NoticeSubject) => {
+      if (returned.current.delete(subject.key)) notified.current.delete(subject.key)
+      postWaiting(subject)
     },
     [postWaiting],
   )
 
   /** A session has just ended, however it ended (spec-00004-FR-3). */
   const ended = useCallback(
-    (session: SessionListing) => {
-      post(session, session.status)
+    (subject: NoticeSubject) => {
+      post(subject, subject.status)
     },
     [post],
   )
@@ -225,8 +248,10 @@ export function useDesktopNotifications(sessions: SessionListing[], open: (sessi
         for (const id of notified.current) returned.current.add(id)
         return
       }
-      for (const session of listing.current) {
-        if (session.status === 'running' && session.awaiting === true) postWaiting(session)
+      // Every open workspace's waiting sessions, not only the one on show
+      // (spec-00004-FR-2 as amended, spec-00011-AC-17.9).
+      for (const subject of held.current) {
+        if (!subject.ended && subject.awaiting) postWaiting(subject)
       }
     }
     document.addEventListener('visibilitychange', check)

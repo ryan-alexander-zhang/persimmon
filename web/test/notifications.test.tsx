@@ -105,18 +105,22 @@ function content(notice: Notice): string {
 }
 
 /**
- * The sockets the board dials: the docs-change channel, which a test signals to
- * make a refresh happen (spec-00001-FR-42), and one per session terminal, which
- * only has to answer.
+ * The sockets the page dials: the docs-change channel of the workspace on show,
+ * which a test signals to make a board refresh happen (spec-00001-FR-42); the
+ * host's own channel, which is what the desktop notifications re-read the
+ * workspace summary on (design-00003 §5, §9); and one per session terminal,
+ * which only has to answer.
  */
 class Socket {
   static channel?: Socket
+  static host?: Socket
   static readonly OPEN = 1
   readyState = 1
   private listeners: Record<string, Array<(event: { data: string }) => void>> = {}
 
   constructor(readonly url: string) {
-    if (url.includes('/api/events')) Socket.channel = this
+    if (url.endsWith('/api/workspaces/events')) Socket.host = this
+    else if (url.includes('/api/events')) Socket.channel = this
   }
 
   addEventListener(type: string, listener: (event: { data: string }) => void) {
@@ -142,17 +146,74 @@ async function settle(links = 3) {
   }
 }
 
-/** A change pushed from disk, and nothing else: no click, no keystroke. */
+/**
+ * A change pushed from the server, and nothing else: no click, no keystroke.
+ * Both channels carry it, as they do in the browser — the board re-reads its own
+ * sessions off the docs channel and the notifications re-read the union off the
+ * host's (design-00003 §5, §9).
+ */
 async function push() {
-  await act(async () => Socket.channel!.signal())
+  await act(async () => {
+    Socket.channel!.signal()
+    Socket.host?.signal()
+  })
   await settle()
 }
 
 /** What `GET /api/sessions` answers with; a test moves the server by moving this. */
 let served: SessionListing[] = []
 
+/**
+ * The next `GET /api/workspaces` response, held on its way back: the desktop
+ * notifications read the union through one ordered queue, and holding a response
+ * is how a case shows a reading landing behind a later one (issue-00018,
+ * design-00003 §9).
+ */
+let release: (() => void) | undefined
+let holding = false
+
+function holdUnion() {
+  holding = true
+}
+
+/** Alpha's summary as the host gives it: its live sessions are the ones served here. */
+function registry() {
+  return {
+    workspaces: [
+      {
+        id: 'alpha',
+        name: 'alpha',
+        path: '/tmp/alpha',
+        availability: 'available',
+        sessions: served.map(({ id, kind, sourceId, status, awaiting }) => ({
+          id,
+          kind,
+          sourceId,
+          status,
+          awaiting,
+        })),
+      },
+    ],
+  }
+}
+
 function serve(sessions: SessionListing[] = []) {
   served = sessions
+  // The desktop notifications no longer read this board's listing at all: they
+  // read every open workspace's sessions off the host (design-00003 §9).
+  vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
+    const url = String(input)
+    if (!url.endsWith('/api/workspaces')) throw new TypeError(`fetch failed: ${url}`)
+    // Read now, not when the response is awaited: a held response carries the
+    // state the server had when the read went out (issue-00018).
+    const body = registry()
+    const answer = { ok: true, status: 200, statusText: 'OK', json: async () => body } as Response
+    if (!holding) return answer
+    holding = false
+    return new Promise<Response>((resolve) => {
+      release = () => resolve(answer)
+    })
+  })
   vi.spyOn(api, 'graph').mockImplementation(async () => structuredClone(GRAPH))
   vi.spyOn(api, 'sessions').mockImplementation(async () => served)
   vi.spyOn(api, 'transitions').mockResolvedValue(['active'])
@@ -217,6 +278,9 @@ const toggle = async () => {
 
 beforeEach(() => {
   Socket.channel = undefined
+  Socket.host = undefined
+  release = undefined
+  holding = false
   hidden = false
   focused = true
   localStorage.removeItem(SWITCH_KEY)
@@ -377,7 +441,7 @@ describe('being called back to a session that is waiting', () => {
 
     expect(Notice.made).toHaveLength(1)
     const notice = Notice.made[0]!
-    expect(notice.title).toBe('clarify · prd-00001-x')
+    expect(notice.title).toBe('alpha · clarify · prd-00001-x')
     expect(notice.options.body).toBe('awaiting')
   })
 
@@ -553,18 +617,22 @@ describe('being called back to a session that is waiting', () => {
     await push()
 
     expect(Notice.made).toHaveLength(2)
-    expect(Notice.made.map((notice) => notice.options.tag?.split(':')[0])).toEqual(['s1', 's2'])
-    expect(Notice.made[1]!.title).toBe('audit · idea-00001-x')
+    expect(Notice.made.map((notice) => notice.options.tag?.split(':').slice(0, 2).join(':'))).toEqual([
+      'alpha:s1',
+      'alpha:s2',
+    ])
+    expect(Notice.made[1]!.title).toBe('alpha · audit · idea-00001-x')
   })
 
   /**
-   * issue-00018 — a refresh that read «not waiting» is still in flight when a
-   * later one reads «waiting». Waiting is not a state a session climbs to and
-   * stays in: the earlier reading has to be folded in before the later one, or
-   * the turn between them is never seen and the session sits waiting with
-   * nobody told.
+   * issue-00018 — a union read that read «not waiting» is still in flight when
+   * the next signal arrives. Waiting is not a state a session climbs to and
+   * stays in: the reading has to be folded in before the one that follows it, and
+   * the one that follows has to be taken at all, or the turn between them is
+   * never seen and the session sits waiting with nobody told. One ordered queue
+   * carries both (design-00003 §9).
    */
-  it('keeps the round when two refreshes land out of order', async () => {
+  it('keeps the round when a union read is still in flight', async () => {
     enabled()
     serve()
     await openBoard()
@@ -580,19 +648,16 @@ describe('being called back to a session that is waiting', () => {
     await comeBack()
     await leave()
 
-    // The answered reading, held back on the graph half of the same refresh.
-    let release: (() => void) | undefined
-    vi.spyOn(api, 'graph').mockImplementationOnce(
-      () => new Promise((resolve) => (release = () => resolve(structuredClone(GRAPH)))),
-    )
+    // The answered reading, held on its way back from the host.
+    holdUnion()
     served = [listing({ awaiting: false })]
-    await act(async () => Socket.channel!.signal())
-    await settle()
+    await push()
 
-    // Silent again, and this refresh has nothing holding it up.
+    // Silent again. This signal queues behind the held read rather than racing
+    // it, so it is taken once that one has been folded in.
     served = [listing({ awaiting: true })]
     await push()
-    // The held one lands.
+    // The held one lands, and the queued read goes out behind it.
     await act(async () => void release?.())
     await settle()
 
@@ -613,7 +678,7 @@ describe('being told a session has ended', () => {
     await push()
 
     expect(Notice.made).toHaveLength(1)
-    expect(Notice.made[0]!.title).toBe('clarify · prd-00001-x')
+    expect(Notice.made[0]!.title).toBe('alpha · clarify · prd-00001-x')
     expect(Notice.made[0]!.options.body).toBe('exited')
   })
 
@@ -653,7 +718,10 @@ describe('being told a session has ended', () => {
     await push()
 
     expect(Notice.made).toHaveLength(2)
-    expect(Notice.made.map((notice) => notice.options.tag?.split(':')[0])).toEqual(['s1', 's2'])
+    expect(Notice.made.map((notice) => notice.options.tag?.split(':').slice(0, 2).join(':'))).toEqual([
+      'alpha:s1',
+      'alpha:s2',
+    ])
     expect(Notice.made[1]!.options.body).toBe('failed')
   })
 
@@ -866,7 +934,7 @@ describe('what a notification carries', () => {
     expect(Notice.made).toHaveLength(2)
     expect(content(Notice.made[0]!)).not.toContain('hunter2')
     expect(content(Notice.made[1]!)).not.toContain('hunter2')
-    expect(Notice.made[0]!.title).toBe('clarify · prd-00001-x')
+    expect(Notice.made[0]!.title).toBe('alpha · clarify · prd-00001-x')
     expect(Notice.made[0]!.options.body).toBe('awaiting')
     expect(Notice.made[1]!.options.body).toBe('exited')
   })
@@ -1049,7 +1117,7 @@ describe('the notification of an ask', () => {
     await push()
 
     expect(Notice.made).toHaveLength(1)
-    expect(Notice.made[0]!.title).toBe('ask · prd-00001-x')
+    expect(Notice.made[0]!.title).toBe('alpha · ask · prd-00001-x')
     expect(Notice.made[0]!.options.body).toBe('exited')
     expect(content(Notice.made[0]!)).not.toContain(SECRET)
   })

@@ -24,7 +24,6 @@ import { connectEvents } from './eventSocket.ts'
 import { prefillFrontMatter } from './frontMatter.ts'
 import { readExpandedGroups, writeExpandedGroups } from './directoryGroups.ts'
 import { layoutGraph, orderedColumns } from './layout.ts'
-import { useDesktopNotifications } from './notify.ts'
 import { useWorkspaceMemory } from './workspace.ts'
 
 const EMPTY_GRAPH: DocGraph = { nodes: [], edges: [], issues: [], diagnostics: [], idOwners: {} }
@@ -40,8 +39,12 @@ const GAPS_NAMED = 5
 /** The cap the board assumes until `GET /api/config` says otherwise (spec-00003-AC-3.5). */
 const DEFAULT_MAX_SESSIONS = 3
 
-/** A session is over once it is any of these, whichever way it got there (spec-00003-FR-7). */
-function ended(session: SessionListing): boolean {
+/**
+ * A session is over once it is any of these, whichever way it got there
+ * (spec-00003-FR-7). Exported for the notification layer, which reads the same
+ * ending off the workspace summary's shorter row (design-00003 §9).
+ */
+export function ended(session: Pick<SessionListing, 'status'>): boolean {
   return session.status !== 'running'
 }
 
@@ -71,11 +74,9 @@ function refusalText(error: unknown): string {
 
 /**
  * Board state: what is on the canvas, what is selected, and which panels are
- * open. `openSession` is what a clicked desktop notification does — the session
- * panel row's own act, which the board owns because half of it is the canvas
- * moving (spec-00004-FR-5).
+ * open.
  */
-export function useBoard(wid: string, openSession: (session: SessionListing) => void) {
+export function useBoard(wid: string) {
   /**
    * This workspace's whole API surface, bound to its `wid` (design-00003 §6).
    * One client per workspace and kept, so it is a dependency like any other
@@ -220,16 +221,26 @@ export function useBoard(wid: string, openSession: (session: SessionListing) => 
    */
   const bodyMode = useRef<EditorMode>('source')
   /**
-   * How each session was last seen: the status it was in, and whether it was
-   * waiting. The refresh signal is the only channel either reaches the board
-   * through (design-00001 §5), so both are differences between two readings of
-   * the listing rather than events of their own — which is what the toasts
-   * (spec-00003-FR-7) and the desktop notifications (spec-00004-FR-2, FR-3) are
-   * derived from. `undefined` is «nothing read yet»: the first reading is the
-   * baseline and announces nothing, or a board opened after a session ended
-   * would report it as news.
+   * The status each session was last seen in. The refresh signal is the only
+   * channel it reaches the board through (design-00001 §5), so an end is a
+   * difference between two readings of the listing rather than an event of its
+   * own — which is what the toast is derived from (spec-00003-FR-7). The
+   * desktop notifications are **not**: they are the union of every open
+   * workspace's sessions and are diffed a level up, in
+   * `workspaceNotifications.ts` (spec-00011-FR-17, design-00003 §9).
+   * `undefined` is «nothing read yet»: the first reading is the baseline and
+   * announces nothing, or a board opened after a session ended would report it
+   * as news.
    */
-  const seen = useRef<Map<string, { status: string; awaiting: boolean }> | undefined>(undefined)
+  const seen = useRef<Map<string, string> | undefined>(undefined)
+  /**
+   * Whether this workspace's session listing has landed. An empty listing on a
+   * board that has just switched is «not read yet» and not «nothing running»,
+   * and a notification click waiting for the workspace it named has to tell the
+   * two apart before it resolves its session (spec-00011-AC-17.2,
+   * design-00003 §9).
+   */
+  const [sessionsRead, setSessionsRead] = useState(false)
   /**
    * The session on show, readable from `refresh` without making the callback
    * depend on it — the same reason `viewing` is a ref: a `refresh` rebuilt on
@@ -238,12 +249,13 @@ export function useBoard(wid: string, openSession: (session: SessionListing) => 
   const shownRef = useRef<string | undefined>(undefined)
   /**
    * The read in flight, so the next one can queue behind it. Two reads at once
-   * fold their listings into `seen` in whatever order the responses land, and
-   * waiting is not a state a session climbs to and stays in the way a status is:
-   * a «not waiting» reading applied after the «waiting» reading it came before
-   * loses that turn, and a session that then sits waiting never turns again, so
-   * nobody is ever told (issue-00018). Ordered reads are the whole of the fix —
-   * the diff below is right as long as it sees every reading, in order.
+   * fold their listings into `seen` in whatever order the responses land, so a
+   * reading taken while a session still ran, landing after the reading that says
+   * it ended, would put «running» back and let the next reading announce the
+   * same end a second time (issue-00018). Ordered reads are the whole of the fix
+   * — the diff below is right as long as it sees every reading, in order; the
+   * notification layer keeps a queue of its own over the union, for the same
+   * reason (design-00003 §9).
    */
   const reading = useRef<Promise<unknown>>(Promise.resolve())
   /**
@@ -289,42 +301,27 @@ export function useBoard(wid: string, openSession: (session: SessionListing) => 
     [expandedGroups, wid],
   )
 
-  // The desktop side of the same two events (spec-00004): it is fed from the
-  // diff below and posts nothing while the user is looking at the board.
-  const notifications = useDesktopNotifications(sessions, openSession)
-
   /**
    * One toast per session that has just reached an end state, stacked and never
    * folded together (spec-00003-FR-7). A session that appears already ended was
    * never running here — a start that failed on the spawn (spec-00001-FR-16) —
    * and is announced the same way (spec-00003-AC-7.4).
    *
-   * The same diff carries the waiting turns (design-00002 §13): «not waiting →
-   * waiting» is reported as a turn; whether it is owed a desktop notification
-   * is notify.ts's per-away-stint judgment — at most one per session per stint
-   * (spec-00004-FR-2, issue-00020). Waiting being lifted is the user's own
-   * doing and says nothing (spec-00004-AC-2.2).
+   * This board's sessions and no others: another workspace's session ending is
+   * that board's news, not this one's (spec-00011-FR-12, AC-12.6). The desktop
+   * notification of the same end is raised over the union of every open
+   * workspace instead, a level up (spec-00011-FR-17, design-00003 §9).
    */
-  const announce = useCallback(
-    (listing: SessionListing[]) => {
-      const before = seen.current
-      seen.current = new Map(
-        listing.map((session) => [session.id, { status: session.status, awaiting: session.awaiting === true }]),
-      )
-      if (before === undefined) return
-      for (const session of listing) {
-        const was = before.get(session.id)
-        if (ended(session) && was?.status !== session.status) {
-          toast.message(`${session.kind} · ${session.sourceId}`, { description: session.status })
-          notifications.ended(session)
-        }
-        if (!ended(session) && session.awaiting === true && was?.awaiting !== true) {
-          notifications.waiting(session)
-        }
+  const announce = useCallback((listing: SessionListing[]) => {
+    const before = seen.current
+    seen.current = new Map(listing.map((session) => [session.id, session.status]))
+    if (before === undefined) return
+    for (const session of listing) {
+      if (ended(session) && before.get(session.id) !== session.status) {
+        toast.message(`${session.kind} · ${session.sourceId}`, { description: session.status })
       }
-    },
-    [notifications.ended, notifications.waiting],
-  )
+    }
+  }, [])
 
   /** The coverage payload, re-read (spec-00002-AC-10.4). A failure is the toast every read gets. */
   const readCoverage = useCallback(async () => {
@@ -452,9 +449,10 @@ export function useBoard(wid: string, openSession: (session: SessionListing) => 
    * runs: nothing is resolved here (spec-00011-AC-8.4, AC-8.5).
    *
    * `seen` going back to «nothing read yet» is what makes the first listing of a
-   * workspace a baseline rather than news (spec-00011-FR-17, design-00003 §9),
-   * and the expanded groups come back off this workspace's own key
-   * (spec-00011-FR-11).
+   * workspace a baseline rather than news for the toast (spec-00003-FR-7; the
+   * desktop notifications keep a baseline of their own, per workspace —
+   * spec-00011-AC-17.8), and the expanded groups come back off this workspace's
+   * own key (spec-00011-FR-11).
    */
   useWorkspaceMemory(wid, { selected, terminalOpen, shownId, editing, draft, editorMode }, (saved) => {
     onWorkspace.current = wid
@@ -464,6 +462,7 @@ export function useBoard(wid: string, openSession: (session: SessionListing) => 
     reading.current = Promise.resolve()
     setGraph(EMPTY_GRAPH)
     setSessions([])
+    setSessionsRead(false)
     seen.current = undefined
     setItems(undefined)
     setTransitions([])
@@ -543,6 +542,7 @@ export function useBoard(wid: string, openSession: (session: SessionListing) => 
     announce(listing)
     setGraph(next)
     setSessions(listing)
+    setSessionsRead(true)
     // The editor this workspace was left on, put back now that its documents are
     // known. Gone from the graph and it stays closed and nothing else does — the
     // close-nearest of a refresh, on a switch (spec-00011-AC-8.5). A draft is on
@@ -1200,6 +1200,7 @@ export function useBoard(wid: string, openSession: (session: SessionListing) => 
     submitting,
     terminalOpen,
     sessions,
+    sessionsRead,
     // Held by id, resolved from the current listing: a refresh keeps the user on
     // the same session, and one that is gone takes only its terminal view with
     // it (spec-00003-AC-5.6, design-00002 §10).
@@ -1211,10 +1212,6 @@ export function useBoard(wid: string, openSession: (session: SessionListing) => 
     running: runningOf(sessions),
     awaitingCount: sessions.filter((one) => !ended(one) && one.awaiting === true).length,
     maxSessions,
-    // The desktop notification switch: the three-state reading it shows, and the
-    // click that is the one place a permission is asked for (spec-00004-FR-1).
-    notifyState: notifications.state,
-    toggleNotify: notifications.toggle,
     coverageOpen,
     coverage,
     showCoverage,

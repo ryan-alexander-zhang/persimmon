@@ -35,7 +35,10 @@ class ChannelSocket {
   private readonly listeners: Record<string, Array<(event: { data: string }) => void>> = {}
 
   constructor(readonly url: string) {
-    ChannelSocket.opened.push(this)
+    // The host's own channel is the notification layer's, not this board's
+    // (design-00003 §5, §9): the cases below count and drive the docs channel,
+    // so that one is not recorded here.
+    if (!url.endsWith('/api/workspaces/events')) ChannelSocket.opened.push(this)
   }
 
   addEventListener(type: string, listener: (event: { data: string }) => void) {
