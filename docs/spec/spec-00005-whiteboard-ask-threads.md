@@ -18,10 +18,13 @@ parent: prd-00001-docs-whiteboard
 
 - canonical terms 见 `CONTEXT.md`：白板、节点、答疑、Agent 会话、
   会话面板、等待输入、终止、离场、桌面通知、会话历史、会话前快照、
-  呈现状态、workspace、切换器（第二十八轮）。
+  呈现状态、workspace、切换器（第二十八轮）、配置校验（第二十九轮）。
 - 第二十八轮的修订源：[spec-00011-multi-workspace](spec-00011-multi-workspace.md)
   §1 交接——「拒绝启动」一律降为「该 workspace 不可用」，本 spec 的 AC 中
   「该 workspace」指其 Given 所述配置所属的那一个。
+- 第二十九轮的修订源：[plan-00027-multi-workspace](../plan/plan-00027-multi-workspace.md)
+  T1 的回填清单第 (1) 条。第二十八轮只改了 `AC-8.1`，漏了 `FR-8` 正文里同一处
+  「拒绝」，本轮补齐；无其他改动。
 - 输入：`parent` 为 [prd-00001-docs-whiteboard](../prd/prd-00001-docs-whiteboard.md)；
   全部取舍在案于 [decision-00012-whiteboard-ask-threads](../decision/decision-00012-whiteboard-ask-threads.md)
   （与本 spec 同轮接收——plan 开启前其必须已 `active`）。
@@ -202,7 +205,9 @@ parent: prd-00001-docs-whiteboard
 - **spec-00005-FR-8** (Ubiquitous) agent 条目应可携带
   可选的 headless 声明：首调与接续两种命令形态、问题占位与只读旗标
   （接续标识的捕获口径属 design）；声明不合式时，项目层的条目按
-  `spec-00001-FR-15` 启动校验拒绝并点名该条目，本地层的条目按
+  `spec-00001-FR-15` 的配置校验使该 workspace 不可用并点名该条目（第二十九轮：
+  原「启动校验拒绝」——第二十八轮改了 `AC-8.1` 却漏了本条正文；「启动校验」
+  同轮据 Q29.2 正名为「配置校验」，`spec-00011-FR-6`），本地层的条目按
   `spec-00009-FR-4` 处置（本地层整体忽略、不拦启动）；未声明的 agent
   不进入答疑的可选集（FR-2），全部未声明的拒绝面由 FR-7 承接。
   （第二十六轮修订轮：原「流程配置的 agent 条目」——本地 agent 设置的

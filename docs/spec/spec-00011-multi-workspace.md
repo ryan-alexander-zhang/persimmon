@@ -18,9 +18,24 @@ parent: prd-00003-multi-workspace
   会话面板、Agent 会话、等待输入、终止、刷新、变更推送、呈现状态、就近关闭、
   桌面通知、离场、离场区间、流程配置、Agent 设置、本地 agent 设置、
   有效 agent 列表、设置面板、命令面板、动作被拒、会话历史、答疑线程、标注、
-  撞 id、全局覆盖率视图。design-00002 §2 持有的布局词也在本 spec 中使用：
+  撞 id、全局覆盖率视图、配置校验（第二十九轮）。design-00002 §2 持有的布局词也在本 spec 中使用：
   **右槽**、**终端面板**、**工作区**（页面布局区域）。
 - 本 spec 的 Markdown 方言取 GFM。
+- 第二十九轮的修订源：[plan-00027-multi-workspace](../plan/plan-00027-multi-workspace.md)
+  T1 记下的本 spec §1 交接清单缺口，与
+  [issue-00030-npx-leaves-the-pty-spawn-helper-non-executable](../issue/issue-00030-npx-leaves-the-pty-spawn-helper-non-executable.md)。
+  本轮清这些缺口，并经本轮的审计补上审计指出的遗漏；无新增行为，唯二的语义
+  落定是 FR-7 的计数取 `CONTEXT.md` 的「等待输入计入运行中总数」（下述
+  `AC-7.1`：原 Given 与原 Then 相悖，本轮据词汇表定读法——它**不是**两种读法
+  都成立的中立改写，取的是包含读法，实现与其测试同此）与 §7 实测义务的扩面。
+  本轮审计另提两条未决项，均已由域主裁定、正文照裁定改写，故不留 Open
+  Questions 小节（`rule-00001-BR-12`）：**Q29.1**——FR-6 四种原因里只有「配置
+  非法」与 `spec-00001-FR-15` 共用句子，其余三种（含「目录内无流程配置」，
+  尽管 FR-15 也管配置缺失）的说明由 FR-6 自己持有，因为判定次序在那一格就已
+  停下；**Q29.2**——「启动校验」正名为「配置校验」，`CONTEXT.md` 立词条，
+  `spec-00001`/`spec-00002`/`spec-00003`/`spec-00005`/`spec-00009` 与
+  `design-00001` 的措辞随本轮一并改；plan、record、decision 里的旧称不改，
+  它们记的是当时的事实（`docs/README.md`）。
 - 输入：`parent` 为 [prd-00003-multi-workspace](../prd/prd-00003-multi-workspace.md)
   （与本 spec 同一轮写成、一并评审）；方向与已定项在
   [idea-00004-multi-workspace](../idea/idea-00004-multi-workspace.md)「已定方向」；
@@ -32,16 +47,31 @@ parent: prd-00003-multi-workspace
   会让每份都不能独立验收。除下列交接外，它不改任何
   workspace **内部**的行为：`spec-00001` … `spec-00010` 的每条需求在每个
   workspace 内逐一成立，其验收集整体是本 spec 的回归约束（§7）。
-- **与既有文档的交接**（均不就地改它们——它们都是 `active`，修订属其各自的
-  修订轮 `rule-00001-BR-3`，由 plan 轮列为任务；沿 `spec-00003` §1 的先例）：
-  - `spec-00001-FR-15`（配置缺失或非法拒绝启动）：拒绝的作用域由**进程**改为
+- **与既有文档的交接**（本 spec 自己不就地改它们——它们都是 `active`，修订属
+  其各自的修订轮 `rule-00001-BR-3`，由 plan 轮列为任务；沿 `spec-00003` §1 的
+  先例）。**第二十九轮据实追注：下列交接已由 `plan-00027` T1 的第二十八轮修订轮
+  全部执行，十份文档均已重新接收为 `active`**——故本清单读作已落地的交接记录，
+  而不是待办；各条「须改写为」即「已改写为」。**唯一的例外是下述
+  `spec-00010-FR-1`：它第二十八轮漏改，落在第二十九轮**：
+  - `spec-00001-FR-15`（配置缺失或非法）：拒绝的作用域由**进程**改为
     **workspace**——该 workspace 不可用并携带同一句错误信息（FR-6、FR-9）；
     进程级的拒绝启动只余注册表不合式一种（FR-18）。其 `spec-00001-AC-15.1` /
-    `AC-15.2` 断言的「启动失败」须改写为「该 workspace 不可用」。
+    `AC-15.2` 断言的「启动失败」改写为「该 workspace 不可用」。
+    **该降级贯穿哪些配置键与条目，由 `spec-00001-FR-15` 自己的清单持有，本清单
+    不复述**（第二十九轮：两处同一份名单必然漂移——本清单原只点了
+    `spec-00001` 一处，漏掉 FR-15 自己列出的 FR-48/FR-53、`spec-00002-FR-6`、
+    `spec-00003-FR-3`、`spec-00005-FR-8`、`spec-00009-FR-2`、`spec-00010-FR-2`，
+    正是漂移本身；改为单一来源。本轮的审计发现该清单自己也漏了
+    `spec-00003-AC-3.5`，已就地补入 `spec-00001-FR-15`——单一来源不完整比没有
+    指针更坏）。
   - `spec-00002-FR-4`（归档门在**全仓库**的 front matter 里配对 `supersedes`）
     与 `rule-00001-BR-18`（下一个空号按仓库内现有编号分配）、docs/README 的
     「`id` 在整个仓库唯一」：「仓库」在多 workspace 下即当前 workspace，判定
     互不跨越（FR-12）；规则文本不变，只在正文追注。
+  - `spec-00010-FR-1`（`exclude`「只在启动时读取」）：读点改为「只在打开
+    workspace 时读取」，改动仍经重启进程生效（第二十九轮补列：`design-00001`
+    §14 第二十八轮已如此改写，`spec-00010-FR-1` 的正文当轮漏改；它不在
+    `spec-00001-FR-15` 的降级清单里，因为它讲的是读点而非校验）。
   - `spec-00003-FR-3`（会话并发上限）：按各 workspace 自己的 `max_sessions`
     逐 workspace 计（FR-12）。
   - `spec-00003-FR-4`（会话面板列「本次服务启动以来的已结束会话」）：基线改为
@@ -52,12 +82,16 @@ parent: prd-00003-multi-workspace
   - `spec-00004-FR-2` / `FR-3` / `FR-6`（桌面通知内容）：标题多一个 workspace
     显示名前缀，外泄面因此多出显示名一项（FR-17）。
   - `spec-00004-FR-5`（通知点击）：先切 workspace 再呈现会话（FR-17）。
-  - `design-00001` §5/§7/§8 与 `design-00002` §2/§3/§13：服务端的三处开缝、
-    API 前缀、代码位置、切换器控件与通知标题，由 design-00003 持有，两份既有
-    design 随各自修订轮改写并声明 `informs` 本 spec。
+  - `design-00001` §2/§3/§5/§7/§8/§14 与 `design-00002` §2/§3/§10/§12/§13：Host
+    入图、「仓库根」的歧义、服务端的三处开缝、API 前缀、代码位置、`exclude` 的
+    读点、切换器控件、呈现状态分层、常驻 xterm 实例的键与通知标题，由
+    design-00003 持有，两份既有 design 随各自修订轮改写并声明 `informs` 本 spec
+    （第二十九轮补列 `design-00001` §2/§3/§14 与 `design-00002` §10/§12 这五处）。
   - `spec-00009`（agent 设置）：本地层文件仍在各项目目录（文件名由
-    design-00001 §13.1 持有），有效列表逐 workspace 计算——语义不变，**无需
-    修订**。
+    design-00001 §13.1 持有），有效列表逐 workspace 计算。其 `FR-2` 与
+    `AC-2.1`…`AC-2.6`（末条是该组的满足半边，最易漏）随 `spec-00001-FR-15` 改写——它判的就是 FR-15 那套项目层
+    校验（第二十九轮：原判「语义不变，**无需修订**」是误判）。本地层的
+    `FR-4` 确实不变：它从来不拦启动。
 - **随接收需修订 `CONTEXT.md` 的既有定义**：「呈现状态」（其封闭枚举按
   workspace 各存一份，并增补「当前 workspace」与切换器开合）；「桌面通知」
   （「只含会话种类、文档 id 与状态」增 workspace 显示名）；「会话面板」
@@ -137,8 +171,14 @@ parent: prd-00003-multi-workspace
   未登记，注册表不变。
 - **spec-00011-FR-6** (Ubiquitous) 系统应在每次列出时逐条判定未打开过的
   workspace 的可用性：目录不存在、目录内无流程配置、目录不是 git 仓库、流程
-  配置非法四种为不可用，各带原因与一句说明，其中配置非法的说明与单 workspace
-  时 `spec-00001-FR-15` 拒绝启动所打印的错误信息同句；原因消除后下一次列出
+  配置非法四种为不可用，各带原因与一句说明，其中配置非法的说明与
+  `spec-00001-FR-15` 判该配置非法时给出的那句错误信息同句（第二十九轮：原作
+  「与单 workspace 时 `spec-00001-FR-15` 拒绝启动所打印的错误信息同句」——
+  FR-15 的作用域已由本 spec 自己降为 workspace，「拒绝启动」这一行为不复存在，
+  本条却仍以它为参照物）。**其余三种原因的说明由本条自己持有，不与 FR-15 共用
+  句子**——虽然 FR-15 同时管「配置缺失」，但判定次序在「目录内无流程配置」这一
+  格就已停下、从不进入 FR-15 的校验，两句话由不同的判定产出（第二十九轮 Q29.1
+  的裁定）；原因消除后下一次列出
   即可用，无需重启进程。已打开过的 workspace 只免去配置两项的重判：它按打开时
   的配置继续可用，其后的配置改动经重启进程生效（`spec-00010` 对 `exclude` 的
   既有口径推广到整份配置）；目录不存在与不是 git 仓库两项对已打开过的
@@ -147,7 +187,11 @@ parent: prd-00003-multi-workspace
 - **spec-00011-FR-7** (Ubiquitous) 系统应在顶栏提供切换器：列出注册表全部
   条目并标出当前 workspace，每条呈现显示名、路径、可用性（不可用者带原因，选择它按 FR-9 被拒，
   移除入口照常可达）与该 workspace 的运行中会话数、等待输入会话数（以
-  非颜色手段可辨，沿 `spec-00003-FR-4` 徽标的口径；为零不渲染）；提供添加
+  非颜色手段可辨，沿 `spec-00003-FR-6` 徽标的口径；为零不渲染）。**等待输入的
+  那些会话同时计入运行中会话数**——等待输入是运行中会话的呈现子态而非并列
+  状态（`CONTEXT.md`），故两数不互斥、等待数恒不大于运行中数（第二十九轮
+  据词汇表落定：原文只并列两数、从未说出这层包含关系，`AC-7.1` 因此得以漂移
+  成自相矛盾的样本）；提供添加
   入口与每条的移除入口；注册表为空时呈现空态与添加入口。切换器打开期间，
   任一 workspace 的会话计数变化应即时反映，不要求它是当前 workspace。
 - **spec-00011-FR-8** (Event) 当用户在切换器中选择另一个可用 workspace 时，
@@ -315,7 +359,11 @@ parent: prd-00003-multi-workspace
 - **spec-00011-AC-6.4** (spec-00011-FR-6)
   Given 已登记但未打开过的 workspace 的 `whiteboard.config.yaml` 含 `max_sessions: 0`
   When 打开切换器
-  Then 该条标为不可用，说明文字与单 workspace 启动时对同一配置打印的错误信息相同
+  Then 该条标为不可用，说明文字与 `spec-00001-FR-15`「若配置缺失或非法，系统应
+  给出指明问题所在的错误信息」判同一配置时给出的那句相同（第二十九轮：原「与单
+  workspace 启动时对同一配置打印的错误信息相同」——「拒绝启动」已不存在。绑的是
+  FR-15 那句，因为定义这句话的是它的校验；`max_sessions` 的键专属用例归
+  `spec-00003-AC-3.4`/`AC-3.5`，但那两条只断言「指明该键非法」、不定义句子）
 - **spec-00011-AC-6.5** (spec-00011-FR-6)
   Given 已登记的 workspace 因配置非法而不可用，其配置随后被修正
   When 不重启进程、重新打开切换器
@@ -333,9 +381,11 @@ parent: prd-00003-multi-workspace
   When 打开切换器
   Then `demo` 标为不可用且原因为目录不存在
 - **spec-00011-AC-7.1** (spec-00011-FR-7)
-  Given 注册表三条，当前为第二条，第三条有一个运行中会话与一个等待输入会话
+  Given 注册表三条，当前为第二条，第三条有一个运行中会话且它正等待输入
   When 打开切换器
   Then 三条按顺序呈现，第二条标为当前，第三条呈现运行中 1、等待 1，第一条无计数
+  （第二十九轮：Given 原作「一个运行中会话与一个等待输入会话」，按 FR-7 的
+  包含关系应呈现运行中 2、等待 1，与原 Then 相悖）
 - **spec-00011-AC-7.2** (spec-00011-FR-7)
   Given 切换器处于打开态，当前 workspace 为 `alpha`
   When `demo` 的一个会话转入等待输入
@@ -344,6 +394,11 @@ parent: prd-00003-multi-workspace
   Given 注册表含一条不可用的 `broken`
   When 打开切换器并以键盘移到 `broken` 行
   Then 该行呈现其原因，其移除入口可聚焦并可激活
+- **spec-00011-AC-7.4** (spec-00011-FR-7)
+  Given 某 workspace 有两个运行中会话，其中一个正等待输入
+  When 打开切换器
+  Then 该条呈现运行中 2、等待 1（第二十九轮增：FR-7 的包含关系在「多」这一
+  基数上此前无样本——原 `AC-7.1` 是唯一的多会话样本，而它自相矛盾）
 - **spec-00011-AC-8.1** (spec-00011-FR-8)
   Given 当前 workspace 为 `alpha`，`demo` 可用
   When 用户在切换器选择 `demo`
@@ -560,6 +615,12 @@ parent: prd-00003-multi-workspace
   Given 包已作为 `@ryan-alexander-zhang/persimmon` 发布、本机未全局安装
   When 以 npm 一次性执行形态运行 `list`
   Then 输出与全局安装形态相同
+- **spec-00011-AC-20.3** (spec-00011-FR-20)
+  Given 包以 npm 一次性执行形态取得、本机未全局安装
+  When 在某 workspace 发起一个 agent 会话
+  Then 该会话的终端起得来，与全局安装形态无别（第二十九轮增，`issue-00030`：
+  FR-20 说的是「命令行为相同」，而 `AC-20.1`/`AC-20.2` 只跑 `list`，`list`
+  不开 pty——会话这一半此前只有 §7 的实测义务承接，无 AC）
 - **spec-00011-AC-21.1** (spec-00011-FR-21)
   Given 注册表有可用的 `alpha` 与目录已不存在的 `demo`
   When 执行 `persimmon list`
@@ -606,7 +667,12 @@ parent: prd-00003-multi-workspace
   （沿 design-00002 的口径）。
 - 未打开过的 workspace 不产生文档解析、文件监听或会话状态。
 - 验证义务：FR-20 的两种安装形态（全局安装、`npx`）各实测一次，含 `node-pty`
-  的原生构建与 `postinstall`；AC-20.2 在实测通过前不计已验证。
+  的原生构建，且**每种形态各实起一个 pty**（AC-20.3）。安装脚本不在可依赖之列：
+  `npx` 的缓存安装既不跑 node-pty 自己的 `post-install`、也不跑本包的
+  `postinstall`，故实测量的是「装完之后会话能不能起」这一结果，而不是某个安装
+  脚本有没有跑（第二十九轮，`issue-00030` §3；原文写作「含 `node-pty` 的原生
+  构建与 `postinstall`」，而那正是该 issue 证伪的前提）。`AC-20.2` 与 `AC-20.3`
+  在实测通过前不计已验证。
 - 回归约束：只登记一个 workspace 时，`spec-00001` … `spec-00010` 的全部既有
   验收（§1 交接列出的改写项除外）照常通过。
 
@@ -615,4 +681,5 @@ parent: prd-00003-multi-workspace
 - Parent: [prd-00003-multi-workspace](../prd/prd-00003-multi-workspace.md) · Idea: [idea-00004-multi-workspace](../idea/idea-00004-multi-workspace.md)
 - Decision: [decision-00019-whiteboard-standalone-repo](../decision/decision-00019-whiteboard-standalone-repo.md)
 - Rules: [rule-00001-docs-workflow](../rule/rule-00001-docs-workflow.md)（不变）
+- 第二十九轮: [issue-00030-npx-leaves-the-pty-spawn-helper-non-executable](../issue/issue-00030-npx-leaves-the-pty-spawn-helper-non-executable.md) · [plan-00027-multi-workspace](../plan/plan-00027-multi-workspace.md) T1 的回填清单
 - Design: [design-00003-multi-workspace](../design/design-00003-multi-workspace.md) · [design-00001-docs-whiteboard](../design/design-00001-docs-whiteboard.md) · [design-00002-whiteboard-ui](../design/design-00002-whiteboard-ui.md)

@@ -16,10 +16,12 @@ parent: prd-00001-docs-whiteboard
 - canonical terms 见 `CONTEXT.md`：白板、节点、Agent 会话、推进、澄清、答疑、
   共写（第二十二轮）、
   审计、终止、会话历史、留痕、刷新、呈现状态、就近关闭、动作被拒、流程配置、
-  workspace、当前 workspace、切换器（第二十八轮）。
+  workspace、当前 workspace、切换器（第二十八轮）、配置校验（第二十九轮）。
 - 第二十八轮的修订源：[spec-00011-multi-workspace](spec-00011-multi-workspace.md)
   §1 交接——本 spec 改 FR-3 的上限作用域、FR-4 的面板与基线、FR-7 的提示条
   作用域、FR-9 的关停扇出，各自的 AC 随之。
+- 第二十九轮的修订源：[spec-00011-multi-workspace](spec-00011-multi-workspace.md)
+  第二十九轮 Q29.2 的裁定——「启动校验」正名为「配置校验」，本 spec 一处措辞。
 - 本 spec 的 Markdown 方言取 GFM。
 - 输入：`parent` 为 [prd-00001-docs-whiteboard](../prd/prd-00001-docs-whiteboard.md)。
 - **在案否决已被推翻**：多会话并行曾在
@@ -47,7 +49,7 @@ parent: prd-00001-docs-whiteboard
   - `spec-00001-FR-50`（审计会话）正文复述了「单会话约束同 FR-18」，随
     FR-18 的修订一并改写。
   - `spec-00001-FR-21`（断线存续）：FR-9 把它从单会话扩展到多会话。
-  - `spec-00001-FR-15`（启动校验）：其校验键集扩展 `max_sessions`
+  - `spec-00001-FR-15`（配置校验；第二十九轮 Q29.2 正名，原「启动校验」）：其校验键集扩展 `max_sessions`
     （FR-3）——`decision-00008` §5 为 `entry` 扩展 FR-15 的先例。
 - 其余既有会话语义**逐会话适用、不改动**：`spec-00001-FR-12`（终端流式与
   尺寸同步）、`spec-00001-FR-13`（写权限约束）、`spec-00001-FR-16`

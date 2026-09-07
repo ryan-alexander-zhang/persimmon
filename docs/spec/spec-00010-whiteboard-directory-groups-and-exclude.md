@@ -15,10 +15,13 @@ parent: prd-00001-docs-whiteboard
 
 - canonical terms 见 `CONTEXT.md`：白板、节点、关系边、弱化态、强调态、压弱、
   类型列、导航栏、类型组、缩略图、命令面板、异常、异常清单、撞 id、呈现状态、
-  刷新、动作被拒、流程配置、子画布、workspace、切换器（第二十八轮）。
+  刷新、动作被拒、流程配置、子画布、workspace、切换器（第二十八轮）、配置校验（第二十九轮）。
 - 第二十八轮的修订源：[spec-00011-multi-workspace](spec-00011-multi-workspace.md)
   §1 交接——「拒绝启动」一律降为「该 workspace 不可用」，本 spec 的 AC 中
   「该 workspace」指其 Given 所述配置所属的那一个。
+- 第二十九轮的修订源：[spec-00011-multi-workspace](spec-00011-multi-workspace.md)
+  第二十九轮的审计——`FR-1` 的 `exclude` 读点第二十八轮随 `design-00001` §14 改了、
+  本条正文漏改。不在 `plan-00027` T1 的回填清单内，是该轮审计新发现的一处。
 - 输入：`parent` 为 [prd-00001-docs-whiteboard](../prd/prd-00001-docs-whiteboard.md)
   ；取舍在案于
   [decision-00018-whiteboard-directory-groups-and-exclude](../decision/decision-00018-whiteboard-directory-groups-and-exclude.md)；
@@ -114,8 +117,11 @@ parent: prd-00001-docs-whiteboard
   匹配文件路径，目录形态的模式（如 `reference/stripe`）不命中其下的文件；区分
   大小写；不支持 `!` 取反；命中为空或命中全部都不是错误、不提示。`exclude`
   缺失、为 `null` 或为空列表时不排除任何文件，行为与今天相同。`exclude` 只在
-  启动时读取（design-00001 §3 的既有口径），改动经重启生效，刷新按启动时读到
-  的模式排除。
+  **打开该 workspace 时**读取（design-00001 §14 的既有口径），改动经重启进程
+  生效，刷新按打开时读到的模式排除（第二十九轮：原「只在启动时读取」与
+  「design-00001 §3」——`design-00001` §14 第二十八轮已改为「只在打开
+  workspace 时读取」，本条正文当轮漏改，`spec-00011-FR-6` 正引它作整份配置的
+  口径来源）。
 - **spec-00010-FR-2** (Unwanted) 若 `exclude` 存在且不是字串列表（标量、映射、
   含非字串元素的列表），或列表中有空串、含 `..` 段、含 `\`、以 `/` 起头或以
   `!` 起头的模式，

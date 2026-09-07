@@ -17,10 +17,12 @@ parent: prd-00001-docs-whiteboard
   促进、促进门、归档门、状态流转、动作被拒、需求条目、覆盖状态、
   全局覆盖率视图、关系矩阵、撞 id、异常清单、诊断清单、检视面板、
   流程配置、评审动作、接收、答疑、推进、命令面板、呈现状态、workspace、
-  当前 workspace、切换器（第二十八轮）。
+  当前 workspace、切换器（第二十八轮）、配置校验（第二十九轮）。
 - 第二十八轮的修订源：[spec-00011-multi-workspace](spec-00011-multi-workspace.md)
   §1 交接——「拒绝启动」一律降为「该 workspace 不可用」，本 spec 的 AC 中
   「该 workspace」指其 Given 所述配置所属的那一个。
+- 第二十九轮的修订源：[spec-00011-multi-workspace](spec-00011-multi-workspace.md)
+  第二十九轮 Q29.2 的裁定——「启动校验」正名为「配置校验」，本 spec 一处措辞。
 - 本 spec 的 Markdown 方言取 GFM。
 - 输入：`parent` 为 [prd-00001-docs-whiteboard](../prd/prd-00001-docs-whiteboard.md)。
 - 本 spec 沿用 `spec-00001-docs-whiteboard` 对「文档」的收窄：`docs/**/*.md`
@@ -523,7 +525,7 @@ parent: prd-00001-docs-whiteboard
 | Docs 白板界面 | [design-00002-whiteboard-ui](../design/design-00002-whiteboard-ui.md) | 现行的设计令牌、顶栏与右侧槽位的占用规则、图标语言、可访问性 |
 
 上表两份 design 的修订由 plan 轮产出并回链本 spec：design-00001 §3（关系矩阵
-进流程配置契约与启动校验）与 §7（覆盖率、异常、诊断三个下钻载荷、按路径寻址
+进流程配置契约与配置校验）与 §7（覆盖率、异常、诊断三个下钻载荷、按路径寻址
 的节点键），design-00002 的顶栏入口与全屏对话框形态。
 
 ## 6. Out of Scope

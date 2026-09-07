@@ -136,7 +136,7 @@ flowchart LR
        被替代 id、多份文档同列一个被替代 id 都成立（`AC-4.5`、`AC-4.4`）。
     已知后果，记明不修：`DocNode.relations` 的键取自流程配置的 `relations`，
     配置若不声明 `supersedes`，本门将永远找不到配对、一切归档都到不了。本轮不为
-    它加启动校验（`spec-00002-FR-6` 未列该项），留给 plan 轮判断是否补。
+    它加配置校验（`spec-00002-FR-6` 未列该项），留给 plan 轮判断是否补。
 - **Editor**：编辑与预览是同一份正文的两个视图——预览渲染的是编辑器**当前
   缓冲区**而非磁盘内容，切换不落盘也不丢改动（spec FR-22）。预览时 CodeMirror
   视图只隐藏、不卸载，光标与滚动位置因此保留（spec FR-25）。渲染前剥掉 front
@@ -335,7 +335,7 @@ agents:
   `relations` 中；`entry` 若有，其中每个名字必须在 `types` 中（FR-53）；
   `agents` 至少一项，`command` 非空字符串、`args` 为字符串数组、`cwd` 若有必须
   是 `docs` 内路径；`max_sessions` 若有必须是正整数（缺失取缺省 3——
-  spec-00003-AC-3.4/AC-3.5，第十六轮）。任何违规 → 该 workspace 不可用并指明条目（第二十八轮：作用域由进程改为 workspace，spec-00011-FR-6；本文档以下各处的「拒绝启动」与「照常启动」一律读作「该 workspace 不可用」与「该 workspace 照常可用」，「启动校验」即打开 workspace 时的配置校验）。
+  spec-00003-AC-3.4/AC-3.5，第十六轮）。任何违规 → 该 workspace 不可用并指明条目（第二十八轮：作用域由进程改为 workspace，spec-00011-FR-6；本文档以下各处的「拒绝启动」与「照常启动」一律读作「该 workspace 不可用」与「该 workspace 照常可用」，「启动校验」一词第二十九轮正名为「配置校验」，即打开 workspace 时的配置校验，`CONTEXT.md` 有词条）。
   **第二十七轮增（`spec-00010-FR-2`）**：`exclude` 的读法与逐项校验见 §14.1。
   **第二十六轮增（`spec-00009-FR-2`）**：`model` 若有须是非空字符串；`env`
   若有须是字符串到字符串的映射；`{model}` 与 `model` **按形态成对**——
@@ -348,7 +348,7 @@ agents:
   函数 `readAgentEntry(name, raw, at)`——今天的 `readAgent` 把错误位置硬编码
   为 `agents.<name>`，抽出后位置前缀由调用方给：项目层传 `agents.<name>`、
   本地层传 `overrides.<name>` / `entries.<name>`（§13.2 的 `at` 由此而来）。
-  项目层由启动校验调用、抛 `ConfigError`；本地层由 §13 的合并调用、把同一
+  项目层由配置校验调用、抛 `ConfigError`；本地层由 §13 的合并调用、把同一
   错误当作「本地层不合式」收下而不抛——两层一套规则（`spec-00009-FR-3`
   末句）靠的就是共用这一个函数。
 - **写权限约束（spec FR-13）**：机制为 per-CLI 适配——首选「会话工作目录设为
@@ -782,7 +782,7 @@ spec-00001-FR-26、FR-27 承接。
 
 ## 9. 治理轮的两处裁定余项（已裁，非未决）
 
-- **启动校验不要求 `relations` 声明 `supersedes`（治理轮裁定）。** 归档门（§2）
+- **配置校验不要求 `relations` 声明 `supersedes`（治理轮裁定）。** 归档门（§2）
   读的是 `DocNode.relations.supersedes`，该键只在流程配置的 `relations` 列出它
   时才存在；一份漏掉它的配置会让该 workspace 照常可用，而**一切归档永远找不到配对**。
   裁定：这是配置层的自担选择——`relations` 本就是项目自定的字段词表，删掉任何

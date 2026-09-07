@@ -163,6 +163,27 @@ describe('the switcher', () => {
     expect(screen.queryByLabelText(/in Beta/)).toBeNull()
   })
 
+  // spec-00011-AC-7.4: the counts are not disjoint — an awaiting session is a
+  // running one, so «many» has to show the containment rather than a partition.
+  it('counts an awaiting session inside the running total', async () => {
+    registry = [
+      summary(),
+      {
+        ...DEMO,
+        sessions: [
+          { id: 's1', kind: 'cowrite', sourceId: 'spec-00001-x', status: 'running', awaiting: false },
+          { id: 's2', kind: 'ask', sourceId: 'spec-00002-y', status: 'running', awaiting: true },
+        ],
+      },
+    ]
+    await openAt('/w/alpha', 'alpha')
+
+    await openMenu()
+
+    expect(screen.getByLabelText('2 running in Demo')).toBeTruthy()
+    expect(screen.getByLabelText('1 awaiting in Demo')).toBeTruthy()
+  })
+
   // spec-00011-AC-7.2
   it('follows the counts of another workspace while it stays open', async () => {
     registry = [summary(), DEMO]

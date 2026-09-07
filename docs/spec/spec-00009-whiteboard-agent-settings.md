@@ -15,10 +15,12 @@ parent: prd-00001-docs-whiteboard
 ## 1. Context
 
 - canonical terms 见 `CONTEXT.md`：白板、流程配置、Agent 会话、headless 调用、
-  答疑线程、动作被拒、刷新、workspace、切换器（第二十八轮）。
+  答疑线程、动作被拒、刷新、workspace、切换器（第二十八轮）、配置校验（第二十九轮）。
 - 第二十八轮的修订源：[spec-00011-multi-workspace](spec-00011-multi-workspace.md)
   §1 交接——「拒绝启动」一律降为「该 workspace 不可用」，本 spec 的 AC 中
   「该 workspace」指其 Given 所述配置所属的那一个。
+- 第二十九轮的修订源：[spec-00011-multi-workspace](spec-00011-multi-workspace.md)
+  第二十九轮 Q29.2 的裁定——「启动校验」正名为「配置校验」，本 spec 一处措辞。
 - 输入：`parent` 为 [prd-00001-docs-whiteboard](../prd/prd-00001-docs-whiteboard.md)
   （功能需求 8「agent 会话」、17「agent 选择」的配置侧；随接收 prd-00001 在其
   修订轮增一行功能需求「agent 设置」，与共写、标注两轮同例）；取舍在案于
@@ -452,7 +454,7 @@ parent: prd-00001-docs-whiteboard
 
 - Parent: [prd-00001-docs-whiteboard](../prd/prd-00001-docs-whiteboard.md)
 - Sibling specs: [spec-00001-docs-whiteboard](spec-00001-docs-whiteboard.md)
-  （写域 FR-13、启动校验 FR-15、agent 选择 FR-55——FR-55 与 AC-55.4 随本 spec
+  （写域 FR-13、配置校验 FR-15（第二十九轮 Q29.2 正名）、agent 选择 FR-55——FR-55 与 AC-55.4 随本 spec
   进修订轮换名词）·
   [spec-00005-whiteboard-ask-threads](spec-00005-whiteboard-ask-threads.md)
   （答疑可选集 FR-2、拒绝面 FR-7、headless 声明 FR-8——FR-8 随本 spec 进修订轮换名词）·

@@ -328,7 +328,15 @@ by it`）都跑在没有活 WebSocket 客户端的进程上，故绿。
 | spec-00011-AC-21.1 | test/cli.test.ts::lists every entry with its availability | pass |
 | spec-00011-AC-21.2 | test/cli.test.ts::prints an empty list on an empty registry | pass |
 
-87 条 AC 各有一行，全部 pass。`AC-20.1` 与 `AC-20.2` 在第一次实测为 fail、
+87 条 AC 各有一行，全部 pass。**第二十九轮追注（就地追注，不改上表——本记录
+是 `plan-00027` 当时验收了什么的证据）**：`spec-00011` 其后在第二十九轮增两条
+AC，均不在上表之内，本轮追补其证据——`AC-7.4`（两个运行中会话其中一个等待 →
+运行中 2、等待 1）由 `web/test/workspaceSwitcher.test.tsx::counts an awaiting
+session inside the running total` 钉住，pass；`AC-20.3`（`npx` 形态下实起一个
+会话）由 opt-in 的 `npm run test:install` 实测钉住（口径同 `AC-20.2`，不进默认
+套件），2026-09-07 实测 pass：两种形态各经该安装副本自己的 `lib/pty.js` 起一个
+pty 并以 0 退出，其中 `npx` 形态的 `spawn-helper` 装完为 0644、由运行时补位
+（`issue-00030`）。合计 89 条。`AC-20.1` 与 `AC-20.2` 在第一次实测为 fail、
 经 issue-00029 修复后第二次实测为 pass，两次都记在上文「安装形态实测」。
 无未覆盖项：本轮把 `AC-13.7`
 （此前无测试）、`AC-12.3`、`AC-12.4`、`AC-19.2`（此前有 FR 级注释而无对应
@@ -349,9 +357,15 @@ by it`）都跑在没有活 WebSocket 客户端的进程上，故绿。
   `noGit`）。
 - `AC-6.7`「行为按打开时的配置不变」——所钉的是可用性判定的免重验（实例按
   打开时的配置继续可用）；「发起会话的行为」本身沿 `spec-00001` 既有验收。
-- `AC-7.1`「运行中 1、等待 1」——测试以**一个等待中的运行会话**取 1/1，这是
-  AC 措辞与 `CONTEXT.md`「等待输入计入运行中总数」两种读法都满足的形态。
-  plan T1 已记此处 AC 措辞待改，留待 `spec-00011` 下一次修订轮。
+- `AC-7.1`「运行中 1、等待 1」——测试以**一个等待中的运行会话**取 1/1。
+  **第二十九轮追注更正**：本条原写作「这是 AC 措辞与 `CONTEXT.md`
+  「等待输入计入运行中总数」两种读法都满足的形态」，**该说法不成立**——在
+  「等待输入是并列状态」的分离读法下，同一个会话应记运行中 0、等待 1，故 1/1
+  只满足 `CONTEXT.md` 的包含读法，测试实际上是在**裁定**读法而非保持中立
+  （`web/src/WorkspaceSwitcher.tsx` 按 `status === 'running'` 计数，不看
+  `awaiting`）。该措辞已随第二十九轮改写：`AC-7.1` 的 Given 改为一个等待中的
+  运行会话，`FR-7` 补上「等待数恒不大于运行中数」这层包含关系，另增 `AC-7.4`
+  钉住「多」这一基数。plan T1 记的「AC 措辞待改」已兑现。
 - `AC-8.2`、`AC-8.3`、`AC-11.3` —— 见上文「手工验证」三条。
 - `AC-16.2`「历史都已落盘后进程才退出」——所钉的是关停扇出与「`shutdown()`
   兑现之前两个 workspace 各已 commit」这一先后；单个会话的历史落盘本身是
