@@ -11,6 +11,7 @@ export default defineConfig({
     globals: true,
     include: ['test/**/*.test.ts', 'web/test/**/*.test.{ts,tsx}'],
     setupFiles: ['web/test/setup.ts'],
+    globalSetup: ['test/globalSetup.ts'],
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts', 'web/src/**/*.{ts,tsx}'],

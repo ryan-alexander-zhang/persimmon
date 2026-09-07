@@ -16,7 +16,7 @@ For the single document owner of a repository built on ai-native-project-templat
 | --- | --- |
 | Single user, `localhost` only; one process serves many workspaces | [spec-00011](docs/spec/spec-00011-multi-workspace.md) |
 | Behaviour is driven by `whiteboard.config.yaml`; a missing or invalid config makes that workspace unavailable, there is no built-in default | spec-00011-FR-6 |
-| Node.js ≥ 23.6 (TypeScript type stripping; `node-pty` native module) | `package.json` |
+| Node.js ≥ 23.6 — type stripping for the repository's own `npm start` and tests, which import `src/*.ts`; the shipped package carries compiled JS in `lib/` because Node does not strip under `node_modules` (issue-00029); `node-pty` native module | `package.json` |
 | Every write goes through git; the working tree must be a git repository | [design-00001](docs/design/design-00001-docs-whiteboard.md) §6 |
 
 ## 3. Context & Scope

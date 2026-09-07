@@ -3,10 +3,10 @@ import { realpathSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { ConfigError, findRepoRoot } from '../src/config.ts'
-import { Host } from '../src/host.ts'
-import { AvailabilityJudge } from '../src/workspaceAvailability.ts'
-import { WorkspaceRegistry } from '../src/workspaceRegistry.ts'
+import { ConfigError, findRepoRoot } from '../lib/config.js'
+import { Host } from '../lib/host.js'
+import { AvailabilityJudge } from '../lib/workspaceAvailability.js'
+import { WorkspaceRegistry } from '../lib/workspaceRegistry.js'
 
 const { version } = createRequire(import.meta.url)('../package.json')
 const port = Number(process.env.PORT ?? 4173)
@@ -160,9 +160,12 @@ async function post(path, name) {
  * registry refused answers 422 and a write that failed 500 (design-00003 §5),
  * and the command reports it and exits non-zero without listening
  * (spec-00011-FR-15).
+ *
+ * On the same address the probe uses, so the whole handshake names one
+ * `(address, port)` pair rather than two (issue-00028).
  */
 async function call(method, path, body) {
-  const response = await fetch(`http://localhost:${port}${path}`, {
+  const response = await fetch(`http://127.0.0.1:${port}${path}`, {
     method,
     headers: body === undefined ? undefined : { 'content-type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),

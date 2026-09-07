@@ -11,7 +11,7 @@
   },
   "files": [
     "bin/",
-    "src/",
+    "lib/",
     "dist/web/",
     "scripts/"
   ],
@@ -20,9 +20,10 @@
     "prepack": "npm run build",
     "start": "node bin/persimmon.js",
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && tsc -p tsconfig.build.json",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "test:install": "node scripts/test-install.js",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

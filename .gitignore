@@ -77,8 +77,9 @@ downloads/
 eggs/
 .eggs/
 #   Anchored: a bare `lib/` matches at every depth and swallowed
-#   web/src/lib/ (issue-00017). setuptools writes this one at
-#   the repo root, which is all this rule ever meant.
+#   web/src/lib/ (issue-00017). Only the repo root one is meant:
+#   `npm run build` emits the shipped server there (issue-00029),
+#   and setuptools would write its build there too.
 /lib/
 lib64/
 parts/

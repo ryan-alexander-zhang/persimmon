@@ -1,0 +1,16 @@
+{
+  // The server emit the package ships: Node refuses to strip types under
+  // `node_modules`, so an installed copy must carry JavaScript (issue-00029).
+  // `lib/` sits one level below the package root just as `src/` does, which is
+  // what keeps `../dist/web` resolving in both layouts.
+  // `rewriteRelativeImportExtensions` turns the `./x.ts` specifiers into
+  // `./x.js`; `include` is `src` alone, so nothing under `test/` is emitted.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "rootDir": "src",
+    "outDir": "lib",
+    "rewriteRelativeImportExtensions": true
+  },
+  "include": ["src/**/*.ts"]
+}

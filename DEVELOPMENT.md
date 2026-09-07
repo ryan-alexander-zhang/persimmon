@@ -84,8 +84,10 @@ Canonical commands for this repo, run from the repository root:
 - Setup: `npm install`
 - Test: `npm test` (coverage: `npm run test:coverage`)
 - Lint: `npm run typecheck` (no separate linter yet — see [CODE_QUALITY.md](CODE_QUALITY.md) §2)
-- Build: `npm run build`
-- Run: `npm start` (serves the built UI on `PORT`, default 4173)
+- Build: `npm run build` (the UI into `dist/web`, the server into `lib/`)
+- Run: `npm start` (serves the built UI on `PORT`, default 4173; the build is a
+  prerequisite, and it now emits the server the entry point imports into `lib/`
+  as well as the UI)
 
 ## Development Matrix
 

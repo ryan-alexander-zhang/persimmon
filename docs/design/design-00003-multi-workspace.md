@@ -299,7 +299,7 @@ flowchart TD
   R -->|是| WID[目标 = 该目录]
   R -->|否| NOWID[目标 = 无]
   WID --> P
-  NOWID --> P{GET http://localhost:PORT/api/instance<br/>PORT = 环境变量或 4173 · 超时 1s}
+  NOWID --> P{GET http://127.0.0.1:PORT/api/instance<br/>PORT = 环境变量或 4173 · 超时 1s}
   P -->|200 且 app == persimmon| VIA[目标经 POST /api/workspaces 登记<br/>打印已运行进程的 /w/wid 或 / · exit 0]
   P -->|连接被拒| LISTEN[目标直接写入注册表文件<br/>本进程监听 PORT · 打印地址]
   P -->|超时 · 非 200 · app != persimmon| ERR[报「端口 PORT 已被占用」<br/>不登记 · exit 1]
@@ -321,6 +321,11 @@ flowchart TD
 - **`ainpt new` 的登记**：本仓库提供的契约是「`persimmon add <path>` 非
   交互、幂等、已登记时仍以 0 退出」；模板侧怎么调用属模板仓库
   （`prd-00003` 依赖项）。
+- **绑的地址与探的地址是同一个**：Host 缺省绑 `127.0.0.1`（`spec-00011` §6
+  「只监听 `localhost`」的字面落实——此前绑通配地址，局域网可达，与文档相悖），
+  握手也探 `127.0.0.1`。通配绑定不排他于回环上的具体绑定，机器上任何回环
+  占位者都能在测试与握手里冒充我们；根因与实测见 `issue-00028`。打印给用户
+  的仍是 `http://localhost:<port>`。
 - `/api/instance` 的 `version` 只用于打印（「接入 persimmon 0.2.0」），**不**
   参与握手判定：旧版本在跑也接入——两个版本共用注册表比版本门更坏，用户
   看到版本号自己决定是否重启它。
@@ -372,9 +377,14 @@ sequenceDiagram
   "@ryan-alexander-zhang/persimmon"`（npm 上的 `persimmon` 被无关包占用，
   作用域包保住这个名字；bin 名与包名无关，命令仍是 `persimmon`），
   `bin: { persimmon: bin/persimmon.js }`，
-  去掉 `private`，`files` 只含运行所需（`bin/`、`src/`、`dist/web/`、`scripts/`），
-  `prepack` 构建 `dist/web`（今天是 `.gitignore` 排除的产物，`npx` 与全局
-  安装都靠它）。`postinstall` 的 `fix-pty-permissions.js` 与 `node-pty` 原生
+  去掉 `private`，`files` 只含运行所需（`bin/`、`lib/`、`dist/web/`、`scripts/`）。
+  **服务端源码不随包分发**：Node 在 `node_modules` 之下**不做**类型剥离
+  （`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`，一个发布的包须携带能跑的
+  JavaScript），所以 `build` 除 `dist/web` 外还以 `tsconfig.build.json` 把
+  `src/*.ts` 编译到 `lib/*.js`——与 `src/` 同深度，`../dist/web` 这类相对引用
+  在两种布局下都成立——`bin/persimmon.js` 引 `../lib/*.js`，`prepack` 即
+  `build`。仓库自己的测试仍直接引 `src/*.ts`。（本条初版写作「`files` 含
+  `src/`」，安装形态实测在 T11 当场证伪，`issue-00029` 记根因；据实校正。）`postinstall` 的 `fix-pty-permissions.js` 与 `node-pty` 原生
   构建在两种安装路径下能否成立见下文的实测义务。
 - `src/`、`web/`、`test/`、`bin/`、`scripts/`、`vite.config.ts`、
   `vitest.config.ts`、`tsconfig.json`、`components.json` 位于根；`tools/` 不再

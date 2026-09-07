@@ -87,7 +87,7 @@ Run from the repository root:
 | Task | Command |
 | --- | --- |
 | Setup | `npm install` |
-| Build the UI | `npm run build` |
+| Build the UI and the server | `npm run build` |
 | Run | `npm start` (honours `PORT`, default 4173) |
 | Test | `npm test` |
 | Coverage | `npm run test:coverage` |
@@ -95,9 +95,10 @@ Run from the repository root:
 | UI dev server | `npm run dev` (proxies `/api` to a board started with `npm start`) |
 
 `npm start` alone is enough to use the board: it serves the built UI from
-`dist/web`, so run `npm run build` once first. `npm run dev` is for working on the
-UI itself — it starts Vite with hot reload and proxies `/api` to a board that must
-already be running via `npm start` in another terminal.
+`dist/web` and loads the server from `lib/`, both of which `npm run build`
+produces, so run it once first. `npm run dev` is for working on the UI itself —
+it starts Vite with hot reload and proxies `/api` to a board that must already
+be running via `npm start` in another terminal.
 
 ## Configuration
 
