@@ -1,4 +1,5 @@
-import type { Server } from 'node:http'
+import type { IncomingMessage, Server } from 'node:http'
+import type { Duplex } from 'node:stream'
 import express, { type Express, type NextFunction, type Request, type Response } from 'express'
 import { WebSocketServer } from 'ws'
 import { type Expectation, findProduct, markProduct, productProblems, taskInstruction } from './advance.ts'
@@ -41,6 +42,27 @@ export interface BoardOptions {
    * test need not wait out the real ten seconds.
    */
   awaitThresholdMs?: number
+  /**
+   * Told whenever this board's session state moves, for whoever holds the board
+   * — a Host feeding its own workspace-events channel (spec-00011-FR-12,
+   * design-00003 §1). Deliberately not a `watcher.subscribe`: a follower is a
+   * browser, and counting a host as one would break spec-00001-AC-42.8.
+   */
+  onSessionsChanged?: () => void
+}
+
+/**
+ * A board that is serving, as whoever holds the http server sees it
+ * (design-00003 §1): its routes to mount, and the one way an upgrade gets in.
+ */
+export interface BoardAttachment {
+  app: Express
+  /**
+   * Hand a websocket upgrade to the socket server named by `kind` — `terminal`
+   * or `events`, the path under `/api/`. Any other kind is destroyed, which is
+   * what an upgrade on an unknown path has always got (spec-00001-FR-42).
+   */
+  handleUpgrade(kind: string, request: IncomingMessage, socket: Duplex, head: Buffer): void
 }
 
 /** Wires the modules into one board: doc service, session manager, and the HTTP/WS surface. */
@@ -65,6 +87,11 @@ export class Board {
    */
   readonly agents: EffectiveAgents
   private readonly repoRoot: string
+  /** The hook of `BoardOptions.onSessionsChanged`, run beside the refresh signal. */
+  private readonly onSessionsChanged?: () => void
+  /** The two socket servers, live between `attach()` and `close()`, keyed by kind. */
+  private sockets?: Record<string, WebSocketServer>
+  private attachment?: BoardAttachment
   /**
    * What the last advance was asked for, re-checked against the disk on every
    * graph build (spec-00001-FR-17 as amended, issue-00014). The mark is a
@@ -76,6 +103,7 @@ export class Board {
   constructor(options: BoardOptions) {
     const { repoRoot, docsDir, config, spawn = spawnPty, spawnHeadless, awaitThresholdMs } = options
     this.repoRoot = repoRoot
+    this.onSessionsChanged = options.onSessionsChanged
     this.docs = new DocService(repoRoot, docsDir, config)
     this.agents = new EffectiveAgents(config.agents, repoRoot)
     this.asks = new AskStore(repoRoot)
@@ -102,7 +130,7 @@ export class Board {
       // after which the board re-reads `GET /api/sessions` (spec-00001-FR-42,
       // spec-00003-FR-6). Through `signal` rather than a channel of its own, so
       // it folds into the same window as everything else (design-00001 §5).
-      onAwaitingChange: () => this.watcher.signal(),
+      onAwaitingChange: () => this.sessionsMoved(),
       // Every ask plan carries the thread it belongs to; the doc service builds
       // no other kind of ask plan (design-00001 §10.2).
       onAskEnd: (plan, result) => this.asks.finish(plan.sourceId, plan.threadId!, result),
@@ -117,7 +145,7 @@ export class Board {
           // In a `finally`: a landing that failed is still an end the boards have
           // to hear about, and swallowing the refresh with it would leave every
           // page showing a session the server has finished with (issue-00013).
-          this.watcher.signal()
+          this.sessionsMoved()
         }
       },
       onExit: (plan, baseline) => this.finishSession(plan, baseline),
@@ -164,6 +192,19 @@ export class Board {
   }
 
   /**
+   * Session state moved. Every connected board hears it the one way it hears
+   * everything — the refresh signal, folded into that window (design-00001 §5) —
+   * and whoever holds this board hears it through the hook, which is the same
+   * three moments and no others (spec-00011-FR-12, design-00003 §1). A docs
+   * change is not one of them: it moves no session, and it takes the signal
+   * alone.
+   */
+  private sessionsMoved(): void {
+    this.watcher.signal()
+    this.onSessionsChanged?.()
+  }
+
+  /**
    * The end of a session, whatever it left behind. The wrap-up is told to every
    * connected board unconditionally: a session that wrote nothing has no commit
    * and no file event to be noticed by, and a board that hears nothing goes on
@@ -177,7 +218,7 @@ export class Board {
     try {
       return await this.wrapUpSession(plan, baseline)
     } finally {
-      this.watcher.signal()
+      this.sessionsMoved()
     }
   }
 
@@ -526,25 +567,19 @@ export class Board {
   }
 
   /**
-   * Serve, and open the two sockets: the session terminal, and the docs-change
-   * signal every board follows (spec-00001-FR-42). Each socket server takes the
-   * upgrade handed to it by the one router below — two of them bound to the same
-   * http server would each abort the other's handshakes.
+   * Everything serving takes except an http server of its own: the two sockets —
+   * the session terminal, and the docs-change signal every board follows
+   * (spec-00001-FR-42) — and the docs watch. A process serving several
+   * workspaces has one http server, held by whoever owns the boards, which hands
+   * each upgrade back in through `handleUpgrade` (design-00003 §1); `listen`
+   * below is that owner for a board serving alone.
    */
-  listen(port: number): Server {
-    const server = this.app.listen(port)
+  attach(): BoardAttachment {
+    // Idempotent, as `shutdown()` is: a second call must not leave a second pair
+    // of socket servers behind, of which `close()` could only reach one.
+    if (this.attachment) return this.attachment
     const terminals = new WebSocketServer({ noServer: true })
     const events = new WebSocketServer({ noServer: true })
-    const routes: Record<string, WebSocketServer> = { '/api/terminal': terminals, '/api/events': events }
-
-    server.on('upgrade', (request, socket, head) => {
-      const route = routes[new URL(request.url ?? '/', 'http://board').pathname]
-      if (!route) {
-        socket.destroy()
-        return
-      }
-      route.handleUpgrade(request, socket, head, (connection) => route.emit('connection', connection, request))
-    })
 
     // Which session the terminal is showing rides in the query (design-00001 §7):
     // one channel per session, so output and keystrokes reach that session and no
@@ -584,8 +619,53 @@ export class Board {
       socket.on('close', unsubscribe)
     })
 
+    this.sockets = { terminal: terminals, events }
     this.watcher.start()
-    server.on('close', () => void this.watcher.close())
+    this.attachment = {
+      app: this.app,
+      handleUpgrade: (kind, request, socket, head) => {
+        // Two socket servers bound to the same http server would each abort the
+        // other's handshakes, so the upgrade is routed to exactly one of them —
+        // and a kind that names neither is destroyed, as an unknown path is.
+        const target = this.sockets?.[kind]
+        if (!target) {
+          socket.destroy()
+          return
+        }
+        target.handleUpgrade(request, socket, head, (connection) => target.emit('connection', connection, request))
+      },
+    }
+    return this.attachment
+  }
+
+  /**
+   * Let go of what `attach()` took — the two socket servers and the docs watch.
+   * Separate from `shutdown()`, which wraps up sessions and nothing else: a
+   * board serving under a host is never told about the http server's `close`,
+   * and its watch would otherwise outlive it (design-00003 §1, §7).
+   */
+  async close(): Promise<void> {
+    for (const socket of Object.values(this.sockets ?? {})) socket.close()
+    this.sockets = undefined
+    this.attachment = undefined
+    await this.watcher.close()
+  }
+
+  /**
+   * Serve on a port of this board's own: an http server for its routes, with the
+   * upgrades routed by path to the two sockets `attach()` opened.
+   */
+  listen(port: number): Server {
+    const { handleUpgrade } = this.attach()
+    const server = this.app.listen(port)
+    server.on('upgrade', (request, socket, head) => {
+      // The kind is the path under `/api/`, which is what a host reads off the
+      // tail of `/w/:wid/api/...` as well (design-00003 §5); anything else
+      // reaches `handleUpgrade` as a kind it does not know, and is destroyed.
+      const { pathname } = new URL(request.url ?? '/', 'http://board')
+      handleUpgrade(pathname.replace(/^\/api\//, ''), request, socket, head)
+    })
+    server.on('close', () => void this.close())
     return server
   }
 
