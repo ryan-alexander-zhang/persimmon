@@ -26,7 +26,7 @@ import {
   Terminal as TerminalIcon,
   TriangleAlert,
 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { Toaster, toast } from 'sonner'
 import type { DocNode } from '../../src/docRepository.ts'
 import { Badge } from '@/components/ui/badge'
@@ -67,6 +67,7 @@ import { AcceptanceRowNode, CriterionNode, ItemNode } from './SubNodes.tsx'
 import { Terminal, type TerminalPool, shutPool } from './Terminal.tsx'
 import { ThemeMenu } from './ThemeMenu.tsx'
 import { Toolbar } from './Toolbar.tsx'
+import { WorkspacePage, WorkspaceSwitcher } from './WorkspaceSwitcher.tsx'
 import {
   type GroupNode,
   evidenceOf,
@@ -83,7 +84,7 @@ import { typeGroups } from './sidebarModel.ts'
 import { detailTarget, subCanvas } from './subCanvas.ts'
 import { useTheme } from './theme.ts'
 import { useBoard } from './useBoard.ts'
-import { type WorkspaceState, useWorkspace, useWorkspaceMemory } from './workspace.ts'
+import { useWorkspace, useWorkspaceMemory } from './workspace.ts'
 
 type DocNodeData = {
   node: DocNode
@@ -175,7 +176,7 @@ function minimapClass(node: FlowNode): string {
   return doc.ok ? `minimap-status-${doc.status}` : 'minimap-anomaly'
 }
 
-function Canvas({ wid }: { wid: string }) {
+function Canvas({ wid, switcher }: { wid: string; switcher: ReactNode }) {
   // Every read this board makes goes under its workspace's prefix (design-00003 §6).
   const api = boardApi(wid)
   // A clicked desktop notification lands exactly where the session panel's row
@@ -606,9 +607,12 @@ function Canvas({ wid }: { wid: string }) {
     <JumpContext.Provider value={{ idOwners: board.graph.idOwners, onJump: focus }}>
     <div className="flex h-screen flex-col">
       <header className="flex items-center gap-3 border-b px-4 py-2">
-        {/* The way the list of documents is put away and brought back, and the
-            leftmost thing in the bar because that is the side it is on
-            (design-00002 §17.1). */}
+        {/* Leftmost, before the navigation toggle: which workspace this is, and
+            the way to every other one (spec-00011-FR-7, design-00002 §2). */}
+        {switcher}
+        {/* The way the list of documents is put away and brought back, on the
+            side the list itself is on — after the switcher, which took the far
+            left in the twenty-eighth round (design-00002 §17.1, §2). */}
         <Button
           variant="ghost"
           size="icon-sm"
@@ -1095,35 +1099,15 @@ function Canvas({ wid }: { wid: string }) {
   )
 }
 
-/**
- * The page before a workspace is settled on, and when the one the URL names
- * cannot be opened (spec-00011-FR-9). A placeholder: the switcher, the empty
- * state and the designed page states are T9's — this one only has to say what
- * happened and to address no workspace's API (spec-00011-AC-9.3).
- */
-function WorkspacePlaceholder({ state }: { state: Exclude<WorkspaceState, { status: 'ready' }> }) {
-  const said =
-    state.status === 'loading'
-      ? 'Opening…'
-      : state.status === 'empty'
-        ? 'No workspace is registered.'
-        : state.status === 'unregistered'
-          ? `No workspace ${state.wid} is registered.`
-          : state.reason
-  return (
-    <div role="status" className="text-muted-foreground flex h-full items-center justify-center p-8 text-sm">
-      {said}
-    </div>
-  )
-}
-
 export function Board() {
   const workspace = useWorkspace()
-  if (workspace.state.status !== 'ready') return <WorkspacePlaceholder state={workspace.state} />
+  if (workspace.state.status !== 'ready') return <WorkspacePage workspace={workspace} />
   return (
     <ReactFlowProvider>
       <TooltipProvider>
-        <Canvas wid={workspace.state.wid} />
+        {/* The switcher is built here, where the one `useWorkspace` is, and put
+            in whichever bar is on show — the board's or the page's (design-00003 §6). */}
+        <Canvas wid={workspace.state.wid} switcher={<WorkspaceSwitcher workspace={workspace} />} />
       </TooltipProvider>
     </ReactFlowProvider>
   )
