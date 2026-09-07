@@ -15,7 +15,11 @@ parent: prd-00001-docs-whiteboard
 
 - canonical terms 见 `CONTEXT.md`：白板、节点、Agent 会话、推进、澄清、答疑、
   共写（第二十二轮）、
-  审计、终止、会话历史、留痕、刷新、呈现状态、就近关闭、动作被拒、流程配置。
+  审计、终止、会话历史、留痕、刷新、呈现状态、就近关闭、动作被拒、流程配置、
+  workspace、当前 workspace、切换器（第二十八轮）。
+- 第二十八轮的修订源：[spec-00011-multi-workspace](spec-00011-multi-workspace.md)
+  §1 交接——本 spec 改 FR-3 的上限作用域、FR-4 的面板与基线、FR-7 的提示条
+  作用域、FR-9 的关停扇出，各自的 AC 随之。
 - 本 spec 的 Markdown 方言取 GFM。
 - 输入：`parent` 为 [prd-00001-docs-whiteboard](../prd/prd-00001-docs-whiteboard.md)。
 - **在案否决已被推翻**：多会话并行曾在
@@ -119,11 +123,15 @@ parent: prd-00001-docs-whiteboard
   答疑在本条与 FR-1 的排除先例），
   悬停或聚焦时呈现同文档互斥原因，会话结束恢复可用——
   原因说明与「无下一步」说明的优先级沿 `spec-00001-FR-49` 的既有约定。
-- **spec-00003-FR-3** (Unwanted) 若运行中会话总数已达上限，再次发起任何会话
+- **spec-00003-FR-3** (Unwanted) 若某 workspace 运行中会话总数已达其上限，
+  在该 workspace 再次发起任何会话
   应被拒绝并说明原因（指明达到上限），已有会话不受影响；重复发起同样被
   拒绝；任一会话结束后即可再发起。上限由流程配置新键 `max_sessions`
-  声明，缺省 3；声明值非正整数时按 `spec-00001-FR-15` 的启动校验拒绝
-  启动并指明；键缺失时取缺省值、正常启动。槽位在服务端**受理发起时**
+  声明，缺省 3；声明值非正整数时按 `spec-00001-FR-15` 的校验使该 workspace
+  不可用并指明；键缺失时取缺省值、该 workspace 照常可用。**第二十八轮
+  （`spec-00011-FR-12`）：上限逐 workspace 计**——各取自己流程配置的
+  `max_sessions`，一个 workspace 的会话不占另一个的名额；本条的拒绝与说明
+  在其所属 workspace 内成立。槽位在服务端**受理发起时**
   占用——多次发起竞争最后一个槽位时按接收顺序先到先得，后到者按本条
   拒绝；启动失败（`spec-00001-FR-16`）即释放槽位，故失败的会话不计入
   运行中总数。上限为 1 时行为退化为单会话，面板、徽标与切换 UI 照常
@@ -134,9 +142,13 @@ parent: prd-00001-docs-whiteboard
   承载）；第二十三轮，`spec-00005-FR-6` 为答疑登记排除的同型先例——
   答疑本身仍占本条名额），任一会话结束恢复可用。
 - **spec-00003-FR-4** (Complex) 系统应在顶栏提供会话面板入口，入口呈现
-  「运行中数/上限」；面板列出全部运行中会话与本次服务启动以来的已结束
-  会话（全部历史仍归 `spec-00001-FR-54` 的会话历史，两者分工由
-  `decision-00009` §2 第 6 条持有），每项含会话种类、目标文档 id、状态
+  「运行中数/上限」；面板列出**当前 workspace** 的全部运行中会话与该
+  workspace 本次打开以来的已结束会话（第二十八轮 `spec-00011-FR-12` 改写：
+  原「全部运行中会话与本次服务启动以来的已结束会话」；入口的「运行中数/
+  上限」与 FR-6 的等待计数徽标同取当前 workspace，别的 workspace 的计数在
+  切换器上呈现，`spec-00011-FR-7`。全部历史仍归 `spec-00001-FR-54` 的会话
+  历史，两者分工由 `decision-00009` §2 第 6 条持有——该条的 per-boot 窗口在
+  多 workspace 下按该 workspace 打开计），每项含会话种类、目标文档 id、状态
   与发起时间；流程配置声明多于一条 agent 时另含所用 agent（值取
   `spec-00001-FR-54` 的会话元数据，呈现门限沿 `spec-00001-FR-55`
   「仅多于一条时呈现」的口径）；状态取运行中、等待输入、已结束，
@@ -182,7 +194,9 @@ parent: prd-00001-docs-whiteboard
 - **spec-00003-FR-7** (Event) 当任一会话结束（自然退出或终止）或启动失败
   （`spec-00001-FR-16`）时，系统应以
   提示条通知，内容含会话种类、目标文档 id 与结束态；多个会话相继结束时
-  提示条逐条堆叠、不合并。会话面板中该项转入已结束。通知不要求终端面板
+  提示条逐条堆叠、不合并。（第二十八轮 `spec-00011-FR-12`：提示条只随**当前
+  workspace** 的会话——它是这块板的反馈；别的 workspace 的结束经桌面通知
+  到达，`spec-00011-FR-17`。）会话面板中该项转入已结束。通知不要求终端面板
   正在呈现该会话；既有逐会话收尾——`spec-00001-FR-14` 的一会话一
   commit、刷新、`spec-00001-FR-54` 的历史落盘——照常执行且恰执行一次，
   不因通知而改变（第二十一轮：答疑会话无 commit 收尾，其余照常，
@@ -209,7 +223,9 @@ parent: prd-00001-docs-whiteboard
   自身**正常关停**时，系统应对每个运行中会话执行终止的收尾（结束进程、
   commit 与历史落盘；「终止」一词已扩义涵盖此情形，见 `CONTEXT.md`）；
   跨服务重启的会话存续不做承诺（异常崩溃不保证收尾），重启后面板按空态
-  起步（`decision-00009` §2 第 10 条）。
+  起步（`decision-00009` §2 第 10 条）。（第二十八轮 `spec-00011-FR-16`：
+  关停的收尾对**每个** workspace 的每个运行中会话各执行一次，全部完成后
+  进程才退出；等待仍由本 spec 的信号升级阶梯定界。）
 - **spec-00003-FR-10** (Complex) 目标文档的节点应呈现其会话状态标记，运行中
   与等待输入两态可辨且互相可区分（均以非颜色手段）；当用户激活标记时，
   系统应在终端面板呈现该会话（与 FR-4 的点击同构。第二十一轮：同文档可
@@ -283,13 +299,13 @@ parent: prd-00001-docs-whiteboard
   When 其中一个会话结束后再次发起
   Then 会话正常启动
 - **spec-00003-AC-3.4** (spec-00003-FR-3)
-  Given 流程配置的 `max_sessions` 声明为非正整数
-  When 启动白板
-  Then 拒绝启动并指明该键非法
+  Given 某 workspace 流程配置的 `max_sessions` 声明为非正整数
+  When 在切换器中选择该 workspace
+  Then 该 workspace 不可用并指明该键非法（第二十八轮改写：原「拒绝启动」）
 - **spec-00003-AC-3.5** (spec-00003-FR-3)
-  Given 流程配置未声明 `max_sessions`
-  When 启动白板
-  Then 正常启动，上限取缺省值 3
+  Given 某 workspace 流程配置未声明 `max_sessions`
+  When 在切换器中选择该 workspace
+  Then 该 workspace 可用，上限取缺省值 3（第二十八轮改写：原「正常启动」）
 - **spec-00003-AC-3.6** (spec-00003-FR-3)
   Given 上限仅剩一个槽位
   When 两次发起几乎同时到达服务端
@@ -308,7 +324,8 @@ parent: prd-00001-docs-whiteboard
   Then 四项俱在，每项含会话种类、目标文档 id、状态与发起时间，两个已结束
    项分别标明正常退出与终止
 - **spec-00003-AC-4.2** (spec-00003-FR-4)
-  Given 本次服务启动以来没有任何会话
+  Given 当前 workspace 本次打开以来没有任何会话（第二十八轮改写：原
+  「本次服务启动以来」）
   When 打开会话面板
   Then 面板呈现空态，入口照常可用
 - **spec-00003-AC-4.3** (spec-00003-FR-4)
@@ -339,6 +356,10 @@ parent: prd-00001-docs-whiteboard
   Given 流程配置恰声明一条 agent，一个会话运行中
   When 打开会话面板
   Then 该项不含所用 agent（沿「仅多于一条时呈现」口径）
+- **spec-00003-AC-4.10** (spec-00003-FR-4)
+  Given 另一个 workspace 有一个已结束会话，当前 workspace 本次打开以来无会话
+  When 打开会话面板
+  Then 面板呈现空态，不含另一个 workspace 的那一项
 - **spec-00003-AC-5.1** (spec-00003-FR-5)
   Given 两个会话运行中，终端正呈现会话 A
   When 经会话面板切换到会话 B 再切回 A
@@ -525,14 +546,23 @@ parent: prd-00001-docs-whiteboard
 
 - 每个会话一个本地 CLI 进程；上限（FR-3）即资源上界，白板不做进程级配额。
 
+## 8. Open Questions
+
+- 本轮（第二十八轮）无未决项：多 workspace 的作用域裁决全部在
+  [spec-00011-multi-workspace](spec-00011-multi-workspace.md) 与
+  [design-00003-multi-workspace](../design/design-00003-multi-workspace.md)
+  在案，本 spec 只随之收窄自己的作用域。
+
 ## Links
 
 - Parent: [prd-00001-docs-whiteboard](../prd/prd-00001-docs-whiteboard.md)
 - Sibling specs: [spec-00001-docs-whiteboard](spec-00001-docs-whiteboard.md) ·
-  [spec-00002-whiteboard-governance](spec-00002-whiteboard-governance.md)
+  [spec-00002-whiteboard-governance](spec-00002-whiteboard-governance.md) ·
+  [spec-00011-multi-workspace](spec-00011-multi-workspace.md)（第二十八轮起持有逐 workspace 的作用域）
 - Rules: [rule-00001-docs-workflow](../rule/rule-00001-docs-workflow.md)
 - Design: [design-00001-docs-whiteboard](../design/design-00001-docs-whiteboard.md) ·
-  [design-00002-whiteboard-ui](../design/design-00002-whiteboard-ui.md)（第十六轮均已回链）
+  [design-00002-whiteboard-ui](../design/design-00002-whiteboard-ui.md)（第十六轮均已回链）·
+  [design-00003-multi-workspace](../design/design-00003-multi-workspace.md)（第二十八轮）
 - Decisions: [decision-00009-whiteboard-parallel-sessions](../decision/decision-00009-whiteboard-parallel-sessions.md)（本 spec 的各项裁决）·
   [decision-00011-whiteboard-explicit-waiting-signal](../decision/decision-00011-whiteboard-explicit-waiting-signal.md)（FR-6 信号通路，第十八轮）·
   [decision-00008-whiteboard-revision-create-and-session-reach](../decision/decision-00008-whiteboard-revision-create-and-session-reach.md) §3（被推翻的否决）·

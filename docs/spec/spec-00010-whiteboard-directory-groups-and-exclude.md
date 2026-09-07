@@ -15,7 +15,10 @@ parent: prd-00001-docs-whiteboard
 
 - canonical terms 见 `CONTEXT.md`：白板、节点、关系边、弱化态、强调态、压弱、
   类型列、导航栏、类型组、缩略图、命令面板、异常、异常清单、撞 id、呈现状态、
-  刷新、动作被拒、流程配置、子画布。
+  刷新、动作被拒、流程配置、子画布、workspace、切换器（第二十八轮）。
+- 第二十八轮的修订源：[spec-00011-multi-workspace](spec-00011-multi-workspace.md)
+  §1 交接——「拒绝启动」一律降为「该 workspace 不可用」，本 spec 的 AC 中
+  「该 workspace」指其 Given 所述配置所属的那一个。
 - 输入：`parent` 为 [prd-00001-docs-whiteboard](../prd/prd-00001-docs-whiteboard.md)
   ；取舍在案于
   [decision-00018-whiteboard-directory-groups-and-exclude](../decision/decision-00018-whiteboard-directory-groups-and-exclude.md)；
@@ -116,9 +119,11 @@ parent: prd-00001-docs-whiteboard
 - **spec-00010-FR-2** (Unwanted) 若 `exclude` 存在且不是字串列表（标量、映射、
   含非字串元素的列表），或列表中有空串、含 `..` 段、含 `\`、以 `/` 起头或以
   `!` 起头的模式，
-  系统应拒绝启动白板并点名 `exclude` 与不合法之处（与 `max_sessions` 非正整数
-  的拒绝同口径）；不得静默忽略该字段而以「不排除」启动；配置未改时再次启动
-  得到同一拒绝。
+  系统应使该 workspace 不可用并点名 `exclude` 与不合法之处（与 `max_sessions`
+  非正整数的判定同口径）；不得静默忽略该字段而以「不排除」打开；配置未改时
+  再次列出得到同一说明。（第二十八轮 `spec-00011-FR-6`：作用域由「拒绝启动
+  白板」改为「该 workspace 不可用」——一个进程服务多个 workspace，一份坏
+  配置只坏它自己；`spec-00001-FR-15` 持有这条降级。）
 - **spec-00010-FR-3** (Unwanted) 若某文档的关系字段、或某处行内 id 跳转
   （`spec-00001-FR-57`），指向一个**仅**被排除文件声明的文档 id 或条目 id，
   系统应把该边判为无法解析（按 `spec-00001-FR-2` 的断链边处置，异常归属声明
@@ -192,7 +197,7 @@ parent: prd-00001-docs-whiteboard
 **Acceptance (GWT)**
 
 - **spec-00010-AC-1.1** (spec-00010-FR-1)
-  Given 流程配置 `exclude: ['reference/*/source/**']`，`docs/reference/stripe/source/a.md`
+  Given 某 workspace 的流程配置 `exclude: ['reference/*/source/**']`，`docs/reference/stripe/source/a.md`
   没有 front matter，`docs/reference/stripe/summary.md` 是合式 reference
   When 打开白板
   Then `summary.md` 为一个节点，`a.md` 不是节点、不在异常清单、异常计数不计它
@@ -218,7 +223,7 @@ parent: prd-00001-docs-whiteboard
   When 打开白板
   Then 白板启动，`docs/` 下每份非模板文件的 `.md` 都是节点
 - **spec-00010-AC-1.7** (spec-00010-FR-1)
-  Given 流程配置 `exclude:`（键在、值为 `null`）
+  Given 某 workspace 的流程配置 `exclude:`（键在、值为 `null`）
   When 打开白板
   Then 白板启动且不排除任何文件，与 AC-1.6 相同
 - **spec-00010-AC-1.8** (spec-00010-FR-1)
@@ -250,41 +255,41 @@ parent: prd-00001-docs-whiteboard
   When 该会话收口
   Then 该文件按 `spec-00006-FR-6` 判为不合式并被删除，理由为「白板读不出该文档」
 - **spec-00010-AC-2.1** (spec-00010-FR-2)
-  Given 流程配置 `exclude: 'reference/*/source/**'`（标量而非列表）
-  When 启动白板
-  Then 白板拒绝启动，输出点名 `exclude` 且说明它须为字串列表
+  Given 某 workspace 的流程配置 `exclude: 'reference/*/source/**'`（标量而非列表）
+  When 在切换器中选择该 workspace
+  Then 该 workspace 不可用，说明点名 `exclude` 且说明它须为字串列表
 - **spec-00010-AC-2.2** (spec-00010-FR-2)
-  Given 流程配置 `exclude: ['reference/*/source/**', 42]`
-  When 启动白板
-  Then 白板拒绝启动，输出点名 `exclude` 中不是字串的那一项
+  Given 某 workspace 的流程配置 `exclude: ['reference/*/source/**', 42]`
+  When 在切换器中选择该 workspace
+  Then 该 workspace 不可用，说明点名 `exclude` 中不是字串的那一项
 - **spec-00010-AC-2.3** (spec-00010-FR-2)
-  Given 同 AC-2.1 且启动已被拒绝一次，配置未改
-  When 再次启动白板
-  Then 再次以同一输出拒绝启动
+  Given 同 AC-2.1 且该 workspace 已被判为不可用一次，配置未改
+  When 再次列出 workspace
+  Then 再次以同一说明判为不可用
 - **spec-00010-AC-2.4** (spec-00010-FR-2)
-  Given 流程配置 `exclude: { reference: true }`（映射）
-  When 启动白板
-  Then 白板拒绝启动，输出点名 `exclude` 且说明它须为字串列表
+  Given 某 workspace 的流程配置 `exclude: { reference: true }`（映射）
+  When 在切换器中选择该 workspace
+  Then 该 workspace 不可用，说明点名 `exclude` 且说明它须为字串列表
 - **spec-00010-AC-2.5** (spec-00010-FR-2)
-  Given 流程配置 `exclude: ['']`
-  When 启动白板
-  Then 白板拒绝启动，输出点名 `exclude` 中的空串
+  Given 某 workspace 的流程配置 `exclude: ['']`
+  When 在切换器中选择该 workspace
+  Then 该 workspace 不可用，说明点名 `exclude` 中的空串
 - **spec-00010-AC-2.6** (spec-00010-FR-2)
-  Given 流程配置 `exclude: ['../secrets/**']`
-  When 启动白板
-  Then 白板拒绝启动，输出点名 `exclude` 中含 `..` 的那一项
+  Given 某 workspace 的流程配置 `exclude: ['../secrets/**']`
+  When 在切换器中选择该 workspace
+  Then 该 workspace 不可用，说明点名 `exclude` 中含 `..` 的那一项
 - **spec-00010-AC-2.7** (spec-00010-FR-2)
-  Given 流程配置 `exclude: ['/reference/**']`
-  When 启动白板
-  Then 白板拒绝启动，输出点名 `exclude` 中以 `/` 起头的那一项
+  Given 某 workspace 的流程配置 `exclude: ['/reference/**']`
+  When 在切换器中选择该 workspace
+  Then 该 workspace 不可用，说明点名 `exclude` 中以 `/` 起头的那一项
 - **spec-00010-AC-2.8** (spec-00010-FR-2)
-  Given 流程配置 `exclude: ['!reference/**']`
-  When 启动白板
-  Then 白板拒绝启动，输出点名 `exclude` 中以 `!` 起头的那一项并说明不支持取反
+  Given 某 workspace 的流程配置 `exclude: ['!reference/**']`
+  When 在切换器中选择该 workspace
+  Then 该 workspace 不可用，说明点名 `exclude` 中以 `!` 起头的那一项并说明不支持取反
 - **spec-00010-AC-2.9** (spec-00010-FR-2)
-  Given 流程配置 `exclude: ['reference\\stripe\\**']`
-  When 启动白板
-  Then 白板拒绝启动，输出点名 `exclude` 中含 `\` 的那一项并说明模式一律用 `/`
+  Given 某 workspace 的流程配置 `exclude: ['reference\\stripe\\**']`
+  When 在切换器中选择该 workspace
+  Then 该 workspace 不可用，说明点名 `exclude` 中含 `\` 的那一项并说明模式一律用 `/`
 - **spec-00010-AC-3.1** (spec-00010-FR-3)
   Given `exclude: ['reference/*/source/**']`，`docs/reference/stripe/source/b.md`
   声明 `id: reference-00099-stripe-b`，`design-00002` 声明
@@ -606,6 +611,10 @@ parent: prd-00001-docs-whiteboard
 - glob 匹配在既有的路径归一化之后进行（`listDocFiles` 已把路径统一为 `/` 分隔），
   模式一律用 `/` 书写。
 
+## Open Questions
+
+- 本轮（第二十八轮）无未决项：本 spec 只随 `spec-00001-FR-15` 把 `exclude` 非法的拒绝降为该 workspace 不可用。
+
 ## Links
 
 - Parent: [prd-00001-docs-whiteboard](../prd/prd-00001-docs-whiteboard.md)
@@ -625,3 +634,4 @@ parent: prd-00001-docs-whiteboard
 - Decisions: [decision-00018-whiteboard-directory-groups-and-exclude](../decision/decision-00018-whiteboard-directory-groups-and-exclude.md)（本 spec 的全部取舍）·
   [decision-00002-whiteboard-layout](../decision/decision-00002-whiteboard-layout.md)（分列与行序）·
   [decision-00016-whiteboard-navigation-sidebar](../decision/decision-00016-whiteboard-navigation-sidebar.md)（类型组）
+- 第二十八轮: [spec-00011-multi-workspace](spec-00011-multi-workspace.md) · [design-00003-multi-workspace](../design/design-00003-multi-workspace.md)

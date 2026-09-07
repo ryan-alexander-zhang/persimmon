@@ -16,7 +16,11 @@ parent: prd-00001-docs-whiteboard
 - canonical terms 见 `CONTEXT.md`：白板、节点、关系边、异常、解析诊断、
   促进、促进门、归档门、状态流转、动作被拒、需求条目、覆盖状态、
   全局覆盖率视图、关系矩阵、撞 id、异常清单、诊断清单、检视面板、
-  流程配置、评审动作、接收、答疑、推进、命令面板、呈现状态。
+  流程配置、评审动作、接收、答疑、推进、命令面板、呈现状态、workspace、
+  当前 workspace、切换器（第二十八轮）。
+- 第二十八轮的修订源：[spec-00011-multi-workspace](spec-00011-multi-workspace.md)
+  §1 交接——「拒绝启动」一律降为「该 workspace 不可用」，本 spec 的 AC 中
+  「该 workspace」指其 Given 所述配置所属的那一个。
 - 本 spec 的 Markdown 方言取 GFM。
 - 输入：`parent` 为 [prd-00001-docs-whiteboard](../prd/prd-00001-docs-whiteboard.md)。
 - 本 spec 沿用 `spec-00001-docs-whiteboard` 对「文档」的收窄：`docs/**/*.md`
@@ -92,8 +96,10 @@ parent: prd-00001-docs-whiteboard
   流转。其中一条后果是明知并接受的：`wontfix` 与 `resolved` 的 work item 在
   没有替代文档之前**永远到不了 `archived`**——这正是 `rule-00001-BR-19` 的
   本意（`archived` 意为「被替代」，work item 的完成态是 `resolved`/`wontfix`）。
-- **spec-00002-FR-4** (Ubiquitous) 归档门的配对判定以全仓库文档 front matter
-  的 `supersedes` 声明为准：存在**另一份**文档的 `supersedes` 列出该 id 即
+- **spec-00002-FR-4** (Ubiquitous) 归档门的配对判定以**当前 workspace** 全部
+  文档 front matter 的 `supersedes` 声明为准（第二十八轮 `spec-00011-FR-12`：
+  原「全仓库」——一个进程服务多个 workspace 后，「仓库」即当前 workspace，
+  配对不跨 workspace）：存在**另一份**文档的 `supersedes` 列出该 id 即
   成立，不区分该替代文档的类型、status（`draft` 与 `archived` 的替代文档同样
   成立）与**节点健康**（替代文档自身是异常节点时其声明照样算数——配对读的是
   front matter 的声明，不是节点是否健康）；文档自身的 `supersedes` 不构成对
@@ -108,10 +114,12 @@ parent: prd-00001-docs-whiteboard
   配对**（治理轮裁定）：`docs/README.md` 的「`parent` 单值」一条由**代码**持有，
   不进矩阵、也不为它增设元数语法；它与矩阵违规共用 FR-7 的 `relation-field`
   诊断类别，FR-7 的行为不因本条改变。
-- **spec-00002-FR-6** (Unwanted) 关系矩阵应进入 `spec-00001-FR-15` 的同款启动
+- **spec-00002-FR-6** (Unwanted) 关系矩阵应进入 `spec-00001-FR-15` 的同款
   校验：矩阵引用未在 `types` 中声明的类型、为某类型列出未在 `relations` 中
-  声明的字段、或某类型的值不是字符串列表时，系统应拒绝启动并给出指明该类型
-  或该字段的错误信息。**矩阵缺失或为空时不做字段-类型校验，系统照常启动**
+  声明的字段、或某类型的值不是字符串列表时，系统应使该 workspace 不可用并
+  给出指明该类型或该字段的错误信息（第二十八轮：原「拒绝启动」，随
+  `spec-00001-FR-15` 的作用域由进程改为 workspace，`spec-00011-FR-6`）。
+  **矩阵缺失或为空时不做字段-类型校验，该 workspace 照常可用**
   ——这是明知的取舍：既有配置文件不带该矩阵，向后兼容优先于「配置必须完备」。
 - **spec-00002-FR-7** (Unwanted) 若一份文档声明了其 `type` 在矩阵中不被允许的
   关系字段，或把 `parent` 声明为多值，系统应产出一条 `relation-field` 类的
@@ -287,20 +295,20 @@ parent: prd-00001-docs-whiteboard
   Then 不对它做该校验，不产出诊断
 - **spec-00002-AC-6.1** (spec-00002-FR-6)
   Given 关系矩阵为一个未在 `types` 中声明的类型列出字段
-  When 启动白板服务
-  Then 启动失败，错误信息指明该类型
+  When 在切换器中选择该 workspace
+  Then 该 workspace 不可用，说明指明该类型
 - **spec-00002-AC-6.2** (spec-00002-FR-6)
   Given 关系矩阵为某个已声明类型列出一个未在 `relations` 中声明的字段
-  When 启动白板服务
-  Then 启动失败，错误信息指明该字段
+  When 在切换器中选择该 workspace
+  Then 该 workspace 不可用，说明指明该字段
 - **spec-00002-AC-6.3** (spec-00002-FR-6)
   Given 关系矩阵中某类型的值是一个字符串而不是字符串列表
-  When 启动白板服务
-  Then 启动失败，错误信息指明该类型
+  When 在切换器中选择该 workspace
+  Then 该 workspace 不可用，说明指明该类型
 - **spec-00002-AC-6.4** (spec-00002-FR-6)
-  Given 流程配置不含关系矩阵，且仓库中存在字段与类型不配对的文档
-  When 启动白板服务并加载白板
-  Then 正常启动，且不产出任何 `relation-field` 诊断
+  Given 某 workspace 流程配置不含关系矩阵，且其中存在字段与类型不配对的文档
+  When 在切换器中选择该 workspace 并加载白板
+  Then 该 workspace 可用，且不产出任何 `relation-field` 诊断
 - **spec-00002-AC-7.1** (spec-00002-FR-7)
   Given 关系矩阵不为 `record` 允许 `implements`，一份 record 声明了它
   When 加载白板
@@ -559,3 +567,4 @@ parent: prd-00001-docs-whiteboard
 - Design: [design-00001-docs-whiteboard](../design/design-00001-docs-whiteboard.md) · [design-00002-whiteboard-ui](../design/design-00002-whiteboard-ui.md)
 - Sibling spec: [spec-00001-docs-whiteboard](spec-00001-docs-whiteboard.md)
 - Blocked by: [issue-00004-duplicate-ids-hide-a-document](../issue/issue-00004-duplicate-ids-hide-a-document.md) · [issue-00015-open-questions-gate-bypassed-on-status-path](../issue/issue-00015-open-questions-gate-bypassed-on-status-path.md)
+- 第二十八轮: [spec-00011-multi-workspace](spec-00011-multi-workspace.md) · [design-00003-multi-workspace](../design/design-00003-multi-workspace.md)

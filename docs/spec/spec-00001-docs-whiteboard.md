@@ -16,7 +16,10 @@ parent: prd-00001-docs-whiteboard
   可审计类型、交付范围、resolved 门、可澄清类型、答疑、焦点行、澄清状态
   文件、推进、修订轮、流程入口类型、新建、会话历史、终止、流程配置、
   Agent 会话、会话面板（第十六轮）、共写（第二十二轮）、留痕、预览、
-  行内 id 跳转、有效 agent 列表（第二十六轮）。
+  行内 id 跳转、有效 agent 列表（第二十六轮）、workspace、当前 workspace、
+  不可用 workspace、切换器（第二十八轮）。
+- 第二十八轮的修订源：[spec-00011-multi-workspace](spec-00011-multi-workspace.md)
+  §1 交接——本 spec 只改 FR-15 的作用域及其贯穿的 FR-48/FR-53 与各自 AC。
 - 本 spec 的 Markdown 方言取 GFM。
 - 输入：`parent` 为 [prd-00001-docs-whiteboard](../prd/prd-00001-docs-whiteboard.md)。
 - 本 spec 收窄「文档」一词：白板上的文档指 `docs/**/*.md` 中带 id front matter
@@ -145,14 +148,25 @@ plan 的 resolved 门（BR-24、BR-25）由代码内建，不进配置。均不�
   （第十六轮追注：并行会话下「一会话一 commit」读作**至多一次**——残余
   归属边界使会话变更可按结束顺序并入先结束者的 commit，变更不丢失，
   `spec-00003-FR-8` 持有；AC-14.4 的「全部变更」在该情形由归属边界承接。）
-- **spec-00001-FR-15** (Unwanted) 系统应在启动时读取并校验流程配置（文档类型、
+- **spec-00001-FR-15** (Unwanted) 系统应在打开每个 workspace 时读取并校验其
+  流程配置（第二十八轮：原「在启动时」，`spec-00011-FR-6`）（文档类型、
   关系字段、下一步映射、焦点行（FR-48）、入口类型列表（FR-53）、agent 命令与
-  写权限约束、会话并发上限——`max_sessions`，非正整数拒绝启动、缺失取缺省
+  写权限约束、会话并发上限——`max_sessions`，非正整数使该 workspace 不可用、缺失取缺省
   （第十六轮，`spec-00003-FR-3`；键专属用例由 `spec-00003-AC-3.4` /
-  `spec-00003-AC-3.5` 持有）、配置排除——`exclude`，形态非法拒绝启动、缺失不
+  `spec-00003-AC-3.5` 持有）、配置排除——`exclude`，形态非法使该 workspace 不可用、缺失不
   排除（spec-00010 追注，`spec-00010-FR-1`/`FR-2`；键专属用例由其 AC-2.x 持有））；
-  若配置缺失或非法，系统应拒绝启动并给出
-  指明问题所在的错误信息。
+  若配置缺失或非法，系统应给出指明问题所在的错误信息。
+  **第二十八轮（`spec-00011-FR-6`/`FR-9`/`FR-12`）：拒绝的作用域由进程改为
+  workspace**——多 workspace 下一个进程服务多个项目，一份坏配置只让它自己的
+  workspace 不可用（携带此处同一句错误信息，用户选它时按 `spec-00011-FR-9`
+  被拒并见到该说明），进程照常启动、别的 workspace 不受影响；进程级的拒绝
+  启动只余 workspace 注册表本身不合式一种（`spec-00011-FR-18`）。**本条的
+  降级贯穿全部配置键**，随本轮一并改写、口径同此：本 spec 的 FR-48（焦点行）
+  与 FR-53（`entry`）及其 AC、`spec-00002-FR-6`/`AC-6.x`（关系矩阵）、
+  `spec-00003-FR-3`/`AC-3.4`（`max_sessions`）、`spec-00005-FR-8`/`AC-8.1`
+  与 `spec-00009-FR-2`/`AC-2.x`（agent 条目与 headless 占位）、
+  `spec-00010-FR-2`/`AC-2.x`（`exclude`）。本地层不合式**不**在此列——它
+  从来不拦启动，退回项目层（`spec-00009-FR-4`、`decision-00017` §2 第 6 条）。
 - **spec-00001-FR-16** (Unwanted) 若 agent CLI 不存在或启动失败，系统应在内嵌
   终端呈现错误，且不产生任何 commit。
 - **spec-00001-FR-17** (Event) 当推进会话结束、白板刷新时，系统应校验会话产出
@@ -364,7 +378,7 @@ plan 的 resolved 门（BR-24、BR-25）由代码内建，不进配置。均不�
   第十二轮扩其承载；配置未声明的
   可澄清类型不存在节点，不要求焦点行）。FR-15 的启动校验扩展：
   可澄清类型缺焦点行、焦点行出现在可澄清类型之外、或焦点行为空（含仅空白）、
-  非字符串、含换行，均拒绝启动并指明所在类型。澄清任务指令的提问重心 = 代码
+  非字符串、含换行，均使该 workspace 不可用并指明所在类型（第二十八轮：作用域由进程改为 workspace，`spec-00011-FR-6`）。澄清任务指令的提问重心 = 代码
   持有的共享骨架 + 该类型的焦点行。（所选 CLI 不具备内建提问机制时，骨架
   文字仍约束其以纯文本按同一形态逐题提问——选择题的终端原生渲染不是硬保证，
   见 decision-00006 §4。）
@@ -418,8 +432,9 @@ plan 的 resolved 门（BR-24、BR-25）由代码内建，不进配置。均不�
   status 预填 `draft`）；保存时系统应创建对应文件并 commit（信息指明「新建」
   与文档 id）。目标 id 已存在时拒绝且不覆盖；slug 不合小写连字符时拒绝；
   类型不在 `entry` 内的新建请求拒绝且不写文件（per `rule-00001-BR-26`）。
-  `entry` 进入 FR-15 的启动校验：列出未声明的类型即拒绝启动并指明；`entry`
-  缺失或为空时正常启动，顶栏不呈现新建入口。（第二十二轮：新建增**共写
+  `entry` 进入 FR-15 的校验：列出未声明的类型即使该 workspace 不可用并指明
+  （第二十八轮：作用域由进程改为 workspace，`spec-00011-FR-6`）；`entry`
+  缺失或为空时该 workspace 照常可用，顶栏不呈现新建入口。（第二十二轮：新建增**共写
   模式**——三项拒绝移至确认时评估、确认即建档并接续共写会话，
   `spec-00006-FR-2`；本条的空白路径原样保留。）
 - **spec-00001-FR-54** (Event) 当会话结束（自然退出或终止）时，系统应把该
@@ -747,13 +762,14 @@ plan 的 resolved 门（BR-24、BR-25）由代码内建，不进配置。均不�
   When 查看 git 历史
   Then 存在一次含该会话全部变更的 commit，信息指明「澄清」与文档 id
 - **spec-00001-AC-15.1** (spec-00001-FR-15)
-  Given 流程配置文件不存在
-  When 启动白板服务
-  Then 启动失败，错误信息指明缺失的配置路径
+  Given 一个已登记的 workspace 目录在，但其流程配置文件在登记后被删除
+  When 在切换器中选择该 workspace
+  Then 该 workspace 判为不可用，其说明指明缺失的配置路径（第二十八轮改写：
+  原断言「启动失败」，作用域已由进程改为 workspace）
 - **spec-00001-AC-15.2** (spec-00001-FR-15)
-  Given 流程配置内容非法（如引用未知文档类型）
-  When 启动白板服务
-  Then 启动失败，错误信息指明非法条目
+  Given 一个已登记的 workspace 的流程配置内容非法（如引用未知文档类型）
+  When 在切换器中选择该 workspace
+  Then 该 workspace 判为不可用，其说明指明非法条目（第二十八轮改写，同上）
 - **spec-00001-AC-16.1** (spec-00001-FR-16)
   Given 流程配置指定的 agent CLI 在本机不存在
   When 发起推进
@@ -1494,24 +1510,24 @@ plan 的 resolved 门（BR-24、BR-25）由代码内建，不进配置。均不�
   Then 任务指令含 spec 的焦点行且不含 idea 的焦点行
 - **spec-00001-AC-48.2** (spec-00001-FR-48)
   Given 流程配置中 spec 的焦点行为空字符串
-  When 启动白板服务
-  Then 启动失败，错误信息指明 spec 的焦点行
+  When 在切换器中选择该 workspace
+  Then 该 workspace 不可用，说明指明 spec 的焦点行
 - **spec-00001-AC-48.3** (spec-00001-FR-48)
   Given 全部可澄清类型都带合法焦点行的流程配置
-  When 启动白板服务
-  Then 启动成功，可澄清类型的节点浮窗呈现澄清入口
+  When 在切换器中选择该 workspace
+  Then 该 workspace 可用，可澄清类型的节点浮窗呈现澄清入口
 - **spec-00001-AC-48.4** (spec-00001-FR-48)
   Given 流程配置缺 idea 的焦点行
-  When 启动白板服务
-  Then 启动失败，错误信息指明 idea
+  When 在切换器中选择该 workspace
+  Then 该 workspace 不可用，说明指明 idea
 - **spec-00001-AC-48.5** (spec-00001-FR-48)
   Given 流程配置给 record（非可澄清类型）配了焦点行
-  When 启动白板服务
-  Then 启动失败，错误信息指明 record
+  When 在切换器中选择该 workspace
+  Then 该 workspace 不可用，说明指明 record
 - **spec-00001-AC-48.6** (spec-00001-FR-48)
   Given 流程配置中 spec 的焦点行含换行
-  When 启动白板服务
-  Then 启动失败，错误信息指明 spec
+  When 在切换器中选择该 workspace
+  Then 该 workspace 不可用，说明指明 spec
 - **spec-00001-AC-49.1** (spec-00001-FR-49)
   Given 一个运行中的会话
   When 执行终止
@@ -1654,12 +1670,12 @@ plan 的 resolved 门（BR-24、BR-25）由代码内建，不进配置。均不�
   Then 请求被拒绝
 - **spec-00001-AC-53.5** (spec-00001-FR-53)
   Given 流程配置 `entry` 列出一个未声明的类型
-  When 启动白板服务
-  Then 启动失败，错误信息指明该类型
+  When 在切换器中选择该 workspace
+  Then 该 workspace 不可用，说明指明该类型
 - **spec-00001-AC-53.6** (spec-00001-FR-53)
   Given 流程配置无 `entry` 字段（或 `entry` 为空列表）
-  When 启动白板并查看顶栏
-  Then 正常启动，顶栏无新建入口
+  When 在切换器中选择该 workspace 并查看顶栏
+  Then 该 workspace 可用，顶栏无新建入口
 - **spec-00001-AC-53.7** (spec-00001-FR-53)
   Given 仓库启用了拦截 `draft` 文档入库的 pre-commit hook
   When 新建保存产生一份 `draft` 文档
@@ -1865,7 +1881,7 @@ plan 的 resolved 门（BR-24、BR-25）由代码内建，不进配置。均不�
   遗漏扫描已做——时序落为 AC-57.8，基数落为 AC-57.3，撞 id 落为 AC-58.5。
 
 - Rules: [rule-00001-docs-workflow](../rule/rule-00001-docs-workflow.md)
-- Sibling specs: [spec-00002-whiteboard-governance](spec-00002-whiteboard-governance.md) · [spec-00003-whiteboard-parallel-sessions](spec-00003-whiteboard-parallel-sessions.md)（第十六轮起持有 FR-18 的并发模型）
-- Design: [design-00001-docs-whiteboard](../design/design-00001-docs-whiteboard.md) · [design-00002-whiteboard-ui](../design/design-00002-whiteboard-ui.md)
+- Sibling specs: [spec-00002-whiteboard-governance](spec-00002-whiteboard-governance.md) · [spec-00003-whiteboard-parallel-sessions](spec-00003-whiteboard-parallel-sessions.md)（第十六轮起持有 FR-18 的并发模型）· [spec-00011-multi-workspace](spec-00011-multi-workspace.md)（第二十八轮起持有 FR-15 拒绝的 workspace 作用域）
+- Design: [design-00001-docs-whiteboard](../design/design-00001-docs-whiteboard.md) · [design-00002-whiteboard-ui](../design/design-00002-whiteboard-ui.md) · [design-00003-multi-workspace](../design/design-00003-multi-workspace.md)（第二十八轮）
 - Plan: [plan-00001-docs-whiteboard-mvp](../plan/plan-00001-docs-whiteboard-mvp.md) · [plan-00002-whiteboard-ui](../plan/plan-00002-whiteboard-ui.md) · [plan-00003-whiteboard-relation-edges](../plan/plan-00003-whiteboard-relation-edges.md) · [plan-00004-whiteboard-edge-emphasis](../plan/plan-00004-whiteboard-edge-emphasis.md) · [plan-00005-whiteboard-requirement-panel](../plan/plan-00005-whiteboard-requirement-panel.md) · [plan-00006-whiteboard-text-rendering](../plan/plan-00006-whiteboard-text-rendering.md) · [plan-00007-whiteboard-parsing-contract](../plan/plan-00007-whiteboard-parsing-contract.md) · [plan-00008-whiteboard-refresh-and-commit-scope](../plan/plan-00008-whiteboard-refresh-and-commit-scope.md) · [plan-00009-whiteboard-ask-clarify](../plan/plan-00009-whiteboard-ask-clarify.md) · [plan-00010-whiteboard-audit-and-resolved-gate](../plan/plan-00010-whiteboard-audit-and-resolved-gate.md) · [plan-00011-whiteboard-revision-create-and-session-reach](../plan/plan-00011-whiteboard-revision-create-and-session-reach.md)
 - Decisions: [decision-00001-whiteboard-ui-stack](../decision/decision-00001-whiteboard-ui-stack.md) · [decision-00002-whiteboard-layout](../decision/decision-00002-whiteboard-layout.md)（持有 FR-1 的完整布局规则）· [decision-00003-whiteboard-edge-emphasis](../decision/decision-00003-whiteboard-edge-emphasis.md)（持有 FR-28…FR-30 的取舍）· [decision-00004-whiteboard-requirement-panel](../decision/decision-00004-whiteboard-requirement-panel.md)（持有 FR-31…FR-36 的取舍）· [decision-00005-whiteboard-parsing-contract](../decision/decision-00005-whiteboard-parsing-contract.md)（持有 FR-40/FR-41 与条目文法的取舍）· [decision-00006-whiteboard-ask-clarify](../decision/decision-00006-whiteboard-ask-clarify.md)（持有 FR-9 改写与 FR-45…FR-48 的取舍）· [decision-00007-whiteboard-audit-and-resolved-gate](../decision/decision-00007-whiteboard-audit-and-resolved-gate.md)（持有 FR-50…FR-52 的取舍）· [decision-00008-whiteboard-revision-create-and-session-reach](../decision/decision-00008-whiteboard-revision-create-and-session-reach.md)（持有 FR-53…FR-56 的取舍）· [decision-00009-whiteboard-parallel-sessions](../decision/decision-00009-whiteboard-parallel-sessions.md)（持有第十六轮 FR-18/FR-49 并发改写的取舍）

@@ -76,10 +76,13 @@ Hit policy: `UNIQUE`
 - **rule-00001-BR-18** (Definition) 新文档 id：`<type>-<五位数>-<slug>`，五位数
   取该类型现有最大编号加一（该类型无存量时为 `00001`）；slug 为小写连字符串，
   语义自取。（spec-00010 追注：「现有」以白板可见文档为准，被流程配置 `exclude`
-  命中的文件不计，`spec-00010-FR-12`。）
+  命中的文件不计，`spec-00010-FR-12`。第二十八轮追注：「该类型现有」以**同一
+  workspace 内**的文档为准——白板一个进程可服务多个 workspace，取号与撞 id
+  判定都不跨 workspace，`spec-00011-FR-12`。）
 - **rule-00001-BR-19** (Constraint) 文档得处于 `archived` 的前提是仓库中存在
   以 `supersedes` 列出其 id 的替代文档（`archived` 意为「被替代」，不是
-  「被否决」或「做完」）。On violation: 归档被拒绝。
+  「被否决」或「做完」；第二十八轮追注：「仓库中」即**同一 workspace 内**，
+  配对不跨 workspace，`spec-00011-FR-12`、`spec-00002-FR-4`）。On violation: 归档被拒绝。
 - **rule-00001-BR-20** (Constraint) 澄清只适用于 `idea`、`prd`、`spec`、
   `rule`、`design` 五种类型——承载意图与决策的文档才有业务问题可问；其余类型
   承载事实、结果或执行，不适用。On violation: 澄清被拒绝。

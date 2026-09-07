@@ -121,3 +121,11 @@ constrains: [spec-00009-whiteboard-agent-settings, spec-00001-docs-whiteboard, s
 - 站立约束：代码不得内建任何 CLI 的模型参数名；本地层不得覆盖 `cwd`；
   设置面板不得写 `whiteboard.config.yaml`；有效列表不得在启动时定格；后续
   落到本决定之下的 `plan` 回填进本文件的 `constrains`。
+
+## 第二十八轮追注（多 workspace）
+
+本决定文内凡「拒绝启动」的表述，其作用域自
+[spec-00011-multi-workspace](../spec/spec-00011-multi-workspace.md)（第二十八轮）
+起由**进程**改为**workspace**：一个进程服务多个项目目录，一份坏配置只使它
+自己的 workspace 不可用，进程照常启动、别的 workspace 不受影响。裁决本身
+不变，改的只是「拒绝」落在哪一层，承载见 `spec-00001-FR-15`。

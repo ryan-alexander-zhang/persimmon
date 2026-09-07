@@ -14,7 +14,11 @@ parent: prd-00001-docs-whiteboard
 ## 1. Context
 
 - canonical terms 见 `CONTEXT.md`：白板、节点、Agent 会话、会话面板、
-  等待输入、终止、刷新、就近关闭。
+  等待输入、终止、刷新、就近关闭、workspace、当前 workspace、切换器
+  （第二十八轮）。
+- 第二十八轮的修订源：[spec-00011-multi-workspace](spec-00011-multi-workspace.md)
+  §1 交接——「拒绝启动」一律降为「该 workspace 不可用」，本 spec 的 AC 中
+  「该 workspace」指其 Given 所述配置所属的那一个。
 - 本 spec 的 Markdown 方言取 GFM。
 - 输入：`parent` 为 [prd-00001-docs-whiteboard](../prd/prd-00001-docs-whiteboard.md)；
   技术路线调研为 [analysis-00001-out-of-board-notifications](../analysis/analysis-00001-out-of-board-notifications.md)；
@@ -69,6 +73,9 @@ parent: prd-00001-docs-whiteboard
   的置位经刷新到达页面）、开关生效且页面处于离场态时，系统应弹桌面
   通知，内容含会话种类、目标文档 id 与等待输入状态；当页面**转入离场**
   且此刻已有会话处于等待输入时，系统应为每个等待中的会话补发一条。
+  （第二十八轮 `spec-00011-FR-17`：标题另以来源 workspace 的显示名为前缀；
+  本条对**每个已打开 workspace** 的会话成立，判重的离场区间逐「workspace +
+  会话」计；补发同样覆盖全部已打开 workspace，不限当前那个。）
   等待通知的判重以**离场区间**为界：每会话一次离场区间内至多一条，再弹
   一条须用户已回到页面**且**该会话经历新的置位——不以 `spec-00003-FR-6`
   标志的逐次翻转为界（未锁存的标志遇任何输出即解除、静默即再置位，而
@@ -81,7 +88,8 @@ parent: prd-00001-docs-whiteboard
 - **spec-00004-FR-3** (Event) 当会话结束（触发集同 `spec-00003-FR-7`：
   正常退出、失败、含启动失败）、开关生效且页面离场时，系统应弹桌面
   通知，内容含会话种类、目标文档 id 与结束态；多个会话相继结束时逐
-  会话各一条。（「终止」在实践中总在页面可见时发起、被 FR-4 抑制，
+  会话各一条。（第二十八轮 `spec-00011-FR-17`：标题另以来源 workspace 的
+  显示名为前缀，本条对每个已打开 workspace 的会话成立。）（「终止」在实践中总在页面可见时发起、被 FR-4 抑制，
   服务端关停的结束不经本通路送达——边界见 §6。）
 - **spec-00004-FR-4** (Unwanted) 若开关未启用、权限非授予态（含授权后
   被浏览器收回）、或页面可见且聚焦（非离场），系统应不弹桌面通知——
@@ -94,10 +102,14 @@ parent: prd-00001-docs-whiteboard
   `spec-00003-FR-4` 的面板点击同构）；对应会话已不在本次服务运行的
   列表中时（如服务已重启），提示且不改变当前视图。页面已经可见时点击
   同样呈现该会话。（第二十一轮：答疑会话的通知点击改呈其问题列表并定位
-  线程，三分支就近处置同构——`spec-00005-FR-9`。）
-- **spec-00004-FR-6** (Ubiquitous) 桌面通知的内容应只含会话种类、目标
-  文档 id 与状态，不含文档正文或会话转写的任何片段（通知会落系统通知
-  中心，最小化外泄面）；同一会话同刻至多一条，**后到替换先到**——替换
+  线程，三分支就近处置同构——`spec-00005-FR-9`。第二十八轮
+  `spec-00011-FR-17`：来源不是当前 workspace 时**先切到该 workspace**、
+  等其首屏与会话列表到位，再走本条的三分支；该 workspace 已不可用或已被
+  移除时提示且不改变当前视图。）
+- **spec-00004-FR-6** (Ubiquitous) 桌面通知的内容应只含来源 workspace 的
+  显示名、会话种类、目标文档 id 与状态，不含目录路径、文档正文或会话转写的
+  任何片段（通知会落系统通知中心，最小化外泄面；第二十八轮
+  `spec-00011-FR-17` 增显示名一项——外泄面只宽这一项）；同一会话同刻至多一条，**后到替换先到**——替换
   由页面自己完成、不依赖通知标识的平台语义（原「复用同一标识」的写法
   即 issue-00019 的缺陷来源，据实校正；等待通知被该会话的结束通知替换）。
 
@@ -188,11 +200,13 @@ parent: prd-00001-docs-whiteboard
 - **spec-00004-AC-6.1** (spec-00004-FR-6)
   Given 一个目标文档正文含敏感内容、其会话转写含长输出
   When 该会话的等待与结束通知弹出
-  Then 通知内容恰为种类、文档 id 与状态，不含正文或转写片段
+  Then 通知内容恰为来源 workspace 显示名、种类、文档 id 与状态，不含正文或
+  转写片段（第二十八轮增显示名一项，`spec-00011-FR-17`）
 - **spec-00004-AC-6.2** (spec-00004-FR-6)
   Given 一个会话以启动失败结束
   When 其通知弹出
-  Then 内容同样只含种类、文档 id 与失败状态，不含错误堆栈
+  Then 内容同样只含来源 workspace 显示名、种类、文档 id 与失败状态，不含
+  错误堆栈
 - **spec-00004-AC-6.3** (spec-00004-FR-6)
   Given 一个会话的等待输入通知已弹出且页面仍离场
   When 该会话结束
@@ -227,6 +241,10 @@ parent: prd-00001-docs-whiteboard
 - 邮件等其他板外通道（`spec-00003` §6 原条目的另一半，仍范围外）
 - 逐事件种类的通知偏好细分（一个总开关）
 
+## Open Questions
+
+- 本轮（第二十八轮）无未决项：本 spec 只随 `spec-00011-FR-17` 增来源 workspace 的显示名前缀与点击先切。
+
 ## Links
 
 - Parent: [prd-00001-docs-whiteboard](../prd/prd-00001-docs-whiteboard.md)
@@ -238,3 +256,4 @@ parent: prd-00001-docs-whiteboard
 - Analysis: [analysis-00001-out-of-board-notifications](../analysis/analysis-00001-out-of-board-notifications.md)
 - Decisions: [decision-00010-whiteboard-desktop-notifications](../decision/decision-00010-whiteboard-desktop-notifications.md)（本 spec 的全部取舍）·
   [decision-00011-whiteboard-explicit-waiting-signal](../decision/decision-00011-whiteboard-explicit-waiting-signal.md)（FR-2 括注前提收窄、§6 损失接受，第十八轮）
+- 第二十八轮: [spec-00011-multi-workspace](spec-00011-multi-workspace.md) · [design-00003-multi-workspace](../design/design-00003-multi-workspace.md)

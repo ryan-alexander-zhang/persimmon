@@ -18,7 +18,10 @@ parent: prd-00001-docs-whiteboard
 
 - canonical terms 见 `CONTEXT.md`：白板、节点、答疑、Agent 会话、
   会话面板、等待输入、终止、离场、桌面通知、会话历史、会话前快照、
-  呈现状态。
+  呈现状态、workspace、切换器（第二十八轮）。
+- 第二十八轮的修订源：[spec-00011-multi-workspace](spec-00011-multi-workspace.md)
+  §1 交接——「拒绝启动」一律降为「该 workspace 不可用」，本 spec 的 AC 中
+  「该 workspace」指其 Given 所述配置所属的那一个。
 - 输入：`parent` 为 [prd-00001-docs-whiteboard](../prd/prd-00001-docs-whiteboard.md)；
   全部取舍在案于 [decision-00012-whiteboard-ask-threads](../decision/decision-00012-whiteboard-ask-threads.md)
   （与本 spec 同轮接收——plan 开启前其必须已 `active`）。
@@ -362,18 +365,20 @@ parent: prd-00001-docs-whiteboard
   When 经接口对其请求终端接入、输入或尺寸调整
   Then 三者均被拒绝
 - **spec-00005-AC-8.1** (spec-00005-FR-8)
-  Given 项目层一条 agent 条目的 headless 声明缺少必需占位
-  When 服务启动
-  Then 启动被拒且报错点名该 agent 条目（`spec-00001-FR-15` 口径）
+  Given 某 workspace 项目层一条 agent 条目的 headless 声明缺少必需占位
+  When 在切换器中选择该 workspace
+  Then 该 workspace 不可用且说明点名该 agent 条目（`spec-00001-FR-15` 口径；
+  第二十八轮：原「启动被拒」）
 - **spec-00005-AC-8.2** (spec-00005-FR-8)
   Given 一条 agent 配置携带合式的 headless 声明
   When 一条线程首调与追问相继执行
   Then 两次调用各按声明的首调与接续命令形态执行
 - **spec-00005-AC-8.3** (spec-00005-FR-8)
-  Given 本地层一条追加条目的 headless 声明缺少必需占位（第二十六轮增）
-  When 服务启动
-  Then 服务照常启动，该条目不在有效 agent 列表中，设置面板点名该条目的
-  headless 声明
+  Given 某 workspace 的本地层一条追加条目的 headless 声明缺少必需占位
+  （第二十六轮增）
+  When 在切换器中选择该 workspace
+  Then 该 workspace 照常可用，该条目不在有效 agent 列表中，设置面板点名该
+  条目的 headless 声明
 - **spec-00005-AC-9.1** (spec-00005-FR-9)
   Given 一个文档有三条线程：已回答、进行中、失败
   When 打开其编辑器并切到问题列表态
@@ -445,3 +450,4 @@ parent: prd-00001-docs-whiteboard
   [design-00002-whiteboard-ui](../design/design-00002-whiteboard-ui.md) §14（均已随 plan-00021 T1 扩展并回链）
 - Decisions: [decision-00012-whiteboard-ask-threads](../decision/decision-00012-whiteboard-ask-threads.md)（本 spec 的全部取舍，同轮接收）·
   [decision-00006-whiteboard-ask-clarify](../decision/decision-00006-whiteboard-ask-clarify.md)（答疑与澄清的方向切分不变；答疑的形态由本 spec 接管）
+- 第二十八轮: [spec-00011-multi-workspace](spec-00011-multi-workspace.md) · [design-00003-multi-workspace](../design/design-00003-multi-workspace.md)

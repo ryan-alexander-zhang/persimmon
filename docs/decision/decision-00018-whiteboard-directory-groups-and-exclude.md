@@ -153,3 +153,11 @@ constrains: [spec-00010-whiteboard-directory-groups-and-exclude, spec-00001-docs
 - 站立约束：`exclude` 的语义只能是「不存在」，不得引入「隐藏但占位」的中间态；
   目录组不得嵌套；分列依据不得改为目录；不得为目录组引入 `docs/` 之外的排序
   或命名状态。后续落到本决定之下的 `plan` 回填进本文件的 `constrains`。
+
+## 第二十八轮追注（多 workspace）
+
+本决定文内凡「拒绝启动」的表述，其作用域自
+[spec-00011-multi-workspace](../spec/spec-00011-multi-workspace.md)（第二十八轮）
+起由**进程**改为**workspace**：一个进程服务多个项目目录，一份坏配置只使它
+自己的 workspace 不可用，进程照常启动、别的 workspace 不受影响。裁决本身
+不变，改的只是「拒绝」落在哪一层，承载见 `spec-00001-FR-15`。

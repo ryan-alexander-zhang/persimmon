@@ -37,18 +37,24 @@ flowchart LR
     ED[Editor<br/>CodeMirror + Preview]
     TM[Terminal<br/>xterm.js]
   end
-  subgraph Node service
-    API[HTTP/WS API]
-    DR[Doc Repository<br/>解析 docs/**·图模型]
-    WE[Workflow Engine<br/>rule-00001 的执行者]
-    SM[Session Manager<br/>node-pty 会话注册表·持有会话前快照]
-    GL[Git Layer<br/>暂存目标路径·快照与差集·commit]
-    CFG[Flow Config<br/>启动时加载校验]
-    WA[Watcher<br/>chokidar·去抖·广播]
+  subgraph Process["一个 Node 进程 · 一个 HTTP server（第二十八轮）"]
+    HOST[Host<br/>workspace 注册表·实例表·/w/:wid 前缀路由·WS 升级分发·SPA]
+    subgraph Board["Board：一个 workspace 一组"]
+      API[HTTP/WS API]
+      DR[Doc Repository<br/>解析 docs/**·图模型]
+      WE[Workflow Engine<br/>rule-00001 的执行者]
+      SM[Session Manager<br/>node-pty 会话注册表·持有会话前快照]
+      GL[Git Layer<br/>暂存目标路径·快照与差集·commit]
+      CFG[Flow Config<br/>打开 workspace 时加载校验]
+      WA[Watcher<br/>chokidar·去抖·广播]
+    end
   end
-  GV & ED --> API
-  TM <--WS--> SM
-  GV <--WS 事件--> WA
+  GV & ED --> HOST
+  HOST --> API
+  TM <--WS--> HOST
+  HOST <--WS--> SM
+  GV <--WS 事件--> HOST
+  HOST <--WS 事件--> WA
   WA --> FS
   API --> DR & WE & SM & GL
   WE --> CFG
@@ -58,6 +64,13 @@ flowchart LR
   GL --> GIT[(git repo)]
 ```
 
+- **Host（第二十八轮，`spec-00011`）**：本节以下全部模块构成**一个 workspace**
+  的服务组（`Board`），Host 在它们之前：持 workspace 注册表与 `Map<wid,
+  Promise<Board>>` 实例表，按 `/w/:wid/api/...` 前缀把 HTTP 与 WS 升级分发到
+  对应实例，惰性建实例（只有余路径以 `/api/` 起头的请求触发），服务 SPA，
+  关停时对全部实例扇出。它不解析任何文档、不发起任何会话——多 workspace 不是
+  把以下模块改成多租户，而是多建几份。内部结构、注册表契约与可用性判定见
+  [design-00003-multi-workspace](design-00003-multi-workspace.md)。
 - **Doc Repository**：扫描 `docs/**/*.md`（排除 `README.md`、`TEMPLATE.md`；
   **第二十七轮起再减去流程配置 `exclude` 命中的文件**，§14），
   产出图模型 `{nodes, edges, issues}`；类型集与关系字段集取自流程配置，front
@@ -265,9 +278,11 @@ flowchart LR
 
 ## 3. 流程配置契约
 
-`whiteboard.config.yaml` 位于仓库根部（与 `docs/` 同级、用户直接可编辑），
-服务启动时加载并校验；**缺失或非法即拒绝启动**（spec FR-15，无内置默认回退；
-开箱即用靠模板仓库自带一份该文件）。
+`whiteboard.config.yaml` 位于**每个 workspace 自己的项目根**（与该项目的
+`docs/` 同级、用户直接可编辑；第二十八轮：本节的「仓库根」一律指此，不是
+白板 npm 包的根——那是 §8），打开该 workspace 时加载并校验；**缺失或非法即
+使该 workspace 不可用**（spec FR-15 第二十八轮改写，无内置默认回退；开箱即用
+靠模板仓库自带一份该文件）。
 
 ```yaml
 types:
@@ -293,9 +308,9 @@ flow:                       # rule-00001-BR-13…BR-17
 
 entry: [idea, prd]          # rule-00001-BR-26 的流程入口类型（spec FR-53）；缺失或空 = 无新建入口
 
-max_sessions: 3             # 会话并发上限（spec-00003-FR-3，第十六轮）；缺失取缺省 3，非正整数拒绝启动
+max_sessions: 3             # 会话并发上限（spec-00003-FR-3，第十六轮）；缺失取缺省 3，非正整数使该 workspace 不可用
 
-exclude: []                 # 配置排除（spec-00010-FR-1，第二十七轮，§14）：相对 docs/ 的 glob 列表；缺失/null/空 = 不排除，形态非法拒绝启动
+exclude: []                 # 配置排除（spec-00010-FR-1，第二十七轮，§14）：相对 docs/ 的 glob 列表；缺失/null/空 = 不排除，形态非法使该 workspace 不可用
 
 carries:                    # 治理轮（spec-00002-FR-5）的关系矩阵：类型 → 该类型允许声明的关系字段
   spec:   [parent]
@@ -320,7 +335,7 @@ agents:
   `relations` 中；`entry` 若有，其中每个名字必须在 `types` 中（FR-53）；
   `agents` 至少一项，`command` 非空字符串、`args` 为字符串数组、`cwd` 若有必须
   是 `docs` 内路径；`max_sessions` 若有必须是正整数（缺失取缺省 3——
-  spec-00003-AC-3.4/AC-3.5，第十六轮）。任何违规 → 启动失败并指明条目。
+  spec-00003-AC-3.4/AC-3.5，第十六轮）。任何违规 → 该 workspace 不可用并指明条目（第二十八轮：作用域由进程改为 workspace，spec-00011-FR-6；本文档以下各处的「拒绝启动」与「照常启动」一律读作「该 workspace 不可用」与「该 workspace 照常可用」，「启动校验」即打开 workspace 时的配置校验）。
   **第二十七轮增（`spec-00010-FR-2`）**：`exclude` 的读法与逐项校验见 §14.1。
   **第二十六轮增（`spec-00009-FR-2`）**：`model` 若有须是非空字符串；`env`
   若有须是字符串到字符串的映射；`{model}` 与 `model` **按形态成对**——
@@ -350,21 +365,21 @@ agents:
   `carries` 的理由**：配置里已有 `flow[].carry`（「这一步带上哪个关系」），
   `carries` 是同一个动词在类型这一层的用法（「这个类型带哪些关系字段」），不引入
   第二套词汇；两者的分工写进配置文件注释——`carry` 是逐步的，`carries` 是逐类型
-  的。校验规则（与 `types`/`relations`/`entry` 同一遍，任何违规即拒绝启动）：
-  - `carries` 必须是映射；其每个键必须在 `types` 中，否则拒绝启动并**指明该
+  的。校验规则（与 `types`/`relations`/`entry` 同一遍，任何违规即使该 workspace 不可用）：
+  - `carries` 必须是映射；其每个键必须在 `types` 中，否则使该 workspace 不可用并**指明该
     类型**（`AC-6.1`）；
-  - 每个值必须是**字符串列表**，否则拒绝启动并指明该类型（`AC-6.3`，一个裸
+  - 每个值必须是**字符串列表**，否则使该 workspace 不可用并指明该类型（`AC-6.3`，一个裸
     字符串即此情形）；
-  - 列表中每个字段必须在 `relations` 中，否则拒绝启动并**指明该字段**
+  - 列表中每个字段必须在 `relations` 中，否则使该 workspace 不可用并**指明该字段**
     （`AC-6.2`）；
-  - `carries` 缺失、为 null 或为空映射：**照常启动，不做字段-类型校验**
+  - `carries` 缺失、为 null 或为空映射：**该 workspace 照常可用，不做字段-类型校验**
     （`AC-6.4`）——与 `entry`、`focus` 缺失的读法一致，向后兼容优先。
   - **空列表与「不出现」不同**，这是 `FR-5` 明写的两种语义：空列表＝该类型不许
     带任何关系字段（会产诊断），不出现＝不校验该类型（不产诊断）。校验代码因此
     要分得清「键存在且值为 `[]`」与「键不存在」，不能把二者归一。
 - **本轮就把矩阵写进仓库根的 `whiteboard.config.yaml`**，按各文件夹 README 的
   「Relations」小节填满 16 个类型（`idea` 与 `prompt` 为空列表，它们没有该小节）。
-  这**不会拦住今天的白板**：现行 `parseFlowConfig`（`tools/whiteboard/src/config.ts`）
+  这**不会拦住今天的白板**：现行 `parseFlowConfig`（`src/config.ts`）
   在 `asRecord(raw, 'config root')` 之后只读自己认识的键，没有未知顶层键的拒绝
   分支，故矩阵在实现落地前只是一段被忽略的配置——已实测启动与既有配置用例照常
   通过。因此不采用「注释掉 + 留 TODO」的写法。已按这份矩阵对全仓 front matter
@@ -523,8 +538,20 @@ spawn 时 `args` 经 `fillModel(args, model)` 把每处 `{model}` 换成 `model`
   依次执行终止路径（信号升级同 issue-00012），逐会话走既有收尾
   （历史落盘 + commit，经同一串行队列）后再退出进程；异常崩溃不保证
   （spec-00003-FR-9）。重启后注册表为空，面板空态；「本次服务启动以来」
-  的已结束会话列表也由注册表内存持有，不做持久化——跨重启回看走
+  的已结束会话列表也由注册表内存持有，不做持久化（第二十八轮
+  `spec-00011-FR-12`：一个 workspace 一个注册表，该窗口即**该 workspace
+  本次打开以来**——实例惰性建立，服务启动时它还不存在）——跨重启回看走
   `.whiteboard/sessions/` 的会话历史（FR-54）。
+
+**第二十八轮（`spec-00011-FR-12`/`FR-16`）**：会话状态多一个对外出口——
+`BoardOptions` 新增的可选 `onSessionsChanged`，与 `watcher.signal()` 因会话
+状态被调用的每一处同时调用，Host 用它喂 Host 级的 workspace 事件通路；
+**不**经 `watcher.subscribe`，因为 follower 计的是浏览器而不是服务自己
+（`spec-00001-AC-42.8`）。收尾语义、恰一次的保证与信号升级阶梯逐会话不变。
+本节所述的生命周期是**一个 workspace** 的；各处开缝的确切位置、关停时
+`shutdown()` 与新增 `close()` 的次序，由
+[design-00003](design-00003-multi-workspace.md) §1、§7 持有——此处不复述，
+以免两处漂移。
 
 ## 6. 写路径与冲突
 
@@ -626,7 +653,7 @@ GET  /api/docs/:id/transitions        → [status]                   # 合法目
 POST /api/docs/:id/status             {to}                         → 200 {committed, error?} | 422 {error, gaps?: [<item-id | unresolved-id>]} 非法流转/resolved 门拒绝（FR-52：plan open→resolved 时按交付范围守门，缺口以 gaps 逐条点名，文件不变；非门拒绝无 gaps 字段）
 POST /api/docs/:id/review             {action: accept}             → 200 {committed, error?} | 422   # clarify 分支第八轮移除（decision-00006），非 accept 一律 422
 GET  /api/docs/:id/next-steps         → [{type, carry}]
-GET  /api/sessions                    → {sessions: [{id, kind, sourceId, agent, status, awaiting, startedAt, endedAt?, exitCode?}]}   # 全部会话：运行中 + 本次服务启动以来已结束——会话面板与重连发现的数据源（FR-21、spec-00003-FR-4/FR-9；第十六轮由 {current|null} 改列表）。sourceId 即目标文档 id（沿 SessionInfo 既有字段名，落地时对齐）。status ∈ running|exited|failed|terminated——terminated 第十六轮新增，承载面板与历史的「终止」态（spec-00003-FR-4）；上限只随 /api/config 下发，不在此重复（FR-56 的单一来源原则）
+GET  /api/sessions                    → {sessions: [{id, kind, sourceId, agent, status, awaiting, startedAt, endedAt?, exitCode?}]}   # 全部会话：运行中 + 本次服务启动以来已结束（第二十八轮：即该 workspace 本次打开以来，spec-00011-FR-12）——会话面板与重连发现的数据源（FR-21、spec-00003-FR-4/FR-9；第十六轮由 {current|null} 改列表）。sourceId 即目标文档 id（沿 SessionInfo 既有字段名，落地时对齐）。status ∈ running|exited|failed|terminated——terminated 第十六轮新增，承载面板与历史的「终止」态（spec-00003-FR-4）；上限只随 /api/config 下发，不在此重复（FR-56 的单一来源原则）
 POST /api/sessions                    {sourceId, targetType, agent?} → {sessionId} | 409 {error, reason: doc-busy|cap-reached|doc-missing} | 422 未知 agent（FR-55）   # 409 的 reason 四个发起端点同形（spec-00003-FR-2/FR-3 的「原因可区分」由它承载）；同文档互斥与上限并存时取 doc-busy（更具体者，spec FR-49 的悬停文案同序）   # 推进会话；任务指令正文单独写入（不带提交字节），提交键为会话首批输出后延迟发出的独立 `\r`（再延迟补发一次；空输入框回车幂等）——同一突发里的 `\r` 会被 cooked 模式的 ICRNL 翻回 LF 或被粘贴检测吞掉（issue-00011）
 POST /api/sessions/clarify            {docId, agent?}              → {sessionId} | 409 同文档已有会话/已达上限/文档已删 | 422 非 draft/非可澄清类型/未知 agent   # 澄清会话（FR-9，第八轮；agent 第十一轮；并发 409 第十六轮）
 POST /api/sessions/ask                {docId, question, agent?, threadId?, resend?} → {sessionId, threadId} | 409 {error, reason: thread-busy|cap-reached|doc-missing}（thread-busy 优先，同 sessions 行「更具体者先」的约定） | 422 异常文档/未知 agent/agent 未声明 headless/问题为空/threadId 不存在/resend 无可重发（客户端错误而非状态碰撞，故不入 409 三因——T3 据实补记）。resend=true 才就地改写末条未答 exchange；缺省追加——新追问与重发在 API 上显式区分，否则失败线程上的新问题会覆盖旧问的记录（T3 评审补记，「只增不删计的是问」由此机械成立）   # 答疑线程调用（spec-00005-FR-1/FR-2/FR-7，第二十一轮改造；原终端答疑形态 FR-47 退役）。无 threadId = 新线程（headless 首调）；带 threadId = 该线程追问或失败/终止问的重发——形态按 §10.2（有 resumeId 走 resume，无则 first）。**无 doc-busy 分支**——答疑不占文档（spec-00005-FR-6）；agent 缺省 = 声明了 headless 的第一条（FR-55 口径按 spec-00005-FR-2 收窄）
@@ -725,23 +752,39 @@ commit 信息格式：`wb(<action>): <doc-id>`，action ∈
 [design-00002-whiteboard-ui](design-00002-whiteboard-ui.md)；其中检索与定位由
 spec-00001-FR-26、FR-27 承接。
 
+**第二十八轮（`spec-00011-FR-8`）：上表全部路径挂到 `/w/:wid` 之下。**
+字面形态因此是两段（`/w/persimmon/api/graph`、`WS /w/persimmon/api/events`）
+——挂载只剥掉挂载前缀、保留其后的 `/api/...`。**本表的路径、载荷与状态码
+一行不改**，`Board` 也不知道自己被挂在前缀下（它不需要 `wid`）。前缀的解析
+规则、`:wid` 未登记与条目不可用的错误码，以及 Host 级的那几条不带 workspace
+前缀的路由（实例握手、workspace 增删查、Host 级事件通路、SPA 与静态资源），
+全部由 [design-00003](design-00003-multi-workspace.md) §5 持有。
+
 ## 8. 代码位置与运行
 
-- 代码放 `tools/whiteboard/`（独立 package.json——仓库根**没有** package.json）。
-  （本行原写作「不影响模板本体」：白板当时随 ai-native-project-template 分发。
-  自 `decision-00019-whiteboard-standalone-repo` 起白板独立成仓，本仓库即白板
-  仓库，模板只保留 `whiteboard.config.yaml`；据实校正。）
-- 运行：在 `tools/whiteboard/` 下 `npm run build`（构建 UI 到 dist）后
-  `npm start`（默认端口 4173），读取仓库根的 `./docs` 与
-  `./whiteboard.config.yaml`。（本节原写作「仓库根部 npm run
-  whiteboard」，与现实不符，据实校正——命令表以 tools/whiteboard/README
+- **代码在白板仓库根（= npm 包根）**——第二十八轮的目标状态，随
+  `plan-00027` T2 落地；本节的这一条与本文档其余各处的「仓库根」不是同一个
+  东西：那些指每个 workspace 自己的项目根（§3），这里指白板自己的包根。
+  一份 `package.json`、作用域包名与 `bin` 的具体取值由
+  [design-00003](design-00003-multi-workspace.md) §10 持有。
+  （本行两度校正：初版写作「代码放 `tools/whiteboard/`（独立
+  package.json——仓库根**没有** package.json）」，理由是「不影响模板本体」
+  ——白板当时随 ai-native-project-template 分发；`decision-00019` 起白板独立
+  成仓，据实改为「本仓库即白板仓库」；第二十八轮代码提到仓库根以支持单命令
+  启动，`tools/` 不再存在。历史工作项里的 `tools/whiteboard/` 路径按
+  `idea-00004` 已定方向第 4 条保留不改——它们记录的是当时的事实。）
+- 运行：在白板仓库根 `npm run build`（构建 UI 到 `dist/web`）后 `npm start`，
+  或安装后直接 `persimmon`。端口、从任何目录启动的落点、接入已运行进程的
+  握手与各子命令，由 [design-00003](design-00003-multi-workspace.md) §8 持有。
+  （本节原写作「仓库根部 npm run whiteboard」，与当时现实不符，曾据实校正为
+  「在 `tools/whiteboard/` 下」；第二十八轮回到仓库根，命令表以根 `README`
   为准。）
 
 ## 9. 治理轮的两处裁定余项（已裁，非未决）
 
 - **启动校验不要求 `relations` 声明 `supersedes`（治理轮裁定）。** 归档门（§2）
   读的是 `DocNode.relations.supersedes`，该键只在流程配置的 `relations` 列出它
-  时才存在；一份漏掉它的配置会让白板照常启动，而**一切归档永远找不到配对**。
+  时才存在；一份漏掉它的配置会让该 workspace 照常可用，而**一切归档永远找不到配对**。
   裁定：这是配置层的自担选择——`relations` 本就是项目自定的字段词表，删掉任何
   字段都会关掉依赖它的能力，`supersedes` 不特殊；`spec-00002-FR-6` 的校验集不
   扩。模板自带配置始终列全八个字段，正常项目不会踩到。
@@ -791,7 +834,7 @@ capture 内建：① `-p --output-format json` 的 stdout 是单个 JSON 对象�
 文件，调用结束后文件不变（`spec-00005-AC-4.2` 的实测形）。未通过不进
 默认配置。
 
-- 校验（并入既有 FR-15 启动校验，违规拒绝启动并点名条目，
+- 校验（并入既有 FR-15 校验，违规使该 workspace 不可用并点名条目，
   `spec-00005-AC-8.1`）：`first` 与 `resume` 皆为非空字符串数组；
   `{question}` 占位在两者中各恰出现一次；`{session}` 在 `resume` 中恰
   出现一次、在 `first` 中不得出现；`capture` 必须是代码内建集合中的
@@ -1855,9 +1898,9 @@ exclude: []                 # 第二十七轮（spec-00010-FR-1）：相对 docs
   （`AC-2.1`/`AC-2.4`）；逐项校验，错误位置点名 `exclude[<i>]`：非字串
   （`AC-2.2`）、空串（`AC-2.5`）、含 `\`（`AC-2.9`，说明模式一律用 `/`）、以
   `/` 起头（`AC-2.7`）、以 `!` 起头（`AC-2.8`，说明不支持取反）、任一段为
-  `..`（`AC-2.6`）——任一违规即拒绝启动，与 `carries` 的逐项点名同口径。
+  `..`（`AC-2.6`）——任一违规即使该 workspace 不可用，与 `carries` 的逐项点名同口径。
   `FlowConfig` 增 `exclude: string[]`。
-- **只在启动时读取**：`loadFlowConfig` 是唯一读点、`FlowConfig` 经构造函数传进
+- **只在打开 workspace 时读取**（第二十八轮：原「只在启动时」）：`loadFlowConfig` 是唯一读点、`FlowConfig` 经构造函数传进
   `Board`/`DocService`（`server.ts`），`DocsWatcher` 只看 `docsDir`——这与其余
   字段完全一致，`spec-00010-AC-1.12` 只是把既有事实钉住，不加热重载。
 - **不下发**：`GET /api/config` 不带 `exclude`。页面没有消费者——目录组的归组
@@ -1879,7 +1922,7 @@ exclude: []                 # 第二十七轮（spec-00010-FR-1）：相对 docs
   `path.win32.matchesGlob` 对大小写与分隔符的读法不同，而 `listDocFiles` 已把
   路径归一为 `/` 分隔（`entry.split(/[\\/]/).join('/')`），匹配必须在归一化
   **之后**、用 posix 语义进行（spec §7 第三条）。落地前以 `AC-1.8`/`AC-1.9`
-  钉住这两个语义点，防 Node 升级改口。`tools/whiteboard/package.json` 今天没有
+  钉住这两个语义点，防 Node 升级改口。`package.json` 今天没有
   `engines`，仓内也没有任何 Node 地板的声明；本轮同时声明
   `engines.node: ">=23.6"`——原生 TypeScript 剥离（`bin/whiteboard.js` 直接
   跑 `.ts`）已隐含这个地板，`matchesGlob` 的可用性从此有一处可查。
@@ -1943,6 +1986,12 @@ spec-00010 接收已追注。**已知边界**（`decision-00018` §4）：一份
 
 ## 15. Open Questions
 
+- 第二十八轮（多 workspace）：本文档无未决项——取舍全部在
+  [design-00003](design-00003-multi-workspace.md) §11 在案，委给它的项（Host
+  结构、注册表契约、可用性判定、实例生命周期、前缀解析、CLI 握手、代码位置）
+  逐一点名指向该文档，本文档只留「一个 workspace 一组服务」这一侧；三个待
+  域主裁定的问题（包名、嵌套且各自为 git 仓库的 workspace、`node-pty` 两种
+  安装形态的实测）挂在 design-00003 与 `spec-00011` §8，不在此重复。
 - 本文档当前无未决项（第二十一轮的取舍全部由 decision-00012 在案；
   接续失效的出路已由域主裁定取「诚实标注」并回写 §10.2，2026-08-26；
   claude headless 声明的参数按 §10.1 的实测门落地；第二十二轮的取舍

@@ -15,7 +15,10 @@ parent: prd-00001-docs-whiteboard
 ## 1. Context
 
 - canonical terms 见 `CONTEXT.md`：白板、流程配置、Agent 会话、headless 调用、
-  答疑线程、动作被拒、刷新。
+  答疑线程、动作被拒、刷新、workspace、切换器（第二十八轮）。
+- 第二十八轮的修订源：[spec-00011-multi-workspace](spec-00011-multi-workspace.md)
+  §1 交接——「拒绝启动」一律降为「该 workspace 不可用」，本 spec 的 AC 中
+  「该 workspace」指其 Given 所述配置所属的那一个。
 - 输入：`parent` 为 [prd-00001-docs-whiteboard](../prd/prd-00001-docs-whiteboard.md)
   （功能需求 8「agent 会话」、17「agent 选择」的配置侧；随接收 prd-00001 在其
   修订轮增一行功能需求「agent 设置」，与共写、标注两轮同例）；取舍在案于
@@ -30,8 +33,10 @@ parent: prd-00001-docs-whiteboard
   「有效 agent 列表」（`rule-00001-BR-3`）。`spec-00005-FR-8` 同样须换名词：
   它写的是「**流程配置的** agent 条目应可携带 headless 声明」且「不合式时
   拒绝启动」，而本地层条目也可声明 headless、其不合式按本 spec FR-4 不拦
-  启动——修订为「agent 条目（项目层的按 `spec-00001-FR-15` 拒绝启动，本地层
-  的按 `spec-00009-FR-4` 处置）」。`spec-00001-FR-13` / `FR-15`、
+  启动——修订为「agent 条目（项目层的按 `spec-00001-FR-15` 使该 workspace
+  不可用，本地层的按 `spec-00009-FR-4` 处置）」（第二十八轮：原拟词作「拒绝
+  启动」，随 FR-15 的作用域改；`spec-00005-AC-8.1`/`AC-8.3` 已于本轮据此
+  改写）。`spec-00001-FR-13` / `FR-15`、
   `spec-00005-FR-2`、`spec-00007-FR-5` 的文字不需改：它们经 `spec-00001-FR-55`
   或「配置下发」间接读列表。
 - 本 spec 新增术语（随接收进 `CONTEXT.md`）：
@@ -84,8 +89,9 @@ parent: prd-00001-docs-whiteboard
   形态皆然。两键都缺失、且数组中无 `{model}` 的条目：命令、参数、环境与
   今天逐项相同。
 - **spec-00009-FR-2** (Unwanted) 若**项目层**的一条 agent 条目出现下列任一
-  情形，系统应按 `spec-00001-FR-15` 的启动校验拒绝启动，错误信息点名该条目
-  与该键：`model` 不是非空字符串；`env` 不是字符串到字符串的映射；某数组中
+  情形，系统应按 `spec-00001-FR-15` 的校验使该 workspace 不可用，说明点名该
+  条目与该键（第二十八轮：原「拒绝启动」，随 FR-15 的作用域由进程改为
+  workspace，`spec-00011-FR-6`）：`model` 不是非空字符串；`env` 不是字符串到字符串的映射；某数组中
   出现 `{model}` 而该条目无 `model`；该条目有 `model` 而 `args` 中没有
   `{model}`；该条目有 `model` 且声明了 `headless`，而 `headless.first` 或
   `headless.resume` 中没有 `{model}`（答疑形态会静默用不上模型）。「有」指
@@ -107,8 +113,9 @@ parent: prd-00001-docs-whiteboard
   FR-2 列出的条目规则或 design-00001 §3 的条目校验、覆盖了 `cwd`、追加条目
   无 `command` 或声明了 `cwd`、追加条目与项目条目同名、同一名字既被覆盖又被
   追加（后两项为第二十六轮修订轮补注：应写成覆盖的却写成了追加）、缺省
-  多于一条或指向被禁用的条目、合并后有效列表为空——系统不应因此拒绝启动，也不应只丢弃违规的那一
-  键：本地层**整体**忽略，有效列表退为项目层，设置面板呈现该错误并点明
+  多于一条或指向被禁用的条目、合并后有效列表为空——系统不应因此使该 workspace 不可用（本地层是个人
+  便利层，`spec-00001-FR-15` 的降级枚举明确把它排除在外），也不应只丢弃
+  违规的那一键：本地层**整体**忽略，有效列表退为项目层，设置面板呈现该错误并点明
   条目与键，服务端记录告警。启动后本地文件被手改成不合式时同样处置，以
   FR-3 的下一次重新计算为界。本地覆盖、禁用或缺省所指的项目条目已不存在
   （项目层改名或删除）时**不算不合式**：该条单独忽略，设置面板点明它无所指
@@ -170,33 +177,33 @@ parent: prd-00001-docs-whiteboard
   服务相同启动
 - **spec-00009-AC-1.4** (spec-00009-FR-1)
   Given 一条 agent 条目声明 `env: {}` 与 `model: m1`，`args` 含 `{model}`
-  When 服务启动并以该条目发起会话
-  Then 服务照常启动，子进程环境与白板服务相同
+  When 在切换器中选择该 workspace 并以该条目发起会话
+  Then 子进程环境与白板服务相同
 - **spec-00009-AC-2.1** (spec-00009-FR-2)
-  Given 项目层一条 agent 条目的 `args` 含 `{model}` 而该条目无 `model`
-  When 服务启动
-  Then 启动被拒绝，错误信息含该条目名与 `model`
+  Given 某 workspace 项目层一条 agent 条目的 `args` 含 `{model}` 而该条目无 `model`
+  When 在切换器中选择该 workspace
+  Then 该 workspace 不可用，说明含该条目名与 `model`
 - **spec-00009-AC-2.2** (spec-00009-FR-2)
-  Given 项目层一条 agent 条目声明 `model: m1`，`args` 中没有 `{model}`
-  When 服务启动
-  Then 启动被拒绝，错误信息含该条目名与 `model`
+  Given 某 workspace 项目层一条 agent 条目声明 `model: m1`，`args` 中没有 `{model}`
+  When 在切换器中选择该 workspace
+  Then 该 workspace 不可用，说明含该条目名与 `model`
 - **spec-00009-AC-2.3** (spec-00009-FR-2)
-  Given 项目层一条 agent 条目声明 `model: m1`，`args` 含 `{model}`，声明了
+  Given 某 workspace 项目层一条 agent 条目声明 `model: m1`，`args` 含 `{model}`，声明了
   `headless` 而 `headless.resume` 中没有 `{model}`
-  When 服务启动
-  Then 启动被拒绝，错误信息含该条目名与 `headless.resume`
+  When 在切换器中选择该 workspace
+  Then 该 workspace 不可用，说明含该条目名与 `headless.resume`
 - **spec-00009-AC-2.4** (spec-00009-FR-2)
-  Given 项目层一条 agent 条目的 `env` 是字符串列表而非映射
-  When 服务启动
-  Then 启动被拒绝，错误信息含该条目名与 `env`
+  Given 某 workspace 项目层一条 agent 条目的 `env` 是字符串列表而非映射
+  When 在切换器中选择该 workspace
+  Then 该 workspace 不可用，说明含该条目名与 `env`
 - **spec-00009-AC-2.5** (spec-00009-FR-2)
-  Given 项目层一条 agent 条目声明 `model: ""`
-  When 服务启动
-  Then 启动被拒绝，错误信息含该条目名与 `model`
+  Given 某 workspace 项目层一条 agent 条目声明 `model: ""`
+  When 在切换器中选择该 workspace
+  Then 该 workspace 不可用，说明含该条目名与 `model`
 - **spec-00009-AC-2.6** (spec-00009-FR-2)
-  Given 项目层一条 agent 条目声明 `model: m1`，`args` 含 `{model}`，无 `headless`
-  When 服务启动
-  Then 服务照常启动
+  Given 某 workspace 项目层一条 agent 条目声明 `model: m1`，`args` 含 `{model}`，无 `headless`
+  When 在切换器中选择该 workspace
+  Then 该 workspace 照常可用
 - **spec-00009-AC-3.1** (spec-00009-FR-3)
   Given 项目层声明 `claude`（`model: m1`，`args` 含 `{model}`），本地层对
   `claude` 覆盖 `model: m2`
@@ -215,7 +222,7 @@ parent: prd-00001-docs-whiteboard
   When 未指定 agent 发起答疑
   Then 答疑以 `other` 发起
 - **spec-00009-AC-3.5** (spec-00009-FR-3)
-  Given 本地层文件不存在
+  Given 某 workspace 的本地层文件不存在
   When 读取配置下发
   Then agent 列表与项目层 `agents` 逐条相同
 - **spec-00009-AC-3.6** (spec-00009-FR-3)
@@ -232,49 +239,50 @@ parent: prd-00001-docs-whiteboard
   When 读取配置下发
   Then agent 列表只有 `claude`
 - **spec-00009-AC-4.1** (spec-00009-FR-4)
-  Given 本地层文件不可解析
-  When 服务启动
-  Then 服务照常启动，有效列表与项目层相同，设置面板呈现「本地设置不合式」及
+  Given 某 workspace 的本地层文件不可解析
+  When 在切换器中选择该 workspace
+  Then 该 workspace 照常可用，有效列表与项目层相同，设置面板呈现「本地设置不合式」及
   原因
 - **spec-00009-AC-4.2** (spec-00009-FR-4)
-  Given 本地层对项目条目 `claude` 覆盖了 `cwd`，同一文件还对 `claude` 覆盖了
+  Given 某 workspace 的本地层对项目条目 `claude` 覆盖了 `cwd`，同一文件还对 `claude` 覆盖了
   `model: m2`
-  When 服务启动并未指定 agent 发起会话
-  Then 服务照常启动，会话的 `cwd` 与模型都是项目层的值，设置面板点名
+  When 在切换器中选择该 workspace 并未指定 agent 发起会话
+  Then 该 workspace 照常可用，会话的 `cwd` 与模型都是项目层的值，设置面板点名
   `claude` 的 `cwd` 不可覆盖
 - **spec-00009-AC-4.3** (spec-00009-FR-4)
-  Given 本地层禁用了项目层的每一条 agent
-  When 服务启动
-  Then 服务照常启动，有效列表与项目层相同，设置面板呈现「有效列表为空」
+  Given 某 workspace 的本地层禁用了项目层的每一条 agent
+  When 在切换器中选择该 workspace
+  Then 该 workspace 照常可用，有效列表与项目层相同，设置面板呈现「有效列表为空」
 - **spec-00009-AC-4.4** (spec-00009-FR-4)
   Given 服务运行中、本地层合法，用户随后手改本地文件使其不可解析
   When 下一次未指定 agent 发起会话
   Then 会话按项目层的第一条启动，设置面板呈现该错误
 - **spec-00009-AC-4.5** (spec-00009-FR-4)
-  Given 本地层对名为 `old` 的项目条目有一条 `model` 覆盖，而项目层已没有
+  Given 某 workspace 的本地层对名为 `old` 的项目条目有一条 `model` 覆盖，而项目层已没有
   `old`；同一文件对 `claude` 覆盖 `model: m2`
-  When 服务启动并未指定 agent 发起会话
-  Then 服务照常启动，会话的模型是 `m2`，设置面板点明 `old` 的覆盖无所指
+  When 在切换器中选择该 workspace 并未指定 agent 发起会话
+  Then 该 workspace 照常可用，会话的模型是 `m2`，设置面板点明 `old` 的覆盖无所指
 - **spec-00009-AC-4.6** (spec-00009-FR-4)
-  Given 本地层把 `claude` 同时标为缺省与禁用
-  When 服务启动
-  Then 服务照常启动，有效列表与项目层相同，设置面板点名 `claude` 的缺省
+  Given 某 workspace 的本地层把 `claude` 同时标为缺省与禁用
+  When 在切换器中选择该 workspace
+  Then 该 workspace 照常可用，有效列表与项目层相同，设置面板点名 `claude` 的缺省
   指向被禁用的条目
 - **spec-00009-AC-4.7** (spec-00009-FR-4)
-  Given 本地层追加条目 `codex-local` 并为它声明了 `cwd: .`
-  When 服务启动
-  Then 服务照常启动，有效列表与项目层相同，设置面板点名 `codex-local` 的
+  Given 某 workspace 的本地层追加条目 `codex-local` 并为它声明了 `cwd: .`
+  When 在切换器中选择该 workspace
+  Then 该 workspace 照常可用，有效列表与项目层相同，设置面板点名 `codex-local` 的
   `cwd` 不可声明
+- **spec-00009-AC-4.8** (spec-00009-FR-4)
+  Given 某 workspace 的本地层禁用名为 `old` 的条目而项目层已没有 `old`；同一文件对 `claude`
+  覆盖 `model: m2`
+  When 在切换器中选择该 workspace 并未指定 agent 发起会话
+  Then 该 workspace 照常可用，会话的模型是 `m2`，设置面板点明 `old` 的禁用
+  无所指
 - **spec-00009-AC-4.9** (spec-00009-FR-4)
   Given 项目层声明 `claude`，本地层把 `claude` 写成了追加条目
-  When 服务启动
-  Then 服务照常启动，有效列表与项目层相同，设置面板点名 `claude` 与项目条目
+  When 在切换器中选择该 workspace
+  Then 该 workspace 照常可用，有效列表与项目层相同，设置面板点名 `claude` 与项目条目
   同名
-- **spec-00009-AC-4.8** (spec-00009-FR-4)
-  Given 本地层禁用名为 `old` 的条目而项目层已没有 `old`；同一文件对 `claude`
-  覆盖 `model: m2`
-  When 服务启动并未指定 agent 发起会话
-  Then 会话的模型是 `m2`，设置面板点明 `old` 的禁用无所指
 - **spec-00009-AC-5.1** (spec-00009-FR-5)
   Given 设置面板打开，用户把项目条目 `claude` 的 `model` 改为 `m2`
   When 用户保存
@@ -296,7 +304,7 @@ parent: prd-00001-docs-whiteboard
   When 用户在第一条完成前保存一份禁用该批所用 agent 的设置
   Then 第二条 question 仍以该批受理时的 agent 发起
 - **spec-00009-AC-5.6** (spec-00009-FR-5)
-  Given 本地层文件不可解析，设置面板呈现着该错误
+  Given 某 workspace 的本地层文件不可解析，设置面板呈现着该错误
   When 用户在面板填好合式内容并保存
   Then 保存成功，本地层文件被新内容覆盖
 - **spec-00009-AC-6.1** (spec-00009-FR-6)
@@ -340,7 +348,7 @@ parent: prd-00001-docs-whiteboard
   Then `cwd` 呈现为项目值且不可编辑，`command`、`model`、`args`、`env`、
   `headless` 可编辑
 - **spec-00009-AC-7.4** (spec-00009-FR-7)
-  Given 本地层禁用了项目条目 `other`
+  Given 某 workspace 的本地层禁用了项目条目 `other`
   When 用户打开设置面板
   Then `other` 仍列出并标禁用，可在面板启用
 - **spec-00009-AC-7.5** (spec-00009-FR-7)
@@ -348,7 +356,7 @@ parent: prd-00001-docs-whiteboard
   When 用户打开设置面板
   Then 面板列出 `claude` 一条、来源为「项目」，且提供新增本地条目的入口
 - **spec-00009-AC-7.6** (spec-00009-FR-7)
-  Given 本地层追加了 `codex-local`
+  Given 某 workspace 的本地层追加了 `codex-local`
   When 用户在设置面板查看 `codex-local`
   Then `cwd` 呈现为 `docs` 且不可编辑
 - **spec-00009-AC-7.7** (spec-00009-FR-7)
@@ -360,7 +368,7 @@ parent: prd-00001-docs-whiteboard
   When 用户点击 `FOO` 的遮罩值
   Then 该值显示为 `bar`，其余遮罩值不变
 - **spec-00009-AC-7.9** (spec-00009-FR-7)
-  Given 本地层追加了 `codex-local`
+  Given 某 workspace 的本地层追加了 `codex-local`
   When 用户打开设置面板
   Then `codex-local` 旁呈现写域校验的说明，且面板文案中不含任何形如
   `design-00001` 的文档编号或 `§` 章节号
@@ -435,6 +443,11 @@ parent: prd-00001-docs-whiteboard
   拒绝原因不只靠颜色（design-00002 §6 的既有约定）。
 - 保存请求成功返回时新有效列表已对其后的受理生效，无轮询或延迟窗口。
 
+## Open Questions
+
+- 本轮（第二十八轮）无未决项：本 spec 只随 `spec-00001-FR-15` 收窄 FR-2 的
+  作用域，本地层不拦启动的裁决（`decision-00017` §2 第 6 条）不变。
+
 ## Links
 
 - Parent: [prd-00001-docs-whiteboard](../prd/prd-00001-docs-whiteboard.md)
@@ -449,3 +462,4 @@ parent: prd-00001-docs-whiteboard
   [design-00002-whiteboard-ui](../design/design-00002-whiteboard-ui.md)
 - Decisions: [decision-00017-whiteboard-agent-settings](../decision/decision-00017-whiteboard-agent-settings.md)（本 spec 的全部取舍）·
   [decision-00008-whiteboard-revision-create-and-session-reach](../decision/decision-00008-whiteboard-revision-create-and-session-reach.md)（agent 选择 FR-55 的来源）
+- 第二十八轮: [spec-00011-multi-workspace](spec-00011-multi-workspace.md) · [design-00003-multi-workspace](../design/design-00003-multi-workspace.md)

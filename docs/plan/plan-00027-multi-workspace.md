@@ -37,14 +37,53 @@ design-00002 重新接收之前不得开写 T3 … T10 的代码，T2 落地之�
 新建文件**。其后 T3 与 T5 互相独立、可并行；T4 依赖 T3；T6 依赖 T3、T4、T5；
 T7 依赖 T3、T6；T8 依赖 T6；T9 依赖 T8；T10 依赖 T8 与 T9；T11 收口。
 
-- **T1 — 两份 design 的多 workspace 修订轮与词汇**：design-00001（§2、§5、
-  §7、§8）与 design-00002（§2、§3、§10、§12、§13）经修订轮（`rule-00001-BR-3`：
-  降 `draft` → 修订 → 审计 → 重新接收），改写 `spec-00011` §1 交接列出的各处；
-  `CONTEXT.md` 增六个新词条（workspace、workspace 注册表、切换器、当前
-  workspace、不可用 workspace、已运行进程）并修订七条既有定义（呈现状态、
-  桌面通知、会话面板、导航栏、全局覆盖率视图、撞 id、归档门）；`spec-00001`
-  的 `AC-15.1`/`AC-15.2` 与 `spec-00003-FR-4` 的已结束基线随其各自修订轮改写
-  （`spec-00011` §1 交接）。本 plan 随 T1 完成 `draft → open`。
+- **T1 — 词汇与十份既有文档的第二十八轮修订轮**（外加三份 decision 的追注、
+  `docs/README.md` 一行）：`CONTEXT.md` 增六个新词条
+  （workspace、workspace 注册表、切换器、当前 workspace、不可用 workspace、
+  已运行进程）并修订七条既有定义（呈现状态、桌面通知、会话面板、导航栏、
+  全局覆盖率视图、撞 id、归档门）。以下十份经修订轮（`rule-00001-BR-3`：降
+  `draft` → 修订 → 审计 → 重新接收）：`design-00001`、`design-00002`、
+  `spec-00001`、`spec-00002`、`spec-00003`、`spec-00004`、`spec-00005`、
+  `spec-00009`、`spec-00010`、`rule-00001`。
+  - `design-00001`（§2 Host 入图、§3「仓库根」的歧义、§5 会话状态的新出口、
+    §7 前缀、§8 代码位置、§15 本轮无未决项）与 `design-00002`（§2 切换器入
+    布局、§3 两行控件映射、§10 呈现状态分层、§12 xterm 键、§13 通知、§20
+    本轮无未决项）。两份都**只登记自己那一侧**，多 workspace 的结构一律指向
+    `design-00003`，不复述——两处同一事实会漂移。
+  - **「拒绝启动」降级为「该 workspace 不可用」的贯穿改写**——`spec-00001-FR-15`
+    的作用域变更贯穿**每一个配置键**，六份 spec、一份 design、三份 decision
+    描述的是同一个机制，必须同轮改完：留一处就是两个互相矛盾的现行断言。
+    `spec-00001` 的 FR-15、FR-48、FR-53 与 AC-15.1/15.2、AC-48.2…48.6、
+    AC-53.5/53.6；`spec-00002` 的 FR-6 与 AC-6.1…6.4（关系矩阵自称「同款启动
+    校验」）；`spec-00003` 的 FR-3 与 AC-3.4/3.5；`spec-00005` 的 AC-8.1；
+    `spec-00009` 的 FR-2 与 AC-2.1…2.5（`spec-00011` §1 判它「无需修订」是
+    误判——FR-2 就是 FR-15 校验）；`spec-00010` 的 FR-2 与 AC-2.1…2.9；
+    `design-00001` 自己的十处（§3 的两条配置注释、`carries` 与 headless 与
+    §14.1 的校验措辞、「只在启动时读取」）；`decision-00006`、`decision-00017`、
+    `decision-00018` 各加一节第二十八轮追注（决定记录的是当时的裁决，只注明
+    作用域后来落到哪一层，不改历史表格）。AC 的 When 统一作「在切换器中选择
+    该 workspace」，Given 补上 workspace 前置。本地层不合式**不**在此列——
+    它从来不拦启动（`spec-00009-FR-4`）。
+  - `spec-00003` 另改 FR-4 的面板与已结束基线（新增 AC-4.10——4.4 已被占用）、
+    FR-7 的提示条作用域、FR-9 的关停扇出，并补上缺失的 §8 Open Questions。
+  - `spec-00004` 的 FR-2、FR-3、FR-5、FR-6（标题的 workspace 前缀、逐已打开
+    workspace 成立、点击先切、外泄面只宽显示名一项）。
+  - `spec-00002` 的 FR-4（归档门配对不跨 workspace）、`rule-00001` 的 BR-18
+    与 BR-19（取号、撞 id 与归档配对都不跨 workspace）、`docs/README.md` 的
+    「`id` 在整个仓库唯一」一行（「仓库」即当前 workspace）。
+  - `spec-00004` 的 AC-6.1/AC-6.2 随 FR-6 改写——原断言通知内容「恰为」种类、
+    id 与状态，与加了显示名的 FR-6 相矛盾。
+  - 五份此前没有第二十八轮 §1 的 spec（`spec-00002`、`spec-00004`、
+    `spec-00005`、`spec-00009`、`spec-00010`）各补 canonical terms 与修订源
+    一行、Links 补 `spec-00011`/`design-00003`。
+  **`spec-00011` §1 的交接清单有四处缺口，本 T1 据实补齐，留待 `spec-00011`
+  下一次修订轮回填**：(1) 漏了 `spec-00010`（其 `exclude` 非法同样以「拒绝
+  启动」表述）与 `spec-00002-FR-6`、`spec-00005-FR-8`；(2) 判 `spec-00009`
+  「无需修订」是误判；(3) 未列 `design-00001` §2/§3、`design-00002` §10/§12
+  这四处；(4) `spec-00011-FR-6` 与 `AC-6.4` 自己把那句错误信息定义为「单
+  workspace 时**拒绝启动所打印**的」，而该行为已不存在——须改指
+  `spec-00001-FR-15` 判为配置非法时的那句说明。本 plan 随 T1 完成
+  `draft → open`。
 - **T2 — 代码提到仓库根** (spec-00011-FR-20 的布局半边)：`src/`、`web/`、
   `test/`、`bin/`、`scripts/` 与 `vite.config.ts`、`vitest.config.ts`、
   `tsconfig.json`、`components.json` 从 `tools/whiteboard/` 上移，`tools/`
@@ -54,9 +93,10 @@ T7 依赖 T3、T6；T8 依赖 T6；T9 依赖 T8；T10 依赖 T8 与 T9；T11 收
   注释路径、`test/tracked.test.ts` 的路径断言、`vite` 代理（增转发 `/w`）随之
   改；`tools/whiteboard/README.md` 的命令表并入根 `README.md`；
   `ARCHITECTURE.md` §2 两行约束、§5 目录树、§11 两行风险与 `DEVELOPMENT.md`
-  Commands 据实改写。**验收口径**：全仓被跟踪文件不再含字面 `tools/whiteboard`
-  （issue / plan / record 等历史工作项除外——它们记录当时的事实，
-  `idea-00004` 已定方向第 4 条）。
+  Commands 据实改写。**验收口径**：全仓被跟踪文件不再含字面 `tools/whiteboard`，两类除外——
+  issue / plan / record 等历史工作项（它们记录当时的事实，`idea-00004` 已定
+  方向第 4 条），以及 living doc 里**明确标注为原文引用**的历史更正说明
+  （如 design-00001 §8 记「本行原写作…」的那几处；删掉引文等于删掉沿革）。
 - **T3 — 注册表模块** (spec-00011-FR-1, FR-2, FR-3, FR-18)：新增
   `src/workspaceRegistry.ts`，按 design-00003 §2：唯一读入口（不合式即抛，
   含不可解析、版本不识别、字段缺失、`id` 重复或不合形态、`path` 非绝对、
@@ -130,8 +170,15 @@ T7 依赖 T3、T6；T8 依赖 T6；T9 依赖 T8；T10 依赖 T8 与 T9；T11 收
 
 ## Detailed Acceptance Path
 
-1. T1 收口 → verify: design-00001 与 design-00002 均回到 `active` 且含本轮
-   改写；`CONTEXT.md` 含六个新词条、七条既有定义已修订；本 plan 为 `open`。
+1. T1 收口 → verify: 十份文档均回到 `active`（`design-00001`、
+   `design-00002`、`spec-00001`、`spec-00002`、`spec-00003`、`spec-00004`、
+   `spec-00005`、`spec-00009`、`spec-00010`、`rule-00001`）且各含本轮改写；
+   `CONTEXT.md` 含六个新词条、七条既有定义已修订；三份 decision 各带追注；
+   全仓再无进程级的配置拒绝断言——**门用一条 grep**：
+   `grep -rn '拒绝启动\|启动失败\|启动被拒\|启动白板服务\|只在启动时读取' docs/ CONTEXT.md`，
+   命中只允许两类（agent CLI 启动失败之义，即 `spec-00001-FR-16` 及其引用；
+   与明确标注为原文引用的历史说明），其余一律为零；条目 id 全仓无重号；
+   三份 design 的 mermaid 全部可解析；本 plan 为 `open`。
 2. T2 落地 → verify: 在仓库根 `npm install`、`npm run typecheck`、
    `npm run build`、`npm test` 四条全部退出码 0；`git ls-files` 中除
    issue / plan / record 外无文件含字面 `tools/whiteboard`；`npm start` 仍能
