@@ -1,7 +1,7 @@
 ---
 id: issue-00030-npx-leaves-the-pty-spawn-helper-non-executable
 type: issue
-status: open
+status: resolved
 blocks: [spec-00011-multi-workspace]
 ---
 
@@ -76,12 +76,16 @@ blocks: [spec-00011-multi-workspace]
 
 ## 6. Fix
 
-*提案，未施加——是否纳入 plan-00027 由域主定。*
+*已施加（plan-00027 已 `resolved`，本修复作为独立 issue 修复落地）。*
 
-- Change: 把 `fix-pty-permissions.js` 的逻辑搬到**运行时**：`src/pty.ts` 的
-  `ptySpawner` 在进程内第一次 `spawn` 前对
+- Change: 把 `fix-pty-permissions.js` 的逻辑搬到**运行时**：`src/pty.ts` 新增
+  `ensureExecutable(path)`，`ptySpawner` 在每次 `spawn` 前对
   `node_modules/node-pty/prebuilds/<platform>-<arch>/spawn-helper` 做一次
-  `chmodSync(0o755)`（存在即改，改过即记住）；`postinstall` 保留为快路径。
+  `chmodSync(0o755)`（路径经 `createRequire(import.meta.url).resolve('node-pty')`
+  解析，仓内 / 全局 / `npx` 三种布局同解）；文件不存在（Windows）或无权改动时
+  吞掉错误，留给 node-pty 自己的 spawn 报错点名。每次 spawn 都 chmod 而不「记住」
+  ——一次 syscall，比一个模块级状态便宜。`postinstall` 保留为快路径，且覆盖
+  「以 root 全局安装、以普通用户运行」这一运行时无权 chmod 的情形。
 - Why this addresses the root cause and not the symptom: 前提在**用到它的那一刻**
   由用到它的代码自己保证，不再依赖任何安装期脚本是否被 npm 放行；三种安装形态
   （仓内、全局、`npx`）与将来任何 npm 策略变化下同解。
@@ -91,8 +95,26 @@ blocks: [spec-00011-multi-workspace]
 
 ## 7. Verification
 
-- 待修复后：`npm run test:install` 增的 helper-mode 与实起 pty 两格在两种形态
-  下过；默认套件的单元守卫过；`npm test` 全绿。
+已执行（仓库根，修复已施加）：
+
+1. **§5 的单元守卫，红→绿**：`test/pty.test.ts` 两条（0644 的临时 helper 经
+   `ensureExecutable` 后为 0755；不存在的路径不抛）。施加前
+   `ensureExecutable` 不存在，`Tests 2 failed (2)`；施加后 `2 passed`。
+2. **`npm run test:install` 的新增两格**（每种形态：读 helper 的 mode，再经该
+   安装副本自己的 `lib/pty.js` 实起一个 pty 跑 `true`）：
+   `global spawn-helper: 755 before the first spawn`、
+   `npx spawn-helper: 644 before the first spawn`，两格的 pty 都以 0 退出，
+   整轮 `both installed forms answered … — ok`。npx 那一格是 §1 的 0644
+   现场——修复前的死路，现由运行时 chmod 带过。
+3. **红侧在真实 npx 缓存副本上复现**：把该副本 node-pty 的 helper 手动改回
+   0644，直接调 node-pty `spawn('true')` → `posix_spawnp failed.`；同一状态下
+   经 `lib/pty.js` 的 `spawnPty` → `exit 0`，事后 helper 为 0755。
+4. `npm run typecheck` 无输出（通过）。`npm run build` 成功（`test:install` 的
+   `prepack`）。
+5. `npm run test:coverage`：`Test Files 72 passed (72)` / `Tests 2077 passed
+   (2077)`（2075 原有 + §5 两条）；门槛未动，实得 Statements 98.63 %、
+   Branches 95.29 %、Functions 98.67 %、Lines 99.36 %；`src/pty.ts`
+   96.55/90.9/100/96.15。
 
 ## 8. Follow-through
 
@@ -102,7 +124,9 @@ blocks: [spec-00011-multi-workspace]
 - Doc verdict: **doc was incomplete**——`spec-00011` §7 的验证义务须加「两种形态
   各实起一个 pty」，随其下一次修订轮（plan-00027 T1 的回填清单）一并改。
 - Residual state: 已用 `npx` 形态装过的缓存条目里 helper 仍是 0644；运行时修复
-  落地后首次 spawn 即自愈，无需用户处理。
+  落地后首次 spawn 即自愈，无需用户处理（§7 第 3 条正是这一路径的实测）。
+  `spec-00011` §7 的实测义务尚未改字——仍随其下一次修订轮回填
+  （plan-00027 T1 第 (6) 条）。
 
 ## Links
 

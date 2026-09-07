@@ -1,5 +1,7 @@
 import { spawnSync } from 'node:child_process'
-import { accessSync, constants } from 'node:fs'
+import { accessSync, chmodSync, constants } from 'node:fs'
+import { createRequire } from 'node:module'
+import { dirname, join } from 'node:path'
 import { spawn } from 'node-pty'
 import { KILL_GRACE_MS, killLadder } from './killLadder.ts'
 import type { PtyProcess, SpawnPty } from './sessionManager.ts'
@@ -31,6 +33,32 @@ export function unrunnable(command: string): string | undefined {
   return undefined
 }
 
+/**
+ * node-pty's spawn-helper, the binary every pty exec goes through. Its executable
+ * bit comes from install scripts — node-pty's own and this package's
+ * `postinstall` — and npm promises to run neither: `npx --package` skips both and
+ * leaves the helper at 0644, so the first session dies with «posix_spawnp
+ * failed» (issue-00030). The precondition is therefore restored here, at the
+ * moment it is needed, whatever the install form did; `postinstall` stays as the
+ * fast path for a global install whose files the running user cannot chmod.
+ */
+const SPAWN_HELPER = join(
+  dirname(createRequire(import.meta.url).resolve('node-pty')),
+  '..',
+  'prebuilds',
+  `${process.platform}-${process.arch}`,
+  'spawn-helper',
+)
+
+/** A chmod is cheap enough to repeat on every spawn; a helper that is absent (Windows) or not ours to change is left to node-pty, whose own error names it. */
+export function ensureExecutable(path: string): void {
+  try {
+    chmodSync(path, 0o755)
+  } catch {
+    // node-pty reports what it cannot exec
+  }
+}
+
 function requireExecutable(command: string): void {
   const problem = unrunnable(command)
   if (problem !== undefined) throw new Error(problem)
@@ -40,6 +68,7 @@ function requireExecutable(command: string): void {
 export function ptySpawner(graceMs: number = KILL_GRACE_MS): SpawnPty {
   return (command, args, cwd, env): PtyProcess => {
     requireExecutable(command)
+    ensureExecutable(SPAWN_HELPER)
     // A size to start on, not the size it stays: the terminal that attaches
     // reports its own and the session is resized to it (spec-00001-FR-12).
     const pty = spawn(command, args, { name: 'xterm-color', cols: 120, rows: 30, cwd, env })

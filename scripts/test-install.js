@@ -3,7 +3,8 @@
 // of `npm test` — the tarball is local but its dependencies come from the
 // registry (a clean `HOME` means a cold cache, and `--offline` is ENOTCACHED),
 // so this is a network-bound, minute-scale smoke check (TESTING.md, E2E).
-// It covers spec-00011-AC-20.1, spec-00011-AC-20.2 and issue-00029 §7.
+// It covers spec-00011-AC-20.1, spec-00011-AC-20.2, issue-00029 §7 and
+// issue-00030 §5 (a real pty in each form, which `list` never opens).
 //
 // npm >= 11.17 blocks dependency install scripts unless they are approved, so a
 // plain install leaves node-pty's `spawn-helper` without its executable bit and
@@ -12,7 +13,7 @@
 // would; `--allow-scripts=<pkg>,node-pty` is npm's opt-in, and is npm policy to
 // pass at install time rather than anything the package can arrange for itself.
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, statSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -50,6 +51,30 @@ console.log(`listed: ${listed.trim()}`)
 // spec-00011-AC-20.2: the same registry read through the one-shot form, and the
 // output has to be the global form's word for word.
 const oneShot = check('npx list', 'npx', ['--yes', '--package', tarball, '--', 'persimmon', 'list'], listed)
+
+// issue-00030: a pty through each installed copy's own `lib/pty.js`, with the
+// helper's mode as the install left it. The npx copy lives wherever npm put
+// first on the PATH it runs commands with; node-pty is resolved from the copy,
+// as the runtime does, because npx hoists it beside the package.
+const npxBin = check('npx PATH', 'npx', ['--yes', '--package', tarball, '--', 'node', '-p', 'process.env.PATH.split(":")[0]'])
+for (const [form, pkg] of [
+  ['global', join(prefix, 'lib', 'node_modules', '@ryan-alexander-zhang', 'persimmon')],
+  ['npx', join(npxBin.trim(), '..', '@ryan-alexander-zhang', 'persimmon')],
+]) {
+  const pty = join(pkg, 'lib', 'pty.js')
+  const mode = check(`${form} spawn-helper mode`, 'node', ['--input-type=module', '-e', `
+    import { statSync } from 'node:fs'
+    import { createRequire } from 'node:module'
+    import { dirname, join } from 'node:path'
+    const helper = join(dirname(createRequire(${JSON.stringify(pty)}).resolve('node-pty')), '..', 'prebuilds', process.platform + '-' + process.arch, 'spawn-helper')
+    console.log((statSync(helper).mode & 0o777).toString(8))
+  `])
+  console.log(`${form} spawn-helper: ${mode.trim()} before the first spawn`)
+  check(`${form} pty`, 'node', ['--input-type=module', '-e', `
+    import { spawnPty } from ${JSON.stringify(pty)}
+    spawnPty('true', [], process.cwd(), process.env).onExit(({ exitCode }) => process.exit(exitCode))
+  `])
+}
 
 if (failures.length > 0) {
   console.error(`\n${failures.length} failure(s):\n${failures.map((line) => `  - ${line}`).join('\n')}`)
