@@ -97,6 +97,9 @@ export class Host {
     const boards = await Promise.all([...this.instances.values()])
     await Promise.all(boards.map((board) => board.shutdown()))
     for (const board of boards) await board.close()
+    // As `Board.close()` does, and for the same reason: the switcher's own
+    // socket would otherwise hold the http server's close open (issue-00031).
+    for (const client of this.events.clients) client.terminate()
     this.events.close()
     const server = this.server
     if (server === undefined) return

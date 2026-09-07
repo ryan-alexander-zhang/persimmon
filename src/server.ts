@@ -645,7 +645,16 @@ export class Board {
    * and its watch would otherwise outlive it (design-00003 §1, §7).
    */
   async close(): Promise<void> {
-    for (const socket of Object.values(this.sockets ?? {})) socket.close()
+    for (const socket of Object.values(this.sockets ?? {})) {
+      // `close()` only stops the server taking new upgrades: in `noServer` mode
+      // `ws` ends no client, and Node has already dropped an upgraded socket
+      // from the http server's own connection list, so nothing else reaches it
+      // either — and whoever waits on that server's close waits for the browser
+      // to leave first (issue-00031). `terminate` rather than `close`, because a
+      // closing handshake waits on an end that has nothing left to say.
+      for (const client of socket.clients) client.terminate()
+      socket.close()
+    }
     this.sockets = undefined
     this.attachment = undefined
     await this.watcher.close()

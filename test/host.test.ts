@@ -10,7 +10,7 @@ import { Host } from '../src/host.ts'
 import type { Board, BoardOptions } from '../src/server.ts'
 import type { PtyProcess, SpawnPty } from '../src/sessionManager.ts'
 import type { WorkspaceEntry } from '../src/workspaceRegistry.ts'
-import { armWatch, boundPort, commitCount, doc, git, makeRepo } from './helpers.ts'
+import { armWatch, bounded, boundPort, closed, commitCount, doc, git, makeRepo } from './helpers.ts'
 
 /**
  * The host of design-00003 §4/§5/§7: the instance table and its laziness, the
@@ -836,6 +836,25 @@ describe('shutting the host down', () => {
 
     expect(commitCount(open.alpha.path)).toBe(commits.alpha)
     expect(commitCount(open.demo.path)).toBe(commits.demo)
+  })
+
+  /**
+   * issue-00031: the wrap-up is only half of spec-00011-FR-16 — «全部收尾完成后
+   * 退出». An upgraded socket is neither an idle connection the http server can
+   * reap nor one `ws`'s `close()` ends, so a shutdown that waits on the server's
+   * own close would wait for the browser to leave first.
+   */
+  // spec-00011-AC-16.1, spec-00011-AC-16.2 — the exit half of both
+  it('resolves while a browser still holds its sockets open', async () => {
+    const open = hostOn([workspace('alpha')])
+    const events = await connect(open.port, '/w/alpha/api/events')
+    const switcher = await connect(open.port, '/api/workspaces/events')
+    expect([events.opened, switcher.opened]).toEqual([true, true])
+    const dropped = Promise.all([closed(events.socket), closed(switcher.socket)])
+
+    await expect(bounded(open.host.shutdown())).resolves.toBeUndefined()
+
+    await expect(bounded(dropped)).resolves.toEqual(['closed', 'closed'])
   })
 
   /**

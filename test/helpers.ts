@@ -164,6 +164,21 @@ export function boundPort(server: Server): Promise<number> {
 }
 
 /**
+ * The same work, but with «never settles» made into an assertion rather than a
+ * test that timed out: a shutdown waiting on a socket nobody closed would
+ * otherwise be indistinguishable from a slow one (issue-00031). `unref`, so the
+ * bound does not hold the event loop open once the race is decided.
+ */
+export function bounded<T>(work: Promise<T>): Promise<T | 'timed out'> {
+  return Promise.race([work, new Promise<'timed out'>((resolve) => void setTimeout(() => resolve('timed out'), 5000).unref())])
+}
+
+/** Resolves when a socket's own end sees the close — registered before whatever has to cause it (issue-00031). */
+export function closed(socket: WebSocket): Promise<'closed'> {
+  return new Promise((resolve) => socket.addEventListener('close', () => resolve('closed')))
+}
+
+/**
  * A port nothing is listening on, bound and let go of again. The CLI's start
  * handshake probes the port before it takes it (design-00003 §8), so `PORT=0`
  * is not a port it can be pointed at — an ephemeral port asked for beforehand is.

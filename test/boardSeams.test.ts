@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Board } from '../src/server.ts'
 import type { PtyProcess, SpawnPty } from '../src/sessionManager.ts'
-import { armWatch, doc, makeRepo, testConfig } from './helpers.ts'
+import { armWatch, bounded, closed, doc, makeRepo, testConfig } from './helpers.ts'
 
 /**
  * The three seams a host mounts a board on (design-00003 §1): `attach()` and the
@@ -192,6 +192,27 @@ describe('closing a board without shutting it down', () => {
 
     await new Promise((resolve) => setTimeout(resolve, SETTLE))
     expect(events.frames).toHaveLength(1)
+  })
+
+  /**
+   * issue-00031: `close()` in `noServer` mode only stops `ws` taking new
+   * upgrades — it ends no client, and Node has already dropped an upgraded
+   * socket from the http server's own connection list, so nothing else can
+   * either. Letting go of what `attach()` took has to include them.
+   */
+  // spec-00011-FR-16, and the exit half of spec-00011-AC-16.1
+  it('drops the sockets a live browser is holding', async () => {
+    const agent = scriptedAgent()
+    const { board, port } = await hosted({ spawn: agent.spawn })
+    const session = board.sessions.start(AUDIT)
+    const terminal = await connect(port, `/terminal?sessionId=${session.id}`)
+    const events = await connect(port, '/events')
+    expect([terminal.opened, events.opened]).toEqual([true, true])
+    const dropped = Promise.all([closed(terminal.socket), closed(events.socket)])
+
+    await board.close()
+
+    await expect(bounded(dropped)).resolves.toEqual(['closed', 'closed'])
   })
 
   // spec-00011-FR-16
