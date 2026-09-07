@@ -132,7 +132,7 @@ row3                                                                            
 
 | 界面位置 | 现在 | 改为 | 图标（Lucide） |
 | --- | --- | --- | --- |
-| 切换器 | 无 | 顶栏**最左**（导航栏开关之前）的 `DropdownMenu`：触发器呈现当前 workspace 的显示名；每行「显示名 · 路径（次级字号）· 可用性 · 运行中与等待计数」，**当前那一行带勾选标记**（`DropdownMenuRadioGroup` + `Check`，非颜色可辨——`spec-00011-FR-7` 要求标出当前 workspace，`AC-7.1` 钉住它），计数用 `Terminal`/`Keyboard` 两图标（沿 §12 的两图标，为零不渲染）。**不可用行不禁用**——行可聚焦可激活，激活得到拒绝：`toast` 呈现该行的不可用原因、当前 workspace 不变（`spec-00011-FR-9`，载体同本表「动作被拒」族）；行内另有「移除」控件，有运行中会话时 409 → `toast`（`spec-00011-FR-5`）。底部「添加 workspace」开下一行的对话框。注册表为空时呈空态与添加入口，入口仍在（`spec-00011-FR-7`，第二十八轮） | `LayoutGrid` |
+| 切换器 | 无 | 顶栏**最左**（导航栏开关之前）的 `DropdownMenu`：触发器呈现当前 workspace 的显示名；每行「显示名 · 路径（次级字号）· 可用性 · 运行中与等待计数」，**当前那一行带勾选标记**（`DropdownMenuRadioGroup`，标记即 vendored `DropdownMenuRadioItem` 自带的 `ItemIndicator` 与 `aria-checked`，非颜色可辨——`spec-00011-FR-7` 要求标出当前 workspace，`AC-7.1` 钉住它。落地据实校正：初版写作「+ `Check`」，换图标要改 `components/ui/dropdown-menu.tsx`，那会把它拉出 decision-00001 §4 的覆盖率排除，不值），计数用 `Terminal`/`Keyboard` 两图标（沿 §12 的两图标，为零不渲染）。**不可用行不禁用**——行可聚焦可激活，激活得到拒绝：`toast` 呈现该行的不可用原因、当前 workspace 不变（`spec-00011-FR-9`，载体同本表「动作被拒」族）；行内另有「移除」控件，有运行中会话时 409 → `toast`（`spec-00011-FR-5`）。底部「添加 workspace」开下一行的对话框。注册表为空时呈空态与添加入口，入口仍在（`spec-00011-FR-7`，第二十八轮） | `LayoutGrid` |
 | 添加 workspace | 无 | 切换器底部入口开的 `Dialog`：路径输入 + 可选显示名，提交即登记；被拒时 `error` 以 `toast` 呈现、对话框不关（拒绝的原因集与接口形态见 design-00003 §5，`spec-00011-FR-3`；第二十八轮） | `FolderPlus` |
 | 顶栏标题 | 纯文本 | 文本 + 图标 | `LayoutDashboard` |
 | 找文档 | 裸 `<input>` | `Command` + `Dialog`（⌘K），顶栏留触发按钮 | `Search` |

@@ -171,7 +171,7 @@ async function runningHost(home: string): Promise<number> {
 }
 
 describe('persimmon, with no subcommand', () => {
-  // spec-00011-AC-13.1, and AC-13.6 with it: the port is the one `PORT` names
+  // spec-00011-AC-13.1, and spec-00011-AC-13.6 with it: the port is the one `PORT` names
   it('registers the project the cwd is in and serves it on the port', async () => {
     const path = makeProject()
     const home = makeHome()
@@ -188,7 +188,9 @@ describe('persimmon, with no subcommand', () => {
     expect(instance.app).toBe('persimmon')
   })
 
-  // spec-00011-AC-13.5
+  // spec-00011-AC-13.5, and spec-00011-AC-13.7's command half: the address
+  // printed is that broken project's own `/w/<id>`. What the page then shows
+  // there is web/test/workspaceSwitcher.test.tsx's.
   it('registers a project whose flow config is invalid and listens all the same', async () => {
     const path = makeProject(INVALID_CONFIG)
     const home = makeHome()
@@ -196,8 +198,9 @@ describe('persimmon, with no subcommand', () => {
 
     const line = await boot({ cwd: path, home, port })
 
-    expect(registryOf(home)?.workspaces.map(({ path: at }) => at)).toEqual([path])
-    expect(line).toContain(`http://localhost:${port}/w/`)
+    const registry = registryOf(home)
+    expect(registry?.workspaces.map(({ path: at }) => at)).toEqual([path])
+    expect(line).toBe(`persimmon: http://localhost:${port}/w/${registry?.workspaces[0]?.id}`)
   })
 
   // spec-00011-AC-14.1
@@ -384,6 +387,14 @@ describe('persimmon remove', () => {
   })
 })
 
+/**
+ * `persimmon list` from a directory that is no project of its own — which is
+ * also the observable half of spec-00011-AC-20.1 and spec-00011-AC-20.2. The
+ * install forms themselves (a global install, and a one-off npm run) are not
+ * reachable from a suite that runs the entry point out of the work tree: they
+ * are verified by the 实测 plan-00027 §Detailed Acceptance Path 第 7 项 obliges,
+ * and spec-00011 §7 counts AC-20.2 unverified until it passes.
+ */
 describe('persimmon list', () => {
   // spec-00011-AC-21.1
   it('lists every entry with its availability', async () => {

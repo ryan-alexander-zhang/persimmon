@@ -24,6 +24,62 @@ npm start            # http://localhost:4173, honours PORT
 The board walks up from the directory it is launched in to the nearest
 `whiteboard.config.yaml` and serves that repository's `docs/`.
 
+## Workspaces
+
+A **workspace** is one registered project directory — a git repository with a
+`whiteboard.config.yaml` and a `docs/` tree. One process serves any number of
+them: each workspace gets its own board under `/w/<id>`, with its own graph,
+sessions, ask threads, annotations and agent settings, and nothing crosses
+between them (`spec-00011`).
+
+The registry is a single file in your home directory,
+`~/.persimmon/workspaces.json`: a version and a list of entries, each with an
+`id` derived from the directory name, a display name, and the absolute path.
+Entry order is switcher order. A missing file reads as an empty registry, and a
+hand edit shows up on the next listing — no restart. The board writes nothing
+else outside a project: `.whiteboard/`, the flow config and `docs/` all stay in
+the project directory.
+
+The **switcher** sits at the far left of the top bar. It lists every entry with
+its path, its availability, and its running and waiting session counts, and it
+carries the add and per-entry remove controls. Choosing an entry swaps the whole
+board to it and puts it in the address bar; the process and the port do not
+change, and the sessions of the other workspaces keep running. An entry whose
+directory is gone, holds no flow config, is not a git repository, or has an
+invalid config is listed as unavailable with the reason, and choosing it is
+refused.
+
+## The `persimmon` command
+
+```bash
+persimmon             # start, or attach to a process already running
+persimmon add [path] [--name <n>]
+persimmon remove <id|path>
+persimmon list
+```
+
+`persimmon` with no subcommand walks up from the current directory to the
+nearest `whiteboard.config.yaml`; the project it finds is registered (idempotent)
+and opened. Outside any project it opens the workspace this browser was last in,
+otherwise the first available entry, otherwise the empty state. It prints the
+address to open. The port comes from `PORT`, default 4173.
+
+If a persimmon is already listening on that port, the command starts no second
+process: it registers through the one already running — whose switcher picks the
+new entry up at once — prints that workspace's address and exits 0. A port held
+by anything else is reported as occupied, with a non-zero exit.
+
+`add` takes a path, or defaults to the project the current directory is in;
+`--name` sets the display name, which otherwise follows the id. It is
+non-interactive and idempotent — an already registered directory exits 0 with
+the existing entry. A path that does not exist, is not a directory, or holds no
+flow config is refused; an invalid flow config or a directory that is no git
+repository is *not* — it registers and shows up as unavailable.
+
+`remove` takes an id or a path and deletes the registry entry only, touching
+nothing inside the directory; it is refused while that workspace has a running
+session. `list` prints every entry's id, name, path and availability.
+
 ## Commands
 
 Run from the repository root:
@@ -47,9 +103,11 @@ already be running via `npm start` in another terminal.
 
 `whiteboard.config.yaml` at the repo root is the machine-readable carrier of
 [rule-00001-docs-workflow](docs/rule/rule-00001-docs-workflow.md): the type
-split, the relation fields, the product flow, and the agent commands. It is
-validated at startup, and a missing or invalid config stops the board — there is
-no built-in default.
+split, the relation fields, the product flow, and the agent commands. There is
+no built-in default: a workspace whose config is missing or invalid is listed as
+unavailable with the reason, and cannot be opened until it is fixed — the process
+and the other workspaces are unaffected. A workspace already open keeps the
+config it was opened with, so an edit takes effect on the next start.
 
 `exclude` is a list of glob patterns relative to `docs/`: a matched file does not
 exist for the board — no node, no anomaly, no id — and the list is read at

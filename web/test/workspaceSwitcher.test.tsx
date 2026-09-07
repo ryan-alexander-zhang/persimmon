@@ -376,6 +376,20 @@ describe('the page when the URL names no workspace to open', () => {
     expect(fetches.filter((call) => call.includes('/w/'))).toEqual([])
   })
 
+  // spec-00011-AC-13.7, the page half: the address `persimmon` printed for a
+  // project whose flow config is invalid opens on that config's own error, with
+  // the switcher in the bar and nothing addressed to the workspace.
+  it('says which config error keeps a registered workspace from opening', async () => {
+    const error = 'flow: idea -> memo names a type no `types` entry declares'
+    registry = [summary({ id: 'broken', name: 'Broken', path: '/tmp/broken', availability: 'invalidConfig', error })]
+    history.replaceState(null, '', '/w/broken')
+    render(<Board />)
+
+    await waitFor(() => expect(screen.getByText(error)).toBeTruthy())
+    expect(trigger()).toBeTruthy()
+    expect(fetches.filter((call) => call.includes('/w/'))).toEqual([])
+  })
+
   // spec-00011-AC-1.1, spec-00011-AC-13.4
   it('invites the first workspace when the registry is empty, switcher and all', async () => {
     registry = []

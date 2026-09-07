@@ -1,7 +1,9 @@
-import { appendFileSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { basename, join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { LOCAL_SETTINGS_FILE } from '../src/agentSettings.ts'
+import { ASKS_DIR } from '../src/askStore.ts'
 import { CONFIG_FILE } from '../src/config.ts'
 import { Host } from '../src/host.ts'
 import type { Board, BoardOptions } from '../src/server.ts'
@@ -46,6 +48,31 @@ const SIGNAL_WAIT = { timeout: 10_000, interval: 25 }
 const SETTLE = 400
 
 const DRAFT_IDEA = doc({ id: 'idea-00001-x', type: 'idea', status: 'draft' }, '# Idea X\n')
+/** A second agent entry, appended under `agents:` — the one a local layer disables. */
+const CODEX_AGENT = `  codex:
+    command: node
+    args: []
+`
+/** One answered thread as `.whiteboard/asks/<docId>.json` holds it (design-00001 §10.2). */
+const ASK_LIST = {
+  docId: 'idea-00001-x',
+  threads: [
+    {
+      id: 'thread-1',
+      agent: 'claude',
+      exchanges: [
+        {
+          question: 'why two gates?',
+          askedAt: '2026-09-01T00:00:00.000Z',
+          answer: 'because one of them is the business rule',
+          answeredAt: '2026-09-01T00:00:01.000Z',
+          outcome: 'answered',
+          runSessionId: 'session-1',
+        },
+      ],
+    },
+  ],
+}
 const OTHER_IDEA = doc({ id: 'idea-00002-y', type: 'idea', status: 'draft' }, '# Idea Y\n')
 
 /** A flow config as it lives on disk: the host loads each workspace's own, rather than being handed one. */
@@ -278,7 +305,7 @@ describe('a workspace the host cannot route to', () => {
     expect(built).toHaveLength(0)
   })
 
-  // spec-00011-AC-6.1, AC-9.3 — the reason rides with the refusal (design-00003 §5)
+  // spec-00011-AC-6.1, spec-00011-AC-9.3 — the reason rides with the refusal (design-00003 §5)
   it('answers 503 and builds nothing when the directory is gone', async () => {
     const alpha = workspace('alpha')
     const { call } = hostOn([alpha])
@@ -388,7 +415,7 @@ describe('GET /api/workspaces', () => {
     ])
   })
 
-  // spec-00011-AC-6.1, AC-6.2 — an unavailable entry stays in the list, with its reason
+  // spec-00011-AC-6.1, spec-00011-AC-6.2 — an unavailable entry stays in the list, with its reason
   it('judges every entry, carrying the reason and the sentence that says what to fix', async () => {
     const alpha = workspace('alpha')
     const broken = workspace('broken')
@@ -561,7 +588,7 @@ describe('DELETE /api/workspaces/:wid', () => {
     expect((await call('GET', '/w/alpha/api/graph')).status).toBe(404)
   })
 
-  // spec-00011-FR-4 — nothing inside the directory is touched
+  // spec-00011-AC-4.2 (spec-00011-FR-4) — nothing inside the directory is touched
   it('leaves the workspace’s own files where they are', async () => {
     const alpha = workspace('alpha')
     const { call } = hostOn([alpha])
@@ -649,6 +676,38 @@ describe('two workspaces side by side', () => {
     expect(second.body.issues).toEqual([])
   })
 
+  // spec-00011-AC-12.3 — an ask list belongs to the workspace it was filed in;
+  // the same document id in the other workspace has its own, and it is empty
+  it('reads the ask threads of the workspace they were filed in', async () => {
+    const alpha = workspace('alpha')
+    const demo = workspace('demo')
+    mkdirSync(join(alpha.path, ASKS_DIR), { recursive: true })
+    writeFileSync(join(alpha.path, ASKS_DIR, 'idea-00001-x.json'), `${JSON.stringify(ASK_LIST, null, 2)}\n`)
+    const { call } = hostOn([alpha, demo])
+
+    const first = await call('GET', '/w/alpha/api/asks/idea-00001-x')
+    const second = await call('GET', '/w/demo/api/asks/idea-00001-x')
+
+    expect(first.body.threads).toHaveLength(1)
+    expect(second.body.threads).toEqual([])
+  })
+
+  // spec-00011-AC-12.4 — the local agent layer is read out of each workspace's
+  // own `.whiteboard/`, so one disabling an entry says nothing about the other
+  it('applies each workspace’s own local agent layer', async () => {
+    const alpha = workspace('alpha', { 'idea/a.md': DRAFT_IDEA }, CODEX_AGENT)
+    const demo = workspace('demo', { 'idea/a.md': DRAFT_IDEA }, CODEX_AGENT)
+    mkdirSync(join(alpha.path, dirname(LOCAL_SETTINGS_FILE)), { recursive: true })
+    writeFileSync(join(alpha.path, LOCAL_SETTINGS_FILE), `${JSON.stringify({ disabled: ['codex'] })}\n`)
+    const { call } = hostOn([alpha, demo])
+
+    const first = await call('GET', '/w/alpha/api/settings/agents')
+    const second = await call('GET', '/w/demo/api/settings/agents')
+
+    expect(first.body.effective.map((agent: { name: string }) => agent.name)).toEqual(['claude'])
+    expect(second.body.effective.map((agent: { name: string }) => agent.name)).toContain('codex')
+  })
+
   // spec-00011-AC-19.1, server half: an action writes one workspace's git and no other
   it('commits into the workspace the action was made in, and no other', async () => {
     const alpha = workspace('alpha')
@@ -663,6 +722,21 @@ describe('two workspaces side by side', () => {
     expect(commitCount(alpha.path)).toBeGreaterThan(commits.alpha)
     expect(commitCount(demo.path)).toBe(commits.demo)
     expect(git(demo.path, 'status', '--porcelain', '--', 'docs').trim()).toBe('')
+  })
+
+  // spec-00011-AC-19.2 — a settings save writes the local layer of the
+  // workspace it was made in, and no other workspace's
+  it('writes the local agent settings of the workspace the save was made in', async () => {
+    const alpha = workspace('alpha')
+    const demo = workspace('demo')
+    const { call } = hostOn([alpha, demo])
+    await call('GET', '/w/demo/api/settings/agents')
+
+    const { status } = await call('PUT', '/w/alpha/api/settings/agents', { default: 'claude' })
+
+    expect(status).toBe(200)
+    expect(existsSync(join(alpha.path, LOCAL_SETTINGS_FILE))).toBe(true)
+    expect(existsSync(join(demo.path, LOCAL_SETTINGS_FILE))).toBe(false)
   })
 })
 
@@ -737,7 +811,7 @@ describe('shutting the host down', () => {
     return { ...open, alpha, demo }
   }
 
-  // spec-00011-AC-16.1, AC-16.2, server half
+  // spec-00011-AC-16.1, spec-00011-AC-16.2, server half
   it('wraps up the running session of every workspace before it resolves', async () => {
     const open = await twoThatWrote()
     const commits = { alpha: commitCount(open.alpha.path), demo: commitCount(open.demo.path) }

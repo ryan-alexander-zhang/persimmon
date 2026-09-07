@@ -299,6 +299,8 @@ describe('boardApi', () => {
 
 /** design-00003 §6: `/` is the entry page, `/w/<wid>` is the current workspace. */
 describe('the workspace the page opens on', () => {
+  // spec-00011-AC-13.2, the page half: the entry point opens the workspace this
+  // browser was last in; that the command prints that entry point is AC-14.3's.
   it('goes to the workspace this browser was last in', async () => {
     localStorage.setItem(LAST_WORKSPACE_KEY, 'demo')
     const { result } = renderHook(() => useWorkspace())
@@ -307,6 +309,9 @@ describe('the workspace the page opens on', () => {
     expect(location.pathname).toBe('/w/demo')
   })
 
+  // spec-00011-AC-13.3, the page half with nothing remembered: the first entry
+  // of the registry. That the landing skips an unavailable entry is pinned by
+  // spec-00011-AC-4.5's case in workspaceSwitcher.test.tsx, on the same rule.
   it('goes to the first available entry when nothing was remembered', async () => {
     const { result } = renderHook(() => useWorkspace())
 
@@ -331,7 +336,7 @@ describe('the workspace the page opens on', () => {
   })
 
   // spec-00011-AC-9.2 — the page state itself is T9's; nothing is read from the
-  // workspace either way (AC-9.3).
+  // workspace either way (spec-00011-AC-9.3).
   it('names an unregistered workspace and reads nothing from it', async () => {
     history.replaceState(null, '', '/w/ghost')
     render(<Board />)

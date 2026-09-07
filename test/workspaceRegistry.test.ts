@@ -44,7 +44,7 @@ describe('reading the registry', () => {
     expect(registry(home()).read()).toEqual([])
   })
 
-  // spec-00011-AC-21.1 and AC-21.2 at the data level: what `persimmon list` prints, in file order (T7's half)
+  // spec-00011-AC-21.1 and spec-00011-AC-21.2 at the data level: what `persimmon list` prints, in file order (T7's half)
   it('returns the entries in file order, and an empty list for an empty registry', () => {
     const at = home()
     const entries = [
@@ -76,7 +76,7 @@ describe('reading the registry', () => {
   })
 
   /**
-   * spec-00011-AC-18.1 and AC-18.2, and every other reading of «the whole file
+   * spec-00011-AC-18.1 and spec-00011-AC-18.2, and every other reading of «the whole file
    * is ill-formed» (spec-00011-FR-18): the refusal names the file path and the
    * problem, and the caller — process start or CLI subcommand — refuses with it.
    */
