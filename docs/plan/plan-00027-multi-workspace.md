@@ -1,7 +1,7 @@
 ---
 id: plan-00027-multi-workspace
 type: plan
-status: open
+status: resolved
 implements: [spec-00011-multi-workspace, design-00003-multi-workspace]
 ---
 
