@@ -120,9 +120,12 @@ flowchart TD
   V -->|通过| A[available]
 ```
 
-- 四种不可用各带 `reason` 与一句 `error`：`missing` →「workspace 目录不存在：
-  `<path>`」；`noConfig` →「目录内没有 whiteboard.config.yaml：`<path>`」；
-  `noGit` →「目录不是 git 仓库：`<path>`」（判定取 `git rev-parse
+- 四种不可用各带 `reason` 与一句 `error`（**英文**，与 `ConfigError` 及全部既有
+  用户可见字串同语——四种原因会并列在同一个切换器里，不能两种语言各半；本节
+  初版以中文给出这三句，是文档语言带进契约的笔误，T4 落地时据实校正）：
+  `missing` →「workspace directory does not exist: `<path>`」；`noConfig` →
+  「directory has no whiteboard.config.yaml: `<path>`」；`noGit` →
+  「directory is not a git repository: `<path>`」（判定取 `git rev-parse
   --show-toplevel` 的结果**等于** `path`——不是仓库、或只是别的仓库的子目录
   都算否。比 ARCHITECTURE.md §2「工作树必须是 git 仓库」严一格，理由在代码：
   `gitLayer.ts` 以 `git status --porcelain` 的顶层相对路径过滤 `docs/` 前缀
