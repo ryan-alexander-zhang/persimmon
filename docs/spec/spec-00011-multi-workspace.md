@@ -7,7 +7,7 @@ parent: prd-00003-multi-workspace
 
 # Spec: 多 workspace——一个进程服务多个项目目录
 
-> 一个 `persimmon` 进程持有一份 workspace 注册表，每个含 `whiteboard.config.yaml`
+> 一个已运行进程（host 进程）持有一份 workspace 注册表，每个含 `whiteboard.config.yaml`
 > 的项目根目录是一个 workspace；顶栏切换器在它们之间切换，图、导航栏、会话
 > 面板与设置面板随之整体切换，进程与端口不变；会话、通知、监听逐 workspace
 > 作用；一条命令从任何目录启动或接入已运行进程。
@@ -21,6 +21,36 @@ parent: prd-00003-multi-workspace
   撞 id、全局覆盖率视图、配置校验（第二十九轮）。design-00002 §2 持有的布局词也在本 spec 中使用：
   **右槽**、**终端面板**、**工作区**（页面布局区域）。
 - 本 spec 的 Markdown 方言取 GFM。
+- 第三十一轮的修订源：[decision-00020-unified-go-cli](../decision/decision-00020-unified-go-cli.md)
+  与其形状文档 [design-00004-persimmon-cli](../design/design-00004-persimmon-cli.md)
+  ——全部命令行入口合成一个名为 `persimmon` 的独立二进制（ainpt 的 `new` /
+  `update` / `list-langs` 并入），npm 包让出这个 bin 名、改为只提供服务本体的
+  host 包 `@ryan-alexander-zhang/persimmon-host`。**命令本身的形态**由两份并列新
+  spec 持有，本 spec 只留可观察到的那一面：安装方式、起 host 的机制、版本配对、
+  无 Node 时的行为在 `spec-00012-persimmon-command`；脚手架子命令
+  （`new` / `update` / `list-langs`）与 `new` 的登记闭环在
+  `spec-00013-persimmon-scaffold`。本轮的审计与编排裁定把它们划出去，故本节与
+  FR-13、FR-20 都不复述。逐条动作：
+  - FR-13：末句改写——执行者是 `persimmon` 命令（原为 npm 包的 bin），并收窄为
+    「登记目标并起白板服务」+ `PORT` + 打开哪个 workspace；地址打印与退出码归
+    `spec-00012-FR-3`。
+  - FR-14、FR-15：执行者与措辞据实校正（「不监听」→「不起服务」，命令自己
+    从不监听）。FR-15 另按裁定点明主语只含本 spec 持有的四条命令，并写出
+    `list` 退回读文件这一半。
+  - FR-20：包名与安装形态改写（详见该条的括注）。
+  - FR-21：五态口径不变，另增一条 `If` 分支——取不到 host 包的判定时的退让，
+    条目类型随之由 Ubiquitous 记作 Complex。
+  - AC 层：`AC-13.4`、`AC-18.1`、`AC-20.1` 改 Given/Then（行为不变，id 保留）；
+    `AC-20.2` 与 `AC-20.3` **退出验收集**——两条断言都以安装形态为前提，而
+    FR-20 已不再谈它：20.2 的断言随两种形态消失而失效、无替代条目，20.3 的
+    检查由 `issue-00030` §7 的验证持有；**id 就地留存**（`record-00028`、
+    `plan-00027`、`issue-00030` 都引着它们，抹掉会让既有引用无从解析）；
+    **新增** `AC-15.4`（`list` 遇陌生端口的退回）、
+    `AC-20.4`（本仓库是第一个 workspace）、`AC-21.3` 与 `AC-21.4`（无 Node 时的
+    退让两例）。不重编号，不留空号。
+  - 其余：本节「已运行进程」词条、摘要首句、§5 的 design 清单（增
+    `design-00004`，其 `informs` 已回填指向本 spec）、§6 的边界一条、§7 的
+    实测义务。FR-1 … FR-12、FR-16 … FR-19、FR-22 … FR-24 未动。
 - 第三十轮的修订源：域主的裁定——添加对话框只能键入路径，判为不可接受
   （`plan-00032-native-directory-picker` 是本轮的产物而非来源，故不列作修订源）。
   本轮只加 FR-22、FR-23、FR-24 与其 AC，不动既有任何一条。
@@ -45,9 +75,11 @@ parent: prd-00003-multi-workspace
   拆仓背景在 [decision-00019-whiteboard-standalone-repo](../decision/decision-00019-whiteboard-standalone-repo.md)。
 - 本 spec 是 `spec-00001` … `spec-00010` 的**并列新 spec**（Sizing and
   Splitting 第 1 条），不 supersede 任何一份。它 21 条 FR、正文过 500 行，
-  README 的两个拆分触发都亮了；**决定不拆**：自然的缝是 CLI（FR-13 … FR-15、
-  FR-20、FR-21）与板，但 CLI 的每条都以注册表与切换器的语义为前提，拆成两份
-  会让每份都不能独立验收。除下列交接外，它不改任何
+  README 的两个拆分触发都亮了；**决定不拆**：自然的缝是命令（FR-13 … FR-15、
+  FR-20、FR-21）与板，但命令的这几条都以注册表与切换器的语义为前提，拆成两份
+  会让每份都不能独立验收（第三十一轮追注：`spec-00012-persimmon-command` 与
+  `spec-00013-persimmon-scaffold` 拆出去的不是这几条，而是命令**自身**的形态
+  与脚手架子命令——那些从来不以注册表与切换器为前提）。除下列交接外，它不改任何
   workspace **内部**的行为：`spec-00001` … `spec-00010` 的每条需求在每个
   workspace 内逐一成立，其验收集整体是本 spec 的回归约束（§7）。
 - **与既有文档的交接**（本 spec 自己不就地改它们——它们都是 `active`，修订属
@@ -127,10 +159,13 @@ parent: prd-00003-multi-workspace
     没有流程配置、不是 git 仓库或流程配置非法的 workspace；在切换器中可见、
     带原因、不可切换、可移除。
     _Avoid_：失效条目、损坏的 workspace、隐藏。
-  - **已运行进程（Running Process）**：已在本机端口上监听的 `persimmon` 进程；
-    再次执行命令时接入它而不再起第二个进程。（「实例」一词留给 design 里
+  - **已运行进程（Running Process）**：已在本机端口上监听的 host 进程
+    （`persimmon-host`）；再次执行 `persimmon` 命令时接入它而不再起第二个进程
+    （第三十一轮据实校正：命令与服务自此是两个可执行体，监听的从来只有后者，
+    `decision-00020`、`CONTEXT.md`）。（「实例」一词留给 design 里
     逐 workspace 的服务组，不在此复用。）
-    _Avoid_：守护进程、后台服务、单例、已有实例。
+    _Avoid_：守护进程、后台服务、单例、已有实例、`persimmon` 命令（它拉起
+    已运行进程，自己不是）。
 
 ## 2. Stories
 
@@ -228,13 +263,33 @@ parent: prd-00003-multi-workspace
   根目录登记（幂等）并以它为打开的 workspace——它不可用时页面按 FR-9 呈现其
   原因；若不在任何项目内，系统应打开「上次所在 workspace」，没有或已不在
   注册表中时打开注册表第一条可用 workspace，全部不可用或注册表为空时打开
-  空态。命令打印可访问地址；监听端口取环境变量 `PORT`，缺省 4173。
+  空态。执行者是 `persimmon` 命令（第三十一轮据 `decision-00020` 改写：原为
+  npm 包的 bin，即当时的 `bin/persimmon.js`；判定与输出不变）：无已运行进程时
+  它登记目标并起白板服务；监听端口取
+  环境变量 `PORT`，缺省 4173。命令是怎样一个可执行体、用什么机制起服务、地址
+  由谁打印与怎么透传、本机没有 Node 时它怎么办，都由
+  `spec-00012-persimmon-command` 持有，不在本条。
 - **spec-00011-FR-14** (Event) 当执行 `persimmon` 而该端口上已有一个已运行进程在监听时，命令应
-  不再监听、不起第二个进程：FR-13 的登记经已运行进程完成（其切换器随即可见
-  新条目），命令打印已运行进程中该 workspace 的地址并以 0 退出。
-- **spec-00011-FR-15** (Unwanted) 若该端口被占用而占用者不是已运行进程，命令
-  应报端口被占用并以非 0 退出，不登记、不监听；若经已运行进程的登记被拒或
-  失败（FR-3 的拒绝、写盘失败），命令应报出该原因并以非 0 退出，不监听。
+  不再拉起 host、不起第二个服务进程：FR-13 的登记经已运行进程完成（其切换器随即可见
+  新条目），命令打印已运行进程中该 workspace 的地址并以 0 退出（第三十一轮据
+  `decision-00020` 改写：执行者与 FR-13 同为 `persimmon` 命令，判定与输出不变
+  ——`decision-00020` §4「不变的」末条；接入时的地址由命令自己拼，端口已知，
+  `design-00004` §3）。
+- **spec-00011-FR-15** (Complex) 本条的主语只是本 spec 持有的那四条命令
+  ——无子命令启动、`add`、`remove`、`list`（第三十一轮点明：`new` 遇同情形怎么
+  办由 `spec-00013-persimmon-scaffold` 的 `FR-7` 持有，本条不管它；类型自本轮
+  记作 Complex
+  ——被占用的端口对三条命令是拒绝、对 `list` 是退让，一条 `If` 里两种响应）。
+  若该端口被占用而占用者不是已运行进程：**启动、`add`、`remove` 三条**应报
+  端口被占用并以非 0 退出，不登记、不起服务——启动是因为它要的就是那个端口，
+  `add` 与 `remove` 是因为它们要写而陌生进程下无从判断谁持着同一份注册表；
+  **`list` 既不要端口也不写**，应退回直接读注册表文件并照
+  FR-21 输出、以 0 退出（第三十一轮补写：这一半是既有行为，此前只在
+  `design-00003` §8 有，条目里没有；第三十一轮再校正理由——原写作「写的那三条」，
+  而在项目外启动什么也不写，它被拒的理由是端口本身）。若经已运行进程的登记被拒或
+  失败（FR-3 的拒绝、写盘失败），命令应报出该原因并以非 0 退出，不起服务
+  （第三十一轮据实校正：原作「不监听」，而命令自己从不监听——监听是它起的
+  那个服务的事）。
 - **spec-00011-FR-16** (Event) 当进程正常关停时，系统应对每个 workspace 的每
   个运行中会话执行 `spec-00003-FR-9` 的终止收尾（结束进程、commit、历史落盘；
   等待因 `spec-00003` 的信号升级阶梯而有界），全部收尾完成后退出；第二次
@@ -256,14 +311,27 @@ parent: prd-00003-multi-workspace
 - **spec-00011-FR-19** (Ubiquitous) 在一个 workspace 内发起的任何动作（编辑、
   状态流转、评审、会话、答疑、标注、设置保存）应只读写该 workspace 的目录与
   git 仓库，不触及任何其他 workspace 的目录、git 仓库或 `.whiteboard/`。
-- **spec-00011-FR-20** (Ubiquitous) 包名应为 `@ryan-alexander-zhang/persimmon`
-  （npm 上的 `persimmon` 已被无关包占用），命令名应为 `persimmon`；全局安装与
-  经 npm 一次性执行（`npx @ryan-alexander-zhang/persimmon`）两种安装形态下
-  命令行为相同；仓库根即包根，本仓库自身的 `whiteboard.config.yaml` 与
-  `docs/` 仍在根，本仓库是第一个 workspace。
-- **spec-00011-FR-21** (Ubiquitous) 命令 `persimmon list` 应列出注册表全部
+- **spec-00011-FR-20** (Ubiquitous) 命令名应为 `persimmon`；本仓库发布的 npm 包
+  应为 **host 包** `@ryan-alexander-zhang/persimmon-host`——白板服务本体的对外
+  标识，命令不再由它分发；仓库根即该 host 包的包根，本仓库自身的
+  `whiteboard.config.yaml` 与 `docs/` 仍在根，本仓库是第一个 workspace。
+  （第三十一轮据 `decision-00020` §2 第 2、3 条改写：原文钉死包名
+  `@ryan-alexander-zhang/persimmon`（当时的理由是 npm 上的 `persimmon` 已被
+  无关包占用），并要求「全局安装与经 npm 一次性执行
+  （`npx @ryan-alexander-zhang/persimmon`）两种安装形态下命令行为相同」——
+  命令让出 npm bin 名之后，那两种形态都不复存在。命令的形态与安装方式、
+  host 包的 bin 名、两者的版本配对，都由 `spec-00012-persimmon-command`
+  持有，本条只留这两个对外标识与仓库布局。）
+- **spec-00011-FR-21** (Complex) 命令 `persimmon list` 应列出注册表全部
   条目的 `id`、显示名、路径与可用性（口径同 FR-6），以 0 退出；注册表为空时
-  输出空列表；注册表不合式时按 FR-18 拒绝。
+  输出空列表；注册表不合式时按 FR-18 拒绝。**若无已运行进程、且本机取不到
+  host 包的判定（没有可用的 Node）**，命令仍应以 0 退出，只呈现它自己能算出的
+  三种不可用（目录不存在、不是 git 仓库、目录内无流程配置）；一条也没命中的
+  条目**不断言「可用」**，其可用性一列显示 `-`，并打印一句提示——完整判定
+  需要 Node。（第三十一轮：有已运行进程时的五态口径不变——变的只是它从哪里
+  来，无进程时由 host 包判定，命令只自算上述三种。`decision-00020` §5 说的是
+  FR-21「内容不变」；本轮据审计裁定在其外增了这条 `If` 分支，理由与范围见该
+  决定的追注。条目类型因此自本轮记作 Complex。）
 - **spec-00011-FR-22** (Event) 当用户在添加对话框中激活「浏览」时，系统应打开
   一个由操作系统提供的、**只选目录**的目录选择对话框，并在用户选定后把该目录的
   绝对路径填入路径字段，路径规范化后填入：去掉尾部分隔符——`POSIX path of`
@@ -524,7 +592,8 @@ parent: prd-00003-multi-workspace
 - **spec-00011-AC-13.4** (spec-00011-FR-13)
   Given 注册表为空，当前目录不在任何项目内
   When 执行 `persimmon` 并打开地址
-  Then 页面呈现空态与添加入口，命令以监听态运行
+  Then 页面呈现空态与添加入口，命令拉起的服务以监听态运行（第三十一轮据实
+  校正：原作「命令以监听态运行」）
 - **spec-00011-AC-13.5** (spec-00011-FR-13)
   Given 当前目录为项目 `broken`，其流程配置非法，注册表为空
   When 执行 `persimmon`
@@ -561,6 +630,11 @@ parent: prd-00003-multi-workspace
   Given 一个已运行进程在 4173 监听，当前目录为项目 `demo`，注册表文件所在目录不可写
   When 执行 `persimmon`
   Then 命令报出登记失败的原因并以非 0 退出，不起新进程
+- **spec-00011-AC-15.4** (spec-00011-FR-15)
+  Given 4173 被一个非 `persimmon` 的 HTTP 服务占用，注册表有 `alpha`
+  When 执行 `persimmon list`
+  Then 命令直接读注册表文件、照 FR-21 输出并以 0 退出（第三十一轮增：`list`
+  不写，故端口上的陌生进程不构成拒绝的理由）
 - **spec-00011-AC-16.1** (spec-00011-FR-16)
   Given `alpha` 与 `demo` 各有一个运行中会话且各有 `docs/` 变更
   When 进程收到 `SIGINT`
@@ -612,7 +686,9 @@ parent: prd-00003-multi-workspace
 - **spec-00011-AC-18.1** (spec-00011-FR-18)
   Given `~/.persimmon/workspaces.json` 是一段不可解析的文本
   When 执行 `persimmon`
-  Then 进程拒绝启动、指明该文件路径与解析失败，文件内容不变
+  Then 命令以非 0 退出并指明该文件路径与解析失败，不起任何服务，文件内容不变
+  （第三十一轮据实校正：原作「进程拒绝启动」，而不合式在起服务之前就已判出，
+  从来没有一个进程起来又拒绝）
 - **spec-00011-AC-18.2** (spec-00011-FR-18)
   Given 注册表两条 `id` 相同
   When 执行 `persimmon list`
@@ -630,19 +706,25 @@ parent: prd-00003-multi-workspace
   When 用户在 `alpha` 保存本地 agent 设置
   Then 只有 `alpha/.whiteboard/agents.json` 被写
 - **spec-00011-AC-20.1** (spec-00011-FR-20)
-  Given 包已全局安装
+  Given `persimmon` 命令已经 `install.sh` 装入 PATH
   When 在任意目录执行 `persimmon list`
-  Then 命令可执行并输出注册表
+  Then 命令可执行并输出注册表（第三十一轮改写 Given：原为「包已全局安装」）
 - **spec-00011-AC-20.2** (spec-00011-FR-20)
-  Given 包已作为 `@ryan-alexander-zhang/persimmon` 发布、本机未全局安装
-  When 以 npm 一次性执行形态运行 `list`
-  Then 输出与全局安装形态相同
+  Given 原断言「npm 一次性执行形态与全局安装形态输出相同」
+  When 命令让出 npm bin 名、那两种形态不复存在
+  Then 该断言随安装形态变化失效，自第三十一轮起不计入验收集，**无替代条目**
+  ——id 就地留存，供 `record-00028` 与 `plan-00027` 的既有引用解析
 - **spec-00011-AC-20.3** (spec-00011-FR-20)
-  Given 包以 npm 一次性执行形态取得、本机未全局安装
-  When 在某 workspace 发起一个 agent 会话
-  Then 该会话的终端起得来，与全局安装形态无别（第二十九轮增，`issue-00030`：
-  FR-20 说的是「命令行为相同」，而 `AC-20.1`/`AC-20.2` 只跑 `list`，`list`
-  不开 pty——会话这一半此前只有 §7 的实测义务承接，无 AC）
+  Given 原断言「host 包以不跑安装脚本的缓存安装形态取得后，会话的终端仍起得来」
+  （第二十九轮增，`issue-00030`）
+  When `npx` 成为开板的唯一路径
+  Then 该检查由 `issue-00030` §7 的验证持有，自第三十一轮起不计入本 spec 的
+  验收集——id 就地留存，供 `record-00028` 与 `issue-00030` 的既有引用解析
+- **spec-00011-AC-20.4** (spec-00011-FR-20)
+  Given 当前目录为本仓库根（根有 `whiteboard.config.yaml` 与 `docs/`）
+  When 执行 `persimmon add`
+  Then 本仓库被登记且判为可用（第三十一轮增：FR-20 的「本仓库是第一个
+  workspace」此前无 AC）
 - **spec-00011-AC-21.1** (spec-00011-FR-21)
   Given 注册表有可用的 `alpha` 与目录已不存在的 `demo`
   When 执行 `persimmon list`
@@ -651,6 +733,17 @@ parent: prd-00003-multi-workspace
   Given 注册表为空
   When 执行 `persimmon list`
   Then 输出空列表，命令以 0 退出
+- **spec-00011-AC-21.3** (spec-00011-FR-21)
+  Given 没有已运行进程、本机没有可用的 Node，注册表有一条目录存在且流程配置
+  非法的 `broken`
+  When 执行 `persimmon list`
+  Then 命令以 0 退出，`broken` 的可用性一列显示 `-`，并有一句提示说完整判定
+  需要 Node（第三十一轮增，FR-21 的 `If` 分支）
+- **spec-00011-AC-21.4** (spec-00011-FR-21)
+  Given 没有已运行进程、本机没有可用的 Node，注册表有一条目录已不存在的 `demo`
+  When 执行 `persimmon list`
+  Then `demo` 照常标「目录不存在」，命令以 0 退出（第三十一轮增：命令自己算得出
+  的那三种在退让路径下照常给出，`-` 只落在没命中它们的条目上）
 
 - **spec-00011-AC-22.1** (spec-00011-FR-22)
   Given 添加对话框已打开、路径字段为空
@@ -700,11 +793,14 @@ parent: prd-00003-multi-workspace
 
 | Design | Doc | Covers |
 | --- | --- | --- |
-| Host 层、注册表文件契约、可用性判定、实例生命周期、API 前缀、URL 与切换、关停扇出、CLI 握手、通知组合、代码位置 | [design-00003-multi-workspace](../design/design-00003-multi-workspace.md) | 全部 FR 的实现结构 |
+| Host 层、注册表文件契约、可用性判定、实例生命周期、API 前缀、URL 与切换、关停扇出、命令的启动握手、通知组合、代码位置 | [design-00003-multi-workspace](../design/design-00003-multi-workspace.md) | 全部 FR 的实现结构 |
+| 无已运行进程时注册表的那份实现、可用性判定从哪里来、命令与 host 包的分工 | [design-00004-persimmon-cli](../design/design-00004-persimmon-cli.md) | FR-13 … FR-15、FR-21 的命令侧结构（第三十一轮增，`decision-00020`）。**命令面本身在 `spec-00012-persimmon-command`（入口、启动、`version`、分发）与 `spec-00013-persimmon-scaffold`（`new` / `update` / `list-langs` 与登记闭环）**——同一份 design 由它们消费，本 spec 只取无进程注册表与可用性判定来源这两段 |
 
-单 workspace 内的服务与界面仍由 design-00001 与 design-00002 持有，二者随各自
-修订轮声明 `informs` 本 spec（§1 交接）；两条边在本 spec 转 `active` 前落地，
-否则 §1 对它们的引用是无边可循的声明。
+单 workspace 内的服务与界面仍由 design-00001 与 design-00002 持有，二者已在
+第二十八轮的修订轮中声明 `informs` 本 spec（§1 交接），两条边均已落地
+（第三十一轮据实校正：原句写作「两条边在本 spec 转 `active` 前落地，否则 §1
+对它们的引用是无边可循的声明」，那是当时的待办口径）。`design-00004` 的
+`informs` 于第三十一轮回填。
 
 ## 6. Out of Scope
 
@@ -725,6 +821,14 @@ parent: prd-00003-multi-workspace
   自行决定是否重启。
 - 已登记目录之下的嵌套 workspace 不做祖先关系判定（FR-3）：自己也是 git
   仓库的子目录照常登记，作为已知边界。
+- `persimmon` 命令**本身**，分属两份并列新 spec：命令是怎样一个可执行体与
+  怎么装（分发）、起 host 包的机制与版本配对、命令与服务之间的输出与信号透传、
+  `version`、本机没有 Node 时启动路径的行为，由 `spec-00012-persimmon-command`
+  持有；脚手架子命令 `new` / `update` / `list-langs` 与 `new` 的登记闭环，由
+  `spec-00013-persimmon-scaffold` 持有。尚未开工的 `config` 子命令与白板界面里的
+  workspace 创建也不在本 spec（`decision-00020` §2 第 7 条）。本 spec 只留可
+  观察到的那一面（FR-13 … FR-15、FR-20、FR-21）（第三十一轮增边界，不是本轮
+  新增的排除——这些子命令在本 spec 写成时还在另一个仓库里）。
 
 ## 7. Non-Functional
 
@@ -732,13 +836,16 @@ parent: prd-00003-multi-workspace
   的启动加载；切回已打开过的 workspace 不重新解析其文档。无 GWT，验收走实测
   （沿 design-00002 的口径）。
 - 未打开过的 workspace 不产生文档解析、文件监听或会话状态。
-- 验证义务：FR-20 的两种安装形态（全局安装、`npx`）各实测一次，含 `node-pty`
-  的原生构建，且**每种形态各实起一个 pty**（AC-20.3）。安装脚本不在可依赖之列：
-  `npx` 的缓存安装既不跑 node-pty 自己的 `post-install`、也不跑本包的
-  `postinstall`，故实测量的是「装完之后会话能不能起」这一结果，而不是某个安装
-  脚本有没有跑（第二十九轮，`issue-00030` §3；原文写作「含 `node-pty` 的原生
-  构建与 `postinstall`」，而那正是该 issue 证伪的前提）。`AC-20.2` 与 `AC-20.3`
-  在实测通过前不计已验证。
+- FR-20 的包名与「仓库根即 host 包根」：无 GWT，随发布线实测（第三十一轮：
+  这两项是发布出来才看得见的对外标识，条目层无可断言的运行时行为；
+  发布线在 `design-00004` §8）。FR-20 的另两半各有 AC——命令名由 `AC-20.1`、
+  「本仓库是第一个 workspace」由 `AC-20.4`。
+- host 包以缓存安装形态取得后**实起一个 pty**这一实测义务，随 `AC-20.3` 一并
+  退出本 spec：`npx` 成为开板的唯一路径后，该检查由 `issue-00030` §7 的验证
+  持有（第三十一轮：原文写的两种形态是命令自己的「全局安装 / `npx`」，命令
+  让出 npm bin 后不复存在；安装形态、起 host 的机制与命令与服务之间的输出与
+  信号透传随命令面移交 `spec-00012-persimmon-command`，其实测清单在
+  `design-00004` §10。安装脚本不可依赖这一读数仍成立，理由见 `issue-00030` §3）。
 - 回归约束：只登记一个 workspace 时，`spec-00001` … `spec-00010` 的全部既有
   验收（§1 交接列出的改写项除外）照常通过。
 
@@ -748,4 +855,5 @@ parent: prd-00003-multi-workspace
 - Decision: [decision-00019-whiteboard-standalone-repo](../decision/decision-00019-whiteboard-standalone-repo.md)
 - Rules: [rule-00001-docs-workflow](../rule/rule-00001-docs-workflow.md)（不变）
 - 第二十九轮: [issue-00030-npx-leaves-the-pty-spawn-helper-non-executable](../issue/issue-00030-npx-leaves-the-pty-spawn-helper-non-executable.md) · [plan-00027-multi-workspace](../plan/plan-00027-multi-workspace.md) T1 的回填清单
-- Design: [design-00003-multi-workspace](../design/design-00003-multi-workspace.md) · [design-00001-docs-whiteboard](../design/design-00001-docs-whiteboard.md) · [design-00002-whiteboard-ui](../design/design-00002-whiteboard-ui.md)
+- 第三十一轮: [decision-00020-unified-go-cli](../decision/decision-00020-unified-go-cli.md)
+- Design: [design-00003-multi-workspace](../design/design-00003-multi-workspace.md) · [design-00004-persimmon-cli](../design/design-00004-persimmon-cli.md) · [design-00001-docs-whiteboard](../design/design-00001-docs-whiteboard.md) · [design-00002-whiteboard-ui](../design/design-00002-whiteboard-ui.md)

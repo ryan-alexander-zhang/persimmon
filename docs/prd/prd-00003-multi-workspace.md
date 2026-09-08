@@ -7,9 +7,21 @@ parent: idea-00004-multi-workspace
 
 # 多 workspace PRD
 
+第三十一轮修订（2026-09-08，[decision-00020-unified-go-cli](../decision/decision-00020-unified-go-cli.md)）：
+命令行入口合成一个名为 `persimmon` 的独立二进制（ainpt 的 `new` / `update` /
+`list-langs` 并入），npm 包让出这个 bin 名、改为只提供服务本体的 host 包
+`@ryan-alexander-zhang/persimmon-host`；新项目的登记由 `persimmon new` **自己**
+做，不再等模板侧调用。本轮只据实改写因此不再为真的几处——一句话概述里持有
+注册表的那个进程、愿景与目标两条（以 `ainpt` 为参照物、登记的归属）、角色、
+In scope 的「单命令启动」与「代码位置」的理由、功能需求 1 / 6 / 10、
+风险与依赖两条——**不扩大本 PRD 的范围**：
+脚手架子命令（`new` / `update` / `list-langs`）与 `new` 的登记闭环由
+`spec-00013-persimmon-scaffold` 持有；命令自身的形态、启动、`version` 与分发由
+`spec-00012-persimmon-command` 持有。本 PRD 不覆盖它们。
+
 ## 一句话概述
 
-一个 `persimmon` 进程、一个浏览器标签页，服务用户机器上任意多个基于模板的
+一个已运行进程（host 进程）、一个浏览器标签页，服务用户机器上任意多个基于模板的
 项目：每个含 `whiteboard.config.yaml` 的项目根目录是一个 workspace，顶栏切换器
 在它们之间切换，项目级状态仍留在各项目目录里。
 
@@ -18,13 +30,16 @@ parent: idea-00004-multi-workspace
 白板今天与一个仓库一一绑定：从某目录启动，向上找到最近的流程配置，只看那个
 仓库。有几个项目就要几个进程、几个端口、几个标签页；通知来自哪个板要靠端口号
 辨认。`decision-00019` 把白板独立成仓、解决了「每个项目一份源码」的那一半；
-本 PRD 解决另一半——「一个进程看多个项目」——让白板成为像 `ainpt` 一样
-「装一次、处处可用」的工具。参照 Obsidian 的 vault 模型：一个目录一个
+本 PRD 解决另一半——「一个进程看多个项目」——让白板成为「装一次、处处可用」
+的工具（第三十一轮据实校正：原句以 `ainpt` 为参照物，而 `ainpt` 已并入本仓库、
+与白板同一个命令，`decision-00020`）。参照 Obsidian 的 vault 模型：一个目录一个
 workspace，目录内隐藏状态目录，顶层切换器。
 
 - 用户对全部项目只维护一个白板进程与一个标签页。
 - 切换项目不重启进程、不换端口、不丢其他项目里运行中的会话。
-- 一条命令从任何目录启动；`ainpt new` 建好的项目不用手动登记就出现在切换器里。
+- 一条命令从任何目录启动；`persimmon new` 建好的项目不用手动登记就出现在
+  切换器里（第三十一轮改名并改归属：登记由 `persimmon new` 自己做，
+  `decision-00020` §2 第 5 条）。
 - 每个项目的 `docs/`、流程配置、`.whiteboard/` 与 agent 本地层原地不动，
   今天单项目下成立的一切行为在每个 workspace 内逐一成立。
 
@@ -35,7 +50,10 @@ workspace，目录内隐藏状态目录，顶层切换器。
   的会话。
 - **agent**（Claude Code / Codex 等本地 CLI）：与今天相同，在被发起的那个
   workspace 的 `docs/` 内受限写作；不感知 workspace 概念。
-- **`ainpt`**（模板脚手架）：建项目时把新项目登记为 workspace。
+- **`persimmon` 命令的脚手架子命令**：`persimmon new` 建项目时把新项目登记为
+  workspace——同一个二进制里的一步，不是第三方参与者（第三十一轮据
+  `decision-00020` 改写：原条把 `ainpt`（独立的模板脚手架）列为一个角色；
+  该子命令的行为由 `spec-00013-persimmon-scaffold` 持有）。
 
 ## 范围
 
@@ -50,15 +68,22 @@ workspace，目录内隐藏状态目录，顶层切换器。
 - **切换器**：顶栏顶层入口，列出全部已登记 workspace，切换只换当前 workspace
   的图、导航栏、会话面板与设置面板；重载页面回到原 workspace。缺失的目录、
   没有或非法流程配置的目录、不是 git 仓库的目录标为不可用而不消失。
-- **单命令启动**：命令名 `persimmon`，包名 `@ryan-alexander-zhang/persimmon`
-  （npm 上的 `persimmon` 已被无关包占用），全局安装或 `npx
-  @ryan-alexander-zhang/persimmon` 后从任何目录启动；在某个项目目录内启动时该目录成为当前
-  workspace 并入注册表；已运行进程在监听时不再起第二个进程，而是经它登记
-  目录后指向它。
+- **单命令启动**：命令名 `persimmon`，从任何目录启动；在某个项目目录内启动
+  时该目录成为当前 workspace 并入注册表；已运行进程在监听时不再起第二个进程，
+  而是经它登记目录后指向它。（第三十一轮据 `decision-00020` §2 第 2、3 条
+  改写：原文写「包名 `@ryan-alexander-zhang/persimmon`（npm 上的 `persimmon`
+  已被无关包占用），全局安装或 `npx @ryan-alexander-zhang/persimmon` 后
+  启动」——命令已是独立二进制、不经 npm 分发，npm 包改为 host 包
+  `@ryan-alexander-zhang/persimmon-host`；命令怎么装、怎么起服务由
+  `spec-00012-persimmon-command` 持有，本 PRD 只要「一条命令」这件事。）
 - **通知标识来源**：桌面通知标题前缀 workspace 显示名，点击切到该 workspace
   并呈现对应会话。
 - **代码位置**：代码从 `tools/whiteboard/` 提到仓库根，以支持 `npx` 形态；
   living docs 的路径引用随之更新，issue / plan / record 等历史工作项保留旧路径。
+  （第三十一轮据 `decision-00020` §2 第 3 条据实校正：这条理由当时说的是**命令
+  自己**的 `npx` 形态，命令让出 npm bin 后那个形态不复存在；今天经 `npx` 取得的
+  是 host 包 `@ryan-alexander-zhang/persimmon-host`——仓库根即它的包根，
+  「提到仓库根」这个结论不变，只是理由换了对象。）
 
 ### Out of scope
 
@@ -78,7 +103,9 @@ workspace，目录内隐藏状态目录，顶层切换器。
 1. **workspace 注册表**：白板在用户目录维护一份注册表，每条含唯一 id、显示名
    与项目根目录的绝对路径。用户可在界面里添加一个目录（id 由目录名派生、
    同名目录自动区分，显示名缺省同 id）、移除一条；命令行提供同样的添加、
-   移除与列出入口，添加入口供 `ainpt new` 调用。移除只删登记，不动项目目录
+   移除与列出入口，添加走的那条路径也是 `persimmon new` 自己登记新项目时走的
+   （第三十一轮：原作「添加入口供 `ainpt new` 调用」，`ainpt` 已并入，调用方
+   是同一个二进制内的一步）。移除只删登记，不动项目目录
    里的任何文件；有运行中会话的 workspace 不能被移除。
 2. **不可用 workspace**：登记的目录不存在、没有流程配置、不是 git 仓库或
    流程配置非法时，该条在切换器里呈现为不可用并说明原因，不从注册表消失；
@@ -98,8 +125,14 @@ workspace，目录内隐藏状态目录，顶层切换器。
    注册表第一条可用的，都没有则呈现「添加第一个 workspace」的空态而不是报错
    退出。已运行进程在监听时，第二次执行不起新进程：经它登记当前目录（若在
    项目内），打印它的地址后退出；端口被别的程序占用时报错退出。
-6. **`ainpt new` 自动登记**：模板在建项目收尾时调用第 1 条的命令行入口登记
-   新项目；机器上未安装 `persimmon` 时该步静默跳过，不影响建项目。
+6. **`persimmon new` 自动登记**：`persimmon new` 在脚手架完成后**自己**登记
+   新项目，走第 1 条的同一条路径；模板 `template.json` 的 `post_create` 保持
+   现状（只做 git 初始化），模板仓库不必知道白板的存在。（第三十一轮据
+   `decision-00020` §2 第 5 条改写：原作「模板在建项目收尾时调用第 1 条的
+   命令行入口登记新项目；机器上未安装 `persimmon` 时该步静默跳过」——那条
+   跨仓库通路等了两轮未落地，且脚手架与登记现在同属一个二进制，「未安装
+   `persimmon`」这一情形不复存在。登记的成败处置由
+   `spec-00013-persimmon-scaffold` 持有。）
 7. **正常关停**：进程关停时对每个 workspace 的每个运行中会话执行今天的终止
    收尾（结束进程、commit、历史落盘）。
 8. **通知标识来源**：桌面通知的标题以 workspace 显示名为前缀；点击通知先切到
@@ -107,9 +140,11 @@ workspace，目录内隐藏状态目录，顶层切换器。
    会话种类、文档 id 与状态。
 9. **切换器上的会话信号**：切换器每条呈现该 workspace 运行中与等待输入的会话
    计数，让用户在当前 workspace 里也知道别的 workspace 在等他；不呈现会话内容。
-10. **代码提到仓库根**：仓库根即 npm 包根，包名
-    `@ryan-alexander-zhang/persimmon`、命令 `persimmon`；`npm install / test /
-    build / start` 在仓库根执行。
+10. **代码提到仓库根**：仓库根即 npm 包根，该包是 host 包
+    `@ryan-alexander-zhang/persimmon-host`（白板服务本体），命令 `persimmon`
+    由独立二进制承担；`npm install / test / build / start` 在仓库根执行。
+    （第三十一轮据 `decision-00020` §2 第 3 条改写包名；命令的代码位置在
+    `cli/`，见 `design-00004` §6。）
 
 ## 用户体验期望
 
@@ -122,12 +157,16 @@ workspace，目录内隐藏状态目录，顶层切换器。
 
 ## 风险与依赖
 
-- **依赖**：`ainpt` 模板仓库的 `template.json` 增加一个 `post_create` 步骤调用
-  `persimmon` 的登记命令——改动在模板仓库与 `ainpt`，不在本仓库；本仓库只
-  保证命令存在、幂等、未安装时不阻塞。
-- **依赖**：作用域包 `@ryan-alexander-zhang/persimmon` 的发布，或本机全局
-  安装；`node-pty` 原生模块在全局安装与 `npx` 缓存路径下的构建与权限（今天
-  `postinstall` 脚本只在仓库内验证过，须在两种形态各实测一次）。
+- ~~**依赖**：模板仓库的 `template.json` 增加 `post_create` 步骤调用登记
+  命令~~——**第三十一轮消解**：登记由 `persimmon new` 自己做（功能需求 6），
+  跨仓库依赖不再存在，模板 `post_create` 不动（`decision-00020` §2 第 5 条）。
+- **依赖**：host 包 `@ryan-alexander-zhang/persimmon-host` 的发布，与
+  `persimmon` 命令的分发（`install.sh` / GitHub Release）；`node-pty` 原生模块
+  在 host 包的缓存安装路径下的构建与权限须实测（第三十一轮据
+  `decision-00020` 改写：原文说的是「作用域包 `@…/persimmon` 的发布或本机
+  全局安装」与「全局安装与 `npx` 两种形态各实测一次」，命令让出 npm bin 后
+  只剩一条路径；两个产物的版本配对与发布线由
+  `spec-00012-persimmon-command` 与 `design-00004` §8 持有）。
 - **注册表与项目目录漂移**：目录被移走、重命名或删除后注册表条目失效——以
   「不可用而不消失」承接，用户自行移除或修路径。
 - **内存与句柄随 workspace 数线性增长**：每个 workspace 一组监听器与解析好的

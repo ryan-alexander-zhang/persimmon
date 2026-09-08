@@ -2,6 +2,7 @@
 id: design-00004-persimmon-cli
 type: design
 status: active
+informs: [spec-00011-multi-workspace, spec-00012-persimmon-command, spec-00013-persimmon-scaffold]
 ---
 
 # Design: `persimmon` 命令——Go 二进制承担入口，host 包只做服务
@@ -90,6 +91,15 @@ sequenceDiagram
   `WorkspaceRegistry`、`AvailabilityJudge`、`findRepoRoot` 留在 `lib/` 供
   Host 自用。
 
+**追注（2026-09-08，`spec-00011` 第三十一轮修订轮）：`PORT` 由谁定。**
+缺省值只有一处：**命令**解析 `PORT`（环境变量，缺省 4173，`spec-00011-FR-13`
+的既有口径），探测用这个值，拉起 host 时把它**显式**写进子进程环境——host
+因此从不需要知道缺省是多少。host 包单独启动时（`npm start`、`persimmon-host`
+直接跑）照同一读法读 `PORT`，缺省仍是 4173，两处的常量是同一个值；这样
+「命令起的 host」与「手起的 host」听同一个端口，而命令探的与 host 绑的永远
+是同一个 `(127.0.0.1, PORT)`（`design-00003` §8 的「绑的地址与探的地址是
+同一个」推广到端口）。
+
 ## 4. 注册表：两份实现，一份契约
 
 `design-00003` §2 是唯一契约；Go 侧 `cli/internal/registry` 实现同一份：
@@ -115,6 +125,16 @@ sequenceDiagram
   查询模式，不是子命令；找不到 `npx` 时 `list` 退回 Go 复算的四态并把
   配置合法性显示为 `-`，同时提示需要 Node。FR-21 的五态口径因此在有 Node 的
   机器上保持不变。
+
+**追注（2026-09-08，`spec-00011` 第三十一轮修订轮）：Go 侧算得出的是三种
+**不可用**，不是三种「态」。** 上文的「前三态」指 `missing`、`noGit`、
+`noConfig` 这三个**否定**结论：它们各自由一次本地检查独立判出，Go 复刻的就是
+这三次检查。`available` 不在其中——它是走完包括配置校验在内的全部判定之后才
+成立的结论，Go 侧无从产出。故找不到 `npx` 时的退让准确说是：命中三者之一的
+条目照常标出原因，**没有命中的条目不断言「可用」**，其配置合法性一列显示 `-`
+并附一句「完整判定需要 Node」（`spec-00011-FR-21` 的 `If` 分支持有这一行为，
+本节持有它的机制）。**§4 上文与 §11 里剩下的三处「四态」一并按此读：
+三种不可用 + 未断言。**
 
 TS 侧 `workspaceRegistry.ts` 不改。两侧测试各自引用 `spec-00011-FR-2 / FR-3 /
 FR-4 / FR-6 / FR-18 / FR-21` 的同一组用例名。不做跨语言共享 fixture——契约是
@@ -170,6 +190,14 @@ persimmon/
 - Windows：goreleaser 矩阵保留三平台；`new` / `update` / `add` 在 Windows 可用
   （ainpt 现状），安装方式是从 Release 页下载 zip；开板继承 host 包的平台
   支持（node-pty 在 Windows 未实测）。
+
+**追注（2026-09-08，`spec-00012-persimmon-command` 定的校验和口径）：迁入的
+`install.sh` 不照抄 ainpt 的尽力而为。** 本节只说「自 ainpt 迁入、改几处坐标」，
+而校验和这一处口径是变的：**校验和不符，或校验和文件取到了却没有该归档那一行、
+或该行不合式——中止并以非 0 退出，什么也不装**（ainpt 的脚本在这些情形下继续
+安装）。**取不到校验和文件，或本机既无 `sha256sum` 也无 `shasum`——告警并继续
+安装**：无从校验与校验失败是两件事，前者是环境缺件、后者是内容不对。此为
+与迁入源的**有意偏离**，由 `spec-00012-persimmon-command` 持有条目与验收。
 
 ## 7. npm 包改名
 

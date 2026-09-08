@@ -2,7 +2,7 @@
 id: decision-00020-unified-go-cli
 type: decision
 status: active
-constrains: [spec-00011-multi-workspace, design-00003-multi-workspace, design-00004-persimmon-cli]
+constrains: [spec-00011-multi-workspace, design-00003-multi-workspace, design-00004-persimmon-cli, prd-00003-multi-workspace]
 ---
 
 # Decision: 一个 `persimmon` 命令——ainpt 并入本仓库 `cli/`，Go 二进制承担全部命令行入口，Node 只留白板服务
@@ -107,6 +107,10 @@ constrains: [spec-00011-multi-workspace, design-00003-multi-workspace, design-00
   现状不再成立，随修订轮据实改写；§2 的注册表契约成为两份实现的共同来源，
   改它必须同时改两侧。
 - `design-00004-persimmon-cli`：命令面、host 启动、代码位置与发布线的结构。
+- `prd-00003-multi-workspace`：角色表里的 `ainpt`、功能需求 6「模板 `post_create`
+  调登记、未装 `persimmon` 时静默跳过」、In scope「单命令启动」与功能需求 10 的
+  包名与 `npx` 安装形态（并及风险与依赖里的模板依赖与发布依赖两条）随修订轮
+  据实改写；本决定不扩大该 PRD 的范围。
 - `decision-00019` §5 要求的「代码位置与启动方式的重构一并记录」由
   `design-00004` 承担，其 `constrains` 已回填。
 - `ARCHITECTURE.md` §2 / §3 / §5 / §7 / §9 与四份根指南：由后续 plan 按
@@ -114,3 +118,21 @@ constrains: [spec-00011-multi-workspace, design-00003-multi-workspace, design-00
 - ainpt 仓库与模板仓库 README 里的安装说明：指向本仓库的 `install.sh`。
 - 后续任何命令行入口（含 `config`）只能加在 `cli/`；不得再在 npm 包里引入
   bin 逻辑，不得再写第二份脚手架。落在本决定之下的新文档回填 `constrains`。
+
+## 第三十一轮追注（2026-09-08）
+
+§4「不变的」与 §5 都写作 `spec-00011-FR-21`「五态口径不变」/「内容不变」。
+`spec-00011` 的第三十一轮修订轮据其审计裁定，在此之外给 FR-21 **增了一条
+`If` 分支**：无已运行进程、且本机取不到 host 包的判定（没有可用的 Node）时，
+`list` 仍以 0 退出，只呈现命令自己算得出的三种不可用（目录不存在、不是 git
+仓库、目录内无流程配置），一条也没命中的条目不断言「可用」、其可用性一列
+显示 `-`，并打印一句「完整判定需要 Node」。这条分支不是新行为——它是
+`design-00004` §4 早已写下的退让，本轮只是给它一个需求层的归属，否则
+一个设计里的退让没有任何条目为它负责。
+
+**有已运行进程时的五态口径确实不变**，本追注不触动 §2 的决定表；变的只是
+判定从哪里来（有进程 → 它给；无进程 → host 包给，命令自算那三种）。
+
+`help` / `-h` / `--help` 作为用法出口由 `spec-00012-persimmon-command` 补入
+子命令集，§2 第 2 条的七项不变。
+
