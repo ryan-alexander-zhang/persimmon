@@ -311,3 +311,27 @@ func TestMergeTreeKeepsLocalEditsWhileFoldingInUpstream(t *testing.T) {
 		t.Errorf("the upstream edit was not folded in:\n%s", got)
 	}
 }
+
+// issue-00034 / spec-00013-AC-11.4, spec-00013-AC-11.5: the creation marker's template
+// coordinate must be exactly owner/repo. Counting the segments SplitN returned lets an
+// empty owner (`/repo`) and a third segment (`owner/repo/extra`) through.
+func TestUpdateRejectsATemplateThatIsNotOwnerSlashRepo(t *testing.T) {
+	for _, template := range []string{"/repo", "owner/repo/extra"} {
+		t.Run(template, func(t *testing.T) {
+			dir := t.TempDir()
+			marker := `{"template":"` + template + `","ref":"main","commit":"abc123"}` + "\n"
+			writeTree(t, dir, map[string]string{".ainpt.json": marker, "README.md": "mine\n"})
+
+			err := Update(dir)
+			if err == nil || !strings.Contains(err.Error(), "owner/repo") {
+				t.Fatalf("Update(%q) error = %v, want it to name the owner/repo shape", template, err)
+			}
+			if got := readFile(t, dir, ".ainpt.json"); got != marker {
+				t.Errorf("creation marker changed to %q", got)
+			}
+			if got := readFile(t, dir, "README.md"); got != "mine\n" {
+				t.Errorf("project file changed to %q", got)
+			}
+		})
+	}
+}

@@ -3,8 +3,10 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"sort"
@@ -12,6 +14,14 @@ import (
 
 	"github.com/ryan-alexander-zhang/persimmon/cli/internal/scaffold"
 )
+
+// githubAPI is the base URL of the template repository's host API; tests point it
+// at an httptest stub instead.
+const githubAPI = "https://api.github.com"
+
+// newUsage is the one-line usage of the "new" subcommand, shown when its arguments
+// do not name exactly one project.
+const newUsage = "usage: persimmon new <name> [--lang go] [--variant ddd] [--dir .] [--set K=V]"
 
 // Injected at build time via -ldflags (see .goreleaser.yaml).
 var (
@@ -36,11 +46,17 @@ func main() {
 	}
 	switch os.Args[1] {
 	case "new":
-		cmdNew(os.Args[2:])
+		if err := cmdNew(os.Args[2:]); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 	case "update":
 		cmdUpdate(os.Args[2:])
 	case "list-langs":
-		cmdLangs()
+		if err := cmdLangs(os.Stdout, githubAPI); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
 	case "version", "-v", "--version":
 		fmt.Println("persimmon", version)
 	case "help", "-h", "--help":
@@ -88,7 +104,7 @@ func (s setFlag) Set(v string) error {
 	return nil
 }
 
-func cmdNew(args []string) {
+func cmdNew(args []string) error {
 	fs := flag.NewFlagSet("new", flag.ExitOnError)
 	lang := fs.String("lang", "", "language branch (lang/<lang>); empty = base template")
 	variant := fs.String("variant", "", "variant under a language (lang/<lang>/<variant>)")
@@ -102,18 +118,21 @@ func cmdNew(args []string) {
 	_ = fs.Parse(args)
 	rest := fs.Args()
 	if len(rest) < 1 {
-		fmt.Fprintln(os.Stderr, "usage: persimmon new <name> [--lang go] [--variant ddd] [--dir .] [--set K=V]")
-		os.Exit(1)
+		return errors.New(newUsage)
 	}
 	name := rest[0]
 	_ = fs.Parse(rest[1:])
-
-	if *variant != "" && *lang == "" {
-		fmt.Fprintln(os.Stderr, "error: --variant requires --lang (e.g. --lang java --variant ddd)")
-		os.Exit(1)
+	if extra := fs.Args(); len(extra) > 0 {
+		return fmt.Errorf("error: new takes a single <name>, got %q as well\n%s", extra[0], newUsage)
 	}
 
-	err := scaffold.Run(scaffold.Options{
+	if *variant != "" && *lang == "" {
+		return errors.New("error: --variant requires --lang (e.g. --lang java --variant ddd)")
+	}
+
+	// The "error: " prefix is the one the command has always printed on a scaffold
+	// failure; cmdNew now returns it instead of printing it itself.
+	if err := scaffold.Run(scaffold.Options{
 		Name:    name,
 		Lang:    *lang,
 		Variant: *variant,
@@ -122,11 +141,10 @@ func cmdNew(args []string) {
 		Owner:   owner,
 		Repo:    repo,
 		Sets:    sets,
-	})
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
-		os.Exit(1)
+	}); err != nil {
+		return fmt.Errorf("error: %w", err)
 	}
+	return nil
 }
 
 func cmdUpdate(args []string) {
@@ -139,24 +157,53 @@ func cmdUpdate(args []string) {
 	}
 }
 
-func cmdLangs() {
-	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/branches?per_page=100", owner, repo)
+// branch is one entry of the template repository's branch listing.
+type branch struct {
+	Name string `json:"name"`
+}
+
+// getBranchPage reads one page of branches and the URL of the next one, "" on the last.
+func getBranchPage(url string) ([]branch, string, error) {
 	resp, err := http.Get(url)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
-		os.Exit(1)
+		return nil, "", fmt.Errorf("error: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		fmt.Fprintf(os.Stderr, "error: %s returned %s\n", url, resp.Status)
-		os.Exit(1)
+		return nil, "", fmt.Errorf("error: %s returned %s", url, resp.Status)
 	}
-	var branches []struct {
-		Name string `json:"name"`
+	var page []branch
+	if err := json.NewDecoder(resp.Body).Decode(&page); err != nil {
+		return nil, "", fmt.Errorf("error: %w", err)
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&branches); err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
-		os.Exit(1)
+	return page, nextLink(resp.Header.Get("Link")), nil
+}
+
+// nextLink returns the rel="next" URL of a Link header, or "" when there is none.
+func nextLink(header string) string {
+	for _, part := range strings.Split(header, ",") {
+		if !strings.Contains(part, `rel="next"`) {
+			continue
+		}
+		if i, j := strings.Index(part, "<"), strings.Index(part, ">"); i >= 0 && j > i {
+			return part[i+1 : j]
+		}
+	}
+	return ""
+}
+
+func cmdLangs(out io.Writer, api string) error {
+	var branches []branch
+	// The branches endpoint is paginated: per_page is a page size, not "all of them",
+	// so follow the Link header's rel="next" until GitHub stops offering one.
+	url := fmt.Sprintf("%s/repos/%s/%s/branches?per_page=100", api, owner, repo)
+	for url != "" {
+		page, next, err := getBranchPage(url)
+		if err != nil {
+			return err
+		}
+		branches = append(branches, page...)
+		url = next
 	}
 	// Group lang/<lang> and lang/<lang>/<variant> branches under each language.
 	type langInfo struct {
@@ -183,18 +230,23 @@ func cmdLangs() {
 	}
 	sort.Strings(order)
 
-	fmt.Println("Available templates:")
-	fmt.Println("  (default)              base template (main)")
+	fmt.Fprintln(out, "Available templates:")
+	fmt.Fprintln(out, "  (default)              base template (main)")
 	if len(order) == 0 {
-		fmt.Println("  (no lang/* branches yet — only the base template is available)")
-		return
+		fmt.Fprintln(out, "  (no lang/* branches yet — only the base template is available)")
+		return nil
 	}
 	for _, l := range order {
 		info := langs[l]
-		fmt.Printf("  --lang %-15s lang/%s\n", l, l)
+		if info.hasBase {
+			fmt.Fprintf(out, "  --lang %-15s lang/%s\n", l, l)
+		} else {
+			fmt.Fprintf(out, "  %-22s no lang/%s branch — use --variant only\n", l, l)
+		}
 		sort.Strings(info.variants)
 		for _, v := range info.variants {
-			fmt.Printf("    --variant %-10s lang/%s/%s\n", v, l, v)
+			fmt.Fprintf(out, "    --variant %-10s lang/%s/%s\n", v, l, v)
 		}
 	}
+	return nil
 }

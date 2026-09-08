@@ -380,11 +380,10 @@ func Update(dir string) error {
 	if lock.Commit == "" {
 		return fmt.Errorf(".ainpt.json has no base commit; cannot 3-way merge")
 	}
-	parts := strings.SplitN(lock.Template, "/", 2)
-	if len(parts) != 2 {
-		return fmt.Errorf("invalid template %q in .ainpt.json", lock.Template)
+	owner, repo, ok := strings.Cut(lock.Template, "/")
+	if !ok || owner == "" || repo == "" || strings.Contains(repo, "/") {
+		return fmt.Errorf("invalid template %q in .ainpt.json — expected owner/repo", lock.Template)
 	}
-	owner, repo := parts[0], parts[1]
 
 	newSHA, err := resolveSHA(owner, repo, lock.Ref)
 	if err != nil {
