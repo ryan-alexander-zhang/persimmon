@@ -885,6 +885,11 @@ function Canvas({ wid, workspace, switcher }: { wid: string; workspace: Workspac
                       // (issue-00024).
                       nodesDraggable={false}
                       onError={onFlowError}
+                      // Trackpad habits: two fingers pan, pinch (ctrl+wheel)
+                      // zooms. React Flow's default maps a bare wheel to zoom,
+                      // which leaves a two-finger swipe doing nothing but
+                      // scaling.
+                      panOnScroll
                       minZoom={minZoom}
                       fitView
                     >
