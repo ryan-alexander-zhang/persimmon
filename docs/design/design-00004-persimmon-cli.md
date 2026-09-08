@@ -187,6 +187,8 @@ persimmon/
   `builds[].dir: cli`；`release.github.name: persimmon`。`ldflags` 仍注入
   `main.version` / `main.owner` / `main.repo`。归档名模板不变，`install.sh`
   的 `${BIN}_${OS}_${ARCH}.tar.gz` 随 `BIN=persimmon` 对上。
+  > 追注（2026-09-08，plan 轮）：另加 `dist: build/goreleaser`——goreleaser 缺省输出
+  > `./dist` 且 `--clean` 先整棵删除，会抹掉 web 构建产物 `dist/web`。
 - Windows：goreleaser 矩阵保留三平台；`new` / `update` / `add` 在 Windows 可用
   （ainpt 现状），安装方式是从 Release 页下载 zip；开板继承 host 包的平台
   支持（node-pty 在 Windows 未实测）。
@@ -203,8 +205,13 @@ persimmon/
 
 - `name` → `@ryan-alexander-zhang/persimmon-host`；`bin` → `{ "persimmon-host":
   "bin/host.js" }`；`description` 改为服务本体；`files` 不变；`engines` 不变。
+  > 追注（2026-09-08，plan 轮）：`files` 的 `scripts/` 收窄为
+  > `scripts/fix-pty-permissions.js`——`sync-docs.sh`、`test-install.js` 与新增的
+  > `go-coverage.sh` 是仓库工具，不该进用户的 `node_modules`（`plan-00033` T8）。
 - 旧包 `@ryan-alexander-zhang/persimmon` 发一版 `npm deprecate`，消息指向新名与
   `install.sh`。
+  > 追注（2026-09-08，plan 轮）：该包从未发布（`npm view` 404），此条无对象，
+  > 不执行；见 `decision-00020` plan 轮追注。
 - 本仓库根 `README.md` 的安装段改为 `curl … install.sh | sh`。开发本仓库的
   两条命令：`npm start` = `node bin/host.js`（只起服务，不登记，前置
   `npm run build`）；`npm run build && PERSIMMON_HOST=$PWD go run ./cli` =

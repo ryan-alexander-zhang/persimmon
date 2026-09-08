@@ -2,7 +2,7 @@
 id: decision-00020-unified-go-cli
 type: decision
 status: active
-constrains: [spec-00011-multi-workspace, design-00003-multi-workspace, design-00004-persimmon-cli, prd-00003-multi-workspace]
+constrains: [spec-00011-multi-workspace, design-00003-multi-workspace, design-00004-persimmon-cli, prd-00003-multi-workspace, plan-00033-persimmon-command]
 ---
 
 # Decision: 一个 `persimmon` 命令——ainpt 并入本仓库 `cli/`，Go 二进制承担全部命令行入口，Node 只留白板服务
@@ -136,3 +136,10 @@ constrains: [spec-00011-multi-workspace, design-00003-multi-workspace, design-00
 `help` / `-h` / `--help` 作为用法出口由 `spec-00012-persimmon-command` 补入
 子命令集，§2 第 2 条的七项不变。
 
+## plan 轮追注（2026-09-08）
+
+§4「已发布的 `@ryan-alexander-zhang/persimmon` 要 `npm deprecate`」前提不实：
+`npm view` 返回 404，该包从未发布过（`design-00003` §10 的包名是设计值，
+`plan-00027` 未走到 publish）。因此没有旧包可弃用，host 包以新名首发即可；
+首个 tag 取 `v0.2.0`——续本仓库 `package.json` 的 `0.1.0`，本仓库尚无任何 tag，
+ainpt 自己的 `v0.3.2` 序列随其归档终止。
