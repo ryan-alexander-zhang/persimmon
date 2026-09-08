@@ -210,6 +210,15 @@ persimmon/
   `npm run build`）；`npm run build && PERSIMMON_HOST=$PWD go run ./cli` =
   完整握手 + 起服务。
 
+> **追注（2026-09-08，根指南填充轮）**：上文 `go run ./cli` 在仓库根无法解析——
+> `cli/` 是独立 module，仓库根没有 `go.mod`，`go` 报 `go.mod file not found`
+> （以 ainpt 仓库在其父目录实测）。开发命令据实校正为
+> `npm run build && PERSIMMON_HOST=$PWD go -C cli run .`（`go -C` 需 Go ≥ 1.21，
+> 本设计钉 1.24）；`cd cli && go test ./...` 一类同理写作 `go -C cli …`。
+> 同轮补记：§10 所列 Go 侧 gate 之外，`CODE_QUALITY.md` §2 另加一行覆盖率门
+> （`go test -coverprofile` + 阈值脚本，随 plan 落地）——否则 `decision-00020` §4
+> 的「新 Go 代码 90% 语句覆盖」没有可执行的把关。
+
 ## 8. 发布线
 
 一个 tag、一条 workflow、两个产物：

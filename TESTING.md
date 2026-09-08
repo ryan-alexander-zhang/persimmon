@@ -65,6 +65,15 @@ Use the following docs to define the project-specific framework choice for each 
 - [API_TESTING.md](API_TESTING.md): fill in the API testing guide for this repo.
 - [E2E_TESTING.md](E2E_TESTING.md): fill in the E2E testing guide for this repo.
 
+The `persimmon` command in `cli/` has the unit level only — `go test ./...` with
+the standard library `testing` package, no browser and no E2E. Where its
+behaviour is an HTTP contract, the startup handshake's `GET /api/instance` and
+`POST /api/workspaces`
+([design-00004](docs/design/design-00004-persimmon-cli.md) §3–§5), the API-level
+test is a Go test against an `httptest` stub server rather than a Bruno
+collection: what is under test is the request the command sends and how it reads
+the reply, and the server side of that contract is covered by the TS suites.
+
 ## Testing Matrix
 
 | Change type | Minimum requirement |
@@ -89,6 +98,8 @@ A change is done only when all of these are true:
 - for executable code changes, line coverage is at least 90%
 - for executable code changes, branch coverage is at least 90%
 - for executable code changes, function coverage is at least 90%
+- for Go code changes under `cli/`, statement coverage is at least 90% for new
+  packages, in place of the three bars above (see Coverage)
 
 ## Coverage
 
@@ -99,3 +110,15 @@ A change is done only when all of these are true:
 For executable code changes, the minimum acceptable coverage is `90%` for line coverage, branch coverage, and function coverage.
 
 Do not mark work complete below this bar unless an explicit exception is approved in advance.
+
+### Go (`cli/`)
+
+The Go toolchain reports statement coverage only (`go test -cover`); branch and
+function coverage have no tooling in Go and the two bars above do not apply
+there ([decision-00020](docs/decision/decision-00020-unified-go-cli.md) §4). New
+Go packages must reach `90%` statement coverage. The `cli/internal/scaffold`
+package imported from ainpt arrives at 25.7% statement coverage and is recorded
+as legacy debt per [CODE_QUALITY.md](CODE_QUALITY.md) §8: the gate blocks new
+violations and this bar ratchets up toward 90% as
+[spec-00013](docs/spec/spec-00013-persimmon-scaffold.md)'s acceptance set lands
+— never by lowering it.
