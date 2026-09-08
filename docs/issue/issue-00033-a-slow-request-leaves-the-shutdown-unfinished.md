@@ -29,8 +29,10 @@ blocks: [spec-00011-multi-workspace, plan-00032-native-directory-picker]
   `/api/workspaces`（逐条 `git rev-parse`）与首次打开一个大 workspace 的解析。
 - Since: `9995af8`（Host 落地）· Still occurring: yes
 - Severity: 低。收尾早已完成，拖的只是最后的退出，不丢 commit 也不丢转写，
-  且它自己会好——但「自己会好」靠的是对端的 keep-alive 超时，浏览器的可以比
-  undici 长得多，我们对它没有发言权。与 `issue-00031` 的分野正在此：那条是
+  且它自己会好——但「自己会好」靠的是先到的那个 keep-alive 超时：实测里是
+  客户端先超时（undici 约 3 s），浏览器的可以长得多，那时兜底的就是服务端自己的
+  `keepAliveTimeout`（5 s）。所以上界确实在我们手里，但那个上界是 5 秒，
+  而不是「立刻」。与 `issue-00031` 的分野正在此：那条是
   永不完成，本条是拖几秒。**最初据审计写作「永不触发」，实测后更正为「被拖
   约 3 秒」**——差别足以改变严重度，故记在此。
 - 本 issue 由 `plan-00032`（原生目录选择器）的设计审计发现：那个端点会一直
@@ -114,7 +116,8 @@ closed）。
   的 5 s，而本缺陷只拖 3 s，**即便有人写了这一格、用同样的上界也照样是绿的**；
   所以本守卫断言的是及时（< 1 s）而非完成。
 - Doc verdict: **code was non-conformant**。`spec-00011-FR-16` 与
-  design-00003 §7 都已把该说的说清，文档不改。
+  design-00003 §7 都已把该说的说清，无需为本条改写；design-00003 §7 同轮
+  另因目录选择对话框加了一段（`plan-00032`），那不是本 issue 的改动。
 - Residual state: 无。收尾在挂住之前就已完成。
 
 ## Links
