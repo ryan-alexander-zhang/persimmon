@@ -2,7 +2,7 @@
 id: decision-00020-unified-go-cli
 type: decision
 status: active
-constrains: [spec-00011-multi-workspace, design-00003-multi-workspace, design-00004-persimmon-cli, prd-00003-multi-workspace, plan-00033-persimmon-command]
+constrains: [spec-00011-multi-workspace, design-00003-multi-workspace, design-00004-persimmon-cli, prd-00003-multi-workspace, plan-00033-persimmon-command, spec-00012-persimmon-command, spec-00013-persimmon-scaffold]
 ---
 
 # Decision: 一个 `persimmon` 命令——ainpt 并入本仓库 `cli/`，Go 二进制承担全部命令行入口，Node 只留白板服务
@@ -107,6 +107,8 @@ constrains: [spec-00011-multi-workspace, design-00003-multi-workspace, design-00
   现状不再成立，随修订轮据实改写；§2 的注册表契约成为两份实现的共同来源，
   改它必须同时改两侧。
 - `design-00004-persimmon-cli`：命令面、host 启动、代码位置与发布线的结构。
+- `spec-00012-persimmon-command`、`spec-00013-persimmon-scaffold`：命令面与脚手架的
+  系统需求；spec 不携带 `implements`，故本决定从这一端声明边。
 - `prd-00003-multi-workspace`：角色表里的 `ainpt`、功能需求 6「模板 `post_create`
   调登记、未装 `persimmon` 时静默跳过」、In scope「单命令启动」与功能需求 10 的
   包名与 `npx` 安装形态（并及风险与依赖里的模板依赖与发布依赖两条）随修订轮

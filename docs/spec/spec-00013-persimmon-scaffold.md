@@ -3,7 +3,6 @@ id: spec-00013-persimmon-scaffold
 type: spec
 status: active
 parent: prd-00003-multi-workspace
-implements: [decision-00020-unified-go-cli]
 ---
 
 # Spec: `persimmon` 的脚手架——new / update / list-langs 与登记闭环
@@ -513,7 +512,7 @@ implements: [decision-00020-unified-go-cli]
 ## Links
 
 - Parent: [prd-00003-multi-workspace](../prd/prd-00003-multi-workspace.md)
-- Decision: [decision-00020-unified-go-cli](../decision/decision-00020-unified-go-cli.md)（本 spec `implements` 它）
+- Decision: [decision-00020-unified-go-cli](../decision/decision-00020-unified-go-cli.md)（它的 `constrains` 列出本 spec；spec 不携带 `implements`，`docs/README.md` 关系规则）
 - Design: [design-00004-persimmon-cli](../design/design-00004-persimmon-cli.md) §2/§5/§6 · [design-00003-multi-workspace](../design/design-00003-multi-workspace.md) §2（经 `design-00004` 引用）
 - 并列 spec: [spec-00012-persimmon-command](spec-00012-persimmon-command.md) · [spec-00011-multi-workspace](spec-00011-multi-workspace.md)（分界见 §6）
 - Rules: [rule-00001-docs-workflow](../rule/rule-00001-docs-workflow.md)（不变）
