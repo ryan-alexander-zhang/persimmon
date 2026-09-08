@@ -5,7 +5,7 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url))
 const TSC = fileURLToPath(new URL('../node_modules/typescript/bin/tsc', import.meta.url))
 
 /**
- * The server emit the two entry-point tests spawn. `bin/persimmon.js` imports
+ * The server emit the tests that spawn the bin need. `bin/host.js` imports
  * `../lib/*.js`, because Node refuses to strip types under `node_modules` and a
  * shipped package must carry JavaScript (issue-00029); the emit is git-ignored,
  * so the suite builds it rather than assuming a build ran first. Incremental

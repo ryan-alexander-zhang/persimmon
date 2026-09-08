@@ -1,4 +1,5 @@
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { type ChildProcess, spawn, spawnSync } from 'node:child_process'
 import { EventEmitter } from 'node:events'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
@@ -13,7 +14,7 @@ import { Host } from '../src/host.ts'
 import type { Board, BoardOptions } from '../src/server.ts'
 import type { PtyProcess, SpawnPty } from '../src/sessionManager.ts'
 import type { WorkspaceEntry } from '../src/workspaceRegistry.ts'
-import { armWatch, bounded, boundPort, closed, commitCount, doc, git, makeRepo } from './helpers.ts'
+import { armWatch, bounded, boundPort, closed, commitCount, doc, freePort, git, makeRepo } from './helpers.ts'
 
 /**
  * The host of design-00003 §4/§5/§7: the instance table and its laziness, the
@@ -102,6 +103,7 @@ ${extra}`
 const made: string[] = []
 const hosts: Host[] = []
 const sockets: WebSocket[] = []
+const children: ChildProcess[] = []
 
 function temporary(prefix: string): string {
   // `realpath` because macOS puts the temporary directory behind a symlink and
@@ -226,6 +228,7 @@ beforeEach(() => {
 })
 
 afterEach(async () => {
+  for (const child of children.splice(0)) child.kill('SIGKILL')
   for (const socket of sockets.splice(0)) socket.close()
   for (const host of hosts.splice(0)) await host.shutdown()
   for (const dir of made.splice(0)) rmSync(dir, { recursive: true, force: true })
@@ -1068,3 +1071,75 @@ describe('shutting the host down', () => {
 function entry({ id, name, path }: WorkspaceEntry): WorkspaceEntry {
   return { id, name, path }
 }
+
+/**
+ * `bin/host.js` spawned for real: the JSON `persimmon list` parses out of the
+ * query mode, and the address line whose workspace the command hands over in the
+ * environment (design-00004 §3, §4). The command's half of both is
+ * `cli/internal/hostproc`'s (plan-00033 T4, T6) against a stub; this is the
+ * answer that stub stands in for.
+ */
+describe('the host bin', () => {
+  const BIN = new URL('../bin/host.js', import.meta.url).pathname
+
+  /** A home directory holding that registry: the bin derives the path from it and takes no variable of its own (design-00003 §2). */
+  function makeHome(workspaces: WorkspaceEntry[]): string {
+    const home = temporary('wb-home-')
+    mkdirSync(join(home, '.persimmon'))
+    writeFileSync(join(home, '.persimmon', 'workspaces.json'), JSON.stringify({ version: 1, workspaces }))
+    return home
+  }
+
+  /** The bin serves until it is signalled, so a test takes its first line and leaves the kill to `afterEach`. */
+  function firstLine(home: string, env: Record<string, string>): Promise<string> {
+    const child = spawn(process.execPath, [BIN], { env: { ...process.env, HOME: home, ...env } })
+    children.push(child)
+    return new Promise((resolve, reject) => {
+      child.stdout?.once('data', (data: Buffer) => resolve(String(data).trim()))
+      child.once('exit', (code) => reject(new Error(`the host exited ${code} before it printed anything`)))
+    })
+  }
+
+  // design-00004 §4 — the shape `persimmon list` reads: the registry judged, the
+  // sessions of `GET /api/workspaces` left out, and no port taken
+  it('prints the registry judged as JSON with --judge, without listening', async () => {
+    const alpha = workspace('alpha')
+    const gone = { id: 'gone', name: 'gone', path: join(temporary('wb-gone-'), 'nowhere') }
+
+    const result = spawnSync(process.execPath, [BIN, '--judge'], {
+      encoding: 'utf8',
+      env: { ...process.env, HOME: makeHome([entry(alpha), gone]), PORT: String(await freePort()) },
+      timeout: 20_000,
+    })
+
+    expect(result.status).toBe(0)
+    expect(JSON.parse(result.stdout)).toEqual({
+      workspaces: [
+        { id: 'alpha', name: 'alpha', path: alpha.path, availability: 'available' },
+        { ...gone, availability: 'missing', error: `workspace directory does not exist: ${gone.path}` },
+      ],
+    })
+    // It answered and exited, so nothing was served and nothing has to be stopped.
+    expect(result.stdout).not.toContain('http://localhost')
+  })
+
+  // design-00004 §3 — only the host knows the port it bound; the entry id is the
+  // command's, handed to it as `PERSIMMON_WORKSPACE`
+  it('reports the address with the workspace the command handed it', async () => {
+    const alpha = workspace('alpha')
+    const port = await freePort()
+
+    const line = await firstLine(makeHome([entry(alpha)]), { PORT: String(port), PERSIMMON_WORKSPACE: alpha.id })
+
+    expect(line).toBe(`persimmon: http://localhost:${port}/w/${alpha.id}`)
+  })
+
+  // design-00004 §3 — no workspace in the environment prints the entry point, which is what a start in no project opens
+  it('reports the entry point when it was handed no workspace', async () => {
+    const port = await freePort()
+
+    const line = await firstLine(makeHome([]), { PORT: String(port) })
+
+    expect(line).toBe(`persimmon: http://localhost:${port}/`)
+  })
+})

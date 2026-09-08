@@ -14,7 +14,7 @@ import { freePort } from './helpers.ts'
  */
 
 const ROOT = new URL('..', import.meta.url).pathname
-const PACKAGE = '@ryan-alexander-zhang/persimmon'
+const PACKAGE = '@ryan-alexander-zhang/persimmon-host'
 const SCOPE = '@ryan-alexander-zhang'
 
 const made: string[] = []
@@ -38,7 +38,8 @@ function installedTree(): { pkg: string; home: string } {
   const pkg = join(modules, PACKAGE)
   mkdirSync(pkg, { recursive: true })
   cpSync(join(ROOT, 'package.json'), join(pkg, 'package.json'))
-  for (const shipped of ['bin', 'lib', 'scripts', 'dist/web']) {
+  // Mirrors `files` in package.json: only the postinstall helper ships from scripts/ (plan-00033 T8).
+  for (const shipped of ['bin', 'lib', 'scripts/fix-pty-permissions.js', 'dist/web']) {
     if (existsSync(join(ROOT, shipped))) cpSync(join(ROOT, shipped), join(pkg, shipped), { recursive: true })
   }
   for (const entry of readdirSync(join(ROOT, 'node_modules'))) {
@@ -50,11 +51,13 @@ function installedTree(): { pkg: string; home: string } {
   return { pkg, home }
 }
 
-// issue-00029 · spec-00011-AC-20.1 — the installed layout runs from node_modules.
+// issue-00029 · plan-00033 T7 — the installed layout runs from node_modules. The
+// query mode is what it is spawned in: `--judge` reads the registry and exits,
+// so the assertion is about the layout and not about a server (design-00004 §4).
 it('runs the shipped entry point from under node_modules', async () => {
   const { pkg, home } = installedTree()
 
-  const result = spawnSync(process.execPath, [join(pkg, 'bin', 'persimmon.js'), 'list'], {
+  const result = spawnSync(process.execPath, [join(pkg, 'bin', 'host.js'), '--judge'], {
     cwd: pkg,
     encoding: 'utf8',
     env: { ...process.env, HOME: home, PORT: String(await freePort()) },
@@ -63,5 +66,5 @@ it('runs the shipped entry point from under node_modules', async () => {
 
   expect(result.stderr).toBe('')
   expect(result.status).toBe(0)
-  expect(result.stdout).toBe('')
+  expect(result.stdout).toBe('{"workspaces":[]}\n')
 })

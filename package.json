@@ -1,24 +1,24 @@
 {
-  "name": "@ryan-alexander-zhang/persimmon",
-  "version": "0.1.0",
+  "name": "@ryan-alexander-zhang/persimmon-host",
+  "version": "0.0.0-dev",
   "type": "module",
   "engines": {
     "node": ">=23.6"
   },
-  "description": "Visual operations board for the docs workflow",
+  "description": "The persimmon host: serves the visual operations board for the docs workflow",
   "bin": {
-    "persimmon": "./bin/persimmon.js"
+    "persimmon-host": "./bin/host.js"
   },
   "files": [
     "bin/",
     "lib/",
     "dist/web/",
-    "scripts/"
+    "scripts/fix-pty-permissions.js"
   ],
   "scripts": {
     "postinstall": "node scripts/fix-pty-permissions.js",
     "prepack": "npm run build",
-    "start": "node bin/persimmon.js",
+    "start": "node bin/host.js",
     "dev": "vite",
     "build": "vite build && tsc -p tsconfig.build.json",
     "test": "vitest run",
