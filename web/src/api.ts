@@ -441,4 +441,11 @@ export const hostApi = {
   addWorkspace: (path: string, name?: string) =>
     request<{ workspace: WorkspaceEntry }>('POST', '/api/workspaces', { path, name }),
   removeWorkspace: (wid: string) => request<unknown>('DELETE', `/api/workspaces/${encodeURIComponent(wid)}`),
+  /**
+   * The native directory picker (spec-00011-FR-22): the server opens it, because
+   * a browser will not give up an absolute path. `path` is null when the user
+   * cancelled — a refusal (already open, or no picker on this machine) throws an
+   * `ApiError` like every other call here.
+   */
+  pickDirectory: () => request<{ path: string | null }>('POST', '/api/pick-directory'),
 }

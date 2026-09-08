@@ -1,7 +1,7 @@
 ---
 id: plan-00032-native-directory-picker
 type: plan
-status: open
+status: resolved
 implements: [spec-00011-FR-22, spec-00011-FR-23, spec-00011-FR-24, design-00002-whiteboard-ui, design-00003-multi-workspace]
 ---
 

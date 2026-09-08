@@ -47,6 +47,7 @@ function json(status: number, body: unknown) {
 /** The registry as `GET /api/workspaces` answers it, and every call made to the host. */
 let registry: WorkspaceSummary[]
 let fetches: string[]
+let pickAnswer: () => ReturnType<typeof json>
 /** What the two writing endpoints answer; a test that needs a refusal replaces one. */
 let addAnswer: (body: { path: string; name?: string }) => ReturnType<typeof json>
 let removeAnswer: (wid: string) => ReturnType<typeof json>
@@ -58,6 +59,7 @@ function serveHost() {
     registry = [...registry, summary({ id: 'added', name: body.name ?? 'added', path: body.path })]
     return json(201, { workspace: registry.at(-1) })
   }
+  pickAnswer = () => json(200, { path: '/picked/by/the/dialog' })
   removeAnswer = (wid) => {
     if (!registry.some((entry) => entry.id === wid)) return json(404, { error: `no workspace ${wid} is registered` })
     registry = registry.filter((entry) => entry.id !== wid)
@@ -74,6 +76,7 @@ function serveHost() {
       if (url.startsWith('/api/workspaces/') && method === 'DELETE') {
         return removeAnswer(decodeURIComponent(url.slice('/api/workspaces/'.length)))
       }
+      if (url === '/api/pick-directory' && method === 'POST') return pickAnswer()
       throw new TypeError(`fetch failed: ${url}`)
     }),
   )
@@ -340,10 +343,85 @@ describe('adding a workspace', () => {
   async function fillIn(path: string, name?: string) {
     await userEvent.click(screen.getByRole('menuitem', { name: 'Add workspace' }))
     const dialog = await screen.findByRole('dialog')
-    await userEvent.type(screen.getByLabelText('Project directory'), path)
+    if (path !== '') await userEvent.type(screen.getByLabelText('Project directory'), path)
     if (name !== undefined) await userEvent.type(screen.getByLabelText('Display name (optional)'), name)
     return dialog
   }
+
+  // spec-00011-AC-22.1: the picked path lands in the field.
+  it('puts the directory the dialog gave back into the path field', async () => {
+    await openAt('/w/alpha', 'alpha')
+    await openMenu()
+    await fillIn('')
+
+    await userEvent.click(screen.getByRole('button', { name: /Browse/ }))
+
+    await waitFor(() =>
+      expect((screen.getByLabelText('Project directory') as HTMLInputElement).value).toBe('/picked/by/the/dialog'),
+    )
+  })
+
+  // spec-00011-AC-22.3: picking is not submitting.
+  it('registers nothing until Add is pressed', async () => {
+    await openAt('/w/alpha', 'alpha')
+    await openMenu()
+    await fillIn('')
+
+    await userEvent.click(screen.getByRole('button', { name: /Browse/ }))
+    await waitFor(() =>
+      expect((screen.getByLabelText('Project directory') as HTMLInputElement).value).toBe('/picked/by/the/dialog'),
+    )
+
+    expect(fetches).not.toContain('POST /api/workspaces')
+  })
+
+  // spec-00011-AC-23.1, AC-23.3: a cancel leaves the field alone and says nothing.
+  it('leaves the typed path and stays quiet when the dialog is cancelled', async () => {
+    pickAnswer = () => json(200, { path: null })
+    await openAt('/w/alpha', 'alpha')
+    await openMenu()
+    await fillIn('/typed/by/hand')
+
+    await userEvent.click(screen.getByRole('button', { name: /Browse/ }))
+
+    await waitFor(() => expect(fetches).toContain('POST /api/pick-directory'))
+    expect((screen.getByLabelText('Project directory') as HTMLInputElement).value).toBe('/typed/by/hand')
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  // spec-00011-AC-24.1, AC-24.2: the same sentence every time it cannot open.
+  it('says why it could not open, and says it again on the next try', async () => {
+    pickAnswer = () => json(503, { error: 'the directory picker could not be opened' })
+    await openAt('/w/alpha', 'alpha')
+    await openMenu()
+    await fillIn('')
+
+    await userEvent.click(screen.getByRole('button', { name: /Browse/ }))
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('the directory picker could not be opened'))
+
+    await userEvent.click(screen.getByRole('button', { name: /Browse/ }))
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledTimes(2))
+    expect(vi.mocked(toast.error).mock.calls.map(([message]) => message)).toEqual([
+      'the directory picker could not be opened',
+      'the directory picker could not be opened',
+    ])
+  })
+
+  // spec-00011-AC-24.3: Browse being unusable never makes Add unusable.
+  it('still adds a workspace typed by hand when the dialog cannot open', async () => {
+    pickAnswer = () => json(503, { error: 'the directory picker could not be opened' })
+    await openAt('/w/alpha', 'alpha')
+    await openMenu()
+    await fillIn('/typed/by/hand')
+    await userEvent.click(screen.getByRole('button', { name: /Browse/ }))
+    await waitFor(() => expect(toast.error).toHaveBeenCalled())
+
+    await userEvent.click(screen.getByRole('button', { name: 'Add' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(fetches).toContain('POST /api/workspaces')
+  })
 
   // spec-00011-AC-3.1
   it('keeps the dialog and what was typed when the add is refused', async () => {

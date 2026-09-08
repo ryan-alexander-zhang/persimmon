@@ -1,4 +1,13 @@
-import { CircleAlert, FolderPlus, Keyboard, LayoutGrid, type LucideIcon, TerminalIcon, Trash2 } from 'lucide-react'
+import {
+  CircleAlert,
+  FolderOpen,
+  FolderPlus,
+  Keyboard,
+  LayoutGrid,
+  type LucideIcon,
+  TerminalIcon,
+  Trash2,
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Toaster, toast } from 'sonner'
 import { type WorkspaceSummary, hostApi } from './api.ts'
@@ -176,6 +185,26 @@ function AddWorkspaceDialog({
   const [path, setPath] = useState('')
   const [name, setName] = useState('')
   const [sending, setSending] = useState(false)
+  const [browsing, setBrowsing] = useState(false)
+
+  /**
+   * spec-00011-FR-22: the server opens the native dialog and hands back an
+   * absolute path, which lands in the field without submitting anything. A
+   * cancel is `path: null` and says nothing; a refusal — one already open, or no
+   * picker on this machine — is a toast, and typing a path stays available
+   * either way (spec-00011-FR-23, spec-00011-FR-24).
+   */
+  async function browse() {
+    setBrowsing(true)
+    try {
+      const { path: picked } = await hostApi.pickDirectory()
+      if (picked !== null) setPath(picked)
+    } catch (error) {
+      toast.error((error as Error).message)
+    } finally {
+      setBrowsing(false)
+    }
+  }
 
   async function confirm() {
     setSending(true)
@@ -213,7 +242,15 @@ function AddWorkspaceDialog({
         >
           <label className="flex flex-col gap-1 text-xs" htmlFor="add-workspace-path">
             Project directory
-            <Input id="add-workspace-path" value={path} onChange={(event) => setPath(event.target.value)} />
+            <div className="flex gap-2">
+              <Input id="add-workspace-path" value={path} onChange={(event) => setPath(event.target.value)} />
+              {/* Disabled only while this page's own call is out; at most one
+                  dialog is the server's to hold (spec-00011-AC-22.4). */}
+              <Button type="button" variant="outline" onClick={() => void browse()} disabled={browsing}>
+                <FolderOpen className="size-4" aria-hidden />
+                Browse…
+              </Button>
+            </div>
           </label>
           <label className="flex flex-col gap-1 text-xs" htmlFor="add-workspace-name">
             Display name (optional)

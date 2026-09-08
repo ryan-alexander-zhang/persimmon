@@ -4,6 +4,7 @@ import type { Duplex } from 'node:stream'
 import express, { type Express, type NextFunction, type Request, type Response } from 'express'
 import { WebSocketServer } from 'ws'
 import { CONFIG_FILE, loadFlowConfig } from './config.ts'
+import { DirectoryPicker, type SpawnPicker } from './directoryPicker.ts'
 import { Board, type BoardOptions } from './server.ts'
 import { AvailabilityJudge } from './workspaceAvailability.ts'
 import { type WorkspaceEntry, WorkspaceRefusedError, WorkspaceRegistry } from './workspaceRegistry.ts'
@@ -17,6 +18,8 @@ export interface HostOptions extends BoardSeams {
    * rather than an environment variable, as the board's own seams are.
    */
   registryPath: string
+  /** How the native directory picker is started (design-00003 §5); the default spawns `osascript`. */
+  spawnPicker?: SpawnPicker
   /** The package version, which `GET /api/instance` carries for the start handshake to print (design-00003 §8). */
   version: string
 }
@@ -53,14 +56,16 @@ export class Host {
   private readonly seams: BoardSeams
   private readonly version: string
   private readonly events = new WebSocketServer({ noServer: true })
+  private readonly picker: DirectoryPicker
   private server?: Server
   private stopping?: Promise<void>
 
   constructor(options: HostOptions) {
-    const { registryPath, version, ...seams } = options
+    const { registryPath, version, spawnPicker, ...seams } = options
     this.registry = new WorkspaceRegistry(registryPath)
     this.version = version
     this.seams = seams
+    this.picker = new DirectoryPicker(spawnPicker)
     this.app = this.buildApp()
   }
 
@@ -94,6 +99,10 @@ export class Host {
   }
 
   private async stop(): Promise<void> {
+    // First, before the boards wrap up: an open dialog would otherwise sit on
+    // the user's screen for the whole of that, and its request would still be
+    // in flight when the server tries to close (design-00003 §7).
+    this.picker.dismiss()
     const boards = await Promise.all([...this.instances.values()])
     await Promise.all(boards.map((board) => board.shutdown()))
     for (const board of boards) await board.close()
@@ -168,6 +177,34 @@ export class Host {
     // Only a path under `/api/` resolves a workspace; everything else falls
     // through to the SPA below (design-00003 §4) — `/w/A/favicon.ico` must not
     // build a whole set of services, which a bare mount would have it do.
+    // spec-00011-FR-22 … FR-24. Host-level, not under `/w/:wid`: picking a
+    // directory belongs to no workspace, and a `/w/:wid` mount would refuse it
+    // whenever the current workspace happened to be unavailable.
+    app.post('/api/pick-directory', async (req, res) => {
+      if (!ownOrigin(req.headers.origin)) {
+        res.status(403).json({ error: 'the directory picker answers same-machine requests only' })
+        return
+      }
+      // At most one dialog, held here rather than by a page: a second tab's
+      // disabled button knows nothing of the first tab's (spec-00011-AC-22.4).
+      if (this.picker.busy) {
+        res.status(409).json({ error: 'a directory picker is already open' })
+        return
+      }
+      // A page that reloads, navigates or closes leaves the dialog with no
+      // owner; end it with its request (design-00003 §5).
+      req.on('close', () => {
+        if (!res.writableEnded) this.picker.dismiss()
+      })
+      const picked = await this.picker.pick()
+      // Whoever asked has gone — the dismiss above is what ended the dialog.
+      if (res.writableEnded) return
+      if (picked.kind === 'unavailable') res.status(503).json({ error: picked.error })
+      // Cancel answers 200 with no path rather than 204: `api.ts` reads every
+      // response as JSON before it looks at the status, and an empty body would
+      // throw there instead of quietly doing nothing (design-00003 §5).
+      else res.json({ path: picked.kind === 'picked' ? picked.path : null })
+    })
     app.use('/w/:wid', (req, res, next) => this.forward(req, res, next))
 
     app.use(express.static(WEB_DIST))
@@ -365,6 +402,28 @@ const unregistered = (wid: string): string => `workspace ${JSON.stringify(wid)} 
  * is a registry a hand edit made ill-formed while the process was up, which
  * spec-00011-FR-18 rules on only for the start.
  */
+/**
+ * Whether a browser-sent `Origin` is this machine's (design-00003 §5). The
+ * endpoint takes no body, which makes it a CORS *simple* request: any site the
+ * user is browsing could otherwise pop a native dialog onto their screen. The
+ * loopback bind is no defence — that browser is already on the machine.
+ *
+ * No header at all passes: a CLI or a `curl` sends none, and a local process
+ * can call this directly anyway, so refusing it buys nothing. The port is not
+ * compared, because neither real origin would survive it — `bin/persimmon.js`
+ * prints `http://localhost:PORT` while `listen` binds `127.0.0.1`, and the vite
+ * dev proxy forwards with its own `http://localhost:5173`.
+ */
+function ownOrigin(origin: string | undefined): boolean {
+  if (origin === undefined) return true
+  try {
+    const { hostname } = new URL(origin)
+    return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]' || hostname === '::1'
+  } catch {
+    return false
+  }
+}
+
 function errorHandler(error: Error, _req: Request, res: Response, _next: NextFunction): void {
   res.status(error instanceof WorkspaceRefusedError ? 422 : 500).json({ error: error.message })
 }

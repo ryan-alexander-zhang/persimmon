@@ -1,11 +1,14 @@
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { EventEmitter } from 'node:events'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
+import { PassThrough } from 'node:stream'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { LOCAL_SETTINGS_FILE } from '../src/agentSettings.ts'
 import { ASKS_DIR } from '../src/askStore.ts'
 import { CONFIG_FILE } from '../src/config.ts'
+import type { SpawnPicker } from '../src/directoryPicker.ts'
 import { Host } from '../src/host.ts'
 import type { Board, BoardOptions } from '../src/server.ts'
 import type { PtyProcess, SpawnPty } from '../src/sessionManager.ts'
@@ -118,7 +121,10 @@ function workspace(id: string, files: Record<string, string> = { 'idea/a.md': DR
 }
 
 /** A host serving the given registry, on an ephemeral port, with a fetch bound to it. */
-function hostOn(workspaces: WorkspaceEntry[], seams: Pick<BoardOptions, 'spawn'> | Record<string, never> = {}) {
+function hostOn(
+  workspaces: WorkspaceEntry[],
+  seams: (Pick<BoardOptions, 'spawn'> & { spawnPicker?: SpawnPicker }) | Record<string, never> = {},
+) {
   const registryPath = join(temporary('wb-registry-'), 'workspaces.json')
   writeFileSync(registryPath, `${JSON.stringify({ version: 1, workspaces }, null, 2)}\n`)
   const host = new Host({ registryPath, version: '9.9.9', ...seams })
@@ -127,15 +133,32 @@ function hostOn(workspaces: WorkspaceEntry[], seams: Pick<BoardOptions, 'spawn'>
   const server = host.listen(0, '127.0.0.1')
   const port = boundPort(server)
 
-  const call = async (method: string, path: string, body?: unknown) => {
+  const call = async (method: string, path: string, body?: unknown, headers: Record<string, string> = {}) => {
     const response = await fetch(`http://127.0.0.1:${await port}${path}`, {
       method,
-      headers: body ? { 'content-type': 'application/json' } : undefined,
+      headers: { ...(body ? { 'content-type': 'application/json' } : {}), ...headers },
       body: body ? JSON.stringify(body) : undefined,
     })
     return { status: response.status, body: parsed(await response.text()) }
   }
   return { host, registryPath, port, call }
+}
+
+/** A stand-in for `osascript`, so the picker's outcomes are drivable and no dialog ever opens. */
+class FakePicker extends EventEmitter {
+  stdout = new PassThrough()
+  stderr = new PassThrough()
+  killed = false
+  kill(): boolean {
+    this.killed = true
+    this.emit('close', null)
+    return true
+  }
+  end(code: number, out = '', err = ''): void {
+    if (out) this.stdout.write(out)
+    if (err) this.stderr.write(err)
+    setTimeout(() => this.emit('close', code), 0)
+  }
 }
 
 /** The body as JSON where there is JSON: the SPA fallback answers with a page, or with nothing at all. */
@@ -855,6 +878,110 @@ describe('shutting the host down', () => {
     await expect(bounded(open.host.shutdown())).resolves.toBeUndefined()
 
     await expect(bounded(dropped)).resolves.toEqual(['closed', 'closed'])
+  })
+
+  /**
+   * The directory picker endpoint (spec-00011-FR-22 … FR-24, design-00003 §5).
+   * Every case here runs on a fake `osascript`, so no dialog ever opens.
+   */
+  describe('the directory picker endpoint', () => {
+    /** A host whose picker child does whatever `run` says. */
+    function pickingHost(run: (child: FakePicker) => void) {
+      const children: FakePicker[] = []
+      const open = hostOn([workspace('alpha')], {
+        spawnPicker: () => {
+          const child = new FakePicker()
+          children.push(child)
+          queueMicrotask(() => run(child))
+          return child as never
+        },
+      })
+      return { ...open, children }
+    }
+
+    const macOnly = process.platform === 'darwin' ? it : it.skip
+
+    // spec-00011-AC-22.1
+    macOnly('answers the chosen directory', async () => {
+      const open = pickingHost((child) => child.end(0, '/tmp/chosen/\n'))
+      expect(await open.call('POST', '/api/pick-directory')).toEqual({ status: 200, body: { path: '/tmp/chosen' } })
+    })
+
+    // spec-00011-AC-23.1, AC-23.3: a cancel is a 200 with no path, never a 204 —
+    // `api.ts` reads the body before the status, so an empty one would throw.
+    macOnly('answers a cancel with no path and no error', async () => {
+      const open = pickingHost((child) => child.end(1, '', 'execution error: User canceled. (-128)'))
+      expect(await open.call('POST', '/api/pick-directory')).toEqual({ status: 200, body: { path: null } })
+    })
+
+    // spec-00011-AC-24.1
+    macOnly('answers 503 when the dialog cannot be opened here', async () => {
+      const open = pickingHost((child) => child.end(1, '', 'execution error: No user interaction allowed. (-1713)'))
+      const answered = await open.call('POST', '/api/pick-directory')
+      expect(answered.status).toBe(503)
+      expect((answered.body as { error: string }).error).toContain('could not be opened')
+    })
+
+    // spec-00011-AC-24.2: the same sentence every time, not silence on the second try.
+    macOnly('says the same thing on the next activation', async () => {
+      const open = pickingHost((child) => child.end(1, '', 'execution error: No user interaction allowed. (-1713)'))
+      const first = await open.call('POST', '/api/pick-directory')
+      const second = await open.call('POST', '/api/pick-directory')
+      expect(second).toEqual(first)
+    })
+
+    // spec-00011-AC-22.4 and AC-22.5: the second asker is refused, the first is untouched.
+    macOnly('refuses a second dialog and leaves the first one alone', async () => {
+      // The first dialog ends when this test says so, not on a timer: a timer
+      // races the wait below and the refusal it is here to prove disappears.
+      const open = pickingHost(() => {})
+      const first = open.call('POST', '/api/pick-directory')
+      await vi.waitFor(() => expect(open.children).toHaveLength(1))
+
+      const second = await open.call('POST', '/api/pick-directory')
+
+      expect(second.status).toBe(409)
+      open.children[0]?.end(0, '/tmp/first/\n')
+      expect(await first).toEqual({ status: 200, body: { path: '/tmp/first' } })
+      expect(open.children).toHaveLength(1)
+    })
+
+    // The Origin rule of design-00003 §5: a page on some other site cannot pop a
+    // dialog onto this machine's screen, while the CLI (no Origin at all) and the
+    // dev proxy (its own loopback port) both pass.
+    macOnly('refuses a request a foreign site sent', async () => {
+      const open = pickingHost((child) => child.end(0, '/tmp/x/\n'))
+      const answered = await open.call('POST', '/api/pick-directory', undefined, { origin: 'https://evil.example' })
+      expect(answered.status).toBe(403)
+      expect(open.children).toHaveLength(0)
+    })
+
+    // An Origin that is not a URL at all is not this machine's.
+    macOnly('refuses an origin it cannot parse', async () => {
+      const open = pickingHost((child) => child.end(0, '/tmp/x/\n'))
+      const answered = await open.call('POST', '/api/pick-directory', undefined, { origin: 'not a url' })
+      expect(answered.status).toBe(403)
+      expect(open.children).toHaveLength(0)
+    })
+
+    macOnly('takes a loopback origin whatever its port', async () => {
+      const open = pickingHost((child) => child.end(0, '/tmp/x/\n'))
+      const answered = await open.call('POST', '/api/pick-directory', undefined, { origin: 'http://localhost:5173' })
+      expect(answered).toEqual({ status: 200, body: { path: '/tmp/x' } })
+    })
+
+    // design-00003 §7: the dialog goes at the top of the shutdown, not at the end.
+    macOnly('ends an open dialog when the shutdown starts', async () => {
+      const open = pickingHost(() => {})
+      const asking = open.call('POST', '/api/pick-directory')
+      await vi.waitFor(() => expect(open.children).toHaveLength(1))
+
+      const shutting = open.host.shutdown()
+
+      expect(open.children.map((child) => child.killed)).toEqual([true])
+      await expect(bounded(asking)).resolves.toBeDefined()
+      await expect(bounded(shutting)).resolves.toBeUndefined()
+    })
   })
 
   /**
