@@ -467,10 +467,24 @@ workspace；在切换器中可见、带原因、不可切换、可移除，由 `
 _Avoid_：失效条目、损坏的 workspace、隐藏（不可用的仍然可见）
 
 **已运行进程（Running Process）**：
-已在本机端口上监听的 `persimmon` 进程；再次执行命令时接入它而不再起第二个
-进程，由 `spec-00011-FR-14` 持有。（「实例」一词留给 design 里逐 workspace 的
+已在本机端口上监听的 host 进程（`persimmon-host`）；再次执行 `persimmon` 命令
+时接入它而不再起第二个，由 `spec-00011-FR-14` 持有。（「实例」一词留给 design 里逐 workspace 的
 那组服务，不在此复用。）
 _Avoid_：守护进程、后台服务、单例、已有实例
+
+**persimmon 命令（The `persimmon` Command）**：
+名为 `persimmon` 的 Go 二进制，全部命令行入口（`new` / `update` / `list-langs` /
+`add` / `remove` / `list` / `version` / 无子命令启动）的唯一承载者，由
+`decision-00020` 定、`design-00004` 持有形状。它不是已运行进程；它拉起的 host
+才是。
+_Avoid_：CLI（本词汇表里 CLI 指 agent CLI）、ainpt（已并入）、脚本、npm bin、
+启动器
+
+**host 包（Host Package）**：
+npm 包 `@ryan-alexander-zhang/persimmon-host`：白板服务本体（`Host` 类、HTTP/WS
+API、Web UI），bin 为 `persimmon-host`，只监听与服务，不含任何子命令逻辑；由
+`persimmon` 命令以钉死版本经 `npx` 拉起（`design-00004` §3）。
+_Avoid_：后端、服务器包、persimmon 包（那是旧名）
 
 ## Example Dialogue
 

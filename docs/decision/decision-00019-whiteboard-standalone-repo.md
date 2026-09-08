@@ -2,7 +2,7 @@
 id: decision-00019-whiteboard-standalone-repo
 type: decision
 status: active
-constrains: [design-00001-docs-whiteboard, prd-00003-multi-workspace, spec-00011-multi-workspace, design-00003-multi-workspace]
+constrains: [design-00001-docs-whiteboard, prd-00003-multi-workspace, spec-00011-multi-workspace, design-00003-multi-workspace, design-00004-persimmon-cli]
 ---
 
 # Decision: 白板迁出模板、独立成仓——一处安装服务多个项目，模板只留流程配置
