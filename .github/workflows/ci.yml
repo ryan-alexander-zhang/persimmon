@@ -41,3 +41,7 @@ jobs:
 
       - run: go -C cli vet ./...
       - run: go -C cli test ./...
+
+      # Runs the suite again with a coverage profile and fails the build on any
+      # package under its bar — `go test -cover` only prints (CODE_QUALITY.md §2).
+      - run: sh scripts/go-coverage.sh

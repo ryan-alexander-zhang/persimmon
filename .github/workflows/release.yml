@@ -1,0 +1,59 @@
+# One tag, one workflow, two paired artifacts: the host package on npm and the
+# `persimmon` command's archives on the GitHub Release
+# (design-00004-persimmon-cli §8).
+#
+# The order is npm first, goreleaser second, in a single job: the version the Go
+# binary pins with `ldflags` has to be reachable by `npx` before any user holds
+# that binary (spec-00012-FR-5). A failed `npm publish` fails the whole workflow
+# and no Release is cut.
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  # goreleaser creates the Release and uploads the archives to it.
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # goreleaser reads the tag history to compute the version and changelog.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '23'
+          cache: npm
+          registry-url: 'https://registry.npmjs.org'
+
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+
+      # `version` is not hand-maintained in the repo (design-00004 §8): the tag
+      # writes it, and nothing is committed back.
+      - name: npm version from tag
+        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version
+
+      - name: npm publish
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache-dependency-path: cli/go.mod
+
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: '~> v2'
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
