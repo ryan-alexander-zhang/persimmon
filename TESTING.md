@@ -116,9 +116,10 @@ Do not mark work complete below this bar unless an explicit exception is approve
 The Go toolchain reports statement coverage only (`go test -cover`); branch and
 function coverage have no tooling in Go and the two bars above do not apply
 there ([decision-00020](docs/decision/decision-00020-unified-go-cli.md) §4). New
-Go packages must reach `90%` statement coverage. The `cli/internal/scaffold`
-package imported from ainpt arrives at 25.7% statement coverage and is recorded
-as legacy debt per [CODE_QUALITY.md](CODE_QUALITY.md) §8: the gate blocks new
-violations and this bar ratchets up toward 90% as
-[spec-00013](docs/spec/spec-00013-persimmon-scaffold.md)'s acceptance set lands
-— never by lowering it.
+Go packages must reach `90%` statement coverage, enforced by
+`scripts/go-coverage.sh`. The `cli/internal/scaffold` package imported from
+ainpt arrived at 25.7% statement coverage and is recorded as legacy debt per
+[CODE_QUALITY.md](CODE_QUALITY.md) §8: it is gated at the ratchet value recorded
+in CODE_QUALITY.md §3, `82.1%`, which rose with
+[spec-00013](docs/spec/spec-00013-persimmon-scaffold.md)'s acceptance set and
+keeps ratcheting toward 90% — never lowered.

@@ -15,11 +15,36 @@ acceptance records, and this board is what renders them.
 
 ## Quick Start
 
+Install the `persimmon` command:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ryan-alexander-zhang/persimmon/main/install.sh | sh
+```
+
+The script picks the archive for this machine from the latest GitHub Release and
+puts the binary on the PATH (linux and darwin; on Windows take the zip from the
+Release page). **The first release, `v0.2.0`, has not been cut yet**, so there is
+nothing for the script to download until it is — until then use the developer
+form below.
+
+Developing this repository:
+
 ```bash
 npm install
 npm run build
-npm start            # http://localhost:4173, honours PORT
+npm start            # the host alone: http://localhost:4173, honours PORT
 ```
+
+`npm start` runs `bin/host.js`: it serves the board and registers nothing. For
+the command's full startup handshake against this checkout instead of the
+published host package:
+
+```bash
+npm run build && PERSIMMON_HOST=$PWD go -C cli run .
+```
+
+Both forms need `npm run build` first, because the host reads `lib/` and
+`dist/web`.
 
 The board walks up from the directory it is launched in to the nearest
 `whiteboard.config.yaml` and serves that repository's `docs/`.
@@ -53,9 +78,14 @@ refused.
 
 ```bash
 persimmon             # start, or attach to a process already running
+persimmon new <name> [--lang <l>] [--variant <v>] [--dir .] [--ref <branch>] [--set KEY=VALUE]
+persimmon update [--dir .]
+persimmon list-langs
 persimmon add [path] [--name <n>]
 persimmon remove <id|path>
 persimmon list
+persimmon version
+persimmon help
 ```
 
 `persimmon` with no subcommand walks up from the current directory to the
@@ -78,7 +108,23 @@ repository is *not* — it registers and shows up as unavailable.
 
 `remove` takes an id or a path and deletes the registry entry only, touching
 nothing inside the directory; it is refused while that workspace has a running
-session. `list` prints every entry's id, name, path and availability.
+session. That refusal comes from the running process, which is the only thing
+that has sessions: with no process the command writes the registry file
+directly, and the rule holds vacuously ([design-00004](docs/design/design-00004-persimmon-cli.md)
+§4). `list` prints every entry's id, name, path and availability.
+
+`new` scaffolds a new project from the
+[ai-native-project-template](https://github.com/ryan-alexander-zhang/ai-native-project-template)
+repository into `<dir>/<name>` and registers it as a workspace in the same step;
+`--lang` and `--variant` pick a `lang/*` branch, `--ref` overrides the branch
+outright, and `--set KEY=VALUE` (repeatable) fills the template's variables.
+`list-langs` prints the templates that repository offers. `update` three-way
+merges later template changes into an existing project, using the creation
+marker written by `new`; conflicts are left as ordinary `<<<<<<<` markers for
+you to resolve and commit ([spec-00013](docs/spec/spec-00013-persimmon-scaffold.md)).
+
+`version` prints the command's version, `help` its usage; both also answer to
+their `-v` / `-h` and `--version` / `--help` forms.
 
 ## Commands
 
@@ -134,8 +180,12 @@ your own machine is your own call.
 ## Notes
 
 - `node-pty` ships prebuilt binaries whose `spawn-helper` needs the executable
-  bit. npm blocks dependency install scripts, so `postinstall` restores it here;
-  without it every session fails with `posix_spawnp failed`.
+  bit, and npm blocks dependency install scripts. In this checkout `postinstall`
+  restores it. A user never installs the host package by hand — the command
+  fetches it with `npx`, whose cache install runs no install script at all — so
+  the bit is set again at spawn time from `src/pty.ts`
+  ([issue-00030](docs/issue/issue-00030-npx-leaves-the-pty-spawn-helper-non-executable.md)).
+  Without either, every session fails with `posix_spawnp failed`.
 - The first-level subdirectories of a type's directory fold into one directory
   group node in that type's column, and the navigation sidebar mirrors it; the
   two share one expand state, and a group starts collapsed (`spec-00010`).
@@ -145,6 +195,7 @@ your own machine is your own call.
 
 ## Repo Map
 
+- [cli/](cli/): the `persimmon` command — Go, its own `go.mod`
 - [AGENTS.md](AGENTS.md): behavior rules for coding agents in this repo
 - [ARCHITECTURE.md](ARCHITECTURE.md): architecture index for the whiteboard
 - [CONTEXT.md](CONTEXT.md): the project glossary

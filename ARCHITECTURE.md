@@ -43,7 +43,7 @@ flowchart LR
 | Shell | in | The `persimmon` command's own surface: scaffold, registry, and startup subcommands |
 | GitHub template repository | out | Branch tarballs and the `lang/*` branch list, for `new` / `update` / `list-langs` ([spec-00013](docs/spec/spec-00013-persimmon-scaffold.md)) |
 
-The command is `bin/persimmon.js` today and becomes the Go binary with decision-00020's plan; the Shell row's scaffold subcommands and the template-repository neighbour land with that plan and do not exist yet. The template repository is reached only by the command.
+The template repository is reached only by the command.
 
 ## 4. Solution Strategy
 
@@ -75,7 +75,7 @@ persimmon/
 └── dist/web/                # built UI served by `npm start`
 ```
 
-`cli/`, `.goreleaser.yaml`, `install.sh` and the `bin/persimmon.js` → `bin/host.js` rename are [design-00004](docs/design/design-00004-persimmon-cli.md) §6: decision-00020; lands with its plan, so they are not in the tree yet.
+`cli/`, `.goreleaser.yaml`, `install.sh` and the `bin/host.js` entry are the code layout of [design-00004](docs/design/design-00004-persimmon-cli.md) §6; the npm package is the host service alone, `@ryan-alexander-zhang/persimmon-host` with the bin `persimmon-host` (design-00004 §7).
 
 ```mermaid
 flowchart LR
@@ -116,7 +116,11 @@ Component internals: [design-00001](docs/design/design-00001-docs-whiteboard.md)
 
 ## 7. Deployment View
 
-Local only. `npm run build` once, then `npm start` from anywhere inside a repository that has `whiteboard.config.yaml`. Release is one tag, one workflow, two paired artifacts: pushing a `v*` tag publishes the host package to npm first, then runs goreleaser for the `persimmon` binaries (linux/darwin/windows × amd64/arm64), both carrying the tag as their version ([design-00004](docs/design/design-00004-persimmon-cli.md) §8) — decision-00020; lands with its plan. Until then there is no CI pipeline and the quality gates in [CODE_QUALITY.md](CODE_QUALITY.md) run locally.
+Local only. A user installs the `persimmon` binary with `install.sh`; developing this repository is `npm run build` once, then `npm start` from anywhere inside a repository that has `whiteboard.config.yaml`.
+
+Release is one tag, one workflow, two paired artifacts: `.github/workflows/release.yml` fires on a `v*` tag, publishes the host package to npm first, then runs goreleaser for the `persimmon` binaries (linux/darwin/windows × amd64/arm64), both carrying the tag as their version ([design-00004](docs/design/design-00004-persimmon-cli.md) §8). No tag has been pushed yet, so nothing is published and `install.sh` has nothing to download until the first release, `v0.2.0`.
+
+`.github/workflows/ci.yml` runs both halves on every push and pull request: Node build, typecheck and tests; Go `gofmt -l cli`, `go -C cli vet ./...`, `go -C cli test ./...` and the coverage gate `scripts/go-coverage.sh`. The remaining open gates are listed in [CODE_QUALITY.md](CODE_QUALITY.md) §2.
 
 ## 8. Crosscutting Concepts
 
@@ -153,7 +157,7 @@ Security: [SECURITY.md](SECURITY.md). Style: [CODE_STYLE.md](CODE_STYLE.md). Qua
 | --- | --- | --- |
 | Correctness of writes | Any board action on a doc | The resulting file re-parses to the same model; only declared paths are staged (spec-00001) |
 | Test coverage | Any code change | Lines, branches, functions ≥ 90% over `src/` and `web/src/` (TESTING.md) |
-| Test coverage of the command | Any change under `cli/` | Statement coverage ≥ 90% for new Go packages; branch and function have no Go tooling, and `cli/internal/scaffold` enters as legacy debt when imported (TESTING.md, decision-00020 §4) |
+| Test coverage of the command | Any change under `cli/` | Statement coverage ≥ 90% for new Go packages; branch and function have no Go tooling, and `cli/internal/scaffold` is legacy debt gated at its recorded ratchet (TESTING.md, decision-00020 §4) |
 | Responsiveness at scale | A repo with hundreds of docs and sub-directories | Directory groups and `exclude` keep the first screen readable (spec-00010) |
 
 ## 11. Risks & Technical Debt
@@ -161,7 +165,7 @@ Security: [SECURITY.md](SECURITY.md). Style: [CODE_STYLE.md](CODE_STYLE.md). Qua
 | Item | Impact | Mitigation |
 | --- | --- | --- |
 | No format / complexity gate yet | Style drift is caught only in review | Listed as open in CODE_QUALITY.md §2 |
-| The registry file contract gets two implementations once decision-00020 lands: Go `cli/internal/registry` and TS `workspaceRegistry.ts` | Drift splits `add` / `remove` / `list` behaviour between the with-process and no-process paths | design-00003 §2 stays the single contract, and both sides' tests cite the same `spec-00011` requirement ids, so drift turns one side red (decision-00020 §4) |
+| The registry file contract has two implementations: Go `cli/internal/registry` and TS `workspaceRegistry.ts` | Drift splits `add` / `remove` / `list` behaviour between the with-process and no-process paths | design-00003 §2 stays the single contract, and both sides' tests cite the same `spec-00011` requirement ids, so drift turns one side red (decision-00020 §4) |
 
 ## 12. Glossary
 

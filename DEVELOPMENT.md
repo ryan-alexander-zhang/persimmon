@@ -93,16 +93,19 @@ The `persimmon` command lives in `cli/` and carries its own `go.mod`
 ([design-00004](docs/design/design-00004-persimmon-cli.md) §6), so its commands
 run from that directory:
 
-- Test: `go -C cli test ./...` (coverage: `go -C cli test -cover ./...`)
+- Test: `go -C cli test ./...` (coverage gate: `sh scripts/go-coverage.sh`, which
+  reruns the suite with a profile and fails on any package under its bar —
+  `go -C cli test -cover ./...` only prints)
 - Lint: `go -C cli vet ./...`, and `gofmt -l cli` must print nothing
 - Build: `go -C cli build ./...`
 
 `go -C cli` runs inside the `cli/` module from the repository root; the root has
 no `go.mod`, so a bare `go run ./cli` fails (design-00004 §7 追注).
 
-Once [decision-00020](docs/decision/decision-00020-unified-go-cli.md) lands,
-developing this repo has two Run forms (design-00004 §7), both needing
-`npm run build` first because the host reads `lib/` and `dist/web`:
+Developing this repo has two Run forms
+([decision-00020](docs/decision/decision-00020-unified-go-cli.md),
+design-00004 §7), both needing `npm run build` first because the host reads
+`lib/` and `dist/web`:
 
 - `npm start` — the host alone (`bin/host.js`): it serves and registers nothing
 - `npm run build && PERSIMMON_HOST=$PWD go -C cli run .` — the full handshake
