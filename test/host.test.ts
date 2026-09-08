@@ -858,6 +858,52 @@ describe('shutting the host down', () => {
   })
 
   /**
+   * issue-00033: a connection serving a request when `close()` is called is not
+   * idle, so the single sweep `stop()` does misses it; once the response is done
+   * it becomes an idle keep-alive, and nothing of ours sweeps it again — the
+   * close then waits on somebody's keep-alive timeout (measured: ~3 s, capped by
+   * Node's own 5 s `keepAliveTimeout`). So the bound here is promptness, not
+   * completion: `bounded`'s 5 s would pass on the defect itself.
+   *
+   * The held route is registered late on purpose: a GET would be swallowed by
+   * the SPA fallback, while a POST falls past it (the fallback `next()`s every
+   * non-GET) and past the four-arity error handler to reach this one.
+   */
+  it('resolves promptly once a request that was in flight has answered', async () => {
+    const open = hostOn([workspace('alpha')])
+    let arrived!: () => void
+    const inFlight = new Promise<void>((resolve) => {
+      arrived = resolve
+    })
+    let answer!: () => void
+    const held = new Promise<void>((resolve) => {
+      answer = resolve
+    })
+    open.host.app.post('/api/held', async (_req, res) => {
+      arrived()
+      await held
+      res.json({ held: true })
+    })
+    const request = fetch(`http://127.0.0.1:${await open.port}/api/held`, { method: 'POST' })
+    await inFlight
+
+    const shutting = open.host.shutdown()
+    // The held request must still be unanswered when `close()` runs, or its
+    // connection is already idle and the one sweep catches it. `close()` stops
+    // the listener first, so a fresh connection being refused is the signal that
+    // the shutdown has reached it.
+    await vi.waitFor(async () => {
+      await expect(fetch(`http://127.0.0.1:${await open.port}/api/instance`)).rejects.toBeDefined()
+    })
+    answer()
+    expect(await (await request).json()).toEqual({ held: true })
+
+    const began = Date.now()
+    await expect(bounded(shutting)).resolves.toBeUndefined()
+    expect(Date.now() - began).toBeLessThan(1000)
+  })
+
+  /**
    * issue-00028: the process binds loopback, as spec-00011 §6 and
    * ARCHITECTURE.md §2 have it, so a listener already on `127.0.0.1:P` is a
    * refusal rather than a second server the port silently answers past.

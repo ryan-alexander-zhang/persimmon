@@ -104,9 +104,20 @@ export class Host {
     const server = this.server
     if (server === undefined) return
     await new Promise<void>((resolve) => {
-      server.close(() => resolve())
       // A keep-alive connection nobody is using would hold the close open for
-      // ever; the requests still in flight are left to finish.
+      // ever; the requests still in flight are left to finish. Idle is a state
+      // that arrives over time, though — a connection still serving a request
+      // when `close()` is called is not idle, and becomes idle only once that
+      // response is done — so sweeping once here misses it and the close then
+      // waits on somebody's keep-alive timeout (issue-00033: measured ~3 s).
+      // ponytail: a 50 ms poll rather than tracking every response's lifetime,
+      // which buys the same thing for a middleware and a set of in-flight
+      // responses.
+      const sweep = setInterval(() => server.closeIdleConnections(), 50)
+      server.close(() => {
+        clearInterval(sweep)
+        resolve()
+      })
       server.closeIdleConnections()
     })
   }
