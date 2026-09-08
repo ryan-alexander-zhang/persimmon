@@ -7,6 +7,17 @@
 // The signal handlers go on before the address line, never after: that line is
 // how a test knows the host is up, and a signal arriving between the two would
 // be the default disposition's to take rather than a handler's.
+
+// `--judge` is the host package's query mode (design-00004 §4): it reads the
+// registry, judges availability and prints the five states as JSON without
+// listening. The stub prints the judgement the environment hands it, because
+// what is under test on the command's side is how it reads that answer — the
+// real pairing between the two is `test/host.test.ts`'s.
+if (process.argv.includes('--judge')) {
+  console.log(process.env.STUB_JUDGE ?? '{"workspaces": []}')
+  process.exit(0)
+}
+
 if (process.env.STUB_EXIT === undefined && process.env.STUB_ECHO_STDIN === undefined) {
   const wanted = Number(process.env.STUB_SIGNALS ?? 1)
   const alive = setTimeout(() => {

@@ -130,6 +130,100 @@ func Post(ctx context.Context, port int, path, name string) (registry.Entry, err
 	return answer.Workspace, nil
 }
 
+// Workspace is one registry entry with its availability beside it: the shape
+// `GET /api/workspaces` answers with (design-00003 §5) and the shape the host
+// package's `--judge` prints (design-00004 §4). Sessions are not read here —
+// `list` shows availability and nothing else (spec-00011-FR-21).
+type Workspace struct {
+	registry.Entry
+	Availability string `json:"availability"`
+	Error        string `json:"error,omitempty"`
+}
+
+// Workspaces is the registry as the running process reads it, judgement
+// included (design-00003 §5): while a process is there it is the one that knows
+// which workspaces are live, so `list` and `remove` ask it rather than the file.
+func Workspaces(ctx context.Context, port int) ([]Workspace, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint(port, "/api/workspaces"), nil)
+	if err != nil {
+		return nil, err
+	}
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+	var answer struct {
+		Workspaces []Workspace `json:"workspaces"`
+		Error      string      `json:"error"`
+	}
+	_ = json.NewDecoder(response.Body).Decode(&answer)
+	if response.StatusCode != http.StatusOK {
+		return nil, answered("GET", "/api/workspaces", response.StatusCode, answer.Error)
+	}
+	return answer.Workspaces, nil
+}
+
+// Delete drops one entry through the running process (design-00003 §5): its
+// refusals are its own to say — 404 for an id it does not hold, 409 while a
+// session of that workspace is running (spec-00011-FR-5).
+func Delete(ctx context.Context, port int, id string) (registry.Entry, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodDelete, endpoint(port, "/api/workspaces/"+id), nil)
+	if err != nil {
+		return registry.Entry{}, err
+	}
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return registry.Entry{}, err
+	}
+	defer response.Body.Close()
+	var answer struct {
+		Workspace registry.Entry `json:"workspace"`
+		Error     string         `json:"error"`
+	}
+	_ = json.NewDecoder(response.Body).Decode(&answer)
+	if response.StatusCode != http.StatusOK {
+		return registry.Entry{}, answered("DELETE", "/api/workspaces/"+id, response.StatusCode, answer.Error)
+	}
+	return answer.Workspace, nil
+}
+
+// Judge is the host package's query mode (design-00004 §4): it reads the
+// registry, runs the availability judgement and prints the five states as JSON
+// without listening. The command asks for it because `available` and
+// `invalidConfig` both need the flow config validator, which the command does
+// not carry a second copy of. Obtaining the package is the same question as
+// launching it, so an unreleased build with no development override and a
+// machine without Node both fail here — `list` retreats rather than failing
+// (spec-00011-FR-21).
+func Judge(ctx context.Context, o Options) ([]Workspace, error) {
+	host, err := o.host(ctx, "--judge")
+	if err != nil {
+		return nil, err
+	}
+	printed := &bytes.Buffer{}
+	host.Stdout, host.Stderr = printed, o.Stderr
+	if err := host.Run(); err != nil {
+		return nil, err
+	}
+	var answer struct {
+		Workspaces []Workspace `json:"workspaces"`
+	}
+	if err := json.Unmarshal(printed.Bytes(), &answer); err != nil {
+		return nil, fmt.Errorf("%s --judge printed no readable judgement — %w", hostPackage, err)
+	}
+	return answer.Workspaces, nil
+}
+
+// answered is what a call reports when the process refused it: its own sentence
+// when it gave one, and the bare status when it did not.
+func answered(method, path string, status int, message string) error {
+	if message == "" {
+		return fmt.Errorf("%s %s answered %d", method, path, status)
+	}
+	return errors.New(message)
+}
+
 // Options is everything Run reads from the world, so a test hands it stubs
 // instead of the process it runs in.
 type Options struct {
@@ -227,13 +321,13 @@ func (o Options) launch(ctx context.Context, target string, inProject bool) int 
 // pinned to this command's version. An unreleased build has no published
 // version to pin and never guesses one — guessing would silently break the
 // pairing (spec-00012-FR-8).
-func (o Options) host(ctx context.Context) (*exec.Cmd, error) {
+func (o Options) host(ctx context.Context, args ...string) (*exec.Cmd, error) {
 	if o.HostDir != "" {
 		node, err := exec.LookPath("node")
 		if err != nil {
 			return nil, nodeMissing("node")
 		}
-		return exec.CommandContext(ctx, node, filepath.Join(o.HostDir, "bin", "host.js")), nil
+		return exec.CommandContext(ctx, node, append([]string{filepath.Join(o.HostDir, "bin", "host.js")}, args...)...), nil
 	}
 	if o.Version == devVersion {
 		return nil, errors.New("开发态构建打不开白板：把 PERSIMMON_HOST 指向一份已 npm run build 的本地检出")
@@ -242,7 +336,7 @@ func (o Options) host(ctx context.Context) (*exec.Cmd, error) {
 	if err != nil {
 		return nil, nodeMissing("npx")
 	}
-	return exec.CommandContext(ctx, npx, "-y", hostPackage+"@"+o.Version), nil
+	return exec.CommandContext(ctx, npx, append([]string{"-y", hostPackage + "@" + o.Version}, args...)...), nil
 }
 
 // forward passes the shutdown signals on to the host and leaves the exiting to

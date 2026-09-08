@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -802,4 +803,156 @@ func TestTheJoinPathIsTakenDownByTheSignal(t *testing.T) {
 		t.Fatalf("the joined process answers %+v, want it still running", instance)
 	}
 	noRegistry(t, file)
+}
+
+// apiStub is a process already on the port answering the two routes `list` and
+// `remove` use (design-00003 §5): the registry it holds, and the removal of one
+// entry from it.
+func apiStub(t *testing.T, listed []Workspace, status int) (int, *[]string) {
+	t.Helper()
+	var dropped []string
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/workspaces", func(w http.ResponseWriter, _ *http.Request) {
+		if status != http.StatusOK {
+			w.WriteHeader(status)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "the registry file is not readable JSON"})
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"workspaces": listed})
+	})
+	mux.HandleFunc("/api/workspaces/", func(w http.ResponseWriter, r *http.Request) {
+		id := strings.TrimPrefix(r.URL.Path, "/api/workspaces/")
+		if status != http.StatusOK {
+			w.WriteHeader(status)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "workspace " + id + " has a running session"})
+			return
+		}
+		dropped = append(dropped, id)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"workspace": registry.Entry{ID: id, Name: id, Path: "/work/" + id},
+		})
+	})
+	server := httptest.NewServer(mux)
+	t.Cleanup(server.Close)
+	return server.Listener.Addr().(*net.TCPAddr).Port, &dropped
+}
+
+// design-00003 §5: the listing a running process answers with carries each
+// entry's availability beside it.
+func TestWorkspacesReadsTheListingTheProcessHolds(t *testing.T) {
+	want := []Workspace{
+		{Entry: registry.Entry{ID: "alpha", Name: "alpha", Path: "/work/alpha"}, Availability: "available"},
+		{Entry: registry.Entry{ID: "demo", Name: "demo", Path: "/work/demo"}, Availability: "missing", Error: "workspace directory does not exist: /work/demo"},
+	}
+	port, _ := apiStub(t, want, http.StatusOK)
+
+	got, err := Workspaces(context.Background(), port)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Workspaces = %+v, want %+v", got, want)
+	}
+}
+
+// design-00003 §5: a refusal is the process's sentence to say, and the bare
+// status only when it gave none.
+func TestWorkspacesReportsWhatTheProcessRefused(t *testing.T) {
+	port, _ := apiStub(t, nil, http.StatusInternalServerError)
+
+	_, err := Workspaces(context.Background(), port)
+
+	if err == nil || !strings.Contains(err.Error(), "not readable JSON") {
+		t.Fatalf("Workspaces = %v, want the sentence the process gave", err)
+	}
+	if _, err := Workspaces(context.Background(), freePort(t)); err == nil {
+		t.Error("Workspaces = nil on a port nobody holds, want the transport error")
+	}
+
+	// A refusal with no sentence of its own is reported as the bare status.
+	bare := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	t.Cleanup(bare.Close)
+	_, err = Workspaces(context.Background(), bare.Listener.Addr().(*net.TCPAddr).Port)
+	if err == nil || !strings.Contains(err.Error(), "answered 404") {
+		t.Errorf("Workspaces = %v, want the bare status reported", err)
+	}
+}
+
+// spec-00011-AC-4.1 through the running process: the entry it dropped is what
+// comes back.
+func TestDeleteDropsTheEntryThroughTheProcess(t *testing.T) {
+	port, dropped := apiStub(t, nil, http.StatusOK)
+
+	entry, err := Delete(context.Background(), port, "demo")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if entry.ID != "demo" || entry.Path != "/work/demo" {
+		t.Errorf("Delete = %+v, want the entry the process dropped", entry)
+	}
+	if want := []string{"demo"}; !reflect.DeepEqual(*dropped, want) {
+		t.Errorf("the process was asked to drop %v, want %v", *dropped, want)
+	}
+}
+
+// spec-00011-FR-5: whether a running session forbids the removal is the
+// process's check, and its refusal is the sentence the user reads.
+func TestDeleteReportsWhatTheProcessRefused(t *testing.T) {
+	port, _ := apiStub(t, nil, http.StatusConflict)
+
+	_, err := Delete(context.Background(), port, "demo")
+
+	if err == nil || !strings.Contains(err.Error(), "has a running session") {
+		t.Fatalf("Delete = %v, want the sentence the process gave", err)
+	}
+	if _, err := Delete(context.Background(), freePort(t), "demo"); err == nil {
+		t.Error("Delete = nil on a port nobody holds, want the transport error")
+	}
+}
+
+// design-00004 §4: `--judge` is a query mode of the host package — it prints the
+// judgement and never listens, and the development override picks which host
+// package that is (spec-00012-FR-6).
+func TestJudgeReadsTheHostPackagesQueryMode(t *testing.T) {
+	requireNode(t)
+	options, _, stderr, _ := setup(t)
+	options.HostDir = hostStub(t)
+	options.Stderr = stderr
+	t.Setenv("STUB_JUDGE", `{"workspaces": [{"id": "alpha", "name": "alpha", "path": "/work/alpha", "availability": "invalidConfig", "error": "config: no such type"}]}`)
+
+	judged, err := Judge(context.Background(), options)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []Workspace{{
+		Entry:        registry.Entry{ID: "alpha", Name: "alpha", Path: "/work/alpha"},
+		Availability: "invalidConfig",
+		Error:        "config: no such type",
+	}}
+	if !reflect.DeepEqual(judged, want) {
+		t.Errorf("Judge = %+v, want %+v", judged, want)
+	}
+}
+
+// spec-00011-FR-21: every way the judgement cannot be had is one error for
+// `list` to retreat on — an unreleased build with no override, and a query mode
+// that printed nothing readable.
+func TestJudgeReportsAJudgementItCouldNotGet(t *testing.T) {
+	options, _, _, _ := setup(t)
+
+	if _, err := Judge(context.Background(), options); err == nil {
+		t.Error("Judge = nil on a development build with no override, want it reported")
+	}
+
+	requireNode(t)
+	options.HostDir = hostStub(t)
+	t.Setenv("STUB_JUDGE", "not json at all")
+	if _, err := Judge(context.Background(), options); err == nil || !strings.Contains(err.Error(), "no readable judgement") {
+		t.Errorf("Judge = %v, want the unreadable answer reported", err)
+	}
 }
