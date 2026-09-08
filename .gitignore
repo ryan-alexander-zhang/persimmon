@@ -300,3 +300,11 @@ coverage/
 
 #   Whiteboard clarify session state (spec-00001-FR-46)
 .whiteboard/
+
+# Go (cli/)
+#   Local builds of the CLI: `go build -o persimmon` and a bare `go build .`
+#   (which names the binary after the module's last segment)
+/cli/persimmon
+/cli/cli
+#   goreleaser output (dist: build/goreleaser, kept clear of Vite's dist/web)
+build/
