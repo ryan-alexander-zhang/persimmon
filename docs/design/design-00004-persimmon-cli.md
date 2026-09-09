@@ -61,15 +61,18 @@ stdio 与信号的跨进程转发、退出码透传、「命令取不到服务�
 ## 2. 命令面
 
 （本节存续，`decision-00020` §5。逐行的执行者由 Go 二进制换回本包的 bin，
-行为不变；`version` 与参数解析两处本轮据实改写。）
+行为不变；`version` 与参数解析两处本轮据实改写。**「来源」一列记的是实现落点
+`src/cli.ts`，不是入口文件**——`bin/persimmon.js` 是薄入口，只读 `process.argv`
+并调 `lib/cli.js`，握手与 `add`/`remove`/`list` 那约 200 行一并落在 `src/cli.ts`
+（§6）。）
 
 | 命令 | 行为 | 来源 |
 | --- | --- | --- |
-| `persimmon` | `design-00003` §8 的握手原样：向上找 `whiteboard.config.yaml`；探 `/api/instance`；有进程则经 `POST /api/workspaces` 登记并打印其地址；端口被他人占用则报「port N is already in use」exit 1；无进程则直接写注册表并**在本进程内起服务**（§3） | `bin/persimmon.js` `start()`（`40a5ca5` 之前的实现复位） |
+| `persimmon` | `design-00003` §8 的握手原样：向上找 `whiteboard.config.yaml`；探 `/api/instance`；有进程则经 `POST /api/workspaces` 登记并打印其地址；端口被他人占用则报「port N is already in use」exit 1；无进程则直接写注册表并**在本进程内起服务**（§3） | `src/cli.ts` 的 `start()`（`40a5ca5` 之前 `bin/persimmon.js` 里的实现复位后挪入；`bin/persimmon.js` 只是薄入口，§6） |
 | `persimmon new <name> [--lang] [--variant] [--dir] [--ref] [--set K=V]…` | ainpt `new` 原样；成功后以 `<dir>/<name>` 的 realpath 走 `add` 的路径登记（幂等），末行向 **stdout** 打印 `已登记为 workspace <id>——在项目内执行 persimmon 打开`（`cli/main.go:316` 的字面，**没有** `persimmon: ` 前缀；原文此处记错，据实改） | 自 `cli/main.go` `cmdNew` 移植（§6） |
 | `persimmon update [--dir]` | ainpt `update` 原样（读 `.ainpt.json`，逐文件 `git merge-file` 三方合并） | 自 `cmdUpdate` 移植 |
 | `persimmon list-langs` | ainpt 原样：GitHub branches API 列 `lang/*`，跟 `Link: rel="next"` 取完所有分支（`issue-00036`） | 自 `cmdLangs` + `getBranchPage` / `nextLink` 移植 |
-| `persimmon add [path] [--name]` / `remove <id\|path>` / `list` | `design-00003` §8 子命令段原样，探测为**三态**：有已运行进程 → 经 API；端口被他人占用 → `add`/`remove` 报「port N is already in use」exit 1，`list` 退回读文件；无进程 → 直接读写文件。输出与退出码不变 | `bin/persimmon.js` `add/remove/list`（同上，复位） |
+| `persimmon add [path] [--name]` / `remove <id\|path>` / `list` | `design-00003` §8 子命令段原样，探测为**三态**：有已运行进程 → 经 API；端口被他人占用 → `add`/`remove` 报「port N is already in use」exit 1，`list` 退回读文件；无进程 → 直接读写文件。输出与退出码不变 | `src/cli.ts` 的 `add`/`remove`/`list`（同上，复位后挪入；`bin/persimmon.js` 只是薄入口，§6） |
 | `persimmon version`（`-v` / `--version`） | 打印本包 `package.json` 的 `version`（当前 `0.0.0-dev`，`decision-00020` §2 第 6 条不发布）。**不再有第二个产物要跟它对版本**：原文的「同一值用于 §3 的 host 版本」随版本配对一并删除 | 本包 |
 | `persimmon help`（`-h` / `--help`） | 用法出口（`spec-00012-FR-1`，`decision-00020` 第三十一轮追注补入子命令集） | 本包 |
 | 第一个参数不是子命令 | stderr 打 `unknown command %q` 后跟一个空行与 usage，exit 1（`cli/main.go:168-171`） | `spec-00012-FR-2` |
@@ -355,15 +358,26 @@ Go 标准库在 TS 侧没有一一对应，机制对照如下（这几处是移�
   无从谈起」**与史实相悖**：该文件头注写明它跑的是 `npm pack` 出的本地
   tarball（`scripts/test-install.js:1`），从不需要发布，而且它自己记着「全局
   安装与 `persimmon` bin 这两半是在 `plan-00033` T7 让出 bin 名时才去掉的」。
-  重写内容：去掉 `--judge` 那一格，改为对**同一个** `npm pack` tarball 分别
-  以 `npx` 形态与全局安装形态各跑一次 `persimmon list` 并逐字比对输出——这正
-  是复活的 `spec-00011-AC-20.2` 所断言的；保留起一次真 pty 的那一格，它承载
-  `spec-00011-AC-20.3` 与 `issue-00030` 的 pty 实测义务。仍不进 `npm test`
+  重写内容：去掉 `--judge` 那一格，改为对**同一个** `npm pack` tarball 跑
+  **三格**——`npx` 形态与全局安装形态各跑一次 `persimmon list` 并逐字比对
+  输出（这正是复活的 `spec-00011-AC-20.2` 所断言的），外加一格 `npm link`
+  下跑 `persimmon version`（`spec-00011-AC-20.1` 与 `spec-00012-AC-10.1` 的
+  取数场景，发布前唯一的取得形态就是仓库检出，这一格是它的承载者）；
+  保留起一次真 pty 的那一格，它承载 `spec-00011-AC-20.3` 与 `issue-00030`
+  的 pty 实测义务。仍不进 `npm test`
   （网络绑定的分钟级 E2E，`TESTING.md`）。
 - 开发本仓库：`npm run build && node bin/persimmon.js` 即完整握手 + 起服务
   （`npm start` 同）。原 §7 的两条命令（`npm start` 只起服务不登记 /
   `PERSIMMON_HOST=$PWD go -C cli run .` 完整握手）随两产物形态作废——只剩
   一条路径，也不再有 `go -C cli` 这类跨 module 的工作目录问题。
+- **`npm start` 的可观察行为随之改变，点名在此**：`start` 此前是
+  `node bin/host.js`，只起服务、不做握手、**不写注册表**；改回
+  `node bin/persimmon.js` 后它走 §1 的完整握手——向上找
+  `whiteboard.config.yaml`、探 `/api/instance`、无进程时**直接写
+  `~/.persimmon/workspaces.json`** 再在本进程内起服务。也就是说在一个尚未登记
+  的目录里跑 `npm start`，会把该目录登记为 workspace；端口被他人占用时它按
+  三态报「port N is already in use」exit 1，而不是像原来那样径直监听失败。
+  这是开发命令的行为变更，不是复位的副产品被忽略。
 
 ## 8. 发布线：撤除
 
@@ -407,21 +421,16 @@ Go 标准库在 TS 侧没有一一对应，机制对照如下（这几处是移�
 ## 10. 仍未改写的冲突
 
 以下 `active` 文档与文件的陈述在本设计落地后不再为真，且**本轮尚未动过**
-（本轮同批已经改完的那些，见文末追注的同批清单，不再登记在此）：
+（本轮同批已经改完的那些，见文末追注的同批清单，不再登记在此）。真未改的只剩
+两类：**代码与配置**（实现期由后续 plan 承担），与**两个外部仓库的 README**
+（模板仓库与 ainpt，见本节末的交付边界）。
 
-- `spec-00012-persimmon-command`：`FR-3` / `FR-4` 改写为同进程模型；`FR-5`
-  （版本配对）、`FR-6`（`PERSIMMON_HOST` 开发覆盖）、`FR-7`（本机无 Node）、
-  `FR-8`（开发态构建须设开发覆盖）作废；**`FR-10`（取得形态）是改写而不是
-  作废**——它有替代形态：今天只有本仓库检出，发布之后是 `npx` 与
-  `npm i -g`（§8），一条需求有替代形态就该改写，作废会让「怎么取得」在需求层
-  失去归属；**`FR-11`（校验和）才是作废**——`install.sh` 与 Release 归档一并
-  消失，它没有替代对象。入口、子命令集、退出码、`version`、`help` 存续；
-  §2 新登记的「第一个参数不是子命令」一行归 `FR-2`。
-- `spec-00013-persimmon-scaffold`：需求内容整体存续，实现语言从 Go 变 TS；
-  文内以 `cli/` 路径与 Go 函数名为坐标处随 §6 改写。`AC-12.1` / `AC-12.2`
-  （无 git 时 `update` 的行为）不动，§6 已据其写明半截树不回滚。
-- 代码与配置（`decision-00020` §5 的清单）：`cli/`、`.goreleaser.yaml`、
-  `install.sh`、`.github/workflows/release.yml`、`scripts/go-coverage.sh`、
+`spec-00012-persimmon-command` 与 `spec-00013-persimmon-scaffold` **已于第三十二轮
+同批改写**，不再登记为未改项——两份的逐条裁定见 `decision-00020` §5，改动落在
+两份 spec 自身，同批清单见文末追注。
+
+- 代码与配置（`decision-00020` §5 的清单，**实现期由后续 plan 承担**）：
+  `cli/`、`.goreleaser.yaml`、`install.sh`、`.github/workflows/release.yml`、`scripts/go-coverage.sh`、
   `test/install.test.ts` 删除；`.github/workflows/ci.yml`（Go job）、
   `package.json`（包名、bin、`start`、缺失的 license）、
   `test/distribution.test.ts`（包名、以 `--judge` 作探针）、`test/host.test.ts`、
@@ -530,6 +539,15 @@ Go 二进制打开白板必须走 `npx`，而 Go 版的 `list` 比 Node 版更�
 - `prd-00003-multi-workspace`：角色表里的 `ainpt`、功能需求 6 与 10 的包名与
   安装形态、In scope 的「单命令启动」、风险与依赖里的模板依赖与发布依赖，
   已改。
+- `spec-00012-persimmon-command`（`FR-3` / `FR-4` 改写为同进程模型；`FR-5` /
+  `FR-6` / `FR-7` / `FR-8` / `FR-11` 作废；**`FR-10` 是改写而不是作废**——它有
+  替代形态：今天只有本仓库检出，发布之后是 `npx` 与 `npm i -g`（§8），作废会
+  让「怎么取得」在需求层失去归属，而 `FR-11`（校验和）随 `install.sh` 与
+  Release 归档一并消失、没有替代对象；入口、子命令集、退出码、`version`、
+  `help` 存续，§2 新登记的「第一个参数不是子命令」一行归 `FR-2`）与
+  `spec-00013-persimmon-scaffold`（需求内容整体存续，实现语言从 Go 变 TS，
+  文内以 `cli/` 路径与 Go 函数名为坐标处随 §6 改写；`AC-12.1` / `AC-12.2`
+  不动，§6 已据其写明半截树不回滚），本轮同批改完。
 - `design-00003-multi-workspace` 三条，逐条据实：**§8「`ainpt new` 的登记属
   模板仓库」不是存续的冲突**——它在第三十一轮就已关掉（`new` 自己登记），原
   §10 把它记成「这处冲突存续」不实；**§2 的注册表契约恢复单一实现已经写在
