@@ -9,7 +9,7 @@
 set -e
 
 BAR=90
-SCAFFOLD_RATCHET=82.1
+SCAFFOLD_RATCHET=82.8
 
 cd "$(dirname "$0")/.."
 OUT=$(mktemp -t go-coverage)

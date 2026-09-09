@@ -105,6 +105,9 @@ func TestExcludedMatchesTheDirectoryButNotTheFileBeneathIt(t *testing.T) {
 	}
 }
 
+// spec-00013-AC-10.3: an exclude pattern that names a directory keeps the whole tree out
+// of the merge, not just the files the glob itself matches.
+//
 // Creation prunes an excluded directory with SkipDir, so nothing underneath is ever
 // copied. Update has to prune it the same way, or it reinstates exactly what creation
 // dropped — which is invisible until someone runs update on a real project.
@@ -137,6 +140,9 @@ func TestMergeTreePrunesExcludedDirectories(t *testing.T) {
 	}
 }
 
+// spec-00013-AC-10.1: a file the base has and the project does not was deleted on purpose,
+// so it is not rebuilt and the summary counts it as left empty.
+//
 // Everything template.json's post_create deletes lands here: the file is in the base
 // tree and gone from the project because the project removed it on purpose. A 3-way
 // merge honours a deletion; treating it as "new upstream file" resurrects it on every
@@ -172,6 +178,9 @@ func TestMergeTreeLeavesDeliberateDeletionsDeleted(t *testing.T) {
 	}
 }
 
+// spec-00013-AC-9.7: an upstream file absent from the base and absent from the project
+// arrives verbatim and is counted as an addition.
+//
 // The other side of the same rule: absent from the base means the template really did
 // add it since this project was created, so it must arrive.
 func TestMergeTreeAddsFilesNewSinceTheBase(t *testing.T) {
@@ -221,6 +230,9 @@ func TestMergeTreeAddsASymlinkWithoutCopyingItsTarget(t *testing.T) {
 	}
 }
 
+// spec-00013-AC-10.6: the template has not touched the link since the base and the project
+// retargeted it, so the project side stands and nothing is reported as a conflict.
+//
 // A project that retargeted the link decided that on purpose, and while the template
 // leaves the link alone that decision must survive rather than conflict on every update.
 //
@@ -276,6 +288,58 @@ func TestMergeTreeReportsALinkBothSidesMoved(t *testing.T) {
 	}
 }
 
+// spec-00013-AC-10.4: upstream and the project point the link at the same target, so the
+// link passes untouched — and so does the file it points at, which is what writing the
+// merge result through the link would have clobbered.
+func TestMergeTreeLeavesAnAgreeingLinkAndItsTargetAlone(t *testing.T) {
+	dir, oldSrc, newSrc := t.TempDir(), t.TempDir(), t.TempDir()
+
+	for _, src := range []string{oldSrc, newSrc} {
+		writeTree(t, src, map[string]string{"AGENTS.md": "template\n"})
+		writeLink(t, src, "CLAUDE.md", "AGENTS.md")
+	}
+	writeTree(t, dir, map[string]string{"AGENTS.md": "mine\n"})
+	writeLink(t, dir, "CLAUDE.md", "AGENTS.md")
+
+	res, err := mergeTree(dir, oldSrc, newSrc, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got := linkTarget(t, dir, "CLAUDE.md"); got != "AGENTS.md" {
+		t.Errorf("CLAUDE.md -> %q, want AGENTS.md", got)
+	}
+	if got := readFile(t, dir, "AGENTS.md"); got != "mine\n" {
+		t.Errorf("AGENTS.md = %q; the merge overwrote the link's target", got)
+	}
+	if len(res.conflicts) != 0 {
+		t.Errorf("conflicts = %v, want none — both sides agree on the target", res.conflicts)
+	}
+}
+
+// spec-00013-AC-10.5: upstream moved the link since the base and the project put a plain
+// file of its own in its place. There is nowhere to put conflict markers, so the project
+// side stands as it is and the divergence is reported.
+func TestMergeTreeReportsALinkTheProjectReplacedWithAFile(t *testing.T) {
+	dir, oldSrc, newSrc := t.TempDir(), t.TempDir(), t.TempDir()
+
+	writeLink(t, oldSrc, "CLAUDE.md", "AGENTS.md")
+	writeLink(t, newSrc, "CLAUDE.md", "GUIDELINES.md")
+	writeTree(t, dir, map[string]string{"CLAUDE.md": "house rules\n"})
+
+	res, err := mergeTree(dir, oldSrc, newSrc, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got := readFile(t, dir, "CLAUDE.md"); got != "house rules\n" {
+		t.Errorf("CLAUDE.md = %q, want the project's own file left as it was", got)
+	}
+	if len(res.conflicts) != 1 || !strings.Contains(res.conflicts[0], "CLAUDE.md") {
+		t.Errorf("conflicts = %v, want one naming CLAUDE.md", res.conflicts)
+	}
+}
+
 // Creation has the same hazard as update: os.ReadFile follows the link.
 func TestCopyTreePreservesSymlinks(t *testing.T) {
 	src, dst := t.TempDir(), filepath.Join(t.TempDir(), "proj")
@@ -291,6 +355,9 @@ func TestCopyTreePreservesSymlinks(t *testing.T) {
 	}
 }
 
+// spec-00013-AC-9.1: a local edit and a non-overlapping upstream edit to the same file both
+// end up in it.
+//
 // A local edit must survive an unrelated upstream edit to the same file — the reason
 // update is a merge and not a copy. Guards the refactor that moved this walk out of
 // Update.

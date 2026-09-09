@@ -60,7 +60,7 @@ indistinguishable from a value that was raised to silence a failure.
 
 | check | default | this repo | rationale |
 |---|---|---|---|
-| Coverage bars in `cli/` | statement, branch and function ≥ 90% ([TESTING.md](TESTING.md)) | statement ≥ 90% only | The Go toolchain reports statement coverage alone; branch and function have no Go tooling ([decision-00020](docs/decision/decision-00020-unified-go-cli.md) §4). `cli/internal/scaffold` came in from ainpt at 25.7% as legacy debt under §8 and its gate now stands at the ratchet value 82.1% (`SCAFFOLD_RATCHET` in `scripts/go-coverage.sh`), ratcheting up toward 90% — not a lowered bar for new code |
+| Coverage bars in `cli/` | statement, branch and function ≥ 90% ([TESTING.md](TESTING.md)) | statement ≥ 90% only | The Go toolchain reports statement coverage alone; branch and function have no Go tooling ([decision-00020](docs/decision/decision-00020-unified-go-cli.md) §4). `cli/internal/scaffold` came in from ainpt at 25.7% as legacy debt under §8 and its gate now stands at the ratchet value 82.8% (`SCAFFOLD_RATCHET` in `scripts/go-coverage.sh`), ratcheting up toward 90% — not a lowered bar for new code |
 
 ## 4. Refactoring levers (effect per metric)
 

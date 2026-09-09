@@ -120,6 +120,6 @@ Go packages must reach `90%` statement coverage, enforced by
 `scripts/go-coverage.sh`. The `cli/internal/scaffold` package imported from
 ainpt arrived at 25.7% statement coverage and is recorded as legacy debt per
 [CODE_QUALITY.md](CODE_QUALITY.md) §8: it is gated at the ratchet value recorded
-in CODE_QUALITY.md §3, `82.1%`, which rose with
+in CODE_QUALITY.md §3, `82.8%`, which rose with
 [spec-00013](docs/spec/spec-00013-persimmon-scaffold.md)'s acceptance set and
 keeps ratcheting toward 90% — never lowered.

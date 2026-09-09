@@ -1650,3 +1650,99 @@ func TestUpdateOutsideAProjectItCreatedIsReported(t *testing.T) {
 		t.Errorf("output did not report the missing creation marker:\n%s", out)
 	}
 }
+
+// spec-00012-AC-1.1: the command is one executable and needs no other. On a PATH holding
+// nothing at all — `ainpt`, the tool this scaffold was carved out of, least of all —
+// `list-langs` still lists the template.
+func TestListLangsNeedsNothingElseOnThePath(t *testing.T) {
+	srv, _ := branchServer(t, []string{"main", "lang/go"})
+	t.Setenv("PATH", t.TempDir())
+	if _, err := exec.LookPath("ainpt"); err == nil {
+		t.Fatal("ainpt is still on PATH; the case cannot say anything")
+	}
+
+	var out strings.Builder
+	if err := cmdLangs(&out, srv.URL); err != nil {
+		t.Fatal(err)
+	}
+	if got := out.String(); !strings.Contains(got, "--lang go") {
+		t.Errorf("listing = %q, want the template listed with no other executable around", got)
+	}
+}
+
+// spec-00012-AC-9.1: what `version` prints is the build-injected `version`, in all three
+// spellings — set it here to a value no source default could produce. That the release
+// archive's binary really carries the release's number is the ldflags half, proven by the
+// `goreleaser release --snapshot --clean` run recorded in
+// docs/record/record-00035-persimmon-command-acceptance.md.
+func TestVersionPrintsTheInjectedVersion(t *testing.T) {
+	saved := version
+	version = "1.2.3"
+	t.Cleanup(func() { version = saved })
+
+	for _, spelling := range []string{"version", "-v", "--version"} {
+		t.Run(spelling, func(t *testing.T) {
+			var code int
+			out := printed(t, func() { code = run([]string{spelling}) })
+			if code != 0 {
+				t.Errorf("exit code = %d, want 0", code)
+			}
+			if strings.TrimSpace(out) != "persimmon 1.2.3" {
+				t.Errorf("output = %q, want %q", out, "persimmon 1.2.3")
+			}
+		})
+	}
+}
+
+// spec-00012-AC-10.3: nothing in the command needs Node. On a PATH holding neither `node`
+// nor `npx` every subcommand still does its work. `update` is the sixth of them and is
+// covered by spec-00012-AC-7.3 (scaffold.TestUpdateMergesOnAMachineWithoutNode), which
+// merges with git alone.
+func TestEverySubcommandRunsWithoutNode(t *testing.T) {
+	h := newHarness(t)
+	path := projectAt(t, filepath.Join(tempDir(t), "demo"))
+	srv, _ := branchServer(t, []string{"main", "lang/go"})
+	t.Setenv("PATH", t.TempDir())
+	for _, tool := range []string{"node", "npx"} {
+		if _, err := exec.LookPath(tool); err == nil {
+			t.Fatalf("%s is still on PATH; the case cannot say anything", tool)
+		}
+	}
+
+	// The order is the one a user would take: register, list, drop. Each case reports
+	// what it printed, so the assertion is on this run alone.
+	buffered := func(f func() error) func() (string, error) {
+		return func() (string, error) {
+			h.stdout.Reset()
+			err := f()
+			return h.stdout.String(), err
+		}
+	}
+	for _, testCase := range []struct {
+		name, contains string
+		do             func() (string, error)
+	}{
+		{"add", `"path":"` + path + `"`, buffered(func() error { return cmdAdd(h.command, []string{path}) })},
+		{"list", "demo", buffered(func() error { return cmdList(h.command) })},
+		{"remove", `"id":"demo"`, buffered(func() error { return cmdRemove(h.command, []string{"demo"}) })},
+		{"list-langs", "--lang go", buffered(func() error { return cmdLangs(h.stdout, srv.URL) })},
+		{"version", "persimmon", func() (string, error) {
+			var code int
+			out := printed(t, func() { code = run([]string{"version"}) })
+			if code != 0 {
+				return out, fmt.Errorf("exit code = %d", code)
+			}
+			return out, nil
+		}},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			out, err := testCase.do()
+			if err != nil {
+				t.Fatalf("%s = %v, want it to work with no Node on the machine", testCase.name, err)
+			}
+			if !strings.Contains(out, testCase.contains) {
+				t.Errorf("output did not carry %q:\n%s", testCase.contains, out)
+			}
+		})
+	}
+}
