@@ -41,13 +41,6 @@ List every check that fails the build. A check that only warns is not a gate.
 | Complexity + duplication | *(none yet)* | — | — |
 | Static analysis | `tsc --noEmit` | `{src,web/src,test,web/test}` | `tsconfig.json` |
 | Coverage | `vitest` + `@vitest/coverage-v8` | `{src,web/src}`, less `web/src/main.tsx` and the vendored `web/src/components/ui/**` (see §6 and [decision-00001](docs/decision/decision-00001-whiteboard-ui-stack.md) §4) — bar per [TESTING.md](TESTING.md) | `vitest.config.ts` |
-| Format | `gofmt -l` | `cli/` | Go toolchain default, no config; the gate is empty output |
-| Static analysis | `go vet` | `cli/` | Go toolchain default, no config |
-| Coverage | `go test -coverprofile` + `scripts/go-coverage.sh` | `cli/`; `cli/internal/scaffold` is gated too, at the ratchet value recorded in §3 rather than at the bar | statement ≥ 90% per [TESTING.md](TESTING.md); `go test -cover` alone does not fail the build, the script does |
-
-Complexity and duplication have no gate in Go either: `cli/` inherits the same
-open gap as the TS complexity/duplication row above, and no Go complexity tool is introduced with it
-([design-00004](docs/design/design-00004-persimmon-cli.md) §10).
 
 Record where the shared config lives. If more than one build file carries the
 same gate configuration, name each one here — they must be changed together.
@@ -60,7 +53,13 @@ indistinguishable from a value that was raised to silence a failure.
 
 | check | default | this repo | rationale |
 |---|---|---|---|
-| Coverage bars in `cli/` | statement, branch and function ≥ 90% ([TESTING.md](TESTING.md)) | statement ≥ 90% only | The Go toolchain reports statement coverage alone; branch and function have no Go tooling ([decision-00020](docs/decision/decision-00020-unified-go-cli.md) §4). `cli/internal/scaffold` came in from ainpt at 25.7% as legacy debt under §8 and its gate now stands at the ratchet value 82.8% (`SCAFFOLD_RATCHET` in `scripts/go-coverage.sh`), ratcheting up toward 90% — not a lowered bar for new code |
+| *(none)* | — | — | — |
+
+The scaffold's statement-only bar and its 82.8% legacy ratchet are gone with the
+toolchain that imposed them: the scaffold is TypeScript under `src/` and the
+ported code counts as new code, held to line, branch and function ≥ 90% like
+everything else ([decision-00020](docs/decision/decision-00020-unified-go-cli.md)
+§4).
 
 ## 4. Refactoring levers (effect per metric)
 

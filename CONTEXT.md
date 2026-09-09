@@ -467,52 +467,33 @@ workspace；在切换器中可见、带原因、不可切换、可移除，由 `
 _Avoid_：失效条目、损坏的 workspace、隐藏（不可用的仍然可见）
 
 **已运行进程（Running Process）**：
-已在本机端口上监听的 host 进程（`persimmon-host`）；再次执行 `persimmon` 命令
+已在本机端口上监听的 persimmon 进程；再次执行 `persimmon` 命令
 时接入它而不再起第二个，由 `spec-00011-FR-14` 持有。（「实例」一词留给 design 里逐 workspace 的
 那组服务，不在此复用。）
 _Avoid_：守护进程、后台服务、单例、已有实例
 
 **persimmon 命令（The `persimmon` Command）**：
-名为 `persimmon` 的 Go 二进制，全部命令行入口（`new` / `update` / `list-langs` /
-`add` / `remove` / `list` / `version` / `help`（含 `-h` / `--help`）/ 无子命令
-启动）的唯一承载者，由 `decision-00020` 定，`design-00004` 持有形状，
-`spec-00012-persimmon-command`（入口、启动、`version`、分发）与
+npm 包 `@ryan-alexander-zhang/persimmon` 的 bin，全部命令行入口（`new` /
+`update` / `list-langs` / `add` / `remove` / `list` / `version` / `help`（含
+`-h` / `--help`）/ 无子命令启动）的唯一承载者，由 `decision-00020` 定，
+`spec-00012-persimmon-command`（入口、启动、`version`）与
 `spec-00013-persimmon-scaffold`（`new` / `update` / `list-langs` 与登记闭环）
-持有条目。它不是已运行进程；它拉起的 host
-才是。
-_Avoid_：CLI（本词汇表里 CLI 指 agent CLI）、ainpt（已并入）、脚本、npm bin、
+持有条目。无子命令且本机没有已运行进程时，它自己开始监听，成为那个进程。
+_Avoid_：CLI（本词汇表里 CLI 指 agent CLI）、ainpt（已并入）、脚本、二进制、
 启动器
-
-**host 包（Host Package）**：
-npm 包 `@ryan-alexander-zhang/persimmon-host`：白板服务本体（`Host` 类、HTTP/WS
-API、Web UI），bin 为 `persimmon-host`，只监听与服务，不含任何子命令逻辑；由
-`persimmon` 命令以钉死版本经 `npx` 拉起（`design-00004` §3）。
-_Avoid_：后端、服务器包、persimmon 包（那是旧名）
-
-**版本配对（Version Pairing）**：
-`persimmon` 命令**拉起**的服务与命令自身版本号相同这一性质，可观测为
-`/api/instance` 的 `version` 等于 `persimmon version` 的输出，由
-`spec-00012-FR-5` 持有。接入一个已在运行的进程不受它约束。
-_Avoid_：版本锁定、钉版本（那是达成版本配对的手段，属 design）、配对（裸词
-——词汇表中另指 `supersedes` 的成对判定）
-
-**开发覆盖（Development Override）**：
-把开板指向一份本地检出而绕过版本配对的环境变量开关（`PERSIMMON_HOST`），由
-`spec-00012-FR-6` 持有；开发态构建下它是开板的前置（`spec-00012-FR-8`）。
-_Avoid_：调试模式、本地模式
 
 **模板仓库（Template Repository）**：
 `persimmon new` 与 `persimmon update` 取材的那个仓库，其每个分支是一个模板
 （`main` 为基础模板、`lang/<l>` 为语言模板、`lang/<l>/<v>` 为变体模板），
-每个分支自带 `template.json` 描述自己的脚手架；缺省坐标编译期钉死，可由环境
-变量覆盖，由 `spec-00013-FR-1` 持有。
+每个分支自带 `template.json` 描述自己的脚手架；缺省坐标可由环境变量覆盖，
+由 `spec-00013-FR-1` 持有。
 _Avoid_：脚手架仓库、骨架库、ai-native-project-template（那是缺省坐标的具体
 值，不是概念名）
 
 **创建标记（Creation Marker）**：
 `persimmon new` 在新项目根目录写下的一份文件，记住项目来自哪个模板仓库、
 哪个 ref、创建时的哪个提交与哪些变量；`update` 以它记下的提交为三方合并的
-基准。文件名永久沿用 `.ainpt.json`（`decision-00020` §2 第 5 条：改名会让
+基准。文件名永久沿用 `.ainpt.json`（`decision-00020` §2 第 7 条 ③：改名会让
 全部既有项目的 `update` 失效），由 `spec-00013-FR-3` 持有。
 _Avoid_：锁文件、lock（那是实现里的类型名）、清单、配置
 

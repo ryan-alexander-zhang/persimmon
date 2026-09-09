@@ -19,7 +19,7 @@ informs: [spec-00011-multi-workspace]
 flowchart LR
   CMD[persimmon 命令<br/>无子命令=启动或接入 · add · remove · list] -->|探测 GET /api/instance<br/>登记 POST /api/workspaces| HOST
   CMD -.->|无已运行进程时直接读写| REG
-  CMD ==>|无子命令且无已运行进程<br/>npx 拉起 host 包| HOST
+  CMD ==>|无子命令且无已运行进程<br/>命令自身即该进程| HOST
   subgraph Process[一个 Node 进程 · 一个 HTTP server]
     HOST[Host<br/>注册表读写 · 可用性判定 · 实例表 · 路由与 WS 升级分发 · SPA 与静态资源 · 关停扇出]
     B1[Board · workspace A]
@@ -56,20 +56,31 @@ flowchart LR
 - **Host** 只做六件事：读写注册表（§2）、判定可用性（§3）、惰性建实例并持有
   实例表（§4）、分发 HTTP 与 WS（§5）、服务 SPA（§6）、关停扇出（§7）。它不
   解析任何文档、不发起任何会话。
-- **`persimmon` 命令**（第三十一轮补入参与者，`decision-00020`）：探测已运行
-  进程、经其 API 或直接读写注册表登记、无进程时拉起 host 包的服务。它不是
-  已运行进程，不常驻，形状由 `design-00004` 持有。
+- **`persimmon` 命令**（第三十一轮补入参与者，`decision-00020`；第三十二轮据
+  该决定的回退改写）：它是**本 npm 包的 bin**。探测已运行进程、经其 API 或
+  直接读写注册表登记；**无已运行进程时它自己在同一进程内建 Host 并监听**——
+  那一次调用就是「已运行进程」，不再有「拉起另一个产物」这一层。有已运行进程
+  时它打印地址后退出，不常驻。（第三十一轮此处写的是「无进程时拉起 host 包的
+  服务，它不是已运行进程，形状由 `design-00004` 持有」，那是两产物形态。）
 - **浏览器 SPA** 一份，URL 路径 `/w/<wid>` 指明当前 workspace（§6）。
 
 ## 2. 注册表文件契约
 
-`~/.persimmon/workspaces.json`（目录名同命令名，`idea-00004` 已定方向
-第 3 条；用户目录取 `os.homedir()`。第三十一轮据实校正：原作「目录名同包名与
-命令名」——包已改名为 host 包，目录名跟的是命令名）。Host 以**构造参数**
+`~/.persimmon/workspaces.json`（目录名同包名与命令名，`idea-00004` 已定方向
+第 3 条；用户目录取 `os.homedir()`。第三十一轮曾据当时的改名校正为「目录名跟的
+只是命令名」，第三十二轮包名改回 `@ryan-alexander-zhang/persimmon`、bin 名同为
+`persimmon`，两者复归一致）。Host 以**构造参数**
 `registryPath` 接收文件路径——测试指到临时目录，与 `spawn`、`awaitThresholdMs`
 等既有测试缝同一形态（design-00001 §5）；不引入环境变量。`persimmon` 命令
 自己也从用户目录推同一个路径，其测试改 `HOME` 来指向临时目录——今天
 `bin/persimmon.js` 的测试就是这么做的，不另立机制（第三十一轮补）。
+
+**这份契约只有一份实现**（第三十二轮，`decision-00020` §2 第 5 条）：读写注册表
+的是 `src/workspaceRegistry.ts`，判可用性的是 `src/workspaceAvailability.ts`；
+Host 与命令的无进程路径调用的是同一个模块——命令就是本包的 bin，与 Host 同一
+进程、同一份代码。第三十一轮的两产物形态曾让这份契约有 Go 与 TS 两份实现、
+并把防漂移的责任交给文档与两侧测试，本轮随该形态一并撤销：**不得再出现第二份
+注册表实现**（`decision-00020` §2 第 9 条）。
 
 ```json
 {
@@ -96,7 +107,7 @@ flowchart LR
   已登记路径时返回既有条目（幂等——`persimmon new` 的登记步骤依赖这一点；
   第三十一轮：依赖方变了，不只是改名——原先依赖它的是模板 `post_create` 调
   `persimmon add` 这条跨仓库通路，现在是命令自己走的那条注册表路径，
-  `decision-00020` §2 第 5 条）。
+  `decision-00020` §2 第 7 条 ②）。
 - **文件不存在 = 空注册表**。文件存在但不可解析、`version` 不是 `1`、任一
   条目缺 `id`/`name`/`path`、`id` 重复或不匹配 `[a-z0-9-]+`、`path` 非绝对、
   文件不可读、`~/.persimmon` 是文件而非目录——**整份不合式**，唯一的读入口
@@ -348,9 +359,9 @@ flowchart TD
   WID --> P
   NOWID --> P{GET http://127.0.0.1:PORT/api/instance<br/>PORT = 环境变量或 4173 · 超时 1s}
   P -->|200 且 app == persimmon| VIA[目标经 POST /api/workspaces 登记<br/>打印已运行进程的 /w/wid 或 / · exit 0]
-  P -->|连接被拒| LISTEN[目标直接写入注册表文件<br/>拉起 host 监听 PORT · 地址由 host 打印<br/>第三十一轮：原为「本进程监听」]
-  P -->|超时 · 非 200 · app != persimmon| ERR[报「端口 PORT 已被占用」<br/>不登记 · exit 1]
-  LISTEN -->|EADDRINUSE| ERR
+  P -->|ECONNREFUSED| LISTEN[目标直接写入注册表文件<br/>本进程建 Host 并监听 PORT · 自己打印地址<br/>第三十二轮改回：第三十一轮曾为「拉起 host」]
+  P -->|超时 · 非 200 · app != persimmon<br/>其他连接错误 如 ECONNRESET<br/>未登记| ERR[报「端口 PORT 已被占用」· exit 1]
+  LISTEN -->|EADDRINUSE：登记已完成 · 不回滚| ERR
 ```
 
 （第三十一轮：本节原题「CLI 与启动握手」，`CLI` 在 `CONTEXT.md` 中专指
@@ -362,21 +373,32 @@ agent CLI，故本节与以下各处一律称「`persimmon` 命令」或「命�
   用户看到「已被占用」再试一次即可；不把超时读作「不是自己人」以外的东西。
   探测到监听之间的竞态由 `server.on('error')` 的 EADDRINUSE 兜底，两处
   同一条报错。
+- **只有 `ECONNREFUSED` 读作「没人在」**：探测的其他连接错误（`ECONNRESET`、
+  `ECONNABORTED`、`EHOSTUNREACH` 等）与超时同归「被占用」——能否连上是二值的，
+  连上了又断掉不是「端口空着」。图上那条边据实标出（第三十二轮的审计据
+  `40a5ca5^:bin/persimmon.js` 的 `probe()` 补：原图只列了超时与非 200 两项，
+  实现是 `error.cause?.code === 'ECONNREFUSED' ? 'free' : 'occupied'`）。
+- **竞态下的那一条登记保留，不回滚**：无进程路径先写注册表再监听
+  （`registry.add` 在 `host.listen` 之前），所以探测之后才被抢走端口时，
+  EADDRINUSE 兜底报错并 exit 1，而条目已经落盘。这是有意的：`add` 幂等，
+  项目确实在那儿，下一次启动照常接入。图上「未登记」只属探测阶段就判出的占用
+  （`spec-00011-FR-15`）。
 - **子命令**：`persimmon add [path] [--name <n>]`（`path` 缺省为 cwd 向上
   找到的项目根；输出登记结果 JSON；幂等；退出码 0/1）、`persimmon remove
   <id|path>`、`persimmon list`（表格：id、name、path、可用性）。`remove` 的路径形态先 `realpath` 再在注册表里查到 `id`，其后一律按 `id`
   操作。三者都先探测已运行进程：有则经其 API（写入由它串行、切换器随即
   可见；`POST` 答 422/500 时命令报出该 `error`、以非 0 退出）；无则直接读写
   文件。注册表不合式时三者同样拒绝并指明（§2 的唯一读入口）。
-  **第三十一轮（`decision-00020`）：执行者是 `persimmon` 命令这个独立二进制，
-  不再是 npm 包的 bin**——本段的三态判定、输出与退出码一字不改，无进程路径的
-  读写由 Go 侧的同一份文件契约实现（§2 仍是唯一来源，两份实现见
-  `design-00004` §4）；无进程的 `list` 里命令自己只算得出三种不可用
-  （目录不存在、不是 git 仓库、目录内无流程配置）——「配置非法」要的是流程
-  配置校验器本身，而「可用」是走完全部判定才有的结论，两者都得自 host 包的
-  `--judge` 查询模式（`design-00004` §4）；取不到那份判定时的退让见
-  `spec-00011-FR-21` 的 `If` 分支。
-- **`persimmon new` 的登记**（第三十一轮据 `decision-00020` §2 第 5 条改写）：
+  **第三十二轮（`decision-00020` 的回退）：执行者是 `persimmon` 命令，
+  即本 npm 包的 bin `bin/persimmon.js`**——本段的三态判定、输出与退出码三轮
+  一字不改。无进程路径的读写调用 §2 的同一份 `src/workspaceRegistry.ts`，
+  无进程的 `list` 直接调用 `src/workspaceAvailability.ts` 的判定：五态一次给全，
+  不起子进程、不降级。（第三十一轮曾把执行者写成一个独立的 Go 二进制、无进程
+  路径由 Go 侧第二份文件契约实现，`list` 只自算三种不可用，「配置非法」与
+  「可用」两态要向 host 包的 `--judge` 查询模式讨、讨不到就退让——`--judge`、
+  那份第二实现与 `spec-00011-FR-21` 的 `If` 分支随本轮一并删除。）
+- **`persimmon new` 的登记**（第三十一轮据当轮决定表第 5 条改写，该裁定第
+  三十二轮存续为 `decision-00020` §2 第 7 条 ②）：
   登记由 `persimmon new` 自己在脚手架完成后做，走与 `add` 相同的那条路径
   （非交互、幂等、已登记时仍以 0 退出）；模板 `post_create` 保持现状，只做
   git 初始化两步，模板仓库不必知道白板的存在。流程与失败处置（脚手架失败不
@@ -389,9 +411,9 @@ agent CLI，故本节与以下各处一律称「`persimmon` 命令」或「命�
   握手也探 `127.0.0.1`。通配绑定不排他于回环上的具体绑定，机器上任何回环
   占位者都能在测试与握手里冒充我们；根因与实测见 `issue-00028`。打印给用户
   的仍是 `http://localhost:<port>`。
-- `/api/instance` 的 `version` 只用于打印（「接入 persimmon-host vY」，措辞
-  与 `design-00004` §9 一致；第三十一轮据实校正：原作「接入 persimmon 0.2.0」，
-  在场的是 host 而不是命令），**不**
+- `/api/instance` 的 `version` 只用于打印（「接入 persimmon v<对方的版本>」；
+  第三十一轮曾改作「接入 persimmon-host vY」，理由是两产物形态下在场的是 host
+  包而不是命令，第三十二轮随包名回退改回——在场的又是同一个产物），**不**
   参与握手判定：旧版本在跑也接入——两个版本共用注册表比版本门更坏，用户
   看到版本号自己决定是否重启它。
 - 打印的地址带 workspace：`persimmon: http://localhost:4173/w/persimmon`
@@ -436,38 +458,43 @@ sequenceDiagram
 
 ## 10. 代码位置与运行
 
-结构事实（逐文件改动由 plan 持有）：
+包结构、代码位置、Go 侧的移植面与开发命令的**唯一权威是
+[`design-00004-persimmon-cli`](design-00004-persimmon-cli.md) §6 与 §7**
+（该文档第三十二轮已原地改写：节号一一保留、内容全换、全部现行）。本节只留与
+多 workspace 直接相关的那几条结构事实，其余不复述——两处同一份清单必然漂移
+（第三十二轮的审计据此清理：本节此前与那两节重复权威，并附一句「那份 design 的
+§6/§7 随之作废」的宣告，两者都已不真）。逐文件改动由 plan 持有。
 
-- 仓库根即 **host 包**根：包名、bin 名、入口文件与 `files` 白名单
-  **由 `design-00004` §6/§7 持有**，本节不复述（第三十一轮改为指针：原文在此
-  钉死 `name: "@ryan-alexander-zhang/persimmon"` 与
-  `bin: { persimmon: bin/persimmon.js }`，理由是 npm 上的 `persimmon` 被无关包
-  占用而作用域包保住这个名字——命令改为独立二进制后这个 bin 名让给它，
-  npm 包不再持有任何命令行入口，两处各写一份包结构必然漂移）。去掉 `private`
-  这一点不变。
-  **服务端源码不随包分发**：Node 在 `node_modules` 之下**不做**类型剥离
+- **仓库根即本包根**，本仓库自己的 `whiteboard.config.yaml` 与 `docs/` 仍在根
+  ——**本仓库就是第一个 workspace**（`decision-00019` §4，`spec-00011-FR-20`），
+  配置测试读根配置的现状不变。包名、`bin`、`files`、`license` 与 `scripts`
+  见 `design-00004` §7。
+- **命令与 Host 同一个包、同一个进程**：命令行入口薄，握手与 `add` / `remove` /
+  `list` 的实现落在 `src/`（覆盖率门只看 `src/`；`design-00004` §6 是这条的
+  权威）。注册表与可用性判定就是 §2 与 §3 的那一份
+  （`src/workspaceRegistry.ts`、`src/workspaceAvailability.ts`），没有第二份；
+  「cwd 是否在某项目内」（§8）的判定调既有的 `findRepoRoot`，坐标见
+  `design-00004` §6 的对照表，命令侧不另写一份（`decision-00020` §2 第 9 条）。
+- **服务端源码不随包分发**：Node 在 `node_modules` 之下**不做**类型剥离
   （`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`，一个发布的包须携带能跑的
   JavaScript），所以 `build` 除 `dist/web` 外还以 `tsconfig.build.json` 把
   `src/*.ts` 编译到 `lib/*.js`——与 `src/` 同深度，`../dist/web` 这类相对引用
-  在两种布局下都成立——host 包的 bin 引 `../lib/*.js`（第三十一轮：那个文件
-  自此是 `bin/host.js`，瘦身后的形状与 `--judge` 查询模式见 `design-00004`
-  §3/§4），`prepack` 即
-  `build`。仓库自己的测试仍直接引 `src/*.ts`。（本条初版写作「`files` 含
-  `src/`」，安装形态实测在 T11 当场证伪，`issue-00029` 记根因；据实校正。）`postinstall` 的 `fix-pty-permissions.js` 与 `node-pty` 原生
-  构建在 `npx` 缓存这一条安装路径下能否成立见下文的实测义务（第三十一轮据实
-  校正：原作「两种安装路径」，指命令自己的全局安装与 `npx`；命令让出 npm bin
-  后 host 包只经 `npx` 取得，`design-00004` §3，且 `issue-00030` 已证 pty 的
-  可执行位由运行时补上）。
-- **命令行入口在 `cli/`**（第三十一轮增，`decision-00020` §2 第 1、2 条）：
-  `persimmon` 命令的全部代码（子命令分发、脚手架、注册表的文件实现、探测与
-  拉起 host）位于仓库根下的 `cli/`，带独立 `go.mod`，与 npm 包的构建互不相干；
-  目录内的模块划分、发布线与迁入的改动清单由 `design-00004` §6/§8 持有。
-  今后任何命令行入口只能加在那里，npm 包不再引入 bin 逻辑。
-- `src/`、`web/`、`test/`、`bin/`、`scripts/`、`vite.config.ts`、
-  `vitest.config.ts`、`tsconfig.json`、`components.json` 位于根；`tools/` 不再
-  存在。与根既有文件的重合：`tools/whiteboard/README.md` 的命令表并入根
-  `README.md`；`scripts/` 目录与根既有的 `scripts/sync-docs.sh` 同目录共存
-  （文件名不撞）。
+  在两种布局下都成立——bin 引 `../lib/*.js`，`prepack` 即 `build`。仓库自己的
+  测试仍直接引 `src/*.ts`。（本条初版写作「`files` 含 `src/`」，安装形态实测在
+  T11 当场证伪，`issue-00029` 记根因；据实校正。）
+- **`postinstall` 的 `fix-pty-permissions.js` 与 `node-pty` 原生构建在全局安装与
+  `npx` 缓存两条安装路径下能否成立，是实测义务而不是设计决定**：承载者是
+  `scripts/test-install.js`（`npm pack` 出 tarball，两种形态各跑一次，并起一次
+  真 pty），见 `spec-00011` §7 与 `spec-00011-AC-20.3`。（第三十二轮改回两条
+  路径：第三十一轮让出 npm bin 后只剩 `npx` 一条，本包收回 bin 名后两条并存；
+  `issue-00030` 已证 pty 的可执行位由运行时补上。本轮的审计另删去本节此前
+  重复出现、且以「全局安装随命令让出 npm bin 而不复存在」为理由的第二条同义
+  bullet——那个理由已不真。）
+- **`tools/whiteboard` 迁到根**：`src/`、`web/`、`test/`、`bin/`、`scripts/`、
+  `vite.config.ts`、`vitest.config.ts`、`tsconfig.json`、`components.json` 位于
+  根；`tools/` 不再存在。与根既有文件的重合：`tools/whiteboard/README.md` 的
+  命令表并入根 `README.md`；`scripts/` 目录与根既有的 `scripts/sync-docs.sh`
+  同目录共存（文件名不撞）。
 - 构建配置、忽略规则、测试与根指南都不再写死 `tools/whiteboard`；今天写死它
   的位置（`.gitignore` 两处、`test/tracked.test.ts` 的路径断言、
   `ARCHITECTURE.md` §2 与 §5、`DEVELOPMENT.md` Commands）由 plan 逐一改。
@@ -475,13 +502,6 @@ sequenceDiagram
   缺失或非法即致命」——改写为「一进程多 workspace」与「按 workspace 不可用」；
   §11 的两行风险（「一进程一仓库」与「代码仍在 `tools/whiteboard/`」）由本设计
   消解，随之退役。
-- `node-pty` 的 `postinstall` 与原生构建在 `npx` 缓存路径下的行为，
-  是 plan 轮的实测义务（`spec-00011` §7），不是设计决定（第三十一轮据实校正：
-  原作「全局安装与 `npx` 缓存两种路径」——前者随命令让出 npm bin 而不复存在）。
-- 本仓库自己的 `whiteboard.config.yaml` 与 `docs/` 仍在根——本仓库就是第一个
-  workspace（`decision-00019` §4），配置测试读根配置的现状不变。`findRepoRoot`
-  保留在 `lib/` 供 Host 自用；「cwd 是否在某项目内」（§8）的判定自第三十一轮起
-  由 `persimmon` 命令在 Go 侧自己做（`decision-00020`、`design-00004` §3）。
 - `design-00001` §8 的「代码放 `tools/whiteboard/`」与 §7 的 API 表、§5 的
   会话状态通路，以及 `design-00002` §2/§3/§13，均为 `active` 文档，随各自的
   修订轮（`rule-00001-BR-3`）改写，不随本设计的接收顺带改。
@@ -495,8 +515,9 @@ sequenceDiagram
   `osascript`）与**要有图形会话**（ssh 进来跑就开不了）。代价由 FR-24
   兜住：开不了就说一句，键入路径这条路始终在，「浏览」从来不是登记的必经之路。
   别的平台**未实现也未实测**——Linux 常见做法是 `zenity`/`kdialog`（两者都不
-  保证装了），Windows 要走 WinForms/COM 而不是一行命令；本轮不声称它们「各补
-  一行」，只声称本设计留了同一个出口：换一条命令，契约不变。
+  保证装了）；本轮不声称它们「各补一行」，只声称本设计留了同一个出口：换一条
+  命令，契约不变。Windows 不必留这个出口：**支持平台仅 linux 与 darwin**，
+  Windows 明写在支持范围外（域主 2026-09-09 裁定，`decision-00020` §2 第 10 条）。
   另一条路（服务端目录浏览器）跨平台、无 GUI 也能用，但要多写百余行并自带
   一套需要测试的树形交互——若将来要在无图形会话的机器上用，它是既定的升级方向。
 

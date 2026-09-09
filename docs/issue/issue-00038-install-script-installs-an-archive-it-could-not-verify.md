@@ -139,3 +139,12 @@ blocks: [plan-00033-persimmon-command]
 - Blocks: plan-00033-persimmon-command（T8 的 `install.sh` 校验和偏离）
 - Related: spec-00012-persimmon-command（`FR-11`、`AC-11.1` … `AC-11.5`、
   `FR-10`、`AC-10.1`）、design-00004-persimmon-cli（§6 追注）
+
+## 第三十二轮追注（2026-09-09）：修复对象已删除
+
+`decision-00020` 第三十二轮撤除了整条发布线，`install.sh` 与
+`test/install.test.ts` 一并删除。本 issue 留 `status: resolved`——缺陷确曾
+被定位并修复（校验和不符即中止），只是承载它的脚本此后不再存在。
+
+若日后重建安装脚本，本 issue §根因（`&&` / `||` 吃掉非 0 退出码使 `set -e`
+失效）仍然适用，须先读它再动手。

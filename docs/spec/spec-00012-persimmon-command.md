@@ -287,10 +287,10 @@ parent: prd-00003-multi-workspace
   进程时的接入（`spec-00011-FR-14`）；端口被他人占用与经进程登记失败的拒绝
   （`spec-00011-FR-15`）；关停时对每个 workspace 每个会话的收尾扇出
   （`spec-00011-FR-16`）；npm 包名与 bin 名（`spec-00011-FR-20`）。
-- `config` 子命令（`decision-00020` §2 第 7 条不在其范围内，故也不在本 spec 的
+- `config` 子命令（`decision-00020` §2 第 7 条 ⑥ 不在其范围内，故也不在本 spec 的
   子命令集内）。
-- 白板界面里的 workspace 创建（届时由 Host 以子进程调 `persimmon new`，
-  `decision-00020` §2 第 7 条）。
+- 白板界面里的 workspace 创建（届时由 Host 直接调用同进程的脚手架模块，
+  `decision-00020` §2 第 8 条）。
 - 发布线的实现：一个 tag 触发两个产物、workflow 的形状与先后、归档命名、
   校验和文件如何产出——`design-00004` §8。本 spec 只持有用户侧的取得形态与
   安装时对校验和的处置（`FR-10`、`FR-11`）。

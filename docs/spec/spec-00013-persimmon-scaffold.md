@@ -27,7 +27,7 @@ parent: prd-00003-multi-workspace
   - **创建标记（Creation Marker）**：`new` 在新项目根目录写下的一份文件，记住
     项目来自哪个模板仓库、哪个 ref、创建时的哪个提交与哪些变量；`update` 以
     它记下的提交为三方合并的基准。文件名永久沿用 `.ainpt.json`
-    （`decision-00020` §2 第 5 条：改名会让全部既有项目的 `update` 失效）。
+    （`decision-00020` §2 第 7 条 ③：改名会让全部既有项目的 `update` 失效）。
     _Avoid_：锁文件、lock（那是实现里的类型名）、清单、配置。
   - **模板管辖文件（Template-managed File）**：当前上游模板分支里存在、且未被
     **该分支**的 `template.json` 的 `exclude` 命中的文件；只有它们参与
@@ -92,7 +92,7 @@ parent: prd-00003-multi-workspace
   `lang/<l>/<v>`；`--ref <branch>` 覆盖以上一切。`--dir <path>` 指定新项目的
   父目录（缺省当前目录）；`--set KEY=VALUE` 可重复地提供模板变量；模板仓库的
   坐标可由环境变量 `AINPT_OWNER` / `AINPT_REPO` 覆盖（名字沿用，
-  `decision-00020` §2 第 8 条）。旗标可出现在 `<name>` 之前或之后，结果相同
+  `decision-00020` §2 第 7 条 ④）。旗标可出现在 `<name>` 之前或之后，结果相同
   （解析方式属 `design-00004` §2；恰一个位置参数由 `FR-4` 保证）。
 - **spec-00013-FR-2** (Event) 当 `new` 取到模板分支时，系统应按该分支
   `template.json` 的声明落地：`exclude` 命中的路径不复制（目录被命中即整棵
@@ -489,8 +489,9 @@ parent: prd-00003-multi-workspace
 - 模板仓库的内容：`template.json` 的字段设计、有哪些语言与变体分支、
   `post_create` 具体做什么、模板里的 `whiteboard.config.yaml` 长什么样。本 spec
   只规定命令**如何处置** `template.json` 所声明的东西（`FR-2`）。
-- `config` 子命令与白板界面里的 workspace 创建（`decision-00020` §2 第 7 条）；
-  后者到来时由 Host 以子进程调 `persimmon new`，脚手架逻辑仍只此一份。
+- `config` 子命令与白板界面里的 workspace 创建（`decision-00020` §2 第 7 条 ⑥）；
+  后者到来时由 Host 直接调用同进程的脚手架模块（同决定 §2 第 8 条，第三十二轮
+  推翻了原先的「以子进程调 `persimmon new`」），脚手架逻辑仍只此一份。
 - 交互式脚手架：变量缺值一律失败（`FR-2`、`FR-5`），不提问、不读 TTY。
 - `update` 的事务性：合并中途失败不回滚已加入的文件（`FR-12`），也不提供
   `--abort` 一类的撤销。

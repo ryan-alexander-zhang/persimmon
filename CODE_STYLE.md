@@ -32,10 +32,6 @@ Keep related logic together and keep code organization easy to follow.
 
 Use the canonical formatting rules and avoid manual style drift.
 
-Go under `cli/` is formatted by `gofmt` and no other formatter, and follows Go
-naming convention: lowercase, single-word package names, and a doc comment on
-every exported identifier.
-
 ### Comments
 
 Write comments only when they add meaning that the code does not already show.

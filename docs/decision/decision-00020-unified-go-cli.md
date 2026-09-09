@@ -19,8 +19,10 @@ constrains: [spec-00011-multi-workspace, design-00003-multi-workspace, design-00
 > 对话中提出去掉 Go 层。§2 的决定表是回退后的现行裁定；被推翻的原裁定、
 > 推翻的理由与代价见文末第三十二轮追注。
 >
-> 推翻 `spec-00011-FR-20`（包名与安装形态）、`design-00003` §8「`ainpt new`
-> 的登记属模板仓库」与 §10「命令是 `bin/persimmon.js`」三处现状。
+> 推翻 `spec-00011-FR-20`（包名与安装形态）。另两处曾在 2026-09-08 被列为
+> 推翻对象——`design-00003` §8「`ainpt new` 的登记属模板仓库」与 §10「命令是
+> `bin/persimmon.js`」——今天都已不是冲突：前者第三十一轮即改为「登记由
+> `persimmon new` 自己做」，后者第三十二轮恰恰把它恢复为真。
 
 ## 1. 需要做这个决定的原因
 
@@ -44,6 +46,11 @@ constrains: [spec-00011-multi-workspace, design-00003-multi-workspace, design-00
 
 ## 2. 决定
 
+> **行号在第三十二轮位移过**：本表被整体重写，旧表的第 1…8 条与新表的编号
+> 不对应。仓内以「`decision-00020` §2 第 N 条」为坐标的引用约五十处，第三十二轮
+> 已核校并改正过一轮；`spec-00012` 与 `spec-00013` 尚待其修订轮再核一遍。引本表
+> 时请连同该条的内容一起写，不要只写行号。
+
 | # | 做法 | 理由 |
 | --- | --- | --- |
 | 1 | 一个 `persimmon` 命令承担**全部**命令行入口：`new` / `update` / `list-langs` / `add` / `remove` / `list` / `version` / `help` / 无子命令（启动或接入）。命令即本 npm 包的 bin，不引入第二种实现语言、不引入第二个产物 | 一个名字、一份 usage、一个版本号；模板项目的用户只装一个东西 |
@@ -55,6 +62,7 @@ constrains: [spec-00011-multi-workspace, design-00003-multi-workspace, design-00
 | 7 | 以下 2026-09-08 的裁定不受本轮回退影响，继续有效：<br>① ainpt 仓库 README 改为指向本仓库的说明并归档，不再发布 `ainpt` 二进制；<br>② `persimmon new` 在脚手架完成后**自己**登记新项目（走与 `add` 相同的路径），模板 `template.json` 的 `post_create` 保持现状（只做 git 初始化）；<br>③ 创建标记文件名保留 `.ainpt.json`——改名会让所有既有项目的 `update` 失效，零收益；<br>④ 保留 `AINPT_OWNER` / `AINPT_REPO` 环境变量名——已在用户 shell 配置里；<br>⑤ `add` 的双路径（`spec-00011-FR-13/14`）保留：有已运行进程走 Host API，无进程直接读写文件；<br>⑥ `config` 子命令与白板界面里的 workspace 创建不在本决定范围 | 本轮推翻的是「用什么语言、怎么分发」，不是「入口要不要合一」 |
 | 8 | 界面创建到来时，Host **直接调用同进程的脚手架模块**（原裁定为「以子进程调 `persimmon new`」）。这是第 1 条的直接后果，不是第 7 条的重述 | 同一个包里的模块，起子进程只是多一层 |
 | 9 | 今后不得再为命令行引入第二种实现语言，不得再出现第二份注册表实现或第二份脚手架 | 本轮回退的成本正是这两件事产生的 |
+| 10 | **支持平台仅 linux 与 darwin**，Windows 明写在支持范围外（域主 2026-09-09 裁定）| 模板带 `CLAUDE.md -> AGENTS.md` 符号链接，Windows 建链接需 Developer Mode 或提权；解归档改用外壳 `tar`，Windows 上不保证存在；node-pty 在 Windows 从未实测。原 goreleaser 虽出过 windows 产物，那条路径同样从未验过——本裁定是把既有事实写明，不是收窄 |
 
 ## 3. 考虑过的其他选项
 
@@ -66,7 +74,7 @@ constrains: [spec-00011-multi-workspace, design-00003-multi-workspace, design-00
 | 保留 Go 只做 `new`，其余回 Node | **否决**。回到两个二进制、两个名字，正是本决定要消灭的形态；脚手架仍要在界面创建时被第三处调用 |
 | 把 `scaffold` 留在 Go、由 Node 以子进程调用 | **否决**。等于保留整条 Go 工具链与跨语言启动，只为省一次移植 |
 | 保留 `cli/` 目录备将来之需 | **否决**。YAGNI；git 历史完整保存，真要回去 `git revert` 即可 |
-| 引入 `up` / `down` 子命令 | **否决**。`down` 要再写一遍探活与终止阶梯，前台进程 Ctrl-C 即停；只留 `up` 则与既有的「无子命令即启动」两种做法做同一件事。域主在 2026-09-09 对话中以「比如」举例提到 `up/down`，本条是起草者在其外的判断，随本轮修订交域主确认 |
+| 引入 `up` / `down` 子命令 | **否决**。`down` 要再写一遍探活与终止阶梯，前台进程 Ctrl-C 即停；只留 `up` 则与既有的「无子命令即启动」两种做法做同一件事。域主于 2026-09-09 确认不做 |
 | 把本轮回退写成一份新的 `decision-00021` 并归档本文档 | **否决**。`docs/README.md:23` 的缺省是原地修订，新文档只留给「不可重写（已发布或被仓库之外引用）」的文档；本文档两者皆非，且已有两段原地追注的先例。归档它会造出约 70 处指向非现行文档的引用，其中相当一部分引的是第 7 条那些**存续**的裁定 |
 | 把 Node 服务也重写为 Go | **否决**。约 30 个服务端模块、PTY、WS、React 前端；不在讨论范围 |
 | `npm install -g` 一个独立 host 包作为前置步骤 | **否决**。单产物下不存在第二个包 |
@@ -119,8 +127,10 @@ constrains: [spec-00011-multi-workspace, design-00003-multi-workspace, design-00
 - `spec-00012-persimmon-command`：逐条——`FR-3`（转发 stdout/stderr、以服务
   退出码退出）与 `FR-4`（向子进程转发信号）**改写**为同进程模型；`FR-5`
   （版本配对）、`FR-6`（开发覆盖 `PERSIMMON_HOST`）、`FR-7`（本机无 Node 时
-  开板失败）、`FR-8`（开发态构建须设开发覆盖）、以及分发与 `install.sh`
-  校验和相关的 FR/AC **作废**；入口、子命令集、退出码、`version`、`help` 存续。
+  开板失败）、`FR-8`（开发态构建须设开发覆盖）、`FR-11`（校验和）**作废**；
+  `FR-10`（取得形态）是**改写**不是作废——它有替代形态（今天只有仓库检出，
+  发布后 `npx` / `npm i -g`），有替代的需求走改写；入口、子命令集、退出码、
+  `version`、`help` 存续。
 - `spec-00013-persimmon-scaffold`：需求内容整体存续，实现语言从 Go 变为 TS。
 - `spec-00011-multi-workspace`：FR-20 的包名与安装形态回到本包本名；
   `AC-20.1` 的 Given 字面是「已经 `install.sh` 装入 PATH」，须改写为 npm bin；
@@ -156,10 +166,15 @@ constrains: [spec-00011-multi-workspace, design-00003-multi-workspace, design-00
   `.github/workflows/release.yml`、`scripts/go-coverage.sh`、
   `test/install.test.ts` 删除；`.github/workflows/ci.yml`（:23-47 Go job）、
   `package.json`（:2 包名、:9 bin、:21 start、缺失的 license、:25 `test:install`）、
-  `scripts/test-install.js`（整个文件的前提是 `persimmon-host --judge`）、
+  `scripts/test-install.js`（**重写而不是删除**：去掉 `--judge`，改为对同一个
+  `npm pack` tarball 分别以 npx 形态与全局安装形态跑 `persimmon list` 并逐字
+  比对，承载复活的 `spec-00011-AC-20.2`，并保留起一次 pty 的那格，承载
+  `AC-20.3` 与 pty 实测义务；`test:install` 脚本保留。该脚本从来只需要
+  `npm pack`，不需要真发布）、
   `test/distribution.test.ts`（:17 包名、:60 以 `--judge` 作探针）、
   `test/host.test.ts`（:1079、:1105）、`test/startup.test.ts`（:13）、
-  `.gitignore`（:304-309 Go / goreleaser 段）、`bin/host.js` → `bin/persimmon.js` 改写。
+  `.gitignore`（:304-309 Go / goreleaser 段，另有 :45-52 的 `*.coverprofile` /
+  `profile.cov` / `go.work` / `go.work.sum` 落在该段之外，别以为扫一遍就干净）、`bin/host.js` → `bin/persimmon.js` 改写。
 - TS 侧命令测试的来源是 `cli/main_test.go`（1748 行，覆盖闭合子命令集）译过来；
   `40a5ca5` 删除的 `test/cli.test.ts`（482 行）只作为 TS 侧测试骨架的参考，
   不整体恢复——它与今天的 `test/startup.test.ts` / `test/host.test.ts` 有重叠。

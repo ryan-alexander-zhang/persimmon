@@ -85,31 +85,14 @@ Canonical commands for this repo, run from the repository root:
 - Test: `npm test` (coverage: `npm run test:coverage`)
 - Lint: `npm run typecheck` (no separate linter yet — see [CODE_QUALITY.md](CODE_QUALITY.md) §2)
 - Build: `npm run build` (the UI into `dist/web`, the server into `lib/`)
-- Run: `npm start` (serves the built UI on `PORT`, default 4173; the build is a
-  prerequisite, and it now emits the server the entry point imports into `lib/`
-  as well as the UI)
+- Run: `npm start` — the `persimmon` bin against this checkout (serves the built
+  UI on `PORT`, default 4173; the build is a prerequisite, and it emits the
+  server the entry point imports into `lib/` as well as the UI)
 
-The `persimmon` command lives in `cli/` and carries its own `go.mod`
-([design-00004](docs/design/design-00004-persimmon-cli.md) §6), so its commands
-run from that directory:
-
-- Test: `go -C cli test ./...` (coverage gate: `sh scripts/go-coverage.sh`, which
-  reruns the suite with a profile and fails on any package under its bar —
-  `go -C cli test -cover ./...` only prints)
-- Lint: `go -C cli vet ./...`, and `gofmt -l cli` must print nothing
-- Build: `go -C cli build ./...`
-
-`go -C cli` runs inside the `cli/` module from the repository root; the root has
-no `go.mod`, so a bare `go run ./cli` fails (design-00004 §7 追注).
-
-Developing this repo has two Run forms
-([decision-00020](docs/decision/decision-00020-unified-go-cli.md),
-design-00004 §7), both needing `npm run build` first because the host reads
-`lib/` and `dist/web`:
-
-- `npm start` — the host alone (`bin/host.js`): it serves and registers nothing
-- `npm run build && PERSIMMON_HOST=$PWD go -C cli run .` — the full handshake
-  against this checkout
+The `persimmon` command is this package's own bin and its scaffold is a module
+under `src/` ([decision-00020](docs/decision/decision-00020-unified-go-cli.md)
+§2), so the list above is the whole set: one artifact, one toolchain, one Run
+form.
 
 ## Development Matrix
 

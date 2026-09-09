@@ -242,3 +242,22 @@ verifies: [spec-00012-persimmon-command, spec-00013-persimmon-scaffold, spec-000
   （安装脚本不支持的平台上解归档跑 `persimmon version`）与
   `spec-00011-AC-20.1`（装入 PATH 后任意目录 `persimmon list`）仓内无带 id 的
   测试，仓内证据只有 snapshot 归档。须真实 linux 与 darwin 各跑一次真 Release。
+
+## 第三十二轮追注（2026-09-09）：所验收的交付已被推翻
+
+`decision-00020` 第三十二轮推翻了 Go 与两产物形态，`plan-00033` 随之转
+`wontfix`。本记录**留 `active`**：它如实记录了 2026-09-09 那次验收实际
+跑出的结果，`docs/README.md:27` 禁止以归档来记录结果。
+
+读本记录时须知三件事：
+
+1. 125 行 pass 的证据**全部是 Go 测试名**（`cli/...`）。`cli/` 移除后这些
+   路径不再存在，逐行溯源须回到 git 历史（本记录所引 commit 及其之前）。
+2. 16 行「待人工实测」中的 15 行随其需求一并作废：`spec-00012-AC-3.1`…
+   `3.3`、`AC-4.1`…`4.3`（npx 透传与信号转发，单产物下没有子进程）、
+   `AC-5.1` / `AC-5.2`（版本配对）、`AC-10.1` / `AC-10.2` / `AC-11.1`…
+   `11.5`（`install.sh` 校验和，脚本已删）。第 16 行 `spec-00011-AC-20.1`
+   的 Given 从 `install.sh` 装入 PATH 改写为 npm bin，由后续 plan 重验。
+3. 行为层面存续的是 `spec-00013` 的脚手架全部 70 条 AC 与 `spec-00011`
+   的注册表相关条目——它们在移植后须由新的验收记录重新取证，本记录不
+   替新实现背书。

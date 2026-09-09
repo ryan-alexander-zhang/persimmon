@@ -65,14 +65,9 @@ Use the following docs to define the project-specific framework choice for each 
 - [API_TESTING.md](API_TESTING.md): fill in the API testing guide for this repo.
 - [E2E_TESTING.md](E2E_TESTING.md): fill in the E2E testing guide for this repo.
 
-The `persimmon` command in `cli/` has the unit level only — `go test ./...` with
-the standard library `testing` package, no browser and no E2E. Where its
-behaviour is an HTTP contract, the startup handshake's `GET /api/instance` and
-`POST /api/workspaces`
-([design-00004](docs/design/design-00004-persimmon-cli.md) §3–§5), the API-level
-test is a Go test against an `httptest` stub server rather than a Bruno
-collection: what is under test is the request the command sends and how it reads
-the reply, and the server side of that contract is covered by the TS suites.
+The `persimmon` command is part of this package, so it is tested by the same
+vitest suites as the rest of `src/` — the unit level only, no browser and no
+E2E ([decision-00020](docs/decision/decision-00020-unified-go-cli.md) §2).
 
 ## Testing Matrix
 
@@ -98,8 +93,6 @@ A change is done only when all of these are true:
 - for executable code changes, line coverage is at least 90%
 - for executable code changes, branch coverage is at least 90%
 - for executable code changes, function coverage is at least 90%
-- for Go code changes under `cli/`, statement coverage is at least 90% for new
-  packages, in place of the three bars above (see Coverage)
 
 ## Coverage
 
@@ -111,15 +104,9 @@ For executable code changes, the minimum acceptable coverage is `90%` for line c
 
 Do not mark work complete below this bar unless an explicit exception is approved in advance.
 
-### Go (`cli/`)
-
-The Go toolchain reports statement coverage only (`go test -cover`); branch and
-function coverage have no tooling in Go and the two bars above do not apply
-there ([decision-00020](docs/decision/decision-00020-unified-go-cli.md) §4). New
-Go packages must reach `90%` statement coverage, enforced by
-`scripts/go-coverage.sh`. The `cli/internal/scaffold` package imported from
-ainpt arrived at 25.7% statement coverage and is recorded as legacy debt per
-[CODE_QUALITY.md](CODE_QUALITY.md) §8: it is gated at the ratchet value recorded
-in CODE_QUALITY.md §3, `82.8%`, which rose with
-[spec-00013](docs/spec/spec-00013-persimmon-scaffold.md)'s acceptance set and
-keeps ratcheting toward 90% — never lowered.
+The command has no separate coverage regime. Its scaffold lands in `src/` as
+TypeScript ([decision-00020](docs/decision/decision-00020-unified-go-cli.md)
+§2), so it is measured by `vitest.config.ts` under the same three bars as every
+other module — the statement-only bar and the ratcheted legacy exception that
+used to apply to it were artefacts of the Go toolchain, and the ported code is
+treated as new code (decision-00020 §4).

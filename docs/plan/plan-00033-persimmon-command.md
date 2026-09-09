@@ -1,7 +1,7 @@
 ---
 id: plan-00033-persimmon-command
 type: plan
-status: open
+status: wontfix
 implements: [spec-00012-persimmon-command, spec-00013-persimmon-scaffold, spec-00011-FR-2, spec-00011-FR-3, spec-00011-FR-4, spec-00011-FR-13, spec-00011-FR-14, spec-00011-FR-15, spec-00011-FR-18, spec-00011-FR-20, spec-00011-FR-21, design-00004-persimmon-cli]
 ---
 
@@ -554,3 +554,20 @@ shim）与 `bin/host.js`，T7 直接删掉前者。理由是那个 shim 没有�
 - homebrew / scoop 一类第二条分发渠道：取得形态只有 `install.sh` 与 Release
   归档两种（`spec-00012-FR-10`）。
 - 上节列出的全部人工步骤，尤其仓库外的两处 README 与 ainpt 的归档。
+
+## 第三十二轮追注（2026-09-09）：本 plan 转 `wontfix`
+
+`decision-00020` 于第三十二轮推翻了它自己的语言与分发裁定：`cli/` 移除，
+命令回到 npm 包本体，脚手架移植为 TypeScript，暂不发布。本 plan 交付的
+正是被推翻的那套形态（Go 二进制 + host 包 + 两产物配对发布线），其
+`open → resolved` 所等的 16 行人工实测里，15 行的需求已随 `spec-00012`
+的分发与版本配对条目一并作废。
+
+按 `docs/README.md:26`，`wontfix` 覆盖「became invalid / overtaken by events」，
+本 plan 属之——工作做完了，被事件推翻，不是没做完。不用 `archived`：
+`docs/README.md:27` 明禁以归档记录工作项的结果。
+
+本 plan 的交付**并非全部作废**：`spec-00013` 的脚手架需求整体存续，
+四份 issue（`issue-00034`…`00037`）修好的缺陷不得在移植后重现，
+`decision-00020` §2 第 4 条要求它们各留一条引 issue id 的回归测试。
+验收结果留在 `record-00035`，回退与移植由后续 plan 承担。
