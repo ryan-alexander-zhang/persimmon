@@ -258,6 +258,23 @@ Go 标准库在 TS 侧没有一一对应，机制对照如下（这几处是移�
 | `cli/internal/project.FindRoot` | 既有的 `src/config.ts` `findRepoRoot` | 语义相同（自 `dir` 向上找最近的 `whiteboard.config.yaml`）；唯一差别是「不在任何项目内」的表达——Go 返回 `("", false)`，TS 抛 `ConfigError`，命令侧按 `40a5ca5^` 的 `projectRoot()` 折成 `null`。不新写第二份（`decision-00020` §2 第 9 条） |
 | `-ldflags -X main.version / main.owner / main.repo` | `version` 读 `package.json`；`owner` / `repo` 是源码常量，`AINPT_OWNER` / `AINPT_REPO` 覆盖 | 没有编译期，注入无从谈起。环境变量名保留（`decision-00020` §2 第 7 条 ④，已在用户 shell 配置里）；`CONTEXT.md`「模板仓库」词条里「缺省坐标编译期钉死」一句随之改写 |
 
+> **先记住 `excluded()` 根本不是一次 glob。**`scaffold.go:223-235` 是**两个
+> 互相独立的半边**依次跑：先 `p = strings.TrimSuffix(filepath.ToSlash(p), "/")`
+> **剥掉模式尾部的 `/`**，再 `rel == p || strings.HasPrefix(rel, p+"/")` 走
+> **字面串**（不是 glob），**其后**才 `filepath.Match(p, rel)`。翻译器只负责
+> 第二半；把两半合成一个 glob 会静默改变 `exclude` 的语义。
+>
+> 承重之处在实测里看得很清楚（`exclude` 含 `.github/`，路径
+> `.github/workflows/ci.yml`）：剥尾斜杠后 `p` 已是 `.github`，所以
+> `filepath.Match` 永远拿不到带斜杠的原模式；
+> `Match(".github", ".github")` = `true`——只走 glob **也能命中目录自身**，
+> 这正是该误实现看起来能用的原因；但
+> `Match(".github", ".github/workflows/ci.yml")` = **`false`**，而
+> `strings.HasPrefix(".github/workflows/ci.yml", ".github/")` = **`true`**。
+> 于是只走 glob 的实现会排除掉目录自身、其下文件照常落地，
+> `spec-00013-AC-2.1` 静默失效。需求层归属见 `spec-00013-FR-15`
+> 与 `AC-15.6` / `AC-15.7`。
+
 **手写 glob 翻译器要照搬的 `filepath.Match` 语义**（下列取值均已在 Go 1.24
 实测，翻译器与其测试按此对齐）：
 

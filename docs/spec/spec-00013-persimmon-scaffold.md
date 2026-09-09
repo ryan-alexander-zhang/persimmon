@@ -293,10 +293,18 @@ parent: prd-00003-multi-workspace
   模式做**字面串**比较——路径与它相等、或以「它加一个 `/`」开头即命中（目录
   被命中即整棵跳过），这一半**不经任何 glob**；**其后**才把整条模式按上述
   glob 语义判一次。两半任一命中即排除。这不是措辞细节：`AC-2.1` 的 `.github/`
-  全靠字面串这一半才成立（`filepath.Match(".github/", ".github")` 实测为
-  `false`），而若把前缀那一半也用 glob 做，`doc?` 会连 `docs/a.md` 一起排除，
-  迁入前不会（`cli/internal/scaffold/scaffold.go:223-235`；第三十二轮的审计
-  补入这一段：本条原文只说「前缀匹配那一半不变」，据此两种实现都写得出来）。
+  排除掉的是**该目录下的文件**，而那全靠字面串这一半。实测三格（剥尾斜杠后
+  `p` 已是 `.github`，故 glob 永远拿不到带斜杠的原模式）：
+  `filepath.Match(".github", ".github")` = `true`——只走 glob 也能命中目录
+  **自身**，这正是该误实现看起来能用的原因；
+  `filepath.Match(".github", ".github/workflows/ci.yml")` = **`false`**；
+  而 `strings.HasPrefix(".github/workflows/ci.yml", ".github/")` = **`true`**
+  ——承重的是这一格。只走 glob 的实现会让目录自身被排除、其下文件却照常
+  落地，`AC-2.1` 静默失效（`cli/internal/scaffold/scaffold.go:223-235`；
+  第三十二轮的审计补入这一段：本条原文只说「前缀匹配那一半不变」，据此
+  两种实现都写得出来。审计同时纠正了本段初稿引错的实测值——初稿引的是
+  `Match(".github/", ".github")` = `false`，那一格 `filepath.Match` 根本
+  到不了）。
   这条语义在 `new`（`FR-2`）与 `update`（`FR-10`）两处同为判据：
   两处若不一致，创建时排除掉的东西会在 `update` 时长回来。
 - **spec-00013-FR-16** (Unwanted) 若某条 `exclude` 模式不合式——实现无法把它
@@ -647,9 +655,11 @@ parent: prd-00003-multi-workspace
 - **spec-00013-AC-15.6** (spec-00013-FR-15)
   Given `exclude` 含 `.github/`（带尾部斜杠），模板分支里有 `.github/workflows/ci.yml`
   When `new` 建出项目
-  Then 该文件未落地——尾部斜杠先被剥掉，`.github` 以**字面串**前缀命中；
-  这一半不经 glob（`filepath.Match(".github/", ".github")` 为 `false`，
-  只走 glob 的实现会让 `AC-2.1` 失效）
+  Then 该文件未落地——尾部斜杠先被剥掉，`.github` 以**字面串**前缀命中
+  （`strings.HasPrefix(".github/workflows/ci.yml", ".github/")` 为 `true`）；
+  这一半不经 glob——`filepath.Match(".github", ".github/workflows/ci.yml")`
+  实测为 `false`，只走 glob 的实现会排除掉目录自身却漏过其下文件，
+  使 `AC-2.1` 静默失效
 - **spec-00013-AC-15.7** (spec-00013-FR-15)
   Given `exclude` 含 `doc?`，模板分支里有 `docs/a.md`
   When `new` 建出项目
