@@ -64,6 +64,9 @@ Environment:
 /** The subcommands that read the registry path and the port, so their dispatch waits for both (spec-00012-FR-14). */
 const WORLDLY = new Set(['new', 'add', 'remove', 'list'])
 
+/** The base URL of the template repository's host API; a test hands {@link listLangs} a local server instead (design-00004 §6). */
+const GITHUB_API = 'https://api.github.com'
+
 /** The port every path of the command uses when `PORT` names none (spec-00011-FR-13). */
 const DEFAULT_PORT = 4173
 
@@ -192,7 +195,7 @@ export async function run(argv: string[]): Promise<number> {
     // `parseArgs` as unknown options and take `persimmon -v` from a version to
     // an exit 2 (spec-00012-AC-15.2, design-00004 §6).
     if (command === 'update') return await updateProject(args)
-    if (command === 'list-langs') return listLangs()
+    if (command === 'list-langs') return await listLangs(GITHUB_API)
     if (command === 'version' || command === '-v' || command === '--version') return printVersion()
     if (command === 'help' || command === '-h' || command === '--help') return print(USAGE)
     // Before both parses as well: a first argument that is no subcommand at all
@@ -257,9 +260,93 @@ async function updateProject(args: string[]): Promise<number> {
   return 0
 }
 
-/** plan-00034 T4 lands `list-langs`; until it does, the dispatch knows the subcommand and says so rather than pretending. */
-function listLangs(): number {
-  return refuse('list-langs is not implemented yet (plan-00034 T4)', 1)
+/** One entry of the template repository's branch listing. */
+interface Branch {
+  name: string
+}
+
+/**
+ * One page of branches and the URL of the next one, `''` on the last
+ * (`cli/main.go:559`). Three failures, three sentences: the request that could
+ * not be sent, the reply that was not a 200, the body that would not parse
+ * (spec-00013-FR-14). Every one of them names the address it asked.
+ */
+async function getBranchPage(url: string): Promise<{ page: Branch[]; next: string }> {
+  let reply: Response
+  try {
+    reply = await fetch(url)
+  } catch (error) {
+    // `fetch` says only "fetch failed"; what actually happened is the cause.
+    const cause = error instanceof Error && error.cause !== undefined ? `: ${asMessage(error.cause)}` : ''
+    throw new Error(`error: ${url}: ${asMessage(error)}${cause}`)
+  }
+  if (reply.status !== 200) throw new Error(`error: ${url} returned ${reply.status} ${reply.statusText}`)
+  try {
+    return { page: (await reply.json()) as Branch[], next: nextLink(reply.headers.get('Link') ?? '') }
+  } catch (error) {
+    throw new Error(`error: ${url}: ${asMessage(error)}`)
+  }
+}
+
+/** The `rel="next"` URL of a `Link` header, or `''` when there is none (`cli/main.go:576`). */
+function nextLink(header: string): string {
+  for (const part of header.split(',')) {
+    if (!part.includes('rel="next"')) continue
+    const [open, close] = [part.indexOf('<'), part.indexOf('>')]
+    if (open >= 0 && close > open) return part.slice(open + 1, close)
+  }
+  return ''
+}
+
+/**
+ * `persimmon list-langs` (spec-00013-FR-13): the base template, then every
+ * language with a `lang/*` branch in order, each with its variants beneath it.
+ *
+ * The API base is a parameter and the production value is the constant beside
+ * it, which is the seam a test points at a local server (design-00004 §6). No
+ * rate-limit handling of any kind: no token, no backoff, no retry, one bare
+ * request per page — the 403 that GitHub's unauthenticated hourly limit answers
+ * with is shown as it came (spec-00013-FR-14, spec-00013-AC-14.4).
+ */
+export async function listLangs(api: string): Promise<number> {
+  const branches: Branch[] = []
+  // The branches endpoint is paginated: `per_page` is a page size, not "all of
+  // them", so follow the Link header until GitHub stops offering one (issue-00036).
+  const { owner, repo } = template()
+  let url = `${api}/repos/${owner}/${repo}/branches?per_page=100`
+  while (url !== '') {
+    const { page, next } = await getBranchPage(url)
+    branches.push(...page)
+    url = next
+  }
+  const langs = new Map<string, { base: boolean; variants: string[] }>()
+  for (const { name } of branches) {
+    if (!name.startsWith('lang/')) continue
+    const [lang, variant] = split(name.slice('lang/'.length))
+    const info = langs.get(lang) ?? { base: false, variants: [] }
+    if (variant === undefined) info.base = true
+    else info.variants.push(variant)
+    langs.set(lang, info)
+  }
+  const lines = ['Available templates:', '  (default)              base template (main)']
+  if (langs.size === 0) {
+    lines.push('  (no lang/* branches yet — only the base template is available)')
+    return print(lines.join('\n'))
+  }
+  for (const [lang, info] of [...langs].sort(([one], [other]) => (one < other ? -1 : 1))) {
+    // A language with variants but no `lang/<l>` branch of its own is still
+    // grouped, but the base line it would offer does not exist: the group header
+    // says so instead of naming a `--lang` that would 404 (issue-00035).
+    lines.push(info.base ? `  --lang ${lang.padEnd(15)} lang/${lang}` : `  ${lang.padEnd(22)} no lang/${lang} branch — use --variant only`)
+    for (const variant of info.variants.sort()) lines.push(`    --variant ${variant.padEnd(10)} lang/${lang}/${variant}`)
+  }
+  return print(lines.join('\n'))
+}
+
+/** `<lang>` or `<lang>/<variant>`, split on the first slash only — a variant may hold more. */
+function split(rest: string): [string, string | undefined] {
+  const slash = rest.indexOf('/')
+  return slash < 0 ? [rest, undefined] : [rest.slice(0, slash), rest.slice(slash + 1)]
 }
 
 function printVersion(): number {

@@ -5,7 +5,7 @@ import { type Server, type Socket, createServer as createSocketServer } from 'no
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { run } from '../src/cli.ts'
+import { listLangs, run } from '../src/cli.ts'
 import { CONFIG_FILE, findRepoRoot } from '../src/config.ts'
 import { Host } from '../src/host.ts'
 import { AvailabilityJudge } from '../src/workspaceAvailability.ts'
@@ -144,14 +144,16 @@ interface Run {
  * twin). `console.log` / `console.error` rather than `process.stdout.write`
  * throughout, which is what makes this fixture able to see anything at all.
  */
-async function runCli(...argv: string[]): Promise<Run> {
+async function captured(work: () => Promise<number>): Promise<Run> {
   const out: string[] = []
   const err: string[] = []
   vi.spyOn(console, 'log').mockImplementation((...parts: unknown[]) => void out.push(parts.join(' ')))
   vi.spyOn(console, 'error').mockImplementation((...parts: unknown[]) => void err.push(parts.join(' ')))
-  const code = await run(argv)
+  const code = await work()
   return { code, stdout: out.join('\n'), stderr: err.join('\n') }
 }
+
+const runCli = async (...argv: string[]): Promise<Run> => await captured(() => run(argv))
 
 /**
  * The form that keeps serving: the promise is the command's exit code, settled
@@ -360,6 +362,60 @@ function availabilities(stdout: string): string[] {
     .split('\n')
     .filter((line) => line.length > 0)
     .map((line) => line.trim().split(/\s+/).at(-1) as string)
+}
+
+/**
+ * GitHub's branches endpoint (`main_test.go`'s `branchServer`:32): one page per
+ * argument, the next one announced with the `Link` header as api.github.com
+ * does. `calls()` is how many pages the command actually asked for, `asked` the
+ * paths it asked them at.
+ */
+async function branchServer(...pages: string[][]): Promise<{ url: string; calls: () => number; asked: string[] }> {
+  let calls = 0
+  let base = ''
+  const asked: string[] = []
+  const server = held(
+    createServer((request, response) => {
+      calls++
+      asked.push(request.url ?? '')
+      const query = new URL(request.url ?? '/', base)
+      const page = Number(query.searchParams.get('page') ?? '1')
+      if (page < pages.length) response.setHeader('Link', `<${base}${query.pathname}?per_page=100&page=${page + 1}>; rel="next"`)
+      response.setHeader('content-type', 'application/json')
+      response.end(JSON.stringify((pages[page - 1] ?? []).map((name) => ({ name }))))
+    }),
+  )
+  base = `http://127.0.0.1:${await boundPort(server.listen(0, '127.0.0.1'))}`
+  return { url: base, calls: () => calls, asked }
+}
+
+/** A host that answers everything with the given status, for the failure branches of `list-langs`. */
+async function refusingServer(status: number, body: string): Promise<{ url: string; calls: () => number }> {
+  let calls = 0
+  const server = held(
+    createServer((_request, response) => {
+      calls++
+      response.writeHead(status).end(body)
+    }),
+  )
+  return { url: `http://127.0.0.1:${await boundPort(server.listen(0, '127.0.0.1'))}`, calls: () => calls }
+}
+
+/**
+ * Every request the command sends to the real API host pointed at a stub
+ * (`stubTemplateRepo`'s trick), which is what lets a case reach `list-langs`
+ * through `run` rather than through the API base parameter.
+ */
+function apiPointedAt(url: string): void {
+  const real = globalThis.fetch
+  const stub = new URL(url)
+  vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+    const target = new URL(String(input))
+    if (target.hostname === '127.0.0.1' || target.hostname === 'localhost') return real(input, init)
+    target.protocol = 'http:'
+    target.host = stub.host
+    return real(target, init)
+  })
 }
 
 // ---------------------------------------------------------------------------
@@ -1128,6 +1184,145 @@ describe('persimmon update', () => {
   })
 })
 
+describe('persimmon list-langs', () => {
+  /** Where each of these entries starts in the listing, all of which must be there. */
+  function order(listing: string, ...wanted: string[]): number[] {
+    const at = wanted.map((what) => listing.indexOf(what))
+    for (const [index, what] of wanted.entries()) expect(at[index], `${what} is missing from:\n${listing}`).toBeGreaterThanOrEqual(0)
+    return at
+  }
+
+  // spec-00013-AC-13.1 (TestListLangsListsTheBaseTemplateThenLanguagesInOrder)
+  it('lists the base template, then each language in order with its variants beneath', async () => {
+    const { url } = await branchServer(['main', 'lang/java', 'lang/java/ddd', 'lang/go'])
+
+    const result = await captured(() => listLangs(url))
+
+    expect(result.code).toBe(0)
+    const at = order(result.stdout, 'base template', '--lang go', '--lang java', '--variant ddd')
+    expect(at).toEqual([...at].sort((one, other) => one - other))
+  })
+
+  // spec-00013-AC-13.2 (TestListLangsSaysOnlyTheBaseTemplateIsAvailable)
+  it('says only the base template is available when there is no lang/* branch at all', async () => {
+    const { url } = await branchServer(['main', 'spike'])
+
+    const result = await captured(() => listLangs(url))
+
+    expect(result.code).toBe(0)
+    expect(result.stdout).toContain('no lang/* branches yet')
+  })
+
+  // spec-00013-AC-13.3 / issue-00035
+  // (TestListLangsOmitsTheBaseLineForAVariantOnlyLanguage): there is no
+  // lang/java branch, so `--lang java` must not be offered
+  it('groups a variant-only language without offering the base line it has not got (issue-00035)', async () => {
+    const { url } = await branchServer(['main', 'lang/go', 'lang/java/ddd'])
+
+    const result = await captured(() => listLangs(url))
+
+    expect(result.stdout).not.toContain('--lang java')
+    order(result.stdout, '--lang go', 'no lang/java branch', '--variant ddd')
+  })
+
+  // spec-00013-AC-13.4 / issue-00036
+  // (TestListLangsFollowsPaginationToTheLastPage): branches spanning more than
+  // one page must all be listed
+  it('follows the Link header to the last page (issue-00036)', async () => {
+    const { url, calls } = await branchServer(['main', 'lang/go'], ['lang/zzz'])
+
+    const result = await captured(() => listLangs(url))
+
+    expect(result.stdout).toContain('--lang zzz')
+    expect(calls()).toBe(2)
+  })
+
+  // spec-00013-FR-1: the template coordinate the environment overrides is the
+  // one the branches are asked for
+  it('asks the repository AINPT_OWNER and AINPT_REPO name', async () => {
+    const { url, asked } = await branchServer(['main'])
+    vi.stubEnv('AINPT_OWNER', 'acme')
+    vi.stubEnv('AINPT_REPO', 'tpl')
+
+    await captured(() => listLangs(url))
+
+    expect(asked).toEqual(['/repos/acme/tpl/branches?per_page=100'])
+  })
+
+  // spec-00013-AC-14.1 (TestListLangsReportsARequestThatCouldNotBeSent)
+  it('reports a request that could not be sent, and exits non-zero', async () => {
+    const dead = `http://127.0.0.1:${await freePort()}`
+
+    await expect(listLangs(dead)).rejects.toThrow(dead)
+
+    apiPointedAt(dead)
+    const result = await runCli('list-langs')
+    expect(result.code).toBe(1)
+    expect(result.stderr).toContain('persimmon: error: ')
+  })
+
+  // spec-00013-AC-14.2 (TestListLangsReportsTheAddressAndStatusOfANon200)
+  it('reports the address and the status of a non-200, and exits non-zero', async () => {
+    const { url } = await refusingServer(403, 'rate limited')
+
+    await expect(listLangs(url)).rejects.toThrow(`error: ${url}/repos/`)
+    await expect(listLangs(url)).rejects.toThrow('returned 403 Forbidden')
+
+    apiPointedAt(url)
+    const result = await runCli('list-langs')
+    expect(result.code).toBe(1)
+    expect(result.stderr).toContain('returned 403 Forbidden')
+  })
+
+  // spec-00013-AC-14.3 (TestListLangsReportsAnUnparseableReply)
+  it('reports a 200 whose body will not parse', async () => {
+    const { url } = await refusingServer(200, 'not json')
+
+    await expect(listLangs(url)).rejects.toThrow(/not valid JSON|Unexpected token/)
+  })
+
+  // spec-00013-AC-14.4: no token, no backoff, no retry — the hourly limit's 403
+  // is shown as it came, after exactly the one request that got it
+  it('sends the one request the 403 answered and does not retry it', async () => {
+    const { url, calls } = await refusingServer(403, 'rate limited')
+
+    await expect(listLangs(url)).rejects.toThrow('403')
+
+    expect(calls()).toBe(1)
+  })
+
+  // spec-00012-AC-1.1 (TestListLangsNeedsNothingElseOnThePath): the command is
+  // one artefact and needs no other — no second binary, no second package
+  it('lists the templates with nothing else on the PATH', async () => {
+    const { url } = await branchServer(['main', 'lang/go'])
+    const empty = makeElsewhere()
+    expect(readdirSync(empty)).toEqual([])
+    vi.stubEnv('PATH', empty)
+    apiPointedAt(url)
+
+    const result = await runCli('list-langs')
+
+    expect(result.code).toBe(0)
+    expect(result.stdout).toContain('--lang go')
+  })
+
+  // spec-00012-AC-14.2: it never reads the registry, so a home directory it
+  // cannot read is nothing to it
+  it('lists the templates with an unreadable home directory', async () => {
+    const { url } = await branchServer(['main', 'lang/go'])
+    const home = makeHome()
+    chmodSync(home, 0o000)
+    chmodded.push(home)
+    vi.stubEnv('HOME', home)
+    apiPointedAt(url)
+
+    const result = await runCli('list-langs')
+
+    expect(result.code).toBe(0)
+    expect(result.stdout).toContain('--lang go')
+  })
+})
+
 describe('version and help', () => {
   const declared = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version as string
 
@@ -1148,8 +1343,8 @@ describe('version and help', () => {
     expect(result.stdout).toBe(`persimmon ${declared}`)
   })
 
-  // spec-00012-AC-1.2 (TestHelpListsExactlyTheClosedSubcommandSet). The listing is
-  // complete here; `list-langs` itself lands in plan-00034 T4
+  // spec-00012-AC-1.2 (TestHelpListsExactlyTheClosedSubcommandSet): with T4's
+  // `list-langs` landed, every one of the eight really runs
   it.each(['help', '-h', '--help'])('lists exactly the closed subcommand set for %s', async (spelling) => {
     const result = await runCli(spelling)
 
@@ -1177,15 +1372,6 @@ describe('version and help', () => {
     expect(asked.stdout).toContain('Usage:')
     expect(refused.stdout).toBe('')
     expect(refused.stderr).toContain('Usage:')
-  })
-
-  // plan-00034 T4 lands `list-langs`; until then the dispatch says so rather
-  // than answering as if it had listed something
-  it('says list-langs is not implemented yet', async () => {
-    const result = await runCli('list-langs')
-
-    expect(result.code).toBe(1)
-    expect(result.stderr).toContain('not implemented yet')
   })
 })
 
