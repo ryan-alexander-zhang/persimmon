@@ -661,10 +661,14 @@ parent: prd-00003-multi-workspace
   实测为 `false`，只走 glob 的实现会排除掉目录自身却漏过其下文件，
   使 `AC-2.1` 静默失效
 - **spec-00013-AC-15.7** (spec-00013-FR-15)
-  Given `exclude` 含 `doc?`，模板分支里有 `docs/a.md`
+  Given `exclude` 含 `doc?`，模板分支里有 `docs/a.md` 与 `dock`（文件）
   When `new` 建出项目
-  Then `docs/a.md` 照常落地——字面串那一半要求整段相等或以 `doc?/` 开头，
-  glob 那一半整串锚定且 `?` 不跨 `/`，两半都不命中
+  Then `docs/a.md` 与 `dock` 都未落地——两半对**文件** `docs/a.md` 确实都不命中
+  （字面串半边要整段相等或以 `doc?/` 开头；glob 半边整串锚定且 `?` 不跨 `/`），
+  但遍历同样把**目录** `docs` 送进判定，`filepath.Match("doc?", "docs")` 为
+  `true`，目录被命中即整棵剪掉，其下文件从不到达判定。`dock` 则由 glob 半边
+  直接命中。（T2a 实测纠正：本条初稿写「`docs/a.md` 照常落地」，把判定只算在
+  文件上、漏了目录也过判定这一步，迁入前的 Go 实现同样剪掉 `docs`。）
 - **spec-00013-AC-16.1** (spec-00013-FR-16)
   Given `exclude` 含 `[a-`（不合式，译不出匹配式），模板分支里没有字面名为
   `[a-` 的路径
