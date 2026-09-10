@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { type Lock, type Options, copyTree, create, excluded, mergeTree, prepareUpdate, resolveRef, update } from '../src/scaffold.ts'
 
 /**
- * The equivalent translation of `cli/internal/scaffold/scaffold_test.go`, plus
+ * The equivalent translation of `5527313:cli/internal/scaffold/scaffold_test.go`, plus
  * the cases the three new requirements and the 90/90/90 bar ask for.
  * `TestUpdateMergesOnAMachineWithoutNode`:1090 is the one case not translated:
  * it proved that `update` needs git and not Node, which stopped meaning anything
@@ -226,7 +226,7 @@ describe('the exclusion set', () => {
 
   // spec-00013-FR-15 / spec-00013-FR-16: every value here was read off Go's
   // filepath.Match, and the whole function was cross-checked against a copy of
-  // scaffold.go:223-238 over 22,650 pattern/path pairs while cli/ was still in
+  // scaffold.go:223-238 over 22,650 pattern/path pairs while the Go module (5527313) was still in
   // the tree (plan-00034, "实测义务").
   it.each([
     // `*` and `?` do not cross a separator...

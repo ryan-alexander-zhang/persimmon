@@ -16,8 +16,8 @@ import { MINIMAL_CONFIG, boundPort, freePort, makeRepo } from './helpers.ts'
  * The `persimmon` command (design-00004 §2): the startup handshake of
  * design-00003 §8, the service it now runs in this very process, and the three
  * registry subcommands. The Go original of these cases is
- * `cli/internal/hostproc/hostproc_test.go` and the `add` / `remove` / `list`
- * half of `cli/main_test.go`; they are translated here rather than re-invented,
+ * `5527313:cli/internal/hostproc/hostproc_test.go` and the `add` / `remove` / `list`
+ * half of `5527313:cli/main_test.go`; they are translated here rather than re-invented,
  * so the port back to one artefact cannot quietly change what was asserted
  * (plan-00034 T1).
  *
@@ -1190,7 +1190,7 @@ describe("persimmon new's registration", () => {
 
   // spec-00013-AC-6.3 (TestNewClosesWithTheRegisteredIDAndHowToOpenIt): the last
   // line names the entry and says how to open it — on stdout, and without the
-  // `persimmon: ` prefix the failure paths wear (`cli/main.go:316`)
+  // `persimmon: ` prefix the failure paths wear (`5527313:cli/main.go:316`)
   it('closes with the registered id and how to open it', async () => {
     await stubTemplateRepo({ main: sourced('main') })
     const home = makeHome()

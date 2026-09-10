@@ -21,7 +21,7 @@ import { type WorkspaceEntry, WorkspaceRegistry } from './workspaceRegistry.ts'
 /** The one line `add`, `remove` and `list` print when their arguments are not what they take (design-00003 §8). */
 const REGISTRY_USAGE = 'usage: persimmon [add [path] [--name <name>] | remove <id|path> | list]'
 
-/** The one-line usage of `new`, shown when its arguments do not name exactly one project (`cli/main.go:31`). */
+/** The one-line usage of `new`, shown when its arguments do not name exactly one project (`5527313:cli/main.go:31`). */
 const NEW_USAGE = 'usage: persimmon new <name> [--lang go] [--variant ddd] [--dir .] [--set K=V]'
 
 const UPDATE_USAGE = 'usage: persimmon update [--dir .]'
@@ -288,7 +288,7 @@ interface Branch {
 
 /**
  * One page of branches and the URL of the next one, `''` on the last
- * (`cli/main.go:559`). Three failures, three sentences: the request that could
+ * (`5527313:cli/main.go:559`). Three failures, three sentences: the request that could
  * not be sent, the reply that was not a 200, the body that would not parse
  * (spec-00013-FR-14). Every one of them names the address it asked.
  */
@@ -309,7 +309,7 @@ async function getBranchPage(url: string): Promise<{ page: Branch[]; next: strin
   }
 }
 
-/** The `rel="next"` URL of a `Link` header, or `''` when there is none (`cli/main.go:576`). */
+/** The `rel="next"` URL of a `Link` header, or `''` when there is none (`5527313:cli/main.go:576`). */
 function nextLink(header: string): string {
   for (const part of header.split(',')) {
     if (!part.includes('rel="next"')) continue
@@ -380,7 +380,7 @@ function print(what: string): number {
   return 0
 }
 
-/** A first argument that is no subcommand: named, then the usage, then exit 1 — not the 2 a usage error takes (`cli/main.go:168-171`). */
+/** A first argument that is no subcommand: named, then the usage, then exit 1 — not the 2 a usage error takes (`5527313:cli/main.go:168-171`). */
 function unknown(command: string): number {
   console.error(`unknown command ${JSON.stringify(command)}\n`)
   console.error(USAGE)

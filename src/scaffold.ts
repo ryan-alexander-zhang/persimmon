@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path'
 
 /**
  * Fetches a template branch and materialises a project from it — the port of
- * `cli/internal/scaffold/scaffold.go` (decision-00020 §2, design-00004 §6). The
+ * `5527313:cli/internal/scaffold/scaffold.go` (decision-00020 §2, design-00004 §6). The
  * semantics of `new`, the messages, and the `.ainpt.json` creation marker are
  * unchanged from the Go implementation; what changed is the mechanism, and only
  * where the standard libraries do not correspond: the tarball is unpacked by
@@ -568,7 +568,7 @@ export function mergeTree(dir: string, oldSrc: string, newSrc: string, exclude: 
  * machine with no `git` the first file that needs merging is where `update`
  * fails, and the half-updated tree stands).
  *
- * The three labels are those of `cli/internal/scaffold/scaffold.go:520-522`,
+ * The three labels are those of `5527313:cli/internal/scaffold/scaffold.go:520-522`,
  * verbatim: they are what the reader of a conflicted file sees.
  */
 function mergeFile(rel: string, mine: string, base: string, theirs: string): boolean {

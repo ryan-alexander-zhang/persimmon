@@ -1,5 +1,4 @@
-# Test and lint both halves of the repo: the host package (Node) and the
-# `persimmon` command (Go, in cli/ with its own go.mod).
+# Test and lint the host package (Node).
 name: ci
 
 on: [push, pull_request]
@@ -19,29 +18,3 @@ jobs:
       - run: npm run build
       - run: npm run typecheck
       - run: npm test
-
-  go:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.24'
-          cache-dependency-path: cli/go.mod
-
-      - name: gofmt
-        run: |
-          unformatted=$(gofmt -l cli)
-          if [ -n "$unformatted" ]; then
-            echo "::error::gofmt would reformat these files:"
-            echo "$unformatted" | sed 's/^/  /'
-            exit 1
-          fi
-
-      - run: go -C cli vet ./...
-      - run: go -C cli test ./...
-
-      # Runs the suite again with a coverage profile and fails the build on any
-      # package under its bar — `go test -cover` only prints (CODE_QUALITY.md §2).
-      - run: sh scripts/go-coverage.sh

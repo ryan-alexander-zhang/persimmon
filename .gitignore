@@ -42,15 +42,9 @@ Temporary Items
 # Code coverage profiles and other test artifacts
 *.out
 coverage.*
-*.coverprofile
-profile.cov
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
-
-# Go workspace file
-go.work
-go.work.sum
 
 # env file
 .env
@@ -300,11 +294,3 @@ coverage/
 
 #   Whiteboard clarify session state (spec-00001-FR-46)
 .whiteboard/
-
-# Go (cli/)
-#   Local builds of the CLI: `go build -o persimmon` and a bare `go build .`
-#   (which names the binary after the module's last segment)
-/cli/persimmon
-/cli/cli
-#   goreleaser output (dist: build/goreleaser, kept clear of Vite's dist/web)
-build/

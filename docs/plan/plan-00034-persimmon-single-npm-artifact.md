@@ -746,8 +746,15 @@ T2a / T2b / T3 的 verify 明写「从覆盖率报告的逐文件表里读该文
     git grep -nE 'cli/|goreleaser|install\.sh|go-coverage|persimmon-host|--judge|bin/host' \
       -- . ':!docs/' \
       | grep -v 'docs\.usebruno\.com' \
-      | grep -v 'integration-00001-cli'
+      | grep -v 'integration-00001-cli' \
+      | grep -v '5527313:cli/'
     ```
+
+    第三条豁免是 T7 落地时才出现的：T1 … T5 移植时在 `src/` 与 `test/` 留下
+    11 处指向 Go 原文的**出处注释**（如 `cli/main.go:31`），plan 起草时它们尚不
+    存在。裁定：保留溯源、不删，但把每处钉到 `cli/` 仍在的最后一个提交
+    `5527313`（`git show 5527313:cli/main.go` 可解析），使路径不再指向一个
+    不存在的文件；grep 据此多一条豁免。
 
     两处豁免各有其名，都不是本轮的产物：
     - **`API_TESTING.md:172`** —— Bruno 文档的第三方 URL
