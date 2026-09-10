@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { type RequestListener, createServer } from 'node:http'
 import { type Server, type Socket, createServer as createSocketServer } from 'node:net'
 import { tmpdir } from 'node:os'
@@ -336,10 +336,15 @@ const sourced = (branch: string): Record<string, string> => ({ 'SOURCE.md': `${b
 /** The branch the project at `<parent>/<name>` was scaffolded from (`source`). */
 const source = (parent: string, name: string): string => readFileSync(join(parent, name, 'SOURCE.md'), 'utf8').trim()
 
-/** `new` run from `dir` with a world of this case's own (`newInWith`): a home nobody else shares and the default port. */
+/**
+ * `new` run from `dir` with a world of this case's own (`newInWith`): a home
+ * nobody else shares and a port nobody is on, so the registration `new` closes
+ * with (spec-00013-FR-6) lands in this case's own file. A case that cares where
+ * it lands hands in its own `HOME` and `PORT`.
+ */
 async function newInWith(env: Record<string, string>, dir: string, ...args: string[]): Promise<Run> {
   vi.stubEnv('HOME', makeHome())
-  vi.stubEnv('PORT', '')
+  vi.stubEnv('PORT', String(await freePort()))
   for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value)
   process.chdir(dir)
   return await runCli('new', ...args)
@@ -1140,6 +1145,190 @@ describe('persimmon new', () => {
     expect(result.stderr).toContain('"extra"')
     expect(result.stderr).toContain('usage: persimmon new')
     expect(readdirSync(dir)).toEqual([])
+  })
+})
+
+/**
+ * The registration `new` closes with (spec-00013-FR-6 … FR-8, design-00004 §5).
+ * It is `add`'s registration path whole — the running process while there is
+ * one, the file otherwise — and it parts from `add` on one thing only: a
+ * stranger on the port is no reason to leave a built project unregistered
+ * (spec-00013-FR-7). The Go original is `main_test.go`'s `TestNewRegisters*` /
+ * `TestNewKeepsTheProject*`.
+ */
+describe("persimmon new's registration", () => {
+  // spec-00013-AC-6.1 (TestNewRegistersWhatItScaffolded): with nobody on the
+  // port the registration writes the file, and the entry is what was scaffolded
+  it('registers what it scaffolded when nobody is on the port', async () => {
+    await stubTemplateRepo({ main: sourced('main') })
+    const home = makeHome()
+    const work = makeElsewhere()
+
+    const result = await newInWith({ HOME: home }, makeElsewhere(), 'demo', '--dir', work)
+
+    expect(result.code).toBe(0)
+    expect(registryOf(home)?.workspaces.map((entry) => entry.path)).toEqual([join(work, 'demo')])
+  })
+
+  // spec-00013-AC-6.2 (TestNewRegistersThroughTheProcessAlreadyRunning): the
+  // process on the port registers it, so its writes stay serialised and its
+  // switcher lists the entry at once; the command's own home stays empty, which
+  // is «it wrote no registry file itself and started no second service»
+  it('registers through the process already running and writes no file of its own', async () => {
+    await stubTemplateRepo({ main: sourced('main') })
+    const port = await runningHost(makeHome())
+    const home = makeHome()
+    const work = makeElsewhere()
+
+    const result = await newInWith({ HOME: home, PORT: String(port) }, makeElsewhere(), 'demo', '--dir', work)
+
+    expect(result.code).toBe(0)
+    const listed = await (await fetch(`http://127.0.0.1:${port}/api/workspaces`)).json()
+    expect(listed.workspaces.map((row: WorkspaceEntry) => row.path)).toEqual([join(work, 'demo')])
+    expect(registryOf(home)).toBeNull()
+  })
+
+  // spec-00013-AC-6.3 (TestNewClosesWithTheRegisteredIDAndHowToOpenIt): the last
+  // line names the entry and says how to open it — on stdout, and without the
+  // `persimmon: ` prefix the failure paths wear (`cli/main.go:316`)
+  it('closes with the registered id and how to open it', async () => {
+    await stubTemplateRepo({ main: sourced('main') })
+    const home = makeHome()
+
+    const result = await newInWith({ HOME: home }, makeElsewhere(), 'demo', '--dir', makeElsewhere())
+
+    const [entry] = registryOf(home)?.workspaces ?? []
+    expect(result.stdout.split('\n').at(-1)).toBe(`已登记为 workspace ${entry?.id}——在项目内执行 persimmon 打开`)
+    expect(result.stderr).toBe('')
+  })
+
+  // spec-00013-AC-6.4 (TestNewRegistersTheResolvedPath): the entry's path is the
+  // one on disk, so a directory reached through a symlink is one entry however
+  // it is spelled
+  it('registers the path on disk, not the symlink it was reached through', async () => {
+    await stubTemplateRepo({ main: sourced('main') })
+    const home = makeHome()
+    const root = makeElsewhere()
+    const real = join(root, 'private-work')
+    mkdirSync(real)
+    symlinkSync(real, join(root, 'work'))
+
+    await newInWith({ HOME: home }, makeElsewhere(), 'demo', '--dir', join(root, 'work'))
+
+    expect(registryOf(home)?.workspaces.map((entry) => entry.path)).toEqual([join(real, 'demo')])
+  })
+
+  // spec-00013-AC-6.5 (TestNewRefusesAFlagThatWouldSkipTheRegistration): the
+  // registration has no off switch, so a flag asking for one is an unknown flag
+  // — refused with the 2 of the parser layer, before anything is created
+  it('refuses a flag that would skip the registration, and creates nothing', async () => {
+    const dir = makeElsewhere()
+
+    const result = await newIn(dir, 'demo', '--no-register')
+
+    expect(result.code).toBe(2)
+    expect(result.stderr).toContain('no-register')
+    expect(readdirSync(dir)).toEqual([])
+  })
+
+  // spec-00013-AC-7.1 (TestNewRegistersDespiteAPortHeldBySomebodyElse): a port
+  // held by somebody who is not a persimmon writes the file all the same, which
+  // is where `new` parts from `add` deliberately
+  it('registers despite a port held by somebody who is not a persimmon', async () => {
+    await stubTemplateRepo({ main: sourced('main') })
+    const home = makeHome()
+    const port = await strangerOn()
+    const work = makeElsewhere()
+
+    const result = await newInWith({ HOME: home, PORT: String(port) }, makeElsewhere(), 'demo', '--dir', work)
+
+    expect(result.code).toBe(0)
+    expect(registryOf(home)?.workspaces.map((entry) => entry.path)).toEqual([join(work, 'demo')])
+  })
+
+  // spec-00013-AC-7.2 (TestNewWritesTheSameFileContractAProcessWouldRead): that
+  // direct write is the file contract and nothing else (design-00003 §2), which
+  // is what makes the entry indistinguishable from one a process registered
+  it('writes the same file contract a process would read', async () => {
+    await stubTemplateRepo({ main: sourced('main') })
+    const home = makeHome()
+    const port = await strangerOn()
+
+    await newInWith({ HOME: home, PORT: String(port) }, makeElsewhere(), 'demo', '--dir', makeElsewhere())
+
+    const file = JSON.parse(readFileSync(registryPathOf(home), 'utf8'))
+    expect(file.version).toBe(1)
+    expect(file.workspaces).toHaveLength(1)
+    expect(Object.keys(file.workspaces[0]).sort()).toEqual(['id', 'name', 'path'])
+  })
+
+  // spec-00013-AC-8.1 (TestNewKeepsTheProjectWhenTheRegistryIsIllFormed): the
+  // project stays, the registry's problem is one sentence, and the file the
+  // command could not read is not the file it rewrites
+  it('keeps the project when the registry is ill-formed, and rewrites nothing', async () => {
+    await stubTemplateRepo({ main: sourced('main') })
+    const home = makeHome()
+    writeRegistry(home, 'not json at all')
+    const work = makeElsewhere()
+
+    const result = await newInWith({ HOME: home }, makeElsewhere(), 'demo', '--dir', work)
+
+    expect(result.code).toBe(1)
+    expect(result.stderr).toContain(registryPathOf(home))
+    expect(result.stderr).toContain('not readable JSON')
+    expect(source(work, 'demo')).toBe('main')
+    expect(readFileSync(registryPathOf(home), 'utf8')).toBe('not json at all')
+  })
+
+  // spec-00013-AC-8.2 (TestNewKeepsTheProjectWhenTheRegistryCannotBeWritten)
+  it.skipIf(process.getuid?.() === 0)('keeps the project when the registry cannot be written', async () => {
+    await stubTemplateRepo({ main: sourced('main') })
+    const home = makeHome()
+    writeRegistry(home, [])
+    chmodSync(join(home, '.persimmon'), 0o500)
+    chmodded.push(join(home, '.persimmon'))
+    const work = makeElsewhere()
+
+    const result = await newInWith({ HOME: home }, makeElsewhere(), 'demo', '--dir', work)
+
+    expect(result.code).toBe(1)
+    expect(result.stderr).toMatch(/EACCES|permission denied/)
+    expect(source(work, 'demo')).toBe('main')
+  })
+
+  // spec-00013-AC-8.3 (TestNewKeepsTheProjectWhenTheRunningProcessRefuses): the
+  // sentence the user reads is the process's own (design-00003 §5: 422)
+  it('keeps the project when the running process refuses the registration', async () => {
+    await stubTemplateRepo({ main: sourced('main') })
+    const refusal = `the directory holds no ${CONFIG_FILE}: /work/demo`
+    const { port } = await stubHost({ post: () => ({ status: 422, body: { error: refusal } }) })
+    const home = makeHome()
+    const work = makeElsewhere()
+
+    const result = await newInWith({ HOME: home, PORT: String(port) }, makeElsewhere(), 'demo', '--dir', work)
+
+    expect(result.code).toBe(1)
+    expect(result.stderr).toContain(refusal)
+    expect(source(work, 'demo')).toBe('main')
+    expect(registryOf(home)).toBeNull()
+  })
+
+  // spec-00013-AC-8.4 (TestAProjectLeftUnregisteredRegistersOnceTheCauseIsGone):
+  // the project is a project whatever the registration did, which is why a
+  // failed registration rolls nothing back
+  it('registers with `add` once the cause is gone', async () => {
+    await stubTemplateRepo({ main: sourced('main') })
+    const home = makeHome()
+    writeRegistry(home, 'not json at all')
+    const work = makeElsewhere()
+    expect((await newInWith({ HOME: home }, makeElsewhere(), 'demo', '--dir', work)).code).toBe(1)
+
+    writeRegistry(home, [])
+    world({ home, port: await freePort(), cwd: join(work, 'demo') })
+    const result = await runCli('add')
+
+    expect(result.code).toBe(0)
+    expect(registryOf(home)?.workspaces.map((entry) => entry.path)).toEqual([join(work, 'demo')])
   })
 })
 

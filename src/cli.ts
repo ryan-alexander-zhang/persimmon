@@ -207,7 +207,7 @@ export async function run(argv: string[]): Promise<number> {
       registryPath: join(homedir(), '.persimmon', 'workspaces.json'),
     }
     if (command === undefined) return await start(world)
-    if (command === 'new') return await newProject(args)
+    if (command === 'new') return await newProject(world, args)
     if (command === 'add') return await add(world, args)
     if (command === 'remove') return await remove(world, args)
     return await list(world, args)
@@ -229,8 +229,8 @@ function resolvePort(value: string | undefined): number {
   return port
 }
 
-/** `persimmon new <name>` (spec-00013-FR-1): the flags, and the scaffold behind them. */
-async function newProject(args: string[]): Promise<number> {
+/** `persimmon new <name>` (spec-00013-FR-1): the flags, the scaffold behind them, and the registration that closes it. */
+async function newProject(world: World, args: string[]): Promise<number> {
   const { values, positionals } = parse(args, NEW)
   const name = positionals[0]
   if (name === undefined) throw new UsageError(NEW_USAGE)
@@ -239,14 +239,35 @@ async function newProject(args: string[]): Promise<number> {
   if (variant !== '' && lang === '') throw new UsageError('error: --variant requires --lang (e.g. --lang java --variant ddd)')
   const sets: Record<string, string> = {}
   for (const pair of many(values.set)) sets[pair.slice(0, pair.indexOf('='))] = pair.slice(pair.indexOf('=') + 1)
+  const dir = text(values.dir) ?? '.'
   try {
     // The "error: " prefix is the one the command has always printed on a
     // scaffold failure (spec-00013-FR-4).
-    await create({ name, lang, variant, dir: text(values.dir) ?? '.', ref: text(values.ref) ?? '', ...template(), sets })
+    await create({ name, lang, variant, dir, ref: text(values.ref) ?? '', ...template(), sets })
   } catch (error) {
     return refuse(`error: ${asMessage(error)}`, 1)
   }
+  // The project is the main product and the registration an attendant step: a
+  // scaffold that failed registers nothing, and a registration that failed rolls
+  // nothing back — its reason is reported and `persimmon add` picks the project
+  // up once the cause is gone (spec-00013-FR-8, design-00004 §5). A port held by
+  // somebody who is not a persimmon writes the file all the same, which is where
+  // `new` parts from `add` deliberately (spec-00013-FR-7).
+  const entry = await register(world, await probe(world.port), realpathOr(join(dir, name)))
+  console.log(`已登记为 workspace ${entry.id}——在项目内执行 persimmon 打开`)
   return 0
+}
+
+/**
+ * One directory into the registry through whoever holds the port (design-00003
+ * §8): a running process registers it, so its writes stay serialised and its
+ * switcher shows the entry at once; anything else writes the file directly.
+ * `add` and `new` share it whole — they differ only in what they make of a
+ * stranger on the port, which each of them settles before calling this
+ * (spec-00013-FR-6).
+ */
+async function register(world: World, instance: Instance, path: string, name?: string): Promise<WorkspaceEntry> {
+  return instance.kind === 'running' ? await post(world.port, path, name) : new WorkspaceRegistry(world.registryPath).add(path, name)
 }
 
 /** `persimmon update [--dir .]` (spec-00013-FR-9): the three-way merge of `src/scaffold.ts`. */
@@ -438,11 +459,7 @@ async function add(world: World, args: string[]): Promise<number> {
   const target = path === undefined ? findRepoRoot(process.cwd()) : resolve(path)
   const instance = await probe(world.port)
   if (instance.kind === 'occupied') throw new Error(occupied(world.port))
-  const workspace =
-    instance.kind === 'running'
-      ? await post(world.port, target, name)
-      : new WorkspaceRegistry(world.registryPath).add(target, name)
-  console.log(JSON.stringify(workspace))
+  console.log(JSON.stringify(await register(world, instance, target, name)))
   return 0
 }
 
