@@ -42,6 +42,8 @@ Set `parent` to the plan id; link each row to a requirement/GWT id:
 List any unfinished or uncovered requirement. A fail/missing row blocks `resolved`.
 Every `spec-<n>-FR-<i>` and every `rule-<n>-BR-<i>` in scope must appear; an
 unreferenced rule row is an unverified rule.
+标 `作废` 的 AC 不列入验收清单——它不欠验收行（`docs/spec/README.md` 的条目文法，
+`spec-00001-FR-32`）。
 
 ## 机器可读形态（条目文法）
 

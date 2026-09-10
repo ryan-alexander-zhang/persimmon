@@ -379,3 +379,20 @@ Windows 那一行按 `decision-00020` §2 第 10 条已不是义务，不记。
 
 合起来，放行前要补的是四件事：上面三处实测缺口，加上墓碑 AC 与
 `resolvedGate` 的读法分歧。补齐前 `plan-00034` 的状态不动。
+
+## 追记（2026-09-10）：四件事的进展
+
+1. **墓碑与 `resolvedGate` 的读法分歧——已解**（`issue-00039` resolved）。
+   `spec-00001` 第三十三轮给归属标注加了第二 token `作废`，`src/requirements.ts`
+   拆 token 后墓碑 AC 仍归属、仍计数、不参与三态。以本记录为证据集实跑
+   `resolvedGaps(plan-00034)` 得 **`[]`**；19 条墓碑全部解析、`unattributable: 0`。
+2. **tar 其余条目类型的二选一——已取 ②**：git 对象模型只能表达 dir / 普通文件
+   （含可执行位）/ symlink / gitlink，codeload 的 `git archive` tarball 不含硬链接、
+   fifo、设备；写在 `test/scaffold.test.ts` 头注。同批补了解包路径上符号链接与
+   可执行位保住的两条测试（`c45e080`），原「darwin 侧只覆盖目录与普通文件」的
+   观察随之关闭。
+3. **linux 侧读数——域主裁定暂不推送**，留空；不阻塞本仓库内的结论，但
+   `resolved` 前须由域主再定一次是推还是接受只有 darwin 读数。
+4. **真终端 Ctrl-C——待人工**，仍阻塞。
+
+放行前只剩第 3、4 两条，都在域主手上。

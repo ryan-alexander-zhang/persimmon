@@ -1,7 +1,7 @@
 ---
 id: issue-00039-a-tombstone-ac-holds-its-item-uncovered
 type: issue
-status: open
+status: resolved
 blocks: [plan-00034-persimmon-single-npm-artifact]
 ---
 
@@ -30,11 +30,19 @@ blocks: [plan-00034-persimmon-single-npm-artifact]
 
 ## 2. Impact
 
-- Affected: 两处。① `rule-00001-BR-25` 的机器门——今天挡着 `plan-00034`，
-  此后每一个交付面里含墓碑 FR 的 plan 都会被同样挡住；② 检视面板与全局覆盖
-  视图——`spec-00011` 的 FR-20 / FR-21、`spec-00012` 的 FR-3 / FR-10 以及
-  `spec-00012` 那五条**整条作废**的 FR（FR-5 … FR-8、FR-11）今天一律显示
-  「未覆盖」，读者看到的缺口数是假的。
+- Affected: 两处，且两处的读数**不同**——它们的证据集不同。
+  ① `rule-00001-BR-25` 的机器门（证据集另限为 `parent` 指向该 plan 的 record，
+  即 `record-00036`）：`spec-00012-FR-3` / `FR-10`、`spec-00011-FR-20` / `FR-21`
+  四条读 `uncovered`，今天挡着 `plan-00034`，此后每一个交付面里含墓碑 AC 的
+  plan 都会被同样挡住。
+  ② 检视面板与全局覆盖视图（证据集为全部 record）：这四条读的是 **`failing`**
+  而不是 `uncovered`——`record-00035` 有 16 行结果为 `待人工实测` 的验收行落在
+  它们（及 `spec-00012-FR-4` / `FR-5` / `FR-11`）上，非 `pass` 先命中先出。
+  `spec-00012` 那五条**整条作废**的 FR 里，`FR-6` / `FR-7` / `FR-8` 的墓碑 AC
+  各带一行 `pass`，今天面板读 **`verified`**——一条已作废的需求读作「已验证」
+  同样是假的。面板这一面在本 issue 修好后仍不准（`FR-6`/`FR-7`/`FR-8` 会翻成
+  `uncovered`，过期证据仍钉着其余几条），另立
+  `issue-00040-a-dead-requirement-still-reads-as-a-gap` 承接。
 - Since: `5ea8f92`（第三十一轮，第一批墓碑落地）· Still occurring: yes
 - Severity: 中高。它不产生错误数据，但**把唯一一道自动的验收门变成了必须绕开
   的门**：门给出的四条缺口都是假的，而人一旦学会「这门的报警可以不理」，真
@@ -82,12 +90,13 @@ blocks: [plan-00034-persimmon-single-npm-artifact]
 | `web/src/CoverageView.tsx:122`、`web/src/coverageMarks.ts` | 消费方 | yes（症状） | 同上，读同一份 `coverage`，无独立改动 |
 | `src/requirements.ts:218-224`（`FR-33` 的「无法归属」） | no | no | 墓碑归属得上，不走这条路；`FR-33` 语义不变 |
 | `docs/spec/README.md:34`（条目文法） | yes | yes | 文法须加这一位（另一 agent 在改） |
-| `spec-00011` 3 条 / `spec-00012` 16 条既有墓碑 | yes | yes | 各加标记；加完前门的读数不变 |
+| `spec-00011` 3 条 / `spec-00012` 16 条既有墓碑 | yes | yes | 已于第三十三轮各加标记。**代码落地前这 19 条落进 `FR-33` 的无法归属区**（`ATTRIBUTION` 取到整串 `…-FR-<i>, 作废`，`attachCriteria` 找不到同名条目），读数因此先变了一次，见 §8 Residual state |
 
 `spec-00012` 的 16 条墓碑里只有 `AC-3.2`、`AC-10.3` 挂在存续的 FR 上，故门
 只报了两条；其余 14 条挂在整条作废的 FR-5 … FR-8、FR-11 上——那五条 FR 不在
-任何 plan 的 `implements` 里，门看不见它们，但**检视面板照样把它们显示为
-「未覆盖」**。同一根因的两种可见面，一种阻塞流转，一种只是读数失真。
+任何 plan 的 `implements` 里，门看不见它们，**面板则按各自挂着的行给出
+`failing` 或 `verified`，没有一条是真的**（逐条读数见 §2）。同一根因的两种
+可见面，一种阻塞流转，一种只是读数失真。
 
 ## 5. Reproduction (test-first)
 
@@ -164,20 +173,54 @@ spec-00011-FR-21   ← spec-00011-AC-21.3 / AC-21.4（墓碑）无行
 检视面板、全局覆盖视图三处一次同时变正，且此后每一条新墓碑在写下的那一刻就
 是机器可见的——不必再靠散文里的一段说明和读者的记性。
 
+**第三十三轮的实际范围（编排者据审计收窄，2026-09-10）**：本轮只落 **AC 侧**。
+落地的是——`docs/spec/README.md` 的 AC 归属标注开 `作废` token（条目声明行
+**不**开）；`spec-00001-FR-32` 在三态之前定义「计入的 AC」，三态措辞不变，另
+明写墓碑 AC 上的引用行怎么算（非 `pass` 仍判「未通过」，`pass` 惰性）；`FR-33`
+补一句未知第二 token 的归宿（无法归属）；新增 `AC-32.11` … `AC-32.14`、
+`AC-33.4`；19 条既有墓碑逐条加标记。**不落**的是——FR 侧的 `作废` 标记、
+「整条作废的条目不携带覆盖状态」的第四态，以及本条上文提过的检视面板区别样式：
+那要连改 `spec-00002-FR-10`/`FR-11`、`design-00001` §7、`design-00002` §2/§9 与
+`web/src/coverageMarks.ts`。`spec-00001-FR-31` 因此一字未动（AC 计数照旧含墓碑
+——墓碑归属得上就计数）。整条作废的那五条 FR 不在任何 plan 的 `implements` 里、
+不挡门，其面板读数与 `record-00035` 的过期证据一并归
+`issue-00040-a-dead-requirement-still-reads-as-a-gap`（`open`，不 block 任何
+plan）。本 issue 的验收范围随之只到「门放行 `plan-00034`」为止。
+
 已否决的替法：① 为五条墓碑 AC 各补一条验收行——编造证据，且 `n/a` 会把 FR
 判成 `failing`，比现状更糟；② 提高门的容忍度或在 `resolvedGate` 里排除墓碑
 ——门与检视面板会就同一条目给出不同答案，违反 `design-00001` §2「判定只有
 一处」；③ 删掉墓碑 id——正是第三十一轮为避免断链而否决过的做法。
 
-## 7. Verification（待修复后补）
+## 7. Verification（2026-09-10 记）
 
-修复落地时须记满：
+修复落在 `src/requirements.ts`（`RETIRED` 常量、`Criterion.retired?: true`、
+`coverageOf` 只数 `counted = criteria.filter((c) => !c.retired)`、`attachCriteria`
+按逗号拆 token，第二 token 非 `作废` 或有第三 token 即落 `unattributable`）。
+读数：
+
+- §5 守卫红→绿：修前 `AC-32.11` 的 `criteria` 只剩 `AC-1.1`（`AC-1.2` 落进无法
+  归属）、`AC-32.12` 得 `verified` 而非 `failing`、`AC-32.13` 得空数组；修后六条
+  新用例与 `test/resolvedGate.test.ts` 的一条全绿，既有 `AC-32.1`…`32.10` 十条原样通过。
+- 以 `record-00036` 为证据集实跑 `resolvedGaps(plan-00034)`：`deliveryScope.items` 32
+  条、`unresolved: []`、**`resolvedGaps: []`**——四条假缺口消失，无新增。
+- 19 条墓碑（`spec-00011` 3、`spec-00012` 16）全部解析为 `retired`，
+  `unattributable: 0`。
+- 全 record 集下：`spec-00012-FR-3` / `FR-10`、`spec-00011-FR-20` 读 `failing`
+  （`record-00035` 的 `待人工实测` 行，归 `issue-00040`）；`spec-00011-FR-21`
+  读 `verified`（其墓碑 `AC-21.3`/`21.4` 带 `pass` 行、惰性，现行三条各有 pass）
+  ——§2 早先「面板一律 failing」的概括对 FR-21 不成立，据实记此。
+- `npm test` 2291 通过、`npm run typecheck` 干净、覆盖阈值未动。
+
+原定的记满清单：
 
 - §5 的守卫用例红→绿，边界用例始终绿；
 - 以 `record-00036` 为证据集重跑 `resolvedGaps`，四条假缺口消失，且不新增缺口；
-- 检视面板与全局覆盖视图上 `spec-00011-FR-20` / `FR-21`、`spec-00012-FR-3` /
-  `FR-10` 不再显示「未覆盖」，`spec-00012` 的 FR-5 … FR-8、FR-11 五条整条作废
-  的 FR 呈现按修订后的 `FR-31` / `FR-32` 核对；
+- 检视面板与全局覆盖视图上，这四条**不再因墓碑 AC 少一行而落进 `uncovered`**
+  ——它们仍读 `failing`，那是 `record-00035` 的 16 行 `待人工实测` 造成的、与
+  本 issue 不同根因的一面（归 `issue-00040`）；`spec-00012` 的 FR-5 … FR-8、
+  FR-11 五条整条作废的 FR 的读数按修订后的 `FR-32` 逐条核对，其中
+  FR-6/FR-7/FR-8 由 `verified` 翻为 `uncovered`（同归 `issue-00040`）；
 - `npm test`、`npm run typecheck` 全绿。
 
 ## 8. Follow-through
@@ -194,11 +237,19 @@ spec-00011-FR-21   ← spec-00011-AC-21.3 / AC-21.4（墓碑）无行
 - Residual state: `record-00036` 的结论段（「不放行」的第四件事）在修复后须
   重取读数；`plan-00034` 保持 `open`，直到门实跑无缺口。19 条既有墓碑在加上
   标记前，白板上的覆盖读数一直是失真的。
+  **第三十三轮之后、代码落地之前有一段过渡态**：19 条标记已在文档里，而
+  `src/requirements.ts` 还不认这个 token，于是这 19 条落进解析诊断的无法归属
+  区，其所属 FR 的 AC 集少掉它们——`spec-00012-FR-5` … `FR-8`、`FR-11` 读
+  `uncovered (criteria 0)`，而门（证据集 `record-00036`）恰好因此不再报那四条
+  缺口。**那不是修好了，是从另一条路绕过去了**：`plan-00034` 在
+  `src/requirements.ts` 落地并有一份新 record 之前不得据此促 `resolved`。
 
 ## Links
 
 - Blocks: plan-00034-persimmon-single-npm-artifact（`open → resolved` 被门挡住）
-- Related: spec-00001-docs-whiteboard（`FR-31`、`FR-32`、`FR-33`、`AC-32.1` …
+- Related: issue-00040-a-dead-requirement-still-reads-as-a-gap（本轮收窄后
+  剩下的那一半：整条作废的需求与过期证据在面板上的读数）、
+  spec-00001-docs-whiteboard（`FR-31`、`FR-32`、`FR-33`、`AC-32.1` …
   `AC-32.10`）、spec-00011-multi-workspace（§430 的三条墓碑）、
   spec-00012-persimmon-command（§319 的十六条墓碑）、
   record-00036-persimmon-single-npm-artifact-acceptance（§320-338、§353-381

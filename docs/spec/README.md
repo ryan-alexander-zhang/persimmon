@@ -11,7 +11,8 @@ Use `TEMPLATE.md` for front matter.
   `spec-<n>-AC-<i>.<k>`; error and rejection behaviour is an Unwanted requirement,
   not a table
 - acceptance for every requirement: each `spec-<n>-FR-<i>` needs at least one
-  `spec-<n>-AC-<i>.<k>`; an `FR` no acceptance references is unverified
+  `spec-<n>-AC-<i>.<k>`; an `FR` no acceptance references is unverified.
+  Tombstone criteria (`作废`) do not count toward the acceptance an FR owes
 - links to the `rule/` docs the feature obeys
 - links to the `design/` docs it builds. Required before the spec turns `active`
   whenever any `FR` introduces or changes structure that outlives one `plan` — a
@@ -33,6 +34,29 @@ Add more when useful.
   - `(<EARS 类型>)` 是约定的推荐标注，缺失暂不进诊断
 - 验收标准：`- **spec-<n>-AC-<i>.<k>** (spec-<n>-FR-<i>)` 起头，归属标注必写
   （缺失即进解析诊断的无法归属类）；Given / When / Then 各占续行。
+- 归属标注允许第二个逗号分隔 token `作废`，标出**墓碑 AC**——断言已作废、id 就地
+  留存供既有引用解析的验收条目：
+
+  ```
+  - **spec-00012-AC-5.1** (spec-00012-FR-5, 作废)
+    Given 原断言「命令由发布归档取得时，`GET /api/instance` 的 `version` 与
+    `persimmon version` 的输出相同」
+    When `FR-5` 的版本配对随两产物形态一并作废（第三十二轮）
+    Then 该断言无对象可断言，自第三十二轮起退出验收集，**无替代条目**——id 就地
+    留存，供 `record-00035` 与 `plan-00033` 的既有引用解析
+  ```
+
+  标 `作废` 的 AC 仍归属该 FR、仍计入 `spec-00001-FR-31` 的 AC 计数，但不是
+  `spec-00001-FR-32` 的**计入的 AC**，因而不参与覆盖三态：它有无引用行都不使该
+  条目判「未覆盖」；落在它上面的非 `pass` 引用行仍判「未通过」，`pass` 行惰性。
+  其正文须写明**作废轮次**与「**无替代条目**」（有替代形态的是改写，不是作废）。
+  引用它的 record 验收行照常解析。第二个 token 只认 `作废`：写成别的词、或标注
+  含三个及以上 token 的，标注整体不成立，该 AC 进 `spec-00001-FR-33` 的「无法
+  归属」区。
+  **不删 id**：既有的 record、plan 与 design 引着这些 id，抹掉会把那些引用变成
+  死链——历史是证据，不是可改写的内容（同 §Sizing and Splitting 第 2 条的理由）。
+  条目声明行**没有**这个标记位：整条作废的需求今天仍只在 AC 侧标全（见
+  `issue-00040`）。
 - 只有以**本文档 id** 为前缀的声明才属于本文档；整行引用他文档的条目不构成
   声明，也不进诊断。
 - 条目 id 在散文中一律用反引号引用；**粗体 id 是声明专用形态**——**整行以

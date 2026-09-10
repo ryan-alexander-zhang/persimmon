@@ -331,6 +331,88 @@ describe('coverage', () => {
     expect(view.items[0]!.coverage).toBe('uncovered')
     expect(view.diagnostics).toEqual([])
   })
+
+  // spec-00001-AC-32.11 (issue-00039) — a tombstone criterion counts, but is not counted-in
+  it('keeps a criterion marked 作废 out of the coverage verdict, but in the count', () => {
+    const view = viewOf(
+      specBody(
+        [item('spec-00001-FR-1')],
+        [
+          criterion('spec-00001-AC-1.1', 'spec-00001-FR-1'),
+          criterion('spec-00001-AC-1.2', 'spec-00001-FR-1, 作废'),
+        ],
+      ),
+      [checklist('record-00001-x', [['spec-00001-AC-1.1', 'first test', 'pass']])],
+    )
+
+    expect(view.items[0]!.criteria.map((found) => found.id)).toEqual([
+      'spec-00001-AC-1.1',
+      'spec-00001-AC-1.2',
+    ])
+    expect(view.items[0]!.criteria.map((found) => found.retired)).toEqual([undefined, true])
+    expect(view.diagnostics).toEqual([])
+    expect(view.items[0]!.coverage).toBe('verified')
+  })
+
+  // spec-00001-AC-32.12 — being retired excuses a missing row, never a row that did not pass
+  it('calls an item failing when the row on its tombstone criterion did not pass', () => {
+    const view = viewOf(
+      specBody(
+        [item('spec-00001-FR-1')],
+        [
+          criterion('spec-00001-AC-1.1', 'spec-00001-FR-1'),
+          criterion('spec-00001-AC-1.2', 'spec-00001-FR-1, 作废'),
+        ],
+      ),
+      [
+        checklist('record-00001-x', [
+          ['spec-00001-AC-1.1', 'first test', 'pass'],
+          ['spec-00001-AC-1.2', 'a stale test', 'fail'],
+        ]),
+      ],
+    )
+
+    expect(view.items[0]!.coverage).toBe('failing')
+  })
+
+  // spec-00001-AC-32.13 — no counted-in criterion at all reads as zero criteria (AC-32.7)
+  it('calls an item uncovered when every one of its criteria is a tombstone', () => {
+    const view = viewOf(
+      specBody(
+        [item('spec-00001-FR-1')],
+        [
+          criterion('spec-00001-AC-1.1', 'spec-00001-FR-1, 作废'),
+          criterion('spec-00001-AC-1.2', 'spec-00001-FR-1, 作废'),
+        ],
+      ),
+    )
+
+    expect(view.items[0]!.criteria).toHaveLength(2)
+    expect(view.items[0]!.coverage).toBe('uncovered')
+  })
+
+  // spec-00001-AC-32.14 — a pass on a tombstone is inert, it settles nothing
+  it('calls an item uncovered when only its tombstone criterion has a passing row', () => {
+    const view = viewOf(
+      specBody(
+        [item('spec-00001-FR-1')],
+        [
+          criterion('spec-00001-AC-1.1', 'spec-00001-FR-1'),
+          criterion('spec-00001-AC-1.2', 'spec-00001-FR-1, 作废'),
+        ],
+      ),
+      [checklist('record-00001-x', [['spec-00001-AC-1.2', 'a tombstone test', 'pass']])],
+    )
+
+    expect(view.items[0]!.coverage).toBe('uncovered')
+  })
+
+  // issue-00039 §5 — an unmarked criterion with no row is still a gap
+  it('still calls an item uncovered when an unmarked criterion has no row', () => {
+    expect(
+      viewOf(TWO_CRITERIA, [checklist('record-00001-x', [['spec-00001-AC-1.1', 't', 'pass']])]).items[0]!.coverage,
+    ).toBe('uncovered')
+  })
 })
 
 describe('what cannot be attributed', () => {
@@ -388,6 +470,33 @@ describe('what cannot be attributed', () => {
       },
     ])
     expect(view.items[0]!.criteria.map((found) => found.id)).toEqual(['spec-00001-AC-1.1'])
+  })
+
+  // spec-00001-AC-33.4 — the second token is 作废 or the attribution does not hold
+  it('lists a criterion whose second attribution token is not 作废, and leaves it uncounted', () => {
+    const view = viewOf(
+      specBody(
+        [item('spec-00001-FR-1')],
+        [criterion('spec-00001-AC-1.1', 'spec-00001-FR-1'), criterion('spec-00001-AC-1.2', 'spec-00001-FR-1, 作费')],
+      ),
+      [checklist('record-00001-x', [['spec-00001-AC-1.1', 'a test', 'pass']])],
+    )
+
+    expect(view.diagnostics).toMatchObject([
+      { kind: 'unattributable', declaredId: 'spec-00001-AC-1.2', attributedTo: 'spec-00001-FR-1, 作费' },
+    ])
+    expect(view.items[0]!.criteria.map((found) => found.id)).toEqual(['spec-00001-AC-1.1'])
+    expect(view.items[0]!.coverage).toBe('verified')
+  })
+
+  // spec-00001-AC-33.4 — three tokens is no attribution either
+  it('lists a criterion whose attribution carries a third token, and leaves it uncounted', () => {
+    const view = viewOf(
+      specBody([item('spec-00001-FR-1')], [criterion('spec-00001-AC-1.1', 'spec-00001-FR-1, 作废, 作废')]),
+    )
+
+    expect(view.diagnostics).toMatchObject([{ kind: 'unattributable', declaredId: 'spec-00001-AC-1.1' }])
+    expect(view.items[0]!.criteria).toEqual([])
   })
 
   // spec-00001-AC-40.9 — the attribution is not optional, so its absence is reported

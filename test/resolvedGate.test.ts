@@ -91,6 +91,23 @@ describe('deliveryScope', () => {
     expect(deliveryScope(['spec-00001-AC-1.2'], DOC_IDS, docs).items).toEqual(['spec-00001-FR-1'])
   })
 
+  // issue-00039 — a tombstone AC owes no row, so the gate lets its item through
+  it('finds no gap when the only criterion without a row is a tombstone', () => {
+    const spec: DocBody = {
+      id: 'spec-00002-tombstone',
+      body: body(
+        [item('spec-00002-FR-1')],
+        [
+          criterion('spec-00002-AC-1.1', 'spec-00002-FR-1'),
+          criterion('spec-00002-AC-1.2', 'spec-00002-FR-1, 作废'),
+        ],
+      ),
+    }
+    const docs = itemCoverage([spec], [checklist('record-00001-r', [['spec-00002-AC-1.1', 'pass']])])
+
+    expect(resolvedGaps(['spec-00002-FR-1'], ['spec-00002-tombstone'], docs)).toEqual([])
+  })
+
   // rule-00001-AC-25.5, the resolution half: an id that names nothing in the repo
   it('reports a target that is neither a document nor an item', () => {
     const scope = deliveryScope(['spec-00001-FR-1', 'spec-00001-FR-99'], DOC_IDS, docs)

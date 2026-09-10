@@ -30,6 +30,8 @@ const ITEM_ID = /[a-z]+-\d{5}-(?:FR|BR|AC)-\d+(?:\.\d+)?/g
 const SUSPECT_LINE = /^(?:[-*+][ \t]+|\d+[.)][ \t]+|\|[ \t]*)?\*\*([^*]+)\*\*/
 /** The `(spec-00001-FR-1)` an acceptance criterion carries to say what it verifies. */
 const ATTRIBUTION = /^\(([^)]+)\)[ \t]*/
+/** The one optional second token of an attribution, marking a tombstone criterion (`docs/spec/README.md`). */
+const RETIRED = '作废'
 const TEST_COLUMN = /test|测试/i
 const RESULT_COLUMN = /result|结果/i
 const EVIDENCE_COLUMN = /evidence|证据/i
@@ -56,6 +58,12 @@ export interface Criterion {
   id: string
   text: string
   rows: AcceptanceRow[]
+  /**
+   * Marked `作废`: still declared and still counted, but no longer one of the
+   * counted-in criteria of the coverage verdict (FR-32). Left out rather than
+   * left `false`, as `evidence` is (design-00001 §7).
+   */
+  retired?: true
 }
 
 export interface RequirementItem {
@@ -194,15 +202,20 @@ export function requirementViewFrom(doc: DocBody, scan: RecordScan): ItemsView {
 
 /**
  * The three states, first hit wins (spec-00001-FR-32, decision-00004 §2/§5):
- * a row that did not pass outranks everything; no criteria at all, or a
- * criterion nobody referenced, is a gap — an item-level `pass` does not stand
- * in for the per-criterion references.
+ * a row that did not pass outranks everything; no counted-in criteria at all,
+ * or a counted-in criterion nobody referenced, is a gap — an item-level `pass`
+ * does not stand in for the per-criterion references.
+ *
+ * The counted-in criteria are the ones not marked `作废`. A tombstone owes no
+ * row, but a row on it that did not pass still fails the item: what being
+ * retired excuses is the missing verification, never a stale or wrong one.
  */
 function coverageOf(item: ItemDraft): Coverage {
   const rows = [...item.rows, ...item.criteria.flatMap((criterion) => criterion.rows)]
   if (rows.some((row) => row.result.toLowerCase() !== PASS)) return 'failing'
-  if (item.criteria.length === 0) return 'uncovered'
-  return item.criteria.some((criterion) => criterion.rows.length === 0) ? 'uncovered' : 'verified'
+  const counted = item.criteria.filter((criterion) => !criterion.retired)
+  if (counted.length === 0) return 'uncovered'
+  return counted.some((criterion) => criterion.rows.length === 0) ? 'uncovered' : 'verified'
 }
 
 function attachCriteria(
@@ -213,7 +226,12 @@ function attachCriteria(
 ): void {
   for (const criterion of criteria) {
     const attributedTo = ATTRIBUTION.exec(criterion.text)?.[1]
-    const owner = items.find((item) => item.id === attributedTo)
+    // One id, and at most one further token, which is `作废` or the attribution
+    // does not hold at all (FR-33): the second token is never guessed at.
+    const [id, marker, ...rest] = attributedTo?.split(',').map((token) => token.trim()) ?? []
+    const retired = marker === RETIRED
+    const owner =
+      rest.length === 0 && (marker === undefined || retired) ? items.find((item) => item.id === id) : undefined
     if (!owner) {
       diagnostics.push({
         kind: 'unattributable',
@@ -224,7 +242,12 @@ function attachCriteria(
       })
       continue
     }
-    owner.criteria.push({ id: criterion.id, text: criterion.text.replace(ATTRIBUTION, ''), rows: [] })
+    owner.criteria.push({
+      id: criterion.id,
+      text: criterion.text.replace(ATTRIBUTION, ''),
+      rows: [],
+      ...(retired ? { retired } : {}),
+    })
   }
 }
 
