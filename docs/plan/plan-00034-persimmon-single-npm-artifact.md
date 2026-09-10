@@ -353,7 +353,7 @@ T2a → T2b ──┘     ├→ T5 ─┼→ T7 → T8
   `.ainpt.json` 的内容与文件名一律不变。本任务**不含命令层**（旗标解析与
   `cmdNew` / `cmdUpdate` 在 T3），落地时它是一个还没有调用者的模块。
   - **解归档**：`fetch()` 取 codeload tarball，响应体管进外壳
-    `tar -xzf - --strip-components=1 -C <tmp>`。`--strip-components=1` 做的正是
+    `tar -xzf - --strip-components=1 -C <tmp>`（**实现期改为** `node:zlib` 进程内 `gunzipSync` 后 `tar -xf -`——首次 linux CI 暴露 GNU tar 的 `-z` 要 exec `gzip`，见 `issue-00041`）。`--strip-components=1` 做的正是
     Go 的 `stripFirst` 那件事，**那个函数连同它自己一起删**；目录、普通文件、
     符号链接与权限位都由 tar 落地，不写第二份解包实现、不新增依赖。
     **`tar` 是移植新引入的外部前置**（Go 侧用进程内的 `archive/tar` +

@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { gunzipSync } from 'node:zlib'
 
 /**
  * Fetches a template branch and materialises a project from it — the port of
@@ -112,7 +113,7 @@ async function fetchTemplate(owner: string, repo: string, refPath: string): Prom
 
   const tmp = mkdtempSync(join(tmpdir(), 'persimmon-'))
   try {
-    untar(archive, tmp)
+    untar(archive, tmp, url)
   } catch (error) {
     rmSync(tmp, { recursive: true, force: true })
     throw error
@@ -124,9 +125,21 @@ async function fetchTemplate(owner: string, repo: string, refPath: string): Prom
  * `--strip-components=1` drops the wrapper directory, and tar itself lands the
  * directories, regular files, symlinks and permission bits — the four things the
  * Go reader handled by hand.
+ *
+ * The gunzip is `node:zlib`'s and not tar's `-z`, because `-z` is not one
+ * behaviour: GNU tar execs a separate `gzip` for it while darwin's bsdtar has
+ * libz built in, so `-z` made `gzip` an undeclared prerequisite on linux alone
+ * (issue-00041). `tar` stays the only command this needs (spec-00013-FR-17).
  */
-function untar(archive: Buffer, dir: string): void {
-  const done = spawnSync('tar', ['-xzf', '-', '--strip-components=1', '-C', dir], { input: archive })
+function untar(archive: Buffer, dir: string, url: string): void {
+  let plain: Buffer
+  try {
+    plain = gunzipSync(archive)
+  } catch (error) {
+    throw new Error(`${url} did not return a gzip archive: ${asMessage(error)}`)
+  }
+
+  const done = spawnSync('tar', ['-xf', '-', '--strip-components=1', '-C', dir], { input: plain })
   if (done.error) {
     if ((done.error as NodeJS.ErrnoException).code === 'ENOENT') {
       throw new MissingToolError('tar is not on PATH; it is required to unpack the template')

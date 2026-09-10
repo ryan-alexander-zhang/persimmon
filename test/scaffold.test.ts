@@ -5,6 +5,7 @@ import { type Server, createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { gzipSync } from 'node:zlib'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { type Lock, type Options, copyTree, create, excluded, mergeTree, prepareUpdate, resolveRef, update } from '../src/scaffold.ts'
 
@@ -684,6 +685,22 @@ describe('new', () => {
     expect(exists(parent, 'demo')).toBe(false)
   })
 
+  // spec-00013-FR-17, the dual of AC-17.1 (issue-00041): `tar` is the ONLY
+  // command the unpack needs. It read `tar -xzf` before, and GNU tar's `-z`
+  // execs a separate `gzip`, so on linux a PATH holding tar alone failed the
+  // unpack while darwin's bsdtar — libz built in, nothing exec'd — passed. This
+  // case is therefore green on darwin either way and is the linux guard.
+  it('unpacks the template with tar as the only command on PATH', async () => {
+    const parent = tmp()
+    await stubGitHub({ main: HEAD_SHA }, { main: { 'README.md': 'hi\n' } })
+    capture()
+    withoutGit()
+
+    await create({ name: 'demo', dir: parent, owner: STUB_OWNER, repo: STUB_REPO })
+
+    expect(readFile(join(parent, 'demo'), 'README.md')).toBe('hi\n')
+  })
+
   // spec-00013-FR-2: the shelled-out `tar -xzf - --strip-components=1` is what
   // lands the tree, so the entry types it has to carry are read off the real
   // unpack and not off copyTree alone — the copyTree case starts from a tree
@@ -710,11 +727,26 @@ describe('new', () => {
     const parent = tmp()
     await stubGitHub({ main: HEAD_SHA }, {})
     // The branch download answers 404 for a tree the stub does not hold, so an
-    // unpackable body needs a stub of its own.
-    vi.mocked(globalThis.fetch).mockResolvedValue(new Response('not a tarball'))
+    // unpackable body needs a stub of its own. Real gzip around it: the gunzip
+    // runs in-process ahead of tar (issue-00041), and a body that is not gzip
+    // at all is the case below.
+    vi.mocked(globalThis.fetch).mockResolvedValue(new Response(gzipSync(Buffer.from('not a tarball'))))
     capture()
 
     await expect(create({ name: 'demo', dir: parent, owner: STUB_OWNER, repo: STUB_REPO })).rejects.toThrow(/tar failed to unpack/)
+  })
+
+  // issue-00041: the in-process gunzip names the URL it was handed and stops.
+  // Anything quieter would hand tar a body it cannot read and blame tar for it.
+  it('reports a download that is not a gzip archive', async () => {
+    const parent = tmp()
+    await stubGitHub({ main: HEAD_SHA }, {})
+    vi.mocked(globalThis.fetch).mockResolvedValue(new Response('not a tarball'))
+    capture()
+
+    await expect(create({ name: 'demo', dir: parent, owner: STUB_OWNER, repo: STUB_REPO })).rejects.toThrow(
+      /codeload\.github\.com\/acme\/tpl\/tar\.gz\/refs\/heads\/main did not return a gzip archive/,
+    )
   })
 })
 
