@@ -15,25 +15,36 @@ acceptance records, and this board is what renders them.
 
 ## Quick Start
 
-Run the `persimmon` command:
+**Nothing is published to npm yet.** Until the first version is cut, install the
+`persimmon` command from source — it takes one `npm link`:
 
 ```bash
-npx @ryan-alexander-zhang/persimmon        # or: npm i -g @ryan-alexander-zhang/persimmon
+git clone https://github.com/ryan-alexander-zhang/persimmon.git
+cd persimmon
+npm ci && npm run build      # build = vite build + tsc → dist/web and lib/
+npm link                     # puts `persimmon` on your PATH, pointing at this checkout
 ```
 
-**No version has been published yet**, so `npx` has nothing to fetch until the
-first one is cut — until then use the developer form below.
-
-Developing this repository:
+Then, from any directory:
 
 ```bash
-npm install
-npm run build
-npm start            # the persimmon bin against this checkout: http://localhost:4173, honours PORT
+persimmon new demo --lang go     # scaffold a project from the template and register it
+cd demo && persimmon             # serve its board: http://localhost:4173/w/demo (honours PORT)
+persimmon list                   # every registered workspace and whether it is usable
+persimmon update                 # pull the template's changes into this project (three-way merge)
+persimmon help                   # the full command set
 ```
 
-`npm run build` has to come first, because the command serves the board out of
-`lib/` and `dist/web`.
+Prerequisites: Node ≥ 23.6, `git`, `tar`. Linux and macOS only.
+
+After editing the source, `npm run build` is enough — the link keeps pointing at
+the checkout. `npm unlink -g @ryan-alexander-zhang/persimmon` removes the
+command. Without a link, `node bin/persimmon.js …` and `npm start` (the bare
+`persimmon` form) work the same way from inside the repository.
+
+Once a version is published the same command arrives with
+`npx @ryan-alexander-zhang/persimmon` or `npm i -g @ryan-alexander-zhang/persimmon`;
+the behaviour is identical across the three install forms.
 
 The board walks up from the directory it is launched in to the nearest
 `whiteboard.config.yaml` and serves that repository's `docs/`.
