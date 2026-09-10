@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process'
 import { once } from 'node:events'
-import { lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { chmodSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { type Server, createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
@@ -19,6 +19,14 @@ import { type Lock, type Options, copyTree, create, excluded, mergeTree, prepare
  * fetches: `fetch` is spied on and its origin rewritten, so both
  * codeload.github.com and api.github.com are answered without touching the
  * network.
+ *
+ * {@link tarball} carries symlinks and mode bits, and nothing else, because
+ * nothing else can arrive: git's object model expresses only directories,
+ * regular files (with a single executable bit), symlinks and gitlinks, so the
+ * `git archive` tarball codeload serves never holds a hard link, a fifo or a
+ * device node. The entry types the Go reader's `switch` dropped for want of a
+ * `default` are unreachable on this path, which is why the port does not
+ * reproduce them (plan-00034 实测义务).
  */
 
 const STUB_OWNER = 'acme'
@@ -47,12 +55,26 @@ function tmp(): string {
   return dir
 }
 
-/** Materialises a map of slash-separated paths to contents under root. */
-function writeTree(root: string, files: Record<string, string>): void {
-  for (const [rel, body] of Object.entries(files)) {
+/**
+ * One entry in a fixture tree: contents, a symlink target, or contents with an
+ * explicit mode — the three shapes a template branch can hold (see the file
+ * header).
+ */
+type Entry = string | { link: string } | { body: string; mode: number }
+
+/** Materialises a map of slash-separated paths to entries under root. */
+function writeTree(root: string, files: Record<string, Entry>): void {
+  for (const [rel, entry] of Object.entries(files)) {
     const path = join(root, rel)
     mkdirSync(dirname(path), { recursive: true })
-    writeFileSync(path, body)
+    if (typeof entry === 'string') {
+      writeFileSync(path, entry)
+    } else if ('link' in entry) {
+      symlinkSync(entry.link, path)
+    } else {
+      writeFileSync(path, entry.body)
+      chmodSync(path, entry.mode) // not writeFileSync's mode: umask masks that one
+    }
   }
 }
 
@@ -89,7 +111,7 @@ function readFile(root: string, rel: string): string {
  * `tar` itself, eagerly — a case that takes `tar` off PATH must still be served
  * an archive.
  */
-function tarball(tree: Record<string, string>): Buffer {
+function tarball(tree: Record<string, Entry>): Buffer {
   const staging = tmp()
   mkdirSync(join(staging, 'root'), { recursive: true })
   writeTree(join(staging, 'root'), tree)
@@ -105,7 +127,7 @@ function tarball(tree: Record<string, string>): Buffer {
  * provoked); `trees` holds the tree behind each ref, keyed by branch name and by
  * commit sha.
  */
-async function stubGitHub(heads: Record<string, string>, trees: Record<string, Record<string, string>>): Promise<void> {
+async function stubGitHub(heads: Record<string, string>, trees: Record<string, Record<string, Entry>>): Promise<void> {
   const archives = new Map(Object.entries(trees).map(([ref, tree]) => [ref, tarball(tree)]))
   const commitPrefix = `repos/${STUB_OWNER}/${STUB_REPO}/commits/`
   const downloadPrefix = `${STUB_OWNER}/${STUB_REPO}/tar.gz/`
@@ -151,7 +173,7 @@ function capture(): () => string {
 /** Scaffolds a project out of tree into a fresh parent directory. */
 async function runNew(
   overrides: Partial<Options>,
-  tree: Record<string, string>,
+  tree: Record<string, Entry>,
 ): Promise<{ dir: string; parent: string; out: string; error?: Error }> {
   const options: Options = { name: 'demo', dir: tmp(), owner: STUB_OWNER, repo: STUB_REPO, ...overrides }
   const ref = resolveRef(options)
@@ -660,6 +682,28 @@ describe('new', () => {
     await expect(create({ name: 'demo', dir: parent, owner: STUB_OWNER, repo: STUB_REPO })).rejects.toThrow(/tar is not on PATH/)
 
     expect(exists(parent, 'demo')).toBe(false)
+  })
+
+  // spec-00013-FR-2: the shelled-out `tar -xzf - --strip-components=1` is what
+  // lands the tree, so the entry types it has to carry are read off the real
+  // unpack and not off copyTree alone — the copyTree case starts from a tree
+  // that is already on disk (plan-00034 实测义务, tar 条目类型).
+  it('lands a template symlink as a symlink through the unpack', async () => {
+    const { dir, error } = await runNew({}, { 'AGENTS.md': 'x\n', 'CLAUDE.md': { link: 'AGENTS.md' } })
+
+    expect(error).toBeUndefined()
+    expect(linkTarget(dir, 'CLAUDE.md')).toBe('AGENTS.md')
+    expect(readFile(dir, 'AGENTS.md')).toBe('x\n')
+  })
+
+  // spec-00013-FR-2: the other half of the same reading — a template script that
+  // arrives without its executable bit is a project whose post_create and hooks
+  // cannot run (plan-00034 实测义务, tar 条目类型).
+  it('keeps the executable bit on a template script through the unpack', async () => {
+    const { dir, error } = await runNew({}, { 'scripts/run.sh': { body: '#!/bin/sh\necho hi\n', mode: 0o755 } })
+
+    expect(error).toBeUndefined()
+    expect(statSync(join(dir, 'scripts/run.sh')).mode & 0o111, 'scripts/run.sh lost its executable bit').not.toBe(0)
   })
 
   it('reports an archive tar cannot unpack', async () => {
