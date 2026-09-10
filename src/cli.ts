@@ -2,7 +2,9 @@ import { realpathSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { type ParseArgsConfig, parseArgs } from 'node:util'
 import { ConfigError, findRepoRoot } from './config.ts'
+import { create, update } from './scaffold.ts'
 import { AvailabilityJudge } from './workspaceAvailability.ts'
 import { type WorkspaceEntry, WorkspaceRegistry } from './workspaceRegistry.ts'
 
@@ -16,9 +18,137 @@ import { type WorkspaceEntry, WorkspaceRegistry } from './workspaceRegistry.ts'
  * with it.
  */
 
-const USAGE = 'usage: persimmon [add [path] [--name <name>] | remove <id|path> | list]'
+/** The one line `add`, `remove` and `list` print when their arguments are not what they take (design-00003 §8). */
+const REGISTRY_USAGE = 'usage: persimmon [add [path] [--name <name>] | remove <id|path> | list]'
+
+/** The one-line usage of `new`, shown when its arguments do not name exactly one project (`cli/main.go:31`). */
+const NEW_USAGE = 'usage: persimmon new <name> [--lang go] [--variant ddd] [--dir .] [--set K=V]'
+
+const UPDATE_USAGE = 'usage: persimmon update [--dir .]'
+
+/**
+ * The whole usage. Its `Usage:` block lists exactly the closed subcommand set of
+ * spec-00012-FR-1 — nine lines, no more and no fewer (spec-00012-AC-1.2).
+ */
+const USAGE = `persimmon — scaffold a project from the ai-native-project-template, and open its whiteboard
+
+Usage:
+  persimmon
+  persimmon new <name> [--lang go] [--variant ddd] [--dir .] [--ref <branch>] [--set KEY=VALUE]
+  persimmon update [--dir .]
+  persimmon list-langs
+  persimmon add [path] [--name <name>]
+  persimmon remove <id|path>
+  persimmon list
+  persimmon version
+  persimmon help
+
+With no subcommand persimmon opens the board for the project the current
+directory is in. "version" also answers to -v and --version, "help" to -h and
+--help.
+
+Flags for "new":
+  --lang     language branch to use (lang/<lang>); empty uses the base template (main)
+  --variant  variant under a language (lang/<lang>/<variant>); requires --lang
+  --dir      parent directory for the new project (default ".")
+  --ref      branch override (default: main, lang/<lang>, or lang/<lang>/<variant>)
+  --set      set a template variable, repeatable (e.g. --set MODULE_PATH=example.com/x)
+
+"update" 3-way merges later template changes into an existing project (using the
+.ainpt.json written at creation). Resolve any conflict markers, then commit.
+
+Environment:
+  PORT                      the port the board is served on (default 4173)
+  AINPT_OWNER, AINPT_REPO   override the template source repository`
+
+/** The subcommands that read the registry path and the port, so their dispatch waits for both (spec-00012-FR-14). */
+const WORLDLY = new Set(['new', 'add', 'remove', 'list'])
+
+/** The port every path of the command uses when `PORT` names none (spec-00011-FR-13). */
+const DEFAULT_PORT = 4173
 
 const SIGNALS = ['SIGINT', 'SIGTERM'] as const
+
+/** The template repository, overridable by the environment as it was before the port (spec-00013-FR-1). */
+const template = (): { owner: string; repo: string } => ({
+  owner: process.env.AINPT_OWNER || 'ryan-alexander-zhang',
+  repo: process.env.AINPT_REPO || 'ai-native-project-template',
+})
+
+/**
+ * A usage or parsing error: the command was recognised and written wrong, which
+ * exits 2 for every one of the eight subcommands (spec-00012-FR-12). An unknown
+ * command is the other thing and exits 1 (spec-00012-FR-2).
+ */
+class UsageError extends Error {}
+
+/** What one subcommand's arguments may be, which is all the parser layer needs to know about it. */
+interface Grammar {
+  /** The flags it takes; `--set` is the only repeatable one (design-00004 §2). */
+  options: NonNullable<ParseArgsConfig['options']>
+  /** How many positionals it reads, and how it says so when more are left over. */
+  reads: number
+  takes: string
+  usage: string
+}
+
+const NEW: Grammar = {
+  options: {
+    lang: { type: 'string' },
+    variant: { type: 'string' },
+    dir: { type: 'string' },
+    ref: { type: 'string' },
+    set: { type: 'string', multiple: true },
+  },
+  reads: 1,
+  takes: 'new takes a single <name>',
+  usage: NEW_USAGE,
+}
+
+const UPDATE: Grammar = { options: { dir: { type: 'string' } }, reads: 0, takes: 'update takes no positional arguments', usage: UPDATE_USAGE }
+const ADD: Grammar = { options: { name: { type: 'string' } }, reads: 1, takes: 'add takes a single [path]', usage: REGISTRY_USAGE }
+const REMOVE: Grammar = { options: {}, reads: 1, takes: 'remove takes a single <id|path>', usage: REGISTRY_USAGE }
+const LIST: Grammar = { options: {}, reads: 0, takes: 'list takes no positional arguments', usage: REGISTRY_USAGE }
+
+/**
+ * The parser layer, one for all eight subcommands (spec-00012-FR-12). It is
+ * `util.parseArgs` plus the three things it does not cover (design-00004 §6):
+ *
+ * - a long flag written with one dash is normalised to two **before** the call,
+ *   because Go's `flag` took either and `parseArgs` throws on the first
+ *   (spec-00012-FR-15);
+ * - a `--set` whose value is no `KEY=VALUE` is refused **after** it, because
+ *   `parseArgs` takes `"A"` happily (spec-00013-FR-4);
+ * - a positional argument left unread is refused after it too — one assertion
+ *   where there used to be one silent drop per subcommand (issue-00037).
+ */
+function parse(args: string[], grammar: Grammar): { values: Record<string, unknown>; positionals: string[] } {
+  let parsed: { values: Record<string, unknown>; positionals: string[] }
+  try {
+    parsed = parseArgs({ args: args.map(twoDashes), options: grammar.options, allowPositionals: true })
+  } catch (error) {
+    throw new UsageError(`${asMessage(error)}\n${grammar.usage}`)
+  }
+  for (const value of many(parsed.values.set)) {
+    if (!value.includes('=')) throw new UsageError(`expected KEY=VALUE, got ${JSON.stringify(value)}\n${grammar.usage}`)
+  }
+  const extra = parsed.positionals[grammar.reads]
+  if (extra !== undefined) throw new UsageError(`${grammar.takes}, got ${JSON.stringify(extra)}\n${grammar.usage}`)
+  return parsed
+}
+
+/**
+ * `-lang` and `-lang=go` become `--lang` and `--lang=go`; `-v` and `-h` are left
+ * alone, being the two single-character flags of the closed subcommand set
+ * rather than long flags written short (spec-00012-AC-15.2).
+ */
+function twoDashes(arg: string): string {
+  return arg.startsWith('-') && !arg.startsWith('--') && arg.length > 2 ? `-${arg}` : arg
+}
+
+const text = (value: unknown): string | undefined => (typeof value === 'string' ? value : undefined)
+const many = (value: unknown): string[] => (Array.isArray(value) ? (value as string[]) : [])
+const asMessage = (error: unknown): string => (error instanceof Error ? error.message : String(error))
 
 /** Everything the command reads from the world, read per call rather than at import (a test moves both). */
 interface World {
@@ -55,19 +185,98 @@ type Instance = { kind: 'running'; version: string } | { kind: 'free' | 'occupie
  */
 export async function run(argv: string[]): Promise<number> {
   const [command, ...args] = argv
-  const world: World = {
-    port: Number(process.env.PORT ?? 4173),
-    registryPath: join(homedir(), '.persimmon', 'workspaces.json'),
-  }
   try {
+    // The four that read neither the registry path nor the port come first, so
+    // none of them can fail over a home directory or a `PORT` it never reads
+    // (spec-00012-FR-14). `-v` and `-h` are settled here too: they would reach
+    // `parseArgs` as unknown options and take `persimmon -v` from a version to
+    // an exit 2 (spec-00012-AC-15.2, design-00004 §6).
+    if (command === 'update') return await updateProject(args)
+    if (command === 'list-langs') return listLangs()
+    if (command === 'version' || command === '-v' || command === '--version') return printVersion()
+    if (command === 'help' || command === '-h' || command === '--help') return print(USAGE)
+    // Before both parses as well: a first argument that is no subcommand at all
+    // — a path among them — must not run into a `PORT` it was never going to
+    // use (spec-00012-FR-2, spec-00012-AC-2.2).
+    if (command !== undefined && !WORLDLY.has(command)) return unknown(command)
+    const world: World = {
+      port: resolvePort(process.env.PORT),
+      registryPath: join(homedir(), '.persimmon', 'workspaces.json'),
+    }
     if (command === undefined) return await start(world)
+    if (command === 'new') return await newProject(args)
     if (command === 'add') return await add(world, args)
     if (command === 'remove') return await remove(world, args)
-    if (command === 'list') return await list(world)
-    return fail(USAGE)
+    return await list(world, args)
   } catch (error) {
-    return fail((error as Error).message)
+    if (error instanceof UsageError) return refuse(error.message)
+    return fail(asMessage(error))
   }
+}
+
+/**
+ * `PORT` or the default. A value that is no port at all is refused rather than
+ * folded into the default (spec-00012-FR-13): silently serving somewhere else
+ * than the user asked is worse than one sentence.
+ */
+function resolvePort(value: string | undefined): number {
+  if (value === undefined || value === '') return DEFAULT_PORT
+  const port = Number(value)
+  if (!/^[-+]?\d+$/.test(value) || port < 1 || port > 65535) throw new Error(`PORT must be a port number, got ${JSON.stringify(value)}`)
+  return port
+}
+
+/** `persimmon new <name>` (spec-00013-FR-1): the flags, and the scaffold behind them. */
+async function newProject(args: string[]): Promise<number> {
+  const { values, positionals } = parse(args, NEW)
+  const name = positionals[0]
+  if (name === undefined) throw new UsageError(NEW_USAGE)
+  const lang = text(values.lang) ?? ''
+  const variant = text(values.variant) ?? ''
+  if (variant !== '' && lang === '') throw new UsageError('error: --variant requires --lang (e.g. --lang java --variant ddd)')
+  const sets: Record<string, string> = {}
+  for (const pair of many(values.set)) sets[pair.slice(0, pair.indexOf('='))] = pair.slice(pair.indexOf('=') + 1)
+  try {
+    // The "error: " prefix is the one the command has always printed on a
+    // scaffold failure (spec-00013-FR-4).
+    await create({ name, lang, variant, dir: text(values.dir) ?? '.', ref: text(values.ref) ?? '', ...template(), sets })
+  } catch (error) {
+    return refuse(`error: ${asMessage(error)}`, 1)
+  }
+  return 0
+}
+
+/** `persimmon update [--dir .]` (spec-00013-FR-9): the three-way merge of `src/scaffold.ts`. */
+async function updateProject(args: string[]): Promise<number> {
+  const { values } = parse(args, UPDATE)
+  try {
+    await update(text(values.dir) ?? '.')
+  } catch (error) {
+    return refuse(`error: ${asMessage(error)}`, 1)
+  }
+  return 0
+}
+
+/** plan-00034 T4 lands `list-langs`; until it does, the dispatch knows the subcommand and says so rather than pretending. */
+function listLangs(): number {
+  return refuse('list-langs is not implemented yet (plan-00034 T4)', 1)
+}
+
+function printVersion(): number {
+  return print(`persimmon ${version()}`)
+}
+
+/** The one normal exit that writes usage: `help` and its two spellings go to stdout, error paths to stderr (design-00004 §2). */
+function print(what: string): number {
+  console.log(what)
+  return 0
+}
+
+/** A first argument that is no subcommand: named, then the usage, then exit 1 — not the 2 a usage error takes (`cli/main.go:168-171`). */
+function unknown(command: string): number {
+  console.error(`unknown command ${JSON.stringify(command)}\n`)
+  console.error(USAGE)
+  return 1
 }
 
 /**
@@ -136,7 +345,9 @@ async function listen(world: World, workspace: WorkspaceEntry | null): Promise<n
 
 /** `persimmon add [path] [--name <name>]` (spec-00011-FR-2): non-interactive, idempotent, 0 on an entry that was already there. */
 async function add(world: World, args: string[]): Promise<number> {
-  const { path, name } = parseAdd(args)
+  const { values, positionals } = parse(args, ADD)
+  const [path] = positionals
+  const name = text(values.name)
   const target = path === undefined ? findRepoRoot(process.cwd()) : resolve(path)
   const instance = await probe(world.port)
   if (instance.kind === 'occupied') throw new Error(occupied(world.port))
@@ -149,8 +360,9 @@ async function add(world: World, args: string[]): Promise<number> {
 }
 
 /** `persimmon remove <id|path>` (spec-00011-FR-4): the path form is resolved and looked up as an id, so the rest is one code path. */
-async function remove(world: World, [idOrPath, ...rest]: string[]): Promise<number> {
-  if (idOrPath === undefined || rest.length > 0) throw new Error(USAGE)
+async function remove(world: World, args: string[]): Promise<number> {
+  const [idOrPath] = parse(args, REMOVE).positionals
+  if (idOrPath === undefined) throw new UsageError(REGISTRY_USAGE)
   const instance = await probe(world.port)
   if (instance.kind === 'occupied') throw new Error(occupied(world.port))
   if (instance.kind === 'free') {
@@ -178,7 +390,8 @@ async function remove(world: World, [idOrPath, ...rest]: string[]): Promise<numb
  * one implementation there is (design-00004 §4): the same class the running
  * process answers with, so both paths say the same thing (spec-00011-AC-21.5).
  */
-async function list(world: World): Promise<number> {
+async function list(world: World, args: string[]): Promise<number> {
+  parse(args, LIST)
   const instance = await probe(world.port)
   const rows =
     instance.kind === 'running'
@@ -271,24 +484,17 @@ function version(): string {
   return createRequire(import.meta.url)('../package.json').version
 }
 
-function parseAdd(args: string[]): { path?: string; name?: string } {
-  let path: string | undefined
-  let name: string | undefined
-  for (let at = 0; at < args.length; at += 1) {
-    const arg = args[at] as string
-    if (arg === '--name') {
-      name = args[at + 1]
-      if (name === undefined) throw new Error(USAGE)
-      at += 1
-      continue
-    }
-    if (path !== undefined || arg.startsWith('-')) throw new Error(USAGE)
-    path = arg
-  }
-  return { path, name }
-}
-
 const occupied = (port: number): string => `port ${port} is already in use`
+
+/**
+ * What the command refuses, in the words of whoever refused it: 2 for a usage or
+ * parsing error (spec-00012-FR-12), 1 for what a subcommand reported itself.
+ * Neither wears the `persimmon: ` prefix — that one belongs to {@link fail}.
+ */
+function refuse(message: string, code = 2): number {
+  console.error(message)
+  return code
+}
 
 /** One sentence on stderr and a non-zero exit code to return, never a stack. */
 function fail(message: string): number {

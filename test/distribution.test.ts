@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, symlinkSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
@@ -67,4 +67,23 @@ it('runs the shipped entry point from under node_modules', async () => {
   expect(result.stderr).toBe('')
   expect(result.status).toBe(0)
   expect(result.stdout).toBe('')
+})
+
+// spec-00012-AC-9.3 — the version is read from the package.json that ships, so
+// the shape it was obtained in does not change it (spec-00012-FR-9). This layout
+// is the `npm pack` + global install of the AC, minus the install itself.
+it('prints the version of the installed package.json', async () => {
+  const { pkg, home } = installedTree()
+  const declared = JSON.parse(readFileSync(join(pkg, 'package.json'), 'utf8')).version as string
+
+  const result = spawnSync(process.execPath, [join(pkg, 'bin', 'persimmon.js'), 'version'], {
+    cwd: pkg,
+    encoding: 'utf8',
+    env: { ...process.env, HOME: home },
+    timeout: 20_000,
+  })
+
+  expect(result.stderr).toBe('')
+  expect(result.status).toBe(0)
+  expect(result.stdout.trim()).toBe(`persimmon ${declared}`)
 })

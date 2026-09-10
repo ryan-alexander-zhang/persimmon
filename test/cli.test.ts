@@ -1,8 +1,9 @@
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { type RequestListener, createServer } from 'node:http'
 import { type Server, type Socket, createServer as createSocketServer } from 'node:net'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { run } from '../src/cli.ts'
 import { CONFIG_FILE, findRepoRoot } from '../src/config.ts'
@@ -131,12 +132,19 @@ function world({ home, port, cwd }: { home: string; port: number; cwd: string })
   process.chdir(cwd)
 }
 
+/** What one run of the command settled on and printed. */
+interface Run {
+  code: number
+  stdout: string
+  stderr: string
+}
+
 /**
  * One run of the command with its streams captured (`printed`, and its stderr
  * twin). `console.log` / `console.error` rather than `process.stdout.write`
  * throughout, which is what makes this fixture able to see anything at all.
  */
-async function runCli(...argv: string[]): Promise<{ code: number; stdout: string; stderr: string }> {
+async function runCli(...argv: string[]): Promise<Run> {
   const out: string[] = []
   const err: string[] = []
   vi.spyOn(console, 'log').mockImplementation((...parts: unknown[]) => void out.push(parts.join(' ')))
@@ -269,6 +277,81 @@ async function heldPort(): Promise<number> {
 function probeReadsItFree(): void {
   const refused = Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNREFUSED' } })
   vi.spyOn(globalThis, 'fetch').mockRejectedValue(refused)
+}
+
+/** The commit the stubbed template repository answers every lookup with (`stubTemplateRepo`). */
+const STUB_SHA = 'abc1230000000000000000000000000000000000'
+
+/** A tarball in the shape codeload serves a branch: every entry under one wrapper directory, which `--strip-components=1` strips. */
+function tarball(tree: Record<string, string>): Buffer {
+  const staging = makeElsewhere()
+  for (const [rel, body] of Object.entries(tree)) {
+    const path = join(staging, 'root', rel)
+    mkdirSync(dirname(path), { recursive: true })
+    writeFileSync(path, body)
+  }
+  const done = spawnSync('tar', ['-czf', '-', '-C', staging, 'root'], { maxBuffer: 64 * 1024 * 1024 })
+  expect(done.status, String(done.stderr)).toBe(0)
+  return done.stdout
+}
+
+/**
+ * The template repository the scaffold fetches (`stubTemplateRepo`): one tarball
+ * per branch and a fixed commit for every lookup, with every outgoing request
+ * pointed at it. The loopback calls of the handshake go where they were
+ * addressed, so a case can scaffold and register in the same run. What was asked
+ * for is given back, which is how the template coordinate is observed.
+ */
+async function stubTemplateRepo(trees: Record<string, Record<string, string>>): Promise<string[]> {
+  const asked: string[] = []
+  // Every tree carries a flow config because the real template does.
+  const archives = new Map(Object.entries(trees).map(([ref, tree]) => [ref, tarball({ [CONFIG_FILE]: MINIMAL_CONFIG, ...tree })]))
+  const server = held(
+    createServer((request, response) => {
+      const path = (request.url ?? '').replace(/^\//, '')
+      asked.push(path)
+      if (path.startsWith('repos/')) return void response.end(`${STUB_SHA}\n`)
+      const archive = archives.get(path.replace(/^.*\/tar\.gz\/(?:refs\/heads\/)?/, ''))
+      if (archive === undefined) return void response.writeHead(404).end('not found')
+      response.end(archive)
+    }),
+  )
+  const port = await boundPort(server.listen(0, '127.0.0.1'))
+  const real = globalThis.fetch
+  vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+    const url = new URL(String(input))
+    if (url.hostname === '127.0.0.1' || url.hostname === 'localhost') return real(input, init)
+    url.protocol = 'http:'
+    url.host = `127.0.0.1:${port}`
+    return real(url, init)
+  })
+  return asked
+}
+
+/** The marker each stub branch carries, so «the content came from <branch>» is a single assertion (`sourced`). */
+const sourced = (branch: string): Record<string, string> => ({ 'SOURCE.md': `${branch}\n` })
+
+/** The branch the project at `<parent>/<name>` was scaffolded from (`source`). */
+const source = (parent: string, name: string): string => readFileSync(join(parent, name, 'SOURCE.md'), 'utf8').trim()
+
+/** `new` run from `dir` with a world of this case's own (`newInWith`): a home nobody else shares and the default port. */
+async function newInWith(env: Record<string, string>, dir: string, ...args: string[]): Promise<Run> {
+  vi.stubEnv('HOME', makeHome())
+  vi.stubEnv('PORT', '')
+  for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value)
+  process.chdir(dir)
+  return await runCli('new', ...args)
+}
+
+/** `new` run from `dir`, for the cases that only care what was scaffolded (`newIn`). */
+const newIn = async (dir: string, ...args: string[]): Promise<Run> => await newInWith({}, dir, ...args)
+
+/** A project `update` will take: the creation marker, and one file to leave alone. */
+function markedProject(commit = STUB_SHA): string {
+  const dir = makeElsewhere()
+  writeFileSync(join(dir, '.ainpt.json'), `${JSON.stringify({ template: 'acme/tpl', ref: 'main', commit }, null, 2)}\n`)
+  writeFileSync(join(dir, 'README.md'), 'mine\n')
+  return dir
 }
 
 /** The availability column of `list`'s output, which is its last cell on each row. */
@@ -656,6 +739,8 @@ describe('persimmon add', () => {
     expect(registryOf(home)).toBeNull()
   })
 
+  // The exit code is the parser layer's, one for all eight subcommands
+  // (spec-00012-FR-12); before the port these three exited 1.
   it.each([
     ['a second path', ['add', '/one', '/two']],
     ['an unknown flag', ['add', '--frobnicate']],
@@ -665,7 +750,7 @@ describe('persimmon add', () => {
 
     const result = await runCli(...argv)
 
-    expect(result.code).toBe(1)
+    expect(result.code).toBe(2)
     expect(result.stderr).toContain('usage: persimmon')
   })
 })
@@ -730,6 +815,7 @@ describe('persimmon remove', () => {
     expect(result.stderr).toBe('persimmon: workspace "ghost" is not registered')
   })
 
+  // 2, not the 1 of the hand-written parsing (spec-00012-FR-12).
   it.each([
     ['nothing to remove', ['remove']],
     ['a second argument', ['remove', 'a', 'b']],
@@ -738,7 +824,7 @@ describe('persimmon remove', () => {
 
     const result = await runCli(...argv)
 
-    expect(result.code).toBe(1)
+    expect(result.code).toBe(2)
     expect(result.stderr).toContain('usage: persimmon')
   })
 
@@ -837,21 +923,429 @@ describe('persimmon list', () => {
   })
 })
 
-describe('the command as an executable', () => {
-  // spec-00012-FR-2's shape at this stage: anything that is not a subcommand is
-  // refused with the usage line. The wording and the exit code reach their
-  // terminal state in plan-00034 T3.
-  it('refuses a first argument that is no subcommand', async () => {
+describe('persimmon new', () => {
+  // spec-00013-AC-1.1 (TestNewTakesTheBaseTemplateByDefault)
+  it('takes the base template by default', async () => {
+    await stubTemplateRepo({ main: sourced('main') })
+    const dir = makeElsewhere()
+
+    expect((await newIn(dir, 'demo')).code).toBe(0)
+
+    expect(source(dir, 'demo')).toBe('main')
+  })
+
+  // spec-00013-AC-1.2 (TestNewTakesTheLanguageBranchForLang)
+  it('takes the lang/<lang> branch for --lang', async () => {
+    await stubTemplateRepo({ 'lang/go': sourced('lang/go') })
+    const dir = makeElsewhere()
+
+    expect((await newIn(dir, 'svc', '--lang', 'go')).code).toBe(0)
+
+    expect(source(dir, 'svc')).toBe('lang/go')
+  })
+
+  // spec-00013-AC-1.3 (TestNewTakesTheVariantBranchForLangAndVariant)
+  it('takes the lang/<lang>/<variant> branch for --lang with --variant', async () => {
+    await stubTemplateRepo({ 'lang/java/ddd': sourced('lang/java/ddd') })
+    const dir = makeElsewhere()
+
+    expect((await newIn(dir, 'app', '--lang', 'java', '--variant', 'ddd')).code).toBe(0)
+
+    expect(source(dir, 'app')).toBe('lang/java/ddd')
+  })
+
+  // spec-00013-AC-1.4 (TestNewLetsRefOverrideTheBranchLangImplies)
+  it('lets --ref override the branch --lang implies', async () => {
+    await stubTemplateRepo({ 'lang/go': sourced('lang/go'), spike: sourced('spike') })
+    const dir = makeElsewhere()
+
+    expect((await newIn(dir, 'demo', '--lang', 'go', '--ref', 'spike')).code).toBe(0)
+
+    expect(source(dir, 'demo')).toBe('spike')
+  })
+
+  // spec-00013-AC-1.5 (TestNewCreatesTheProjectUnderDir)
+  it('creates the project under --dir', async () => {
+    await stubTemplateRepo({ main: sourced('main') })
+    const cwd = makeElsewhere()
+    const work = makeElsewhere()
+
+    expect((await newIn(cwd, 'demo', '--dir', work)).code).toBe(0)
+
+    expect(source(work, 'demo')).toBe('main')
+    expect(existsSync(join(cwd, 'demo'))).toBe(false)
+  })
+
+  // spec-00013-AC-1.6 (TestNewTakesTheTemplateCoordinateFromTheEnvironment)
+  it('takes the template coordinate from the environment', async () => {
+    const asked = await stubTemplateRepo({ main: sourced('main') })
+    const dir = makeElsewhere()
+
+    expect((await newInWith({ AINPT_OWNER: 'acme', AINPT_REPO: 'tpl' }, dir, 'demo')).code).toBe(0)
+
+    expect(asked).toContain('acme/tpl/tar.gz/refs/heads/main')
+    expect(source(dir, 'demo')).toBe('main')
+  })
+
+  // spec-00013-AC-1.7 (TestNewAcceptsSetMoreThanOnce)
+  it('accepts --set more than once', async () => {
+    await stubTemplateRepo({
+      main: {
+        'template.json': '{"vars": {"MODULE_PATH": {"prompt": "module"}}, "substitute": ["go.mod"]}',
+        'go.mod': 'module {{MODULE_PATH}} // {{EXTRA}}\n',
+      },
+    })
+    const dir = makeElsewhere()
+
+    expect((await newIn(dir, 'demo', '--set', 'MODULE_PATH=example.com/x', '--set', 'EXTRA=1')).code).toBe(0)
+
+    expect(readFileSync(join(dir, 'demo', 'go.mod'), 'utf8')).toBe('module example.com/x // 1\n')
+  })
+
+  // spec-00013-AC-1.8 (TestNewAcceptsFlagsBeforeTheProjectName)
+  it('accepts a flag written before the project name', async () => {
+    await stubTemplateRepo({ 'lang/go': sourced('lang/go') })
+    const before = makeElsewhere()
+
+    expect((await newIn(before, '--lang', 'go', 'demo')).code).toBe(0)
+
+    expect(source(before, 'demo')).toBe('lang/go')
+  })
+
+  // spec-00013-AC-1.9, spec-00012-AC-15.1's shape on `new`: a long flag written
+  // with one dash is normalised before the parse (spec-00012-FR-15)
+  it('reads a long flag written with a single dash', async () => {
+    await stubTemplateRepo({ 'lang/go': sourced('lang/go') })
+    const dir = makeElsewhere()
+
+    expect((await newIn(dir, 'svc', '-lang', 'go')).code).toBe(0)
+
+    expect(source(dir, 'svc')).toBe('lang/go')
+  })
+
+  // spec-00013-AC-4.1 (TestNewRefusesVariantWithoutLang): a flag combination the
+  // command recognises and cannot use is a usage error too — exit 2
+  // (spec-00012-FR-12's closing paragraph)
+  it('refuses --variant without --lang', async () => {
+    const dir = makeElsewhere()
+
+    const result = await newIn(dir, 'app', '--variant', 'ddd')
+
+    expect(result.code).toBe(2)
+    expect(result.stderr).toContain('--variant requires --lang')
+    expect(readdirSync(dir)).toEqual([])
+  })
+
+  // spec-00013-AC-4.2, spec-00012-AC-12.5 (TestNewWithoutANamePrintsTheUsage)
+  it('prints the usage of the subcommand when <name> is missing', async () => {
+    const dir = makeElsewhere()
+
+    const result = await newIn(dir)
+
+    expect(result.code).toBe(2)
+    expect(result.stderr).toContain('usage: persimmon new')
+    expect(readdirSync(dir)).toEqual([])
+  })
+
+  // spec-00013-AC-4.3, spec-00012-AC-12.1 (TestNewRefusesASetValueWithoutAnEquals):
+  // the fragment is the one `setFlag.Set` printed, word for word
+  it('refuses a --set value with no equals sign', async () => {
+    const dir = makeElsewhere()
+
+    const result = await newIn(dir, 'demo', '--set', 'BAD')
+
+    expect(result.code).toBe(2)
+    expect(result.stderr).toContain('expected KEY=VALUE, got "BAD"')
+    expect(readdirSync(dir)).toEqual([])
+  })
+
+  // spec-00013-FR-4/FR-5: what the scaffold refused is reported in its own
+  // words, under the "error: " prefix the command has always printed, and the
+  // exit is 1 — a template that is not there is no usage error
+  it('reports what the scaffold refused', async () => {
+    await stubTemplateRepo({ main: sourced('main') })
+    const dir = makeElsewhere()
+
+    const result = await newIn(dir, 'demo', '--ref', 'nope')
+
+    expect(result.code).toBe(1)
+    expect(result.stderr).toContain('error:')
+    expect(existsSync(join(dir, 'demo'))).toBe(false)
+  })
+
+  // spec-00013-AC-4.4, issue-00037 (TestNewRejectsASecondPositionalArgument):
+  // the second positional used to be swallowed
+  it('rejects a second positional argument', async () => {
+    const dir = makeElsewhere()
+
+    const result = await newIn(dir, 'demo', 'extra')
+
+    expect(result.code).toBe(2)
+    expect(result.stderr).toContain('"extra"')
+    expect(result.stderr).toContain('usage: persimmon new')
+    expect(readdirSync(dir)).toEqual([])
+  })
+})
+
+describe('persimmon update', () => {
+  // spec-00013-AC-4.5, issue-00037: `cmdUpdate` had the same silent drop `new` had
+  it('rejects a positional argument', async () => {
+    const dir = markedProject()
+    process.chdir(dir)
+
+    const result = await runCli('update', 'extra')
+
+    expect(result.code).toBe(2)
+    expect(result.stderr).toContain('update takes no positional arguments')
+    expect(result.stderr).toContain('"extra"')
+    expect(readdirSync(dir).sort()).toEqual(['.ainpt.json', 'README.md'])
+    expect(readFileSync(join(dir, 'README.md'), 'utf8')).toBe('mine\n')
+  })
+
+  // TestUpdateOutsideAProjectItCreatedIsReported: a directory with no creation
+  // marker is not a project the command made (spec-00013-FR-9)
+  it('reports a directory it did not create', async () => {
+    process.chdir(makeElsewhere())
+
+    const result = await runCli('update')
+
+    expect(result.code).toBe(1)
+    expect(result.stderr).toContain('error:')
+    expect(result.stderr).toContain('.ainpt.json')
+  })
+
+  // spec-00013-FR-9: the merge is `src/scaffold.ts`'s; what the command layer
+  // owns is reaching it with `--dir` and exiting 0 on what it settled
+  it('takes the directory --dir names and exits 0 on a project already up to date', async () => {
+    await stubTemplateRepo({})
+    const dir = markedProject()
+    process.chdir(makeElsewhere())
+
+    const result = await runCli('update', '--dir', dir)
+
+    expect(result.code).toBe(0)
+    expect(result.stdout).toContain('Already up to date.')
+  })
+})
+
+describe('version and help', () => {
+  const declared = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version as string
+
+  // spec-00012-AC-9.1: the version is this package's own, not a build-injected one
+  it('prints the version of this package', async () => {
+    const result = await runCli('version')
+
+    expect(result.code).toBe(0)
+    expect(result.stdout).toBe(`persimmon ${declared}`)
+  })
+
+  // spec-00012-AC-9.2, spec-00012-AC-15.2: `-v` is a subcommand of the closed
+  // set, so it must be settled before the parse rather than normalised to `--v`
+  it.each(['-v', '--version'])('answers to %s with the same line', async (spelling) => {
+    const result = await runCli(spelling)
+
+    expect(result.code).toBe(0)
+    expect(result.stdout).toBe(`persimmon ${declared}`)
+  })
+
+  // spec-00012-AC-1.2 (TestHelpListsExactlyTheClosedSubcommandSet). The listing is
+  // complete here; `list-langs` itself lands in plan-00034 T4
+  it.each(['help', '-h', '--help'])('lists exactly the closed subcommand set for %s', async (spelling) => {
+    const result = await runCli(spelling)
+
+    expect(result.code).toBe(0)
+    const block = result.stdout.split('Usage:\n')[1] as string
+    const listed = []
+    for (const line of block.split('\n')) {
+      const fields = line.trim().split(/\s+/).filter(Boolean)
+      if (fields.length === 0) break
+      expect(fields[0]).toBe('persimmon')
+      listed.push(fields[1] ?? '')
+    }
+    expect(listed.sort()).toEqual(['', 'add', 'help', 'list', 'list-langs', 'new', 'remove', 'update', 'version'])
+  })
+
+  // design-00004 §2's ruling on where the usage goes, which is a change from the
+  // Go original: the normal exit writes stdout, every error path writes stderr
+  it('writes the usage to stdout on the way out and to stderr on a refusal', async () => {
+    world({ home: makeHome(), port: await freePort(), cwd: makeElsewhere() })
+
+    const asked = await runCli('help')
+    const refused = await runCli('frobnicate')
+
+    expect(asked.stderr).toBe('')
+    expect(asked.stdout).toContain('Usage:')
+    expect(refused.stdout).toBe('')
+    expect(refused.stderr).toContain('Usage:')
+  })
+
+  // plan-00034 T4 lands `list-langs`; until then the dispatch says so rather
+  // than answering as if it had listed something
+  it('says list-langs is not implemented yet', async () => {
+    const result = await runCli('list-langs')
+
+    expect(result.code).toBe(1)
+    expect(result.stderr).toContain('not implemented yet')
+  })
+})
+
+describe('an unknown subcommand', () => {
+  // spec-00012-AC-2.1 (TestAnUnknownSubcommandIsRefusedAndLeavesTheRegistryAlone):
+  // named, then the usage, exit 1 — not the 2 a usage error takes
+  it('is named, printed the usage and refused with 1', async () => {
     const home = makeHome()
+    writeRegistry(home, [{ id: 'alpha', name: 'alpha', path: '/alpha' }])
     world({ home, port: await freePort(), cwd: makeElsewhere() })
 
     const result = await runCli('frobnicate')
 
     expect(result.code).toBe(1)
-    expect(result.stderr).toContain('usage: persimmon')
+    expect(result.stderr).toContain('unknown command "frobnicate"')
+    expect(result.stderr).toContain('Usage:')
+    expect(registryOf(home)?.workspaces).toEqual([{ id: 'alpha', name: 'alpha', path: '/alpha' }])
+  })
+
+  // spec-00012-AC-2.2 (TestAPathLikeFirstArgumentIsAnUnknownSubcommand)
+  it('is what a path-like first argument is', async () => {
+    const home = makeHome()
+    const dir = makeElsewhere()
+    mkdirSync(join(dir, 'some-project'))
+    world({ home, port: await freePort(), cwd: dir })
+
+    const result = await runCli('./some-project')
+
+    expect(result.code).toBe(1)
+    expect(result.stderr).toContain('unknown command "./some-project"')
     expect(registryOf(home)).toBeNull()
   })
 
+  // spec-00012-FR-2, spec-00012-FR-14: the judgement is made before the port is
+  // resolved, so an unusable PORT does not answer for it
+  it('is refused as such even with an unusable PORT', async () => {
+    world({ home: makeHome(), port: 4173, cwd: makeElsewhere() })
+    vi.stubEnv('PORT', 'abc')
+
+    const result = await runCli('frobnicate')
+
+    expect(result.code).toBe(1)
+    expect(result.stderr).toContain('unknown command "frobnicate"')
+    expect(result.stderr).not.toContain('PORT must be a port number')
+  })
+})
+
+describe('a usage error on a subcommand the command knows', () => {
+  /** A registry with one entry, and what it holds afterwards — every case below leaves it alone. */
+  async function registered(): Promise<{ home: string; before: WorkspaceEntry[] }> {
+    const home = makeHome()
+    const before = [{ id: 'alpha', name: 'alpha', path: '/alpha' }]
+    writeRegistry(home, before)
+    world({ home, port: await freePort(), cwd: makeElsewhere() })
+    return { home, before }
+  }
+
+  // spec-00012-AC-12.2 (an unknown flag), spec-00012-AC-12.3 (a flag with no
+  // value), spec-00012-AC-12.6 (a missing positional): all 2, where the
+  // hand-written parsing they replace exited 1
+  it.each([
+    ['spec-00012-AC-12.2, an unknown flag', ['add', '--frobnicate']],
+    ['spec-00012-AC-12.3, a flag with no value', ['add', '--name']],
+    ['spec-00012-AC-12.6, a missing positional', ['remove']],
+  ])('exits 2 on %s', async (_name, argv) => {
+    const { home, before } = await registered()
+
+    const result = await runCli(...argv)
+
+    expect(result.code).toBe(2)
+    expect(result.stderr).not.toBe('')
+    expect(registryOf(home)?.workspaces).toEqual(before)
+  })
+
+  // spec-00012-AC-12.4, issue-00037: the one place this FR changes whether a
+  // call runs at all — `list extra` swallowed the argument and exited 0
+  it('exits 2 on a positional `list` does not read, and prints no listing', async () => {
+    const { home } = await registered()
+
+    const result = await runCli('list', 'extra')
+
+    expect(result.code).toBe(2)
+    expect(result.stdout).toBe('')
+    expect(result.stderr).toContain('list takes no positional arguments')
+    expect(registryOf(home)?.workspaces).toHaveLength(1)
+  })
+
+  // spec-00012-AC-15.1: the normalisation is the parser layer's, so `add` reads
+  // `-name` too — before the port it was refused as an unknown flag
+  it('reads a single-dash long flag on `add`, which used to be refused', async () => {
+    const home = makeHome()
+    const path = makeProject()
+    world({ home, port: await freePort(), cwd: makeElsewhere() })
+
+    const result = await runCli('add', path, '-name', 'alpha')
+
+    expect(result.code).toBe(0)
+    expect(registryOf(home)?.workspaces).toEqual([{ id: expect.any(String), name: 'alpha', path }])
+  })
+})
+
+describe('an unusable PORT', () => {
+  // spec-00012-AC-13.1: nothing is listened on, and the start path registers nothing
+  it('refuses the start path with one sentence', async () => {
+    const home = makeHome()
+    world({ home, port: 4173, cwd: makeProject() })
+    vi.stubEnv('PORT', 'abc')
+
+    const result = await runCli()
+
+    expect(result.code).toBe(1)
+    expect(result.stderr).toBe('persimmon: PORT must be a port number, got "abc"')
+    expect(registryOf(home)).toBeNull()
+  })
+
+  // spec-00012-AC-13.2 and spec-00012-AC-13.3: one outside each bound, neither
+  // folded back into the default (TestThePortIsTheEnvironmentOrTheDefault)
+  it.each(['65536', '0'])('refuses `add` on PORT=%s rather than falling back to 4173', async (port) => {
+    const home = makeHome()
+    writeRegistry(home, [])
+    world({ home, port: 4173, cwd: makeProject() })
+    vi.stubEnv('PORT', port)
+
+    const result = await runCli('add')
+
+    expect(result.code).toBe(1)
+    expect(result.stderr).toBe(`persimmon: PORT must be a port number, got ${JSON.stringify(port)}`)
+    expect(registryOf(home)?.workspaces).toEqual([])
+  })
+
+  // spec-00012-AC-14.3: `list` probes the port, so it is not one of the four
+  // dispatched before the port is resolved
+  it('refuses `list`, which probes the port', async () => {
+    world({ home: makeHome(), port: 4173, cwd: makeElsewhere() })
+    vi.stubEnv('PORT', 'abc')
+
+    const result = await runCli('list')
+
+    expect(result.code).toBe(1)
+    expect(result.stderr).toContain('PORT must be a port number')
+  })
+
+  // spec-00012-AC-14.1: `help` and `version` never read the port, and `update`
+  // fails on its own account rather than on this one (spec-00012-FR-14)
+  it.each([
+    ['help', 0],
+    ['version', 0],
+    ['update', 1],
+  ])('does not stop `%s`', async (command, code) => {
+    world({ home: makeHome(), port: 4173, cwd: makeElsewhere() })
+    vi.stubEnv('PORT', 'abc')
+
+    const result = await runCli(command)
+
+    expect(result.code).toBe(code)
+    expect(result.stderr).not.toContain('PORT must be a port number')
+  })
+})
+
+describe('the command as an executable', () => {
   // spec-00012 §7: a subcommand must not pay for a whiteboard service it never
   // uses, and the assertion is that the module graph was not evaluated — not a
   // timing threshold (design-00004 §11)
