@@ -12,9 +12,6 @@ import { dirname, join } from 'node:path'
  * shelling out to `tar --strip-components=1` (which is what Go's `stripFirst`
  * did by hand, so that function is gone with it), and `filepath.Match` is a
  * hand-written translator to `RegExp` (see {@link excluded}).
- *
- * The second half of `update` — the three-way merge — lands in plan-00034 T2b
- * and folds onto {@link prepareUpdate}.
  */
 
 /** One scaffold run's inputs. Go: `scaffold.Options`. */
@@ -442,7 +439,7 @@ export interface UpdateContext {
  *
  * Everything that can refuse the run happens before the merge — and the template
  * coordinate is checked before any request goes out (issue-00034). The merge
- * itself, and the removal of the two temp trees, land in plan-00034 T2b.
+ * itself, and the removal of the two temp trees, are {@link update}'s.
  */
 export async function prepareUpdate(dir = '.'): Promise<UpdateContext | null> {
   const target = dir === '' ? '.' : dir
@@ -493,4 +490,191 @@ function short(sha: string): string {
 
 function asMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
+}
+
+/** What {@link mergeTree} did, for the summary {@link update} prints. Go: `mergeResult`. */
+export interface MergeResult {
+  added: number
+  merged: number
+  /** Upstream files left deleted because the project had deleted them. */
+  kept: number
+  conflicts: string[]
+}
+
+/**
+ * Folds the template tree at `newSrc` into the project at `dir`, using `oldSrc`
+ * — the template as it stood when the project was created or last updated — as
+ * the merge base. Go: `mergeTree`.
+ *
+ * Two rules here are easy to get wrong, and both were, in ways that only show up
+ * on the second `persimmon update` of a real project rather than on the first:
+ *
+ * Exclusions are tested on directories as well as files, and a directory that
+ * matches is pruned whole — exactly what {@link copyTree} does at creation, and
+ * for the same reason {@link walkTree} is the one walk both share. A pattern is
+ * not obliged to match at every depth: `docs/*\/[^A-Z]*` matches the DIRECTORY
+ * `docs/reference/axon-framework` and nothing inside it, since `*` never crosses
+ * a separator. Testing files alone therefore reinstates on update precisely what
+ * creation had dropped (spec-00013-AC-15.5).
+ *
+ * A file the base has and the project does not was deleted deliberately, and a
+ * three-way merge honours a deletion. Everything `template.json`'s `post_create`
+ * removes is this case, and treating it as "new upstream file" resurrects it on
+ * every update, forever. Only a file absent from the BASE is genuinely new.
+ */
+export function mergeTree(dir: string, oldSrc: string, newSrc: string, exclude: string[]): MergeResult {
+  const result: MergeResult = { added: 0, merged: 0, kept: 0, conflicts: [] }
+  let emptyBase = ''
+
+  try {
+    for (const entry of walkTree(newSrc, exclude)) {
+      if (entry.isDirectory) continue
+
+      const mine = join(dir, entry.rel)
+      const base = join(oldSrc, entry.rel)
+      const inBase = lexists(base)
+
+      if (entry.isSymbolicLink) {
+        mergeSymlink(result, entry, mine, base, inBase)
+        continue
+      }
+
+      if (!lexists(mine)) {
+        if (inBase) {
+          result.kept += 1
+          continue
+        }
+        // New upstream file — add it verbatim.
+        mkdirSync(dirname(mine), { recursive: true, mode: 0o755 })
+        writeFileSync(mine, readFileSync(entry.path), { mode: entry.mode })
+        result.added += 1
+        continue
+      }
+
+      if (!inBase && emptyBase === '') emptyBase = emptyAncestor()
+      if (mergeFile(entry.rel, mine, inBase ? base : emptyBase, entry.path)) result.conflicts.push(entry.rel)
+      result.merged += 1
+    }
+  } finally {
+    if (emptyBase !== '') rmSync(dirname(emptyBase), { recursive: true, force: true })
+  }
+  return result
+}
+
+/**
+ * In-place three-way merge — the project's edits kept, the upstream delta folded
+ * in. Returns whether the two overlapped, which is a conflict and not a failure;
+ * anything that stops `git` from running at all is (spec-00013-FR-12: on a
+ * machine with no `git` the first file that needs merging is where `update`
+ * fails, and the half-updated tree stands).
+ *
+ * The three labels are those of `cli/internal/scaffold/scaffold.go:520-522`,
+ * verbatim: they are what the reader of a conflicted file sees.
+ */
+function mergeFile(rel: string, mine: string, base: string, theirs: string): boolean {
+  const args = ['merge-file', '-L', 'yours', '-L', 'template (old)', '-L', 'template (new)', mine, base, theirs]
+  const done = spawnSync('git', args, { stdio: ['ignore', 'ignore', 'inherit'] })
+  if (done.error) throw new Error(`merge ${rel}: ${done.error.message}`)
+  return done.status !== 0
+}
+
+/**
+ * The common ancestor for an upstream file that is new since the base but that
+ * the project already has: an empty regular file rather than `/dev/null`. The
+ * two produce byte-identical conflict output, and a plain file states "the
+ * ancestor is empty" without depending on a special file (design-00004 §6).
+ */
+function emptyAncestor(): string {
+  const path = join(mkdtempSync(join(tmpdir(), 'persimmon-base-')), 'empty')
+  writeFileSync(path, '')
+  return path
+}
+
+/**
+ * Folds an upstream symlink into the project. Go: `mergeSymlink`. `git
+ * merge-file` must not be used here: handed a symlink it writes through to the
+ * target, so merging `CLAUDE.md -> AGENTS.md` would overwrite AGENTS.md with the
+ * merge result. There is nowhere to put conflict markers either, so a real
+ * divergence is reported and the project's link left exactly as it is.
+ */
+function mergeSymlink(result: MergeResult, entry: TreeEntry, mine: string, base: string, inBase: boolean): void {
+  const want = readlinkSync(entry.path)
+
+  if (!lexists(mine)) {
+    // Same deletion rule as regular files: only a link absent from the base is new.
+    if (inBase) {
+      result.kept += 1
+      return
+    }
+    mkdirSync(dirname(mine), { recursive: true, mode: 0o755 })
+    symlinkSync(want, mine)
+    result.added += 1
+    return
+  }
+
+  if (readlinkOr(mine) === want) {
+    result.merged += 1
+    return
+  }
+  // The project's version differs — a retarget, or a real file put in the link's
+  // place. If the template has not touched the link since the base, that
+  // difference is the project's own decision and stands; reporting it would
+  // conflict on every update.
+  if (readlinkOr(base) === want) {
+    result.merged += 1
+    return
+  }
+  result.conflicts.push(`${entry.rel} (symlink -> ${want} upstream; left as the project had it)`)
+}
+
+/** Whether the path itself exists, without following a link. Go: `os.Lstat` for its error alone. */
+function lexists(path: string): boolean {
+  try {
+    lstatSync(path)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** What the path points at, or `null` when it is not a symlink at all. */
+function readlinkOr(path: string): string | null {
+  try {
+    return readlinkSync(path)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Three-way merges upstream template changes into an existing project. Go:
+ * `Update`. Throws on failure, so the command layer's exit code is the presence
+ * of a throw — a conflict left in the working tree is not one (spec-00013-FR-9:
+ * the markers are in the tree and the base advances, so the next update
+ * continues from this upstream commit).
+ */
+export async function update(dir: string): Promise<void> {
+  const ready = await prepareUpdate(dir)
+  if (ready === null) return
+
+  let result: MergeResult
+  try {
+    result = mergeTree(ready.dir, ready.oldSrc, ready.newSrc, ready.manifest.exclude)
+  } finally {
+    rmSync(ready.oldSrc, { recursive: true, force: true })
+    rmSync(ready.newSrc, { recursive: true, force: true })
+  }
+
+  const advanced: Lock = { ...ready.lock, commit: ready.newSHA }
+  writeFileSync(join(ready.dir, '.ainpt.json'), `${JSON.stringify(advanced, null, 2)}\n`, { mode: 0o644 })
+
+  console.log(`\nMerged ${result.merged} file(s), added ${result.added} new file(s).`)
+  if (result.kept > 0) console.log(`Left ${result.kept} file(s) alone that this project had deleted.`)
+  if (result.conflicts.length > 0) {
+    console.log(`${result.conflicts.length} file(s) have conflicts to resolve:`)
+    for (const conflict of result.conflicts) console.log(`  ${conflict}`)
+    console.log('Resolve each, then commit. Text files carry <<<<<<< markers.')
+    return
+  }
+  console.log('No conflicts. Review the diff and commit.')
 }
