@@ -182,6 +182,8 @@ async function connect(port: Promise<number>, path: string) {
   const settled = new Promise<boolean>((resolve) => {
     socket.addEventListener('open', () => resolve(true))
     socket.addEventListener('close', () => resolve(false))
+    // A destroyed handshake gets no close on Node <= 23, only an error (issue-00042).
+    socket.addEventListener('error', () => resolve(false))
   })
   return { socket, frames, opened: await settled }
 }

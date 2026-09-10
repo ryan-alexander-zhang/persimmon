@@ -152,7 +152,12 @@ describe('headlessSpawner', () => {
    */
   it('has the whole of a long answer in hand by the time the call ends', async () => {
     const answer = JSON.stringify({ result: 'x'.repeat(400_000), session_id: 'cli-7' })
-    const call = run('node', ['-e', `process.stdout.write(${JSON.stringify(answer)})`])
+    // Built inside the child, not handed to it: linux caps a single argv entry at
+    // 128 KiB and this answer is 400 KB (issue-00043).
+    const call = run('node', [
+      '-e',
+      "process.stdout.write(JSON.stringify({ result: 'x'.repeat(400_000), session_id: 'cli-7' }))",
+    ])
 
     expect(await call.ended).toBe(0)
     expect(call.printed.stdout).toHaveLength(answer.length)

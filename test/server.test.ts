@@ -1672,7 +1672,11 @@ describe('the docs-change socket', () => {
     const stray = new WebSocket(`ws://127.0.0.1:${await port}/api/nothing-here`)
     stray.addEventListener('error', () => {})
 
-    await new Promise<void>((resolve) => stray.addEventListener('close', () => resolve()))
+    // A destroyed handshake gets no close on Node <= 23, only an error (issue-00042).
+    await new Promise<void>((resolve) => {
+      stray.addEventListener('error', () => resolve())
+      stray.addEventListener('close', () => resolve())
+    })
   })
 })
 

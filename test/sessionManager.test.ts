@@ -49,7 +49,7 @@ const HOLD = ['-e', 'setTimeout(() => {}, 5000)']
 
 const managers: SessionManager[] = []
 
-function makeManager(agent: Partial<AgentConfig>, onExit = vi.fn(async () => OUTCOME), maxSessions = 3) {
+function makeManager(agent: Partial<AgentConfig>, onExit = vi.fn(async (_plan: SessionPlan) => OUTCOME), maxSessions = 3) {
   const { repoRoot, docsDir } = makeRepo({})
   const manager = new SessionManager({
     agents: () => [{ name: 'test', command: 'node', args: [], cwd: 'docs', ...agent }],
@@ -1016,15 +1016,15 @@ describe('attach', () => {
   /**
    * spec-00003-AC-9.3 — a shutdown wraps up every running session, and one whose
    * wrap-up throws must not cost the others theirs: they are settled, not raced
-   * (spec-00003-FR-9). The failing hook is the first to run, so what is checked
-   * is that the shutdown carried on past it — and that the failure was recorded on
-   * the session it happened to rather than thrown away.
+   * (spec-00003-FR-9). The hook that throws is named rather than counted: the
+   * wrap-ups run concurrently, so which of them reaches the hook first is the
+   * scheduler's to decide (issue-00044). What is checked is that the shutdown
+   * carried on past the failing one — and that the failure was recorded on the
+   * session it happened to rather than thrown away.
    */
   it('wraps up every session on a shutdown even when one wrap-up throws', async () => {
-    let calls = 0
-    const onExit = vi.fn(async () => {
-      calls += 1
-      if (calls === 1) throw new Error('the commit failed')
+    const onExit = vi.fn(async (plan: SessionPlan) => {
+      if (plan.sourceId === 'spec-00001-a') throw new Error('the commit failed')
       return OUTCOME
     })
     const { manager } = makeManager({ args: HOLD }, onExit)
