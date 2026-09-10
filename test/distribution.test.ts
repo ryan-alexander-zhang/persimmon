@@ -14,7 +14,7 @@ import { freePort } from './helpers.ts'
  */
 
 const ROOT = new URL('..', import.meta.url).pathname
-const PACKAGE = '@ryan-alexander-zhang/persimmon-host'
+const PACKAGE = '@ryan-alexander-zhang/persimmon'
 const SCOPE = '@ryan-alexander-zhang'
 
 const made: string[] = []
@@ -51,13 +51,13 @@ function installedTree(): { pkg: string; home: string } {
   return { pkg, home }
 }
 
-// issue-00029 · plan-00033 T7 — the installed layout runs from node_modules. The
-// query mode is what it is spawned in: `--judge` reads the registry and exits,
-// so the assertion is about the layout and not about a server (design-00004 §4).
+// issue-00029 — the installed layout runs from node_modules. `list` is what it
+// is spawned in: on an empty home it reads the registry, prints nothing and
+// exits, so the assertion is about the layout and not about a server.
 it('runs the shipped entry point from under node_modules', async () => {
   const { pkg, home } = installedTree()
 
-  const result = spawnSync(process.execPath, [join(pkg, 'bin', 'host.js'), '--judge'], {
+  const result = spawnSync(process.execPath, [join(pkg, 'bin', 'persimmon.js'), 'list'], {
     cwd: pkg,
     encoding: 'utf8',
     env: { ...process.env, HOME: home, PORT: String(await freePort()) },
@@ -66,5 +66,5 @@ it('runs the shipped entry point from under node_modules', async () => {
 
   expect(result.stderr).toBe('')
   expect(result.status).toBe(0)
-  expect(result.stdout).toBe('{"workspaces":[]}\n')
+  expect(result.stdout).toBe('')
 })

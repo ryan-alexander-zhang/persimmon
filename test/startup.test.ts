@@ -7,14 +7,15 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { boundPort, freePort } from './helpers.ts'
 
 /**
- * The host bin as a lifecycle: it refuses a port that is taken, and it goes down
- * on a signal rather than being killed by it. The handshake around it — the
- * probe, the registration and the address of a process already running — is the
- * `persimmon` command's, tested in `cli/internal/hostproc` (plan-00033 T4);
- * what this bin prints per workspace is `test/host.test.ts`'s.
+ * The bin as a lifecycle, spawned for real: it refuses a port that is taken, and
+ * it goes down on a signal rather than being killed by it — which is what
+ * `bin/persimmon.js` exiting with the code `run(argv)` returned amounts to from
+ * outside. The handshake itself — the probe, the registration, the address — is
+ * `test/cli.test.ts`'s, in-process; what the bin prints per workspace is
+ * `test/host.test.ts`'s.
  */
 
-const ENTRY = new URL('../bin/host.js', import.meta.url).pathname
+const ENTRY = new URL('../bin/persimmon.js', import.meta.url).pathname
 
 const made: string[] = []
 
@@ -33,11 +34,15 @@ function makeHome(): string {
 }
 
 describe('starting the board', () => {
-  // spec-00011-AC-15.2 at the host: the holder never answers the handshake, so
-  // the port the command probed as free was taken by the time it bound
+  // spec-00011-AC-15.2 through the bin: the holder never answers, so the probe
+  // reads the port as taken and the command refuses rather than starting a
+  // second process on it. The EADDRINUSE backstop behind the probe
+  // (spec-00011-AC-15.5, spec-00012-AC-3.3) is `test/cli.test.ts`'s — it needs a
+  // probe that answers «free» about a port that is not, which no real holder can
+  // be made to do.
   it('reports a port it cannot have instead of crashing', async () => {
     const port = await freePort()
-    // On loopback, where the host binds: a wildcard holder would leave the port
+    // On loopback, where the board binds: a wildcard holder would leave the port
     // still bindable there, so the test would assert a refusal of a port the
     // process could in fact have had (issue-00028). Waited for, since a named
     // bind lands a tick later and `spawnSync` blocks this event loop.
@@ -57,11 +62,11 @@ describe('starting the board', () => {
   })
 
   /**
-   * spec-00003-AC-9.3 at the host, and no further: a normal signal is handled
-   * rather than killing the board where it stands, so there is a shutdown to run
-   * at all — the exit is the host's own, code 0 and no signal. What the shutdown
-   * then does per session is the Board's, proved at that level in
-   * server.test.ts; nothing is running here to wrap up.
+   * spec-00012-AC-4.2 and spec-00003-AC-9.3 through the bin, and no further: a
+   * normal signal is handled rather than killing the board where it stands, so
+   * there is a shutdown to run at all — the exit is the command's own, code 0
+   * and no signal. What the shutdown then does per session is the Board's,
+   * proved at that level in server.test.ts; nothing is running here to wrap up.
    */
   it('handles SIGTERM itself instead of being killed by it', async () => {
     const port = await freePort()
