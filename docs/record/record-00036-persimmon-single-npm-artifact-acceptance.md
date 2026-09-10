@@ -393,6 +393,13 @@ Windows 那一行按 `decision-00020` §2 第 10 条已不是义务，不记。
    观察随之关闭。
 3. **linux 侧读数——域主裁定暂不推送**，留空；不阻塞本仓库内的结论，但
    `resolved` 前须由域主再定一次是推还是接受只有 darwin 读数。
-4. **真终端 Ctrl-C——待人工**，仍阻塞。
+4. **真终端 Ctrl-C——已取到**（域主 2026-09-10 在真终端跑
+   `npm run build && PORT=4199 node bin/persimmon.js`）：打印
+   `persimmon: http://localhost:4199/w/persimmon` 后按一次 Ctrl-C，进程退出、
+   提示符回到 shell 无错误标记；事后核查 `pgrep -fl bin/persimmon.js` 无进程、
+   `lsof -iTCP:4199 -sTCP:LISTEN` 端口已释放、`~/.persimmon/workspaces.json`
+   含本仓库一条（登记发生在监听之前，符合 `spec-00011-FR-13`）。
+   `spec-00012-AC-4.1` … `AC-4.4` 的真终端那一半由此取数。
 
-放行前只剩第 3、4 两条，都在域主手上。
+放行前只剩第 3 条：linux 侧读数，等域主定是推 main 让 CI 跑一遍，还是接受
+只有 darwin 读数。
