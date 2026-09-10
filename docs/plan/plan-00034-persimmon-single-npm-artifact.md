@@ -1,7 +1,7 @@
 ---
 id: plan-00034-persimmon-single-npm-artifact
 type: plan
-status: open
+status: resolved
 implements: [spec-00012-FR-1, spec-00012-FR-2, spec-00012-FR-3, spec-00012-FR-4, spec-00012-FR-9, spec-00012-FR-10, spec-00012-FR-12, spec-00012-FR-13, spec-00012-FR-14, spec-00012-FR-15, spec-00013-persimmon-scaffold, spec-00011-FR-13, spec-00011-FR-14, spec-00011-FR-15, spec-00011-FR-20, spec-00011-FR-21, design-00004-persimmon-cli]
 ---
 

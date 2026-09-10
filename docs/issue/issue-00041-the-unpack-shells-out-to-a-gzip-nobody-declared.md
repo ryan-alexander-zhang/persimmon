@@ -1,7 +1,7 @@
 ---
 id: issue-00041-the-unpack-shells-out-to-a-gzip-nobody-declared
 type: issue
-status: open
+status: resolved
 blocks: [plan-00034-persimmon-single-npm-artifact]
 ---
 

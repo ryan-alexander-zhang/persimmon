@@ -401,5 +401,17 @@ Windows 那一行按 `decision-00020` §2 第 10 条已不是义务，不记。
    含本仓库一条（登记发生在监听之前，符合 `spec-00011-FR-13`）。
    `spec-00012-AC-4.1` … `AC-4.4` 的真终端那一半由此取数。
 
-放行前只剩第 3 条：linux 侧读数，等域主定是推 main 让 CI 跑一遍，还是接受
-只有 darwin 读数。
+5. **linux 侧读数——已取到**（域主 2026-09-10 裁定推送）。首次 CI（run
+   `34438160787`，ubuntu-latest，Node 23）9 红：2 条是本轮的 linux 特有缺陷——
+   `tar -xzf` 在 GNU tar 上 exec `gzip`，夹具 PATH 只含 `tar` 即死在解包
+   （`issue-00041`，改为 `node:zlib` 进程内 gunzip 后 `tar -xf -`）；另 7 条在
+   本轮未改的文件里、与 plan-00034 无因果——5 条 upgrade 拒绝在 Node 23 超时
+   （`issue-00042`，undici 只发 `error` 不发 `close`）、`headless` 夹具 400 KB
+   进 argv 撞 linux 单参上限（`issue-00043`）、`sessionManager` 用例按到达次数
+   断言的竞态（`issue-00044`）。四条各按 `AGENTS.md` §8 先 issue 后修。
+   第二次 CI（run `34441120647`，head `a8e418c`）**node job success**：
+   `tar --strip-components=1`、`git merge-file` 与三方合并全部 20 例、解包路径
+   的符号链接与可执行位，在 GNU tar / linux 上取到绿读数。
+
+**四件事齐了。`plan-00034` 的 138 条 AC 各有通过测试，`resolvedGaps` 为空，
+darwin 与 linux 两侧读数在手，真终端 Ctrl-C 已取——放行 `open → resolved`。**

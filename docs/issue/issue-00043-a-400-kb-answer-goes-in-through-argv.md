@@ -1,7 +1,7 @@
 ---
 id: issue-00043-a-400-kb-answer-goes-in-through-argv
 type: issue
-status: open
+status: resolved
 blocks: [spec-00005-whiteboard-ask-threads]
 ---
 
