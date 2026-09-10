@@ -41,8 +41,8 @@ verifies: [spec-00011-multi-workspace]
 调用真实 `osascript`，由域主在本机操作：
 
 1. **选定**（`spec-00011-AC-22.1`）：弹出 Finder，域主选定
-   `/Users/ryan/GitHubProjects/ryan-alexander-zhang/topics-hunter` 并确认。
-   返回 `{"kind":"picked","path":"/Users/ryan/GitHubProjects/ryan-alexander-zhang/topics-hunter"}`
+   `<projects>/topics-hunter` 并确认。
+   返回 `{"kind":"picked","path":"<projects>/topics-hunter"}`
    ——**不以分隔符结尾**，与 AC 一致。
 2. **取消**（`spec-00011-AC-23.1`/`AC-23.3`）：弹出 Finder，域主点 Cancel。
    返回 `{"kind":"cancelled"}`，耗时 2354 ms（即等到人做出选择为止），

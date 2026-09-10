@@ -39,8 +39,8 @@ describe('the native directory picker', () => {
 
   // spec-00011-AC-22.1
   macOnly('gives back the chosen directory without its trailing separator', async () => {
-    const picked = await picker((child) => child.end(0, '/Users/ryan/GitHubProjects/persimmon/\n')).pick()
-    expect(picked).toEqual({ kind: 'picked', path: '/Users/ryan/GitHubProjects/persimmon' })
+    const picked = await picker((child) => child.end(0, '/srv/projects/persimmon/\n')).pick()
+    expect(picked).toEqual({ kind: 'picked', path: '/srv/projects/persimmon' })
   })
 
   // spec-00011-AC-22.2: stripping the root's separator would leave no path at all.
