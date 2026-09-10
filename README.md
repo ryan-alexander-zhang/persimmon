@@ -1,214 +1,132 @@
 # persimmon
 
-A local, single-user docs whiteboard for repositories built on
-[ai-native-project-template](https://github.com/ryan-alexander-zhang/ai-native-project-template):
-the `docs/` tree is rendered as a board (documents are nodes, front matter
-relations are edges), and every action — review, promote, ask, co-write,
-annotate — writes back to the Markdown files and commits.
+[![CI](https://github.com/ryan-alexander-zhang/persimmon/actions/workflows/ci.yml/badge.svg)](https://github.com/ryan-alexander-zhang/persimmon/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-The Markdown files stay the only source of truth. The board is a view and an
-operations console over a repository; it can be discarded and rebuilt at any time.
+A local whiteboard for the `docs/` tree of a repository built on
+[ai-native-project-template](https://github.com/ryan-alexander-zhang/ai-native-project-template),
+and the command that creates, upgrades and opens such repositories.
 
-This repository is also a project on the template: its own `docs/` holds the
-whiteboard's idea, prd, specs, rules, decisions, designs, plans, issues, and
-acceptance records, and this board is what renders them.
+Documents are nodes, front-matter relations are edges. Every action on the
+board — review, promote, ask, co-write, annotate — writes back to the Markdown
+files and commits. The Markdown stays the only source of truth; the board is a
+view over it and can be discarded and rebuilt at any time.
 
-## Quick Start
+- **One process, many projects.** Register any number of repositories; each gets
+  its own board under `/w/<id>` with its own sessions, threads and settings.
+- **Scaffold and upgrade.** `persimmon new` creates a project from the template;
+  `persimmon update` three-way-merges later template changes into it.
+- **Agent sessions in the browser.** Run your coding-agent CLI against a
+  document from the board, with a real terminal, scoped to `docs/`.
+- **Nothing hidden.** State lives in the project (`docs/`, `.whiteboard/`,
+  `whiteboard.config.yaml`) and in one registry file in your home directory.
 
-**Nothing is published to npm yet.** Until the first version is cut, install the
-`persimmon` command from source — it takes one `npm link`:
+## Requirements
+
+- Node.js ≥ 23.6
+- `git` and `tar` on `PATH`
+- Linux or macOS
+
+## Install
+
+Nothing is published to npm yet. Install from source:
 
 ```bash
 git clone https://github.com/ryan-alexander-zhang/persimmon.git
 cd persimmon
-npm ci && npm run build      # build = vite build + tsc → dist/web and lib/
-npm link                     # puts `persimmon` on your PATH, pointing at this checkout
+npm ci && npm run build
+npm link                      # puts `persimmon` on your PATH, pointing at this checkout
 ```
 
-Then, from any directory:
+After changing the source, `npm run build` is enough — the link keeps pointing
+at the checkout. `npm unlink -g @ryan-alexander-zhang/persimmon` removes the
+command.
+
+Once a version is published the same command will install with
+`npm i -g @ryan-alexander-zhang/persimmon` or run with
+`npx @ryan-alexander-zhang/persimmon`.
+
+## Usage
 
 ```bash
-persimmon new demo --lang go     # scaffold a project from the template and register it
-cd demo && persimmon             # serve its board: http://localhost:4173/w/demo (honours PORT)
-persimmon list                   # every registered workspace and whether it is usable
-persimmon update                 # pull the template's changes into this project (three-way merge)
-persimmon help                   # the full command set
+persimmon new demo --lang go      # scaffold a project from the template and register it
+cd demo
+persimmon                         # serve its board and print http://localhost:4173/w/demo
 ```
 
-Prerequisites: Node ≥ 23.6, `git`, `tar`. Linux and macOS only.
-
-After editing the source, `npm run build` is enough — the link keeps pointing at
-the checkout. `npm unlink -g @ryan-alexander-zhang/persimmon` removes the
-command. Without a link, `node bin/persimmon.js …` and `npm start` (the bare
-`persimmon` form) work the same way from inside the repository.
-
-Once a version is published the same command arrives with
-`npx @ryan-alexander-zhang/persimmon` or `npm i -g @ryan-alexander-zhang/persimmon`;
-the behaviour is identical across the three install forms.
-
-The board walks up from the directory it is launched in to the nearest
-`whiteboard.config.yaml` and serves that repository's `docs/`.
-
-## Workspaces
-
-A **workspace** is one registered project directory — a git repository with a
-`whiteboard.config.yaml` and a `docs/` tree. One process serves any number of
-them: each workspace gets its own board under `/w/<id>`, with its own graph,
-sessions, ask threads, annotations and agent settings, and nothing crosses
-between them (`spec-00011`).
-
-The registry is a single file in your home directory,
-`~/.persimmon/workspaces.json`: a version and a list of entries, each with an
-`id` derived from the directory name, a display name, and the absolute path.
-Entry order is switcher order. A missing file reads as an empty registry, and a
-hand edit shows up on the next listing — no restart. The board writes nothing
-else outside a project: `.whiteboard/`, the flow config and `docs/` all stay in
-the project directory.
-
-The **switcher** sits at the far left of the top bar. It lists every entry with
-its path, its availability, and its running and waiting session counts, and it
-carries the add and per-entry remove controls. Choosing an entry swaps the whole
-board to it and puts it in the address bar; the process and the port do not
-change, and the sessions of the other workspaces keep running. An entry whose
-directory is gone, holds no flow config, is not a git repository, or has an
-invalid config is listed as unavailable with the reason, and choosing it is
-refused.
-
-## The `persimmon` command
-
-```bash
-persimmon             # start, or attach to a process already running
-persimmon new <name> [--lang <l>] [--variant <v>] [--dir .] [--ref <branch>] [--set KEY=VALUE]
-persimmon update [--dir .]
-persimmon list-langs
-persimmon add [path] [--name <n>]
-persimmon remove <id|path>
-persimmon list
-persimmon version
-persimmon help
-```
-
-`persimmon` with no subcommand walks up from the current directory to the
-nearest `whiteboard.config.yaml`; the project it finds is registered (idempotent)
-and opened. Outside any project it opens the workspace this browser was last in,
-otherwise the first available entry, otherwise the empty state. It prints the
-address to open. The port comes from `PORT`, default 4173.
-
-If a persimmon is already listening on that port, the command starts no second
-process: it registers through the one already running — whose switcher picks the
-new entry up at once — prints that workspace's address and exits 0. A port held
-by anything else is reported as occupied, with a non-zero exit.
-
-`add` takes a path, or defaults to the project the current directory is in;
-`--name` sets the display name, which otherwise follows the id. It is
-non-interactive and idempotent — an already registered directory exits 0 with
-the existing entry. A path that does not exist, is not a directory, or holds no
-flow config is refused; an invalid flow config or a directory that is no git
-repository is *not* — it registers and shows up as unavailable.
-
-`remove` takes an id or a path and deletes the registry entry only, touching
-nothing inside the directory; it is refused while that workspace has a running
-session. That refusal comes from the running process, which is the only thing
-that has sessions: with no process the command writes the registry file
-directly, and the rule holds vacuously (`spec-00011-FR-5`, FR-13/14). `list`
-prints every entry's id, name, path and availability.
-
-`new` scaffolds a new project from the
-[ai-native-project-template](https://github.com/ryan-alexander-zhang/ai-native-project-template)
-repository into `<dir>/<name>` and registers it as a workspace in the same step;
-`--lang` and `--variant` pick a `lang/*` branch, `--ref` overrides the branch
-outright, and `--set KEY=VALUE` (repeatable) fills the template's variables.
-`list-langs` prints the templates that repository offers. `update` three-way
-merges later template changes into an existing project, using the creation
-marker written by `new`; conflicts are left as ordinary `<<<<<<<` markers for
-you to resolve and commit ([spec-00013](docs/spec/spec-00013-persimmon-scaffold.md)).
-
-`version` prints the command's version, `help` its usage; both also answer to
-their `-v` / `-h` and `--version` / `--help` forms.
-
-## Commands
-
-Run from the repository root:
-
-| Task | Command |
+| Command | What it does |
 | --- | --- |
-| Setup | `npm install` |
-| Build the UI and the server | `npm run build` |
-| Run | `npm start` (honours `PORT`, default 4173) |
-| Test | `npm test` |
-| Coverage | `npm run test:coverage` |
-| Typecheck | `npm run typecheck` |
-| UI dev server | `npm run dev` (proxies `/api` to a board started with `npm start`) |
+| `persimmon` | Start the board for the project the current directory is in, or attach to a board already running. Outside any project, open the last used workspace. |
+| `persimmon new <name> [--lang <l>] [--variant <v>] [--dir <d>] [--ref <branch>] [--set KEY=VALUE]` | Create `<dir>/<name>` from the template and register it. `--lang`/`--variant` choose a `lang/*` branch; `--ref` names a branch outright; `--set` fills template variables (repeatable). |
+| `persimmon update [--dir <d>]` | Merge the template's changes since the project was created. Conflicts are left as ordinary `<<<<<<<` markers for you to resolve and commit. |
+| `persimmon list-langs` | List the languages and variants the template offers. |
+| `persimmon add [path] [--name <n>]` | Register a project (default: the one the current directory is in). Idempotent. |
+| `persimmon remove <id\|path>` | Unregister a project. Touches nothing inside it. Refused while it has a running session. |
+| `persimmon list` | Every registered project with its id, name, path and availability. |
+| `persimmon version`, `persimmon help` | Also `-v` / `--version`, `-h` / `--help`. |
 
-`npm start` alone is enough to use the board: it serves the built UI from
-`dist/web` and loads the server from `lib/`, both of which `npm run build`
-produces, so run it once first. `npm run dev` is for working on the UI itself —
-it starts Vite with hot reload and proxies `/api` to a board that must already
-be running via `npm start` in another terminal.
+The port comes from `PORT` (default `4173`). If a persimmon is already
+listening there, a second `persimmon` does not start another process — it
+registers through the running one and prints that project's address. A port
+held by anything else is reported as occupied.
 
-## Configuration
+The template repository defaults to `ryan-alexander-zhang/ai-native-project-template`;
+override with `AINPT_OWNER` and `AINPT_REPO`.
 
-`whiteboard.config.yaml` at the repo root is the machine-readable carrier of
-[rule-00001-docs-workflow](docs/rule/rule-00001-docs-workflow.md): the type
-split, the relation fields, the product flow, and the agent commands. There is
-no built-in default: a workspace whose config is missing or invalid is listed as
-unavailable with the reason, and cannot be opened until it is fixed — the process
-and the other workspaces are unaffected. A workspace already open keeps the
-config it was opened with, so an edit takes effect on the next start.
+## How it works
 
-`exclude` is a list of glob patterns relative to `docs/`: a matched file does not
-exist for the board — no node, no anomaly, no id — and the list is read at
-startup, so a change to it takes effect on the next start (`spec-00010`).
+**Workspaces.** A workspace is one registered project directory: a git
+repository with a `whiteboard.config.yaml` and a `docs/` tree. The registry is
+`~/.persimmon/workspaces.json` — a version and a list of `{ id, name, path }`
+entries, in switcher order. A missing file is an empty registry; a hand edit
+shows up on the next listing. A project whose directory is gone, is not a git
+repository, or has a missing or invalid config is listed as unavailable with the
+reason and cannot be opened; the others are unaffected.
 
-### Adding an agent CLI
+**Configuration.** `whiteboard.config.yaml` at the project root declares the
+document types, their relation fields, the product flow, and the agent CLIs a
+session may run. There is no built-in default. `exclude` lists glob patterns
+under `docs/` that the board ignores. Both are read when the workspace is
+opened.
 
-The `agents` block names the CLI a session runs. A session's working directory is
-`docs/`, which is the write-scope constraint the MVP relies on. **Before adding a
-CLI here, verify it against `spec-00001-AC-13.2`**: a write outside the docs tree
-must not land. An unverified CLI does not belong in the shipped config.
+**Agents.** The `agents` block in the config is the project layer, shared
+through git. `.whiteboard/agents.json` (git-ignored) is the local layer for
+this machine — a different model or command, extra environment, an entry only
+you have, a disabled entry. Edit it from the settings panel or by hand; it is
+re-read on every session start. A session's working directory is `docs/`.
 
-That block is the **project layer**, shared through git. Over it sits a **local
-layer** — `.whiteboard/agents.json`, which git ignores — holding this machine's
-own choices: a different `model` or `command` for an entry the project declares,
-extra `env`, an entry only this machine has, a disabled entry, a different
-default. Edit it from the settings panel in the board's top bar, or by hand; it
-is re-read on every session start, so a change takes effect without a restart,
-and an ill-formed file is ignored whole rather than stopping the board. The
-verification discipline above applies to the **project layer only**: what runs on
-your own machine is your own call.
+## Troubleshooting
 
-## Notes
+**Every agent session fails with `posix_spawnp failed`.** `node-pty` ships a
+prebuilt `spawn-helper` that needs the executable bit, and npm no longer runs
+dependency install scripts. persimmon restores the bit itself before the first
+spawn; if you see this error, check that the `node_modules/node-pty` tree is
+writable by the user running the command.
 
-- `node-pty` ships prebuilt binaries whose `spawn-helper` needs the executable
-  bit, and npm blocks dependency install scripts. In this checkout `postinstall`
-  restores it. A user who runs the command with `npx` gets a cache install that
-  runs no install script at all — so the bit is set again at spawn time from
-  `src/pty.ts`
-  ([issue-00030](docs/issue/issue-00030-npx-leaves-the-pty-spawn-helper-non-executable.md)).
-  Without either, every session fails with `posix_spawnp failed`.
-- The first-level subdirectories of a type's directory fold into one directory
-  group node in that type's column, and the navigation sidebar mirrors it; the
-  two share one expand state, and a group starts collapsed (`spec-00010`).
-- The source runs on Node's native TypeScript stripping, so intra-package imports
-  carry the real `.ts` extension and the code avoids constructor parameter
-  properties, which strip-only mode rejects.
+## Development
 
-## Repo Map
+```bash
+npm ci
+npm run build          # vite build + tsc → dist/web and lib/
+npm test               # vitest, ~2 300 tests
+npm run typecheck
+npm run test:coverage  # 90 % lines / branches / functions
+npm run dev            # Vite with hot reload; proxies /api to a board started with `npm start`
+npm run test:install   # end-to-end: npm pack → npm link, npx and global install of the tarball
+```
 
-- [AGENTS.md](AGENTS.md): behavior rules for coding agents in this repo
-- [ARCHITECTURE.md](ARCHITECTURE.md): architecture index for the whiteboard
-- [CONTEXT.md](CONTEXT.md): the project glossary
-- [DEVELOPMENT.md](DEVELOPMENT.md): implementation workflow, commands, Definition of Done
-- [DOCUMENT.md](DOCUMENT.md): document management rules
-- [TESTING.md](TESTING.md) and [UNIT_TESTING.md](UNIT_TESTING.md): test policy and the unit stack
-- [CODE_QUALITY.md](CODE_QUALITY.md): quality gates
-- [whiteboard.config.yaml](whiteboard.config.yaml): the flow configuration this repo's board reads
-- [docs/README.md](docs/README.md): source of truth for the docs taxonomy
+The source runs on Node's native TypeScript stripping, so intra-package imports
+carry the `.ts` extension and the code avoids constructor parameter properties.
 
-## Origin
+This repository is itself a project on the template: its `docs/` holds the
+specs, designs, decisions, plans and acceptance records that govern it, and
+this board renders them. Start there:
 
-The whiteboard was developed inside the template repository and moved here so
-that one installed board can serve any number of template projects instead of
-every project carrying its own copy. The move and the direction it sets are
-recorded in
-[decision-00019](docs/decision/decision-00019-whiteboard-standalone-repo.md).
+- [ARCHITECTURE.md](ARCHITECTURE.md) — how the pieces fit
+- [DEVELOPMENT.md](DEVELOPMENT.md) — implementation workflow and definition of done
+- [CONTEXT.md](CONTEXT.md) — the project glossary
+- [docs/README.md](docs/README.md) — the document taxonomy
+
+## License
+
+[MIT](LICENSE)

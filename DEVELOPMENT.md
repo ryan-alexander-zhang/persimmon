@@ -120,3 +120,12 @@ A change is done only when all of these are true:
   threshold and no suppressed finding
 - security-sensitive changes meet the [SECURITY.md](SECURITY.md) DoD
 - no known regression is left behind
+
+## Adding an agent CLI to `whiteboard.config.yaml`
+
+The `agents` block is the project layer, shared through git. A session's working
+directory is `docs/`, which is the write-scope constraint the board relies on.
+Before adding a CLI there, verify it against `spec-00001-AC-13.2`: a write outside
+the docs tree must not land. An unverified CLI does not belong in the shipped
+config. What runs from the local layer (`.whiteboard/agents.json`) is the
+developer's own call.
