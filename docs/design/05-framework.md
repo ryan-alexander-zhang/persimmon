@@ -47,7 +47,19 @@ spec:
   revisioned: false                                # true: see §8 (artifact-style kinds)
   snapshot: Definition | None                      # Definition: included in snapshot closures
   handlerRef: {name: <Handler>}                    # who gives instances behaviour
+  stepContract:                                    # optional: instances can be used as steps
+    inputsPath: spec.inputs                        #   typed input ports (map of InputSpec)
+    outputsPath: spec.outputs                      #   typed output ports (map of OutputSpec)
+    runKind: {group: ..., kind: ...}               #   resource created per invocation
+    phasePath: status.phase                        #   Pending|Running|Waiting|Succeeded|Failed|Cancelled
+    outputsValuePath: status.outputs               #   RuntimeValue map on success
+    errorPath: status.error                        #   Error on Failed
 ```
+
+`stepContract` is how a composing kind (a Workflow today, a Pipeline tomorrow) uses another
+kind as a step without knowing what it is: create an instance of `runKind` with bound inputs,
+wait for `ChildFinished`, read phase and outputs by path. Task, Workflow and Gate declare it
+like any user kind; there is no closed list of step kinds anywhere in the engine.
 
 Schema annotations the framework understands inside `schema`:
 

@@ -42,7 +42,9 @@ spec:
   timeout: Duration
 ```
 
-Step `uses.kind` is one of `Task`, `Workflow`, `Gate`. No other step kinds.
+Step `uses` may name any kind whose KindDefinition declares a `stepContract` (framework §2).
+Task, Workflow and Gate declare one; so may pack kinds (ReviewLoop, Pipeline) and user kinds.
+The Workflow handler never enumerates step kinds (decision 30).
 
 Decisions applied:
 - Strict DAG per invocation; loops only through `repeat` on `Workflow` steps.
@@ -68,12 +70,18 @@ Unchanged from the design doc; listed here so this document is self-contained.
 
 ```yaml
 - id: planning                      # ^[a-z][a-z0-9_]*$, unique in the Workflow
-  uses: {kind: Task | Workflow | Gate, name: <definition name>}
+  uses: {kind: <step-capable kind>, name: <definition name>}
   inputs: {<port>: Binding}         # one Binding per input port of the used definition
+  executorRef?: {kind: Executor, name}   # Task steps only; overrides Task.executorRef
   timeout: Duration                 # covers queueing, attempts, backoff; required
   retryPolicy?: RetryPolicy         # Task steps only; replaces Task.retryPolicy wholesale
-  repeat?: RepeatPolicy             # Workflow steps only
+  repeat?: RepeatPolicy             # steps whose runKind is WorkflowRun only
 ```
+
+`executorRef` override (also allowed on Gate `validators[]` entries for task evaluators) lets
+one Task or Validator serve several executors: the same review Task behind a Codex Executor
+and a Claude Executor as two validators of one Gate. The override must pass the same adapter
+checks as the Task's default (decision 31).
 
 Step outputs are the used definition's outputs (Gate: fixed `result`). Other steps read them
 with `fromStep: {stepRef, output}`; expressions read `steps.<id>.phase`,
@@ -373,7 +381,8 @@ shipped definition by name.
 The JSON Schema checks structure. A separate static checker enforces, at admission and before
 snapshotting:
 
-1. `repeat` only on `uses.kind: Workflow`; step `retryPolicy` only on Task steps.
+1. `repeat` only on steps whose `runKind` is WorkflowRun; step `retryPolicy` and
+   `executorRef` only on Task steps; `uses.kind` must declare a `stepContract`.
 2. `quorum.count <= len(validators)` in Gate; `<= len(from)` in Transition.
 3. `retryOn ∩ abortOn = ∅`; `permission_denied`, `invalid_input`, `schema_violation` not in `retryOn`.
 4. `outputs` keys == `outputBindings` keys; `required: true` excludes `default`.

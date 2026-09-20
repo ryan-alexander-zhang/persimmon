@@ -38,6 +38,9 @@ alternatives considered, reason.
 
 | 29 | Adapters are registered as a cluster-scoped `Adapter` resource mapping id → transport + command/url + roles; `describe` cached in status | Config file; implicit PATH lookup | Every reference validates at admission; snapshots can pin the adapter's describe digest; same path in local and cloud |
 
+| 30 | `KindDefinition.stepContract` makes any kind usable as a Workflow step; the closed `uses.kind` enum is removed | Hard-code Task/Workflow/Gate; add pack kinds to the enum later | Pack and user kinds (ReviewLoop, Pipeline, Approval) must compose without engine changes; the abstraction test demands it |
+| 31 | `executorRef` override at Task invocation sites (WorkflowStep, Gate validators) | Duplicate Tasks/Validators per executor | One review Task, N reviewers; who reviews is an Executor choice, not a Task copy |
+
 Superseded: decision 21 (context per action kind) by 25 + adapter `contextKinds`.
 
 Open decisions carried into `70-roadmap.md`.

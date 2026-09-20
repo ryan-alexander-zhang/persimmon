@@ -10,7 +10,19 @@ the public path; no engine special case.
 
 ## Layer 2: SDLC pack (first-class deliverable, decision 26)
 
-Cluster-scoped, pre-installed, overridable by name in any namespace:
+Cluster-scoped, pre-installed, overridable by name in any namespace. Shape: step-capable
+composition kinds that expand to core kinds at snapshot time, so a running pipeline is pinned
+to the expansion it started with.
+
+| Kind | Expands to |
+|---|---|
+| `Pipeline` | one Workflow: phases as steps, linear transitions, per-phase failure routing |
+| `ReviewLoop` | body Workflow (produce → review Gate) + repeat step + feedback plumbing |
+| `Approval` | Gate step whose validators run behind human or agent Executors, branch on `passed` |
+| `Rollout` | deploy / verify / rollback Workflow with operationKey and fencingToken |
+
+Users write Pipelines; they drop to raw Workflows only when the pack cannot express a shape.
+Contents:
 
 - The 14 artifact kinds under `engineering.persimmon.ai/v1` as revisioned KindDefinitions.
 - RelationTypes `implements-v1`, `verifies-v1`; the traceability validator; entity indexing.
