@@ -6,7 +6,10 @@ Versioned facts produced by runs. Independent of any workflow's lifetime.
 
 - DomainArtifact: any registered `apiVersion/kind` outside `persimmon.ai/v1`. Envelope from the
   design doc: `spec.identity {id, revision}`, `spec.content`, `spec.provenance
-  {producerRunRef?, inputArtifacts[]}`, `status.representations[]`, `status.contentDigest`.
+  {producerRunRef?, inputArtifacts[], actor?}`, `status.representations[]`, `status.contentDigest`.
+  `provenance.actor` (`{kind: user | service, id, display?}`) is engine-set from the publishing
+  attempt's authenticated Actor; a publisher cannot supply it. Present only for artifacts
+  published by `human` attempts or by manual API publication.
 - Relation: immutable assertion between two endpoints (ArtifactRef, EntityRef,
   ExternalResourceRef) typed by a RelationType, with `evidence[]` and `assertedBy`.
 

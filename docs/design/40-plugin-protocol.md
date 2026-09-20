@@ -30,7 +30,9 @@ Every message: `{protocol: "persimmon.adapter/v1", id, op, payload}`. Every resp
 ## Operations
 
 `describe` → `{adapterId, roles[], executorTypes[], configurationSchema (JSON Schema),
-supports: {query, cancel, complete}, contextKinds[]}`.
+supports: {query, cancel, complete}, contextKinds[], skillFormats[], formRenderable}`.
+`skillFormats` lists the `Skill.spec.format` values the adapter understands. `formRenderable`
+is true for human adapters that can render an input form from a JSON Schema.
 Called at Executor admission and engine startup. The engine validates
 `Executor.spec.configuration` against `configurationSchema`.
 
@@ -50,9 +52,14 @@ Called at Executor admission and engine startup. The engine validates
                {"kind": "skill", "name": "...", "source": ExternalResourceRef, "digest": "sha256:..."},
                {"kind": "artifact", "ref": ArtifactRef}],
   "deadline": "2026-09-20T12:00:00Z",
+  "credentials": {"anthropic-api-key": "<secret>"},
   "engine":   {"endpoint": "unix:///.../engine.sock | https://...", "token": "..."}
 }
 ```
+
+`credentials` maps each name in `security.credentialBindings` to its resolved secret for this
+attempt. Adapters must not persist or log them. `context` entries arrive in declaration order;
+adapters should present them before `instructions`.
 
 Result: a TaskResult (`persimmon.result/v1`) or an error. For long-running work over stdio the
 adapter may stream `{event: "log", uri}` and `{event: "waiting", reason}` lines before the
@@ -65,8 +72,11 @@ unless `sideEffects: none`.
 
 `cancel(logicalExecutionId)` → `{state}`. Best effort; the engine records the answer.
 
-`complete(logicalExecutionId, taskResult, actor)` — adapter → engine direction for human and
-callback-style executors. `actor` is asserted by the adapter's authenticated channel.
+`complete(logicalExecutionId, taskResult, actor, approvalGroup?)` — adapter → engine direction
+for human and callback-style executors. `actor` (`{kind, id, display?}`) is asserted by the
+adapter's authenticated channel and is mandatory; the engine rejects a `complete` without it.
+Human adapters produce typed artifact outputs by rendering a form from the output kind's
+`ArtifactSchema.contentSchema` (fetched with `getArtifactSchema`) and calling `publishArtifact`.
 
 `evaluate(payload)` → ValidationResult. Payload mirrors `execute` with `validator` in place of
 `task`; loaded artifacts are provided as `artifacts.<alias>`.
@@ -78,6 +88,8 @@ Exposed at `engine.endpoint`, authenticated by the per-attempt `token`, scoped t
 - `getArtifact(ArtifactRef)` — content and representations the attempt's inputs reference.
 - `publishArtifact(kind, id?, content, representations[])` → ArtifactRef, staged to this attempt.
 - `getRepresentation(ArtifactRef, name)`.
+- `getArtifactSchema(apiVersion, kind)` — the registered content schema, for form rendering
+  and client-side validation.
 - `log(uri | text)`.
 
 Adapters have no other route to the store. Tokens expire at the attempt deadline.

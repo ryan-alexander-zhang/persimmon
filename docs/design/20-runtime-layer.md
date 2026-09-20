@@ -7,16 +7,26 @@ Controller-owned state describing executions. All runtime objects are immutable 
 
 | Kind | One per | Key spec fields | Key status fields |
 |---|---|---|---|
-| WorkflowRun | invocation | workflowRef, inputs, timeout, origin | phase, snapshot, steps[], outputs, error, waitingReason |
-| TaskRun | attempt | taskRef, snapshot, workflowRunRef, stepRef, iterationPath, attempt, logicalExecutionId, idempotencyKey?, inputs, context | phase, outputs, error, logs |
+| WorkflowRun | invocation | workflowRef, inputs, timeout, origin, parent? | phase, snapshot, steps[], outputs, error, reason, waitingReason |
+| TaskRun | attempt | taskRef, snapshot, workflowRunRef, stepRef, iterationPath, attempt, logicalExecutionId, idempotencyKey?, inputs, context | phase, outputs, error, logs, actor? |
 | GateRun | gate evaluation | gateRef, snapshot, workflowRunRef, inputs | phase, result, validationRunRefs |
 | ValidationRun | validator execution | validatorRef, snapshot, gateRunRef?, inputs | phase, result, loadedArtifacts, taskRunRefs |
 
 Additions to the design doc:
 
-- `WorkflowRun.spec.origin`: `{kind: manual, actor?: string}` or
-  `{kind: trigger, triggerRef: ObjectRef, eventId: string, causationRef?: ObjectRef}`.
-  Manual and triggered runs are otherwise identical.
+- `WorkflowRun.spec.origin`: `{kind: manual, actor?: Actor}`,
+  `{kind: trigger, triggerRef: ObjectRef, eventId: string, causationRef?: ObjectRef}`, or
+  `{kind: parent}` for body runs of `repeat` and sub-Workflow steps. Runs are otherwise identical.
+- `WorkflowRun.spec.parent`: `{workflowRunRef: ObjectRef, stepRef: string, iterationPath:
+  IterationAddress}`. Required when `origin.kind: parent`, forbidden otherwise. Child runs
+  copy the parent's `status.snapshot` at creation; the engine never re-resolves for children.
+- `WorkflowRun.status.reason`: the `reason` of the selected terminal, set on Succeeded and
+  Failed. For a terminal Failed the engine also sets
+  `error = {code: <reason>, message: "terminal Failed selected by transition <id>", retryable: false}`,
+  so a parent can route on `steps.<child>.error.code`.
+- `Actor` = `{kind: user | service, id: string, display?: string}`. Set by the engine from the
+  adapter's authenticated channel; never taken from a TaskResult body.
+- `TaskRun.status.actor`: the Actor that completed a `human` attempt.
 - `TaskRun.spec.context`: the resolved context list (file refs with version, ArtifactRefs,
   Prompt name plus content digest, Skill name plus bundle digest). Proves what the adapter saw.
 - `status.waitingReason` (optional string) on every Run kind, set while phase is Waiting.
@@ -69,6 +79,16 @@ selection, repeat loop, retry backoff, effective deadline = min of enclosing dea
 commit is transactional with artifact publication: an attempt is Succeeded only after every
 declared output is present, type-checked and, for artifacts, published with an exact ref.
 
+Terminal selected while other activated steps are still running:
+- terminal Succeeded: the engine waits for all activated steps to reach a terminal phase. Any
+  failure not consumed by a fired Transition downgrades the run to Failed.
+- terminal Failed: the engine cancels remaining activated steps (phase Cancelled) and fails
+  the run with the terminal's reason.
+
+Context resolution at attempt start: a `file` entry whose externalResource ref lacks `version`
+fails the attempt with `invalid_input` (non-retryable). Context entries on absent optional
+inputs are dropped from the resolved list.
+
 ## Cancellation
 
 `Cancelled` is set on the root and propagated to children. The engine calls `cancel` on
@@ -95,6 +115,9 @@ the run log; no external broker.
 ## Human tasks
 
 A `human` Task attempt enters Waiting with `waitingReason: human`. Completion arrives through
-the adapter (`complete` operation carrying a TaskResult signed by the adapter's authenticated
-channel). Timeout applies. The recorded actor comes from the adapter's authenticated event,
-never from the TaskResult body.
+the adapter (`complete` operation carrying a TaskResult and an Actor asserted by the adapter's
+authenticated channel). The engine refuses `complete` without an Actor, records it in
+`TaskRun.status.actor`, and stamps `spec.provenance.actor` on every artifact published by that
+attempt (see `30-data-layer.md`). Validators read the actor from artifact provenance.
+Membership in `approvalGroup` is asserted by the adapter; the engine records the group on the
+TaskRun. Timeout applies.

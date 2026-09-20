@@ -25,4 +25,9 @@ alternatives considered, reason.
 | 18 | Implementation language decided later; design stays language-neutral | Python, Go, TypeScript | Protocol-first plugin design makes the choice deferrable |
 | 19 | Docs in English Markdown, one file per topic | Chinese; single design doc | Repository language is English |
 
+| 20 | Remove `repeat.timeout`; step `timeout` bounds the loop | Keep both | Two required fields with one meaning; body Workflow already bounds one iteration |
+| 21 | `context` allowed on `agent` and `human` actions only | Also `script`; only `agent` | Humans need to see artifacts; scripts and tools consume typed inputs |
+| 22 | Engine-set `provenance.actor` on artifacts and `TaskRun.status.actor`, both `{kind, id, display?}` | Actor string; actor only on TaskRun | Validators can only read artifacts; approval must be verifiable from the authenticated actor |
+| 23 | Core exposes embedded types as well-known `$ref` schemas for value ports | Inline copies; runtime-only check | Makes the ValidationResult contract visible and checkable |
+
 Open decisions carried into `70-deferred.md`.

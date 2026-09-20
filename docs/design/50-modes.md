@@ -45,7 +45,15 @@ ArtifactStore, RelationStore            see 30-data-layer.md
 Outbox
   enqueue(event)                        in the same transaction as the producing write
   poll(limit) / ack(eventId)
+
+CredentialStore
+  resolve(name) -> secret               never persisted in run records or snapshots
 ```
+
+| Mode | CredentialStore |
+|---|---|
+| Local | environment variables, `.persimmon/credentials.yaml` (gitignored), or OS keychain |
+| Cloud | the platform secret manager, scoped per namespace |
 
 Local and cloud implement the same interface. Tests run the engine against both.
 
@@ -56,6 +64,8 @@ Local and cloud implement the same interface. Tests run the engine against both.
 - `persimmon run <workflow> --input k=v ...`: creates a WorkflowRun and drives it in the
   foreground; Ctrl-C leaves the run resumable.
 - `persimmon resume <run>`: rebuilds state from the log and continues.
+- `persimmon complete <taskRun> [--input k=v | --file result.json]`: completes a Waiting
+  `human` attempt as the local user; the `cli-prompt/v1` adapter is a thin wrapper over it.
 - `persimmon get / describe / logs`: read status and run history.
 
 Crash safety is required: state is checkpointed after every event; resume is exact.

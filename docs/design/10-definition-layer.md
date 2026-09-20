@@ -39,6 +39,11 @@ Decisions applied:
   prd-revise:  impact   -> prd-finalize
   prd-review:  prd-finalize
   ```
+- A Failed Workflow exports no outputs. Model a business rejection as Succeeded plus a verdict
+  output (for example `accepted: false`) so the parent can branch on it and still read the
+  produced artifacts. Reserve terminal Failed for "could not complete".
+- Feedback for rework travels as artifacts (a ReviewReport), not as a GateResult value.
+  GateResult is audit data; read `steps.<gate>.outputs.result.passed` for branching only.
 
 ## Embedded types used by Workflow
 
@@ -56,8 +61,21 @@ Unchanged from the design doc; listed here so this document is self-contained.
 ```
 
 Step outputs are the used definition's outputs (Gate: fixed `result`). Other steps read them
-with `fromStep: {stepRef, output}`; expressions read `steps.<id>.phase` and
-`steps.<id>.outputs.<port>`.
+with `fromStep: {stepRef, output}`; expressions read `steps.<id>.phase`,
+`steps.<id>.outputs.<port>` and, only when the phase is Failed, `steps.<id>.error`
+(`code`, `message`, `retryable`).
+
+Routing on failure: a step has exactly one consuming Transition, so list both outcomes there
+and branch with `when`. CEL `&&` short-circuits, so the guard is safe:
+
+```yaml
+from: [{stepRef: review, outcomes: [Succeeded, Failed]}]
+to:
+  - {stepRef: gate,   when: 'steps.review.phase == "Succeeded"'}
+  - {stepRef: retry_review, when: 'steps.review.phase == "Failed" && steps.review.error.code == "timeout"'}
+  - {terminal: Failed, reason: ReviewFailed}
+dispatch: first
+```
 
 ### Transition
 
@@ -83,13 +101,21 @@ repeat:
   state: {<var>: InputSpec}         # typed loop state
   initial: {<var>: Binding}         # evaluated in the outer scope
   next: {<var>: Binding}            # fromIterationOutput allowed here only
-  until: "iteration.outputs.accepted"
-  maxIterations: 5                  # includes the first iteration
-  timeout: 6h
+  until: "iteration.outputs.accepted || iteration.index >= inputs.maxRounds"
+  maxIterations: 5                  # hard cap, includes the first iteration
 ```
 
+No `repeat.timeout`: the step `timeout` is the budget for the whole loop; the body Workflow's
+own `timeout` bounds one iteration. (Change from the baseline, decision 20.)
+
+`until` and `next` see `iteration.outputs`, `iteration.index` (1-based) and `inputs` of the
+enclosing Workflow. Exhausting `maxIterations` with `until` still false fails the step with
+`iteration_limit` and exports nothing. To hand the last round downstream instead, end the
+loop from `until` (as above) and branch on the body's verdict output.
+
 Body inputs read state with `fromState: <var>` (plus `onMissing: omit` for optional state).
-Each iteration is a new body WorkflowRun with its own invocation address.
+Each iteration is a new body WorkflowRun with its own invocation address and a `parent` link
+(see `20-runtime-layer.md`).
 
 ### RetryPolicy
 
@@ -126,8 +152,8 @@ approval workflow is composed from a human Task plus a Gate. No Approval primiti
 
 ### Execution context (new)
 
-`Action` of kind `agent` gains an optional `context` list. Other action kinds may use it
-where the adapter supports it (`script` may receive files; `human` may receive prompts).
+`Action` of kind `agent` or `human` may carry an optional `context` list. `script` and
+`tool` actions receive inputs only (decision 21).
 
 ```yaml
 action:
@@ -152,9 +178,14 @@ action:
 | prompt | `ref` | LocalDefinitionRef to a Prompt. Content frozen in the snapshot |
 | skill | `ref` | LocalDefinitionRef to a Skill. Digest frozen in the snapshot; adapter fetches and verifies |
 
-Rules: context entries are ordered; adapters receive them in order. Core performs no
-templating or variable substitution. The TaskRun records the resolved context list.
-No inheritance in this version; every Task states its own context.
+Rules:
+- Entries are ordered; adapters receive them in order, then `instructions`.
+- `context` means "inject into the agent's working context". Inputs not listed remain
+  fetchable through `getArtifact` but are not injected.
+- An entry whose `input` is optional and absent at runtime is skipped. An absent required
+  input fails the attempt with `invalid_input`.
+- Core performs no templating or variable substitution. The TaskRun records the resolved list.
+- No inheritance in this version; every Task states its own context.
 
 ## Executor
 
@@ -175,6 +206,14 @@ spec:
 adapter concerns. Core validates `type`, `adapter`, `security` and the requirement
 `Executor.type == Task.action.kind`. The adapter's `describe` call (see `40-plugin-protocol.md`)
 returns a JSON Schema that the engine uses to validate `configuration` at admission.
+
+Adapter availability: `validate` warns `adapter_unavailable` when the adapter cannot be
+reached; `apply` fails unless `--skip-adapter-validation` is given; snapshot resolution at
+Run creation always requires the adapter.
+
+`credentialBindings` name entries in the engine's CredentialStore (see `50-modes.md`). The
+engine resolves them and passes secrets to the adapter for the attempt; they never appear in
+definitions, snapshots, logs or run records.
 
 ## Gate and Validator
 
@@ -248,6 +287,7 @@ spec:
     locator: {}                   # provider-specific
     version: string               # required: commit, tag digest, etc.
   digest: sha256:<64 hex>         # of the bundle bytes as the adapter fetches them
+  format: claude-code-skill/v1    # bundle format; must appear in the adapter's skillFormats
   adapterTypes: [agent]           # executor types that may consume it
 ```
 
@@ -320,8 +360,14 @@ snapshotting:
 10. Port type equality between producer and consumer (explicit equality, no schema subtyping).
 11. Expression profile: parse and type-check against the site's environment.
 12. Context: `file` input is externalResource, `artifact` input is artifact, refs resolve,
-    Skill `adapterTypes` includes the Executor type.
+    Skill `adapterTypes` includes the Executor type and the Executor's adapter lists the
+    Skill `format` in `skillFormats`.
 13. Trigger: target Workflow inputs required by the Workflow are all bound; `fromEvent`
     types match the port types; the two loop-prevention rules above.
 14. `task` evaluator: `resultOutput` names an existing `value` output. `value.schema` may
     `$ref` only the well-known core schemas.
+15. Repeat state: required state variables are bound in both `initial` and `next`; `next`
+    keys ⊆ `state` keys; `fromIterationOutput` names a body output of equal type;
+    `until` type-checks to boolean in its environment.
+16. Every artifact PortType in the definition closure resolves to a registered ArtifactSchema
+    at snapshot time; admission of a single definition only warns.

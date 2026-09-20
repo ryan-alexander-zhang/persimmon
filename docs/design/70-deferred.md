@@ -38,6 +38,5 @@ Items known, discussed, and intentionally not in the core model of this phase.
 1. Implementation language and CEL library choice.
 2. Canonical serialization for snapshot bytes (JSON with sorted keys is the default proposal).
 3. Skill digest computation for non-archive sources such as Git trees.
-4. Whether `script` and `human` actions accept `context`, or only `agent`.
-5. Adapter sandboxing mechanism in cloud mode.
-6. Human adapter for local mode: terminal prompt, file drop, or both.
+4. Adapter sandboxing mechanism in cloud mode.
+5. Human adapter for local mode: terminal prompt, file drop, or both.
