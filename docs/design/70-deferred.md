@@ -31,6 +31,7 @@ Items known, discussed, and intentionally not in the core model of this phase.
 - Workflow/Task pack format with versioning and dependency resolution.
 - Web UI, visual editor, and chat-based approval clients beyond the adapter protocol.
 - Retention and deletion policy for unreferenced artifact revisions.
+- User-defined shared value schemas (a registry beyond the well-known core `$ref`s).
 
 ## Open questions to settle before implementation
 

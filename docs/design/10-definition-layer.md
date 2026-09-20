@@ -181,6 +181,40 @@ returns a JSON Schema that the engine uses to validate `configuration` at admiss
 Unchanged. Gate is a first-class step kind with fixed output `result: GateResult`. Any
 validator execution error fails the GateRun regardless of policy.
 
+### Task evaluator result contract
+
+A `task` evaluator names `resultOutput`, a `value` output of the Task. Checks:
+
+- Static: the named output exists and its `type.kind` is `value`.
+- Runtime: the returned value is validated against the ValidationResult schema before the
+  ValidationRun succeeds. Mismatch fails the ValidationRun with `schema_violation`, which
+  fails the GateRun.
+
+Authors should declare the port with the well-known schema so the contract is visible:
+
+```yaml
+outputs:
+  result:
+    type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}
+```
+
+### Well-known value schemas
+
+Core exposes its embedded types as JSON Schemas addressable by `$ref` from any
+`value.schema`. Resolution is local to the engine; no network fetch.
+
+| `$ref` | Type |
+|---|---|
+| `persimmon.ai/v1#/ValidationResult` | passed, findings[], evidence[], score? |
+| `persimmon.ai/v1#/GateResult` | passed, results{} |
+| `persimmon.ai/v1#/Finding` | severity, code?, message |
+| `persimmon.ai/v1#/ArtifactRef` | apiVersion, kind, namespace, id, revision |
+| `persimmon.ai/v1#/ExternalResourceRef` | provider, type, id, locator, version?, url? |
+| `persimmon.ai/v1#/EntityRef` | artifactRef, entityKind, id |
+
+Only these refs are allowed inside `value.schema`; any other `$ref` is rejected at admission.
+Port type equality (static rule 10) treats a `$ref` and its expanded schema as equal.
+
 ## Prompt (new)
 
 Versioned instruction text referenced from Task context.
@@ -289,3 +323,5 @@ snapshotting:
     Skill `adapterTypes` includes the Executor type.
 13. Trigger: target Workflow inputs required by the Workflow are all bound; `fromEvent`
     types match the port types; the two loop-prevention rules above.
+14. `task` evaluator: `resultOutput` names an existing `value` output. `value.schema` may
+    `$ref` only the well-known core schemas.
