@@ -36,6 +36,8 @@ alternatives considered, reason.
 | 27 | Artifact kinds are `KindDefinition {revisioned: true}`; `ArtifactSchema` kind retired | Keep ArtifactSchema as a separate meta-kind | One registration path for every kind; framework owns identity/revision/provenance generically |
 | 28 | Triggers are a Layer 1 kind built on framework event subscriptions; the framework knows events, not triggers | Trigger logic in the engine | Keeps Layer 0 kind-agnostic |
 
+| 29 | Adapters are registered as a cluster-scoped `Adapter` resource mapping id → transport + command/url + roles; `describe` cached in status | Config file; implicit PATH lookup | Every reference validates at admission; snapshots can pin the adapter's describe digest; same path in local and cloud |
+
 Superseded: decision 21 (context per action kind) by 25 + adapter `contextKinds`.
 
 Open decisions carried into `70-roadmap.md`.

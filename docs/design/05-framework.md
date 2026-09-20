@@ -212,6 +212,33 @@ Out-of-process code the engine talks to through `persimmon.adapter/v1` (see
 framework knows the protocol and the transport; it does not know what any adapter does.
 Credentials are resolved by the framework's CredentialStore and injected per call.
 
+Adapters are registered as resources so an adapter id resolves to something runnable:
+
+```yaml
+apiVersion: persimmon.ai/v1
+kind: Adapter                                   # cluster-scoped
+metadata: {name: acme-canary-v1}
+spec:
+  id: acme-canary/v1                            # referenced by Executor.spec.adapter,
+                                                #   Handler.spec.implementation.adapter.id,
+                                                #   Validator evaluator type
+  roles: [handler]                              # subset of executor | evaluator | handler | eventSource
+  transport: stdio | http
+  command: [python3, /opt/persimmon/adapters/canary_handler.py]   # stdio
+  url: https://adapters.acme.example/canary                       # http
+  env: {string: string}                         # non-secret process environment (stdio)
+  credentialBindings: [string]                  # secrets injected into the process env (stdio)
+status:
+  describe: {...}                               # cached result of the last describe call
+  conditions: [{type: Ready, ...}]
+```
+
+On `apply` the framework runs `describe`, checks that `spec.roles` ⊆ the adapter's reported
+roles, stores the result in `status.describe`, and sets `Ready`. Every reference to an adapter
+id is validated against the registry at admission; snapshot closures record the adapter id and
+the `describe` digest so a run can prove which adapter version it was validated against.
+Local mode: `persimmon adapter install <manifest.yaml>` is `apply` for this kind.
+
 ## 11. Storage interface
 
 One interface, two implementations (see `50-modes.md`):

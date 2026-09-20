@@ -40,6 +40,14 @@ The engine applies the result atomically (framework §4–5). Handlers must be i
 `(resource.metadata.uid, event.sequence)`. `describe` for this role returns
 `{adapterId, roles: ["handler"], kinds: [{group, kind, versions}]}`.
 
+## Registration
+
+An adapter id (`claude-code/v1`, `acme-canary/v1`) is resolved through the `Adapter` resource
+(framework §10): `spec.command` for stdio, `spec.url` for http. `Executor.spec.adapter`,
+`Handler.spec.implementation.adapter.id` and custom `Validator.spec.evaluator.type` values must
+name a registered, `Ready` adapter whose `roles` include the required role. The engine calls
+`describe` at registration and caches it; `describe` output must be stable for a given id.
+
 ## Transport
 
 Same message schema over two transports:

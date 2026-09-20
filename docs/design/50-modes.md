@@ -75,6 +75,8 @@ Local and cloud implement the same interface. Tests run the engine against both.
 
 - `persimmon validate <files>`: schema plus static rules; exit code non-zero on findings.
 - `persimmon apply <files>`: writes definitions into the local store.
+- `persimmon adapter install <manifest.yaml>`: applies an `Adapter` resource, runs `describe`,
+  marks it Ready. `persimmon adapter list` shows ids, roles, readiness.
 - `persimmon run <workflow> --input k=v ...`: creates a WorkflowRun and drives it in the
   foreground; Ctrl-C leaves the run resumable.
 - `persimmon resume <run>`: rebuilds state from the log and continues.
