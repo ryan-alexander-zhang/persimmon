@@ -1,10 +1,25 @@
-# Definition Layer
+# Layer 1: Core Definition Kinds
 
-Everything a user declares. All kinds use `apiVersion: persimmon.ai/v1` and the standard
-envelope (`metadata.name`, `metadata.namespace`, server-managed `uid`, `resourceVersion`,
-`generation`). Specs of Workflow, Task, Executor, Gate, Validator, Prompt, Skill and Trigger
-may be edited in place; running Runs keep using their snapshot. ArtifactSchema and
-RelationType are immutable after publish.
+Kinds Persimmon ships for describing work. Each is registered on the framework
+(`05-framework.md`) through a `KindDefinition` and a built-in `Handler`, exactly as a user
+kind would be. Nothing here is special to the engine.
+
+| Kind | mutability | snapshot | Handler (builtin) | Notes |
+|---|---|---|---|---|
+| Workflow | SpecMutable | Definition | `workflow` | `validate` enforces the static rules in this file |
+| Task | SpecMutable | Definition | `task` | executor-agnostic since decision 24 |
+| Executor | SpecMutable | Definition | `executor` | `validate` calls the adapter's `describe` |
+| Gate | SpecMutable | Definition | `gate` | |
+| Validator | SpecMutable | Definition | `validator` | |
+| Prompt | SpecMutable | Definition | none | pure data |
+| Skill | SpecMutable | Definition | `skill` | verifies digest when reachable |
+| Trigger | SpecMutable | None | `trigger` | subscribes to framework events |
+| RelationType | Immutable | Definition | none | pure data |
+
+Artifact kinds are not a separate meta-kind: they are `KindDefinition`s with `revisioned:
+true` (decision 27, see `30-artifact-kinds.md`). All core kinds live under
+`apiVersion: persimmon.ai/v1`; `LocalDefinitionRef` fields are annotated `x-persimmon-ref` so
+the framework can validate them and build snapshot closures.
 
 Unchanged from the design doc (see `docs/reference/20`, `30`, `40`, `50`): PortType,
 RuntimeValue, Binding, expression profile, Action kinds, TaskResult protocol, Validator,
@@ -115,7 +130,7 @@ loop from `until` (as above) and branch on the body's verdict output.
 
 Body inputs read state with `fromState: <var>` (plus `onMissing: omit` for optional state).
 Each iteration is a new body WorkflowRun with its own invocation address and a `parent` link
-(see `20-runtime-layer.md`).
+(see `20-core-kinds-runs.md`).
 
 ### RetryPolicy
 
@@ -139,25 +154,35 @@ inside Trigger only.
 kind: Task
 spec:
   inputs, outputs
-  executorRef: {kind: Executor, name}
-  action: Action            # agent | script | tool | human
+  executorRef: {kind: Executor, name}       # the ONLY place that says who/what does the work
+  action:
+    instructions: string                    # what to do, in words
+    context?: [ContextEntry]                # what to look at (see below)
+    parameters?: {}                         # executor-type-specific, validated by the adapter
   timeout: Duration
   retryPolicy?: RetryPolicy
   sideEffects: none | idempotent | nonIdempotent
   resultProtocol: persimmon.result/v1
 ```
 
-Human-in-the-loop is `action.kind: human`. It is an ordinary Task with typed outputs; an
-approval workflow is composed from a human Task plus a Gate. No Approval primitive.
+Task is executor-agnostic (decision 24). There is no `action.kind`. Swapping a human reviewer
+for an agent reviewer, or an agent for a script, changes `executorRef` only. Fields that used
+to live on the action move to `Executor.spec.configuration` (`approvalGroup`, `program`,
+`resultFile`, `operation`) or to `action.parameters` when they vary per Task and the adapter's
+`describe` schema declares them.
+
+Consequence for Gates: *a Gate decides; a Validator asks a question; the Executor behind the
+Validator's Task answers.* Human approval, AI review and script checks are the same shape and
+differ only in which Executor is referenced. Mixing them is a Gate `policy` choice.
 
 ### Execution context (new)
 
-`Action` of kind `agent` or `human` may carry an optional `context` list. `script` and
-`tool` actions receive inputs only (decision 21).
+`action.context` is an optional ordered list. Adapters declare in `describe.contextKinds`
+which entry kinds they accept; the Executor handler rejects a Task whose context uses a kind
+its adapter does not support (this replaces decision 21's per-action-kind rule).
 
 ```yaml
 action:
-  kind: agent
   instructions: "Write the PRD. Preserve entity ids."
   context:
     - kind: file
@@ -202,10 +227,10 @@ spec:
     credentialBindings: [string]  # names only, never secrets
 ```
 
-`configuration` stays opaque. Model name, reasoning effort, sandbox settings and similar are
-adapter concerns. Core validates `type`, `adapter`, `security` and the requirement
-`Executor.type == Task.action.kind`. The adapter's `describe` call (see `40-plugin-protocol.md`)
-returns a JSON Schema that the engine uses to validate `configuration` at admission.
+`configuration` stays opaque. Model name, reasoning effort, sandbox settings, approval
+group, script entry point and similar are adapter concerns. The Executor handler validates
+`type`, `adapter`, `security`, and `configuration` against the adapter's `describe`
+`configurationSchema` at admission (see `40-plugin-protocol.md`).
 
 Adapter availability: `validate` warns `adapter_unavailable` when the adapter cannot be
 reached; `apply` fails unless `--skip-adapter-validation` is given; snapshot resolution at
@@ -288,7 +313,6 @@ spec:
     version: string               # required: commit, tag digest, etc.
   digest: sha256:<64 hex>         # of the bundle bytes as the adapter fetches them
   format: claude-code-skill/v1    # bundle format; must appear in the adapter's skillFormats
-  adapterTypes: [agent]           # executor types that may consume it
 ```
 
 `source` reuses ExternalResourceRef with `version` mandatory. The engine verifies the digest
@@ -329,17 +353,20 @@ produces a `value`; artifact and run refs produce typed refs. Ordinary Binding s
 
 Static rules: the target Workflow's declared outputs may not include the triggering
 `artifactKind`; a `workflowRunFinished` trigger may not target its own `workflowRef`.
-Runtime rules are in `20-runtime-layer.md`.
+Runtime rules are in `20-core-kinds-runs.md`.
 
-## ArtifactSchema and RelationType
+## Artifact kinds and RelationType
 
-Unchanged (see `docs/reference/60`). They type the data layer but are declared here because
-they are immutable definitions included in snapshots.
+Artifact kinds are registered with `KindDefinition {revisioned: true}`; the `contentSchema`
+of the baseline `ArtifactSchema` becomes that KindDefinition's `schema`. See
+`30-artifact-kinds.md`. `RelationType` is unchanged (see `docs/reference/60`).
 
 ## LocalDefinitionRef
 
-`kind` enum extends to: Workflow, Task, Executor, Validator, Gate, ArtifactSchema,
-RelationType, Prompt, Skill. Trigger is excluded. Resolution stays namespace-local.
+`kind` enum: Workflow, Task, Executor, Validator, Gate, RelationType, Prompt, Skill, plus any
+`KindDefinition` marked `snapshot: Definition`. Trigger is excluded. Resolution: writer's
+namespace first, then cluster scope (framework §7); this is how a namespace overrides a
+shipped definition by name.
 
 ## Static validation rules
 
@@ -354,14 +381,14 @@ snapshotting:
 6. DAG; `entry` equals the zero-in-degree set; exactly one owning Transition per non-entry
    step; each step consumed once; one dispatch never mixes terminal and step or two terminals.
 7. Workflow reference graph acyclic.
-8. `Executor.type == Task.action.kind`.
+8. `action.parameters` and `action.context` validate against the referenced Executor's
+   adapter `describe` (`parametersSchema`, `contextKinds`).
 9. Bindings and `when` read only causal predecessors in scope; `fromState` and
    `fromIterationOutput` only inside `repeat`.
 10. Port type equality between producer and consumer (explicit equality, no schema subtyping).
 11. Expression profile: parse and type-check against the site's environment.
 12. Context: `file` input is externalResource, `artifact` input is artifact, refs resolve,
-    Skill `adapterTypes` includes the Executor type and the Executor's adapter lists the
-    Skill `format` in `skillFormats`.
+    the Executor's adapter lists the Skill `format` in `skillFormats`.
 13. Trigger: target Workflow inputs required by the Workflow are all bound; `fromEvent`
     types match the port types; the two loop-prevention rules above.
 14. `task` evaluator: `resultOutput` names an existing `value` output. `value.schema` may
@@ -369,5 +396,5 @@ snapshotting:
 15. Repeat state: required state variables are bound in both `initial` and `next`; `next`
     keys ⊆ `state` keys; `fromIterationOutput` names a body output of equal type;
     `until` type-checks to boolean in its environment.
-16. Every artifact PortType in the definition closure resolves to a registered ArtifactSchema
+16. Every artifact PortType in the definition closure resolves to a registered revisioned kind
     at snapshot time; admission of a single definition only warns.

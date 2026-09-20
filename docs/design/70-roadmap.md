@@ -1,15 +1,28 @@
-# Deferred and Out of Scope
+# Roadmap
 
-Items known, discussed, and intentionally not in the core model of this phase.
+Layers above the framework, in build order, plus items intentionally out of scope.
 
-## Next phase: SDLC domain pack
+## Layer 1: core kinds (shape fixed now, handlers built after Layer 0)
 
-- The 14 domain artifact kinds under `engineering.persimmon.ai/v1` and their content schemas.
-- Entity indexing from `x-persimmon-entity` annotations.
-- RelationTypes `implements-v1`, `verifies-v1` and the traceability validator.
-- The five example Workflows, twenty Tasks, four Executors, five Validators, four Gates from
-  `examples.yaml`, packaged as an installable example set rather than built in.
+Workflow, Task, Executor, Gate, Validator, Prompt, Skill, Trigger, RelationType and the run
+kinds, each as `KindDefinition` + built-in `Handler`. Acceptance: every one registers through
+the public path; no engine special case.
+
+## Layer 2: SDLC pack (first-class deliverable, decision 26)
+
+Cluster-scoped, pre-installed, overridable by name in any namespace:
+
+- The 14 artifact kinds under `engineering.persimmon.ai/v1` as revisioned KindDefinitions.
+- RelationTypes `implements-v1`, `verifies-v1`; the traceability validator; entity indexing.
+- Workflows `sdlc`, `research`, `planning-iteration`, `engineering-iteration`, `rollout`;
+  their Tasks, Gates, Validators; reference Executors for agent, script, tool, human.
 - Rollout semantics: DeploymentPlan, operationKey, fencingToken, rollback branches.
+- Override mechanism: same-name definition in a namespace shadows the shipped one.
+
+## Layer 3: user kinds and handlers
+
+Documented by the framework already. Needs: packaging/installation of `KindDefinition` +
+`Handler` bundles, versioning, and a conformance suite for out-of-process handlers.
 
 ## Candidate sugar over the core model (no runtime change)
 

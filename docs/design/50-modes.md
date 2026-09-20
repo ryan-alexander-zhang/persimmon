@@ -40,15 +40,29 @@ SnapshotStore
   put(bytes) -> {uri, digest}
   get(uri) -> bytes                     digest verified by caller
 
-ArtifactStore, RelationStore            see 30-data-layer.md
+BlobStore
+  put(bytes, mediaType) -> {uri, digest}
+  get(uri) -> bytes                     representations of revisioned kinds
 
 Outbox
   enqueue(event)                        in the same transaction as the producing write
   poll(limit) / ack(eventId)
 
+TimerStore
+  set(uid, key, at) / clear(uid, key) / due(now) -> [(uid, key)]
+
+LeaseStore
+  acquire(uid, holder, ttl) / renew / release      per-resource reconcile serialization
+
+AuditLog
+  append(actor, change)                 every spec/status write, every complete
+
 CredentialStore
   resolve(name) -> secret               never persisted in run records or snapshots
 ```
+
+Revisioned kinds (artifacts) and relations live in ResourceStore; see `30-artifact-kinds.md`
+for the publish/reserve semantics layered on it. This list matches framework §11.
 
 | Mode | CredentialStore |
 |---|---|

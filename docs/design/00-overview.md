@@ -1,82 +1,65 @@
-# Persimmon Core Workflow Model: Overview
+# Persimmon: Overview
 
-Status: accepted high-level design, 2026-09-20. Source decisions in `60-decisions.md`.
+Status: accepted high-level design, revised 2026-09-20 (framework-first). Decisions in
+`60-decisions.md`.
 
 ## Goal
 
-A durable, auditable workflow engine for AI-assisted software delivery. Workflows are
-declared in YAML. Steps are executed by interchangeable executors: AI agents, scripts, tools,
-humans. Progress is gated by validators whose verdicts are recorded as evidence. Every run is
-reproducible from an immutable definition snapshot and immutable artifact references.
-
-The baseline is the Persimmon Engineering Resource Model (see `docs/reference`). This design
-keeps its semantics and adds what is needed for a customizable, pluginable system that runs
-locally and in the cloud.
-
-## Principles
-
-1. Definition, runtime and data are separate layers with one-way references.
-2. Every reference to data is immutable and revision-pinned. No implicit latest.
-3. Control flow comes only from Transitions. Data flow comes only from Bindings.
-4. A single invocation is a DAG. Iteration is explicit (`repeat`) with typed state.
-5. The engine is provider-neutral. Adapters own everything provider-specific.
-6. Every core feature must work in local mode. Cloud mode adds scale, not semantics.
-7. Audit is a core promise: which definition, which inputs, which context, which adapter,
-   which outputs, who approved.
-8. Failure is explicit. Cannot-verify is never treated as pass. Terminal phases never revert.
+A framework that executes an entire software delivery lifecycle as declared resources. The
+framework itself knows nothing about PRDs, gates, agents or releases. It knows resources,
+kinds, handlers, runs, events, snapshots and adapters. Everything with business meaning is a
+kind registered on top of it, including the kinds Persimmon ships.
 
 ## Layers
 
 ```text
-+--------------------------------------------------------------+
-| Definition layer          what CAN run                       |
-| Workflow Task Executor Gate Validator Prompt Skill Trigger   |
-| ArtifactSchema RelationType                                  |
-+--------------------------------------------------------------+
-        | referenced only through DefinitionSnapshot (sha256)
-        v
-+--------------------------------------------------------------+
-| Runtime layer             what IS running                    |
-| WorkflowRun TaskRun GateRun ValidationRun StepExecution      |
-| phases deadlines idempotency keys event log resume           |
-+--------------------------------------------------------------+
-        | reads/writes only through ArtifactRef / ExternalResourceRef
-        v
-+--------------------------------------------------------------+
-| Data layer                what WAS produced                  |
-| DomainArtifact revisions Relation provenance representations |
-+--------------------------------------------------------------+
+Layer 3  User kinds + handlers            LATER   same registration path as Layer 1
+Layer 2  SDLC pack                        LATER   pre-installed instances of Layer 1 kinds
+Layer 1  Core kinds                       SHAPE   Workflow Task Gate Validator Executor
+                                                  Prompt Skill Trigger, artifact kinds
+Layer 0  Framework                        NOW     kind-agnostic resource runtime
 ```
 
-Reference rules:
-- Definition never references Runtime.
-- Runtime references Definition only through a snapshot digest.
-- Both reference Data only through revision-pinned refs.
-- Data references Runtime only in provenance (`producerRunRef`, `assertedBy`).
+Dependency runs downward only. Layer 0 must not reference any Layer 1 kind by name.
 
-## Kinds
+**Test of the abstraction:** Workflow, Task, Gate and the rest must be registrable through
+the same `KindDefinition` + `Handler` path a user would use for their own kind. If a Layer 1
+kind needs an engine special case, Layer 0 is wrong and gets fixed there.
 
-| Kind | Layer | Origin |
+## Layer 0 in one paragraph
+
+Resources have a uniform envelope (`apiVersion`, `kind`, `metadata`, `spec`, `status`). A
+`KindDefinition` registers a kind with its schema, scope, mutability and snapshot behaviour.
+A `Handler` binds kinds to code: built in, an out-of-process adapter, or a declarative
+Workflow. The engine stores resources, validates them, records every mutation with its
+authenticated actor, freezes definition closures into digest-addressed snapshots, and drives
+handlers through a serialized per-resource reconcile loop fed by an event log. Handlers act
+only through engine actions (create child, patch status, publish artifact, emit event, set
+timer, call adapter, cancel). One engine library, two frontends: local CLI with SQLite, cloud
+API server with Postgres.
+
+## Principles
+
+1. Framework first. No business kind is special to the engine.
+2. Every reference to produced data is immutable and revision-pinned. No implicit latest.
+3. Definitions may change; running work uses a frozen, digest-addressed snapshot.
+4. Handlers are idempotent and stateless between calls; all state is in resources and the log.
+5. Adapters run out of process behind one versioned protocol. Provider details never leak in.
+6. Every mutation carries an authenticated actor. Users write `spec`; handlers write `status`.
+7. Every feature works in local mode. Cloud adds scale and tenancy, not semantics.
+8. Failure is explicit. Unknown is never success. Terminal states never revert.
+
+## Documents
+
+| File | Layer | Content |
 |---|---|---|
-| Workflow, Task, Executor, Gate, Validator | Definition | design doc |
-| ArtifactSchema, RelationType | Definition (data typing) | design doc |
-| Prompt, Skill | Definition | new: execution context |
-| Trigger | Definition | new: event-driven runs |
-| WorkflowRun, TaskRun, GateRun, ValidationRun | Runtime | design doc |
-| Relation, DomainArtifact (per registered kind) | Data | design doc |
+| `05-framework.md` | 0 | Resource model, KindDefinition, Handler, reconcile loop, actions, events, snapshot, refs, auth, storage |
+| `10-core-kinds-definitions.md` | 1 | Workflow, Task, Executor, Gate, Validator, Prompt, Skill, Trigger as kinds on the framework |
+| `20-core-kinds-runs.md` | 1 | WorkflowRun, TaskRun, GateRun, ValidationRun and the Workflow handler's semantics |
+| `30-artifact-kinds.md` | 1 | Revisioned kinds, artifact envelope, publication, relations |
+| `40-plugin-protocol.md` | 0 | `persimmon.adapter/v1`: executor, evaluator, handler, eventSource roles |
+| `50-modes.md` | 0 | Local and cloud modes, storage interface |
+| `60-decisions.md` | – | Decision log |
+| `70-roadmap.md` | 2, 3 | SDLC pack, user kinds, explicitly deferred items |
 
-Fifteen API kinds plus domain artifact kinds registered through ArtifactSchema.
-
-## Scope of this phase
-
-In scope: the core workflow model across three layers, the adapter protocol, the local/cloud
-mode split, the static validation rules. First deliverable is the DSL schema plus a static
-validator; no execution engine yet.
-
-Deferred (see `70-deferred.md`): the 14 SDLC domain artifact kinds, entity indexing, SDLC
-relations, rollout/fencing semantics, entrypoint sugar, context inheritance, eager join, UI.
-
-## Reading order
-
-`10-definition-layer.md` → `20-runtime-layer.md` → `30-data-layer.md` →
-`40-plugin-protocol.md` → `50-modes.md` → `60-decisions.md` → `70-deferred.md`.
+Read in that order.

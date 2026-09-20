@@ -1,7 +1,16 @@
-# Runtime Layer
+# Layer 1: Core Run Kinds and the Workflow Handler
 
-Controller-owned state describing executions. All runtime objects are immutable in `spec`;
-`status` is written only by the engine.
+Run kinds are `KindDefinition {mutability: Immutable, snapshot: None}` whose instances are
+created by handlers through `createResource`. `status` is written only by the owning
+handler. This document describes the run kinds and the semantics the built-in `workflow`,
+`task`, `gate` and `validator` handlers implement on top of the framework's reconcile loop
+(`05-framework.md` §4–5). Everything below is handler logic, not engine logic.
+
+Mapping to framework primitives: a step becomes a child resource (`createResource`);
+completion arrives as `ChildFinished`; retries and repeat rounds are new children; adapter
+calls are `callAdapter` + `AdapterFinished`; human completion is `Signal`; deadlines are
+`setTimer`; artifact outputs are `publishArtifact`; the snapshot is requested on WorkflowRun
+creation and inherited by children.
 
 ## Kinds
 
@@ -42,7 +51,8 @@ outputs/result; other phases forbid them. Failed requires `error`; other phases 
 
 On WorkflowRun creation, before any scheduling, the engine resolves the definition closure:
 the Workflow, every reachable sub-Workflow, Task, Executor, Gate, Validator, Prompt, Skill,
-ArtifactSchema and RelationType. It serializes them canonically (`persimmon.snapshot/v1`),
+revisioned KindDefinition and RelationType (framework §7 walks `x-persimmon-ref` fields).
+It serializes them canonically (`persimmon.snapshot/v1`),
 stores the bytes, and sets `status.snapshot = {uri, digest}` exactly once. Child runs
 (TaskRun, GateRun, ValidationRun, body WorkflowRuns of `repeat`) reference the same snapshot.
 Reading a snapshot verifies the digest; a mismatch or unreachable URI fails the run, never
@@ -118,6 +128,6 @@ A `human` Task attempt enters Waiting with `waitingReason: human`. Completion ar
 the adapter (`complete` operation carrying a TaskResult and an Actor asserted by the adapter's
 authenticated channel). The engine refuses `complete` without an Actor, records it in
 `TaskRun.status.actor`, and stamps `spec.provenance.actor` on every artifact published by that
-attempt (see `30-data-layer.md`). Validators read the actor from artifact provenance.
+attempt (see `30-artifact-kinds.md`). Validators read the actor from artifact provenance.
 Membership in `approvalGroup` is asserted by the adapter; the engine records the group on the
 TaskRun. Timeout applies.

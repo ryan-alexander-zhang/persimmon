@@ -1,15 +1,33 @@
-# Data Layer
+# Layer 1: Artifact Kinds
 
 Versioned facts produced by runs. Independent of any workflow's lifetime.
 
+An artifact kind is a `KindDefinition` with `revisioned: true` (framework §8). The framework
+supplies identity, revision, provenance, digest and representations; the KindDefinition's
+`schema` validates `spec.content`. The baseline's `ArtifactSchema` kind is retired; its
+`contentSchema` is that schema (decision 27).
+
+```yaml
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata: {name: researchreports.demo.ai}
+spec:
+  group: demo.ai
+  names: {kind: ResearchReport, plural: researchreports}
+  scope: Namespaced
+  revisioned: true
+  mutability: Immutable
+  snapshot: Definition            # the schema is part of any snapshot that references the kind
+  versions:
+    - name: v1
+      schema: {type: object, properties: {...}, required: [...]}   # validates spec.content
+```
+
 ## Objects
 
-- DomainArtifact: any registered `apiVersion/kind` outside `persimmon.ai/v1`. Envelope from the
-  design doc: `spec.identity {id, revision}`, `spec.content`, `spec.provenance
-  {producerRunRef?, inputArtifacts[], actor?}`, `status.representations[]`, `status.contentDigest`.
-  `provenance.actor` (`{kind: user | service, id, display?}`) is engine-set from the publishing
-  attempt's authenticated Actor; a publisher cannot supply it. Present only for artifacts
-  published by `human` attempts or by manual API publication.
+- Artifact instance: `spec.identity {id, revision}`, `spec.content`, `spec.provenance
+  {producerRef?, inputs[], actor?}`, `status.representations[]`, `status.contentDigest`.
+  `provenance.actor` is engine-set from the publishing Actor; a publisher cannot supply it.
 - Relation: immutable assertion between two endpoints (ArtifactRef, EntityRef,
   ExternalResourceRef) typed by a RelationType, with `evidence[]` and `assertedBy`.
 
@@ -24,7 +42,7 @@ digest. Git is an optional export target, never the source of truth.
 ```text
 ArtifactStore
   publish(kind, id?, content, provenance, representations[]) -> ArtifactRef
-      validates content against the registered ArtifactSchema
+      validates content against the revisioned KindDefinition's schema
       reserves the next revision (gaps allowed, never reuse)
       writes content + contentDigest atomically
       emits artifactPublished event to the outbox

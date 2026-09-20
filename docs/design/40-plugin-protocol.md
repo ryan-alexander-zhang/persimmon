@@ -10,10 +10,35 @@ own without touching the engine.
 |---|---|---|
 | executor | `Executor.spec.adapter` | describe, validateConfig, execute, query, cancel, complete |
 | evaluator | `Validator.spec.evaluator.type` (beyond built-in `cel`, `task`) | describe, validateConfig, evaluate |
+| handler | `Handler.spec.implementation.adapter` | describe, validate, reconcile |
 | eventSource | future external event kinds | describe, subscribe |
 
-Version 1 requires the executor role. Evaluator adapters are optional. External event sources
-are deferred; the only event producer is the engine itself.
+Version 1 requires executor and handler roles. Evaluator adapters are optional. External event
+sources are deferred; the only event producer is the engine itself.
+
+### handler role
+
+`validate(resource)` → `{findings[]}`. Pure; called at admission.
+
+`reconcile(payload)`:
+
+```json
+{
+  "resource": {...full resource...},
+  "event":    {"type": "ChildFinished", "sequence": 42, "payload": {...}},
+  "context":  {"children": [{"ref": ObjectRef, "phase": "Succeeded", "outputs": {...}}],
+               "snapshot": {"uri": "...", "digest": "sha256:..."},
+               "actor": {"kind": "user", "id": "..."},
+               "timers": ["deadline"]}
+}
+```
+
+→ `{statusPatch: {...}, actions: [{type: createResource | patchStatus | cancelResource |
+publishArtifact | emitEvent | setTimer | clearTimer | callAdapter, ...}]}`
+
+The engine applies the result atomically (framework §4–5). Handlers must be idempotent on
+`(resource.metadata.uid, event.sequence)`. `describe` for this role returns
+`{adapterId, roles: ["handler"], kinds: [{group, kind, versions}]}`.
 
 ## Transport
 
@@ -30,7 +55,8 @@ Every message: `{protocol: "persimmon.adapter/v1", id, op, payload}`. Every resp
 ## Operations
 
 `describe` → `{adapterId, roles[], executorTypes[], configurationSchema (JSON Schema),
-supports: {query, cancel, complete}, contextKinds[], skillFormats[], formRenderable}`.
+parametersSchema (JSON Schema for Task.action.parameters), supports: {query, cancel,
+complete}, contextKinds[], skillFormats[], formRenderable}`.
 `skillFormats` lists the `Skill.spec.format` values the adapter understands. `formRenderable`
 is true for human adapters that can render an input form from a JSON Schema.
 Called at Executor admission and engine startup. The engine validates
@@ -76,7 +102,7 @@ unless `sideEffects: none`.
 for human and callback-style executors. `actor` (`{kind, id, display?}`) is asserted by the
 adapter's authenticated channel and is mandatory; the engine rejects a `complete` without it.
 Human adapters produce typed artifact outputs by rendering a form from the output kind's
-`ArtifactSchema.contentSchema` (fetched with `getArtifactSchema`) and calling `publishArtifact`.
+content schema (fetched with `getKindSchema`) and calling `publishArtifact`.
 
 `evaluate(payload)` → ValidationResult. Payload mirrors `execute` with `validator` in place of
 `task`; loaded artifacts are provided as `artifacts.<alias>`.
@@ -88,8 +114,8 @@ Exposed at `engine.endpoint`, authenticated by the per-attempt `token`, scoped t
 - `getArtifact(ArtifactRef)` — content and representations the attempt's inputs reference.
 - `publishArtifact(kind, id?, content, representations[])` → ArtifactRef, staged to this attempt.
 - `getRepresentation(ArtifactRef, name)`.
-- `getArtifactSchema(apiVersion, kind)` — the registered content schema, for form rendering
-  and client-side validation.
+- `getKindSchema(apiVersion, kind)` — the registered KindDefinition schema, for form
+  rendering and client-side validation.
 - `log(uri | text)`.
 
 Adapters have no other route to the store. Tokens expire at the attempt deadline.

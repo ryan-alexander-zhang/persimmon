@@ -30,4 +30,12 @@ alternatives considered, reason.
 | 22 | Engine-set `provenance.actor` on artifacts and `TaskRun.status.actor`, both `{kind, id, display?}` | Actor string; actor only on TaskRun | Validators can only read artifacts; approval must be verifiable from the authenticated actor |
 | 23 | Core exposes embedded types as well-known `$ref` schemas for value ports | Inline copies; runtime-only check | Makes the ValidationResult contract visible and checkable |
 
-Open decisions carried into `70-deferred.md`.
+| 24 | Framework first: Layer 0 is a kind-agnostic resource runtime (KindDefinition, Handler, reconcile loop, actions, events, snapshot, revisioned kinds). Core kinds register through the same path as user kinds | Engine with hard-coded Workflow semantics | Final target is a framework for the whole SDLC plus user kinds; a special-cased engine cannot host either |
+| 25 | Task is executor-agnostic: no `action.kind`; executor-specific fields live in `Executor.configuration` or `action.parameters` | Keep `action.kind == Executor.type` | Swapping human ↔ agent ↔ script must not touch the Task or the Workflow. "A Gate decides, a Validator asks, the Executor answers" |
+| 26 | Built-in SDLC pack is a first-class deliverable (Layer 2), shipped as cluster-scoped definitions overridable by namespace-local name shadowing | Example set only; namespace-local only | Same relationship as Deployment to Kubernetes; users start from a working lifecycle |
+| 27 | Artifact kinds are `KindDefinition {revisioned: true}`; `ArtifactSchema` kind retired | Keep ArtifactSchema as a separate meta-kind | One registration path for every kind; framework owns identity/revision/provenance generically |
+| 28 | Triggers are a Layer 1 kind built on framework event subscriptions; the framework knows events, not triggers | Trigger logic in the engine | Keeps Layer 0 kind-agnostic |
+
+Superseded: decision 21 (context per action kind) by 25 + adapter `contextKinds`.
+
+Open decisions carried into `70-roadmap.md`.
