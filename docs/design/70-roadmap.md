@@ -10,7 +10,7 @@ the public path; no engine special case.
 
 ## Layer 2: SDLC pack (first-class deliverable, decision 26)
 
-Cluster-scoped, pre-installed, overridable by name in any namespace. Shape: step-capable
+Global (no namespace),, pre-installed, overridable by name in any namespace. Shape: step-capable
 composition kinds that expand to core kinds at snapshot time, so a running pipeline is pinned
 to the expansion it started with.
 
@@ -63,5 +63,5 @@ Documented by the framework already. Needs: packaging/installation of `KindDefin
 1. Implementation language and CEL library choice.
 2. Canonical serialization for snapshot bytes (JSON with sorted keys is the default proposal).
 3. Skill digest computation for non-archive sources such as Git trees.
-4. Adapter sandboxing mechanism in cloud mode.
+4. Adapter sandboxing mechanism in server mode.
 5. Human adapter for local mode: terminal prompt, file drop, or both.

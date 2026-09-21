@@ -80,7 +80,7 @@ log, and continues. Attempts whose result is unknown (process died mid-attempt) 
 through the adapter's `query` operation; if the adapter cannot answer, the attempt is marked
 Failed with `unknown_result`, and retry follows the policy and `sideEffects` rules.
 
-This applies identically in local mode (SQLite) and cloud mode (Postgres).
+This applies identically in local mode (SQLite) and server mode (Postgres).
 
 ## Scheduling semantics
 

@@ -15,7 +15,7 @@ alternatives considered, reason.
 | 8 | `Executor.configuration` opaque, validated by adapter schema | Core `model`/`effort` fields; typed hints | Core stays provider-neutral; no fake unified model API |
 | 9 | Phases: Pending, Running, Waiting, Succeeded, Failed, Cancelled; optional `waitingReason` | Add Blocked and reason enum | Fewer states; reason string gives observability |
 | 10 | Human-in-the-loop is `action.kind: human` on Task | Approval primitive kind | Composable: human Task plus Gate covers manual, auto and hybrid approval |
-| 11 | Two modes, local (CLI + SQLite) and cloud (API server + controller), one engine library and one storage interface | Server only; CLI only; library only | Fast local iteration without a second semantics; every feature must work locally |
+| 11 | Two modes, local (CLI + SQLite on a developer machine) and server (long-lived daemon + Postgres on a machine you operate), one engine library and one storage interface. Not Kubernetes, not hosted | Server only; CLI only; library only | Fast local iteration without a second semantics; every feature must work locally |
 | 12 | Local mode is crash-resumable | Best effort locally | Same durable state model in both modes |
 | 13 | Definitions editable in place; each run freezes a DefinitionSnapshot by sha256 | Explicit immutable versions in refs; both | Simple refs, full reproducibility, no version object sprawl |
 | 14 | Execution context is a typed `context` list on Task action: file, artifact, prompt, skill; new Prompt and Skill kinds | Adapter-opaque; add inheritance | Audit must record exactly which context fed a run; inheritance deferred as sugar |
@@ -32,11 +32,11 @@ alternatives considered, reason.
 
 | 24 | Framework first: Layer 0 is a kind-agnostic resource runtime (KindDefinition, Handler, reconcile loop, actions, events, snapshot, revisioned kinds). Core kinds register through the same path as user kinds | Engine with hard-coded Workflow semantics | Final target is a framework for the whole SDLC plus user kinds; a special-cased engine cannot host either |
 | 25 | Task is executor-agnostic: no `action.kind`; executor-specific fields live in `Executor.configuration` or `action.parameters` | Keep `action.kind == Executor.type` | Swapping human ↔ agent ↔ script must not touch the Task or the Workflow. "A Gate decides, a Validator asks, the Executor answers" |
-| 26 | Built-in SDLC pack is a first-class deliverable (Layer 2), shipped as cluster-scoped definitions overridable by namespace-local name shadowing | Example set only; namespace-local only | Same relationship as Deployment to Kubernetes; users start from a working lifecycle |
+| 26 | Built-in SDLC pack is a first-class deliverable (Layer 2), shipped as global (no namespace) definitions overridable by namespace-local name shadowing | Example set only; namespace-local only | Same relationship as Deployment to Kubernetes; users start from a working lifecycle |
 | 27 | Artifact kinds are `KindDefinition {revisioned: true}`; `ArtifactSchema` kind retired | Keep ArtifactSchema as a separate meta-kind | One registration path for every kind; framework owns identity/revision/provenance generically |
 | 28 | Triggers are a Layer 1 kind built on framework event subscriptions; the framework knows events, not triggers | Trigger logic in the engine | Keeps Layer 0 kind-agnostic |
 
-| 29 | Adapters are registered as a cluster-scoped `Adapter` resource mapping id → transport + command/url + roles; `describe` cached in status | Config file; implicit PATH lookup | Every reference validates at admission; snapshots can pin the adapter's describe digest; same path in local and cloud |
+| 29 | Adapters are registered as a global (no namespace) `Adapter` resource mapping id → transport + command/url + roles; `describe` cached in status | Config file; implicit PATH lookup | Every reference validates at admission; snapshots can pin the adapter's describe digest; same path in local and cloud |
 
 | 30 | `KindDefinition.stepContract` makes any kind usable as a Workflow step; the closed `uses.kind` enum is removed | Hard-code Task/Workflow/Gate; add pack kinds to the enum later | Pack and user kinds (ReviewLoop, Pipeline, Approval) must compose without engine changes; the abstraction test demands it |
 | 31 | `executorRef` override at Task invocation sites (WorkflowStep, Gate validators) | Duplicate Tasks/Validators per executor | One review Task, N reviewers; who reviews is an Executor choice, not a Task copy |

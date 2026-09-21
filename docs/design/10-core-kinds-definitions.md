@@ -373,7 +373,7 @@ of the baseline `ArtifactSchema` becomes that KindDefinition's `schema`. See
 
 `kind` enum: Workflow, Task, Executor, Validator, Gate, RelationType, Prompt, Skill, plus any
 `KindDefinition` marked `snapshot: Definition`. Trigger is excluded. Resolution: writer's
-namespace first, then cluster scope (framework §7); this is how a namespace overrides a
+namespace first, then global scope (framework §7); this is how a namespace overrides a
 shipped definition by name.
 
 ## Static validation rules

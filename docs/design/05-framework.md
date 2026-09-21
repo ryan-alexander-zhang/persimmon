@@ -10,8 +10,8 @@ Every stored object:
 apiVersion: <group>/<version>       # e.g. persimmon.ai/v1, acme.example/v1
 kind: <Kind>
 metadata:
-  name: <dns-label>                 # unique per (kind, namespace) or per kind if cluster-scoped
-  namespace: <dns-label>            # absent for cluster-scoped kinds
+  name: <dns-label>                 # unique per (kind, namespace) or per kind if global (no namespace)
+  namespace: <dns-label>            # absent for global (no namespace) kinds
   uid: <engine>                     # identity of this object instance
   resourceVersion: <engine>         # optimistic concurrency token; never ordered
   generation: <engine>              # increments on spec change
@@ -34,11 +34,11 @@ Registers a kind. Kinds Persimmon ships and kinds users add use the same object.
 ```yaml
 apiVersion: persimmon.ai/v1
 kind: KindDefinition
-metadata: {name: workflows.persimmon.ai}          # cluster-scoped
+metadata: {name: workflows.persimmon.ai}          # global (no namespace)
 spec:
   group: persimmon.ai
   names: {kind: Workflow, plural: workflows}
-  scope: Namespaced | Cluster
+  scope: Namespaced | Global
   versions:
     - name: v1
       schema: <JSON Schema 2020-12>                # validates spec
@@ -82,7 +82,7 @@ Binds kinds to behaviour.
 ```yaml
 apiVersion: persimmon.ai/v1
 kind: Handler
-metadata: {name: workflow-controller}               # cluster-scoped
+metadata: {name: workflow-controller}               # global (no namespace)
 spec:
   kinds: [{group: persimmon.ai, kind: Workflow, versions: [v1]}]
   implementation:                                   # exactly one
@@ -172,7 +172,7 @@ Reference types the framework validates:
 | Ref | Shape | Rule |
 |---|---|---|
 | ObjectRef | apiVersion, kind, namespace?, name, uid? | must exist at write time; delete of the target refused while referenced |
-| LocalDefinitionRef | kind, name | resolves in the writer's namespace, then cluster scope |
+| LocalDefinitionRef | kind, name | resolves in the writer's namespace, then global scope |
 | RevisionRef | apiVersion, kind, namespace, id, revision | for revisioned kinds; revision mandatory |
 | ExternalResourceRef | provider, type, id, locator, version?, url? | opaque to the framework |
 
@@ -228,7 +228,7 @@ Adapters are registered as resources so an adapter id resolves to something runn
 
 ```yaml
 apiVersion: persimmon.ai/v1
-kind: Adapter                                   # cluster-scoped
+kind: Adapter                                   # global (no namespace)
 metadata: {name: acme-canary-v1}
 spec:
   id: acme-canary/v1                            # referenced by Executor.spec.adapter,

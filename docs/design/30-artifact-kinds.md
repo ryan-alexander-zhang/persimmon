@@ -59,7 +59,7 @@ RelationStore
 | Mode | Canonical store | Blob store |
 |---|---|---|
 | Local | SQLite table, JSON column | `.persimmon/blobs/<sha256>` |
-| Cloud | Postgres, JSONB | Object storage bucket |
+| Server | Postgres, JSONB | object storage or a directory on the server |
 
 Both modes use the same integer revision and the same `artifact://<namespace>/<id>/<revision>/<name>`
 URI scheme for representations, so refs are portable between modes.

@@ -35,8 +35,8 @@ Workflow. The engine stores resources, validates them, records every mutation wi
 authenticated actor, freezes definition closures into digest-addressed snapshots, and drives
 handlers through a serialized per-resource reconcile loop fed by an event log. Handlers act
 only through engine actions (create child, patch status, publish artifact, emit event, set
-timer, call adapter, cancel). One engine library, two frontends: local CLI with SQLite, cloud
-API server with Postgres.
+timer, call adapter, cancel). One engine library, two ways to run it: as a CLI on a
+developer machine with SQLite, or as a long-lived server process with Postgres.
 
 ## Principles
 
@@ -46,7 +46,8 @@ API server with Postgres.
 4. Handlers are idempotent and stateless between calls; all state is in resources and the log.
 5. Adapters run out of process behind one versioned protocol. Provider details never leak in.
 6. Every mutation carries an authenticated actor. Users write `spec`; handlers write `status`.
-7. Every feature works in local mode. Cloud adds scale and tenancy, not semantics.
+7. Every feature works in local mode. Server mode adds always-on, many users and remote
+   clients, not semantics.
 8. Failure is explicit. Unknown is never success. Terminal states never revert.
 
 ## Documents
@@ -58,7 +59,7 @@ API server with Postgres.
 | `20-core-kinds-runs.md` | 1 | WorkflowRun, TaskRun, GateRun, ValidationRun and the Workflow handler's semantics |
 | `30-artifact-kinds.md` | 1 | Revisioned kinds, artifact envelope, publication, relations |
 | `40-plugin-protocol.md` | 0 | `persimmon.adapter/v1`: executor, evaluator, handler, eventSource roles |
-| `50-modes.md` | 0 | Local and cloud modes, storage interface |
+| `50-modes.md` | 0 | Local and server modes, storage interface |
 | `60-decisions.md` | – | Decision log |
 | `70-roadmap.md` | 2, 3 | SDLC pack, user kinds, explicitly deferred items |
 

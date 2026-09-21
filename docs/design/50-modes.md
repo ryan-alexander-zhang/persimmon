@@ -1,25 +1,30 @@
-# Local Mode and Cloud Mode
+# Local Mode and Server Mode
 
-One engine library, one model, two frontends. Anything that works only in cloud mode is a
-design error.
+One binary, one model, two ways to run it. Local: the CLI runs the engine in-process on a
+developer's machine. Server: the same engine runs as a long-lived daemon on a machine you
+operate, and clients (the same CLI, an API client, a UI) talk to it over HTTP. Server mode is
+not Kubernetes and not a hosted service; Kubernetes is only an analogy for the resource model.
+Anything that works only in server mode is a design error.
 
 ```text
                  Definition YAML (identical in both modes)
                                |
                         Engine library
-   scheduler, binding resolver, CEL profile, gate logic, snapshot,
-   static validator, trigger dispatcher, adapter client
+   framework (05): store, reconcile loop, snapshot, outbox, adapter client
+   + built-in handlers (10/20/30)
                                |
                       Storage interface
         /                                              \
-   Local                                              Cloud
-   CLI process                                        API server + controller(s)
-   SQLite file (.persimmon/persimmon.db)              Postgres
-   blobs in .persimmon/blobs/                         object storage
-   adapters: stdio subprocesses                       adapters: stdio in sandboxes or http
-   human: CLI prompt / file drop adapter              human: web or chat adapter
-   single namespace `default`                         multi-tenant namespaces, RBAC
-   events: in-process outbox poller                   events: outbox poller per controller
+   Local                                              Server
+   `persimmon` CLI, engine in-process                 `persimmon serve` daemon; CLI/API/UI over HTTP
+   starts per command, exits after                    always on
+   SQLite file (.persimmon/persimmon.db)              Postgres (SQLite acceptable on one machine)
+   blobs in .persimmon/blobs/                         object storage or a directory on the server
+   adapters: stdio subprocesses                       adapters: stdio subprocesses on the server, or http elsewhere
+   human: CLI prompt / file drop adapter              human: web, chat or email adapter
+   one user, namespace `default`                      many users, namespaces, authorization
+   events: in-process outbox poller                   events: outbox poller in the daemon
+   one process                                        one or more daemon processes sharing one database (leases)
 ```
 
 ## Storage interface
@@ -67,9 +72,9 @@ for the publish/reserve semantics layered on it. This list matches framework §1
 | Mode | CredentialStore |
 |---|---|
 | Local | environment variables, `.persimmon/credentials.yaml` (gitignored), or OS keychain |
-| Cloud | the platform secret manager, scoped per namespace |
+| Server | a secret manager or an encrypted file on the server, scoped per namespace |
 
-Local and cloud implement the same interface. Tests run the engine against both.
+Local and server implement the same interface. Tests run the engine against both.
 
 ## Local mode
 
@@ -86,18 +91,18 @@ Local and cloud implement the same interface. Tests run the engine against both.
 
 Crash safety is required: state is checkpointed after every event; resume is exact.
 
-## Cloud mode
+## Server mode
 
-- API server exposes the resource kinds with the k8s-style envelope; user writes `spec`,
-  controllers write `status`.
-- Controllers claim open runs with leases; more than one controller may run.
-- Adapters run either as sandboxed subprocesses inside worker pods (stdio) or as remote
-  services (http).
-- Approval actors come from the authenticated adapter channel.
+- `persimmon serve` starts the daemon: HTTP API for all resource kinds (users write `spec`,
+  handlers write `status`), the reconcile loop, the outbox poller, timers.
+- The CLI gains `--server <url>`; every local command works unchanged against a server.
+- More than one daemon may share one database; per-resource leases serialize reconciles.
+- Adapters run as subprocesses on the server host (stdio) or as services on other hosts (http).
+- Authentication is required; actors come from the authenticated channel.
 
 ## Invariants across modes
 
 - Same schema, same static validator, same snapshot format and digest.
 - Same integer artifact revisions and `artifact://` URIs; an export from local can be imported
-  into cloud without rewriting refs.
-- Same adapter protocol; an adapter tested locally runs unchanged in cloud.
+  into a server without rewriting refs.
+- Same adapter protocol; an adapter tested locally runs unchanged on a server.

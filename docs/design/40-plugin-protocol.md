@@ -53,9 +53,9 @@ name a registered, `Ready` adapter whose `roles` include the required role. The 
 Same message schema over two transports:
 
 - stdio: engine spawns the adapter executable; newline-delimited JSON, one request per line,
-  responses carry the request id. Used in local mode and for sandboxed adapters in cloud mode.
+  responses carry the request id. Used in local mode and for adapters on the server host.
 - http: engine POSTs JSON to the adapter's endpoint; long operations return `202` with a
-  callback token. Used for remote adapters in cloud mode.
+  callback token. Used for adapters running on other hosts.
 
 Every message: `{protocol: "persimmon.adapter/v1", id, op, payload}`. Every response:
 `{id, ok: true, result}` or `{id, ok: false, error: {code, message, retryable}}`.
