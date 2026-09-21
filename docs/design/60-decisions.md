@@ -36,11 +36,19 @@ alternatives considered, reason.
 | 27 | Artifact kinds are `KindDefinition {revisioned: true}`; `ArtifactSchema` kind retired | Keep ArtifactSchema as a separate meta-kind | One registration path for every kind; framework owns identity/revision/provenance generically |
 | 28 | Triggers are a Layer 1 kind built on framework event subscriptions; the framework knows events, not triggers | Trigger logic in the engine | Keeps Layer 0 kind-agnostic |
 
-| 29 | Adapters are registered as a global (no namespace) `Adapter` resource mapping id → transport + command/url + roles; `describe` cached in status | Config file; implicit PATH lookup | Every reference validates at admission; snapshots can pin the adapter's describe digest; same path in local and cloud |
+| 29 | Adapters are registered as a global (no namespace) `Adapter` resource mapping id → transport + command/url + roles; `describe` cached in status | Config file; implicit PATH lookup | Every reference validates at admission; snapshots can pin the adapter's describe digest; same path in local and server |
 
 | 30 | `KindDefinition.stepContract` makes any kind usable as a Workflow step; the closed `uses.kind` enum is removed | Hard-code Task/Workflow/Gate; add pack kinds to the enum later | Pack and user kinds (ReviewLoop, Pipeline, Approval) must compose without engine changes; the abstraction test demands it |
-| 31 | `executorRef` override at Task invocation sites (WorkflowStep, Gate validators) | Duplicate Tasks/Validators per executor | One review Task, N reviewers; who reviews is an Executor choice, not a Task copy |
+| 31 | `executorRef` override at Task invocation sites (WorkflowStep, Gate validators) | Duplicate Tasks/Validators per executor | One review Task, N reviewers; who reviews is an Executor choice, not a Task copy. Reversed by 34 |
 
-Superseded: decision 21 (context per action kind) by 25 + adapter `contextKinds`.
+Decisions taken on 2026-09-21 from the Layer 0/1 design review (P0 findings).
+
+| 32 | Engine-owned envelope fields `metadata.snapshot` and `metadata.stalled`; `KindDefinition.snapshotOnCreate` and `KindDefinition.terminal {path, values}` | `status.conditions`; snapshot only via `createResource`; terminality only via `stepContract.phasePath` | `status` is handler-only (Principle 6); `ChildFinished` needs a kind-agnostic definition of done; a user-created root must get a snapshot |
+| 33 | `callAdapter` result contract `AdapterFinished {state: succeeded \| failed \| unknown}`; outstanding calls redeliver as `unknown` after restart; adapter publications stage into a scope keyed by `idempotencyKey`, released by `commitScope` / `abandonScope` | Engine-side `query`; reconcile-scoped publish only | Principle 8 must be an engine invariant, not handler discipline; adapter output spans reconciles |
+| 34 | TaskRun is one per step invocation with `status.attempts[]` owned by the `task` handler; WorkflowStep `executorRef` / `retryPolicy` overrides removed | TaskRun per attempt plus a Layer 0 retry primitive | The retry loop needs a kind-blind owner; the overrides were the only reason the workflow handler knew what a Task was |
+| 35 | `40-plugin-protocol.md` split into part A (Layer 0: envelope, transport, `handler` role, callbacks) and part B (Layer 1: `executor`, `evaluator`); `Handler.implementation.workflowRef`, the `eventSource` role and `x-persimmon-entity` removed | Keep as deferred surface | Two of three Layer 0 docs named Layer 1 kinds; the removed items had no consumer and no decision |
+| 36 | v1 authorization: local mode single user; server mode grant table `actor → namespaces` in server config, `admin` grant for global kinds; checked before validation | Policy resource | Smallest rule that makes server mode implementable; a policy kind can replace it later |
+
+Superseded: 5 (step kinds enum) by 30; 10 (`action.kind: human`) by 25; 21 (context per action kind) by 25 + adapter `contextKinds`; 31 by 34.
 
 Open decisions carried into `70-roadmap.md`.

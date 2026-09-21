@@ -37,9 +37,10 @@ ResourceStore
   delete(kind, namespace, name)        refused while referenced (design doc rule)
 
 RunLog
-  append(runRef, event) -> seq          idempotent on (runRef, dedupeKey)
-  read(runRef, fromSeq?)
-  listOpenRuns()
+  append(uid, event) -> sequence        idempotent on (uid, dedupeKey)
+  read(uid, fromSequence?)
+  listOpen()                            resources with undelivered events
+  outstandingCalls()                    callAdapter entries without a recorded response
 
 SnapshotStore
   put(bytes) -> {uri, digest}
@@ -82,12 +83,18 @@ Local and server implement the same interface. Tests run the engine against both
 - `persimmon apply <files>`: writes definitions into the local store.
 - `persimmon adapter install <manifest.yaml>`: applies an `Adapter` resource, runs `describe`,
   marks it Ready. `persimmon adapter list` shows ids, roles, readiness.
-- `persimmon run <workflow> --input k=v ...`: creates a WorkflowRun and drives it in the
-  foreground; Ctrl-C leaves the run resumable.
-- `persimmon resume <run>`: rebuilds state from the log and continues.
-- `persimmon complete <taskRun> [--input k=v | --file result.json]`: completes a Waiting
-  `human` attempt as the local user; the `cli-prompt/v1` adapter is a thin wrapper over it.
+- `persimmon create <file>`: stores a resource of any kind and, with `--follow`, drives the
+  engine in the foreground until the resource reaches a `terminal.values` value; Ctrl-C leaves
+  it resumable.
+- `persimmon signal <kind>/<name> --payload <file>`: delivers a `Signal` to any resource as the
+  local user.
+- `persimmon resume`: redelivers undelivered events and outstanding adapter results, then
+  continues.
 - `persimmon get / describe / logs`: read status and run history.
+
+Layer 1 shorthands over the verbs above: `persimmon run <workflow> --input k=v ...` (create a
+WorkflowRun and follow it) and `persimmon complete <taskRun> [--input k=v | --file result.json]`
+(signal a Waiting human attempt; the `cli-prompt/v1` adapter is a thin wrapper over it).
 
 Crash safety is required: state is checkpointed after every event; resume is exact.
 

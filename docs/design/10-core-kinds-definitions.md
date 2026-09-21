@@ -19,7 +19,8 @@ kind would be. Nothing here is special to the engine.
 Artifact kinds are not a separate meta-kind: they are `KindDefinition`s with `revisioned:
 true` (decision 27, see `30-artifact-kinds.md`). All core kinds live under
 `apiVersion: persimmon.ai/v1`; `LocalDefinitionRef` fields are annotated `x-persimmon-ref` so
-the framework can validate them and build snapshot closures.
+the framework can validate them and build snapshot closures. Every kind with a handler declares
+`terminal: {path: status.phase, values: [Succeeded, Failed, Cancelled]}` (framework §2).
 
 Unchanged from the design doc (see `docs/reference/20`, `30`, `40`, `50`): PortType,
 RuntimeValue, Binding, expression profile, Action kinds, TaskResult protocol, Validator,
@@ -47,7 +48,7 @@ Task, Workflow and Gate declare one; so may pack kinds (ReviewLoop, Pipeline) an
 The Workflow handler never enumerates step kinds (decision 30).
 
 Decisions applied:
-- Strict DAG per invocation; loops only through `repeat` on `Workflow` steps.
+- Strict DAG per invocation; loops only through `repeat`.
 - No named entrypoints. Variants (create / revise / review-only) are separate Workflows that
   share Tasks and shared tails extracted into sub-Workflows:
 
@@ -72,16 +73,14 @@ Unchanged from the design doc; listed here so this document is self-contained.
 - id: planning                      # ^[a-z][a-z0-9_]*$, unique in the Workflow
   uses: {kind: <step-capable kind>, name: <definition name>}
   inputs: {<port>: Binding}         # one Binding per input port of the used definition
-  executorRef?: {kind: Executor, name}   # Task steps only; overrides Task.executorRef
   timeout: Duration                 # covers queueing, attempts, backoff; required
-  retryPolicy?: RetryPolicy         # Task steps only; replaces Task.retryPolicy wholesale
-  repeat?: RepeatPolicy             # steps whose runKind is WorkflowRun only
+  repeat?: RepeatPolicy             # any step; each iteration is a new runKind instance
 ```
 
-`executorRef` override (also allowed on Gate `validators[]` entries for task evaluators) lets
-one Task or Validator serve several executors: the same review Task behind a Codex Executor
-and a Claude Executor as two validators of one Gate. The override must pass the same adapter
-checks as the Task's default (decision 31).
+A step carries no executor or retry override (decision 34 reverses 31). Who does the work and
+how it retries is stated once, on the Task. Two reviewers are two Tasks that share a Prompt;
+a Gate names them as two Validators. This is the only reason the Workflow handler needed to
+know what a Task was, so removing it is what lets `stepContract` be open.
 
 Step outputs are the used definition's outputs (Gate: fixed `result`). Other steps read them
 with `fromStep: {stepRef, output}`; expressions read `steps.<id>.phase`,
@@ -137,8 +136,8 @@ enclosing Workflow. Exhausting `maxIterations` with `until` still false fails th
 loop from `until` (as above) and branch on the body's verdict output.
 
 Body inputs read state with `fromState: <var>` (plus `onMissing: omit` for optional state).
-Each iteration is a new body WorkflowRun with its own invocation address and a `parent` link
-(see `20-core-kinds-runs.md`).
+Each iteration is a new instance of the step's `runKind` with its own invocation address and,
+for WorkflowRun bodies, a `parent` link (see `20-core-kinds-runs.md`).
 
 ### RetryPolicy
 
@@ -381,8 +380,7 @@ shipped definition by name.
 The JSON Schema checks structure. A separate static checker enforces, at admission and before
 snapshotting:
 
-1. `repeat` only on steps whose `runKind` is WorkflowRun; step `retryPolicy` and
-   `executorRef` only on Task steps; `uses.kind` must declare a `stepContract`.
+1. `uses.kind` must declare a `stepContract`.
 2. `quorum.count <= len(validators)` in Gate; `<= len(from)` in Transition.
 3. `retryOn ∩ abortOn = ∅`; `permission_denied`, `invalid_input`, `schema_violation` not in `retryOn`.
 4. `outputs` keys == `outputBindings` keys; `required: true` excludes `default`.

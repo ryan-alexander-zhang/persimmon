@@ -57,6 +57,10 @@ Documented by the framework already. Needs: packaging/installation of `KindDefin
 - Web UI, visual editor, and chat-based approval clients beyond the adapter protocol.
 - Retention and deletion policy for unreferenced artifact revisions.
 - User-defined shared value schemas (a registry beyond the well-known core `$ref`s).
+- Authorization policy as a resource; v1 uses a grant table in server configuration
+  (framework §9, decision 36).
+- Declarative handlers (a step-capable kind as a Handler implementation); removed with
+  decision 35 until a consumer exists.
 
 ## Open questions to settle before implementation
 

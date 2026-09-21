@@ -27,7 +27,8 @@ spec:
 
 - Artifact instance: `spec.identity {id, revision}`, `spec.content`, `spec.provenance
   {producerRef?, inputs[], actor?}`, `status.representations[]`, `status.contentDigest`.
-  `provenance.actor` is engine-set from the publishing Actor; a publisher cannot supply it.
+  `provenance.actor` is the `context.actor` of the reconcile that commits the publication
+  (framework §8); a publisher cannot supply it.
 - Relation: immutable assertion between two endpoints (ArtifactRef, EntityRef,
   ExternalResourceRef) typed by a RelationType, with `evidence[]` and `assertedBy`.
 
@@ -67,11 +68,13 @@ URI scheme for representations, so refs are portable between modes.
 ## Publication protocol
 
 Adapters never write the store directly. During an attempt the adapter calls the engine's
-`publishArtifact` operation (see `40-plugin-protocol.md`). The engine validates, reserves the
-revision and stages the artifact against the attempt. When the attempt commits, staged
-artifacts become visible and the `artifactPublished` event is emitted. When the attempt fails,
-staged artifacts are retained for audit under the failed TaskRun but are not visible as
-published revisions and are not referenced by workflow outputs.
+`publishArtifact` callback with the call-scoped token (`40-plugin-protocol.md`, part A). The
+engine validates against the schema frozen in the attempt's snapshot, reserves the revision and
+stages the artifact in the attempt's scope (framework §8). The `task` handler issues
+`commitScope` when the attempt succeeds; staged artifacts become visible and
+`artifact.published` is emitted in that commit. On failure the handler issues `abandonScope`:
+the staged content is retained for audit, is not readable through a `RevisionRef`, and its
+revision number is a gap.
 
 ## Retention
 
@@ -82,5 +85,5 @@ to another revision.
 
 ## Deferred
 
-Entity indexing (`x-persimmon-entity`), the SDLC relation types and the 14 SDLC artifact kinds
-are next-phase work. This layer only needs to store them; nothing here depends on their shape.
+Entity indexing (an entity annotation inside revisioned schemas; not yet in the framework),
+the SDLC relation types and the 14 SDLC artifact kinds are next-phase work. This layer only needs to store them; nothing here depends on their shape.

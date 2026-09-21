@@ -1,6 +1,6 @@
 # Persimmon: Overview
 
-Status: accepted high-level design, revised 2026-09-20 (framework-first). Decisions in
+Status: accepted high-level design, revised 2026-09-21 (framework-first; P0 review fixes). Decisions in
 `60-decisions.md`.
 
 ## Goal
@@ -30,12 +30,13 @@ kind needs an engine special case, Layer 0 is wrong and gets fixed there.
 
 Resources have a uniform envelope (`apiVersion`, `kind`, `metadata`, `spec`, `status`). A
 `KindDefinition` registers a kind with its schema, scope, mutability and snapshot behaviour.
-A `Handler` binds kinds to code: built in, an out-of-process adapter, or a declarative
-Workflow. The engine stores resources, validates them, records every mutation with its
-authenticated actor, freezes definition closures into digest-addressed snapshots, and drives
-handlers through a serialized per-resource reconcile loop fed by an event log. Handlers act
-only through engine actions (create child, patch status, publish artifact, emit event, set
-timer, call adapter, cancel). One engine library, two ways to run it: as a CLI on a
+A `Handler` binds kinds to code: built in or an out-of-process adapter. The engine stores
+resources, validates them, records every mutation with its authenticated actor, freezes
+definition closures into digest-addressed snapshots, detects completion through each kind's
+declared terminal field, and drives handlers through a serialized per-resource reconcile loop
+fed by an event log. Handlers act only through engine actions (create child, patch status,
+publish artifact, commit or abandon an adapter's staged output, emit event, set timer, call
+adapter, cancel). One engine library, two ways to run it: as a CLI on a
 developer machine with SQLite, or as a long-lived server process with Postgres.
 
 ## Principles
@@ -58,7 +59,7 @@ developer machine with SQLite, or as a long-lived server process with Postgres.
 | `10-core-kinds-definitions.md` | 1 | Workflow, Task, Executor, Gate, Validator, Prompt, Skill, Trigger as kinds on the framework |
 | `20-core-kinds-runs.md` | 1 | WorkflowRun, TaskRun, GateRun, ValidationRun and the Workflow handler's semantics |
 | `30-artifact-kinds.md` | 1 | Revisioned kinds, artifact envelope, publication, relations |
-| `40-plugin-protocol.md` | 0 | `persimmon.adapter/v1`: executor, evaluator, handler, eventSource roles |
+| `40-plugin-protocol.md` | 0, 1 | `persimmon.adapter/v1`: part A envelope, transport, handler role, callbacks (Layer 0); part B executor and evaluator roles (Layer 1) |
 | `50-modes.md` | 0 | Local and server modes, storage interface |
 | `60-decisions.md` | – | Decision log |
 | `70-roadmap.md` | 2, 3 | SDLC pack, user kinds, explicitly deferred items |
