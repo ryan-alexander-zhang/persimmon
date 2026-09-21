@@ -59,3 +59,18 @@ For multi-step tasks, state a brief plan:
 ```
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+## 5. Language Consistency
+
+**Use one canonical term for one concept.**
+
+- `CONTEXT.md` is the glossary; create it from `CONTEXT_TEMPLATE.md` if absent.
+- A term conflicting with `CONTEXT.md`: stop, resolve, then continue.
+- Vague or overloaded language: propose one precise term, test it against concrete scenarios.
+- Stated behavior conflicting with code or docs: call out the mismatch.
+- Update `CONTEXT.md` as soon as a term is resolved. Glossary only: no implementation, specs, or decisions.
+
+
+## 6. Design Map
+
+- `DESIGN.md` indexes `docs/design/`; every design file is listed there with its status.
