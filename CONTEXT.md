@@ -117,7 +117,7 @@ _Avoid_: manifest, capabilities, metadata
 **Reference**:
 One of four validated shapes: **ObjectRef** (existing resource), **LocalDefinitionRef**
 (kind + name, writer's namespace then global), **RevisionRef** (revisioned kind + id +
-revision), **ExternalResourceRef** (provider, type, id, locator, version?).
+revision), **ExternalResourceRef** (provider, type, id, locator, version?, url?).
 _Avoid_: pointer, link, handle
 
 **Namespace**:
@@ -328,7 +328,7 @@ _Avoid_: API, engine API, SDK
 
 **Pack**:
 Global, pre-installed definitions overridable by name in a **Namespace**. The SDLC pack ships
-Pipeline, ReviewLoop, Approval, Rollout and the artifact kinds.
+Pipeline, ReviewLoop, Approval and the artifact kinds.
 _Avoid_: bundle, library, preset, plugin
 
 **Pipeline**:

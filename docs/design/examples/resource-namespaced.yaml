@@ -1,0 +1,20 @@
+# Root Resource of a Namespaced kind with snapshotOnCreate: true, after create + one status patch.
+apiVersion: persimmon.ai/v1
+kind: WorkflowRun
+metadata:
+  name: prd-create-001
+  namespace: demo
+  uid: 019a3c2e-7b1f-7c3a-9d2e-1f0a8b6c4d5e
+  resourceVersion: "2"
+  generation: 1
+  creationTimestamp: "2026-09-21T09:00:00Z"
+  snapshot:
+    uri: snapshot://019a3c2e-7b1f-7c3a-9d2e-1f0a8b6c4d5e
+    digest: sha256:4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a
+spec:
+  workflowRef: {kind: Workflow, name: prd-create}
+  inputs: {}
+  timeout: 24h
+  origin: {kind: manual}
+status:
+  phase: Running

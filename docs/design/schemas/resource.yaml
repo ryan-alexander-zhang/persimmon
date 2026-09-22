@@ -1,0 +1,138 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://persimmon.ai/schemas/resource.yaml
+title: Resource
+description: Envelope of every Resource. spec validated by the kind's schema, status by its statusSchema.
+type: object
+required: [apiVersion, kind, metadata, spec]
+additionalProperties: false
+properties:
+  apiVersion: {$ref: "#/$defs/ApiVersion"}
+  kind: {$ref: "#/$defs/Kind"}
+  metadata: {$ref: "#/$defs/Metadata"}
+  spec: {type: object}
+  status: {type: object}
+
+$defs:
+  ApiVersion:
+    type: string
+    pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/v[0-9]+$
+    examples: [persimmon.ai/v1, engineering.persimmon.ai/v1]
+
+  Kind:
+    type: string
+    pattern: ^[A-Z][A-Za-z0-9]*$
+
+  DnsLabel:
+    type: string
+    pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+    maxLength: 63
+
+  DnsSubdomain:
+    type: string
+    pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
+    maxLength: 253
+
+  Digest:
+    type: string
+    pattern: ^sha256:[a-f0-9]{64}$
+
+  StringMap:
+    type: object
+    additionalProperties: {type: string}
+
+  Metadata:
+    type: object
+    required: [name]
+    additionalProperties: false
+    properties:
+      name: {$ref: "#/$defs/DnsSubdomain"}
+      namespace: {$ref: "#/$defs/DnsLabel"}
+      labels: {$ref: "#/$defs/StringMap"}
+      annotations: {$ref: "#/$defs/StringMap"}
+      uid: {type: string, minLength: 1}
+      resourceVersion: {type: string, minLength: 1}
+      generation: {type: integer, minimum: 1}
+      creationTimestamp: {type: string, format: date-time}
+      ownerReferences:
+        type: array
+        maxItems: 1
+        items: {$ref: "#/$defs/ObjectRef"}
+      snapshot:
+        type: object
+        required: [uri, digest]
+        additionalProperties: false
+        properties:
+          uri: {type: string, format: uri}
+          digest: {$ref: "#/$defs/Digest"}
+      stalled:
+        type: object
+        required: [attempts]
+        additionalProperties: false
+        properties:
+          attempts: {type: integer, minimum: 1}
+          lastError: {type: string}
+
+  Actor:
+    type: object
+    required: [kind, id]
+    additionalProperties: false
+    properties:
+      kind: {enum: [user, service, handler]}
+      id: {type: string, minLength: 1}
+      display: {type: string}
+
+  ObjectRef:
+    type: object
+    required: [apiVersion, kind, name]
+    additionalProperties: false
+    properties:
+      apiVersion: {$ref: "#/$defs/ApiVersion"}
+      kind: {$ref: "#/$defs/Kind"}
+      namespace: {$ref: "#/$defs/DnsLabel"}
+      name: {$ref: "#/$defs/DnsSubdomain"}
+      uid: {type: string, minLength: 1}
+
+  LocalDefinitionRef:
+    type: object
+    required: [kind, name]
+    additionalProperties: false
+    properties:
+      kind: {$ref: "#/$defs/Kind"}
+      name: {$ref: "#/$defs/DnsSubdomain"}
+
+  RevisionRef:
+    type: object
+    required: [apiVersion, kind, namespace, id, revision]
+    additionalProperties: false
+    properties:
+      apiVersion: {$ref: "#/$defs/ApiVersion"}
+      kind: {$ref: "#/$defs/Kind"}
+      namespace: {$ref: "#/$defs/DnsLabel"}
+      id: {type: string, minLength: 1}
+      revision: {type: integer, minimum: 1}
+
+  ExternalResourceRef:
+    type: object
+    required: [provider, type, id, locator]
+    additionalProperties: false
+    properties:
+      provider: {type: string, minLength: 1}
+      type: {type: string, minLength: 1}
+      id: {type: string, minLength: 1}
+      locator: {type: object}
+      version: {type: string}
+      url: {type: string, format: uri}
+
+  AuditRecord:
+    type: object
+    required: [actor, time, kind, name, uid, generation, change]
+    additionalProperties: false
+    properties:
+      actor: {$ref: "#/$defs/Actor"}
+      time: {type: string, format: date-time}
+      kind: {$ref: "#/$defs/Kind"}
+      namespace: {$ref: "#/$defs/DnsLabel"}
+      name: {$ref: "#/$defs/DnsSubdomain"}
+      uid: {type: string, minLength: 1}
+      generation: {type: integer, minimum: 1}
+      change: {enum: [create, spec, status, metadata, delete]}

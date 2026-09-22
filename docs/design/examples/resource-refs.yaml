@@ -1,0 +1,26 @@
+# All four Reference shapes. Each key validates against schemas/resource.yaml#/$defs/<Name>.
+objectRef:
+  apiVersion: persimmon.ai/v1
+  kind: WorkflowRun
+  namespace: demo
+  name: prd-create-001
+  uid: 019a3c2e-7b1f-7c3a-9d2e-1f0a8b6c4d5e
+
+localDefinitionRef:
+  kind: Task
+  name: research
+
+revisionRef:
+  apiVersion: engineering.persimmon.ai/v1
+  kind: ProductRequirement
+  namespace: demo
+  id: checkout-v2
+  revision: 3
+
+externalResourceRef:
+  provider: git
+  type: repository
+  id: github.com/persimmon-ai/demo
+  locator: {remote: https://github.com/persimmon-ai/demo.git, ref: main}
+  version: 9fceb02d0ae598e95dc970b74767f19372d61af8
+  url: https://github.com/persimmon-ai/demo/tree/9fceb02d

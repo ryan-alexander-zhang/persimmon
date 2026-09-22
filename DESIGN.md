@@ -22,7 +22,7 @@ Read top to bottom within a layer; a file depends only on files above it.
 
 | File | Content | Status |
 |---|---|---|
-| `docs/design/00-resource.md` | Envelope, Namespace, Global, Actor, four Reference shapes, write order, audit | planned |
+| `docs/design/00-resource.md` | Envelope, Namespace, Global, Actor, four Reference shapes, write order, audit, delete | draft |
 | `docs/design/01-kind-definition.md` | KindDefinition: schema, scope, mutability, snapshot, terminal, stepContract, subscriptions | planned |
 | `docs/design/02-handler.md` | Handler: kinds, implementation, events; `validate` / `reconcile` contract | planned |
 | `docs/design/03-reconcile.md` | Event set, Action set, RunLog, lease, atomic commit, retry, stalled | planned |
@@ -51,7 +51,7 @@ Read top to bottom within a layer; a file depends only on files above it.
 
 | File | Content | Status |
 |---|---|---|
-| `docs/design/20-pack.md` | Pack, Pipeline, ReviewLoop, Approval, Rollout, override by name | planned |
+| `docs/design/20-pack.md` | Pack, Pipeline, ReviewLoop, Approval, override by name | planned |
 
 ## Cross-cutting
 
