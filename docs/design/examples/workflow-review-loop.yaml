@@ -1,0 +1,49 @@
+# Draft, then repeat a review body Workflow until accepted or 3 rounds. Rejected after 3 rounds is a business verdict, not a failure.
+apiVersion: persimmon.ai/v1
+kind: Workflow
+metadata: {name: prd-with-review, namespace: demo}
+spec:
+  inputs:
+    research: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport}}}
+    maxRounds: {type: {kind: value, schema: {type: integer, minimum: 1}}, required: false, default: {kind: value, value: 3}}
+  outputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement}}}
+    accepted: {type: {kind: value, schema: {type: boolean}}}
+  outputBindings:
+    prd: {fromStep: {stepRef: review, output: prd}}
+    accepted: {fromStep: {stepRef: review, output: accepted}}
+  entry: [draft]
+  steps:
+    - id: draft
+      uses: {kind: Task, name: write-prd}
+      inputs: {research: {fromInput: research}}
+      timeout: 35m
+    - id: review
+      uses: {kind: Workflow, name: prd-review-round}     # body: review Gate, then revise Task; outputs prd, accepted
+      inputs:
+        prd: {fromState: prd}
+        research: {fromInput: research}
+      timeout: 6h
+      repeat:
+        state:
+          prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement}}}
+        initial:
+          prd: {fromStep: {stepRef: draft, output: prd}}
+        next:
+          prd: {fromIterationOutput: prd}
+        until: "iteration.outputs.accepted || iteration.index >= inputs.maxRounds"
+        maxIterations: 5
+  transitions:
+    - id: to-review
+      from: [{stepRef: draft, outcomes: [Succeeded, Failed]}]
+      to:
+        - {stepRef: review, when: 'steps.draft.phase == "Succeeded"'}
+        - {terminal: Failed, reason: draft_failed}
+      dispatch: first
+    - id: done
+      from: [{stepRef: review, outcomes: [Succeeded, Failed]}]
+      to:
+        - {terminal: Succeeded, when: 'steps.review.phase == "Succeeded"'}
+        - {terminal: Failed, reason: review_failed}
+      dispatch: first
+  timeout: 24h

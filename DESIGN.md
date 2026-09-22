@@ -37,7 +37,7 @@ Read top to bottom within a layer; a file depends only on files above it.
 | File | Content | Status |
 |---|---|---|
 | `docs/design/10-ports.md` | Port, PortType, RuntimeValue, Binding, expression profile, well-known `$ref`, Duration | draft |
-| `docs/design/11-workflow.md` | Workflow, Step, Transition, Repeat, static rules | planned |
+| `docs/design/11-workflow.md` | Workflow, Step, Transition, Repeat, static rules | draft |
 | `docs/design/12-task.md` | Task, Context, RetryPolicy, TaskResult | planned |
 | `docs/design/13-executor.md` | Executor, security, credential bindings | planned |
 | `docs/design/14-gate.md` | Gate, Validator, GateResult, ValidationResult | planned |

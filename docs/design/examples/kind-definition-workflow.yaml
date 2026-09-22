@@ -11,7 +11,7 @@ spec:
     - name: v1
       schema:
         type: object
-        required: [inputs, outputs, outputBindings, entry, steps, transitions, timeout]
+        required: [entry, steps, transitions, timeout]
         properties:
           inputs: {type: object}
           outputs: {type: object}

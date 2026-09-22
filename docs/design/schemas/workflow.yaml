@@ -1,0 +1,110 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Workflow
+description: Strict DAG of Steps joined by Transitions. Definition kind.
+type: object
+required: [apiVersion, kind, metadata, spec]
+additionalProperties: false
+properties:
+  apiVersion: {const: persimmon.ai/v1}
+  kind: {const: Workflow}
+  metadata:
+    allOf:
+      - {$ref: "resource.yaml#/$defs/Metadata"}
+      - required: [namespace]
+  spec: {$ref: "#/$defs/Spec"}
+  status: {type: object}
+
+$defs:
+  Spec:
+    type: object
+    required: [entry, steps, transitions, timeout]
+    additionalProperties: false
+    properties:
+      inputs: {$ref: "ports.yaml#/$defs/Ports/properties/inputs"}
+      outputs: {$ref: "ports.yaml#/$defs/Ports/properties/outputs"}
+      outputBindings: {$ref: "ports.yaml#/$defs/Bindings"}
+      entry: {type: array, minItems: 1, uniqueItems: true, items: {$ref: "ports.yaml#/$defs/StepId"}}
+      steps: {type: array, minItems: 1, items: {$ref: "#/$defs/Step"}}
+      transitions: {type: array, minItems: 1, items: {$ref: "#/$defs/Transition"}}
+      timeout: {$ref: "ports.yaml#/$defs/Duration"}
+
+  Step:
+    type: object
+    required: [id, uses, timeout]
+    additionalProperties: false
+    properties:
+      id: {$ref: "ports.yaml#/$defs/StepId"}
+      uses:
+        allOf: [{$ref: "resource.yaml#/$defs/LocalDefinitionRef"}]
+        x-persimmon-ref: {}
+      inputs: {$ref: "ports.yaml#/$defs/Bindings"}
+      timeout: {$ref: "ports.yaml#/$defs/Duration"}
+      repeat: {$ref: "#/$defs/RepeatPolicy"}
+
+  Outcome: {enum: [Succeeded, Failed]}
+
+  Identifier: {type: string, pattern: "^[a-z][a-z0-9-]*$"}
+
+  Transition:
+    type: object
+    required: [id, from, to]
+    additionalProperties: false
+    properties:
+      id: {$ref: "#/$defs/Identifier"}
+      from:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          required: [stepRef, outcomes]
+          additionalProperties: false
+          properties:
+            stepRef: {$ref: "ports.yaml#/$defs/StepId"}
+            outcomes: {type: array, minItems: 1, uniqueItems: true, items: {$ref: "#/$defs/Outcome"}}
+      join:
+        type: object
+        required: [strategy]
+        default: {strategy: all}
+        additionalProperties: false
+        properties:
+          strategy: {enum: [all, any, quorum]}
+          count: {type: integer, minimum: 1}
+        if: {properties: {strategy: {const: quorum}}}
+        then: {required: [count]}
+        else: {not: {required: [count]}}
+      to:
+        type: array
+        minItems: 1
+        items: {$ref: "#/$defs/Target"}
+      dispatch: {enum: [all, first], default: all}
+      noMatch: {enum: [fail, skip], default: fail}
+
+  Target:
+    type: object
+    properties:
+      when: {type: string, minLength: 1}
+    oneOf:
+      - properties:
+          stepRef: {$ref: "ports.yaml#/$defs/StepId"}
+          when: true
+        required: [stepRef]
+        additionalProperties: false
+      - properties:
+          terminal: {$ref: "#/$defs/Outcome"}
+          reason: {type: string, pattern: "^[a-z][a-z0-9_]*$"}
+          when: true
+        required: [terminal]
+        additionalProperties: false
+        if: {properties: {terminal: {const: Failed}}}
+        then: {required: [reason]}
+
+  RepeatPolicy:
+    type: object
+    required: [state, initial, next, until, maxIterations]
+    additionalProperties: false
+    properties:
+      state: {$ref: "ports.yaml#/$defs/Ports/properties/inputs"}
+      initial: {$ref: "ports.yaml#/$defs/Bindings"}
+      next: {$ref: "ports.yaml#/$defs/Bindings"}
+      until: {type: string, minLength: 1}
+      maxIterations: {type: integer, minimum: 1}

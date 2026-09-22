@@ -1,0 +1,29 @@
+# Linear: research, then write the PRD from it. Output bound from the last step.
+apiVersion: persimmon.ai/v1
+kind: Workflow
+metadata: {name: prd-create, namespace: demo}
+spec:
+  inputs:
+    repository: {type: {kind: externalResource, provider: git, type: repository}}
+  outputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement}}}
+  outputBindings:
+    prd: {fromStep: {stepRef: write-prd, output: prd}}
+  entry: [research]
+  steps:
+    - id: research
+      uses: {kind: Task, name: research}
+      inputs: {repository: {fromInput: repository}}
+      timeout: 25m
+    - id: write-prd
+      uses: {kind: Task, name: write-prd}
+      inputs: {research: {fromStep: {stepRef: research, output: report}}}
+      timeout: 35m
+  transitions:
+    - id: to-write
+      from: [{stepRef: research, outcomes: [Succeeded]}]
+      to: [{stepRef: write-prd}]
+    - id: done
+      from: [{stepRef: write-prd, outcomes: [Succeeded]}]
+      to: [{terminal: Succeeded}]
+  timeout: 2h
