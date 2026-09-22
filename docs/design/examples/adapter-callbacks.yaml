@@ -1,0 +1,45 @@
+# One of each Engine callback. Seven use the call token of attempt prd-create-001//write-prd/2; signal uses the adapter token.
+- callback: getResource
+  token: ct-9f1c2d3e
+  args: {apiVersion: persimmon.ai/v1, kind: Task, namespace: demo, name: write-prd}
+
+- callback: getArtifact
+  token: ct-9f1c2d3e
+  args: {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport, namespace: demo, id: research-checkout-v2, revision: 1}
+
+- callback: getBlob
+  token: ct-9f1c2d3e
+  args: {digest: sha256:5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b}
+
+- callback: putBlob
+  token: ct-9f1c2d3e
+  args: {bytes: IyBDaGVja291dCB2Mgo=, mediaType: text/markdown}
+  result: {uri: blob://0f1e2d3c4b5a69788796a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4, digest: sha256:0f1e2d3c4b5a69788796a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4}
+
+- callback: publishArtifact
+  token: ct-9f1c2d3e
+  args:
+    kind: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement}
+    id: checkout-v2
+    content: {title: Checkout v2, problem: "Cart abandonment at payment step is 38%.", requirements: []}
+    inputs: [{apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport, namespace: demo, id: research-checkout-v2, revision: 1}]
+    representations: [{name: markdown, mediaType: text/markdown, digest: sha256:0f1e2d3c4b5a69788796a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4}]
+  result: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement, namespace: demo, id: checkout-v2, revision: 3}
+
+- callback: getKindSchema
+  token: ct-9f1c2d3e
+  args: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement}
+  result: {name: v1, schema: {type: object, required: [title, problem, requirements]}}
+
+- callback: log
+  token: ct-9f1c2d3e
+  args: {text: "3 requirements drafted"}
+
+# A human approved in the reviewer UI; the adapter asserts the Actor over its own token.
+- callback: signal
+  token: at-review-ui-2c3d4e5f
+  args:
+    ref: {apiVersion: persimmon.ai/v1, kind: TaskRun, namespace: demo, name: prd-create-001-approve}
+    eventId: complete-8f1c2d
+    actor: {kind: user, id: ryan}
+    payload: {taskResult: {outputs: {approved: true}}}

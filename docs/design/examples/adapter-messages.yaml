@@ -1,0 +1,58 @@
+# Four exchanges: describe, a long execute with stream lines, a failed execute, an http long operation.
+- request:
+    protocol: persimmon.adapter/v1
+    id: m-1
+    op: describe
+    payload: {}
+  response:
+    id: m-1
+    ok: true
+    result:
+      adapterId: claude-code/v1
+      protocol: persimmon.adapter/v1
+      roles: [executor]
+
+- request:
+    protocol: persimmon.adapter/v1
+    id: m-2
+    op: execute
+    payload:
+      taskRun: {name: prd-create-001-write-prd, logicalExecutionId: prd-create-001//write-prd, idempotencyKey: prd-create-001//write-prd/2, attempt: 2}
+      engine: {endpoint: unix:///Users/ryan/.persimmon/engine.sock, token: ct-9f1c2d3e}
+  stream:
+    - {id: m-2, event: log, text: "reading context: prompt write-prd-template"}
+    - {id: m-2, event: waiting, reason: "model call in progress"}
+    - {id: m-2, event: log, text: "published ProductRequirement checkout-v2 revision 3"}
+  response:                          # a persimmon.result/v1 TaskResult; shape in 19-adapter-roles.md
+    id: m-2
+    ok: true
+    result:
+      outputs:
+        prd: {kind: artifact, ref: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement, namespace: demo, id: checkout-v2, revision: 3}}
+
+- request:
+    protocol: persimmon.adapter/v1
+    id: m-3
+    op: execute
+    payload:
+      taskRun: {name: prd-create-001-research, logicalExecutionId: prd-create-001//research, idempotencyKey: prd-create-001//research/1, attempt: 1}
+      engine: {endpoint: unix:///Users/ryan/.persimmon/engine.sock, token: ct-1a2b3c4d}
+  response:
+    id: m-3
+    ok: false
+    error: {code: rate_limit, message: "429 from provider", retryable: true}
+
+- request:
+    protocol: persimmon.adapter/v1
+    id: m-4
+    op: reconcile
+    payload:
+      resource: {apiVersion: engineering.persimmon.ai/v1, kind: ReviewLoop, metadata: {name: prd-review, namespace: demo}, spec: {}}
+      event: {type: Created, sequence: 1, dedupeKey: created}
+      context: {children: [], timers: []}
+      engine: {endpoint: https://persimmon.internal.example/engine, token: rt-7e8f9a0b}
+  ack: {id: m-4}                     # 202; the adapter later POSTs the response to engine.endpoint/responses
+  response:
+    id: m-4
+    ok: true
+    result: {statusPatch: {phase: Running}, actions: []}

@@ -1,0 +1,202 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Adapter
+description: Adapter registration and the persimmon.adapter/v1 message shapes. Global.
+type: object
+required: [apiVersion, kind, metadata, spec]
+additionalProperties: false
+properties:
+  apiVersion: {const: persimmon.ai/v1}
+  kind: {const: Adapter}
+  metadata:
+    allOf:
+      - {$ref: "resource.yaml#/$defs/Metadata"}
+      - not: {required: [namespace]}   # Global kind
+  spec: {$ref: "#/$defs/Spec"}
+  status: {$ref: "#/$defs/Status"}
+
+$defs:
+  Role: {type: string, pattern: "^[a-z][a-zA-Z0-9]*$"}
+  Op: {type: string, pattern: "^[a-z][a-zA-Z0-9]*$"}
+  CredentialName: {$ref: "resource.yaml#/$defs/DnsLabel"}
+
+  Spec:
+    type: object
+    required: [id, roles, transport]
+    additionalProperties: false
+    properties:
+      id: {$ref: "reconcile.yaml#/$defs/AdapterId"}
+      roles: {type: array, minItems: 1, uniqueItems: true, items: {$ref: "#/$defs/Role"}}
+      transport: {enum: [stdio, http]}
+      command: {type: array, minItems: 1, items: {type: string}}
+      url: {type: string, pattern: "^https://"}
+      env: {$ref: "resource.yaml#/$defs/StringMap"}
+      credentialBindings: {type: array, uniqueItems: true, items: {$ref: "#/$defs/CredentialName"}}
+    oneOf:
+      - properties: {transport: {const: stdio}}
+        required: [command]
+        not: {required: [url]}
+      - properties: {transport: {const: http}}
+        required: [url]
+        not: {anyOf: [{required: [command]}, {required: [env]}]}
+
+  Describe:
+    type: object
+    required: [adapterId, protocol, roles]
+    properties:
+      adapterId: {$ref: "reconcile.yaml#/$defs/AdapterId"}
+      protocol: {const: persimmon.adapter/v1}
+      roles: {type: array, minItems: 1, items: {$ref: "#/$defs/Role"}}
+      kinds:
+        type: array
+        items:
+          type: object
+          required: [group, kind, versions]
+          additionalProperties: false
+          properties:
+            group: {$ref: "resource.yaml#/$defs/DnsSubdomain"}
+            kind: {$ref: "resource.yaml#/$defs/Kind"}
+            versions: {type: array, minItems: 1, items: {type: string, pattern: "^v[0-9]+$"}}
+
+  Status:
+    type: object
+    additionalProperties: false
+    properties:
+      describe: {$ref: "#/$defs/Describe"}
+      describeDigest: {$ref: "resource.yaml#/$defs/Digest"}
+      conditions:
+        type: array
+        items:
+          type: object
+          required: [type, status]
+          additionalProperties: false
+          properties:
+            type: {const: Ready}
+            status: {enum: ["True", "False"]}
+            reason: {type: string}
+            lastTransitionTime: {type: string, format: date-time}
+
+  Engine:
+    type: object
+    required: [endpoint, token]
+    additionalProperties: false
+    properties:
+      endpoint: {type: string, pattern: "^(unix|https)://"}
+      token: {type: string, minLength: 1}
+
+  Ack:
+    type: object
+    required: [id]
+    additionalProperties: false
+    properties:
+      id: {type: string, minLength: 1}
+
+  Request:
+    type: object
+    required: [protocol, id, op, payload]
+    additionalProperties: false
+    properties:
+      protocol: {const: persimmon.adapter/v1}
+      id: {type: string, minLength: 1}
+      op: {$ref: "#/$defs/Op"}
+      payload: {type: object}
+
+  Response:
+    type: object
+    required: [id, ok]
+    additionalProperties: false
+    properties:
+      id: {type: string, minLength: 1}
+      ok: {type: boolean}
+      result: {type: object}
+      error: {$ref: "reconcile.yaml#/$defs/Error"}
+    oneOf:
+      - properties: {ok: {const: true}}
+        required: [result]
+        not: {required: [error]}
+      - properties: {ok: {const: false}}
+        required: [error]
+        not: {required: [result]}
+
+  StreamLine:
+    type: object
+    required: [id, event]
+    additionalProperties: false
+    properties:
+      id: {type: string, minLength: 1}
+      event: {enum: [log, waiting]}
+      text: {type: string}
+      reason: {type: string}
+    oneOf:
+      - properties: {event: {const: log}}
+        required: [text]
+      - properties: {event: {const: waiting}}
+        required: [reason]
+
+  Exchange:
+    type: object
+    required: [request, response]
+    additionalProperties: false
+    properties:
+      request: {$ref: "#/$defs/Request"}
+      stream: {type: array, items: {$ref: "#/$defs/StreamLine"}}
+      ack: {$ref: "#/$defs/Ack"}                 # http only; response then arrives by POST
+      response: {$ref: "#/$defs/Response"}
+
+  Callback:
+    type: object
+    required: [callback, token, args]
+    additionalProperties: false
+    properties:
+      callback: {enum: [getResource, getArtifact, getBlob, putBlob, publishArtifact, getKindSchema, log, signal]}
+      token: {type: string, minLength: 1}
+      args: {type: object}
+      result: {}
+    allOf:
+      - if: {properties: {callback: {const: getResource}}}
+        then:
+          properties:
+            args: {$ref: "resource.yaml#/$defs/ObjectRef"}
+            result: {$ref: "resource.yaml"}
+      - if: {properties: {callback: {const: getArtifact}}}
+        then:
+          properties:
+            args: {$ref: "resource.yaml#/$defs/RevisionRef"}
+            result: {$ref: "revisioned.yaml#/$defs/Instance"}
+      - if: {properties: {callback: {const: getBlob}}}
+        then:
+          properties:
+            args: {type: object, required: [digest], additionalProperties: false, properties: {digest: {$ref: "resource.yaml#/$defs/Digest"}}}
+            result: {type: object, required: [bytes], additionalProperties: false, properties: {bytes: {type: string, contentEncoding: base64}}}
+      - if: {properties: {callback: {const: putBlob}}}
+        then:
+          properties:
+            args: {type: object, required: [bytes, mediaType], additionalProperties: false, properties: {bytes: {type: string, contentEncoding: base64}, mediaType: {$ref: "revisioned.yaml#/$defs/MediaType"}}}
+            result: {type: object, required: [uri, digest], additionalProperties: false, properties: {uri: {type: string, pattern: "^blob://[a-f0-9]{64}$"}, digest: {$ref: "resource.yaml#/$defs/Digest"}}}
+      - if: {properties: {callback: {const: publishArtifact}}}
+        then:
+          properties:
+            args: {$ref: "revisioned.yaml#/$defs/PublishRequest"}
+            result: {$ref: "resource.yaml#/$defs/RevisionRef"}
+      - if: {properties: {callback: {const: getKindSchema}}}
+        then:
+          properties:
+            args: {type: object, required: [apiVersion, kind], additionalProperties: false, properties: {apiVersion: {$ref: "resource.yaml#/$defs/ApiVersion"}, kind: {$ref: "resource.yaml#/$defs/Kind"}}}
+            result: {type: object, required: [name, schema], properties: {name: {type: string}, schema: {type: object}}}
+      - if: {properties: {callback: {const: log}}}
+        then:
+          properties:
+            args: {type: object, required: [text], additionalProperties: false, properties: {text: {type: string}}}
+          not: {required: [result]}
+      - if: {properties: {callback: {const: signal}}}
+        then:
+          properties:
+            args:
+              type: object
+              required: [ref, eventId, actor]
+              additionalProperties: false
+              properties:
+                ref: {$ref: "resource.yaml#/$defs/ObjectRef"}
+                eventId: {type: string, minLength: 1}
+                actor: {$ref: "resource.yaml#/$defs/Actor"}
+                payload: {type: object}
+          not: {required: [result]}

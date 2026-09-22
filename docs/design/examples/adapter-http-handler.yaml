@@ -1,0 +1,24 @@
+# http Adapter implementing a Handler for the ReviewLoop kind; bearer token from the first credential binding.
+apiVersion: persimmon.ai/v1
+kind: Adapter
+metadata:
+  name: review-loop-v1
+  uid: 019a3c2e-8b00-7e22-a4c5-6d7e8f9a0b1c
+  resourceVersion: "2"
+  generation: 1
+  creationTimestamp: "2026-09-20T19:00:00Z"
+spec:
+  id: review-loop/v1
+  roles: [handler]
+  transport: http
+  url: https://adapters.internal.example/review-loop
+  credentialBindings: [review-loop-token]
+status:
+  describe:
+    adapterId: review-loop/v1
+    protocol: persimmon.adapter/v1
+    roles: [handler]
+    kinds: [{group: engineering.persimmon.ai, kind: ReviewLoop, versions: [v1]}]
+  describeDigest: sha256:b4e2d9c1f3a5068b2d4f6e8a0c2e4f6a8b0d2f4e6a8c0e2f4a6c8e0a2c4e6a8c
+  conditions:
+    - {type: Ready, status: "True", lastTransitionTime: "2026-09-20T19:00:00Z"}

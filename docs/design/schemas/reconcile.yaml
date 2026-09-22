@@ -139,6 +139,7 @@ $defs:
           op: {type: string, pattern: "^[a-z][a-zA-Z0-9]*$"}
           payload: {type: object}
           idempotencyKey: {$ref: "#/$defs/IdempotencyKey"}
+          deadline: {type: string, format: date-time}
         required: [adapterId, op, payload, idempotencyKey]
         additionalProperties: false
 

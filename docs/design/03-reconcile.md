@@ -38,7 +38,7 @@ unacked Event and delivers every outstanding `callAdapter` as `state: unknown`.
 | `commitScope` / `abandonScope` | `key` | make visible, or abandon, what an adapter staged under `callAdapter(idempotencyKey: key)` |
 | `emitEvent` | `eventType (dotted, lowerCamel segments), payload` | append an Outbox event (`06-outbox.md`) |
 | `setTimer` / `clearTimer` | `key (lowercase, `-` `_`), at` / `key` | schedule or cancel TimerFired; same key replaces |
-| `callAdapter` | `adapterId, op, payload, idempotencyKey` | invoke an Adapter operation; answer arrives as AdapterFinished (`07-adapter.md`) |
+| `callAdapter` | `adapterId, op, payload, idempotencyKey, deadline?` | invoke an Adapter operation; answer arrives as AdapterFinished; past `deadline` the call is `unknown` (`07-adapter.md`) |
 
 `status` is written only through the result's `statusPatch` (`02-handler.md`).
 

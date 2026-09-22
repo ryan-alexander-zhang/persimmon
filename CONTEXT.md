@@ -264,8 +264,8 @@ query, fail, or retry.
 _Avoid_: pending, lost, timeout
 
 **Signal**:
-The **Event** carrying an external completion: adapter `complete` or `persimmon signal`.
-Carries an **Actor**.
+The **Event** carrying an external input: adapter `signal` callback, `persimmon signal`, or an
+**Outbox event** match. Carries an **Actor** when external.
 _Avoid_: callback, webhook, completion, notification
 
 ### Layer 1: artifacts
@@ -321,7 +321,7 @@ _Avoid_: result, output, response
 
 **Engine callback**:
 Operations an **Adapter** calls back on the engine with a scoped token: `getResource`,
-`getArtifact`, `getBlob`, `putBlob`, `publishArtifact`, `getKindSchema`, `log`.
+`getArtifact`, `getBlob`, `putBlob`, `publishArtifact`, `getKindSchema`, `log`, `signal`.
 _Avoid_: API, engine API, SDK
 
 ### Layer 2

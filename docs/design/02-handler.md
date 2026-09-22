@@ -48,8 +48,8 @@ Every Event is delivered; an Event the Handler does not use returns `{actions: [
 
 | Rule | Enforcer |
 |---|---|
-| Stateless between calls; memory lives in `status` or children | Handler author; conformance suite (`07-adapter.md`) |
-| Idempotent on `(metadata.uid, event.sequence)`; a redelivered Event yields the same result | Handler author; conformance suite |
+| Stateless between calls; memory lives in `status` or children | Handler author; conformance suite (`91-roadmap.md`) |
+| Idempotent on `(metadata.uid, event.sequence)`; a redelivered Event yields the same result | Handler author; conformance suite (`91-roadmap.md`) |
 | Writes only its own Resource's `status`, under its `handler` Actor; reaches other Resources only by `createResource`, `cancelResource` | engine: no other action exists |
 | `validate` holds rules the schema cannot express | Handler author |
 | `kinds[]` names registered kinds whose `handlerRef` points back; every registered version of a kind with `handlerRef` has one accepting Handler | static checker |

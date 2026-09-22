@@ -1,0 +1,26 @@
+# stdio Adapter with the Layer 1 executor role. describe ran at apply; Ready.
+apiVersion: persimmon.ai/v1
+kind: Adapter
+metadata:
+  name: claude-code-v1
+  uid: 019a3c2e-8a00-7d11-b3f4-5e6a7b8c9d0e
+  resourceVersion: "2"
+  generation: 1
+  creationTimestamp: "2026-09-20T18:30:00Z"
+spec:
+  id: claude-code/v1
+  roles: [executor]
+  transport: stdio
+  command: [persimmon-adapter-claude-code]
+  env: {CLAUDE_CODE_LOG_LEVEL: info}
+  credentialBindings: [anthropic-api-key]
+status:
+  describe:
+    adapterId: claude-code/v1
+    protocol: persimmon.adapter/v1
+    roles: [executor]
+    executorTypes: [agent]
+    supports: {query: true, cancel: true, complete: false}
+  describeDigest: sha256:a3f1c8d2e4b6079f1e2d3c4b5a69788796a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1
+  conditions:
+    - {type: Ready, status: "True", lastTransitionTime: "2026-09-20T18:30:02Z"}
