@@ -1,6 +1,6 @@
 $schema: https://json-schema.org/draft/2020-12/schema
 title: Reconcile
-description: Event set and Action set. Full shapes in 03-reconcile.md.
+description: Event set, Action set, RunLog record.
 $defs:
   EventType:
     enum: [Created, SpecUpdated, ChildFinished, TimerFired, Signal, CancelRequested, AdapterFinished]
@@ -8,3 +8,165 @@ $defs:
   ActionType:
     enum: [createResource, cancelResource, publishArtifact, commitScope, abandonScope,
            emitEvent, setTimer, clearTimer, callAdapter]
+
+  OutboxEventType:
+    type: string
+    pattern: "^[a-z][a-zA-Z0-9]*(\\.[a-z][a-zA-Z0-9]*)+$"
+
+  Error:
+    type: object
+    required: [code, message, retryable]
+    additionalProperties: false
+    properties:
+      code: {type: string, pattern: "^[a-z][a-z0-9_]*$"}
+      message: {type: string}
+      retryable: {type: boolean}
+
+  IdempotencyKey: {type: string, minLength: 1}
+  TimerKey: {type: string, pattern: "^[a-z][a-z0-9_-]*$"}
+  AdapterId: {type: string, pattern: "^[a-z0-9][-a-z0-9]*/v[0-9]+$"}
+
+  Event:
+    type: object
+    required: [type, sequence, dedupeKey]
+    additionalProperties: false
+    properties:
+      type: {$ref: "#/$defs/EventType"}
+      sequence: {type: integer, minimum: 1}
+      dedupeKey: {type: string, minLength: 1}
+      payload: {type: object}
+    oneOf:
+      - properties: {type: {const: Created}}
+        not: {required: [payload]}
+      - properties:
+          type: {const: SpecUpdated}
+          payload: {type: object, required: [generation], additionalProperties: false,
+                    properties: {generation: {type: integer, minimum: 2}}}
+        required: [payload]
+      - properties:
+          type: {const: ChildFinished}
+          payload:
+            type: object
+            required: [ref, value]
+            additionalProperties: false
+            properties:
+              ref: {allOf: [{$ref: "resource.yaml#/$defs/ObjectRef"}, {required: [uid]}]}
+              value: {type: string}
+        required: [payload]
+      - properties:
+          type: {const: TimerFired}
+          payload: {type: object, required: [key, at], additionalProperties: false,
+                    properties: {key: {$ref: "#/$defs/TimerKey"}, at: {type: string, format: date-time}}}
+        required: [payload]
+      - properties:
+          type: {const: Signal}
+          payload: {type: object, required: [source, eventId], additionalProperties: false,
+                    properties: {source: {enum: [adapter, api, outbox]}, eventId: {type: string, minLength: 1}, payload: {type: object}}}
+        required: [payload]
+      - properties:
+          type: {const: CancelRequested}
+          payload: {type: object, additionalProperties: false, properties: {reason: {type: string}}}
+      - properties:
+          type: {const: AdapterFinished}
+          payload: {$ref: "#/$defs/AdapterFinishedPayload"}
+        required: [payload]
+
+  AdapterFinishedPayload:
+    type: object
+    required: [idempotencyKey, state]
+    additionalProperties: false
+    properties:
+      idempotencyKey: {$ref: "#/$defs/IdempotencyKey"}
+      state: {enum: [succeeded, failed, unknown]}
+      result: {type: object}
+      error: {$ref: "#/$defs/Error"}
+    oneOf:
+      - properties: {state: {const: succeeded}}
+        required: [result]
+        not: {required: [error]}
+      - properties: {state: {const: failed}}
+        required: [error]
+        not: {required: [result]}
+      - properties: {state: {const: unknown}}
+        not: {anyOf: [{required: [result]}, {required: [error]}]}
+
+  Action:
+    type: object
+    required: [type]
+    properties:
+      type: {$ref: "#/$defs/ActionType"}
+    oneOf:
+      - properties:
+          type: {const: createResource}
+          resource: {$ref: "resource.yaml"}
+          snapshot: {enum: [inherit, new], default: inherit}
+        required: [resource]
+        additionalProperties: false
+      - properties:
+          type: {const: cancelResource}
+          ref: {$ref: "resource.yaml#/$defs/ObjectRef"}
+        required: [ref]
+        additionalProperties: false
+      - properties:
+          type: {const: publishArtifact}
+          kind: {type: object, required: [apiVersion, kind], additionalProperties: false,
+                 properties: {apiVersion: {$ref: "resource.yaml#/$defs/ApiVersion"}, kind: {$ref: "resource.yaml#/$defs/Kind"}}}
+          id: {type: string, minLength: 1}
+          content: {type: object}
+          representations: {type: array, items: {type: object}}   # shape: 05-revisioned-kind.md
+        required: [kind, content, representations]
+        additionalProperties: false
+      - properties:
+          type: {enum: [commitScope, abandonScope]}
+          key: {$ref: "#/$defs/IdempotencyKey"}
+        required: [key]
+        additionalProperties: false
+      - properties:
+          type: {const: emitEvent}
+          eventType: {$ref: "#/$defs/OutboxEventType"}
+          payload: {type: object}
+        required: [eventType, payload]
+        additionalProperties: false
+      - properties:
+          type: {const: setTimer}
+          key: {$ref: "#/$defs/TimerKey"}
+          at: {type: string, format: date-time}
+        required: [key, at]
+        additionalProperties: false
+      - properties:
+          type: {const: clearTimer}
+          key: {$ref: "#/$defs/TimerKey"}
+        required: [key]
+        additionalProperties: false
+      - properties:
+          type: {const: callAdapter}
+          adapterId: {$ref: "#/$defs/AdapterId"}
+          op: {type: string, pattern: "^[a-z][a-zA-Z0-9]*$"}
+          payload: {type: object}
+          idempotencyKey: {$ref: "#/$defs/IdempotencyKey"}
+        required: [adapterId, op, payload, idempotencyKey]
+        additionalProperties: false
+
+  RunLogEntry:
+    type: object
+    required: [event]
+    additionalProperties: false
+    properties:
+      event: {$ref: "#/$defs/Event"}
+      appliedAt: {type: string, format: date-time}
+      deliveries: {type: integer, minimum: 1}
+      result:
+        type: object
+        required: [actions]
+        additionalProperties: false
+        properties:
+          statusPatch: {type: object}
+          actions: {type: array, items: {$ref: "#/$defs/Action"}}
+
+  RunLog:
+    type: object
+    required: [uid, entries]
+    additionalProperties: false
+    properties:
+      uid: {type: string, minLength: 1}
+      entries: {type: array, items: {$ref: "#/$defs/RunLogEntry"}}

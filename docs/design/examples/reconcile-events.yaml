@@ -1,0 +1,41 @@
+# One of each Event. Each list item validates against reconcile.yaml#/$defs/Event.
+- {type: Created, sequence: 1, dedupeKey: created}
+
+- type: SpecUpdated
+  sequence: 2
+  dedupeKey: spec/2
+  payload: {generation: 2}
+
+- type: ChildFinished
+  sequence: 3
+  dedupeKey: child/019a3c2e-7c00-7a9b-8c1d-2e3f4a5b6c7d
+  payload:
+    ref: {apiVersion: persimmon.ai/v1, kind: TaskRun, namespace: demo, name: prd-create-001-research, uid: 019a3c2e-7c00-7a9b-8c1d-2e3f4a5b6c7d}
+    value: Succeeded
+
+- type: TimerFired
+  sequence: 4
+  dedupeKey: timer/deadline/2026-09-22T09:00:00Z
+  payload: {key: deadline, at: "2026-09-22T09:00:00Z"}
+
+- type: Signal                       # Actor arrives as context.actor, never in the body
+  sequence: 5
+  dedupeKey: signal/complete-8f1c2d
+  payload:
+    source: adapter
+    eventId: complete-8f1c2d
+    payload:
+      taskResult: {outputs: {approved: true}}
+
+- type: CancelRequested
+  sequence: 6
+  dedupeKey: cancel
+  payload: {reason: user requested}
+
+- type: AdapterFinished
+  sequence: 7
+  dedupeKey: adapter/prd-create-001//research/1
+  payload:
+    idempotencyKey: prd-create-001//research/1
+    state: failed
+    error: {code: timeout, message: "no response within 20m", retryable: true}

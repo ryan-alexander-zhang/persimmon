@@ -1,0 +1,65 @@
+# RunLog of one TaskRun: first attempt hits a rate limit, second succeeds. One deadline timer per attempt.
+uid: 019a3c2e-7c00-7a9b-8c1d-2e3f4a5b6c7d
+entries:
+  - event: {type: Created, sequence: 1, dedupeKey: created}
+    appliedAt: "2026-09-21T09:00:01Z"
+    deliveries: 1
+    result:
+      statusPatch: {phase: Running, attempts: [{index: 1, state: running, idempotencyKey: prd-create-001//research/1}]}
+      actions:
+        - type: callAdapter
+          adapterId: claude-code/v1
+          op: execute
+          idempotencyKey: prd-create-001//research/1
+          payload: {attempt: 1}
+        - {type: setTimer, key: deadline, at: "2026-09-21T09:20:01Z"}
+
+  - event:
+      type: AdapterFinished
+      sequence: 2
+      dedupeKey: adapter/prd-create-001//research/1
+      payload:
+        idempotencyKey: prd-create-001//research/1
+        state: failed
+        error: {code: rate_limit, message: "429 from provider", retryable: true}
+    appliedAt: "2026-09-21T09:05:00Z"
+    deliveries: 1
+    result:
+      statusPatch: {phase: Waiting, waitingReason: retryBackoff}
+      actions:
+        - {type: abandonScope, key: prd-create-001//research/1}
+        - {type: clearTimer, key: deadline}
+        - {type: setTimer, key: backoff, at: "2026-09-21T09:05:30Z"}
+
+  - event:
+      type: TimerFired
+      sequence: 3
+      dedupeKey: timer/backoff/2026-09-21T09:05:30Z
+      payload: {key: backoff, at: "2026-09-21T09:05:30Z"}
+    appliedAt: "2026-09-21T09:05:31Z"
+    deliveries: 2                     # first delivery lost its lease; redelivered
+    result:
+      statusPatch: {phase: Running}
+      actions:
+        - type: callAdapter
+          adapterId: claude-code/v1
+          op: execute
+          idempotencyKey: prd-create-001//research/2
+          payload: {attempt: 2}
+        - {type: setTimer, key: deadline, at: "2026-09-21T09:25:31Z"}
+
+  - event:
+      type: AdapterFinished
+      sequence: 4
+      dedupeKey: adapter/prd-create-001//research/2
+      payload:
+        idempotencyKey: prd-create-001//research/2
+        state: succeeded
+        result: {outputs: {report: {kind: artifact, ref: {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport, namespace: demo, id: research-checkout-v2, revision: 1}}}}
+    appliedAt: "2026-09-21T09:18:00Z"
+    deliveries: 1
+    result:
+      statusPatch: {phase: Succeeded, outputs: {report: {kind: artifact, ref: {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport, namespace: demo, id: research-checkout-v2, revision: 1}}}}
+      actions:
+        - {type: commitScope, key: prd-create-001//research/2}
+        - {type: clearTimer, key: deadline}

@@ -1,0 +1,44 @@
+# One of each Action. Each list item validates against reconcile.yaml#/$defs/Action.
+- type: createResource
+  snapshot: inherit
+  resource:
+    apiVersion: persimmon.ai/v1
+    kind: TaskRun
+    metadata: {name: prd-create-001-research, namespace: demo}
+    spec:
+      taskRef: {kind: Task, name: research}
+      stepRef: research
+      logicalExecutionId: prd-create-001//research
+
+- type: cancelResource
+  ref: {apiVersion: persimmon.ai/v1, kind: TaskRun, namespace: demo, name: prd-create-001-research}
+
+- type: publishArtifact
+  kind: {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport}
+  id: research-checkout-v2
+  content: {title: "Checkout v2 research", findings: []}
+  representations: []
+
+- type: commitScope
+  key: prd-create-001//research/1
+
+- type: abandonScope
+  key: prd-create-001//research/2
+
+- type: emitEvent
+  eventType: review.requested
+  payload: {workflowRun: prd-create-001, step: review}
+
+- type: setTimer
+  key: deadline
+  at: "2026-09-22T09:00:00Z"
+
+- type: clearTimer
+  key: deadline
+
+- type: callAdapter
+  adapterId: claude-code/v1
+  op: execute
+  idempotencyKey: prd-create-001//research/1
+  payload:
+    taskRun: {name: prd-create-001-research, logicalExecutionId: prd-create-001//research, attempt: 1}

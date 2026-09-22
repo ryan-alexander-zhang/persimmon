@@ -34,7 +34,7 @@ reconcile(resource, event, context, engine?) -> {statusPatch?, actions[]}   appl
 | Reconcile input | Content |
 |---|---|
 | `resource` | full Resource |
-| `event` | `{type, sequence, payload?}`; `sequence` per Resource, monotonic |
+| `event` | `{type, sequence, dedupeKey, payload?}` (`03-reconcile.md`); `sequence` per Resource, monotonic |
 | `context.children[]` | `{ref: ObjectRef, terminal: bool, status}` per child |
 | `context.snapshot` | `{uri, digest}` or absent |
 | `context.actor` | Actor of the triggering Event; absent for engine-originated Events |

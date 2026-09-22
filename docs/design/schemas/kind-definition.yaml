@@ -77,7 +77,7 @@ $defs:
           required: [eventType]
           additionalProperties: false
           properties:
-            eventType: {type: string, minLength: 1}
+            eventType: {$ref: "reconcile.yaml#/$defs/OutboxEventType"}
             filter: {type: string, minLength: 1}
     dependentRequired:
       subscriptions: [handlerRef]
