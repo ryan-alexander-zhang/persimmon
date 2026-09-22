@@ -1,0 +1,125 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Handler
+description: Binds kinds to behaviour. Global.
+type: object
+required: [apiVersion, kind, metadata, spec]
+additionalProperties: false
+properties:
+  apiVersion: {const: persimmon.ai/v1}
+  kind: {const: Handler}
+  metadata:
+    allOf:
+      - {$ref: "resource.yaml#/$defs/Metadata"}
+      - not: {required: [namespace]}   # Global kind
+  spec: {$ref: "#/$defs/Spec"}
+  status: {type: object}
+
+$defs:
+  Spec:
+    type: object
+    required: [kinds, implementation]
+    additionalProperties: false
+    properties:
+      kinds:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          required: [group, kind, versions]
+          additionalProperties: false
+          properties:
+            group: {$ref: "resource.yaml#/$defs/DnsSubdomain"}
+            kind: {$ref: "resource.yaml#/$defs/Kind"}
+            versions:
+              type: array
+              minItems: 1
+              items: {type: string, pattern: "^v[0-9]+$"}
+      implementation:
+        type: object
+        additionalProperties: false
+        minProperties: 1
+        maxProperties: 1
+        properties:
+          builtin: {$ref: "resource.yaml#/$defs/DnsLabel"}
+          adapter:
+            type: object
+            required: [id]
+            additionalProperties: false
+            properties:
+              id: {type: string, pattern: "^[a-z0-9][-a-z0-9]*/v[0-9]+$"}
+
+  Finding:
+    type: object
+    required: [severity, message]
+    additionalProperties: false
+    properties:
+      severity: {enum: [error, warning]}
+      code: {type: string}
+      path: {type: string, pattern: "^(/[^/]*)*$"}
+      message: {type: string}
+
+  ValidateResult:
+    type: object
+    required: [findings]
+    additionalProperties: false
+    properties:
+      findings: {type: array, items: {$ref: "#/$defs/Finding"}}
+
+  Event:
+    type: object
+    required: [type, sequence]
+    additionalProperties: false
+    properties:
+      type: {$ref: "reconcile.yaml#/$defs/EventType"}
+      sequence: {type: integer, minimum: 1}
+      payload: {type: object}
+
+  Context:
+    type: object
+    required: [children, timers]
+    additionalProperties: false
+    properties:
+      children:
+        type: array
+        items:
+          type: object
+          required: [ref, terminal]
+          additionalProperties: false
+          properties:
+            ref: {$ref: "resource.yaml#/$defs/ObjectRef"}
+            terminal: {type: boolean}
+            status: {type: object}
+      snapshot: {$ref: "resource.yaml#/$defs/Snapshot"}
+      actor: {$ref: "resource.yaml#/$defs/Actor"}
+      timers: {type: array, items: {type: string}}
+
+  ReconcileInput:
+    type: object
+    required: [resource, event, context]
+    additionalProperties: false
+    properties:
+      resource: {$ref: "resource.yaml"}
+      event: {$ref: "#/$defs/Event"}
+      context: {$ref: "#/$defs/Context"}
+      engine:
+        type: object
+        required: [endpoint, token]
+        additionalProperties: false
+        properties:
+          endpoint: {type: string, format: uri}
+          token: {type: string, minLength: 1}
+
+  ReconcileResult:
+    type: object
+    required: [actions]
+    additionalProperties: false
+    properties:
+      statusPatch: {type: object}
+      actions:
+        type: array
+        items:
+          type: object
+          required: [type]
+          properties:
+            type: {$ref: "reconcile.yaml#/$defs/ActionType"}
+          # full Action shapes: 03-reconcile.md

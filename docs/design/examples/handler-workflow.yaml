@@ -1,0 +1,11 @@
+# Builtin handler: validates Workflow definitions, drives WorkflowRuns.
+apiVersion: persimmon.ai/v1
+kind: Handler
+metadata:
+  name: workflow
+spec:
+  kinds:
+    - {group: persimmon.ai, kind: Workflow, versions: [v1]}
+    - {group: persimmon.ai, kind: WorkflowRun, versions: [v1]}
+  implementation:
+    builtin: workflow

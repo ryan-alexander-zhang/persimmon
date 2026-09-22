@@ -24,7 +24,7 @@ Read top to bottom within a layer; a file depends only on files above it.
 |---|---|---|
 | `docs/design/00-resource.md` | Envelope, Namespace, Global, Actor, four Reference shapes, write order, audit, delete | draft |
 | `docs/design/01-kind-definition.md` | KindDefinition: schema, scope, mutability, snapshot, terminal, stepContract, subscriptions | draft |
-| `docs/design/02-handler.md` | Handler: kinds, implementation, events; `validate` / `reconcile` contract | planned |
+| `docs/design/02-handler.md` | Handler: kinds, implementation, events; `validate` / `reconcile` contract | draft |
 | `docs/design/03-reconcile.md` | Event set, Action set, RunLog, lease, atomic commit, retry, stalled | planned |
 | `docs/design/04-snapshot.md` | Closure walk, canonical bytes, digest, inherit vs new | planned |
 | `docs/design/05-revisioned-kind.md` | Identity, revision, provenance, representations, Publication scope | planned |

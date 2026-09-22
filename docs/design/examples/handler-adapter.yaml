@@ -1,0 +1,10 @@
+# Out-of-process handler: pack kind ReviewLoop driven by an Adapter with role handler.
+apiVersion: persimmon.ai/v1
+kind: Handler
+metadata:
+  name: review-loop
+spec:
+  kinds:
+    - {group: engineering.persimmon.ai, kind: ReviewLoop, versions: [v1]}
+  implementation:
+    adapter: {id: review-loop/v1}

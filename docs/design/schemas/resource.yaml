@@ -35,6 +35,14 @@ $defs:
     type: string
     pattern: ^sha256:[a-f0-9]{64}$
 
+  Snapshot:
+    type: object
+    required: [uri, digest]
+    additionalProperties: false
+    properties:
+      uri: {type: string, format: uri}
+      digest: {$ref: "#/$defs/Digest"}
+
   StringMap:
     type: object
     additionalProperties: {type: string}
@@ -56,13 +64,7 @@ $defs:
         type: array
         maxItems: 1
         items: {$ref: "#/$defs/ObjectRef"}
-      snapshot:
-        type: object
-        required: [uri, digest]
-        additionalProperties: false
-        properties:
-          uri: {type: string, format: uri}
-          digest: {$ref: "#/$defs/Digest"}
+      snapshot: {$ref: "#/$defs/Snapshot"}
       stalled:
         type: object
         required: [attempts]

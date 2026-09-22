@@ -1,0 +1,10 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Reconcile
+description: Event set and Action set. Full shapes in 03-reconcile.md.
+$defs:
+  EventType:
+    enum: [Created, SpecUpdated, ChildFinished, TimerFired, Signal, CancelRequested, AdapterFinished]
+
+  ActionType:
+    enum: [createResource, cancelResource, publishArtifact, commitScope, abandonScope,
+           emitEvent, setTimer, clearTimer, callAdapter]
