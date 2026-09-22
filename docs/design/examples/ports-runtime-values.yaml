@@ -1,0 +1,12 @@
+# One of each RuntimeValue. Each item validates against ports.yaml#/$defs/RuntimeValue.
+- {kind: value, value: 12}
+- {kind: value, value: {passed: true, findings: [], evidence: []}}
+- kind: artifact
+  ref: {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport, namespace: demo, id: research-checkout-v2, revision: 1}
+- kind: externalResource
+  ref:
+    provider: git
+    type: repository
+    id: github.com/persimmon-ai/demo
+    locator: {remote: https://github.com/persimmon-ai/demo.git, ref: main}
+    version: 9fceb02d0ae598e95dc970b74767f19372d61af8

@@ -337,9 +337,9 @@ _Avoid_: workflow (for this kind), CI pipeline
 
 ## Flagged ambiguities
 
-- **ArtifactRef vs RevisionRef.** Same shape. Framework says RevisionRef; core well-known
-  schemas expose `persimmon.ai/v1#/ArtifactRef`. Resolution: say **RevisionRef** everywhere;
-  `ArtifactRef` survives only as the `$ref` id.
+- **ArtifactRef vs RevisionRef.** Same shape. Framework says RevisionRef; reference well-known
+  schemas exposed `persimmon.ai/v1#/ArtifactRef`. Resolution: **RevisionRef** everywhere,
+  including the `$ref` id `persimmon.ai/v1#/RevisionRef`. `ArtifactRef` is dead.
 - **Event.** Framework uses one word for the closed reconcile set and the open outbox strings.
   Resolution: **Event** = reconcile event; **Outbox event** always qualified.
 - **Scope.** `KindDefinition.scope` (Namespaced | Global) and `commitScope` staging.

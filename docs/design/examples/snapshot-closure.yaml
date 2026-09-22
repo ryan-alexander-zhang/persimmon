@@ -40,6 +40,7 @@ resources:
     spec:
       executorRef: {kind: Executor, name: claude-agent}
       action: {instructions: "Research the checkout v2 problem space."}
+      outputs: {report: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport}}}}
       timeout: 20m
       sideEffects: none
   - apiVersion: persimmon.ai/v1
@@ -50,6 +51,7 @@ resources:
       action:
         instructions: "Write the PRD."
         context: [{kind: prompt, ref: {kind: Prompt, name: write-prd-template}}]
+      inputs: {research: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport}}}}
       outputs: {prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement}}}}
       timeout: 30m
       sideEffects: none
@@ -60,7 +62,7 @@ resources:
       entry: [research]
       steps:
         - {id: research, uses: {kind: Task, name: research}, timeout: 25m}
-        - {id: write-prd, uses: {kind: Task, name: write-prd}, timeout: 35m}
+        - {id: write-prd, uses: {kind: Task, name: write-prd}, inputs: {research: {fromStep: {stepRef: research, output: report}}}, timeout: 35m}
       transitions:
         - {id: next, from: [{stepRef: research, outcomes: [Succeeded]}], to: [{stepRef: write-prd}], dispatch: all}
         - {id: done, from: [{stepRef: write-prd, outcomes: [Succeeded]}], to: [{terminal: Succeeded}], dispatch: all}

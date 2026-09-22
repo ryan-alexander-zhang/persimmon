@@ -1,0 +1,120 @@
+# Ports and bindings
+
+status: draft · layer: 1 · schema: [`schemas/ports.yaml`](schemas/ports.yaml)
+
+Typed slots on definitions, typed values at run time, and the rules that connect them.
+
+```text
+definition                          run
+  inputs:  {port: InputSpec}  ───▶  inputs:  {port: RuntimeValue}     bound by Binding
+  outputs: {port: OutputSpec} ───▶  outputs: {port: RuntimeValue}     produced by the executor
+
+PortType  value {schema?} | artifact {artifactKind} | externalResource {provider, type}
+Binding   literal | fromInput | fromStep | fromState | fromIterationOutput | expression | fromEvent
+```
+
+## Names
+
+| Name | Grammar |
+|---|---|
+| port | `^[a-z][a-zA-Z0-9]*$` |
+| step id | `^[a-z][a-z0-9-]*$` |
+| Duration | `^[0-9]+(ms\|s\|m\|h\|d)$`, single unit |
+
+## PortType
+
+| kind | Fields | RuntimeValue |
+|---|---|---|
+| `value` | `schema?`: JSON Schema, or `{$ref: persimmon.ai/v1#/<Name>}` from the well-known set | `{kind: value, value}` |
+| `artifact` | `artifactKind: {apiVersion, kind}` of a revisioned kind (`x-persimmon-kind-ref`) | `{kind: artifact, ref: RevisionRef}` |
+| `externalResource` | `provider`, `type` | `{kind: externalResource, ref: ExternalResourceRef}` |
+
+Equality: `kind` and every field equal after expanding `$ref`. No subtyping.
+
+## InputSpec, OutputSpec
+
+| Field | InputSpec | OutputSpec |
+|---|---|---|
+| `type` | PortType | PortType |
+| `required` | default true | — |
+| `default` | RuntimeValue of the port's kind; optional inputs only; applied when the binding omits | — |
+| `description` | text | text |
+
+`inputs` and `outputs` maps default to `{}`.
+
+## Binding
+
+| Shape | Value | Where |
+|---|---|---|
+| `{literal: <json>}` | as written, a `value` port | anywhere |
+| `{fromInput: <port>}` | the enclosing definition's input | anywhere |
+| `{fromStep: {stepRef, output}}` | a predecessor step's output | Workflow steps, output bindings |
+| `{fromState: <var>}` | repeat loop state | inside `repeat` |
+| `{fromIterationOutput: <port>}` | last iteration's output | `repeat.next` only |
+| `{expression: <cel>}` | CEL result, a `value` port | anywhere |
+| `{fromEvent: <root path>}` | engine projection of the Outbox event; roots per event kind in `16-trigger.md` | Trigger only |
+
+`onMissing: omit` on `fromInput`, `fromStep`, `fromState`, `fromIterationOutput`, `fromEvent`:
+skip the port when the source is absent; optional inputs only.
+
+## Expression profile
+
+CEL, with the environment of the site:
+
+| Root | Content |
+|---|---|
+| `inputs.<port>` | enclosing definition's inputs |
+| `steps.<id>.phase`, `steps.<id>.outputs.<port>` | causal predecessors |
+| `steps.<id>.error.{code, message, retryable}` | only when `phase == "Failed"` |
+| `iteration.index` (1-based), `iteration.outputs.<port>` | inside `repeat` |
+| `event` | Trigger only |
+| `artifacts.<alias>`, `inputs.<port>` | `cel` Validator (`14-gate.md`) |
+
+Artifact and externalResource values appear as their ref objects. No side effects, no
+network, no custom functions.
+
+## Well-known value schemas
+
+`{$ref: "persimmon.ai/v1#/<Name>"}` resolves inside the engine.
+
+| Name | Shape |
+|---|---|
+| `Finding` | `{severity: error \| warning \| info, code?, message}` |
+| `ValidationResult` | `{passed, findings: Finding[], evidence: RevisionRef[], score?: 0..1}` |
+| `GateResult` | `{passed, results: {<validator>: ValidationResult}}` |
+| `RevisionRef`, `ExternalResourceRef` | `00-resource.md` |
+
+## Rules
+
+| Rule | Enforcer |
+|---|---|
+| `default` only with `required: false` | schema |
+| `default.kind` equals `type.kind` | static checker |
+| `value.schema` carries no `$ref` outside the well-known set, at any depth | static checker |
+| producer type equals consumer type; `literal` and `expression` feed `value` ports only | static checker |
+| a Binding reads only causal predecessors in scope | static checker |
+| `fromState`, `fromIterationOutput` only inside `repeat`; `fromEvent` only in Trigger | static checker |
+| `onMissing: omit` only on optional inputs, never in output bindings | static checker |
+| every `expression` parses and type-checks against its site's environment | static checker |
+| `artifactKind` resolves to a registered revisioned kind at snapshot time; admission warns | walk (`04-snapshot.md`) |
+
+## Decisions
+
+- Well-known `ArtifactRef` renamed `RevisionRef` everywhere, including the `$ref` id;
+  `CONTEXT.md` amended. `EntityRef` dropped with entity indexing (`91-roadmap.md`).
+- Step ids allow `-`. Reference allowed `_` only; every example and `logicalExecutionId` use `-`.
+- `artifact` PortType carries `artifactKind` with `x-persimmon-kind-ref`, so the snapshot
+  walk freezes the schema.
+- `fromEvent` reads an engine projection, not the raw Outbox event, because payloads are
+  pointers (`06-outbox.md`).
+- `Finding.severity` gains `info`.
+- `inputs` and `outputs` optional on a definition.
+
+## Examples
+
+- [`examples/ports-task.yaml`](examples/ports-task.yaml): ports of the `write-prd` Task;
+  validates against `#/$defs/Ports`
+- [`examples/ports-runtime-values.yaml`](examples/ports-runtime-values.yaml): one of each
+  RuntimeValue; validates against `#/$defs/RuntimeValue`
+- [`examples/ports-bindings.yaml`](examples/ports-bindings.yaml): one of each Binding
+  source; validates against `#/$defs/Binding`

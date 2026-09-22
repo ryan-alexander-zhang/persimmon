@@ -1,0 +1,160 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Ports and bindings
+description: PortType, InputSpec, OutputSpec, RuntimeValue, Binding, Duration, well-known value schemas.
+$defs:
+  PortName: {type: string, pattern: "^[a-z][a-zA-Z0-9]*$"}
+  StepId: {type: string, pattern: "^[a-z][a-z0-9-]*$"}
+  Duration: {type: string, pattern: "^[0-9]+(ms|s|m|h|d)$"}
+
+  WellKnownRef:
+    type: object
+    required: [$ref]
+    additionalProperties: false
+    properties:
+      $ref: {enum: ["persimmon.ai/v1#/Finding", "persimmon.ai/v1#/ValidationResult", "persimmon.ai/v1#/GateResult", "persimmon.ai/v1#/RevisionRef", "persimmon.ai/v1#/ExternalResourceRef"]}
+
+  PortType:
+    type: object
+    required: [kind]
+    properties:
+      kind: {enum: [value, artifact, externalResource]}
+    oneOf:
+      - properties:
+          kind: {const: value}
+          schema:
+            oneOf:
+              - {$ref: "#/$defs/WellKnownRef"}
+              - {type: object, not: {required: [$ref]}}
+        additionalProperties: false
+      - properties:
+          kind: {const: artifact}
+          artifactKind:
+            type: object
+            required: [apiVersion, kind]
+            additionalProperties: false
+            x-persimmon-kind-ref: {}
+            properties:
+              apiVersion: {$ref: "resource.yaml#/$defs/ApiVersion"}
+              kind: {$ref: "resource.yaml#/$defs/Kind"}
+        required: [artifactKind]
+        additionalProperties: false
+      - properties:
+          kind: {const: externalResource}
+          provider: {type: string, minLength: 1}
+          type: {type: string, minLength: 1}
+        required: [provider, type]
+        additionalProperties: false
+
+  RuntimeValue:
+    type: object
+    required: [kind]
+    properties:
+      kind: {enum: [value, artifact, externalResource]}
+    oneOf:
+      - properties: {kind: {const: value}, value: true}
+        required: [value]
+        additionalProperties: false
+      - properties: {kind: {const: artifact}, ref: {$ref: "resource.yaml#/$defs/RevisionRef"}}
+        required: [ref]
+        additionalProperties: false
+      - properties: {kind: {const: externalResource}, ref: {$ref: "resource.yaml#/$defs/ExternalResourceRef"}}
+        required: [ref]
+        additionalProperties: false
+
+  InputSpec:
+    type: object
+    required: [type]
+    additionalProperties: false
+    properties:
+      type: {$ref: "#/$defs/PortType"}
+      required: {type: boolean, default: true}
+      default: {$ref: "#/$defs/RuntimeValue"}
+      description: {type: string}
+    if: {properties: {required: {const: false}}, required: [required]}
+    else: {not: {required: [default]}}
+
+  OutputSpec:
+    type: object
+    required: [type]
+    additionalProperties: false
+    properties:
+      type: {$ref: "#/$defs/PortType"}
+      description: {type: string}
+
+  Ports:
+    type: object
+    additionalProperties: false
+    properties:
+      inputs: {type: object, default: {}, propertyNames: {$ref: "#/$defs/PortName"}, additionalProperties: {$ref: "#/$defs/InputSpec"}}
+      outputs: {type: object, default: {}, propertyNames: {$ref: "#/$defs/PortName"}, additionalProperties: {$ref: "#/$defs/OutputSpec"}}
+
+  RuntimeValues:
+    type: object
+    propertyNames: {$ref: "#/$defs/PortName"}
+    additionalProperties: {$ref: "#/$defs/RuntimeValue"}
+
+  Binding:
+    type: object
+    properties:
+      onMissing: {const: omit}
+    oneOf:
+      - properties: {literal: true}
+        required: [literal]
+        additionalProperties: false
+      - properties: {fromInput: {$ref: "#/$defs/PortName"}, onMissing: true}
+        required: [fromInput]
+        additionalProperties: false
+      - properties:
+          fromStep:
+            type: object
+            required: [stepRef, output]
+            additionalProperties: false
+            properties: {stepRef: {$ref: "#/$defs/StepId"}, output: {$ref: "#/$defs/PortName"}}
+          onMissing: true
+        required: [fromStep]
+        additionalProperties: false
+      - properties: {fromState: {$ref: "#/$defs/PortName"}, onMissing: true}
+        required: [fromState]
+        additionalProperties: false
+      - properties: {fromIterationOutput: {$ref: "#/$defs/PortName"}, onMissing: true}
+        required: [fromIterationOutput]
+        additionalProperties: false
+      - properties: {expression: {type: string, minLength: 1}}
+        required: [expression]
+        additionalProperties: false
+      - properties: {fromEvent: {type: string, pattern: "^[a-z][a-zA-Z0-9]*(\\.[a-zA-Z0-9_]+)*$"}, onMissing: true}
+        required: [fromEvent]
+        additionalProperties: false
+
+  Bindings:
+    type: object
+    propertyNames: {$ref: "#/$defs/PortName"}
+    additionalProperties: {$ref: "#/$defs/Binding"}
+
+  # Well-known value schemas, addressable as persimmon.ai/v1#/<Name>
+  Finding:
+    type: object
+    required: [severity, message]
+    additionalProperties: false
+    properties:
+      severity: {enum: [error, warning, info]}
+      code: {type: string}
+      message: {type: string}
+
+  ValidationResult:
+    type: object
+    required: [passed, findings, evidence]
+    additionalProperties: false
+    properties:
+      passed: {type: boolean}
+      findings: {type: array, items: {$ref: "#/$defs/Finding"}}
+      evidence: {type: array, items: {$ref: "resource.yaml#/$defs/RevisionRef"}}
+      score: {type: number, minimum: 0, maximum: 1}
+
+  GateResult:
+    type: object
+    required: [passed, results]
+    additionalProperties: false
+    properties:
+      passed: {type: boolean}
+      results: {type: object, additionalProperties: {$ref: "#/$defs/ValidationResult"}}

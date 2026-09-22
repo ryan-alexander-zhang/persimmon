@@ -1,0 +1,9 @@
+# One of each Binding source. Each item validates against ports.yaml#/$defs/Binding.
+- {literal: 12}
+- {fromInput: research}
+- {fromStep: {stepRef: research, output: report}}
+- {fromState: draft, onMissing: omit}
+- {fromIterationOutput: prd}
+- {expression: 'steps.review.outputs.result.passed && inputs.maxRounds > 1'}   # Workflow site
+- {fromEvent: artifact}                                                         # artifactPublished root
+- {fromEvent: content.targetPrd}
