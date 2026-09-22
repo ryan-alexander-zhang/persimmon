@@ -1,0 +1,110 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Outbox
+description: Outbox event, framework payloads, subscription delivery.
+$defs:
+  EventId: {$ref: "resource.yaml#/$defs/Digest"}
+
+  Producer:
+    type: object
+    required: [uid, sequence]
+    additionalProperties: false
+    properties:
+      uid: {type: string, minLength: 1}
+      sequence: {type: integer, minimum: 1}
+
+  OutboxEvent:
+    type: object
+    required: [eventId, type, time, subject, ordinal, actor, causationChain, payload]
+    additionalProperties: false
+    properties:
+      eventId: {$ref: "#/$defs/EventId"}
+      type: {$ref: "reconcile.yaml#/$defs/OutboxEventType"}
+      time: {type: string, format: date-time}
+      subject:
+        oneOf:
+          - {$ref: "resource.yaml#/$defs/ObjectRef"}
+          - {$ref: "resource.yaml#/$defs/RevisionRef"}
+      producer: {$ref: "#/$defs/Producer"}
+      ordinal: {type: integer, minimum: 0}
+      actor: {$ref: "resource.yaml#/$defs/Actor"}
+      causationChain: {type: array, items: {$ref: "#/$defs/EventId"}}
+      payload: {type: object}
+    allOf:
+      - if: {properties: {type: {const: resource.created}}}
+        then:
+          properties: {payload: {type: object, additionalProperties: false}}
+          not: {required: [producer]}
+      - if: {properties: {type: {const: resource.finished}}}
+        then:
+          required: [producer]
+          properties:
+            payload:
+              type: object
+              required: [value]
+              additionalProperties: false
+              properties:
+                value: {type: string}
+      - if: {properties: {type: {const: resource.stalled}}}
+        then:
+          properties:
+            actor: {const: {kind: service, id: engine}}
+            payload:
+              type: object
+              required: [attempts]
+              additionalProperties: false
+              properties:
+                attempts: {type: integer, minimum: 1}
+                lastError: {type: string}
+      - if: {properties: {type: {const: artifact.published}}}
+        then:
+          required: [producer]
+          properties:
+            subject: {$ref: "resource.yaml#/$defs/RevisionRef"}
+            payload:
+              type: object
+              required: [contentDigest]
+              additionalProperties: false
+              properties:
+                contentDigest: {$ref: "resource.yaml#/$defs/Digest"}
+      - if: {properties: {type: {const: event.suppressed}}}
+        then:
+          properties:
+            actor: {const: {kind: service, id: engine}}
+            payload:
+              type: object
+              required: [suppressedEventId, suppressedType, causationChain]
+              additionalProperties: false
+              properties:
+                suppressedEventId: {$ref: "#/$defs/EventId"}
+                suppressedType: {$ref: "reconcile.yaml#/$defs/OutboxEventType"}
+                causationChain: {type: array, minItems: 33, items: {$ref: "#/$defs/EventId"}}
+          not: {required: [producer]}
+
+  Subscription:
+    type: object
+    required: [eventType]
+    additionalProperties: false
+    properties:
+      eventType: {$ref: "reconcile.yaml#/$defs/OutboxEventType"}
+      filter: {type: string, minLength: 1}
+
+  Delivery:
+    type: object
+    required: [event, subscription, receivers, signal]
+    additionalProperties: false
+    properties:
+      event: {$ref: "#/$defs/OutboxEvent"}
+      subscription:
+        type: object
+        required: [kind, subscription]
+        additionalProperties: false
+        properties:
+          kind: {$ref: "resource.yaml#/$defs/Kind"}
+          subscription: {$ref: "#/$defs/Subscription"}
+      receivers: {type: array, minItems: 1, items: {$ref: "resource.yaml#/$defs/ObjectRef"}}
+      signal:
+        allOf:
+          - {$ref: "reconcile.yaml#/$defs/Event"}
+          - properties:
+              type: {const: Signal}
+              payload: {properties: {source: {const: outbox}}}

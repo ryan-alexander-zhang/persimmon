@@ -29,5 +29,5 @@ spec:
     values: [Succeeded, Failed, Cancelled]
   subscriptions:
     - eventType: artifact.published
-    - eventType: resource.statusChanged
-      filter: 'event.payload.kind == "WorkflowRun"'
+    - eventType: resource.finished
+      filter: 'event.subject.kind == "WorkflowRun"'   # workflowRef and phases checked by the trigger Handler via getResource

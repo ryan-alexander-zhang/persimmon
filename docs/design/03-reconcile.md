@@ -9,7 +9,7 @@ Event ──append──▶ RunLog(uid) ──▶ dispatcher ──▶ lease(uid
                                                                      │
         ┌────────────────────── ONE transaction ─────────────────────┘
         │  statusPatch (statusSchema)   actions[]   outbox events   ack(uid, sequence)
-        └─▶ terminal reached? ──▶ ChildFinished to owner   resource.statusChanged to Outbox
+        └─▶ terminal reached? ──▶ ChildFinished to owner   resource.finished to Outbox
 ```
 
 ## Events
@@ -55,7 +55,7 @@ A lost lease refuses the commit.
    emitted Outbox event, then ack `(uid, sequence)`.
 3. Failure anywhere discards everything; the Event is redelivered.
 4. Kinds with `terminal` only: if `status.<terminal.path>` now holds a terminal value, append
-   ChildFinished to the owner, emit `resource.statusChanged`, abandon every publication scope
+   ChildFinished to the owner, emit `resource.finished`, abandon every publication scope
    of this Resource still open. A later AdapterFinished is still delivered; the Handler ignores it.
 
 ## callAdapter

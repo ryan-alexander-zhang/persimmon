@@ -33,8 +33,8 @@ KindDefinition workflows.persimmon.ai
 | `stepContract` | optional; see below |
 | `subscriptions[]` | `{eventType, filter?}`; `eventType` open string (`06-outbox.md`); `filter` CEL over the event; needs `handlerRef` |
 
-A matching Outbox event reaches every Resource of the kind as a Signal. `filter` narrows at
-kind level; the Handler narrows per Resource.
+A matching Outbox event reaches every Resource of the kind in the subject's Namespace as a
+Signal (`06-outbox.md`). `filter` narrows at kind level; the Handler narrows per Resource.
 
 ## Schema annotations
 

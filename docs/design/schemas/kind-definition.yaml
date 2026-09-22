@@ -72,13 +72,7 @@ $defs:
       stepContract: {$ref: "#/$defs/StepContract"}
       subscriptions:
         type: array
-        items:
-          type: object
-          required: [eventType]
-          additionalProperties: false
-          properties:
-            eventType: {$ref: "reconcile.yaml#/$defs/OutboxEventType"}
-            filter: {type: string, minLength: 1}
+        items: {$ref: "outbox.yaml#/$defs/Subscription"}
     dependentRequired:
       subscriptions: [handlerRef]
     if: {properties: {revisioned: {const: true}}, required: [revisioned]}
