@@ -1,0 +1,13 @@
+# Default local config with every field explicit. persimmon.yaml
+mode: local
+store: {sqlite: .persimmon/persimmon.db}
+blobs: .persimmon/blobs
+defaultNamespace: default
+credentials:
+  - {source: env, prefix: PERSIMMON_CRED_}
+  - {source: file, path: .persimmon/credentials.yaml}
+  - {source: keychain}
+maxReconcileAttempts: 10
+maxCausationDepth: 32
+defaultCallDeadline: 1h
+leaseTtl: 30s

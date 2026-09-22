@@ -17,7 +17,7 @@ properties:
 $defs:
   Role: {type: string, pattern: "^[a-z][a-zA-Z0-9]*$"}
   Op: {type: string, pattern: "^[a-z][a-zA-Z0-9]*$"}
-  CredentialName: {$ref: "resource.yaml#/$defs/DnsLabel"}
+  CredentialName: {$ref: "store.yaml#/$defs/GlobalCredentialName"}
 
   Spec:
     type: object

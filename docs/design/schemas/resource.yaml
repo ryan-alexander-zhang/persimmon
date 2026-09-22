@@ -136,4 +136,4 @@ $defs:
       name: {$ref: "#/$defs/DnsSubdomain"}
       uid: {type: string, minLength: 1}
       generation: {type: integer, minimum: 1}
-      change: {enum: [create, spec, status, metadata, delete]}
+      change: {enum: [create, spec, status, metadata, delete, signal]}

@@ -30,7 +30,7 @@ Read top to bottom within a layer; a file depends only on files above it.
 | `docs/design/05-revisioned-kind.md` | Identity, revision, provenance, representations, Publication scope | draft |
 | `docs/design/06-outbox.md` | Outbox event, subscription, causation chain, loop guard | draft |
 | `docs/design/07-adapter.md` | Adapter resource, `persimmon.adapter/v1` part A, handler Role, Engine callbacks | draft |
-| `docs/design/08-store.md` | Store interface, local and server Mode, credentials, authorization | planned |
+| `docs/design/08-store.md` | Store interface, local and server Mode, credentials, authorization | draft |
 
 ## Layer 1: core kinds
 

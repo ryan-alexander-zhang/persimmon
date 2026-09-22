@@ -75,7 +75,7 @@ shape, cross-field. Fail at any stage: nothing stored.
 
 ## Audit
 
-One record per write, appended in the same transaction.
+One record per write and per external Signal, appended in the same transaction.
 
 | Field | Rule |
 |---|---|
@@ -83,7 +83,7 @@ One record per write, appended in the same transaction.
 | `time` | RFC 3339 |
 | `kind`, `namespace?`, `name`, `uid` | the Resource |
 | `generation` | after the write |
-| `change` | `create` \| `spec` \| `status` \| `metadata` \| `delete` |
+| `change` | `create` \| `spec` \| `status` \| `metadata` \| `delete` \| `signal` |
 
 ## Lifecycle
 
@@ -100,7 +100,7 @@ Deviations from `docs/reference/05-framework.md`, taken here:
 - Envelope and `metadata` are closed sets.
 - `apiVersion` grammar is `v<n>` only; no alpha or beta.
 - Audit record gains `namespace` and a closed `change` set with `metadata` for engine-only
-  writes.
+  writes and `signal` for external Signals.
 - Handlers act as Actor kind `handler`; reference said `service`.
 - One `ownerReference` at most.
 

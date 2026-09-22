@@ -1,0 +1,122 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Engine config
+description: persimmon.yaml. Store, mode, limits, auth, grants. The Store interface itself is prose in 08-store.md.
+type: object
+additionalProperties: false
+properties:
+  mode: {enum: [local, server], default: local}
+  store:
+    type: object
+    additionalProperties: false
+    minProperties: 1
+    maxProperties: 1
+    default: {sqlite: .persimmon/persimmon.db}
+    properties:
+      sqlite: {type: string, minLength: 1}
+      postgres: {type: string, pattern: "^postgres(ql)?://"}
+  blobs: {type: string, pattern: "^(s3://[^/]+(/.*)?|[^:]+)$", default: .persimmon/blobs}
+  defaultNamespace: {$ref: "resource.yaml#/$defs/DnsLabel", default: default}
+  credentials:
+    type: array
+    minItems: 1
+    default: [{source: env}]
+    items: {$ref: "#/$defs/CredentialSource"}
+  maxReconcileAttempts: {type: integer, minimum: 1, default: 10}
+  maxCausationDepth: {type: integer, minimum: 1, default: 32}
+  defaultCallDeadline: {$ref: "#/$defs/Duration", default: 1h}
+  leaseTtl: {$ref: "#/$defs/Duration", default: 30s}
+  server: {$ref: "#/$defs/Server"}
+allOf:
+  - if: {properties: {mode: {const: server}}, required: [mode]}
+    then:
+      required: [server]
+      properties:
+        credentials: {items: {properties: {source: {enum: [env, file, secretManager]}}}}
+  - if: {not: {properties: {mode: {const: server}}, required: [mode]}}
+    then:
+      not: {required: [server]}
+      properties:
+        credentials: {items: {properties: {source: {enum: [env, file, keychain]}}}}
+
+$defs:
+  Duration: {type: string, pattern: "^[0-9]+(ms|s|m|h|d)$"}
+
+  CredentialSource:
+    type: object
+    required: [source]
+    additionalProperties: false
+    properties:
+      source: {enum: [env, file, keychain, secretManager]}
+      prefix: {type: string, pattern: "^[A-Z][A-Z0-9_]*$", default: PERSIMMON_CRED_}
+      path: {type: string, minLength: 1}
+      url: {type: string, pattern: "^https://"}
+    allOf:
+      - if: {properties: {source: {const: file}}}
+        then: {required: [path], not: {anyOf: [{required: [url]}, {required: [prefix]}]}}
+      - if: {properties: {source: {const: secretManager}}}
+        then: {required: [url], not: {anyOf: [{required: [path]}, {required: [prefix]}]}}
+      - if: {properties: {source: {const: env}}}
+        then: {not: {anyOf: [{required: [path]}, {required: [url]}]}}
+      - if: {properties: {source: {const: keychain}}}
+        then: {not: {anyOf: [{required: [path]}, {required: [url]}, {required: [prefix]}]}}
+
+  ActorKey:
+    type: object
+    required: [kind, id]
+    additionalProperties: false
+    properties:
+      kind: {enum: [user, service]}
+      id: {type: string, minLength: 1}
+
+  Grant:
+    type: object
+    required: [actor, namespaces]
+    additionalProperties: false
+    properties:
+      actor: {$ref: "#/$defs/ActorKey"}
+      namespaces:
+        oneOf:
+          - {const: "*"}
+          - {type: array, minItems: 1, items: {$ref: "resource.yaml#/$defs/DnsLabel"}}
+      admin: {type: boolean, default: false}
+
+  Server:
+    type: object
+    required: [listen, tls, auth, grants]
+    additionalProperties: false
+    properties:
+      listen: {type: string, pattern: "^[^:]*:[0-9]+$"}
+      tls:
+        type: object
+        required: [cert, key]
+        additionalProperties: false
+        properties:
+          cert: {type: string, minLength: 1}
+          key: {type: string, minLength: 1}
+      auth:
+        type: object
+        required: [tokens]
+        additionalProperties: false
+        properties:
+          tokens:
+            type: array
+            minItems: 1
+            items:
+              type: object
+              required: [actor, tokenHash]
+              additionalProperties: false
+              properties:
+                actor: {$ref: "#/$defs/ActorKey"}
+                tokenHash: {$ref: "resource.yaml#/$defs/Digest"}
+      grants: {type: array, minItems: 1, items: {$ref: "#/$defs/Grant"}}
+
+  GlobalCredentialName: {$ref: "resource.yaml#/$defs/DnsLabel"}
+
+  CredentialName:
+    type: string
+    pattern: "^([a-z0-9]([-a-z0-9]*[a-z0-9])?/)?[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+
+  CredentialsFile:
+    type: object
+    propertyNames: {$ref: "#/$defs/CredentialName"}
+    additionalProperties: {type: string}

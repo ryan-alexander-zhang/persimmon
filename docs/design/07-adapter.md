@@ -92,7 +92,7 @@ Adapters reach the engine only here, at `engine.endpoint`, with a token.
 |---|---|---|---|
 | reconcile token | in a `reconcile` request | when the reconcile commits or fails | all but `signal` |
 | call token | in a `callAdapter` payload | when AdapterFinished is recorded, or at the deadline | all but `signal` |
-| adapter token | at apply, into CredentialStore `adapter/<id>` | on re-apply | `signal`, http response post |
+| adapter token | at apply, kept in the TokenStore (`08-store.md`), handed to the Adapter as `PERSIMMON_ADAPTER_TOKEN` (stdio) or in the `describe` response headers (http) | on re-apply | `signal`, http response post |
 
 ## Rules
 

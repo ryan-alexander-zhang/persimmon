@@ -1,0 +1,22 @@
+# Server config: Postgres, s3 blobs, secret manager, bearer tokens, grants.
+mode: server
+store: {postgres: postgres://persimmon@db.internal.example/persimmon}
+blobs: s3://persimmon-blobs/prod
+defaultNamespace: default
+credentials:
+  - {source: secretManager, url: https://vault.internal.example/v1/persimmon}
+maxReconcileAttempts: 10
+maxCausationDepth: 32
+defaultCallDeadline: 2h
+leaseTtl: 30s
+server:
+  listen: 0.0.0.0:8443
+  tls: {cert: /etc/persimmon/tls.crt, key: /etc/persimmon/tls.key}
+  auth:
+    tokens:
+      - {actor: {kind: user, id: ryan}, tokenHash: sha256:7a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f9}
+      - {actor: {kind: service, id: ci-bot}, tokenHash: sha256:8b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a}
+  grants:
+    - {actor: {kind: user, id: ryan}, namespaces: "*", admin: true}
+    - {actor: {kind: user, id: payments-team}, namespaces: [payments, demo]}
+    - {actor: {kind: service, id: ci-bot}, namespaces: [demo]}

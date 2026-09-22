@@ -58,7 +58,7 @@ The engine keeps the chain per Resource in the RunLog; it is not in `metadata`.
 | match | `type == eventType` and `filter` (CEL over `event` only) is true or absent |
 | receivers | every Resource of the kind in the subject's Namespace, not at a terminal value; a Global subject reaches every Namespace |
 | self | an ObjectRef subject never receives its own event |
-| delivery | Signal `{source: outbox, eventId, payload: event}` appended to each receiver's RunLog, then `ack(eventId)` |
+| delivery | engine claims the event (`08-store.md`), appends Signal `{source: outbox, eventId, payload: event}` to each receiver's RunLog, then `ack(eventId)` |
 | guarantee | at-least-once; `dedupeKey: signal/<eventId>` makes redelivery a no-op |
 | loop guard | chain length > `maxCausationDepth` (engine config, default 32, `08-store.md`): not delivered, one `event.suppressed` per suppressed event |
 
