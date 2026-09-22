@@ -12,7 +12,7 @@ steps:
         state: staged
   - at: "2026-09-21T10:09:00Z"
     by: engine
-    does: delivers AdapterFinished state failed, error schema_violation (TaskResult output type mismatch)
+    does: delivers AdapterFinished state failed, error timeout (retryable)
   - at: "2026-09-21T10:09:01Z"
     by: handler
     does: abandonScope(prd-create-001//write-prd/1); clearTimer(deadline); setTimer(backoff)

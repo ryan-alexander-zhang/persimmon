@@ -1,0 +1,27 @@
+# Agent Task: writes a PRD from research, with a repository file, a Prompt and a Skill in context.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: write-prd, namespace: demo}
+spec:
+  inputs:
+    research: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport}}}
+    repository: {type: {kind: externalResource, provider: git, type: repository}, required: false}
+    maxRequirements: {type: {kind: value, schema: {type: integer, minimum: 1}}, required: false, default: {kind: value, value: 12}}
+  outputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement}}}
+  executorRef: {kind: Executor, name: claude-agent}
+  action:
+    instructions: "Write the PRD. Preserve entity ids. Respect the maxRequirements input."
+    context:
+      - {kind: file, input: repository, path: AGENTS.md}
+      - {kind: artifact, input: research}
+      - {kind: prompt, ref: {kind: Prompt, name: write-prd-template}}
+      - {kind: skill, ref: {kind: Skill, name: prd-writer}}
+    parameters: {effort: high}
+  timeout: 30m
+  retryPolicy:
+    maxAttempts: 3
+    backoff: {strategy: exponential, initial: 30s, max: 5m, jitter: full}
+    retryOn: [timeout, rate_limit, transient_network]
+    abortOn: [permission_denied, invalid_input, schema_violation]
+  sideEffects: none

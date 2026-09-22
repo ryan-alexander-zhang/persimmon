@@ -1,0 +1,41 @@
+# Task KindDefinition: handler for validate only, usable as a step, refs annotated for the snapshot walk.
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata:
+  name: tasks.persimmon.ai
+spec:
+  group: persimmon.ai
+  names: {kind: Task, plural: tasks}
+  scope: Any
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [executorRef, action, timeout, sideEffects]
+        properties:
+          executorRef: {type: object, x-persimmon-ref: {kinds: [Executor]}}
+          action:
+            type: object
+            properties:
+              context:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    ref: {type: object, x-persimmon-ref: {kinds: [Prompt, Skill]}}
+          outputs:
+            type: object
+            additionalProperties:
+              type: object
+              properties:
+                type: {type: object, properties: {artifactKind: {type: object, x-persimmon-kind-ref: {}}}}
+  mutability: SpecMutable
+  snapshot: Definition
+  handlerRef: {name: task}
+  stepContract:
+    inputsPath: spec.inputs
+    outputsPath: spec.outputs
+    runKind: {group: persimmon.ai, kind: TaskRun}
+    phasePath: status.phase
+    outputsValuePath: status.outputs
+    errorPath: status.error

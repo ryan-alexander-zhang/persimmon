@@ -22,7 +22,7 @@ KindDefinition workflows.persimmon.ai
 |---|---|
 | `group` | DNS subdomain |
 | `names.kind`, `names.plural` | PascalCase; lowercase plural |
-| `scope` | `Namespaced` \| `Global` |
+| `scope` | `Namespaced` \| `Global` \| `Any`; Any: a Resource may carry a Namespace or not, and a Namespaced one shadows the Global one by name |
 | `versions[]` | `{name: v<n>, schema, statusSchema?}`; JSON Schema 2020-12 for `spec` and `status`; no conversion; Handlers declare accepted versions (`02-handler.md`) |
 | `mutability` | `SpecMutable` \| `Immutable`; Immutable freezes `spec` after create |
 | `revisioned` | default false; true forces `Immutable`, `Namespaced`, `snapshot: None`, no `statusSchema`; `schema` then validates `spec.content` (`05-revisioned-kind.md`) |
@@ -76,6 +76,9 @@ No closed list of step kinds exists anywhere in the engine.
 | Global: no `namespace`; write needs `admin` grant | write path (`00-resource.md`) |
 
 ## Decisions
+
+- `scope: Any` added for definition kinds, so a pack ships Global definitions that a
+  Namespace overrides by name (reference decision 26). Reference had `Namespaced | Global`.
 
 - `terminal` optional with `handlerRef`. Definition kinds (Workflow, Task) have a Handler
   for `validate` and never finish. Reference required `terminal` whenever `handlerRef` was set.

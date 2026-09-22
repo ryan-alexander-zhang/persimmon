@@ -11,7 +11,7 @@ resources:
   - apiVersion: persimmon.ai/v1
     kind: KindDefinition
     metadata: {name: executors.persimmon.ai}
-    spec: {group: persimmon.ai, names: {kind: Executor, plural: executors}, scope: Namespaced, versions: [{name: v1, schema: {type: object, properties: {adapter: {type: string, x-persimmon-adapter: {roles: [executor]}}}}}], mutability: SpecMutable, snapshot: Definition}
+    spec: {group: persimmon.ai, names: {kind: Executor, plural: executors}, scope: Any, versions: [{name: v1, schema: {type: object, properties: {adapter: {type: string, x-persimmon-adapter: {roles: [executor]}}}}}], mutability: SpecMutable, snapshot: Definition}
   - apiVersion: persimmon.ai/v1
     kind: KindDefinition
     metadata: {name: productrequirements.engineering.persimmon.ai}
@@ -19,21 +19,40 @@ resources:
   - apiVersion: persimmon.ai/v1
     kind: KindDefinition
     metadata: {name: prompts.persimmon.ai}
-    spec: {group: persimmon.ai, names: {kind: Prompt, plural: prompts}, scope: Namespaced, versions: [{name: v1, schema: {type: object}}], mutability: SpecMutable, snapshot: Definition}
+    spec: {group: persimmon.ai, names: {kind: Prompt, plural: prompts}, scope: Any, versions: [{name: v1, schema: {type: object}}], mutability: SpecMutable, snapshot: Definition}
+  - apiVersion: persimmon.ai/v1
+    kind: KindDefinition
+    metadata: {name: skills.persimmon.ai}
+    spec: {group: persimmon.ai, names: {kind: Skill, plural: skills}, scope: Any, versions: [{name: v1, schema: {type: object}}], mutability: SpecMutable, snapshot: Definition}
   - apiVersion: persimmon.ai/v1
     kind: KindDefinition
     metadata: {name: tasks.persimmon.ai}
-    spec: {group: persimmon.ai, names: {kind: Task, plural: tasks}, scope: Namespaced, versions: [{name: v1, schema: {type: object, properties: {executorRef: {x-persimmon-ref: {kinds: [Executor]}}, outputs: {additionalProperties: {properties: {type: {properties: {artifactKind: {x-persimmon-kind-ref: {}}}}}}}}}}], mutability: SpecMutable, snapshot: Definition}
+    spec:
+      group: persimmon.ai
+      names: {kind: Task, plural: tasks}
+      scope: Any
+      versions: [{name: v1, schema: {type: object, properties: {executorRef: {x-persimmon-ref: {kinds: [Executor]}}, action: {properties: {context: {items: {properties: {ref: {x-persimmon-ref: {kinds: [Prompt, Skill]}}}}}}}, outputs: {additionalProperties: {properties: {type: {properties: {artifactKind: {x-persimmon-kind-ref: {}}}}}}}}}}]
+      mutability: SpecMutable
+      snapshot: Definition
+      handlerRef: {name: task}
+      stepContract: {inputsPath: spec.inputs, outputsPath: spec.outputs, runKind: {group: persimmon.ai, kind: TaskRun}, phasePath: status.phase, outputsValuePath: status.outputs, errorPath: status.error}
   - apiVersion: persimmon.ai/v1
     kind: KindDefinition
     metadata: {name: workflows.persimmon.ai}
-    spec: {group: persimmon.ai, names: {kind: Workflow, plural: workflows}, scope: Namespaced, versions: [{name: v1, schema: {type: object}}], mutability: SpecMutable, snapshot: Definition}
+    spec: {group: persimmon.ai, names: {kind: Workflow, plural: workflows}, scope: Any, versions: [{name: v1, schema: {type: object}}], mutability: SpecMutable, snapshot: Definition}
   - apiVersion: persimmon.ai/v1
     kind: Prompt
     metadata: {name: write-prd-template, namespace: demo}
     spec:
       mediaType: text/markdown
       content: "You are writing a product requirement document. Preserve entity ids."
+  - apiVersion: persimmon.ai/v1
+    kind: Skill
+    metadata: {name: prd-writer, namespace: demo}
+    spec:
+      source: {provider: git, type: repository, id: github.com/persimmon-ai/skills, locator: {remote: https://github.com/persimmon-ai/skills.git, path: prd-writer}, version: 2f9a1c0e7b3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f}
+      digest: sha256:9c8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d9c8b
+      format: claude-code-skill/v1
   - apiVersion: persimmon.ai/v1
     kind: Task
     metadata: {name: research, namespace: demo}
@@ -48,13 +67,27 @@ resources:
     kind: Task
     metadata: {name: write-prd, namespace: demo}
     spec:
+      inputs:
+        research: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport}}}
+        repository: {type: {kind: externalResource, provider: git, type: repository}, required: false}
+        maxRequirements: {type: {kind: value, schema: {type: integer, minimum: 1}}, required: false, default: {kind: value, value: 12}}
+      outputs:
+        prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement}}}
       executorRef: {kind: Executor, name: claude-agent}
       action:
-        instructions: "Write the PRD."
-        context: [{kind: prompt, ref: {kind: Prompt, name: write-prd-template}}]
-      inputs: {research: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport}}}}
-      outputs: {prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement}}}}
+        instructions: "Write the PRD. Preserve entity ids. Respect the maxRequirements input."
+        context:
+          - {kind: file, input: repository, path: AGENTS.md}
+          - {kind: artifact, input: research}
+          - {kind: prompt, ref: {kind: Prompt, name: write-prd-template}}
+          - {kind: skill, ref: {kind: Skill, name: prd-writer}}
+        parameters: {effort: high}
       timeout: 30m
+      retryPolicy:
+        maxAttempts: 3
+        backoff: {strategy: exponential, initial: 30s, max: 5m, jitter: full}
+        retryOn: [timeout, rate_limit, transient_network]
+        abortOn: [permission_denied, invalid_input, schema_violation]
       sideEffects: none
   - apiVersion: persimmon.ai/v1
     kind: Workflow

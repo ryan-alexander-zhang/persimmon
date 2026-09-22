@@ -1,0 +1,98 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Task
+description: One unit of work, executor-agnostic. Definition kind.
+type: object
+required: [apiVersion, kind, metadata, spec]
+additionalProperties: false
+properties:
+  apiVersion: {const: persimmon.ai/v1}
+  kind: {const: Task}
+  metadata: {$ref: "resource.yaml#/$defs/Metadata"}   # scope Any: Namespaced or Global
+  spec: {$ref: "#/$defs/Spec"}
+  status: {type: object}
+
+$defs:
+  ErrorCode: {type: string, pattern: "^[a-z][a-z0-9_]*$"}
+
+  Spec:
+    type: object
+    required: [executorRef, action, timeout, sideEffects]
+    additionalProperties: false
+    properties:
+      inputs: {$ref: "ports.yaml#/$defs/Ports/properties/inputs"}
+      outputs: {$ref: "ports.yaml#/$defs/Ports/properties/outputs"}
+      executorRef:
+        allOf: [{$ref: "resource.yaml#/$defs/LocalDefinitionRef"}, {properties: {kind: {const: Executor}}}]
+        x-persimmon-ref: {kinds: [Executor]}
+      action: {$ref: "#/$defs/Action"}
+      timeout: {$ref: "ports.yaml#/$defs/Duration"}
+      retryPolicy: {$ref: "#/$defs/RetryPolicy"}
+      sideEffects: {enum: [none, idempotent, nonIdempotent]}
+
+  Action:
+    type: object
+    required: [instructions]
+    additionalProperties: false
+    properties:
+      instructions: {type: string, minLength: 1}
+      context: {type: array, items: {$ref: "#/$defs/ContextEntry"}}
+      parameters: {type: object}
+
+  ContextEntry:
+    type: object
+    required: [kind]
+    properties:
+      kind: {enum: [file, artifact, prompt, skill]}
+    oneOf:
+      - properties:
+          kind: {const: file}
+          input: {$ref: "ports.yaml#/$defs/PortName"}
+          path: {type: string, minLength: 1}
+        required: [input, path]
+        additionalProperties: false
+      - properties:
+          kind: {const: artifact}
+          input: {$ref: "ports.yaml#/$defs/PortName"}
+        required: [input]
+        additionalProperties: false
+      - properties:
+          kind: {const: prompt}
+          ref:
+            allOf: [{$ref: "resource.yaml#/$defs/LocalDefinitionRef"}, {properties: {kind: {const: Prompt}}}]
+            x-persimmon-ref: {kinds: [Prompt]}
+        required: [ref]
+        additionalProperties: false
+      - properties:
+          kind: {const: skill}
+          ref:
+            allOf: [{$ref: "resource.yaml#/$defs/LocalDefinitionRef"}, {properties: {kind: {const: Skill}}}]
+            x-persimmon-ref: {kinds: [Skill]}
+        required: [ref]
+        additionalProperties: false
+
+  RetryPolicy:
+    type: object
+    required: [maxAttempts, backoff]
+    additionalProperties: false
+    properties:
+      maxAttempts: {type: integer, minimum: 1}
+      backoff:
+        type: object
+        required: [strategy, initial, max]
+        additionalProperties: false
+        properties:
+          strategy: {enum: [fixed, linear, exponential]}
+          initial: {$ref: "ports.yaml#/$defs/Duration"}
+          max: {$ref: "ports.yaml#/$defs/Duration"}
+          jitter: {enum: [none, full], default: none}
+      retryOn: {type: array, uniqueItems: true, items: {$ref: "#/$defs/ErrorCode"}}
+      abortOn: {type: array, uniqueItems: true, items: {$ref: "#/$defs/ErrorCode"}}
+
+  TaskResult:
+    type: object
+    required: [protocol, outputs]
+    additionalProperties: false
+    properties:
+      protocol: {const: persimmon.result/v1}
+      outputs: {$ref: "ports.yaml#/$defs/RuntimeValues"}
+      summary: {type: string}

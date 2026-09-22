@@ -7,10 +7,7 @@ additionalProperties: false
 properties:
   apiVersion: {const: persimmon.ai/v1}
   kind: {const: Workflow}
-  metadata:
-    allOf:
-      - {$ref: "resource.yaml#/$defs/Metadata"}
-      - required: [namespace]
+  metadata: {$ref: "resource.yaml#/$defs/Metadata"}   # scope Any: Namespaced or Global
   spec: {$ref: "#/$defs/Spec"}
   status: {type: object}
 

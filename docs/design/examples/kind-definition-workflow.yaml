@@ -6,7 +6,7 @@ metadata:
 spec:
   group: persimmon.ai
   names: {kind: Workflow, plural: workflows}
-  scope: Namespaced
+  scope: Any
   versions:
     - name: v1
       schema:

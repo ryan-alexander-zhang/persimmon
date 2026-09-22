@@ -1,0 +1,16 @@
+# Human Task: a reviewer answers a Validator's question. Same shape as the agent Task; only executorRef differs.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: approve-prd, namespace: demo}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement}}}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
+  executorRef: {kind: Executor, name: product-reviewers}
+  action:
+    instructions: "Approve or reject this PRD. List blocking findings."
+    context:
+      - {kind: artifact, input: prd}
+  timeout: 48h
+  sideEffects: none

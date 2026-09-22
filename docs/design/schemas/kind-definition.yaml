@@ -40,7 +40,7 @@ $defs:
         properties:
           kind: {$ref: "resource.yaml#/$defs/Kind"}
           plural: {$ref: "resource.yaml#/$defs/DnsLabel"}
-      scope: {enum: [Namespaced, Global]}
+      scope: {enum: [Namespaced, Global, Any]}
       versions:
         type: array
         minItems: 1

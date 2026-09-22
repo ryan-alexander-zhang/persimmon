@@ -112,6 +112,9 @@ without `repeat`, `<stepId>[<index>]` per enclosing repeat level, joined by `/`.
 
 ## Decisions
 
+- Workflow is `scope: Any` (`01-kind-definition.md`): pack Workflows are Global, overridable
+  by Namespace.
+
 - Mixed `to` lists are legal with `dispatch: first`; the static rule bounds `dispatch: all`
   only. Reference rule 6 read as a rule on the fired set.
 - A Failed outcome is consumed when the step's Transition lists `Failed`; decidable statically,

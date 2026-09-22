@@ -1,0 +1,7 @@
+# TaskResult returned by attempt prd-create-001//write-prd/2. The artifact was staged in that attempt's Publication scope.
+protocol: persimmon.result/v1
+outputs:
+  prd:
+    kind: artifact
+    ref: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement, namespace: demo, id: checkout-v2, revision: 3}
+summary: "Drafted 9 requirements from 3 research findings."

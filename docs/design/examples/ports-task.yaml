@@ -1,8 +1,11 @@
-# Ports of Task write-prd: one required artifact input, one optional value input with a default, one artifact output.
+# Ports of Task write-prd: a required artifact input, an optional externalResource input, an optional value input with a default, one artifact output.
 inputs:
   research:
     type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport}}
     description: Research the PRD builds on.
+  repository:
+    type: {kind: externalResource, provider: git, type: repository}
+    required: false
   maxRequirements:
     type: {kind: value, schema: {type: integer, minimum: 1}}
     required: false

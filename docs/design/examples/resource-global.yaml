@@ -10,7 +10,7 @@ metadata:
 spec:
   group: persimmon.ai
   names: {kind: Prompt, plural: prompts}
-  scope: Namespaced
+  scope: Any
   versions:
     - name: v1
       schema:
