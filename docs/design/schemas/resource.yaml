@@ -40,7 +40,7 @@ $defs:
     required: [uri, digest]
     additionalProperties: false
     properties:
-      uri: {type: string, format: uri}
+      uri: {type: string, pattern: "^snapshot://[a-f0-9]{64}$"}
       digest: {$ref: "#/$defs/Digest"}
 
   StringMap:

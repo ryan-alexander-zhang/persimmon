@@ -1,0 +1,36 @@
+# A repeat body run gets its own closure: the parent handler passes snapshot: new.
+action:
+  type: createResource
+  snapshot: new
+  resource:
+    apiVersion: persimmon.ai/v1
+    kind: WorkflowRun
+    metadata: {name: prd-create-001-review-3, namespace: demo}
+    spec:
+      workflowRef: {kind: Workflow, name: prd-review}
+      inputs: {}
+      timeout: 1h
+      origin: {kind: parent}
+
+# Stored child. Digest differs from the parent's: a different closure.
+child:
+  apiVersion: persimmon.ai/v1
+  kind: WorkflowRun
+  metadata:
+    name: prd-create-001-review-3
+    namespace: demo
+    uid: 019a3c2e-9d10-7b2c-8e4f-6a7b8c9d0e1f
+    resourceVersion: "1"
+    generation: 1
+    creationTimestamp: "2026-09-21T10:12:00Z"
+    ownerReferences:
+      - {apiVersion: persimmon.ai/v1, kind: WorkflowRun, namespace: demo, name: prd-create-001, uid: 019a3c2e-7b1f-7c3a-9d2e-1f0a8b6c4d5e}
+    snapshot:
+      uri: snapshot://7d1a0c9e5b3f4a2d8e6c1b0f9a8d7c6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a1b0c
+      digest: sha256:7d1a0c9e5b3f4a2d8e6c1b0f9a8d7c6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a1b0c
+  spec:
+    workflowRef: {kind: Workflow, name: prd-review}
+    inputs: {}
+    timeout: 1h
+    origin: {kind: parent}
+  status: {}

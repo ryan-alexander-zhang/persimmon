@@ -1,0 +1,70 @@
+# Closure resolved when WorkflowRun prd-create-001 is stored. No run identity, no engine metadata.
+version: 1
+resources:
+  - apiVersion: persimmon.ai/v1
+    kind: Executor
+    metadata: {name: claude-agent, namespace: demo}
+    spec:
+      type: agent
+      adapter: claude-code/v1
+      configuration: {model: claude-opus-5}
+  - apiVersion: persimmon.ai/v1
+    kind: KindDefinition
+    metadata: {name: executors.persimmon.ai}
+    spec: {group: persimmon.ai, names: {kind: Executor, plural: executors}, scope: Namespaced, versions: [{name: v1, schema: {type: object, properties: {adapter: {type: string, x-persimmon-adapter: {roles: [executor]}}}}}], mutability: SpecMutable, snapshot: Definition}
+  - apiVersion: persimmon.ai/v1
+    kind: KindDefinition
+    metadata: {name: productrequirements.engineering.persimmon.ai}
+    spec: {group: engineering.persimmon.ai, names: {kind: ProductRequirement, plural: productrequirements}, scope: Namespaced, versions: [{name: v1, schema: {type: object, required: [title]}}], mutability: Immutable, revisioned: true, snapshot: Definition}
+  - apiVersion: persimmon.ai/v1
+    kind: KindDefinition
+    metadata: {name: prompts.persimmon.ai}
+    spec: {group: persimmon.ai, names: {kind: Prompt, plural: prompts}, scope: Namespaced, versions: [{name: v1, schema: {type: object}}], mutability: SpecMutable, snapshot: Definition}
+  - apiVersion: persimmon.ai/v1
+    kind: KindDefinition
+    metadata: {name: tasks.persimmon.ai}
+    spec: {group: persimmon.ai, names: {kind: Task, plural: tasks}, scope: Namespaced, versions: [{name: v1, schema: {type: object, properties: {executorRef: {x-persimmon-ref: {kinds: [Executor]}}, outputs: {additionalProperties: {properties: {type: {properties: {artifactKind: {x-persimmon-kind-ref: {}}}}}}}}}}], mutability: SpecMutable, snapshot: Definition}
+  - apiVersion: persimmon.ai/v1
+    kind: KindDefinition
+    metadata: {name: workflows.persimmon.ai}
+    spec: {group: persimmon.ai, names: {kind: Workflow, plural: workflows}, scope: Namespaced, versions: [{name: v1, schema: {type: object}}], mutability: SpecMutable, snapshot: Definition}
+  - apiVersion: persimmon.ai/v1
+    kind: Prompt
+    metadata: {name: write-prd-template, namespace: demo}
+    spec:
+      mediaType: text/markdown
+      content: "You are writing a product requirement document. Preserve entity ids."
+  - apiVersion: persimmon.ai/v1
+    kind: Task
+    metadata: {name: research, namespace: demo}
+    spec:
+      executorRef: {kind: Executor, name: claude-agent}
+      action: {instructions: "Research the checkout v2 problem space."}
+      timeout: 20m
+      sideEffects: none
+  - apiVersion: persimmon.ai/v1
+    kind: Task
+    metadata: {name: write-prd, namespace: demo}
+    spec:
+      executorRef: {kind: Executor, name: claude-agent}
+      action:
+        instructions: "Write the PRD."
+        context: [{kind: prompt, ref: {kind: Prompt, name: write-prd-template}}]
+      outputs: {prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement}}}}
+      timeout: 30m
+      sideEffects: none
+  - apiVersion: persimmon.ai/v1
+    kind: Workflow
+    metadata: {name: prd-create, namespace: demo}
+    spec:
+      entry: [research]
+      steps:
+        - {id: research, uses: {kind: Task, name: research}, timeout: 25m}
+        - {id: write-prd, uses: {kind: Task, name: write-prd}, timeout: 35m}
+      transitions:
+        - {id: next, from: [{stepRef: research, outcomes: [Succeeded]}], to: [{stepRef: write-prd}], dispatch: all}
+        - {id: done, from: [{stepRef: write-prd, outcomes: [Succeeded]}], to: [{terminal: Succeeded}], dispatch: all}
+      timeout: 2h
+adapters:
+  - id: claude-code/v1
+    describeDigest: sha256:a3f1c8d2e4b6079f1e2d3c4b5a69788796a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1

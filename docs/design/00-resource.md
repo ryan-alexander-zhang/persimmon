@@ -29,7 +29,7 @@ Closed: no top-level key beyond the five, no `metadata` key beyond the table.
 | `metadata.generation` | engine | starts at 1; +1 per `spec` change |
 | `metadata.creationTimestamp` | engine | RFC 3339 |
 | `metadata.ownerReferences` | engine | at most one; set on children made by `createResource` |
-| `metadata.snapshot` | engine | `{uri, digest: sha256:<64 hex>}`; see `04-snapshot.md` |
+| `metadata.snapshot` | engine | `{uri: snapshot://<digest hex>, digest: sha256:<64 hex>}`; see `04-snapshot.md` |
 | `metadata.stalled` | engine | `{attempts, lastError?}`; see `03-reconcile.md` |
 | `spec` | user or `createResource` | required, may be `{}`; validated by the kind's `schema` |
 | `status` | owning Handler | validated by `statusSchema`; engine-set fields of revisioned kinds excepted (`05-revisioned-kind.md`) |

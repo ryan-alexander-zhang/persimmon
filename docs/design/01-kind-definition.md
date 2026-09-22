@@ -41,6 +41,8 @@ kind level; the Handler narrows per Resource.
 | Annotation | Meaning |
 |---|---|
 | `x-persimmon-ref: {kinds?: [..]}` | field is a LocalDefinitionRef; engine checks existence and follows it for snapshots; `kinds` absent means any `snapshot: Definition` kind |
+| `x-persimmon-kind-ref: {}` | field is `{apiVersion, kind}`; engine checks registration and freezes that KindDefinition (`04-snapshot.md`) |
+| `x-persimmon-adapter: {roles?: [..]}` | field is an Adapter id; engine checks Ready and the roles, records the `describe` digest (`04-snapshot.md`) |
 
 ## Step contract
 

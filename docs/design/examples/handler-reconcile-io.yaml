@@ -11,7 +11,7 @@ input:
       generation: 1
       creationTimestamp: "2026-09-21T09:00:00Z"
       snapshot:
-        uri: snapshot://019a3c2e-7b1f-7c3a-9d2e-1f0a8b6c4d5e
+        uri: snapshot://4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a
         digest: sha256:4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a
     spec:
       workflowRef: {kind: Workflow, name: prd-create}
@@ -40,7 +40,7 @@ input:
               kind: artifact
               ref: {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport, namespace: demo, id: research-checkout-v2, revision: 1}
     snapshot:
-      uri: snapshot://019a3c2e-7b1f-7c3a-9d2e-1f0a8b6c4d5e
+      uri: snapshot://4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a
       digest: sha256:4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a
     timers: [deadline]
 

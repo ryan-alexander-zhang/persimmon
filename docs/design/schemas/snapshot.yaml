@@ -1,0 +1,37 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Snapshot
+description: Definition closure as stored, before canonical encoding. No run identity inside.
+type: object
+required: [version, resources, adapters]
+additionalProperties: false
+properties:
+  version: {const: 1}
+  resources:
+    type: array
+    items: {$ref: "#/$defs/Entry"}
+  adapters:
+    type: array
+    items:
+      type: object
+      required: [id, describeDigest]
+      additionalProperties: false
+      properties:
+        id: {$ref: "reconcile.yaml#/$defs/AdapterId"}
+        describeDigest: {$ref: "resource.yaml#/$defs/Digest"}
+
+$defs:
+  Entry:
+    type: object
+    required: [apiVersion, kind, metadata, spec]
+    additionalProperties: false
+    properties:
+      apiVersion: {$ref: "resource.yaml#/$defs/ApiVersion"}
+      kind: {$ref: "resource.yaml#/$defs/Kind"}
+      metadata:
+        type: object
+        required: [name]
+        additionalProperties: false
+        properties:
+          name: {$ref: "resource.yaml#/$defs/DnsSubdomain"}
+          namespace: {$ref: "resource.yaml#/$defs/DnsLabel"}
+      spec: {type: object}
