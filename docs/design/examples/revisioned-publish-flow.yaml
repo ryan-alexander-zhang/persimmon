@@ -1,0 +1,48 @@
+# Attempt 1 stages revision 2 and is abandoned; attempt 2 stages revision 3 and commits. Revision 2 is a gap.
+steps:
+  - at: "2026-09-21T10:00:00Z"
+    by: handler
+    does: callAdapter(execute, idempotencyKey prd-create-001//write-prd/1); setTimer(deadline)
+  - at: "2026-09-21T10:08:00Z"
+    by: adapter
+    does: putBlob(markdown bytes) -> blob://0f1e…; publishArtifact(ProductRequirement, checkout-v2, content, [markdown]) with the call token -> RevisionRef revision 2
+    staged:
+      - ref: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement, namespace: demo, id: checkout-v2, revision: 2}
+        scope: prd-create-001//write-prd/1
+        state: staged
+  - at: "2026-09-21T10:09:00Z"
+    by: engine
+    does: delivers AdapterFinished state failed, error schema_violation (TaskResult output type mismatch)
+  - at: "2026-09-21T10:09:01Z"
+    by: handler
+    does: abandonScope(prd-create-001//write-prd/1); clearTimer(deadline); setTimer(backoff)
+    staged:
+      - ref: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement, namespace: demo, id: checkout-v2, revision: 2}
+        scope: prd-create-001//write-prd/1
+        state: abandoned
+  - at: "2026-09-21T10:09:31Z"
+    by: engine
+    does: delivers TimerFired(backoff)
+  - at: "2026-09-21T10:09:32Z"
+    by: handler
+    does: callAdapter(execute, idempotencyKey prd-create-001//write-prd/2); setTimer(deadline)
+  - at: "2026-09-21T10:29:00Z"
+    by: adapter
+    does: putBlob(markdown bytes); publishArtifact(ProductRequirement, checkout-v2, content, [markdown]) with the call token -> RevisionRef revision 3
+    staged:
+      - ref: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement, namespace: demo, id: checkout-v2, revision: 3}
+        scope: prd-create-001//write-prd/2
+        state: staged
+  - at: "2026-09-21T10:30:00Z"
+    by: engine
+    does: delivers AdapterFinished state succeeded; context.staged lists revision 3
+  - at: "2026-09-21T10:30:00Z"
+    by: handler
+    does: outputs validated against context.staged; commitScope(prd-create-001//write-prd/2); clearTimer(deadline); phase Succeeded
+    staged:
+      - ref: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement, namespace: demo, id: checkout-v2, revision: 3}
+        scope: prd-create-001//write-prd/2
+        state: committed
+  - at: "2026-09-21T10:30:00Z"
+    by: engine
+    does: audit create with actor handler/task; artifact.published emitted; RevisionRef checkout-v2/3 resolves; checkout-v2/2 fails the read

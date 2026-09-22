@@ -39,6 +39,7 @@ reconcile(resource, event, context, engine?) -> {statusPatch?, actions[]}   appl
 | `context.snapshot` | `{uri, digest}` or absent |
 | `context.actor` | Actor of the triggering Event; absent for engine-originated Events |
 | `context.timers[]` | keys of pending timers |
+| `context.staged[]` | `{ref: RevisionRef, scope}` staged for this Resource and not yet committed (`05-revisioned-kind.md`) |
 | `engine` | `{endpoint, token}`; Adapter implementations only; token scoped to this reconcile |
 
 Every Event is delivered; an Event the Handler does not use returns `{actions: []}`.
@@ -65,7 +66,8 @@ Every Event is delivered; an Event the Handler does not use returns `{actions: [
 - `statusPatch` in the result is the only way to write `status`; the reference's separate
   `patchStatus` action is dropped (`03-reconcile.md` follows).
 - `context.actor` absent on engine-originated Events (TimerFired, ChildFinished,
-  AdapterFinished). Reference did not say.
+  AdapterFinished); writes of that reconcile carry the Handler's `handler` Actor. Reference did
+  not say.
 - Static checker is a write-path stage after schema validation, before Handler `validate`.
 - KindDefinition, Handler, Adapter are registered by the engine at start with no
   `handlerRef`.

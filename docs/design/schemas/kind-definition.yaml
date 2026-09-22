@@ -82,7 +82,12 @@ $defs:
     dependentRequired:
       subscriptions: [handlerRef]
     if: {properties: {revisioned: {const: true}}, required: [revisioned]}
-    then: {properties: {mutability: {const: Immutable}, snapshot: {const: Definition}}}
+    then:
+      properties:
+        mutability: {const: Immutable}
+        scope: {const: Namespaced}
+        snapshot: {const: "None"}
+        versions: {items: {not: {required: [statusSchema]}}}
 
   StepContract:
     type: object

@@ -27,7 +27,7 @@ Read top to bottom within a layer; a file depends only on files above it.
 | `docs/design/02-handler.md` | Handler: kinds, implementation, events; `validate` / `reconcile` contract | draft |
 | `docs/design/03-reconcile.md` | Event set, Action set, RunLog, lease, atomic commit, retry, stalled | draft |
 | `docs/design/04-snapshot.md` | Closure walk, canonical bytes, digest, inherit vs new | draft |
-| `docs/design/05-revisioned-kind.md` | Identity, revision, provenance, representations, Publication scope | planned |
+| `docs/design/05-revisioned-kind.md` | Identity, revision, provenance, representations, Publication scope | draft |
 | `docs/design/06-outbox.md` | Outbox event, subscription, causation chain, loop guard | planned |
 | `docs/design/07-adapter.md` | Adapter resource, `persimmon.adapter/v1` part A, handler Role, Engine callbacks | planned |
 | `docs/design/08-store.md` | Store interface, local and server Mode, credentials, authorization | planned |

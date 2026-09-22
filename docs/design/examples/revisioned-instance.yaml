@@ -1,0 +1,30 @@
+# Committed revision 3 of ProductRequirement checkout-v2, published by an agent attempt.
+# Commit came on AdapterFinished, so the actor is the task Handler.
+apiVersion: engineering.persimmon.ai/v1
+kind: ProductRequirement
+metadata:
+  name: checkout-v2.r3
+  namespace: demo
+  uid: 019a3c2e-a100-7e3f-9a1b-2c3d4e5f6a7b
+  resourceVersion: "1"
+  generation: 1
+  creationTimestamp: "2026-09-21T10:30:00Z"
+spec:
+  identity: {id: checkout-v2, revision: 3}
+  content:
+    title: Checkout v2
+    problem: Cart abandonment at payment step is 38%.
+    requirements:
+      - {id: R1, statement: One-page checkout for returning customers.}
+      - {id: R2, statement: Payment errors shown inline, never on a new page.}
+  provenance:
+    producerRef: {apiVersion: persimmon.ai/v1, kind: TaskRun, namespace: demo, name: prd-create-001-write-prd, uid: 019a3c2e-7d00-7b1c-9d2e-3f4a5b6c7d8e}
+    inputs:
+      - {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport, namespace: demo, id: research-checkout-v2, revision: 1}
+    actor: {kind: handler, id: task}
+status:
+  contentDigest: sha256:c1a5e7d9b3f2468a0c2e4f6a8b0d2f4e6a8c0e2f4a6c8e0a2c4e6a8c0e2f4a6c
+  representations:
+    - name: markdown
+      mediaType: text/markdown
+      digest: sha256:0f1e2d3c4b5a69788796a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4

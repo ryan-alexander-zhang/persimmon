@@ -290,7 +290,7 @@ _Avoid_: lineage, metadata, source
 
 **Representation**:
 Bytes of an **Artifact** in a media type (Markdown, HTML, bundle), stored in BlobStore at
-`artifact://<namespace>/<id>/<revision>/<name>`.
+`blob://<digest>`.
 _Avoid_: rendering, export, format, attachment
 
 **Relation**:
@@ -321,7 +321,7 @@ _Avoid_: result, output, response
 
 **Engine callback**:
 Operations an **Adapter** calls back on the engine with a scoped token: `getResource`,
-`getArtifact`, `getRepresentation`, `publishArtifact`, `getKindSchema`, `log`.
+`getArtifact`, `getBlob`, `putBlob`, `publishArtifact`, `getKindSchema`, `log`.
 _Avoid_: API, engine API, SDK
 
 ### Layer 2

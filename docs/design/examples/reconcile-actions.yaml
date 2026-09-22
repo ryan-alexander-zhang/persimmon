@@ -17,7 +17,7 @@
   kind: {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport}
   id: research-checkout-v2
   content: {title: "Checkout v2 research", findings: []}
-  representations: []
+  representations: [{name: markdown, mediaType: text/markdown, digest: sha256:0f1e2d3c4b5a69788796a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4}]
 
 - type: commitScope
   key: prd-create-001//research/1

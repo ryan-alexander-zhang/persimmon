@@ -25,7 +25,7 @@ KindDefinition workflows.persimmon.ai
 | `scope` | `Namespaced` \| `Global` |
 | `versions[]` | `{name: v<n>, schema, statusSchema?}`; JSON Schema 2020-12 for `spec` and `status`; no conversion; Handlers declare accepted versions (`02-handler.md`) |
 | `mutability` | `SpecMutable` \| `Immutable`; Immutable freezes `spec` after create |
-| `revisioned` | default false; true forces `Immutable` and `snapshot: Definition`; `schema` then validates `spec.content` |
+| `revisioned` | default false; true forces `Immutable`, `Namespaced`, `snapshot: None`, no `statusSchema`; `schema` then validates `spec.content` (`05-revisioned-kind.md`) |
 | `snapshot` | `Definition` \| `None`; Definition Resources join snapshot closures |
 | `snapshotOnCreate` | default false; true resolves a closure on every create |
 | `handlerRef` | `{name}` of a Handler; absent for pure-data kinds |
@@ -81,7 +81,8 @@ No closed list of step kinds exists anywhere in the engine.
   for `validate` and never finish. Reference required `terminal` whenever `handlerRef` was set.
 - `x-persimmon-ref.kinds` optional. Absent means the ref's own `kind` field decides; this is
   what keeps step kinds open.
-- `revisioned: true` ⇒ `snapshot: Definition`. Publish validates against the frozen schema.
+- `revisioned: true` ⇒ `Immutable`, `Namespaced`, `snapshot: None`, no `statusSchema`. The
+  schema is frozen through `x-persimmon-kind-ref`, not by making revisions closure members.
 - `subscriptions.filter` is a CEL expression string. Reference left the shape open.
 - `versions[].statusSchema` optional; absent means `status` is free-form for that version.
 

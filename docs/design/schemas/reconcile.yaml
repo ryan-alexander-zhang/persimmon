@@ -107,15 +107,10 @@ $defs:
           ref: {$ref: "resource.yaml#/$defs/ObjectRef"}
         required: [ref]
         additionalProperties: false
-      - properties:
+      - allOf: [{$ref: "revisioned.yaml#/$defs/PublishRequest"}]
+        properties:
           type: {const: publishArtifact}
-          kind: {type: object, required: [apiVersion, kind], additionalProperties: false,
-                 properties: {apiVersion: {$ref: "resource.yaml#/$defs/ApiVersion"}, kind: {$ref: "resource.yaml#/$defs/Kind"}}}
-          id: {type: string, minLength: 1}
-          content: {type: object}
-          representations: {type: array, items: {type: object}}   # shape: 05-revisioned-kind.md
-        required: [kind, content, representations]
-        additionalProperties: false
+        unevaluatedProperties: false
       - properties:
           type: {enum: [commitScope, abandonScope]}
           key: {$ref: "#/$defs/IdempotencyKey"}

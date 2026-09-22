@@ -15,7 +15,7 @@ resources:
   - apiVersion: persimmon.ai/v1
     kind: KindDefinition
     metadata: {name: productrequirements.engineering.persimmon.ai}
-    spec: {group: engineering.persimmon.ai, names: {kind: ProductRequirement, plural: productrequirements}, scope: Namespaced, versions: [{name: v1, schema: {type: object, required: [title]}}], mutability: Immutable, revisioned: true, snapshot: Definition}
+    spec: {group: engineering.persimmon.ai, names: {kind: ProductRequirement, plural: productrequirements}, scope: Namespaced, versions: [{name: v1, schema: {type: object, required: [title]}}], mutability: Immutable, revisioned: true, snapshot: "None"}
   - apiVersion: persimmon.ai/v1
     kind: KindDefinition
     metadata: {name: prompts.persimmon.ai}

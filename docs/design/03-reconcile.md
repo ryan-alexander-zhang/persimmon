@@ -34,7 +34,7 @@ unacked Event and delivers every outstanding `callAdapter` as `state: unknown`.
 |---|---|---|
 | `createResource` | `resource, snapshot?: inherit \| new` | store a child with `ownerReferences` = this Resource; default `inherit` (`04-snapshot.md`) |
 | `cancelResource` | `ref` | deliver CancelRequested to a child |
-| `publishArtifact` | `kind: {apiVersion, kind}, id?, content, representations[]` | stage a revision; visible when this reconcile commits (`05-revisioned-kind.md`) |
+| `publishArtifact` | `kind: {apiVersion, kind}, id, content, inputs[]?, representations[]` | stage a revision; visible when this reconcile commits (`05-revisioned-kind.md`) |
 | `commitScope` / `abandonScope` | `key` | make visible, or abandon, what an adapter staged under `callAdapter(idempotencyKey: key)` |
 | `emitEvent` | `eventType (dotted, lowerCamel segments), payload` | append an Outbox event (`06-outbox.md`) |
 | `setTimer` / `clearTimer` | `key (lowercase, `-` `_`), at` / `key` | schedule or cancel TimerFired; same key replaces |

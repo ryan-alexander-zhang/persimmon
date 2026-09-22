@@ -109,7 +109,7 @@ $defs:
       apiVersion: {$ref: "#/$defs/ApiVersion"}
       kind: {$ref: "#/$defs/Kind"}
       namespace: {$ref: "#/$defs/DnsLabel"}
-      id: {type: string, minLength: 1}
+      id: {$ref: "#/$defs/DnsLabel"}
       revision: {type: integer, minimum: 1}
 
   ExternalResourceRef:

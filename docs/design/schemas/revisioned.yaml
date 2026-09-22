@@ -1,0 +1,99 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Revisioned kind
+description: Framework-owned fields of a revisioned Resource, and the publish request.
+$defs:
+  Id: {$ref: "resource.yaml#/$defs/DnsLabel"}
+  Revision: {type: integer, minimum: 1}
+  MediaType: {type: string, pattern: "^[a-z]+/[a-zA-Z0-9.+-]+$"}
+
+  Identity:
+    type: object
+    required: [id, revision]
+    additionalProperties: false
+    properties:
+      id: {$ref: "#/$defs/Id"}
+      revision: {$ref: "#/$defs/Revision"}
+
+  Provenance:
+    type: object
+    required: [producerRef, inputs, actor]
+    additionalProperties: false
+    properties:
+      producerRef: {$ref: "resource.yaml#/$defs/ObjectRef"}
+      inputs: {type: array, items: {$ref: "resource.yaml#/$defs/RevisionRef"}}
+      actor: {$ref: "resource.yaml#/$defs/Actor"}
+
+  Representation:
+    type: object
+    required: [name, mediaType, digest]
+    additionalProperties: false
+    properties:
+      name: {$ref: "resource.yaml#/$defs/DnsLabel"}
+      mediaType: {$ref: "#/$defs/MediaType"}
+      digest: {$ref: "resource.yaml#/$defs/Digest"}
+
+  Spec:
+    type: object
+    required: [identity, content, provenance]
+    additionalProperties: false
+    properties:
+      identity: {$ref: "#/$defs/Identity"}
+      content: {type: object}
+      provenance: {$ref: "#/$defs/Provenance"}
+
+  Status:
+    type: object
+    required: [contentDigest, representations]
+    additionalProperties: false
+    properties:
+      contentDigest: {$ref: "resource.yaml#/$defs/Digest"}
+      representations: {type: array, items: {$ref: "#/$defs/Representation"}}
+
+  Instance:
+    allOf:
+      - {$ref: "resource.yaml"}
+      - type: object
+        required: [status]
+        properties:
+          metadata:
+            required: [namespace]
+            properties: {name: {pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?\\.r[1-9][0-9]*$"}}
+          spec: {$ref: "#/$defs/Spec"}
+          status: {$ref: "#/$defs/Status"}
+
+  PublishRequest:
+    type: object
+    required: [kind, id, content, representations]
+    properties:
+      kind: {type: object, required: [apiVersion, kind], additionalProperties: false,
+             properties: {apiVersion: {$ref: "resource.yaml#/$defs/ApiVersion"}, kind: {$ref: "resource.yaml#/$defs/Kind"}}}
+      id: {$ref: "#/$defs/Id"}
+      content: {type: object}
+      inputs: {type: array, items: {$ref: "resource.yaml#/$defs/RevisionRef"}}
+      representations: {type: array, items: {$ref: "#/$defs/Representation"}}
+
+  Staged:
+    type: object
+    required: [ref, scope, state]
+    additionalProperties: false
+    properties:
+      ref: {$ref: "resource.yaml#/$defs/RevisionRef"}
+      scope: {$ref: "reconcile.yaml#/$defs/IdempotencyKey"}
+      state: {enum: [staged, committed, abandoned]}
+
+  Flow:
+    type: object
+    required: [steps]
+    additionalProperties: false
+    properties:
+      steps:
+        type: array
+        items:
+          type: object
+          required: [at, by, does]
+          additionalProperties: false
+          properties:
+            at: {type: string, format: date-time}
+            by: {enum: [handler, adapter, engine]}
+            does: {type: string}
+            staged: {type: array, items: {$ref: "#/$defs/Staged"}}

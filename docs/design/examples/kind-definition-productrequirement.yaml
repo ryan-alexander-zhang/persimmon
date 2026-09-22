@@ -25,4 +25,4 @@ spec:
                 statement: {type: string}
   mutability: Immutable
   revisioned: true
-  snapshot: Definition
+  snapshot: "None"

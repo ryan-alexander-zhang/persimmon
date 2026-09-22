@@ -83,6 +83,15 @@ $defs:
       snapshot: {$ref: "resource.yaml#/$defs/Snapshot"}
       actor: {$ref: "resource.yaml#/$defs/Actor"}
       timers: {type: array, items: {type: string}}
+      staged:
+        type: array
+        items:
+          type: object
+          required: [ref, scope]
+          additionalProperties: false
+          properties:
+            ref: {$ref: "resource.yaml#/$defs/RevisionRef"}
+            scope: {$ref: "reconcile.yaml#/$defs/IdempotencyKey"}
 
   ReconcileInput:
     type: object
