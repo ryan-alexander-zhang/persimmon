@@ -1,5 +1,4 @@
 $schema: https://json-schema.org/draft/2020-12/schema
-$id: https://persimmon.ai/schemas/resource.yaml
 title: Resource
 description: Envelope of every Resource. spec validated by the kind's schema, status by its statusSchema.
 type: object

@@ -1,0 +1,103 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: KindDefinition
+description: Registers one Kind. Global.
+type: object
+required: [apiVersion, kind, metadata, spec]
+additionalProperties: false
+properties:
+  apiVersion: {const: persimmon.ai/v1}
+  kind: {const: KindDefinition}
+  metadata:
+    allOf:
+      - {$ref: "resource.yaml#/$defs/Metadata"}
+      - not: {required: [namespace]}   # Global kind
+  spec: {$ref: "#/$defs/Spec"}
+  status: {type: object}
+
+$defs:
+  JsonSchema:
+    type: object
+    description: JSON Schema 2020-12 document.
+
+  Path:
+    type: string
+    pattern: ^status(\.[A-Za-z_][A-Za-z0-9_]*)+$
+
+  DefinitionPath:
+    type: string
+    pattern: ^spec(\.[A-Za-z_][A-Za-z0-9_]*)+$
+
+  Spec:
+    type: object
+    required: [group, names, scope, versions, mutability, snapshot]
+    additionalProperties: false
+    properties:
+      group: {$ref: "resource.yaml#/$defs/DnsSubdomain"}
+      names:
+        type: object
+        required: [kind, plural]
+        additionalProperties: false
+        properties:
+          kind: {$ref: "resource.yaml#/$defs/Kind"}
+          plural: {$ref: "resource.yaml#/$defs/DnsLabel"}
+      scope: {enum: [Namespaced, Global]}
+      versions:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          required: [name, schema]
+          additionalProperties: false
+          properties:
+            name: {type: string, pattern: "^v[0-9]+$"}
+            schema: {$ref: "#/$defs/JsonSchema"}
+            statusSchema: {$ref: "#/$defs/JsonSchema"}
+      mutability: {enum: [SpecMutable, Immutable]}
+      revisioned: {type: boolean, default: false}
+      snapshot: {enum: [Definition, "None"]}
+      snapshotOnCreate: {type: boolean, default: false}
+      handlerRef:
+        type: object
+        required: [name]
+        additionalProperties: false
+        properties:
+          name: {$ref: "resource.yaml#/$defs/DnsSubdomain"}
+      terminal:
+        type: object
+        required: [path, values]
+        additionalProperties: false
+        properties:
+          path: {$ref: "#/$defs/Path"}
+          values: {type: array, minItems: 1, items: {type: string}}
+      stepContract: {$ref: "#/$defs/StepContract"}
+      subscriptions:
+        type: array
+        items:
+          type: object
+          required: [eventType]
+          additionalProperties: false
+          properties:
+            eventType: {type: string, minLength: 1}
+            filter: {type: string, minLength: 1}
+    dependentRequired:
+      subscriptions: [handlerRef]
+    if: {properties: {revisioned: {const: true}}, required: [revisioned]}
+    then: {properties: {mutability: {const: Immutable}, snapshot: {const: Definition}}}
+
+  StepContract:
+    type: object
+    required: [inputsPath, outputsPath, runKind, phasePath, outputsValuePath, errorPath]
+    additionalProperties: false
+    properties:
+      inputsPath: {$ref: "#/$defs/DefinitionPath"}
+      outputsPath: {$ref: "#/$defs/DefinitionPath"}
+      runKind:
+        type: object
+        required: [group, kind]
+        additionalProperties: false
+        properties:
+          group: {$ref: "resource.yaml#/$defs/DnsSubdomain"}
+          kind: {$ref: "resource.yaml#/$defs/Kind"}
+      phasePath: {$ref: "#/$defs/Path"}
+      outputsValuePath: {$ref: "#/$defs/Path"}
+      errorPath: {$ref: "#/$defs/Path"}

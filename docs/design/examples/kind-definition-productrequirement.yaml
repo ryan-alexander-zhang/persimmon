@@ -1,0 +1,28 @@
+# Artifact kind: revisioned, immutable, pure data; schema validates spec.content.
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata:
+  name: productrequirements.engineering.persimmon.ai
+spec:
+  group: engineering.persimmon.ai
+  names: {kind: ProductRequirement, plural: productrequirements}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [title, problem, requirements]
+        properties:
+          title: {type: string}
+          problem: {type: string}
+          requirements:
+            type: array
+            items:
+              type: object
+              required: [id, statement]
+              properties:
+                id: {type: string}
+                statement: {type: string}
+  mutability: Immutable
+  revisioned: true
+  snapshot: Definition

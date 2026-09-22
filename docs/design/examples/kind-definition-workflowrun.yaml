@@ -1,0 +1,31 @@
+# Run kind: immutable, not itself a definition, snapshot resolved on create, finishes.
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata:
+  name: workflowruns.persimmon.ai
+spec:
+  group: persimmon.ai
+  names: {kind: WorkflowRun, plural: workflowruns}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [workflowRef, inputs, timeout, origin]
+        properties:
+          workflowRef: {type: object, x-persimmon-ref: {kinds: [Workflow]}}
+      statusSchema:
+        type: object
+        properties:
+          phase: {enum: [Pending, Running, Waiting, Succeeded, Failed, Cancelled]}
+          outputs: {type: object}
+          error:
+            type: object
+            required: [code, message, retryable]
+  mutability: Immutable
+  snapshot: "None"
+  snapshotOnCreate: true
+  handlerRef: {name: workflow}
+  terminal:
+    path: status.phase
+    values: [Succeeded, Failed, Cancelled]

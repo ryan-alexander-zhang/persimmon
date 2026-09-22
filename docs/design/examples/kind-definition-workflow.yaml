@@ -1,0 +1,36 @@
+# Definition kind: editable, snapshotted, handled for validate only, usable as a step.
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata:
+  name: workflows.persimmon.ai
+spec:
+  group: persimmon.ai
+  names: {kind: Workflow, plural: workflows}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [inputs, outputs, outputBindings, entry, steps, transitions, timeout]
+        properties:
+          inputs: {type: object}
+          outputs: {type: object}
+          outputBindings: {type: object}
+          steps:
+            type: array
+            items:
+              type: object
+              properties:
+                uses:
+                  type: object
+                  x-persimmon-ref: {}          # any snapshot: Definition kind; stepContract checked statically
+  mutability: SpecMutable
+  snapshot: Definition
+  handlerRef: {name: workflow}
+  stepContract:
+    inputsPath: spec.inputs
+    outputsPath: spec.outputs
+    runKind: {group: persimmon.ai, kind: WorkflowRun}
+    phasePath: status.phase
+    outputsValuePath: status.outputs
+    errorPath: status.error

@@ -2,12 +2,19 @@
 apiVersion: persimmon.ai/v1
 kind: KindDefinition
 metadata:
-  name: workflows.persimmon.ai
+  name: prompts.persimmon.ai
   uid: 019a3c2e-8a00-7d11-b3f4-5e6a7b8c9d0e
   resourceVersion: "1"
   generation: 1
   creationTimestamp: "2026-09-20T18:30:00Z"
 spec:
   group: persimmon.ai
-  names: {kind: Workflow, plural: workflows}
+  names: {kind: Prompt, plural: prompts}
   scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [mediaType, content]
+  mutability: SpecMutable
+  snapshot: Definition
