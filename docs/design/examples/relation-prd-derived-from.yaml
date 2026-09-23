@@ -1,0 +1,20 @@
+# Relation asserted with `persimmon create` by a user; the engine stamped the labels (values illustrative).
+apiVersion: persimmon.ai/v1
+kind: Relation
+metadata:
+  name: derived-from-v1-1a2b3c4d5e6f
+  namespace: demo
+  uid: 019a3c2e-e100-7a88-b1c2-3d4e5f6a7b8c
+  resourceVersion: "1"
+  generation: 1
+  creationTimestamp: "2026-09-21T11:00:00Z"
+  labels:
+    persimmon.ai/type: derived-from-v1
+    persimmon.ai/from: sha256:1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f809
+    persimmon.ai/to: sha256:2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a
+spec:
+  type: {kind: RelationType, name: derived-from-v1}
+  from: {revision: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement, namespace: demo, id: checkout-v2, revision: 3}}
+  to: {revision: {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport, namespace: demo, id: research-checkout-v2, revision: 1}}
+  evidence:
+    - {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement, namespace: demo, id: checkout-v2, revision: 3}

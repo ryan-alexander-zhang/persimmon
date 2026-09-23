@@ -23,7 +23,7 @@ Closed: no top-level key beyond the five, no `metadata` key beyond the table.
 | `kind` | user | PascalCase; registered by a KindDefinition |
 | `metadata.name` | user | DNS subdomain, ≤ 253 (`workflows.persimmon.ai`); unique per (kind, namespace), or per kind when Global |
 | `metadata.namespace` | user | DNS label, ≤ 63; required for Namespaced kinds, absent for Global |
-| `metadata.labels`, `annotations` | user | string maps |
+| `metadata.labels`, `annotations` | user | string maps; keys under `persimmon.ai/` are engine-written |
 | `metadata.uid` | engine | never reused |
 | `metadata.resourceVersion` | engine | CAS token; never ordered |
 | `metadata.generation` | engine | starts at 1; +1 per `spec` change |

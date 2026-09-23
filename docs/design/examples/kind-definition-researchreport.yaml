@@ -1,0 +1,28 @@
+# Artifact kind: revisioned, immutable, Namespaced; the schema validates spec.content of every revision.
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata:
+  name: researchreports.engineering.persimmon.ai
+spec:
+  group: engineering.persimmon.ai
+  names: {kind: ResearchReport, plural: researchreports}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [title, findings]
+        properties:
+          title: {type: string}
+          findings:
+            type: array
+            items:
+              type: object
+              required: [id, statement, sources]
+              properties:
+                id: {type: string}
+                statement: {type: string}
+                sources: {type: array, items: {type: string, format: uri}}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"

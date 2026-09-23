@@ -1,7 +1,11 @@
-# One of each Engine callback. Seven use the call token of attempt prd-create-001//write-prd/2; signal uses the adapter token.
+# One of each Engine callback. Eight use the call token of attempt prd-create-001//write-prd/2; signal uses the adapter token.
 - callback: getResource
   token: ct-9f1c2d3e
   args: {apiVersion: persimmon.ai/v1, kind: Task, namespace: demo, name: write-prd}
+
+- callback: list
+  token: ct-9f1c2d3e
+  args: {apiVersion: persimmon.ai/v1, kind: Relation, namespace: demo, labels: {persimmon.ai/type: derived-from-v1, persimmon.ai/from: sha256:1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f809}}
 
 - callback: getArtifact
   token: ct-9f1c2d3e

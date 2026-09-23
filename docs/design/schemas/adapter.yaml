@@ -147,7 +147,7 @@ $defs:
     required: [callback, token, args]
     additionalProperties: false
     properties:
-      callback: {enum: [getResource, getArtifact, getBlob, putBlob, publishArtifact, getKindSchema, log, signal]}
+      callback: {enum: [getResource, list, getArtifact, getBlob, putBlob, publishArtifact, getKindSchema, log, signal]}
       token: {type: string, minLength: 1}
       args: {type: object}
       result: {}
@@ -157,6 +157,19 @@ $defs:
           properties:
             args: {$ref: "resource.yaml#/$defs/ObjectRef"}
             result: {$ref: "resource.yaml"}
+      - if: {properties: {callback: {const: list}}}
+        then:
+          properties:
+            args:
+              type: object
+              required: [apiVersion, kind]
+              additionalProperties: false
+              properties:
+                apiVersion: {$ref: "resource.yaml#/$defs/ApiVersion"}
+                kind: {$ref: "resource.yaml#/$defs/Kind"}
+                namespace: {$ref: "resource.yaml#/$defs/DnsLabel"}
+                labels: {$ref: "resource.yaml#/$defs/StringMap"}
+            result: {type: array, items: {$ref: "resource.yaml"}}
       - if: {properties: {callback: {const: getArtifact}}}
         then:
           properties:

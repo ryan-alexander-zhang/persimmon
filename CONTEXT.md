@@ -299,8 +299,7 @@ Bytes of an **Artifact** in a media type (Markdown, HTML, bundle), stored in Blo
 _Avoid_: rendering, export, format, attachment
 
 **Relation**:
-Immutable assertion between two endpoints typed by a **RelationType**, with `evidence[]` and
-`assertedBy`.
+Immutable assertion between two endpoints typed by a **RelationType**, with `evidence[]`.
 _Avoid_: link, edge, association
 
 **Publish**:
@@ -324,8 +323,8 @@ The `persimmon.result/v1` object an **Attempt** returns: declared outputs only, 
 _Avoid_: result, output, response
 
 **Engine callback**:
-Operations an **Adapter** calls back on the engine with a scoped token: `getResource`,
-`getArtifact`, `getBlob`, `putBlob`, `publishArtifact`, `getKindSchema`, `log`, `signal`.
+Operations a **Handler** or **Adapter** calls on the engine with a scoped token: `getResource`,
+`list`, `getArtifact`, `getBlob`, `putBlob`, `publishArtifact`, `getKindSchema`, `log`, `signal`.
 _Avoid_: API, engine API, SDK
 
 ### Layer 2

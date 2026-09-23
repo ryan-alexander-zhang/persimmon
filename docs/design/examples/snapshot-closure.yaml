@@ -23,6 +23,10 @@ resources:
     spec: {group: persimmon.ai, names: {kind: Prompt, plural: prompts}, scope: Any, versions: [{name: v1, schema: {type: object}}], mutability: SpecMutable, snapshot: Definition}
   - apiVersion: persimmon.ai/v1
     kind: KindDefinition
+    metadata: {name: researchreports.engineering.persimmon.ai}
+    spec: {group: engineering.persimmon.ai, names: {kind: ResearchReport, plural: researchreports}, scope: Namespaced, versions: [{name: v1, schema: {type: object, required: [title, findings]}}], mutability: Immutable, revisioned: true, snapshot: "None"}
+  - apiVersion: persimmon.ai/v1
+    kind: KindDefinition
     metadata: {name: skills.persimmon.ai}
     spec: {group: persimmon.ai, names: {kind: Skill, plural: skills}, scope: Any, versions: [{name: v1, schema: {type: object}}], mutability: SpecMutable, snapshot: Definition}
   - apiVersion: persimmon.ai/v1

@@ -1,0 +1,21 @@
+# Relation KindDefinition: immutable, Namespaced, no handler; the type ref is walked, endpoints checked statically.
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata:
+  name: relations.persimmon.ai
+spec:
+  group: persimmon.ai
+  names: {kind: Relation, plural: relations}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [type, from, to, evidence]
+        properties:
+          type: {type: object, x-persimmon-ref: {kinds: [RelationType]}}
+          from: {type: object}
+          to: {type: object}
+          evidence: {type: array}
+  mutability: Immutable
+  snapshot: "None"
