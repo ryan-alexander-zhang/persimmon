@@ -1,0 +1,23 @@
+# stdio Adapter with Role evaluator: answers evaluate with a ValidationResult.
+apiVersion: persimmon.ai/v1
+kind: Adapter
+metadata:
+  name: threat-model-v1
+  uid: 019a3c2e-8e00-7b55-d7f8-9a0b1c2d3e4f
+  resourceVersion: "2"
+  generation: 1
+  creationTimestamp: "2026-09-20T19:30:00Z"
+spec:
+  id: threat-model/v1
+  roles: [evaluator]
+  transport: stdio
+  command: [persimmon-adapter-threat-model]
+status:
+  describe:
+    adapterId: threat-model/v1
+    protocol: persimmon.adapter/v1
+    roles: [evaluator]
+    configurationSchema: {type: object, required: [ruleset], properties: {ruleset: {type: string}, failOn: {enum: [low, medium, high, critical]}}}
+  describeDigest: sha256:e7b5a3d1f9c7260e6a8c0e2f4a6c8e0a2c4e6a8c0e2f4a6c8e0a2c4e6a8c0e2f
+  conditions:
+    - {type: Ready, status: "True", lastTransitionTime: "2026-09-20T19:30:02Z"}

@@ -1,0 +1,12 @@
+# task Validator: a human answers through Task approve-prd; its `result` output is the ValidationResult.
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: prd-human-review, namespace: demo}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement}}}
+  evaluator:
+    type: task
+    taskRef: {kind: Task, name: approve-prd}
+    resultOutput: result
+  timeout: 48h

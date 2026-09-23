@@ -22,9 +22,10 @@ spec:
     - id: approval
       uses: {kind: Gate, name: prd-approval-gate}
       inputs:
+        prd: {fromInput: prd}
         security: {fromStep: {stepRef: security-review, output: report}, onMissing: omit}   # may be unfinished or Failed
         product: {fromStep: {stepRef: product-review, output: report}, onMissing: omit}
-      timeout: 1h
+      timeout: 72h
   transitions:
     - id: reviews-in
       from:
@@ -38,4 +39,4 @@ spec:
         - {terminal: Succeeded, when: 'steps.approval.phase == "Succeeded"'}
         - {terminal: Failed, reason: gate_error}
       dispatch: first
-  timeout: 6h
+  timeout: 80h

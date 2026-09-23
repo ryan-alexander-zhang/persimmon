@@ -1,0 +1,32 @@
+# Gate KindDefinition: fixed output, usable as a step, validator refs annotated for the snapshot walk.
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata:
+  name: gates.persimmon.ai
+spec:
+  group: persimmon.ai
+  names: {kind: Gate, plural: gates}
+  scope: Any
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [outputs, validators, timeout]
+        properties:
+          outputs: {const: {result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}}}
+          validators:
+            type: array
+            items:
+              type: object
+              properties:
+                ref: {type: object, x-persimmon-ref: {kinds: [Validator]}}
+  mutability: SpecMutable
+  snapshot: Definition
+  handlerRef: {name: gate}
+  stepContract:
+    inputsPath: spec.inputs
+    outputsPath: spec.outputs
+    runKind: {group: persimmon.ai, kind: GateRun}
+    phasePath: status.phase
+    outputsValuePath: status.outputs
+    errorPath: status.error

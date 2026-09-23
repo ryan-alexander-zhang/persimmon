@@ -1,0 +1,26 @@
+# Gate: structure check, human review, security scan. quorum 2 counts after all three finish; the 48h human step sets the latency.
+apiVersion: persimmon.ai/v1
+kind: Gate
+metadata: {name: prd-approval-gate, namespace: demo}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement}}}
+    minRequirements: {type: {kind: value, schema: {type: integer}}, required: false, default: {kind: value, value: 3}}
+    security: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ReviewReport}}, required: false}
+    product: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ReviewReport}}, required: false}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
+  validators:
+    - name: structure
+      ref: {kind: Validator, name: prd-structure}
+      inputs:
+        prd: {fromInput: prd}
+        minRequirements: {fromInput: minRequirements}      # optional producer with a default feeds a required input
+    - name: humanReview
+      ref: {kind: Validator, name: prd-human-review}
+      inputs: {prd: {fromInput: prd}}
+    - name: security
+      ref: {kind: Validator, name: prd-security-scan}
+      inputs: {prd: {fromInput: prd}}
+  policy: {strategy: quorum, count: 2}
+  timeout: 72h

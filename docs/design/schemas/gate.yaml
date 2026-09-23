@@ -1,0 +1,110 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Gate and Validator
+description: Gate decides over Validators. Definition kinds, scope Any.
+$defs:
+  ValueOrArtifactPorts:
+    type: object
+    propertyNames: {$ref: "ports.yaml#/$defs/PortName"}
+    additionalProperties:
+      allOf:
+        - {$ref: "ports.yaml#/$defs/InputSpec"}
+        - properties: {type: {properties: {kind: {enum: [value, artifact]}}}}
+
+  GateOutputs:
+    const:
+      result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
+
+  ValidatorBinding:
+    allOf: [{$ref: "ports.yaml#/$defs/Binding"}]
+    not: {anyOf: [{required: [fromStep]}, {required: [fromState]}, {required: [fromIterationOutput]}, {required: [fromEvent]}]}
+
+  Gate:
+    type: object
+    required: [apiVersion, kind, metadata, spec]
+    additionalProperties: false
+    properties:
+      apiVersion: {const: persimmon.ai/v1}
+      kind: {const: Gate}
+      metadata: {$ref: "resource.yaml#/$defs/Metadata"}
+      spec:
+        type: object
+        required: [outputs, validators, timeout]
+        additionalProperties: false
+        properties:
+          inputs: {$ref: "#/$defs/ValueOrArtifactPorts"}
+          outputs: {$ref: "#/$defs/GateOutputs"}
+          validators:
+            type: array
+            minItems: 1
+            items:
+              type: object
+              required: [name, ref]
+              additionalProperties: false
+              properties:
+                name: {$ref: "ports.yaml#/$defs/PortName"}
+                ref:
+                  allOf: [{$ref: "resource.yaml#/$defs/LocalDefinitionRef"}, {properties: {kind: {const: Validator}}}]
+                  x-persimmon-ref: {kinds: [Validator]}
+                inputs:
+                  type: object
+                  propertyNames: {$ref: "ports.yaml#/$defs/PortName"}
+                  additionalProperties: {$ref: "#/$defs/ValidatorBinding"}
+          policy:
+            type: object
+            required: [strategy]
+            default: {strategy: all}
+            additionalProperties: false
+            properties:
+              strategy: {enum: [all, any, quorum]}
+              count: {type: integer, minimum: 1}
+            if: {properties: {strategy: {const: quorum}}}
+            then: {required: [count]}
+            else: {not: {required: [count]}}
+          timeout: {$ref: "ports.yaml#/$defs/Duration"}
+      status: {type: object}
+
+  Validator:
+    type: object
+    required: [apiVersion, kind, metadata, spec]
+    additionalProperties: false
+    properties:
+      apiVersion: {const: persimmon.ai/v1}
+      kind: {const: Validator}
+      metadata: {$ref: "resource.yaml#/$defs/Metadata"}
+      spec:
+        type: object
+        required: [evaluator, timeout]
+        additionalProperties: false
+        properties:
+          inputs: {$ref: "#/$defs/ValueOrArtifactPorts"}
+          evaluator: {$ref: "#/$defs/Evaluator"}
+          timeout: {$ref: "ports.yaml#/$defs/Duration"}
+      status: {type: object}
+
+  Evaluator:
+    type: object
+    required: [type]
+    properties:
+      type: {enum: [cel, task, adapter]}
+    oneOf:
+      - properties:
+          type: {const: cel}
+          expression: {type: string, minLength: 1}
+        required: [expression]
+        additionalProperties: false
+      - properties:
+          type: {const: task}
+          taskRef:
+            allOf: [{$ref: "resource.yaml#/$defs/LocalDefinitionRef"}, {properties: {kind: {const: Task}}}]
+            x-persimmon-ref: {kinds: [Task]}
+          resultOutput: {$ref: "ports.yaml#/$defs/PortName"}
+        required: [taskRef, resultOutput]
+        additionalProperties: false
+      - properties:
+          type: {const: adapter}
+          adapter:
+            allOf: [{$ref: "reconcile.yaml#/$defs/AdapterId"}]
+            x-persimmon-adapter: {roles: [evaluator]}
+          configuration: {type: object, default: {}}
+        required: [adapter]
+        additionalProperties: false

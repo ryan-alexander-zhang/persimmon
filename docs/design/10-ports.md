@@ -68,7 +68,7 @@ CEL, with the environment of the site:
 | `steps.<id>.error.{code, message, retryable}` | only when `phase == "Failed"` |
 | `iteration.index` (1-based), `iteration.outputs.<port>` | inside `repeat` |
 | `event` | Trigger only |
-| `artifacts.<alias>`, `inputs.<port>` | `cel` Validator (`14-gate.md`) |
+| `artifacts.<port>.{content, provenance}`, `inputs.<port>` | `cel` Validator (`14-gate.md`) |
 
 Artifact and externalResource values appear as their ref objects. No side effects, no
 network, no custom functions.
