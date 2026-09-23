@@ -20,7 +20,12 @@ status:
     protocol: persimmon.adapter/v1
     roles: [executor]
     executorTypes: [agent]
+    configurationSchema: {type: object, required: [model], properties: {model: {type: string}, sandbox: {enum: [read-only, workspace-write, full]}}}
+    parametersSchema: {type: object, properties: {effort: {enum: [low, medium, high, xhigh, max]}}}
+    contextKinds: [file, artifact, prompt, skill]
+    skillFormats: [claude-code-skill/v1]
     supports: {query: true, cancel: true, complete: false}
+    formRenderable: false
   describeDigest: sha256:a3f1c8d2e4b6079f1e2d3c4b5a69788796a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1
   conditions:
     - {type: Ready, status: "True", lastTransitionTime: "2026-09-20T18:30:02Z"}

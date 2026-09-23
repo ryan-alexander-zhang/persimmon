@@ -1,0 +1,29 @@
+# stdio Adapter for script Executors: runs a program, reads the TaskResult from resultFile.
+apiVersion: persimmon.ai/v1
+kind: Adapter
+metadata:
+  name: subprocess-v1
+  uid: 019a3c2e-8d00-7a44-c6e7-8f9a0b1c2d3e
+  resourceVersion: "2"
+  generation: 1
+  creationTimestamp: "2026-09-20T19:20:00Z"
+spec:
+  id: subprocess/v1
+  roles: [executor]
+  transport: stdio
+  command: [persimmon-adapter-subprocess]
+status:
+  describe:
+    adapterId: subprocess/v1
+    protocol: persimmon.adapter/v1
+    roles: [executor]
+    executorTypes: [script, tool]
+    configurationSchema: {type: object, required: [program, resultFile], properties: {program: {type: array, items: {type: string}}, resultFile: {type: string}}}
+    parametersSchema: {type: object, properties: {args: {type: array, items: {type: string}}}}
+    contextKinds: [file]
+    skillFormats: []
+    supports: {query: false, cancel: true, complete: false}
+    formRenderable: false
+  describeDigest: sha256:d6a4f2e0c8b6149d5f7b9d1f3a5b7d9f1b3d5f7a9c1e3f5a7b9d1f3a5b7d9f1b
+  conditions:
+    - {type: Ready, status: "True", lastTransitionTime: "2026-09-20T19:20:02Z"}

@@ -306,13 +306,12 @@ _Avoid_: save, write, upload, create
 ### Layer 1: adapter roles
 
 **Executor role**:
-Adapter **Role** bound from `Executor.spec.adapter`: `describe`, `validateConfig`, `execute`,
-`query`, `cancel`, `complete`.
+Adapter **Role** bound from `Executor.spec.adapter`: `describe`, `execute`, `query`, `cancel`;
+completion arrives through the `signal` callback.
 _Avoid_: executor adapter, runner, driver
 
 **Evaluator role**:
-Adapter **Role** bound from `Validator.spec.evaluator.type`: `describe`, `validateConfig`,
-`evaluate`.
+Adapter **Role** bound from `Validator.spec.evaluator.type`: `describe`, `evaluate`.
 _Avoid_: judge, checker, validator adapter
 
 **TaskResult**:

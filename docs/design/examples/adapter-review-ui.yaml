@@ -1,0 +1,30 @@
+# http Adapter for human Executors: renders a form from the output kind's schema, asserts the Actor on complete.
+apiVersion: persimmon.ai/v1
+kind: Adapter
+metadata:
+  name: review-ui-v1
+  uid: 019a3c2e-8c00-7f33-b5d6-7e8f9a0b1c2d
+  resourceVersion: "2"
+  generation: 1
+  creationTimestamp: "2026-09-20T19:10:00Z"
+spec:
+  id: review-ui/v1
+  roles: [executor]
+  transport: http
+  url: https://review.internal.example/persimmon
+  credentialBindings: [review-ui-token]
+status:
+  describe:
+    adapterId: review-ui/v1
+    protocol: persimmon.adapter/v1
+    roles: [executor]
+    executorTypes: [human]
+    configurationSchema: {type: object, required: [approvalGroup], properties: {approvalGroup: {type: string}, channel: {enum: [web, chat, email]}}}
+    parametersSchema: {type: object, additionalProperties: false}
+    contextKinds: [artifact, prompt]
+    skillFormats: []
+    supports: {query: true, cancel: true, complete: true}
+    formRenderable: true
+  describeDigest: sha256:c5f3e1d9b7a5038c4e6a8c0e2f4a6c8e0a2c4e6a8c0e2f4a6c8e0a2c4e6a8c0e
+  conditions:
+    - {type: Ready, status: "True", lastTransitionTime: "2026-09-20T19:10:02Z"}

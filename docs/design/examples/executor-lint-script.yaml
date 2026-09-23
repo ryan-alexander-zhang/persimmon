@@ -1,0 +1,13 @@
+# Script Executor: no network, one Namespaced credential for a private registry.
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: lint-script, namespace: demo}
+spec:
+  type: script
+  adapter: subprocess/v1
+  configuration:
+    program: [./scripts/lint.sh]
+    resultFile: .persimmon/result.json
+  security:
+    networkAccess: deny
+    credentialBindings: [demo/registry-token]

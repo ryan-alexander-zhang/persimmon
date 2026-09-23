@@ -1,0 +1,14 @@
+# Agent Executor. Model and sandbox are adapter configuration; the API key is bound on the Adapter, not here.
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: claude-agent, namespace: demo}
+spec:
+  type: agent
+  adapter: claude-code/v1
+  configuration:
+    model: claude-opus-5
+    sandbox: workspace-write
+  security:
+    networkAccess: allowlist
+    allowedHosts: [api.anthropic.com, github.com]
+    credentialBindings: [demo/github-token]

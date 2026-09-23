@@ -1,0 +1,10 @@
+# Human Executor. The approval group is adapter configuration; the adapter renders forms and asserts the Actor on complete.
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: product-reviewers, namespace: demo}
+spec:
+  type: human
+  adapter: review-ui/v1
+  configuration:
+    approvalGroup: product-leads
+    channel: web

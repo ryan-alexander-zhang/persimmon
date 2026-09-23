@@ -82,7 +82,7 @@ Anything else fails the attempt with `schema_violation`.
 | Rule | Enforcer |
 |---|---|
 | `executorRef`, `prompt.ref`, `skill.ref` resolve | `x-persimmon-ref` (`04-snapshot.md`) |
-| the Executor's adapter is Ready with Role `executor` | admission warns `adapter_unavailable`; snapshot walk fails |
+| the Executor's adapter is reachable and Ready | `13-executor.md` |
 | `action.parameters` validates against `describe.parametersSchema` | static checker |
 | every `context.kind` ∈ adapter `describe.contextKinds` | static checker |
 | `file.input` is an `externalResource` port; `artifact.input` is an `artifact` port | static checker |

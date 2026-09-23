@@ -84,7 +84,7 @@ Adapters act through tokens (`07-adapter.md`), never through grants.
 
 | Name | Scope | Bound from |
 |---|---|---|
-| `<name>` | Global | `Adapter.spec.credentialBindings` |
+| `<name>` | Global | `Adapter.spec.credentialBindings`; any Executor |
 | `<namespace>/<name>` | one Namespace | kind fields in that Namespace (Layer 1: `Executor.spec.security.credentialBindings`) |
 
 A Namespaced Resource may bind only its own Namespace's names and Global names.
@@ -94,7 +94,7 @@ A Namespaced Resource may bind only its own Namespace's names and Global names.
 | Verb | Effect |
 |---|---|
 | `persimmon validate <files>` | schema plus static rules; non-zero exit on `error` findings |
-| `persimmon apply <files>` | write definitions |
+| `persimmon apply <files> [--skip-adapter-validation]` | write definitions; fails on an unreachable Adapter unless skipped (`13-executor.md`) |
 | `persimmon adapter install <manifest>` · `adapter list` | apply an Adapter, run `describe`, Ready |
 | `persimmon create <file> [--follow]` | store any Resource; `--follow` runs the engine until it reaches a `terminal.values` value; Ctrl-C leaves it resumable |
 | `persimmon signal <kind>/<name> --payload <file> [--event-id <id>]` | Signal `{source: api}` as the local Actor; id generated when absent |

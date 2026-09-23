@@ -7,11 +7,12 @@ resources:
     spec:
       type: agent
       adapter: claude-code/v1
-      configuration: {model: claude-opus-5}
+      configuration: {model: claude-opus-5, sandbox: workspace-write}
+      security: {networkAccess: allowlist, allowedHosts: [api.anthropic.com, github.com], credentialBindings: [demo/github-token]}
   - apiVersion: persimmon.ai/v1
     kind: KindDefinition
     metadata: {name: executors.persimmon.ai}
-    spec: {group: persimmon.ai, names: {kind: Executor, plural: executors}, scope: Any, versions: [{name: v1, schema: {type: object, properties: {adapter: {type: string, x-persimmon-adapter: {roles: [executor]}}}}}], mutability: SpecMutable, snapshot: Definition}
+    spec: {group: persimmon.ai, names: {kind: Executor, plural: executors}, scope: Any, versions: [{name: v1, schema: {type: object, properties: {adapter: {type: string, x-persimmon-adapter: {roles: [executor]}}}}}], mutability: SpecMutable, snapshot: Definition, handlerRef: {name: executor}}
   - apiVersion: persimmon.ai/v1
     kind: KindDefinition
     metadata: {name: productrequirements.engineering.persimmon.ai}
