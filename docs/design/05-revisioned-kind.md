@@ -23,7 +23,7 @@ Framework adds to every Resource of the kind; the kind is `Immutable`, `Namespac
 | `metadata.name` | engine | `<id>.r<revision>` |
 | `spec.identity` | engine | `{id, revision ≥ 1}`; `id` is a DNS label from the publisher; revision reserved at staging |
 | `spec.content` | publisher | validated by the kind's `schema` frozen in the caller's snapshot; live registration when the caller has none |
-| `spec.provenance` | engine | `{producerRef, inputs: [RevisionRef], actor}`; `actor` is `context.actor` of the committing reconcile, else the owning Handler's `handler` Actor |
+| `spec.provenance` | engine | `{producerRef, inputs: [RevisionRef], actor}`; `producerRef` is the Resource owning the reconcile or Publication scope; `actor` is `context.actor` of the committing reconcile, else the owning Handler's `handler` Actor |
 | `status.contentDigest` | engine | `sha256:` over canonically encoded `content` (`04-snapshot.md` encoding) |
 | `status.representations[]` | engine | `{name, mediaType, digest}`; bytes in BlobStore at `blob://<digest hex>` |
 

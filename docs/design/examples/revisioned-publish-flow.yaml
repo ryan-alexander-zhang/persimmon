@@ -2,30 +2,30 @@
 steps:
   - at: "2026-09-21T10:00:00Z"
     by: handler
-    does: callAdapter(execute, idempotencyKey prd-create-001//write-prd/1); setTimer(deadline)
-  - at: "2026-09-21T10:08:00Z"
+    does: callAdapter(execute, idempotencyKey prd-create-001//write-prd/1); setTimer(attempt); setTimer(deadline)
+  - at: "2026-09-21T10:04:00Z"
     by: adapter
     does: putBlob(markdown bytes) -> blob://0f1e…; publishArtifact(ProductRequirement, checkout-v2, content, [markdown]) with the call token -> RevisionRef revision 2
     staged:
       - ref: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement, namespace: demo, id: checkout-v2, revision: 2}
         scope: prd-create-001//write-prd/1
         state: staged
-  - at: "2026-09-21T10:09:00Z"
+  - at: "2026-09-21T10:05:00Z"
     by: engine
-    does: delivers AdapterFinished state failed, error timeout (retryable)
-  - at: "2026-09-21T10:09:01Z"
+    does: delivers AdapterFinished state failed, error rate_limit (retryable)
+  - at: "2026-09-21T10:05:01Z"
     by: handler
-    does: abandonScope(prd-create-001//write-prd/1); clearTimer(deadline); setTimer(backoff)
+    does: abandonScope(prd-create-001//write-prd/1); clearTimer(attempt); setTimer(backoff)
     staged:
       - ref: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement, namespace: demo, id: checkout-v2, revision: 2}
         scope: prd-create-001//write-prd/1
         state: abandoned
-  - at: "2026-09-21T10:09:31Z"
+  - at: "2026-09-21T10:05:30Z"
     by: engine
     does: delivers TimerFired(backoff)
-  - at: "2026-09-21T10:09:32Z"
+  - at: "2026-09-21T10:05:31Z"
     by: handler
-    does: callAdapter(execute, idempotencyKey prd-create-001//write-prd/2); setTimer(deadline)
+    does: callAdapter(execute, idempotencyKey prd-create-001//write-prd/2); setTimer(attempt)
   - at: "2026-09-21T10:29:00Z"
     by: adapter
     does: putBlob(markdown bytes); publishArtifact(ProductRequirement, checkout-v2, content, [markdown]) with the call token -> RevisionRef revision 3
@@ -38,7 +38,7 @@ steps:
     does: delivers AdapterFinished state succeeded; context.staged lists revision 3
   - at: "2026-09-21T10:30:00Z"
     by: handler
-    does: outputs validated against context.staged; commitScope(prd-create-001//write-prd/2); clearTimer(deadline); phase Succeeded
+    does: outputs validated against context.staged; commitScope(prd-create-001//write-prd/2); clearTimer(attempt); clearTimer(deadline); phase Succeeded
     staged:
       - ref: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement, namespace: demo, id: checkout-v2, revision: 3}
         scope: prd-create-001//write-prd/2

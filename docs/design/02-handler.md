@@ -23,7 +23,7 @@ KindDefinition ── handlerRef ──▶ Handler ── implementation ──�
 
 ```text
 validate(resource)                          -> {findings[]}
-reconcile(resource, event, context, engine?) -> {statusPatch?, actions[]}   applied atomically (03-reconcile.md)
+reconcile(resource, event, context, engine) -> {statusPatch?, actions[]}    applied atomically (03-reconcile.md)
 ```
 
 | Finding field | Rule |
@@ -40,7 +40,7 @@ reconcile(resource, event, context, engine?) -> {statusPatch?, actions[]}   appl
 | `context.actor` | Actor of the triggering Event; absent for engine-originated Events |
 | `context.timers[]` | keys of pending timers |
 | `context.staged[]` | `{ref: RevisionRef, scope}` staged for this Resource and not yet committed (`05-revisioned-kind.md`) |
-| `engine` | `{endpoint, token}`; Adapter implementations only; token scoped to this reconcile |
+| `engine` | `{endpoint, token}`; token scoped to this reconcile; builtin Handlers call the same Engine callbacks in process |
 
 Every Event is delivered; an Event the Handler does not use returns `{actions: []}`.
 
@@ -50,13 +50,16 @@ Every Event is delivered; an Event the Handler does not use returns `{actions: [
 |---|---|
 | Stateless between calls; memory lives in `status` or children | Handler author; conformance suite (`91-roadmap.md`) |
 | Idempotent on `(metadata.uid, event.sequence)`; a redelivered Event yields the same result | Handler author; conformance suite (`91-roadmap.md`) |
-| Writes only its own Resource's `status`, under its `handler` Actor; reaches other Resources only by `createResource`, `cancelResource` | engine: no other action exists |
+| Writes only its own Resource's `status`, under its `handler` Actor; reaches other Resources only by `createResource`, `cancelResource`; reads them only through Engine callbacks | engine: no other action exists |
 | `validate` holds rules the schema cannot express | Handler author |
 | `kinds[]` names registered kinds whose `handlerRef` points back; every registered version of a kind with `handlerRef` has one accepting Handler | static checker |
 | Adapter implementation: `Adapter.status.describe.kinds` ⊇ `kinds` | write path |
 | Global: no `namespace`; write needs `admin` grant | write path (`00-resource.md`) |
 
 ## Decisions
+
+- Every Handler, builtin or Adapter, reads other Resources only through the Engine callbacks
+  (`07-adapter.md`); builtin Handlers call them in process. Reference gave builtins nothing.
 
 - `implementation.adapter` is `{id}` only. Reference carried `transport` here; the Adapter
   Resource owns it.

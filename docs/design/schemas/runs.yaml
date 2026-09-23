@@ -1,0 +1,261 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Runs
+description: WorkflowRun, TaskRun, GateRun, ValidationRun. Immutable, Namespaced.
+$defs:
+  Phase: {enum: [Pending, Running, Waiting, Succeeded, Failed, Cancelled]}
+  StepPhase: {enum: [Pending, Running, Waiting, Succeeded, Failed, Cancelled, Skipped]}
+  IterationPath: {type: string, pattern: "^([a-z][a-z0-9-]*\\[[1-9][0-9]*\\](/[a-z][a-z0-9-]*\\[[1-9][0-9]*\\])*)?$"}
+  Deadline: {type: string, format: date-time}
+
+  RunMetadata:
+    allOf: [{$ref: "resource.yaml#/$defs/Metadata"}, {required: [namespace]}]
+
+  Origin:
+    type: object
+    required: [kind]
+    properties:
+      kind: {enum: [manual, trigger, parent]}
+    oneOf:
+      - properties: {kind: {const: manual}, actor: {$ref: "resource.yaml#/$defs/Actor"}}
+        additionalProperties: false
+      - properties:
+          kind: {const: trigger}
+          triggerRef: {$ref: "resource.yaml#/$defs/ObjectRef"}
+          eventId: {$ref: "resource.yaml#/$defs/Digest"}
+          causationRef: {$ref: "resource.yaml#/$defs/ObjectRef"}
+        required: [triggerRef, eventId]
+        additionalProperties: false
+      - properties: {kind: {const: parent}}
+        additionalProperties: false
+
+  Address:
+    type: object
+    required: [workflowRunRef, stepRef, iterationPath, logicalExecutionId]
+    additionalProperties: false
+    properties:
+      workflowRunRef: {$ref: "resource.yaml#/$defs/ObjectRef"}
+      stepRef: {type: string, pattern: "^[a-z][a-z0-9-]*(/[a-z][a-zA-Z0-9]*)?$"}
+      iterationPath: {$ref: "#/$defs/IterationPath"}
+      logicalExecutionId: {type: string, pattern: "^[a-z0-9.-]+/[^/]*(/[^/]+)*/[a-z][a-z0-9-]*(/[a-z][a-zA-Z0-9]*)?$"}
+
+  StatusCommon:
+    type: object
+    properties:
+      phase: {$ref: "#/$defs/Phase"}
+      error: {$ref: "reconcile.yaml#/$defs/Error"}
+      waitingReason: {type: string}
+    allOf:
+      - if: {properties: {phase: {const: Failed}}, required: [phase]}
+        then: {required: [error]}
+        else: {not: {required: [error]}}
+      - if: {properties: {phase: {const: Waiting}}, required: [phase]}
+        else: {not: {required: [waitingReason]}}
+
+  WorkflowRun:
+    type: object
+    required: [apiVersion, kind, metadata, spec]
+    additionalProperties: false
+    properties:
+      apiVersion: {const: persimmon.ai/v1}
+      kind: {const: WorkflowRun}
+      metadata: {$ref: "#/$defs/RunMetadata"}
+      spec:
+        type: object
+        required: [workflowRef, inputs, timeout, origin]
+        additionalProperties: false
+        properties:
+          workflowRef:
+            allOf: [{$ref: "resource.yaml#/$defs/LocalDefinitionRef"}, {properties: {kind: {const: Workflow}}}]
+            x-persimmon-ref: {kinds: [Workflow]}
+          inputs: {$ref: "ports.yaml#/$defs/RuntimeValues"}
+          timeout: {$ref: "ports.yaml#/$defs/Duration"}
+          origin: {$ref: "#/$defs/Origin"}
+          parent:
+            type: object
+            required: [workflowRunRef, stepRef, iterationPath]
+            additionalProperties: false
+            properties:
+              workflowRunRef: {$ref: "resource.yaml#/$defs/ObjectRef"}
+              stepRef: {$ref: "ports.yaml#/$defs/StepId"}
+              iterationPath: {$ref: "#/$defs/IterationPath"}
+        if: {properties: {origin: {properties: {kind: {const: parent}}}}}
+        then: {required: [parent]}
+        else: {not: {required: [parent]}}
+      status:
+        allOf:
+          - {$ref: "#/$defs/StatusCommon"}
+          - type: object
+            required: [phase, steps]
+            additionalProperties: false
+            properties:
+              phase: true
+              error: true
+              waitingReason: true
+              steps:
+                type: object
+                propertyNames: {$ref: "ports.yaml#/$defs/StepId"}
+                additionalProperties:
+                  type: object
+                  required: [phase]
+                  additionalProperties: false
+                  properties:
+                    phase: {$ref: "#/$defs/StepPhase"}
+                    runRef: {$ref: "resource.yaml#/$defs/ObjectRef"}
+                    iteration: {type: integer, minimum: 1}
+                    error: {$ref: "reconcile.yaml#/$defs/Error"}
+              outputs: {$ref: "ports.yaml#/$defs/RuntimeValues"}
+              reason: {type: string, pattern: "^[a-z][a-z0-9_]*$"}
+            if: {properties: {phase: {const: Succeeded}}}
+            then: {required: [outputs]}
+            else: {not: {required: [outputs]}}
+
+  Attempt:
+    type: object
+    required: [index, state, idempotencyKey, startedAt]
+    additionalProperties: false
+    properties:
+      index: {type: integer, minimum: 1}
+      state: {enum: [running, succeeded, failed, unknown]}
+      idempotencyKey: {$ref: "reconcile.yaml#/$defs/IdempotencyKey"}
+      startedAt: {type: string, format: date-time}
+      finishedAt: {type: string, format: date-time}
+      error: {$ref: "reconcile.yaml#/$defs/Error"}
+
+  ResolvedContext:
+    type: array
+    items:
+      type: object
+      required: [kind]
+      oneOf:
+        - properties: {kind: {const: file}, ref: {$ref: "resource.yaml#/$defs/ExternalResourceRef"}, path: {type: string}}
+          required: [ref, path]
+          additionalProperties: false
+        - properties: {kind: {const: artifact}, ref: {$ref: "resource.yaml#/$defs/RevisionRef"}}
+          required: [ref]
+          additionalProperties: false
+        - properties: {kind: {const: prompt}, name: {type: string}, mediaType: {type: string}, content: {type: string}, digest: {$ref: "resource.yaml#/$defs/Digest"}}
+          required: [name, mediaType, content, digest]
+          additionalProperties: false
+        - properties: {kind: {const: skill}, name: {type: string}, source: {$ref: "resource.yaml#/$defs/ExternalResourceRef"}, digest: {$ref: "resource.yaml#/$defs/Digest"}, format: {type: string}}
+          required: [name, source, digest, format]
+          additionalProperties: false
+
+  TaskRun:
+    type: object
+    required: [apiVersion, kind, metadata, spec]
+    additionalProperties: false
+    properties:
+      apiVersion: {const: persimmon.ai/v1}
+      kind: {const: TaskRun}
+      metadata: {$ref: "#/$defs/RunMetadata"}
+      spec:
+        type: object
+        required: [taskRef, address, deadline, inputs, context]
+        additionalProperties: false
+        properties:
+          taskRef:
+            allOf: [{$ref: "resource.yaml#/$defs/LocalDefinitionRef"}, {properties: {kind: {const: Task}}}]
+          address: {$ref: "#/$defs/Address"}
+          deadline: {$ref: "#/$defs/Deadline"}
+          inputs: {$ref: "ports.yaml#/$defs/RuntimeValues"}
+          context: {$ref: "#/$defs/ResolvedContext"}
+      status:
+        allOf:
+          - {$ref: "#/$defs/StatusCommon"}
+          - type: object
+            required: [phase, attempts]
+            additionalProperties: false
+            properties:
+              phase: true
+              error: true
+              waitingReason: true
+              attempts: {type: array, items: {$ref: "#/$defs/Attempt"}}
+              outputs: {$ref: "ports.yaml#/$defs/RuntimeValues"}
+              actor: {$ref: "resource.yaml#/$defs/Actor"}
+            if: {properties: {phase: {const: Succeeded}}}
+            then: {required: [outputs]}
+            else: {not: {required: [outputs]}}
+
+  GateRun:
+    type: object
+    required: [apiVersion, kind, metadata, spec]
+    additionalProperties: false
+    properties:
+      apiVersion: {const: persimmon.ai/v1}
+      kind: {const: GateRun}
+      metadata: {$ref: "#/$defs/RunMetadata"}
+      spec:
+        type: object
+        required: [gateRef, address, deadline, inputs]
+        additionalProperties: false
+        properties:
+          gateRef:
+            allOf: [{$ref: "resource.yaml#/$defs/LocalDefinitionRef"}, {properties: {kind: {const: Gate}}}]
+          address: {$ref: "#/$defs/Address"}
+          deadline: {$ref: "#/$defs/Deadline"}
+          inputs: {$ref: "ports.yaml#/$defs/RuntimeValues"}
+      status:
+        allOf:
+          - {$ref: "#/$defs/StatusCommon"}
+          - type: object
+            required: [phase, validationRuns]
+            additionalProperties: false
+            properties:
+              phase: true
+              error: true
+              waitingReason: true
+              validationRuns:
+                type: object
+                propertyNames: {$ref: "ports.yaml#/$defs/PortName"}
+                additionalProperties: {$ref: "resource.yaml#/$defs/ObjectRef"}
+              outputs:
+                type: object
+                required: [result]
+                additionalProperties: false
+                properties:
+                  result:
+                    type: object
+                    required: [kind, value]
+                    additionalProperties: false
+                    properties:
+                      kind: {const: value}
+                      value: {$ref: "ports.yaml#/$defs/GateResult"}
+            if: {properties: {phase: {const: Succeeded}}}
+            then: {required: [outputs]}
+            else: {not: {required: [outputs]}}
+
+  ValidationRun:
+    type: object
+    required: [apiVersion, kind, metadata, spec]
+    additionalProperties: false
+    properties:
+      apiVersion: {const: persimmon.ai/v1}
+      kind: {const: ValidationRun}
+      metadata: {$ref: "#/$defs/RunMetadata"}
+      spec:
+        type: object
+        required: [validatorRef, gateRunRef, name, address, deadline, inputs]
+        additionalProperties: false
+        properties:
+          validatorRef:
+            allOf: [{$ref: "resource.yaml#/$defs/LocalDefinitionRef"}, {properties: {kind: {const: Validator}}}]
+          gateRunRef: {$ref: "resource.yaml#/$defs/ObjectRef"}
+          name: {$ref: "ports.yaml#/$defs/PortName"}
+          address: {$ref: "#/$defs/Address"}
+          deadline: {$ref: "#/$defs/Deadline"}
+          inputs: {$ref: "ports.yaml#/$defs/RuntimeValues"}
+      status:
+        allOf:
+          - {$ref: "#/$defs/StatusCommon"}
+          - type: object
+            required: [phase]
+            additionalProperties: false
+            properties:
+              phase: true
+              error: true
+              waitingReason: true
+              result: {$ref: "ports.yaml#/$defs/ValidationResult"}
+              taskRunRef: {$ref: "resource.yaml#/$defs/ObjectRef"}
+            if: {properties: {phase: {const: Succeeded}}}
+            then: {required: [result]}
+            else: {not: {required: [result]}}

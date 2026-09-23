@@ -2,18 +2,18 @@
 apiVersion: persimmon.ai/v1
 kind: TaskRun
 metadata:
-  name: prd-create-001-research
+  name: prd-create-002-research
   namespace: demo
-  uid: 019a3c2e-7c00-7a9b-8c1d-2e3f4a5b6c7d
+  uid: 019a3c2e-7e00-7c8d-8f1a-2b3c4d5e6f70
   resourceVersion: "12"
   generation: 1
-  creationTimestamp: "2026-09-21T09:00:01Z"
+  creationTimestamp: "2026-09-22T09:00:01Z"
   ownerReferences:
     - apiVersion: persimmon.ai/v1
       kind: WorkflowRun
       namespace: demo
-      name: prd-create-001
-      uid: 019a3c2e-7b1f-7c3a-9d2e-1f0a8b6c4d5e
+      name: prd-create-002
+      uid: 019a3c2e-7e00-7b2f-9c3d-4e5f6a7b8c9d
   snapshot:
     uri: snapshot://4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a
     digest: sha256:4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a
@@ -22,6 +22,16 @@ metadata:
     lastError: "adapter claude-code/v1: connection refused"
 spec:
   taskRef: {kind: Task, name: research}
-  stepRef: research
+  address:
+    workflowRunRef: {apiVersion: persimmon.ai/v1, kind: WorkflowRun, namespace: demo, name: prd-create-002}
+    stepRef: research
+    iterationPath: ""
+    logicalExecutionId: prd-create-002//research
+  deadline: "2026-09-22T09:25:01Z"
+  inputs:
+    repository: {kind: externalResource, ref: {provider: git, type: repository, id: github.com/persimmon-ai/demo, locator: {remote: https://github.com/persimmon-ai/demo.git, ref: main}, version: 9fceb02d0ae598e95dc970b74767f19372d61af8}}
+  context: []
 status:
   phase: Running
+  attempts:
+    - {index: 1, state: running, idempotencyKey: prd-create-002//research/1, startedAt: "2026-09-22T09:00:02Z"}

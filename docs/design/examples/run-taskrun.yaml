@@ -1,0 +1,50 @@
+# TaskRun for step write-prd: attempt 1 hit a rate limit, attempt 2 succeeded.
+# context is the resolved list the adapter saw; the Task's `file` entry is dropped because the optional input `repository` is unbound here (12-task.md).
+apiVersion: persimmon.ai/v1
+kind: TaskRun
+metadata:
+  name: prd-create-001-write-prd
+  namespace: demo
+  uid: 019a3c2e-7d00-7b1c-9d2e-3f4a5b6c7d8e
+  resourceVersion: "6"
+  generation: 1
+  creationTimestamp: "2026-09-21T10:00:00Z"
+  ownerReferences:
+    - {apiVersion: persimmon.ai/v1, kind: WorkflowRun, namespace: demo, name: prd-create-001, uid: 019a3c2e-7b1f-7c3a-9d2e-1f0a8b6c4d5e}
+  snapshot:
+    uri: snapshot://4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a
+    digest: sha256:4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a
+spec:
+  taskRef: {kind: Task, name: write-prd}
+  address:
+    workflowRunRef: {apiVersion: persimmon.ai/v1, kind: WorkflowRun, namespace: demo, name: prd-create-001}
+    stepRef: write-prd
+    iterationPath: ""
+    logicalExecutionId: prd-create-001//write-prd
+  deadline: "2026-09-21T10:35:00Z"        # min(run deadline 11:00, step timeout 35m from 10:00)
+  inputs:
+    research: {kind: artifact, ref: {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport, namespace: demo, id: research-checkout-v2, revision: 1}}
+    maxRequirements: {kind: value, value: 12}
+  context:
+    - kind: artifact
+      ref: {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport, namespace: demo, id: research-checkout-v2, revision: 1}
+    - kind: prompt
+      name: write-prd-template
+      mediaType: text/markdown
+      content: |
+        You are writing a product requirement document.
+        Preserve entity ids from the research report.
+        One requirement per line, each with an id and a testable statement.
+      digest: sha256:b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a1
+    - kind: skill
+      name: prd-writer
+      source: {provider: git, type: repository, id: github.com/persimmon-ai/skills, locator: {remote: https://github.com/persimmon-ai/skills.git, path: prd-writer}, version: 2f9a1c0e7b3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f}
+      digest: sha256:9c8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d9c8b
+      format: claude-code-skill/v1
+status:
+  phase: Succeeded
+  attempts:
+    - {index: 1, state: failed, idempotencyKey: prd-create-001//write-prd/1, startedAt: "2026-09-21T10:00:01Z", finishedAt: "2026-09-21T10:05:00Z", error: {code: rate_limit, message: "429 from provider", retryable: true}}
+    - {index: 2, state: succeeded, idempotencyKey: prd-create-001//write-prd/2, startedAt: "2026-09-21T10:05:31Z", finishedAt: "2026-09-21T10:30:00Z"}
+  outputs:
+    prd: {kind: artifact, ref: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement, namespace: demo, id: checkout-v2, revision: 3}}

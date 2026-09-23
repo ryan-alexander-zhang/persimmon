@@ -1,0 +1,28 @@
+# Manual run of prd-create after both steps finished; outputs bound from write-prd.
+apiVersion: persimmon.ai/v1
+kind: WorkflowRun
+metadata:
+  name: prd-create-001
+  namespace: demo
+  uid: 019a3c2e-7b1f-7c3a-9d2e-1f0a8b6c4d5e
+  resourceVersion: "9"
+  generation: 1
+  creationTimestamp: "2026-09-21T09:00:00Z"
+  snapshot:
+    uri: snapshot://4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a
+    digest: sha256:4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a
+spec:
+  workflowRef: {kind: Workflow, name: prd-create}
+  inputs:
+    repository:
+      kind: externalResource
+      ref: {provider: git, type: repository, id: github.com/persimmon-ai/demo, locator: {remote: https://github.com/persimmon-ai/demo.git, ref: main}, version: 9fceb02d0ae598e95dc970b74767f19372d61af8}
+  timeout: 2h
+  origin: {kind: manual}
+status:
+  phase: Succeeded
+  steps:
+    research: {phase: Succeeded, runRef: {apiVersion: persimmon.ai/v1, kind: TaskRun, namespace: demo, name: prd-create-001-research}}
+    write-prd: {phase: Succeeded, runRef: {apiVersion: persimmon.ai/v1, kind: TaskRun, namespace: demo, name: prd-create-001-write-prd}}
+  outputs:
+    prd: {kind: artifact, ref: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement, namespace: demo, id: checkout-v2, revision: 3}}

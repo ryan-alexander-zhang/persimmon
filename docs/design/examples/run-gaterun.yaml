@@ -1,0 +1,41 @@
+# GateRun for step approval of prd-approval run: quorum 2 of 3 met; security scan failed its check but the run Succeeded.
+apiVersion: persimmon.ai/v1
+kind: GateRun
+metadata:
+  name: on-prd-published-444444444444-approval
+  namespace: demo
+  uid: 019a3c2e-d100-7e66-a8b9-0c1d2e3f4a5b
+  resourceVersion: "5"
+  generation: 1
+  creationTimestamp: "2026-09-21T12:30:00Z"
+  ownerReferences:
+    - {apiVersion: persimmon.ai/v1, kind: WorkflowRun, namespace: demo, name: on-prd-published-444444444444, uid: 019a3c2e-d000-7d55-9a8b-1c2d3e4f5a6b}
+  snapshot:
+    uri: snapshot://7d1a0c9e5b3f4a2d8e6c1b0f9a8d7c6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a1b0c
+    digest: sha256:7d1a0c9e5b3f4a2d8e6c1b0f9a8d7c6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a1b0c
+spec:
+  gateRef: {kind: Gate, name: prd-approval-gate}
+  address:
+    workflowRunRef: {apiVersion: persimmon.ai/v1, kind: WorkflowRun, namespace: demo, name: on-prd-published-444444444444}
+    stepRef: approval
+    iterationPath: ""
+    logicalExecutionId: on-prd-published-444444444444//approval
+  deadline: "2026-09-24T12:30:00Z"        # min(run deadline, step timeout 72h)
+  inputs:
+    prd: {kind: artifact, ref: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement, namespace: demo, id: checkout-v2, revision: 3}}
+    minRequirements: {kind: value, value: 3}
+status:
+  phase: Succeeded
+  validationRuns:
+    structure: {apiVersion: persimmon.ai/v1, kind: ValidationRun, namespace: demo, name: on-prd-published-444444444444-approval-structure}
+    humanReview: {apiVersion: persimmon.ai/v1, kind: ValidationRun, namespace: demo, name: on-prd-published-444444444444-approval-humanreview}
+    security: {apiVersion: persimmon.ai/v1, kind: ValidationRun, namespace: demo, name: on-prd-published-444444444444-approval-security}
+  outputs:
+    result:
+      kind: value
+      value:
+        passed: true
+        results:
+          structure: {passed: true, findings: [], evidence: [{apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement, namespace: demo, id: checkout-v2, revision: 3}]}
+          humanReview: {passed: true, findings: [], evidence: []}
+          security: {passed: false, findings: [{severity: error, code: pii_in_logs, message: "R2 logs card numbers on error"}], evidence: []}

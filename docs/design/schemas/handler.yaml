@@ -95,7 +95,7 @@ $defs:
 
   ReconcileInput:
     type: object
-    required: [resource, event, context]
+    required: [resource, event, context, engine]
     additionalProperties: false
     properties:
       resource: {$ref: "resource.yaml"}

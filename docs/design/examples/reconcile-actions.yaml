@@ -7,8 +7,11 @@
     metadata: {name: prd-create-001-research, namespace: demo}
     spec:
       taskRef: {kind: Task, name: research}
-      stepRef: research
-      logicalExecutionId: prd-create-001//research
+      address: {workflowRunRef: {apiVersion: persimmon.ai/v1, kind: WorkflowRun, namespace: demo, name: prd-create-001}, stepRef: research, iterationPath: "", logicalExecutionId: prd-create-001//research}
+      deadline: "2026-09-21T09:25:00Z"
+      inputs:
+        repository: {kind: externalResource, ref: {provider: git, type: repository, id: github.com/persimmon-ai/demo, locator: {remote: https://github.com/persimmon-ai/demo.git, ref: main}, version: 9fceb02d0ae598e95dc970b74767f19372d61af8}}
+      context: []
 
 - type: cancelResource
   ref: {apiVersion: persimmon.ai/v1, kind: TaskRun, namespace: demo, name: prd-create-001-research}
@@ -40,5 +43,5 @@
   adapterId: claude-code/v1
   op: execute
   idempotencyKey: prd-create-001//research/1
-  payload:
-    taskRun: {name: prd-create-001-research, logicalExecutionId: prd-create-001//research, attempt: 1}
+  payload:                               # execute payload shape: 19-adapter-roles.md
+    taskRun: {name: prd-create-001-research, logicalExecutionId: prd-create-001//research, idempotencyKey: prd-create-001//research/1, attempt: 1}

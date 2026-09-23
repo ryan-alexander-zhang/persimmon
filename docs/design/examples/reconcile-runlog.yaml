@@ -1,18 +1,22 @@
-# RunLog of one TaskRun: first attempt hits a rate limit, second succeeds. One deadline timer per attempt.
+# RunLog of TaskRun prd-create-001-research: attempt 1 hits a rate limit, attempt 2 succeeds. One attempt timer per attempt.
 uid: 019a3c2e-7c00-7a9b-8c1d-2e3f4a5b6c7d
 entries:
   - event: {type: Created, sequence: 1, dedupeKey: created}
     appliedAt: "2026-09-21T09:00:01Z"
     deliveries: 1
     result:
-      statusPatch: {phase: Running, attempts: [{index: 1, state: running, idempotencyKey: prd-create-001//research/1}]}
+      statusPatch:
+        phase: Running
+        attempts: [{index: 1, state: running, idempotencyKey: prd-create-001//research/1, startedAt: "2026-09-21T09:00:01Z"}]
       actions:
         - type: callAdapter
           adapterId: claude-code/v1
           op: execute
           idempotencyKey: prd-create-001//research/1
+          deadline: "2026-09-21T09:20:01Z"
           payload: {attempt: 1}
-        - {type: setTimer, key: deadline, at: "2026-09-21T09:20:01Z"}
+        - {type: setTimer, key: attempt, at: "2026-09-21T09:20:01Z"}
+        - {type: setTimer, key: deadline, at: "2026-09-21T09:25:00Z"}
 
   - event:
       type: AdapterFinished
@@ -25,10 +29,13 @@ entries:
     appliedAt: "2026-09-21T09:05:00Z"
     deliveries: 1
     result:
-      statusPatch: {phase: Waiting, waitingReason: retryBackoff}
+      statusPatch:
+        phase: Waiting
+        waitingReason: retryBackoff
+        attempts: [{index: 1, state: failed, idempotencyKey: prd-create-001//research/1, startedAt: "2026-09-21T09:00:01Z", finishedAt: "2026-09-21T09:05:00Z", error: {code: rate_limit, message: "429 from provider", retryable: true}}]
       actions:
         - {type: abandonScope, key: prd-create-001//research/1}
-        - {type: clearTimer, key: deadline}
+        - {type: clearTimer, key: attempt}
         - {type: setTimer, key: backoff, at: "2026-09-21T09:05:30Z"}
 
   - event:
@@ -39,14 +46,19 @@ entries:
     appliedAt: "2026-09-21T09:05:31Z"
     deliveries: 2                     # first delivery lost its lease; redelivered
     result:
-      statusPatch: {phase: Running}
+      statusPatch:
+        phase: Running
+        attempts:
+          - {index: 1, state: failed, idempotencyKey: prd-create-001//research/1, startedAt: "2026-09-21T09:00:01Z", finishedAt: "2026-09-21T09:05:00Z", error: {code: rate_limit, message: "429 from provider", retryable: true}}
+          - {index: 2, state: running, idempotencyKey: prd-create-001//research/2, startedAt: "2026-09-21T09:05:31Z"}
       actions:
         - type: callAdapter
           adapterId: claude-code/v1
           op: execute
           idempotencyKey: prd-create-001//research/2
+          deadline: "2026-09-21T09:25:00Z"
           payload: {attempt: 2}
-        - {type: setTimer, key: deadline, at: "2026-09-21T09:25:31Z"}
+        - {type: setTimer, key: attempt, at: "2026-09-21T09:25:00Z"}
 
   - event:
       type: AdapterFinished
@@ -55,11 +67,17 @@ entries:
       payload:
         idempotencyKey: prd-create-001//research/2
         state: succeeded
-        result: {outputs: {report: {kind: artifact, ref: {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport, namespace: demo, id: research-checkout-v2, revision: 1}}}}
-    appliedAt: "2026-09-21T09:18:00Z"
+        result: {protocol: persimmon.result/v1, outputs: {report: {kind: artifact, ref: {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport, namespace: demo, id: research-checkout-v2, revision: 1}}}}
+    appliedAt: "2026-09-21T10:00:00Z"
     deliveries: 1
     result:
-      statusPatch: {phase: Succeeded, outputs: {report: {kind: artifact, ref: {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport, namespace: demo, id: research-checkout-v2, revision: 1}}}}
+      statusPatch:
+        phase: Succeeded
+        attempts:
+          - {index: 1, state: failed, idempotencyKey: prd-create-001//research/1, startedAt: "2026-09-21T09:00:01Z", finishedAt: "2026-09-21T09:05:00Z", error: {code: rate_limit, message: "429 from provider", retryable: true}}
+          - {index: 2, state: succeeded, idempotencyKey: prd-create-001//research/2, startedAt: "2026-09-21T09:05:31Z", finishedAt: "2026-09-21T10:00:00Z"}
+        outputs: {report: {kind: artifact, ref: {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport, namespace: demo, id: research-checkout-v2, revision: 1}}}
       actions:
         - {type: commitScope, key: prd-create-001//research/2}
+        - {type: clearTimer, key: attempt}
         - {type: clearTimer, key: deadline}

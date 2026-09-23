@@ -1,0 +1,31 @@
+# ValidationRun for humanReview: a task Validator; the human's TaskRun answered.
+apiVersion: persimmon.ai/v1
+kind: ValidationRun
+metadata:
+  name: on-prd-published-444444444444-approval-humanreview
+  namespace: demo
+  uid: 019a3c2e-d200-7f77-b9ca-1d2e3f4a5b6c
+  resourceVersion: "3"
+  generation: 1
+  creationTimestamp: "2026-09-21T12:30:01Z"
+  ownerReferences:
+    - {apiVersion: persimmon.ai/v1, kind: GateRun, namespace: demo, name: on-prd-published-444444444444-approval, uid: 019a3c2e-d100-7e66-a8b9-0c1d2e3f4a5b}
+  snapshot:
+    uri: snapshot://7d1a0c9e5b3f4a2d8e6c1b0f9a8d7c6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a1b0c
+    digest: sha256:7d1a0c9e5b3f4a2d8e6c1b0f9a8d7c6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a1b0c
+spec:
+  validatorRef: {kind: Validator, name: prd-human-review}
+  gateRunRef: {apiVersion: persimmon.ai/v1, kind: GateRun, namespace: demo, name: on-prd-published-444444444444-approval}
+  name: humanReview
+  address:                                # its TaskRun inherits this address with stepRef approval/humanReview
+    workflowRunRef: {apiVersion: persimmon.ai/v1, kind: WorkflowRun, namespace: demo, name: on-prd-published-444444444444}
+    stepRef: approval/humanReview
+    iterationPath: ""
+    logicalExecutionId: on-prd-published-444444444444//approval/humanReview
+  deadline: "2026-09-23T12:30:01Z"        # min(gate deadline, validator timeout 48h)
+  inputs:
+    prd: {kind: artifact, ref: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement, namespace: demo, id: checkout-v2, revision: 3}}
+status:
+  phase: Succeeded
+  taskRunRef: {apiVersion: persimmon.ai/v1, kind: TaskRun, namespace: demo, name: on-prd-published-444444444444-approval-humanreview-task}
+  result: {passed: true, findings: [], evidence: []}

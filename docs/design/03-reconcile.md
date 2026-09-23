@@ -49,8 +49,9 @@ A lost lease refuses the commit.
 
 ## Commit
 
-1. Validate `statusPatch` against `statusSchema`; refuse a change to `terminal.path` once it
-   holds a terminal value.
+1. Apply `statusPatch` as a JSON merge patch (RFC 7386, arrays replaced whole); validate the
+   result against `statusSchema`; refuse a change to `terminal.path` once it holds a terminal
+   value.
 2. In one store transaction: apply `statusPatch`, then every action in order, then every
    emitted Outbox event, then ack `(uid, sequence)`.
 3. Failure anywhere discards everything; the Event is redelivered.
