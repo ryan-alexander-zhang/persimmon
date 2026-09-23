@@ -1,0 +1,39 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Prompt and Skill
+description: Pure-data Definition kinds referenced from Task context. Scope Any.
+$defs:
+  Prompt:
+    type: object
+    required: [apiVersion, kind, metadata, spec]
+    additionalProperties: false
+    properties:
+      apiVersion: {const: persimmon.ai/v1}
+      kind: {const: Prompt}
+      metadata: {$ref: "resource.yaml#/$defs/Metadata"}
+      spec:
+        type: object
+        required: [mediaType, content]
+        additionalProperties: false
+        properties:
+          mediaType: {type: string, pattern: "^text/[a-z0-9.+-]+$"}
+          content: {type: string}
+      status: {type: object}
+
+  Skill:
+    type: object
+    required: [apiVersion, kind, metadata, spec]
+    additionalProperties: false
+    properties:
+      apiVersion: {const: persimmon.ai/v1}
+      kind: {const: Skill}
+      metadata: {$ref: "resource.yaml#/$defs/Metadata"}
+      spec:
+        type: object
+        required: [source, digest, format]
+        additionalProperties: false
+        properties:
+          source:
+            allOf: [{$ref: "resource.yaml#/$defs/ExternalResourceRef"}, {required: [version]}]
+          digest: {$ref: "resource.yaml#/$defs/Digest"}
+          format: {$ref: "reconcile.yaml#/$defs/AdapterId"}   # same <name>/v<n> grammar
+      status: {type: object}

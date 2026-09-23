@@ -1,0 +1,13 @@
+# Skill: a Claude Code skill directory in a Git repository, pinned by commit and bundle digest.
+apiVersion: persimmon.ai/v1
+kind: Skill
+metadata: {name: prd-writer, namespace: demo}
+spec:
+  source:
+    provider: git
+    type: repository
+    id: github.com/persimmon-ai/skills
+    locator: {remote: https://github.com/persimmon-ai/skills.git, path: prd-writer}
+    version: 2f9a1c0e7b3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f
+  digest: sha256:9c8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d9c8b
+  format: claude-code-skill/v1

@@ -38,7 +38,7 @@ Step contract: `inputsPath: spec.inputs`, `outputsPath: spec.outputs`, `runKind:
 |---|---|---|---|
 | `file` | `input`, `path` | `{kind, ref: ExternalResourceRef, path}` | `input` is an `externalResource` port; ref carries `version` at run time |
 | `artifact` | `input` | `{kind, ref: RevisionRef}` | `input` is an `artifact` port |
-| `prompt` | `ref` | `{kind, name, content, digest}` | LocalDefinitionRef to a Prompt (`15-prompt-skill.md`) |
+| `prompt` | `ref` | `{kind, name, mediaType, content, digest}` | LocalDefinitionRef to a Prompt (`15-prompt-skill.md`) |
 | `skill` | `ref` | `{kind, name, source, digest, format}` | LocalDefinitionRef to a Skill; `format` ∈ adapter `describe.skillFormats` |
 
 Adapters receive entries in order, then `instructions`. An entry on an absent optional input
@@ -86,7 +86,7 @@ Anything else fails the attempt with `schema_violation`.
 | `action.parameters` validates against `describe.parametersSchema` | static checker |
 | every `context.kind` ∈ adapter `describe.contextKinds` | static checker |
 | `file.input` is an `externalResource` port; `artifact.input` is an `artifact` port | static checker |
-| `skill.ref.format` ∈ adapter `describe.skillFormats` | static checker |
+| the referenced Skill's `format` ∈ adapter `describe.skillFormats` | static checker |
 | `retryOn ∩ abortOn = ∅`; the three never-retried codes ∉ `retryOn` | static checker |
 | `unknown_result` retried only when `sideEffects: none`; `retryPolicy` cannot override | `task` handler (`17-runs.md`) |
 | `file` ref without `version` at attempt start | `task` handler: `invalid_input` |
@@ -99,7 +99,7 @@ Anything else fails the attempt with `schema_violation`.
 - `permission_denied`, `invalid_input`, `schema_violation` are hard non-retryable, not only
   barred from `retryOn`.
 - Resolved `skill` entry carries `format`; `19-adapter-roles.md` publishes that shape.
-  Resolved `prompt` entry carries `content` and `digest`.
+  Resolved `prompt` entry carries `mediaType`, `content` and `digest`.
 - No context inheritance; every Task states its own context (reference decision 14; kept).
 - `TaskResult.summary` added; logs go through the `log` callback.
 - Attempt indices and `idempotencyKey` suffixes are 1-based.

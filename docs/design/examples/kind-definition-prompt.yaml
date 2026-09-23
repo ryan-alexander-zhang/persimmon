@@ -1,0 +1,19 @@
+# Pure-data KindDefinition: no handlerRef, no terminal; frozen into snapshots that reach it.
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata:
+  name: prompts.persimmon.ai
+spec:
+  group: persimmon.ai
+  names: {kind: Prompt, plural: prompts}
+  scope: Any
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [mediaType, content]
+        properties:
+          mediaType: {type: string, pattern: "^text/[a-z0-9.+-]+$"}
+          content: {type: string}
+  mutability: SpecMutable
+  snapshot: Definition

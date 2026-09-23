@@ -46,7 +46,10 @@ resources:
     metadata: {name: write-prd-template, namespace: demo}
     spec:
       mediaType: text/markdown
-      content: "You are writing a product requirement document. Preserve entity ids."
+      content: |
+        You are writing a product requirement document.
+        Preserve entity ids from the research report.
+        One requirement per line, each with an id and a testable statement.
   - apiVersion: persimmon.ai/v1
     kind: Skill
     metadata: {name: prd-writer, namespace: demo}

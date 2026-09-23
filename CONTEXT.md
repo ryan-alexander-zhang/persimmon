@@ -181,7 +181,7 @@ into the executor's working context. Resolved list recorded on the TaskRun.
 _Avoid_: inputs, attachments, references, prompt
 
 **Prompt**:
-A **Definition** kind: versioned instruction text, opaque to the engine, frozen in snapshots.
+A **Definition** kind: instruction text, opaque to the engine, frozen in snapshots.
 _Avoid_: template, instructions, system prompt
 
 **Skill**:
