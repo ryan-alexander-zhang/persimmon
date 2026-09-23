@@ -107,4 +107,13 @@ $defs:
           - {$ref: "reconcile.yaml#/$defs/Event"}
           - properties:
               type: {const: Signal}
-              payload: {properties: {source: {const: outbox}}}
+              payload:
+                properties:
+                  source: {const: outbox}
+                  payload:
+                    type: object
+                    required: [event, subject]
+                    additionalProperties: false
+                    properties:
+                      event: {$ref: "#/$defs/OutboxEvent"}
+                      subject: {$ref: "resource.yaml"}

@@ -100,6 +100,7 @@ $defs:
           type: {const: createResource}
           resource: {$ref: "resource.yaml"}
           snapshot: {enum: [inherit, new], default: inherit}
+          owned: {type: boolean, default: true}
         required: [resource]
         additionalProperties: false
       - properties:

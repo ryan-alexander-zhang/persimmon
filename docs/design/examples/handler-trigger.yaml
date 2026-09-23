@@ -1,0 +1,10 @@
+# Builtin handler for Trigger: reacts to Signals, creates ownerless WorkflowRuns.
+apiVersion: persimmon.ai/v1
+kind: Handler
+metadata:
+  name: trigger
+spec:
+  kinds:
+    - {group: persimmon.ai, kind: Trigger, versions: [v1]}
+  implementation:
+    builtin: trigger

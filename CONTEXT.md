@@ -204,6 +204,11 @@ A kind that creates a WorkflowRun from an **Outbox event** (`artifactPublished`,
 `workflowRunFinished`). Not referenceable; not in snapshots.
 _Avoid_: hook, listener, subscription, watcher
 
+**Firing**:
+One **Trigger** reacting to one **Outbox event**: the Signal, the bound inputs, the created
+WorkflowRun.
+_Avoid_: activation, invocation (for the Trigger)
+
 **Binding**:
 How a port gets its value: `literal`, `fromInput`, `fromStep`, `fromState`,
 `fromIterationOutput`, `expression`, `fromEvent` (Trigger only).

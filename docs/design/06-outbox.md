@@ -41,13 +41,13 @@ emitEvent action ───── <handler type> ────┘                 
 
 | Step | Chain |
 |---|---|
-| Signal reconciled | Signal's `eventId` appended to the receiver's chain |
+| Signal reconciled | that reconcile's chain = the Signal event's chain + its `eventId`; a subscriber accumulates nothing across Signals |
 | `createResource` | child starts with the creator's chain |
 | ChildFinished reconciled | owner continues with the child's chain |
 | event emitted | carries the emitting reconcile's chain |
 | store write from the API | empty |
 
-The engine keeps the chain per Resource in the RunLog; it is not in `metadata`.
+The engine keeps the chain per RunLog entry; it is not in `metadata`.
 
 ## Subscription
 
@@ -58,7 +58,7 @@ The engine keeps the chain per Resource in the RunLog; it is not in `metadata`.
 | match | `type == eventType` and `filter` (CEL over `event` only) is true or absent |
 | receivers | every Resource of the kind in the subject's Namespace, not at a terminal value; a Global subject reaches every Namespace |
 | self | an ObjectRef subject never receives its own event |
-| delivery | engine claims the event (`08-store.md`), appends Signal `{source: outbox, eventId, payload: event}` to each receiver's RunLog, then `ack(eventId)` |
+| delivery | engine claims the event (`08-store.md`), appends Signal `{source: outbox, eventId, payload: {event, subject}}` to each receiver's RunLog, then `ack(eventId)`; `subject` is the subject Resource or revision as stored |
 | guarantee | at-least-once; `dedupeKey: signal/<eventId>` makes redelivery a no-op |
 | loop guard | chain length > `maxCausationDepth` (engine config, default 32, `08-store.md`): not delivered, one `event.suppressed` per suppressed event |
 

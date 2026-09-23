@@ -1,5 +1,4 @@
-# Reacting kind: subscribes to Outbox events; not part of any snapshot.
-# Event payload shape: 06-outbox.md.
+# Reacting kind: subscribes to Outbox events; not part of any snapshot; never finishes (no terminal).
 apiVersion: persimmon.ai/v1
 kind: KindDefinition
 metadata:
@@ -12,22 +11,20 @@ spec:
     - name: v1
       schema:
         type: object
-        required: ["on", run, enabled]         # bare `on` is a YAML 1.1 boolean
+        required: [event, run]
         properties:
-          "on": {type: object}
+          event: {type: object}
           run: {type: object}
           enabled: {type: boolean}
       statusSchema:
         type: object
         properties:
-          phase: {enum: [Pending, Running, Waiting, Succeeded, Failed, Cancelled]}
+          lastRun: {type: object}
+          failures: {type: array}
   mutability: SpecMutable
   snapshot: "None"
   handlerRef: {name: trigger}
-  terminal:
-    path: status.phase
-    values: [Succeeded, Failed, Cancelled]
   subscriptions:
     - eventType: artifact.published
     - eventType: resource.finished
-      filter: 'event.subject.kind == "WorkflowRun"'   # workflowRef and phases checked by the trigger Handler via getResource
+      filter: 'event.subject.kind == "WorkflowRun"'

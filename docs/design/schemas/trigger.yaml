@@ -1,0 +1,101 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Trigger
+description: Creates a WorkflowRun from an Outbox event. Namespaced, never finishes.
+type: object
+required: [apiVersion, kind, metadata, spec]
+additionalProperties: false
+properties:
+  apiVersion: {const: persimmon.ai/v1}
+  kind: {const: Trigger}
+  metadata:
+    allOf: [{$ref: "resource.yaml#/$defs/Metadata"}, {required: [namespace]}]
+  spec: {$ref: "#/$defs/Spec"}
+  status: {$ref: "#/$defs/Status"}
+
+$defs:
+  EventBinding:
+    allOf: [{$ref: "ports.yaml#/$defs/Binding"}]
+    anyOf: [{required: [fromEvent]}, {required: [literal]}]
+
+  Spec:
+    type: object
+    required: [event, run]
+    additionalProperties: false
+    properties:
+      event: {$ref: "#/$defs/EventSelector"}
+      run:
+        type: object
+        required: [workflowRef, timeout]
+        additionalProperties: false
+        properties:
+          workflowRef:
+            allOf: [{$ref: "resource.yaml#/$defs/LocalDefinitionRef"}, {properties: {kind: {const: Workflow}}}]
+          inputs:
+            type: object
+            propertyNames: {$ref: "ports.yaml#/$defs/PortName"}
+            additionalProperties: {$ref: "#/$defs/EventBinding"}
+          timeout: {$ref: "ports.yaml#/$defs/Duration"}
+      enabled: {type: boolean, default: true}
+
+  EventSelector:
+    type: object
+    required: [kind]
+    properties:
+      kind: {enum: [artifactPublished, workflowRunFinished]}
+    oneOf:
+      - properties:
+          kind: {const: artifactPublished}
+          artifactKind:
+            type: object
+            required: [apiVersion, kind]
+            additionalProperties: false
+            x-persimmon-kind-ref: {}
+            properties:
+              apiVersion: {$ref: "resource.yaml#/$defs/ApiVersion"}
+              kind: {$ref: "resource.yaml#/$defs/Kind"}
+        required: [artifactKind]
+        additionalProperties: false
+      - properties:
+          kind: {const: workflowRunFinished}
+          workflowRef:
+            allOf: [{$ref: "resource.yaml#/$defs/LocalDefinitionRef"}, {properties: {kind: {const: Workflow}}}]
+          phases:
+            type: array
+            minItems: 1
+            uniqueItems: true
+            items: {enum: [Succeeded, Failed, Cancelled]}
+        required: [workflowRef, phases]
+        additionalProperties: false
+
+  Status:
+    type: object
+    additionalProperties: false
+    properties:
+      lastRun:
+        type: object
+        required: [ref, eventId, at]
+        additionalProperties: false
+        properties:
+          ref: {$ref: "resource.yaml#/$defs/ObjectRef"}
+          eventId: {$ref: "resource.yaml#/$defs/Digest"}
+          at: {type: string, format: date-time}
+      failures:
+        type: array
+        maxItems: 20
+        items:
+          type: object
+          required: [eventId, at, error]
+          additionalProperties: false
+          properties:
+            eventId: {$ref: "resource.yaml#/$defs/Digest"}
+            at: {type: string, format: date-time}
+            error: {$ref: "reconcile.yaml#/$defs/Error"}
+
+  Firing:
+    type: object
+    required: [signal, inputs, run]
+    additionalProperties: false
+    properties:
+      signal: {$ref: "reconcile.yaml#/$defs/Event"}
+      inputs: {$ref: "ports.yaml#/$defs/RuntimeValues"}
+      run: {$ref: "resource.yaml"}

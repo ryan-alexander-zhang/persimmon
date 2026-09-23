@@ -1,0 +1,14 @@
+# Every new ProductRequirement revision starts an approval run.
+apiVersion: persimmon.ai/v1
+kind: Trigger
+metadata: {name: on-prd-published, namespace: demo}
+spec:
+  event:
+    kind: artifactPublished
+    artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement}
+  run:
+    workflowRef: {kind: Workflow, name: prd-approval}
+    inputs:
+      prd: {fromEvent: artifact}
+    timeout: 80h
+  enabled: true

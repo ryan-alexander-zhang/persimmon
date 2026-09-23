@@ -1,0 +1,15 @@
+# When a root prd-approval run succeeds, start planning with its verdict.
+apiVersion: persimmon.ai/v1
+kind: Trigger
+metadata: {name: on-prd-approved, namespace: demo}
+spec:
+  event:
+    kind: workflowRunFinished
+    workflowRef: {kind: Workflow, name: prd-approval}
+    phases: [Succeeded]
+  run:
+    workflowRef: {kind: Workflow, name: planning-iteration}
+    inputs:
+      approved: {fromEvent: outputs.approved}
+      mode: {literal: full}
+    timeout: 24h

@@ -42,7 +42,7 @@ Read top to bottom within a layer; a file depends only on files above it.
 | `docs/design/13-executor.md` | Executor, security, credential bindings | draft |
 | `docs/design/14-gate.md` | Gate, Validator, GateResult, ValidationResult | draft |
 | `docs/design/15-prompt-skill.md` | Prompt, Skill | draft |
-| `docs/design/16-trigger.md` | Trigger, event kinds, `fromEvent` | planned |
+| `docs/design/16-trigger.md` | Trigger, event kinds, `fromEvent` | draft |
 | `docs/design/17-runs.md` | WorkflowRun, TaskRun, GateRun, ValidationRun, Phase, Attempt, handler semantics | planned |
 | `docs/design/18-artifact.md` | Artifact kind, Relation, RelationType, storage, retention | planned |
 | `docs/design/19-adapter-roles.md` | `persimmon.adapter/v1` part B: executor and evaluator Roles | planned |

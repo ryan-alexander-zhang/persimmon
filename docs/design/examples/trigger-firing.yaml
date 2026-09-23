@@ -1,0 +1,47 @@
+# on-prd-published fires: the Signal as delivered, the bound inputs, the created ownerless run.
+signal:
+  type: Signal
+  sequence: 12
+  dedupeKey: signal/sha256:4444444444444444444444444444444444444444444444444444444444444444
+  payload:
+    source: outbox
+    eventId: sha256:4444444444444444444444444444444444444444444444444444444444444444
+    payload:
+      event:
+        eventId: sha256:4444444444444444444444444444444444444444444444444444444444444444
+        type: artifact.published
+        time: "2026-09-21T10:30:00Z"
+        subject: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement, namespace: demo, id: checkout-v2, revision: 3}
+        producer: {uid: 019a3c2e-7d00-7b1c-9d2e-3f4a5b6c7d8e, sequence: 6}
+        ordinal: 0
+        actor: {kind: handler, id: task}
+        causationChain: []
+        payload: {contentDigest: sha256:c1a5e7d9b3f2468a0c2e4f6a8b0d2f4e6a8c0e2f4a6c8e0a2c4e6a8c0e2f4a6c}
+      subject:
+        apiVersion: engineering.persimmon.ai/v1
+        kind: ProductRequirement
+        metadata: {name: checkout-v2.r3, namespace: demo}
+        spec:
+          identity: {id: checkout-v2, revision: 3}
+          content: {title: Checkout v2, problem: "Cart abandonment at payment step is 38%.", requirements: [{id: R1, statement: One-page checkout for returning customers.}]}
+          provenance: {producerRef: {apiVersion: persimmon.ai/v1, kind: TaskRun, namespace: demo, name: prd-create-001-write-prd}, inputs: [], actor: {kind: handler, id: task}}
+
+inputs:
+  prd: {kind: artifact, ref: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement, namespace: demo, id: checkout-v2, revision: 3}}
+
+run:
+  apiVersion: persimmon.ai/v1
+  kind: WorkflowRun
+  metadata:
+    name: on-prd-published-444444444444
+    namespace: demo
+  spec:
+    workflowRef: {kind: Workflow, name: prd-approval}
+    inputs:
+      prd: {kind: artifact, ref: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement, namespace: demo, id: checkout-v2, revision: 3}}
+    timeout: 80h
+    origin:
+      kind: trigger
+      triggerRef: {apiVersion: persimmon.ai/v1, kind: Trigger, namespace: demo, name: on-prd-published, uid: 019a3c2e-b000-7c1d-8e2f-3a4b5c6d7e8f}
+      eventId: sha256:4444444444444444444444444444444444444444444444444444444444444444
+      causationRef: {apiVersion: persimmon.ai/v1, kind: WorkflowRun, namespace: demo, name: prd-create-001, uid: 019a3c2e-7b1f-7c3a-9d2e-1f0a8b6c4d5e}

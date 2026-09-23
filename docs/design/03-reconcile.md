@@ -32,7 +32,7 @@ unacked Event and delivers every outstanding `callAdapter` as `state: unknown`.
 
 | Action | Fields | Effect |
 |---|---|---|
-| `createResource` | `resource, snapshot?: inherit \| new` | store a child with `ownerReferences` = this Resource; default `inherit` (`04-snapshot.md`) |
+| `createResource` | `resource, snapshot?: inherit \| new, owned?: true` | store a Resource; `owned: true` sets `ownerReferences` = this Resource and routes ChildFinished; an existing name with equal `spec` is a no-op (`04-snapshot.md`) |
 | `cancelResource` | `ref` | deliver CancelRequested to a child |
 | `publishArtifact` | `kind: {apiVersion, kind}, id, content, inputs[]?, representations[]` | stage a revision; visible when this reconcile commits (`05-revisioned-kind.md`) |
 | `commitScope` / `abandonScope` | `key` | make visible, or abandon, what an adapter staged under `callAdapter(idempotencyKey: key)` |
@@ -104,6 +104,8 @@ Append-only per `uid`; the only log.
 - `callAdapter.adapterId` is the `Adapter.spec.id` string; the reference wrote `adapterRef`.
 - `idempotencyKey` is single-use per Resource. A `query` after `unknown` takes a new key.
 - CancelRequested is delivered once per Resource; a second request is a no-op.
+- `createResource` accepts `owned: false` for ownerless Resources (Trigger-created runs) and
+  is idempotent on an equal existing Resource.
 - `setTimer` with an existing key replaces it.
 - Stalled recovery is any new Event. Reference had no recovery path.
 - `patchStatus` action removed (`02-handler.md`).
