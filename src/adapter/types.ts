@@ -52,6 +52,8 @@ export type CallOutcome =
 export interface CallOptions {
   /** Milliseconds until the call is `unknown`; the stdio process is killed then. */
   timeoutMs?: number
+  /** Working directory of a stdio Adapter process: the engine's, so `.persimmon/` resolves (20-pack.md). */
+  cwd?: string
   /** Bearer token the Adapter presents at `engine.endpoint`; stdio gets it as `PERSIMMON_ADAPTER_TOKEN`. */
   adapterToken?: string
   onStream?: (line: StreamLine) => void

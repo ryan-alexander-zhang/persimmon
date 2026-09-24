@@ -44,9 +44,11 @@ export const isReady = (a: Adapter): boolean => a.status?.conditions?.some((c) =
 export class AdapterRegistry {
   readonly #adapters = new Map<string, Adapter>()
   readonly #credentials: CredentialStore
+  readonly #cwd: string | undefined
 
-  constructor(credentials: CredentialStore) {
+  constructor(credentials: CredentialStore, cwd?: string) {
     this.#credentials = credentials
+    this.#cwd = cwd
   }
 
   register(adapter: Adapter): void {
@@ -68,6 +70,6 @@ export class AdapterRegistry {
 
   /** A Role op; the engine sets `payload.engine` before calling (07-adapter.md). */
   call(id: string, op: string, payload: Record<string, unknown>, o: CallOptions = {}): Promise<CallOutcome> {
-    return call(this.require(id).spec, op, payload, this.#credentials, o)
+    return call(this.require(id).spec, op, payload, this.#credentials, { ...(this.#cwd ? { cwd: this.#cwd } : {}), ...o })
   }
 }

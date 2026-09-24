@@ -1,4 +1,6 @@
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { parse } from 'yaml'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { parseConfig } from './config.js'
@@ -12,18 +14,23 @@ const closure = example('snapshot-closure') as Closure
 const fresh = ({ status: _s, ...r }: Resource): Resource => ({ ...r, metadata: { name: r.metadata.name, ...(r.metadata.namespace ? { namespace: r.metadata.namespace } : {}) } })
 const fakeAdapter = (id: string, roles = 'executor'): Resource => ({
   apiVersion: 'persimmon.ai/v1', kind: 'Adapter', metadata: { name: id.replace('/', '-') },
-  spec: { id, roles: roles.split(','), transport: 'stdio', command: ['node', 'test/fixtures/fake-adapter.mjs'], env: { FAKE_ID: id, FAKE_ROLES: roles } },
+  spec: { id, roles: roles.split(','), transport: 'stdio', command: ['node', join(process.cwd(), 'test/fixtures/fake-adapter.mjs')], env: { FAKE_ID: id, FAKE_ROLES: roles } },
 })
 
 describe('Engine', () => {
   let engine: Engine
   let clock: number
+  let dir: string
   beforeEach(() => {
     clock = Date.parse('2026-09-21T09:00:00Z')
-    engine = new Engine({ config: parseConfig({}), storePath: ':memory:', blobs: memoryBlobs(), now: () => new Date(clock), cwd: '/tmp/persimmon-test' })
+    dir = mkdtempSync(join(tmpdir(), 'persimmon-engine-'))
+    engine = new Engine({ config: parseConfig({}), storePath: ':memory:', blobs: memoryBlobs(), now: () => new Date(clock), cwd: dir })
     engine.dispatch.retryBaseMs = 0
   })
-  afterEach(() => engine.close())
+  afterEach(async () => {
+    await engine.close()
+    rmSync(dir, { recursive: true, force: true })
+  })
 
   it('registers the core kinds and applies every design definition example', async () => {
     await engine.start()

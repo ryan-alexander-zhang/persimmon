@@ -29,7 +29,7 @@ function stdio(spec: AdapterSpec, request: Request, credentials: CredentialStore
   if (o.adapterToken) env.PERSIMMON_ADAPTER_TOKEN = o.adapterToken
 
   return new Promise((resolve) => {
-    const child = spawn(cmd, args, { env, stdio: ['pipe', 'pipe', 'inherit'] })
+    const child = spawn(cmd, args, { env, stdio: ['pipe', 'pipe', 'inherit'], ...(o.cwd ? { cwd: o.cwd } : {}) })
     let settled = false
     const done = (out: CallOutcome) => {
       if (settled) return

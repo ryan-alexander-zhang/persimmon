@@ -46,16 +46,18 @@ export class Engine {
   readonly credentials: ConfigCredentialStore
   readonly dispatch: DispatchEngine
   readonly endpoint: string
+  readonly cwd: string
   #server?: Server
   #started = false
 
   constructor(o: EngineOptions) {
     const cwd = o.cwd ?? process.cwd()
+    this.cwd = cwd
     const now = o.now ?? (() => new Date())
     const sqlite = 'sqlite' in o.config.store ? o.config.store.sqlite : ':memory:'
     this.store = new SqliteStore(o.storePath ?? `${cwd}/${sqlite}`, { blobs: o.blobs ?? new FileBlobStore(`${cwd}/${o.config.blobs}`), now })
     this.credentials = new ConfigCredentialStore(o.config.credentials)
-    this.adapters = new AdapterRegistry(this.credentials)
+    this.adapters = new AdapterRegistry(this.credentials, cwd)
     this.endpoint = `unix://${cwd}/.persimmon/engine.sock`
 
     const deps: HandlerDeps = {
@@ -94,8 +96,11 @@ export class Engine {
       endpoint: this.endpoint,
       maxReconcileAttempts: o.config.maxReconcileAttempts,
       leaseTtlMs: durationMs(o.config.leaseTtl),
-      retryBaseMs: 100,
+      retryBaseMs: Number(process.env.PERSIMMON_RETRY_BASE_MS ?? 100),
       holder: `${process.pid}-${randomUUID().slice(0, 8)}`,
+      onError: (uid, ev, err) => {
+        if (process.env.PERSIMMON_DEBUG) process.stderr.write(`reconcile ${uid} ${ev.type}#${ev.sequence}: ${err.stack ?? err.message}\n`)
+      },
     }
   }
 
@@ -127,7 +132,7 @@ export class Engine {
   async apply(input: Resource, actor: Actor = localActor): Promise<{ resource: Resource; created: boolean }> {
     if (input.kind === 'KindDefinition') this.kinds.register(input, { replace: true })
     if (input.kind === 'Adapter') {
-      const described = await describeAdapter(validateAdapter(input), this.credentials, this.dispatch.now)
+      const described = await describeAdapter(validateAdapter(input), this.credentials, this.dispatch.now, { cwd: this.cwd })
       const { status: _s, ...bare } = described
       const out = await this.#upsert(bare as unknown as Resource, actor)
       const stored = this.store.resources.put({ ...out.resource, status: described.status as Record<string, unknown> })
