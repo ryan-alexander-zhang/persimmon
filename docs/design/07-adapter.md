@@ -92,8 +92,8 @@ Adapters reach the engine only here, at `engine.endpoint`, with a token.
 | Token | Issued | Expires | Callbacks |
 |---|---|---|---|
 | reconcile token | in a `reconcile` request | when the reconcile commits or fails | all but `signal` |
-| call token | in a `callAdapter` payload | when AdapterFinished is recorded, or at the deadline; a human `execute` acks without AdapterFinished, so its token lives to the deadline | all but `signal` |
-| adapter token | at apply, kept in the TokenStore (`08-store.md`), handed to the Adapter as `PERSIMMON_ADAPTER_TOKEN` (stdio) or in the `describe` response headers (http) | on re-apply | `signal`, http response post |
+| call token | in a `callAdapter` payload | when AdapterFinished is recorded, or at the deadline | all but `signal` |
+| adapter token | at apply, kept in the TokenStore (`08-store.md`), handed to the Adapter as `PERSIMMON_ADAPTER_TOKEN` (stdio) or in the `describe` response headers (http) | on re-apply | `signal`, `putBlob`, http response post |
 
 ## Rules
 

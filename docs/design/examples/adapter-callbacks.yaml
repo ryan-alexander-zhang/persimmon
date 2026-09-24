@@ -46,4 +46,4 @@
     ref: {apiVersion: persimmon.ai/v1, kind: TaskRun, namespace: demo, name: prd-create-001-approve}
     eventId: complete-8f1c2d
     actor: {kind: user, id: ryan}
-    payload: {taskResult: {outputs: {approved: true}}}
+    payload: {taskResult: {protocol: persimmon.result/v1, outputs: {approved: {kind: value, value: true}}}, publish: []}

@@ -25,7 +25,8 @@
     source: adapter
     eventId: complete-8f1c2d
     payload:
-      taskResult: {outputs: {approved: true}}
+      taskResult: {protocol: persimmon.result/v1, outputs: {approved: {kind: value, value: true}}}
+      publish: []
 
 - type: CancelRequested
   sequence: 6

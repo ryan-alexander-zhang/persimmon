@@ -315,7 +315,7 @@ completion arrives through the `signal` callback.
 _Avoid_: executor adapter, runner, driver
 
 **Evaluator role**:
-Adapter **Role** bound from `Validator.spec.evaluator.type`: `describe`, `evaluate`.
+Adapter **Role** bound from `Validator.spec.evaluator.adapter`: `describe`, `evaluate`.
 _Avoid_: judge, checker, validator adapter
 
 **TaskResult**:

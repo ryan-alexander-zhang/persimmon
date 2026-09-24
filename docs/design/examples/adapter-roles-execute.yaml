@@ -1,0 +1,44 @@
+# execute payload for attempt 2 of TaskRun prd-create-001-write-prd, as the task Handler builds it.
+taskRun:
+  ref: {apiVersion: persimmon.ai/v1, kind: TaskRun, namespace: demo, name: prd-create-001-write-prd, uid: 019a3c2e-7d00-7b1c-9d2e-3f4a5b6c7d8e}
+  logicalExecutionId: prd-create-001//write-prd
+  idempotencyKey: prd-create-001//write-prd/2
+  attempt: 2
+task:
+  instructions: "Write the PRD. Preserve entity ids. Respect the maxRequirements input."
+  parameters: {effort: high}
+  sideEffects: none
+  outputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement}}}
+  outputSchemas:
+    prd: {type: object, required: [title, problem, requirements]}
+executor:
+  type: agent
+  configuration: {model: claude-opus-5, sandbox: workspace-write}
+  security:
+    networkAccess: allowlist
+    allowedHosts: [api.anthropic.com, github.com]
+    credentialBindings: [demo/github-token]
+inputs:
+  research: {kind: artifact, ref: {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport, namespace: demo, id: research-checkout-v2, revision: 1}}
+  maxRequirements: {kind: value, value: 12}
+context:
+  - kind: artifact
+    ref: {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport, namespace: demo, id: research-checkout-v2, revision: 1}
+  - kind: prompt
+    name: write-prd-template
+    mediaType: text/markdown
+    content: |
+      You are writing a product requirement document.
+      Preserve entity ids from the research report.
+      One requirement per line, each with an id and a testable statement.
+    digest: sha256:b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90a1
+  - kind: skill
+    name: prd-writer
+    source: {provider: git, type: repository, id: github.com/persimmon-ai/skills, locator: {remote: https://github.com/persimmon-ai/skills.git, path: prd-writer}, version: 2f9a1c0e7b3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f}
+    digest: sha256:9c8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d9c8b
+    format: claude-code-skill/v1
+deadline: "2026-09-21T10:35:00Z"
+credentials:
+  demo/github-token: ghp-REDACTED
+engine: {endpoint: unix:///Users/ryan/.persimmon/engine.sock, token: ct-9f1c2d3e}

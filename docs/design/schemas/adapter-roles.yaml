@@ -1,0 +1,169 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Adapter roles
+description: persimmon.adapter/v1 part B, executor and evaluator Roles.
+$defs:
+  ExecutorDescribe:
+    allOf:
+      - {$ref: "adapter.yaml#/$defs/Describe"}
+      - type: object
+        required: [executorTypes, configurationSchema, parametersSchema, contextKinds, skillFormats, supports, formRenderable]
+        properties:
+          executorTypes: {type: array, minItems: 1, uniqueItems: true, items: {enum: [agent, script, tool, human]}}
+          configurationSchema: {type: object}
+          parametersSchema: {type: object}
+          contextKinds: {type: array, uniqueItems: true, items: {enum: [file, artifact, prompt, skill]}}
+          skillFormats: {type: array, uniqueItems: true, items: {$ref: "reconcile.yaml#/$defs/AdapterId"}}
+          supports:
+            type: object
+            required: [query, cancel, complete]
+            additionalProperties: false
+            properties:
+              query: {type: boolean}
+              cancel: {type: boolean}
+              complete: {type: boolean}
+          formRenderable: {type: boolean}
+        if: {properties: {executorTypes: {contains: {const: human}}}}
+        then: {properties: {supports: {properties: {complete: {const: true}}}}}
+        else: {properties: {supports: {properties: {complete: {const: false}}}}}
+
+  EvaluatorDescribe:
+    allOf:
+      - {$ref: "adapter.yaml#/$defs/Describe"}
+      - type: object
+        required: [configurationSchema]
+        properties:
+          configurationSchema: {type: object}
+
+  TaskRunRef:
+    type: object
+    required: [ref, logicalExecutionId, idempotencyKey, attempt]
+    additionalProperties: false
+    properties:
+      ref: {$ref: "resource.yaml#/$defs/ObjectRef"}
+      logicalExecutionId: {type: string, minLength: 1}
+      idempotencyKey: {$ref: "reconcile.yaml#/$defs/IdempotencyKey"}
+      attempt: {type: integer, minimum: 1}
+
+  ValidationRunRef:
+    type: object
+    required: [ref, logicalExecutionId, idempotencyKey]
+    additionalProperties: false
+    properties:
+      ref: {$ref: "resource.yaml#/$defs/ObjectRef"}
+      logicalExecutionId: {type: string, minLength: 1}
+      idempotencyKey: {$ref: "reconcile.yaml#/$defs/IdempotencyKey"}
+
+  ExecutePayload:
+    type: object
+    required: [taskRun, task, executor, inputs, context, deadline, credentials, engine]
+    additionalProperties: false
+    properties:
+      taskRun: {$ref: "#/$defs/TaskRunRef"}
+      task:
+        type: object
+        required: [instructions, parameters, sideEffects, outputs, outputSchemas]
+        additionalProperties: false
+        properties:
+          instructions: {type: string}
+          parameters: {type: object}
+          sideEffects: {enum: [none, idempotent, nonIdempotent]}
+          outputs: {$ref: "ports.yaml#/$defs/Ports/properties/outputs"}
+          outputSchemas: {type: object, propertyNames: {$ref: "ports.yaml#/$defs/PortName"}, additionalProperties: {type: object}}
+      executor:
+        type: object
+        required: [type, configuration, security]
+        additionalProperties: false
+        properties:
+          type: {enum: [agent, script, tool, human]}
+          configuration: {type: object}
+          security: {$ref: "executor.yaml#/$defs/Security"}
+      inputs: {$ref: "ports.yaml#/$defs/RuntimeValues"}
+      context: {$ref: "runs.yaml#/$defs/ResolvedContext"}
+      deadline: {type: string, format: date-time}
+      credentials: {type: object, propertyNames: {$ref: "store.yaml#/$defs/CredentialName"}, additionalProperties: {type: string}}
+      engine: {$ref: "adapter.yaml#/$defs/Engine"}
+
+  ExecuteResult:
+    oneOf:
+      - {$ref: "task.yaml#/$defs/TaskResult"}
+      - {$ref: "#/$defs/HumanAck"}
+
+  HumanAck:
+    type: object
+    required: [accepted]
+    additionalProperties: false
+    properties:
+      accepted: {const: true}
+
+  HumanCompletion:
+    type: object
+    required: [taskResult, publish]
+    additionalProperties: false
+    properties:
+      taskResult: {$ref: "task.yaml#/$defs/TaskResult"}
+      publish:
+        type: array
+        items:
+          type: object
+          required: [port, request]
+          additionalProperties: false
+          properties:
+            port: {$ref: "ports.yaml#/$defs/PortName"}
+            request: {$ref: "revisioned.yaml#/$defs/PublishRequest"}
+
+  QueryPayload:
+    type: object
+    required: [logicalExecutionId, idempotencyKey]
+    additionalProperties: false
+    properties:
+      logicalExecutionId: {type: string, minLength: 1}
+      idempotencyKey: {$ref: "reconcile.yaml#/$defs/IdempotencyKey"}
+
+  QueryResult:
+    type: object
+    required: [state]
+    additionalProperties: false
+    properties:
+      state: {enum: [running, succeeded, failed, unknown]}
+      result: {$ref: "task.yaml#/$defs/TaskResult"}
+      error: {$ref: "reconcile.yaml#/$defs/Error"}
+    allOf:
+      - if: {properties: {state: {const: succeeded}}}
+        then: {required: [result]}
+        else: {not: {required: [result]}}
+      - if: {properties: {state: {const: failed}}}
+        then: {required: [error]}
+        else: {not: {required: [error]}}
+
+  CancelResult:
+    type: object
+    required: [state]
+    additionalProperties: false
+    properties:
+      state: {enum: [running, succeeded, failed, unknown, cancelled]}
+
+  EvaluatePayload:
+    type: object
+    required: [validationRun, validator, inputs, artifacts, deadline, engine]
+    additionalProperties: false
+    properties:
+      validationRun: {$ref: "#/$defs/ValidationRunRef"}
+      validator:
+        type: object
+        required: [configuration]
+        additionalProperties: false
+        properties:
+          configuration: {type: object}
+      inputs: {$ref: "ports.yaml#/$defs/RuntimeValues"}
+      artifacts:
+        type: object
+        propertyNames: {$ref: "ports.yaml#/$defs/PortName"}
+        additionalProperties:
+          type: object
+          required: [content, provenance]
+          additionalProperties: false
+          properties:
+            content: {type: object}
+            provenance: {$ref: "revisioned.yaml#/$defs/Provenance"}
+      deadline: {type: string, format: date-time}
+      engine: {$ref: "adapter.yaml#/$defs/Engine"}

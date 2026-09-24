@@ -1,0 +1,23 @@
+# Human completion: execute returns HumanAck, the reviewer approves two days later, the Adapter signals content and Actor.
+steps:
+  - at: "2026-09-21T12:30:02Z"
+    by: handler
+    does: callAdapter(execute, idempotencyKey …/approval/humanReview/1, deadline 2026-09-23T12:30:01Z); Running
+  - at: "2026-09-21T12:30:03Z"
+    by: adapter
+    does: review-ui/v1 registers the request, renders the PRD; returns {ok true, result {accepted true}}
+  - at: "2026-09-21T12:30:03Z"
+    by: engine
+    does: delivers AdapterFinished succeeded with the HumanAck; call token expires
+  - at: "2026-09-21T12:30:04Z"
+    by: handler
+    does: attempts[1].acknowledged; Waiting human
+  - at: "2026-09-23T09:14:00Z"
+    by: adapter
+    does: reviewer approves; signal(TaskRun …-humanreview-task, eventId complete-3e7a9c, actor {user, ryan}, {taskResult {protocol persimmon.result/v1, outputs {result {kind value, value {passed true, findings [], evidence []}}}}, publish []}) with the adapter token
+  - at: "2026-09-23T09:14:01Z"
+    by: engine
+    does: delivers Signal {source adapter, eventId complete-3e7a9c}; context.actor = ryan; audit change signal
+  - at: "2026-09-23T09:14:01Z"
+    by: handler
+    does: status.actor = ryan; no publish[] here (value output); validates the TaskResult; commitScope(…/humanReview/1); Succeeded; clearTimer(attempt), clearTimer(deadline)

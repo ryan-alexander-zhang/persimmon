@@ -1,0 +1,23 @@
+# evaluate payload for ValidationRun security of the approval GateRun.
+validationRun:
+  ref: {apiVersion: persimmon.ai/v1, kind: ValidationRun, namespace: demo, name: on-prd-published-444444444444-approval-security}
+  logicalExecutionId: on-prd-published-444444444444//approval/security
+  idempotencyKey: on-prd-published-444444444444//approval/security/1
+validator:
+  configuration: {ruleset: owasp-2025, failOn: high}
+inputs:
+  prd: {kind: artifact, ref: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement, namespace: demo, id: checkout-v2, revision: 3}}
+artifacts:
+  prd:
+    content:
+      title: Checkout v2
+      problem: Cart abandonment at payment step is 38%.
+      requirements:
+        - {id: R1, statement: One-page checkout for returning customers.}
+        - {id: R2, statement: Payment errors shown inline, never on a new page.}
+    provenance:
+      producerRef: {apiVersion: persimmon.ai/v1, kind: TaskRun, namespace: demo, name: prd-create-001-write-prd, uid: 019a3c2e-7d00-7b1c-9d2e-3f4a5b6c7d8e}
+      inputs: [{apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport, namespace: demo, id: research-checkout-v2, revision: 1}]
+      actor: {kind: handler, id: task}
+deadline: "2026-09-21T12:45:01Z"
+engine: {endpoint: unix:///Users/ryan/.persimmon/engine.sock, token: ct-5e6f7a8b}

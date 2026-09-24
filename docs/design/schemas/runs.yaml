@@ -120,6 +120,7 @@ $defs:
       startedAt: {type: string, format: date-time}
       finishedAt: {type: string, format: date-time}
       error: {$ref: "reconcile.yaml#/$defs/Error"}
+      acknowledged: {type: boolean}
 
   ResolvedContext:
     type: array

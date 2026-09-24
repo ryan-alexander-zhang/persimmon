@@ -39,7 +39,7 @@ true`; the others inherit the parent's snapshot.
 | `address` | the Invocation address: `{workflowRunRef, stepRef, iterationPath, logicalExecutionId}`; `logicalExecutionId` = `<workflowRunName>/<iterationPath>/<stepRef>`, double slash when `iterationPath` is empty; a Validator's TaskRun has `stepRef` `<gateStepId>/<validatorName>` |
 | `deadline` | absolute RFC 3339, written by the creating Handler as min of the enclosing deadlines (`11-workflow.md`, `12-task.md`, `14-gate.md`) |
 | `steps` | `{<stepId>: {phase, runRef?, iteration?, error?}}`; one entry per declared step from Created; outputs are read from `runRef` at the used kind's `stepContract` paths, the latest iteration for `repeat` |
-| `attempts[]` | `{index ≥ 1, state: running \| succeeded \| failed \| unknown, idempotencyKey, startedAt, finishedAt?, error?}` |
+| `attempts[]` | `{index ≥ 1, state: running \| succeeded \| failed \| unknown, idempotencyKey, startedAt, finishedAt?, error?, acknowledged?}`; `acknowledged` after a human HumanAck |
 | `context` | resolved Context entries (`12-task.md`, `15-prompt-skill.md`) |
 | `reason` | the selected terminal's `reason` (`11-workflow.md`) |
 | `waitingReason` | free text while `Waiting`; recommended `human`, `child`, `retryBackoff`, `adapter` |
@@ -65,18 +65,18 @@ Terminal selection follows `11-workflow.md`; Succeeded evaluates `outputBindings
 | Event | Behaviour |
 |---|---|
 | Created | resolve `context` (absent optional input dropped; absent required or `file` without `version` → Failed `invalid_input`); `attempts[1] running`; `callAdapter(execute, key: <logicalExecutionId>/1, deadline: min(now + timeout, spec.deadline))`; `setTimer(attempt)`, `setTimer(deadline, spec.deadline)`; Running, or Waiting `human` when the Executor is `type: human` |
-| AdapterFinished succeeded | validate TaskResult: exactly the declared outputs, types equal, every artifact in `context.staged` for this key; `commitScope(key)`; `outputs`; Succeeded. Invalid → as failed `schema_violation` |
+| AdapterFinished succeeded, result is HumanAck | `attempts[n].acknowledged`; Waiting `human` |
+| AdapterFinished succeeded, result is a TaskResult | validate: exactly the declared outputs, types equal, every artifact in `context.staged` for this key; `commitScope(key)`; `outputs`; Succeeded. Invalid → as failed `schema_violation` |
 | AdapterFinished failed, or TimerFired(attempt) | `abandonScope(key)`; `clearTimer(attempt)`; another attempt allowed (`12-task.md`; `timeout` is the attempt's code) → `setTimer(backoff)`, Waiting `retryBackoff`; else Failed with the error |
-| AdapterFinished unknown | `describe.supports.query` → `callAdapter(query, key: <logicalExecutionId>/<n>/query)`, its answer is the attempt's result; else failed `unknown_result`, retryable only with `sideEffects: none` |
+| AdapterFinished unknown | acknowledged attempt: no-op; else `describe.supports.query` → `callAdapter(query, key: <logicalExecutionId>/<n>/query)`, mapped per `19-adapter-roles.md`; else failed `unknown_result`, retryable only with `sideEffects: none` |
 | TimerFired(backoff) | attempt n+1 as Created |
 | TimerFired(deadline) | `callAdapter(cancel)` if `supports.cancel`; `abandonScope`; Failed `timeout` |
-| Signal (human completion) | `context.actor` → `status.actor`; body is the TaskResult; then as AdapterFinished succeeded |
+| Signal (human completion) | `context.actor` → `status.actor`; body `{taskResult, publish[]}`; `publishArtifact` per `publish[]` into this reconcile, outputs filled from the returned refs; then validate and Succeeded as for a TaskResult |
 | CancelRequested | `callAdapter(cancel)` if `supports.cancel`; `abandonScope`; Cancelled; the cancel answer lands in the RunLog as a later AdapterFinished |
 
-A `human` Executor's `execute` returns at once after the Adapter registered the request; the
-attempt waits for a Signal through the `signal` callback (`07-adapter.md`) or the deadline.
-The commit in that reconcile stamps the human Actor on every artifact of the attempt
-(`05-revisioned-kind.md`).
+A `human` Executor's `execute` returns HumanAck; the attempt waits for a Signal through the
+`signal` callback (`07-adapter.md`) or the deadline. The reconcile that receives the Signal
+publishes and commits, so the human Actor lands on every artifact (`05-revisioned-kind.md`).
 
 ## gate Handler
 
