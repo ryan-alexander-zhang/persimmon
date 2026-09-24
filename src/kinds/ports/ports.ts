@@ -26,6 +26,28 @@ export function expandSchema(schema: JsonSchema | { $ref: string } | undefined):
   return ajv.getSchema(wellKnownPointer(ref))?.schema as JsonSchema
 }
 
+/** The schema with every `$ref` inlined from the design files, so an Adapter or a human form can read it alone. A cycle becomes `{}`. */
+export function inlineSchema(schema: JsonSchema | { $ref: string } | undefined, base = 'ports.yaml', stack: string[] = []): JsonSchema | undefined {
+  if (!schema) return undefined
+  const walk = (node: unknown, file: string): unknown => {
+    if (Array.isArray(node)) return node.map((n) => walk(n, file))
+    if (!node || typeof node !== 'object') return node
+    const ref = (node as { $ref?: string }).$ref
+    if (typeof ref === 'string') {
+      const abs = wellKnown.test(ref) ? wellKnownPointer(ref) : ref.startsWith('#') ? `${file}${ref}` : ref
+      if (stack.includes(abs)) return {}
+      const target = ajv.getSchema(abs)?.schema
+      if (!target) throw new PortError(`unknown $ref ${ref}`)
+      stack.push(abs)
+      const out = walk(target, abs.split('#')[0]!)
+      stack.pop()
+      return out
+    }
+    return Object.fromEntries(Object.entries(node).map(([k, v]) => [k, k === 'const' || k === 'enum' || k === 'default' ? v : walk(v, file)]))
+  }
+  return walk(schema, base) as JsonSchema
+}
+
 function validatorFor(schema: JsonSchema | { $ref: string }): ValidateFunction {
   const ref = (schema as { $ref?: string }).$ref
   return ref ? (ajv.getSchema(wellKnownPointer(ref)) as ValidateFunction) : ajv.compile(schema)

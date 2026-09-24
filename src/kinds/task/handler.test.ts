@@ -165,6 +165,9 @@ describe('task Handler', () => {
     let r = handler.reconcile(input(run, { type: 'Created', dedupeKey: 'created' })) as ReconcileResult
     expect(clean(r.statusPatch)).toMatchObject({ phase: 'Waiting', waitingReason: 'human' })
     expect(r.actions[0]).toMatchObject({ type: 'callAdapter', adapterId: 'review-ui/v1', op: 'execute' })
+    const shown = (r.actions[0] as { payload: { task: { outputs: { result: { type: { schema: Record<string, unknown> } } } } } }).payload.task.outputs.result.type.schema
+    expect(shown).toMatchObject({ type: 'object', required: ['passed', 'findings', 'evidence'] }) // the well-known $ref arrives inlined for the form
+    expect(JSON.stringify(shown)).not.toContain('$ref')
     let state = apply(run, r)
     r = handler.reconcile(input(state, { type: 'AdapterFinished', dedupeKey: 'a', payload: { idempotencyKey: 'prd-create-002//research/1', state: 'succeeded', result: { accepted: true } } })) as ReconcileResult
     expect(clean(r.statusPatch)).toMatchObject({ phase: 'Waiting', waitingReason: 'human', attempts: [{ acknowledged: true }] })

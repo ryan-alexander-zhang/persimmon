@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
 import { describe, expect, it } from 'vitest'
 import { ExpressionError } from '../../expression/site.js'
-import { bind, checkInputs, checkOutputs, expandSchema, PortError, sameType, siteOf } from './ports.js'
+import { bind, checkInputs, checkOutputs, expandSchema, inlineSchema, PortError, sameType, siteOf } from './ports.js'
 import type { Binding, InputSpec, OutputSpec, RuntimeValue } from './types.js'
 
 const example = (n: string) => parse(readFileSync(`docs/design/examples/${n}.yaml`, 'utf8'))
@@ -18,6 +18,15 @@ describe('port types', () => {
     expect(sameType(a, { kind: 'value', schema: expandSchema(a.schema) })).toBe(true)
     expect(sameType(a, { kind: 'value', schema: { type: 'integer' } })).toBe(false)
     expect(sameType(task.inputs.research!.type, task.outputs.prd!.type)).toBe(false)
+  })
+
+  it('inlines every $ref so the schema stands alone', () => {
+    const s = inlineSchema({ $ref: 'persimmon.ai/v1#/GateResult' }) as Record<string, any>
+    expect(JSON.stringify(s)).not.toContain('$ref')
+    expect(s.properties.results.additionalProperties.properties.findings.items.properties.severity).toEqual({ enum: ['error', 'warning', 'info'] })
+    expect(s.properties.results.additionalProperties.properties.evidence.items.required).toEqual(['apiVersion', 'kind', 'namespace', 'id', 'revision'])
+    expect(inlineSchema({ type: 'integer' })).toEqual({ type: 'integer' })
+    expect(() => inlineSchema({ $ref: 'persimmon.ai/v1#/Nope' })).toThrow(PortError)
   })
 
   it('checks inputs: required, defaults, kinds, schemas, unknown ports', () => {

@@ -6,7 +6,7 @@ import type { Action, AdapterFinishedPayload, ReconcileError, PublishRequest } f
 import type { Resource, RevisionRef } from '../../resource/types.js'
 import type { Closure } from '../../snapshot/walk.js'
 import { fromClosure, type HandlerDeps } from '../deps.js'
-import { checkInputs, checkOutputs, PortError } from '../ports/ports.js'
+import { checkInputs, checkOutputs, inlineSchema, PortError } from '../ports/ports.js'
 import type { RuntimeValues } from '../ports/types.js'
 import { ContextError, resolveContext } from './context.js'
 import { backoffMs, shouldRetry } from './retry.js'
@@ -89,7 +89,8 @@ export function taskHandler(deps: HandlerDeps): HandlerImpl {
         }
         const key = `${lei}/${index}`
         const attemptDeadline = new Date(Math.min(now.getTime() + durationMs(task.spec.timeout), Date.parse(run.spec.deadline)))
-        const outputs = task.spec.outputs ?? {}
+        // value ports may name a well-known $ref; the payload carries every schema self-contained (10-ports.md)
+        const outputs = Object.fromEntries(Object.entries(task.spec.outputs ?? {}).map(([port, o]) => [port, o.type.kind === 'value' && o.type.schema ? { ...o, type: { kind: 'value' as const, schema: inlineSchema(o.type.schema) } } : o]))
         const outputSchemas = Object.fromEntries(
           Object.entries(outputs)
             .filter(([, o]) => o.type.kind === 'artifact')
