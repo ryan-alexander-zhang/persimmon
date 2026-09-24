@@ -137,8 +137,9 @@ imports into a server unchanged.
   a policy Resource is roadmap (reference decision 36).
 - `env` credential names are upper case with `-` as `_`: `demo/github-token` reads
   `PERSIMMON_CRED_DEMO__GITHUB_TOKEN`. Found in implementation.
-- `keychain` and `secretManager` credential sources resolve nothing in the first build; `env` and
-  `file` are implemented. Found in implementation.
+- `keychain` reads the macOS keychain: `security find-generic-password -s persimmon -a <name> -w`,
+  one lookup per name per process, a failure means absent. `secretManager` resolves nothing
+  until server mode. Found in implementation.
 - `persimmon run` is sugar over `create`: it writes the WorkflowRun the user would have written,
   nothing more; `--follow` reports owned runs by walking `ownerReferences`. Found in
   implementation.

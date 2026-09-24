@@ -136,7 +136,8 @@ Result: a ValidationResult (`10-ports.md`). No `credentials`, no `security` (`14
 - Shipped agent Adapters read `claude-code-skill/v1` Skills: a directory with `SKILL.md`,
   fetched and verified per `15-prompt-skill.md`, handed to `claude` with `--add-dir` and named
   in the prompt; `file` context is a pointer into the working directory, the agent reads it.
-  `security.networkAccess` and `allowedHosts` are not enforced by these Adapters. Found in
+  `codex/v1` maps `security.networkAccess` to `sandbox_workspace_write.network_access`;
+  `allowedHosts` and the claude sandbox network are not enforced by these Adapters. Found in
   implementation.
 - `subprocess/v1` ships on the same runner: `configuration.program` plus `parameters.args`, the
   execute payload without `credentials` and `engine` on stdin, credentials as environment, and
