@@ -104,7 +104,7 @@ Each row is a decision (`AGENTS.md` §2).
 
 | Need | Choice | Compared | Why |
 |---|---|---|---|
-| JSON Schema 2020-12 | `ajv` via `ajv/dist/2020`; `x-persimmon-*` declared as keywords | `@hyperjump/json-schema`, `@cfworker/json-schema` | compiled validator, widest use; `$dynamicRef` partial, not used by the design |
+| JSON Schema 2020-12 | `ajv` via `ajv/dist/2020` plus `ajv-formats` for `date-time`, `uri`; `x-persimmon-*` declared as keywords | `@hyperjump/json-schema`, `@cfworker/json-schema` | compiled validator, widest use; `$dynamicRef` partial, not used by the design |
 | CEL | `@marcbachmann/cel-js` | `cel-js`, `@bufbuild/cel` | only one with a working static checker (`10-ports.md`) |
 | YAML | `yaml` | `js-yaml` | source positions on every node, so `persimmon validate` reports lines; both default to YAML 1.2 |
 | SQLite | `node:sqlite` | `better-sqlite3` | stdlib, synchronous, transactions; no native build |
