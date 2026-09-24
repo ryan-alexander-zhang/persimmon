@@ -1,3 +1,4 @@
+import type { Resource } from '../resource/types.js'
 import type { Cli } from './context.js'
 import { withEngine } from './context.js'
 import { parseRef, toYaml } from './io.js'
@@ -9,7 +10,7 @@ export async function get(cli: Cli, ref: string, namespace?: string): Promise<nu
     async (engine) => {
       const { kind, name } = parseRef(ref)
       if (name) {
-        const r = engine.store.resources.get({ kind, namespace: nsOf(engine, kind, namespace), name })
+        const r = find(engine, kind, name, namespace)
         if (!r) {
           cli.err(`${kind}/${name} not found`)
           return 1
@@ -30,7 +31,7 @@ export async function logs(cli: Cli, ref: string, namespace?: string): Promise<n
     cli,
     async (engine) => {
       const { kind, name } = parseRef(ref)
-      const r = name && engine.store.resources.get({ kind, namespace: nsOf(engine, kind, namespace), name })
+      const r = name && find(engine, kind, name, namespace)
       if (!r) {
         cli.err(`${ref} not found`)
         return 1
@@ -47,5 +48,9 @@ export async function logs(cli: Cli, ref: string, namespace?: string): Promise<n
 }
 
 const phaseOf = (r: { status?: Record<string, unknown> }) => (typeof r.status?.phase === 'string' ? r.status.phase : undefined)
-export const nsOf = (engine: { kinds: { byKind(k: string): { definition: { spec: { scope: string } } } | undefined }; dispatch: { defaultNamespace: string } }, kind: string, ns?: string) =>
-  ns ?? (engine.kinds.byKind(kind)?.definition.spec.scope === 'Global' ? undefined : engine.dispatch.defaultNamespace)
+
+/** `-n` when given; else defaultNamespace, then Global: the LocalDefinitionRef order (00-resource.md). */
+export function find(engine: { store: { resources: { get(ref: { kind: string; namespace?: string; name: string }): Resource | undefined } }; dispatch: { defaultNamespace: string } }, kind: string, name: string, ns?: string): Resource | undefined {
+  if (ns) return engine.store.resources.get({ kind, namespace: ns, name })
+  return engine.store.resources.get({ kind, namespace: engine.dispatch.defaultNamespace, name }) ?? engine.store.resources.get({ kind, name })
+}

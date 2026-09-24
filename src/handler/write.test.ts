@@ -98,12 +98,12 @@ describe('createResource', () => {
     await expect(createResource(engine, { ...ownerless, metadata: { ...ownerless.metadata, name: 'g' } }, { actor, owner: noSnap, owned: true })).rejects.toThrow(/no snapshot to inherit/)
   })
 
-  it('fills defaultNamespace for a Namespaced kind and skips Created for a kind without a Handler', async () => {
+  it('scope Any without a Namespace is Global and skips Created for a kind without a Handler', async () => {
     const prompt = fresh(closure.resources.find((r) => r.kind === 'Prompt') as Resource)
     prompt.metadata.name = 'another'
     delete prompt.metadata.namespace
     const { resource } = await createResource(engine, prompt, { actor })
-    expect(resource.metadata.namespace).toBe('default')
+    expect(resource.metadata.namespace).toBeUndefined()
     expect(resource.metadata.snapshot).toBeUndefined()
     expect(store.runLog.read(resource.metadata.uid!)).toEqual([])
   })

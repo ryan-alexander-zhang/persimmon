@@ -138,6 +138,10 @@ imports into a server unchanged.
   `PERSIMMON_CRED_DEMO__GITHUB_TOKEN`. Found in implementation.
 - `keychain` and `secretManager` credential sources resolve nothing in the first build; `env` and
   `file` are implemented. Found in implementation.
+- `defaultNamespace` fills a `Namespaced` kind on the write path; a `scope: Any` Resource written
+  without a Namespace is Global (`00-resource.md`). The CLI places its own docs in `-n` or
+  `defaultNamespace` unless `--global`; `persimmon init` and `apply --global` install a pack as
+  Global (`20-pack.md`). CLI refs resolve Namespace first, then Global. Found in implementation.
 
 
 ## Examples

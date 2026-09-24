@@ -40,13 +40,13 @@ export async function init(cli: Cli, o: { pack?: string } = {}): Promise<number>
   const dir = o.pack ?? packDir()
   const files = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.yaml')).sort().map((f) => join(dir, f)) : []
   return withEngine(cli, async (engine) => {
-    const a = await applyDocs(cli, engine, shippedAdapters())
+    const a = await applyDocs(cli, engine, shippedAdapters(), { global: true })
     if (files.length === 0) {
       cli.out(`no pack at ${dir}`)
       return a
     }
     // Other Adapters (subprocess/v1) are installed after init, so their Executors may not resolve yet (13-executor.md apply rule, skipped here)
-    const b = await applyDocs(cli, engine, loadDocs(files) as Resource[], { skipAdapterValidation: true })
+    const b = await applyDocs(cli, engine, loadDocs(files) as Resource[], { global: true, skipAdapterValidation: true })
     return a || b
   })
 }

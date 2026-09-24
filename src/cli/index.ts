@@ -11,8 +11,8 @@ import { validate } from './validate.js'
 
 const usage = `usage: persimmon <verb> [args]
   validate <files>                         schema plus static rules
-  apply <files> [-n ns] [--skip-adapter-validation]
-  create <file> [--follow]
+  apply <files> [-n ns | --global] [--skip-adapter-validation]
+  create <file> [-n ns] [--follow]
   signal <kind>/<name> --payload <file> [--event-id <id>]
   complete <taskRun> --file <result.yaml>
   resume
@@ -30,6 +30,7 @@ export async function runCli(argv: string[], cli: Cli): Promise<number> {
     options: {
       namespace: { type: 'string', short: 'n' },
       follow: { type: 'boolean' },
+      global: { type: 'boolean' },
       'skip-adapter-validation': { type: 'boolean' },
       payload: { type: 'string' },
       'event-id': { type: 'string' },
@@ -57,10 +58,10 @@ export async function runCli(argv: string[], cli: Cli): Promise<number> {
         return await validate(cli, rest)
       case 'apply':
         need(1, 'files')
-        return await apply(cli, rest, { ...(values.namespace ? { namespace: values.namespace } : {}), ...(values['skip-adapter-validation'] ? { skipAdapterValidation: true } : {}) })
+        return await apply(cli, rest, { ...(values.namespace ? { namespace: values.namespace } : {}), ...(values.global ? { global: true } : {}), ...(values['skip-adapter-validation'] ? { skipAdapterValidation: true } : {}) })
       case 'create':
         need(1, 'file')
-        return await create(cli, rest[0]!, { ...(values.follow ? { follow: true } : {}) })
+        return await create(cli, rest[0]!, { ...(values.follow ? { follow: true } : {}), ...(values.namespace ? { namespace: values.namespace } : {}) })
       case 'signal':
         need(1, '<kind>/<name>')
         return await signal(cli, rest[0]!, { ...(values.payload ? { payload: values.payload } : {}), ...(values['event-id'] ? { eventId: values['event-id'] } : {}), ...(values.namespace ? { namespace: values.namespace } : {}) })

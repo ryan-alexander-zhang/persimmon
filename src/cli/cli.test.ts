@@ -36,6 +36,9 @@ describe('persimmon CLI', () => {
     expect(out.some((l) => l.includes('warn  Executor/lint-script'))).toBe(true) // subprocess/v1 is not shipped
     expect(out.some((l) => l.includes('warn  Executor/claude-agent'))).toBe(false) // claude-code/v1 is
     out = []
+    expect(await run('get', 'Workflow')).toBe(0)
+    expect(out).toEqual(['Workflow/prd-approval', 'Workflow/prd-create']) // the pack is Global (20-pack.md)
+    out = []
     expect([await run('init'), err]).toEqual([0, []]) // idempotent
     expect(out.every((l) => !l.startsWith('created'))).toBe(true)
 

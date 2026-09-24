@@ -1,15 +1,17 @@
 import { readPath } from '../reconcile/merge-patch.js'
 import type { Resource } from '../resource/types.js'
 import type { Cli } from './context.js'
+import { placeDoc } from './apply.js'
 import { openEngine } from './context.js'
 import { loadDocs } from './io.js'
 
 /** `persimmon create <file> [--follow]`: store any Resource; `--follow` runs until it reaches a terminal value. */
-export async function create(cli: Cli, file: string, o: { follow?: boolean; pollMs?: number } = {}): Promise<number> {
+export async function create(cli: Cli, file: string, o: { follow?: boolean; pollMs?: number; namespace?: string } = {}): Promise<number> {
   const [doc] = loadDocs([file]) as Resource[]
   if (!doc) throw new Error(`${file}: no document`)
   const engine = await openEngine(cli)
   try {
+    placeDoc(engine, doc, o)
     const { resource, created } = await engine.create(doc)
     cli.out(`${created ? 'created' : 'exists'} ${resource.kind}/${resource.metadata.name}`)
     await engine.drain()

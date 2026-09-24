@@ -55,7 +55,8 @@ export async function prepareCreate(engine: Engine, input: unknown): Promise<Res
   const resource = validateEnvelope(input)
   if (resource.status !== undefined) throw new WriteError(`${resource.kind} ${resource.metadata.name}: status is Handler-written`)
   const kd = kinds.get(resource.apiVersion, resource.kind).definition
-  if (kd.spec.scope !== 'Global' && !resource.metadata.namespace) resource.metadata.namespace = engine.defaultNamespace
+  // scope Any without a Namespace is Global (00-resource.md); the CLI fills defaultNamespace for its own docs (08-store.md)
+  if (kd.spec.scope === 'Namespaced' && !resource.metadata.namespace) resource.metadata.namespace = engine.defaultNamespace
   kinds.validateResource(resource)
 
   const bound = handlers.lookup(resource.apiVersion, resource.kind)

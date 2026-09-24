@@ -2,7 +2,7 @@ import { audit } from '../handler/write.js'
 import { localActor } from '../engine.js'
 import type { Cli } from './context.js'
 import { withEngine } from './context.js'
-import { nsOf } from './get.js'
+import { find } from './get.js'
 import { parseRef } from './io.js'
 
 /** `persimmon resume`: redeliver unacked Events and outstanding calls, drain the Outbox. start() marks open calls unknown. */
@@ -19,7 +19,7 @@ export async function del(cli: Cli, ref: string, namespace?: string): Promise<nu
     cli,
     async (engine) => {
       const { kind, name } = parseRef(ref)
-      const r = name && engine.store.resources.get({ kind, namespace: nsOf(engine, kind, namespace), name })
+      const r = name && find(engine, kind, name, namespace)
       if (!r) {
         cli.err(`${ref} not found`)
         return 1

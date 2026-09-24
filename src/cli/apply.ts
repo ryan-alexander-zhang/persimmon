@@ -6,7 +6,16 @@ import { loadDocs } from './io.js'
 
 export interface ApplyOptions {
   namespace?: string
+  /** write scope Any docs as Global: a pack install (20-pack.md) */
+  global?: boolean
   skipAdapterValidation?: boolean
+}
+
+/** A doc without a Namespace lands in `-n` or defaultNamespace unless it is Global by kind or by `--global`. */
+export function placeDoc(engine: Engine, doc: Resource, o: ApplyOptions): void {
+  if (doc.metadata.namespace || o.global) return
+  if (engine.kinds.get(doc.apiVersion, doc.kind).definition.spec.scope === 'Global') return
+  doc.metadata.namespace = o.namespace ?? engine.dispatch.defaultNamespace
 }
 
 /** `persimmon apply <files>`: write definitions; an Executor on an unreachable Adapter fails unless skipped (13-executor.md). */
@@ -18,8 +27,8 @@ export async function apply(cli: Cli, files: string[], o: ApplyOptions = {}): Pr
 export async function applyDocs(cli: Cli, engine: Engine, docs: Resource[], o: ApplyOptions = {}): Promise<number> {
   let code = 0
   for (const doc of docs) {
-    if (o.namespace && !doc.metadata.namespace) doc.metadata.namespace = o.namespace
     try {
+      placeDoc(engine, doc, o)
       const { resource, created } = await engine.apply(doc)
       const impl = engine.handlers.lookup(resource.apiVersion, resource.kind)?.impl
       const warnings = impl?.validate(resource).findings.filter((f) => f.severity === 'warning') ?? []
