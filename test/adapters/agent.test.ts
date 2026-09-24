@@ -28,6 +28,7 @@ beforeAll(async () => {
       fs.writeFileSync(process.env.STUB_OUT + '/claude.json', JSON.stringify({ args: process.argv.slice(2), prompt: p, env: { GITHUB_TOKEN: process.env.GITHUB_TOKEN ?? null, token: process.env.PERSIMMON_ADAPTER_TOKEN ?? null } }))
       if (process.env.STUB_SLEEP) return setTimeout(() => {}, Number(process.env.STUB_SLEEP))
       if (process.env.STUB_FAIL) { process.stderr.write('boom\\n'); process.exit(1) }
+      if (process.env.STUB_AUTH) { process.stdout.write(JSON.stringify({ type: 'result', subtype: 'success', is_error: true, result: 'Failed to authenticate' })); process.exit(1) }
       process.stdout.write(JSON.stringify({ type: 'result', subtype: 'success', is_error: false, result: '{}', structured_output: JSON.parse(process.env.STUB_RESULT) }))
     })`)
   // codex stub: records args and prompt, writes the answer file named by -o
@@ -122,6 +123,11 @@ describe('claude-code/v1', () => {
     const r = await adapter('claude-code', { id: 3, op: 'execute', payload: payload() }, { STUB_FAIL: '1' })
     expect(last(r)).toMatchObject({ ok: false, error: { code: 'agent_failed', retryable: true } })
     expect(r.lines.some((l) => l.event === 'log' && l.text === 'boom')).toBe(true)
+  })
+
+  it('reports the agent error text when claude exits 1 with a JSON result', async () => {
+    const r = await adapter('claude-code', { id: 9, op: 'execute', payload: payload() }, { STUB_AUTH: '1' })
+    expect(last(r)).toMatchObject({ ok: false, error: { code: 'agent_failed', message: 'Failed to authenticate', retryable: true } })
   })
 
   it('refuses a skill context entry with invalid_input', async () => {

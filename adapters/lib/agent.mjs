@@ -64,7 +64,13 @@ async function execute(driver, payload, log) {
   let answer
   try {
     const [cmd, args] = driver.command({ configuration: executor.configuration ?? {}, parameters: task.parameters ?? {}, schema, dir })
-    const stdout = await run(cmd, args, prompt, { credentials, deadline, logicalExecutionId: taskRun.logicalExecutionId, log })
+    let stdout
+    try {
+      stdout = await run(cmd, args, prompt, { credentials, deadline, logicalExecutionId: taskRun.logicalExecutionId, log })
+    } catch (e) {
+      if (e.stdout) driver.parse({ stdout: e.stdout, dir }) // throws the agent's own error message when it printed one
+      throw e
+    }
     answer = driver.parse({ stdout, dir })
   } finally {
     rmSync(dir, { recursive: true, force: true })
@@ -155,8 +161,10 @@ function run(cmd, args, prompt, { credentials, deadline, logicalExecutionId, log
       if (timedOut) return reject(new AdapterError('timeout', `${cmd} exceeded the deadline`, true))
       if (cancelled) return reject(new AdapterError('cancelled', `${cmd} was cancelled`, false))
       if (code !== 0) {
-        log(stderr.trim().split('\n').slice(-5).join('\n'))
-        return reject(new AdapterError('agent_failed', `${cmd} exited with ${code ?? signal}`, true))
+        if (stderr.trim()) log(stderr.trim().split('\n').slice(-5).join('\n'))
+        const e = new AdapterError('agent_failed', `${cmd} exited with ${code ?? signal}`, true)
+        e.stdout = stdout // the driver may read a better message out of it
+        return reject(e)
       }
       resolve(stdout)
     })

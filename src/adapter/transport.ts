@@ -23,7 +23,8 @@ function stdio(spec: AdapterSpec, request: Request, credentials: CredentialStore
   const [cmd, ...args] = spec.command as [string, ...string[]]
   // Only what the process needs: never the engine's PERSIMMON_CRED_* secrets (07-adapter.md Rules)
   const env: Record<string, string> = {}
-  for (const k of ['PATH', 'HOME', 'TMPDIR', 'LANG', 'NODE_PATH', 'NODE_OPTIONS']) if (process.env[k]) env[k] = process.env[k] as string
+  // USER: macOS keychain lookups (the claude login) need it; none of these carry a secret
+  for (const k of ['PATH', 'HOME', 'USER', 'LOGNAME', 'TMPDIR', 'LANG', 'NODE_PATH', 'NODE_OPTIONS']) if (process.env[k]) env[k] = process.env[k] as string
   Object.assign(env, spec.env)
   for (const name of spec.credentialBindings ?? []) {
     const v = credentials.resolve(name)

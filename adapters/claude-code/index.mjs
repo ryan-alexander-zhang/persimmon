@@ -23,7 +23,12 @@ serve({
     return ['claude', args]
   },
   parse({ stdout }) {
-    const r = JSON.parse(stdout)
+    let r
+    try {
+      r = JSON.parse(stdout)
+    } catch {
+      throw new AdapterError('agent_failed', 'claude printed no JSON result', true)
+    }
     if (r.is_error || r.subtype !== 'success') throw new AdapterError(r.subtype === 'error_max_turns' ? 'timeout' : 'agent_failed', typeof r.result === 'string' ? r.result : r.subtype, true)
     return r.structured_output ?? JSON.parse(r.result)
   },
