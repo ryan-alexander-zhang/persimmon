@@ -11,7 +11,8 @@ const annotations = ['x-persimmon-ref', 'x-persimmon-kind-ref', 'x-persimmon-ada
 // ajv-formats ships CJS; under nodenext the default import is typed as the module namespace.
 const addFormats = addFormatsModule as unknown as typeof addFormatsModule.default
 
-export const ajv = new Ajv2020({ allErrors: true, strict: true, allowUnionTypes: true })
+// strictTypes and strictRequired off: the design schemas use `not: {required: [..]}` without a `type`.
+export const ajv = new Ajv2020({ allErrors: true, strict: true, strictTypes: false, strictRequired: false, allowUnionTypes: true })
 addFormats(ajv)
 for (const k of annotations) ajv.addKeyword({ keyword: k, metaSchema: { type: 'object' } })
 for (const [file, schema] of Object.entries(schemas)) ajv.addSchema(schema, file)
