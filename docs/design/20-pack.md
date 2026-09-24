@@ -97,3 +97,6 @@ Credentials the pack Executors bind are Global names resolved at run time.
   [`examples/pack-task-override.yaml`](examples/pack-task-override.yaml): a Global pack Task
   and its port-compatible Namespace override; both validate against `schemas/task.yaml`
 - pack members: every example named in the content table
+- `examples/<nn>/` are projects, not packs: hand-written definitions plus a `README.md` the user
+  follows, `persimmon init` run inside the directory, generated state ignored. A pack is
+  installed by `init`; an example is applied by the user, one scenario each. Found in UAT.
