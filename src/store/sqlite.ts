@@ -496,9 +496,10 @@ function describe(k: ResourceKey): string {
   return `${k.kind} ${k.namespace ? k.namespace + '/' : ''}${k.name}`
 }
 
-/** Targets this Resource points at: ownerReferences plus every ObjectRef or RevisionRef inside spec. */
+/** Targets this Resource points at: ownerReferences, every ObjectRef, RevisionRef or LocalDefinitionRef inside spec. */
 function referencesOf(r: Resource): ResourceKey[] {
   const out: ResourceKey[] = []
+  const ns = r.metadata.namespace
   for (const o of r.metadata.ownerReferences ?? []) out.push({ kind: o.kind, namespace: o.namespace, name: o.name })
   const walk = (v: unknown): void => {
     if (!v || typeof v !== 'object') return
@@ -508,6 +509,13 @@ function referencesOf(r: Resource): ResourceKey[] {
       if (typeof o.name === 'string') out.push({ kind: o.kind, namespace: o.namespace as string | undefined, name: o.name })
       else if (typeof o.id === 'string' && typeof o.revision === 'number')
         out.push({ kind: o.kind, namespace: o.namespace as string, name: `${o.id}.r${o.revision}` })
+      return
+    }
+    // LocalDefinitionRef {kind, name}: resolves in the referrer's Namespace, then Global, so both targets count
+    const keys = Object.keys(o)
+    if (keys.length === 2 && typeof o.kind === 'string' && typeof o.name === 'string' && /^[A-Z]/.test(o.kind)) {
+      if (ns) out.push({ kind: o.kind, namespace: ns, name: o.name })
+      out.push({ kind: o.kind, namespace: undefined, name: o.name })
       return
     }
     Object.values(o).forEach(walk)
