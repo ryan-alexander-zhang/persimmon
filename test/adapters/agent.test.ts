@@ -201,7 +201,7 @@ describe('codex/v1', () => {
     const r = await adapter('codex', { id: 8, op: 'execute', payload: payload({ executor: { type: 'agent', configuration: { model: 'gpt-6-sol', sandbox: 'workspace-write' }, security: { networkAccess: 'deny', credentialBindings: [] } } }) }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'PRD' }, count: 1 } }) })
     expect(last(r).result.outputs.prd.ref.id).toBe('prd-create-001-write-prd-prd')
     const seen = JSON.parse(readFileSync(join(stubs, 'codex.json'), 'utf8'))
-    expect(seen.args).toEqual(expect.arrayContaining(['exec', '--ephemeral', '-s', 'workspace-write', '-m', 'gpt-6-sol', '-']))
+    expect(seen.args).toEqual(expect.arrayContaining(['exec', '--ephemeral', '-s', 'workspace-write', '-m', 'gpt-6-sol', '-c', 'sandbox_workspace_write.network_access=false', '-']))
     expect(seen.schema.properties.outputs.required).toEqual(['prd', 'count'])
     // strict form: closed objects, every property required, optional ones widened with null, no format
     expect(seen.schema).toEqual({ type: 'object', required: ['outputs', 'summary'], additionalProperties: false, properties: { outputs: { type: 'object', required: ['prd', 'count'], additionalProperties: false, properties: { prd: { type: 'object', required: ['title'], additionalProperties: false, properties: { title: { type: 'string' } } }, count: { type: 'integer' } } }, summary: { anyOf: [{ type: 'string' }, { type: 'null' }] } } })

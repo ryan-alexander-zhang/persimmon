@@ -37,9 +37,11 @@ serve({
     properties: { model: { type: 'string' }, sandbox: { enum: Object.keys(sandbox) }, profile: { type: 'string' } },
   },
   parametersSchema: { type: 'object', additionalProperties: false, properties: { reasoningEffort: { enum: ['minimal', 'low', 'medium', 'high', 'xhigh'] } } },
-  command({ configuration: c, parameters: p, schema, dir }) {
+  command({ configuration: c, parameters: p, schema, dir, payload }) {
     writeFileSync(join(dir, 'schema.json'), JSON.stringify(strict(schema)))
     const args = ['exec', '--skip-git-repo-check', '--ephemeral', '--color', 'never', '--output-schema', join(dir, 'schema.json'), '-o', join(dir, 'answer.json'), '-s', sandbox[c.sandbox ?? 'workspace-write']]
+    // security.networkAccess: codex has one switch for the workspace-write sandbox; allowedHosts cannot be narrowed here
+    args.push('-c', `sandbox_workspace_write.network_access=${payload.executor.security?.networkAccess === 'deny' ? 'false' : 'true'}`)
     if (c.sandbox === 'full') args.push('--dangerously-bypass-approvals-and-sandbox')
     if (c.model) args.push('-m', c.model)
     if (c.profile) args.push('-p', c.profile)

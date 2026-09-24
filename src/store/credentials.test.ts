@@ -18,4 +18,18 @@ describe('credentials', () => {
     expect(store.resolve('anthropic-api-key')).toBe('sk-ant-REDACTED')
     expect(store.resolve('missing')).toBeUndefined()
   })
+
+  it('keychain asks security once per name and treats a failure as absent', () => {
+    const calls: string[][] = []
+    const run = (_cmd: string, args: string[]) => {
+      calls.push(args)
+      if (args.includes('demo/registry-token')) return 'reg-1\n'
+      throw new Error('The specified item could not be found in the keychain.')
+    }
+    const store = new ConfigCredentialStore([{ source: 'keychain' }], {}, run)
+    expect(store.resolve('demo/registry-token')).toBe('reg-1')
+    expect(store.resolve('demo/registry-token')).toBe('reg-1')
+    expect(store.resolve('nope')).toBeUndefined()
+    expect(calls).toEqual([['find-generic-password', '-s', 'persimmon', '-a', 'demo/registry-token', '-w'], ['find-generic-password', '-s', 'persimmon', '-a', 'nope', '-w']])
+  })
 })
