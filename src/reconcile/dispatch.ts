@@ -5,12 +5,13 @@ import { audit } from '../handler/write.js'
 import { deliverOnce } from '../outbox/deliver.js'
 import { engineActor, makeEvent } from '../outbox/event.js'
 import type { Actor, Resource } from '../resource/types.js'
-import type { RunLogEntry } from '../store/store.js'
+import type { CredentialStore, RunLogEntry } from '../store/store.js'
 import { type Engine as CommitEngine, commit, refOf } from './apply.js'
 import { terminalValue } from './status.js'
 import type { AdapterFinishedPayload, Event, NewEvent } from './types.js'
 
 export interface Engine extends CommitEngine {
+  credentials: CredentialStore
   endpoint: string
   maxReconcileAttempts: number
   leaseTtlMs: number
@@ -133,7 +134,7 @@ export async function dispatchCalls(engine: Engine): Promise<number> {
         const a = c.action as { adapterId: string; op: string; payload: Record<string, unknown>; idempotencyKey: string; deadline?: string }
         const deadline = a.deadline ? new Date(a.deadline) : new Date(engine.now().getTime() + engine.defaultCallDeadlineMs)
         const token = engine.store.tokens.issue({ kind: 'call', uid: c.uid, idempotencyKey: a.idempotencyKey }, deadline.toISOString())
-        const out = await engine.adapters.call(a.adapterId, a.op, { ...a.payload, engine: { endpoint: engine.endpoint, token } }, {
+        const out = await engine.adapters.call(a.adapterId, a.op, { ...a.payload, ...credentialsFor(engine, a.payload), engine: { endpoint: engine.endpoint, token } }, {
           timeoutMs: deadline.getTime() - engine.now().getTime(),
         })
         if (out.state === 'pending') return
@@ -151,6 +152,19 @@ export async function dispatchCalls(engine: Engine): Promise<number> {
     }),
   )
   return calls.length
+}
+
+/** Executor credentials resolve at dispatch, per attempt, and never enter the RunLog (13-executor.md). */
+function credentialsFor(engine: Engine, payload: Record<string, unknown>): { credentials?: Record<string, string> } {
+  const names = (payload.executor as { security?: { credentialBindings?: string[] } } | undefined)?.security?.credentialBindings
+  if (!payload.executor) return {}
+  const credentials: Record<string, string> = {}
+  for (const n of names ?? []) {
+    const v = engine.credentials.resolve(n)
+    if (v === undefined) throw new DispatchError(`credential ${n} not found`)
+    credentials[n] = v
+  }
+  return { credentials }
 }
 
 /** On start: every call with no recorded answer is delivered as `unknown` (03-reconcile.md). */
