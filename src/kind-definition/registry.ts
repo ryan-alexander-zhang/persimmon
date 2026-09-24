@@ -51,6 +51,12 @@ export class KindRegistry {
     return definition
   }
 
+  /** By kind name alone, as a LocalDefinitionRef names it. Kind names are unique across groups in v1. */
+  byKind(kind: string): Compiled | undefined {
+    for (const c of this.#kinds.values()) if (c.definition.spec.names.kind === kind) return c
+    return undefined
+  }
+
   lookup(apiVersion: string, kind: string): Compiled | undefined {
     return this.#kinds.get(`${apiVersion}/${kind}`)
   }
