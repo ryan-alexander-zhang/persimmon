@@ -103,6 +103,8 @@ Values enter CEL typed by the port schema: `integer` → `int`, `number` → `do
 
 ## Decisions
 
+- The execute payload carries every value port schema with its `$ref`s inlined from the design
+  files, so an Adapter or a human form reads it alone. Found in implementation.
 - Well-known `ArtifactRef` renamed `RevisionRef` everywhere, including the `$ref` id;
   `CONTEXT.md` amended. `EntityRef` dropped with entity indexing (`91-roadmap.md`).
 - Step ids allow `-`. Reference allowed `_` only; every example and `logicalExecutionId` use `-`.
