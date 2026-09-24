@@ -3,14 +3,19 @@ import type { Cli } from './context.js'
 import { withEngine } from './context.js'
 import { parseRef, toYaml } from './io.js'
 
-/** `persimmon get <kind>[/<name>] [-n ns]`. */
-export async function get(cli: Cli, ref: string, namespace?: string): Promise<number> {
+export interface Where {
+  namespace?: string
+  global?: boolean
+}
+
+/** `persimmon get <kind>[/<name>] [-n ns | --global]`. */
+export async function get(cli: Cli, ref: string, o: Where = {}): Promise<number> {
   return withEngine(
     cli,
     async (engine) => {
       const { kind, name } = parseRef(ref)
       if (name) {
-        const r = find(engine, kind, name, namespace)
+        const r = find(engine, kind, name, o)
         if (!r) {
           cli.err(`${kind}/${name} not found`)
           return 1
@@ -18,7 +23,7 @@ export async function get(cli: Cli, ref: string, namespace?: string): Promise<nu
         cli.out(toYaml(r))
         return 0
       }
-      for (const r of engine.store.resources.list(kind, namespace)) cli.out(`${r.kind}/${r.metadata.name}${r.metadata.namespace ? `  -n ${r.metadata.namespace}` : ''}${phaseOf(r) ? `  ${phaseOf(r)}` : ''}`)
+      for (const r of engine.store.resources.list(kind, o.global ? '' : o.namespace)) cli.out(`${r.kind}/${r.metadata.name}${r.metadata.namespace ? `  -n ${r.metadata.namespace}` : ''}${phaseOf(r) ? `  ${phaseOf(r)}` : ''}`)
       return 0
     },
     { listen: false },
@@ -26,12 +31,12 @@ export async function get(cli: Cli, ref: string, namespace?: string): Promise<nu
 }
 
 /** `persimmon logs <kind>/<name>`: the RunLog. */
-export async function logs(cli: Cli, ref: string, namespace?: string): Promise<number> {
+export async function logs(cli: Cli, ref: string, o: Where = {}): Promise<number> {
   return withEngine(
     cli,
     async (engine) => {
       const { kind, name } = parseRef(ref)
-      const r = name && find(engine, kind, name, namespace)
+      const r = name && find(engine, kind, name, o)
       if (!r) {
         cli.err(`${ref} not found`)
         return 1
@@ -49,8 +54,9 @@ export async function logs(cli: Cli, ref: string, namespace?: string): Promise<n
 
 const phaseOf = (r: { status?: Record<string, unknown> }) => (typeof r.status?.phase === 'string' ? r.status.phase : undefined)
 
-/** `-n` when given; else defaultNamespace, then Global: the LocalDefinitionRef order (00-resource.md). */
-export function find(engine: { store: { resources: { get(ref: { kind: string; namespace?: string; name: string }): Resource | undefined } }; dispatch: { defaultNamespace: string } }, kind: string, name: string, ns?: string): Resource | undefined {
-  if (ns) return engine.store.resources.get({ kind, namespace: ns, name })
+/** `--global` or `-n` when given; else defaultNamespace, then Global: the LocalDefinitionRef order (00-resource.md). */
+export function find(engine: { store: { resources: { get(ref: { kind: string; namespace?: string; name: string }): Resource | undefined } }; dispatch: { defaultNamespace: string } }, kind: string, name: string, o: Where = {}): Resource | undefined {
+  if (o.global) return engine.store.resources.get({ kind, name })
+  if (o.namespace) return engine.store.resources.get({ kind, namespace: o.namespace, name })
   return engine.store.resources.get({ kind, namespace: engine.dispatch.defaultNamespace, name }) ?? engine.store.resources.get({ kind, name })
 }

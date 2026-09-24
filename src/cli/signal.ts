@@ -9,7 +9,7 @@ import { loadDocs, parseRef } from './io.js'
 export async function signal(cli: Cli, ref: string, o: { payload?: string; eventId?: string; namespace?: string }): Promise<number> {
   return withEngine(cli, async (engine) => {
     const { kind, name } = parseRef(ref)
-    const r = name && find(engine, kind, name, o.namespace)
+    const r = name && find(engine, kind, name, o)
     if (!r) {
       cli.err(`${ref} not found`)
       return 1
@@ -27,7 +27,7 @@ export async function complete(cli: Cli, taskRun: string, file: string, namespac
   const body = loadDocs([file])[0] as Record<string, unknown>
   const completion = 'taskResult' in body ? body : { taskResult: body, publish: [] }
   return withEngine(cli, async (engine) => {
-    const r = find(engine, 'TaskRun', taskRun, namespace)
+    const r = find(engine, 'TaskRun', taskRun, { ...(namespace ? { namespace } : {}) })
     if (!r) {
       cli.err(`TaskRun/${taskRun} not found`)
       return 1

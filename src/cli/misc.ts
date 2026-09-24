@@ -2,7 +2,7 @@ import { audit } from '../handler/write.js'
 import { localActor } from '../engine.js'
 import type { Cli } from './context.js'
 import { withEngine } from './context.js'
-import { find } from './get.js'
+import { find, type Where } from './get.js'
 import { parseRef } from './io.js'
 
 /** `persimmon resume`: redeliver unacked Events and outstanding calls, drain the Outbox. start() marks open calls unknown. */
@@ -14,12 +14,12 @@ export async function resume(cli: Cli): Promise<number> {
 }
 
 /** `persimmon delete <kind>/<name>`: refused while referenced (00-resource.md). */
-export async function del(cli: Cli, ref: string, namespace?: string): Promise<number> {
+export async function del(cli: Cli, ref: string, o: Where = {}): Promise<number> {
   return withEngine(
     cli,
     async (engine) => {
       const { kind, name } = parseRef(ref)
-      const r = name && find(engine, kind, name, namespace)
+      const r = name && find(engine, kind, name, o)
       if (!r) {
         cli.err(`${ref} not found`)
         return 1

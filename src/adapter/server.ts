@@ -16,8 +16,9 @@ export function callbackServer(engine: CallbackEngine): Server {
     if (!token) return reply(res, 401, { error: { code: 'unauthorized', message: 'bearer token required' } })
     let body = ''
     let tooBig = false
-    req.on('data', (c: Buffer) => {
-      body += c.toString()
+    req.setEncoding('utf8') // whole code points per chunk
+    req.on('data', (c: string) => {
+      body += c
       if (body.length > maxBody && !tooBig) {
         tooBig = true
         reply(res, 413, { error: { code: 'invalid_input', message: `body over ${maxBody} bytes` } })
@@ -47,8 +48,10 @@ function reply(res: import('node:http').ServerResponse, code: number, body: unkn
 export function listenUnix(server: Server, endpoint: string): Promise<void> {
   const path = endpoint.replace(/^unix:\/\//, '')
   if (existsSync(path)) unlinkSync(path)
+  const umask = process.umask(0o077) // the socket is never world-reachable, not even before the chmod
   return new Promise((resolve) =>
     server.listen(path, () => {
+      process.umask(umask)
       chmodSync(path, 0o600) // only this user reaches the engine
       resolve()
     }),

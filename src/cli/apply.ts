@@ -13,8 +13,10 @@ export interface ApplyOptions {
 
 /** A doc without a Namespace lands in `-n` or defaultNamespace unless it is Global by kind or by `--global`. */
 export function placeDoc(engine: Engine, doc: Resource, o: ApplyOptions): void {
-  if (doc.metadata.namespace || o.global) return
-  if (engine.kinds.get(doc.apiVersion, doc.kind).definition.spec.scope === 'Global') return
+  if (doc.metadata.namespace) return
+  const scope = engine.kinds.get(doc.apiVersion, doc.kind).definition.spec.scope
+  if (o.global && scope === 'Namespaced') throw new Error(`${doc.kind} is Namespaced; --global does not apply`)
+  if (o.global || scope === 'Global') return
   doc.metadata.namespace = o.namespace ?? engine.dispatch.defaultNamespace
 }
 

@@ -61,6 +61,28 @@ describe('persimmon CLI', () => {
     expect(out.length).toBe(5)
     expect(await run('delete', 'Task/write-prd')).toBe(1) // referenced by prd-create
     expect(err.at(-1)).toMatch(/referenced/)
+
+    // a Namespaced override shadows the Global pack Task; refs resolve Namespace first, --global reaches the shadowed one
+    const override = { apiVersion: 'persimmon.ai/v1', kind: 'Task', metadata: { name: 'write-prd' }, spec: { ...(parse(readFileSync('packs/sdlc/global/50-tasks.yaml', 'utf8').split('---')[1]!).spec as object), timeout: '5m' } }
+    out = []
+    expect(await run('apply', file('override.yaml', [override]), '-n', 'default')).toBe(0)
+    expect(out.at(-1)).toBe('created Task/write-prd')
+    out = []
+    expect(await run('get', 'Task/write-prd')).toBe(0)
+    expect(out.join('\n')).toMatch(/namespace: default/)
+    out = []
+    expect(await run('get', 'Task/write-prd', '--global')).toBe(0)
+    expect(out.join('\n')).not.toMatch(/namespace:/)
+    expect(await run('delete', 'Task/write-prd', '-n', 'default')).toBe(0) // the override is unreferenced
+    err = []
+    out = []
+    expect([await run('apply', file('ns.yaml', [{ ...override, metadata: { name: 'write-prd-2' } }]), '--global'), err, out.at(-1)]).toEqual([0, [], 'created Task/write-prd-2']) // scope Any: allowed
+    out = []
+    expect(await run('get', 'Task/write-prd-2')).toBe(0)
+    expect(out.join('\n')).not.toMatch(/namespace:/)
+    const run1 = { apiVersion: 'persimmon.ai/v1', kind: 'WorkflowRun', metadata: { name: 'r' }, spec: { workflowRef: { kind: 'Workflow', name: 'prd-create' }, inputs: {}, timeout: '1h', origin: { kind: 'manual' } } }
+    expect(await run('apply', file('run.yaml', [run1]), '--global')).toBe(1) // Namespaced kind
+    expect(err.at(-1)).toMatch(/--global does not apply/)
   })
 
   it('create --follow drives a run to its terminal value and logs show the RunLog', async () => {

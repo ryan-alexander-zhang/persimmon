@@ -16,11 +16,11 @@ const usage = `usage: persimmon <verb> [args]
   signal <kind>/<name> --payload <file> [--event-id <id>]
   complete <taskRun> --file <result.yaml>
   resume
-  get <kind>[/<name>] [-n ns]
+  get <kind>[/<name>] [-n ns | --global]
   describe <kind>/<name> [-n ns]
-  logs <kind>/<name> [-n ns]
+  logs <kind>/<name> [-n ns | --global]
   init
-  delete <kind>/<name> [-n ns]
+  delete <kind>/<name> [-n ns | --global]
   adapter install <manifest> | adapter list`
 
 export async function runCli(argv: string[], cli: Cli): Promise<number> {
@@ -48,6 +48,7 @@ export async function runCli(argv: string[], cli: Cli): Promise<number> {
     cli.err('--server: server mode is not built yet')
     return 2
   }
+  const where = { ...(values.namespace ? { namespace: values.namespace } : {}), ...(values.global ? { global: true } : {}) }
   const need = (n: number, what: string) => {
     if (rest.length < n) throw new Error(`${verb}: ${what} required`)
   }
@@ -74,15 +75,15 @@ export async function runCli(argv: string[], cli: Cli): Promise<number> {
       case 'get':
       case 'describe':
         need(1, '<kind>[/<name>]')
-        return await get(cli, rest[0]!, values.namespace)
+        return await get(cli, rest[0]!, where)
       case 'logs':
         need(1, '<kind>/<name>')
-        return await logs(cli, rest[0]!, values.namespace)
+        return await logs(cli, rest[0]!, where)
       case 'init':
         return await init(cli)
       case 'delete':
         need(1, '<kind>/<name>')
-        return await del(cli, rest[0]!, values.namespace)
+        return await del(cli, rest[0]!, where)
       case 'adapter':
         if (rest[0] === 'list') return await adapterList(cli)
         if (rest[0] === 'install' && rest[1]) return await apply(cli, [rest[1]])
