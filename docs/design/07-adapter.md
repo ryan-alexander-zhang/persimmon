@@ -125,6 +125,16 @@ Adapters reach the engine only here, at `engine.endpoint`, with a token.
   handled kinds (decision 32), an Adapter has no Handler.
 - One process per call, so a resident process with liveness handling is roadmap.
 - Conformance suite for Adapters and Handlers is roadmap (`91-roadmap.md`).
+- stdio environment is an allowlist: `PATH`, `HOME`, `USER`, `LOGNAME`, `TMPDIR`, `LANG`,
+  `NODE_PATH`, `NODE_OPTIONS`, then `spec.env`, bound credentials and the adapter token.
+  `USER` is needed for macOS keychain logins. Found in implementation.
+- Stream `log` lines are appended to the RunLog entry that issued the call, beside the `log`
+  callback; `waiting` lines are not stored, the Handler owns `waitingReason`. Found in
+  implementation.
+- A `publishArtifact` the engine refuses (content, blob, shape) answers `400 invalid_input`,
+  not `500`. Found in implementation.
+- The callbacks socket moves to the temp directory, keyed by cwd, when the project path is too
+  long for `sun_path`. Found in implementation.
 
 ## Examples
 

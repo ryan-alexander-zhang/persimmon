@@ -123,6 +123,22 @@ Result: a ValidationResult (`10-ports.md`). No `credentials`, no `security` (`14
   Adapters, outside this design.
 - A Claude Code Adapter may expose `configuration.agent` to run a repository subagent
   definition as-is; portable definitions use Prompt and Skill instead.
+- Shipped agent Adapters `claude-code/v1` and `codex/v1` share one runner
+  (`adapters/lib/agent.mjs`). One agent process per attempt, prompt is context entries in
+  order, value inputs, `instructions`, then the output schemas; the agent answers one JSON
+  object `{outputs, summary}` through the CLI's structured output; the Adapter publishes the
+  artifact outputs itself. The agent never sees `engine.token` or the adapter token; task
+  credentials reach it as `<NS>__<NAME>` environment. Found in implementation.
+- `agent_failed` (retryable) is the Layer 1 code for an agent process that exits non-zero or
+  answers no JSON; a publish the engine refuses is `schema_violation`, not retryable; a
+  callback refusal is `permission_denied`. Found in implementation.
+- Shipped agent Adapters report `skillFormats: []` and refuse `skill` context with
+  `invalid_input`; `file` context is a pointer into the working directory, the agent reads it.
+  Skill fetching and digest verification are roadmap. `security.networkAccess` and
+  `allowedHosts` are not enforced by these Adapters. Found in implementation.
+- `codex/v1` sends the output schema in OpenAI strict form: closed objects, every kept
+  property required, optional properties dropped, `format` removed; the prompt states the
+  formats. Found in implementation.
 
 ## Examples
 
