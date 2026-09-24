@@ -86,6 +86,7 @@ describe('scenario: PRD lifecycle', () => {
     const result = { protocol: 'persimmon.result/v1', outputs: { result: { kind: 'value', value: { passed: true, findings: [], evidence: [] } } } }
     out = []
     expect(await run('complete', taskRun, '--file', file('result.yaml', result))).toBe(0)
+    expect(existsSync(join(dir, '.persimmon', 'inbox', `${taskRun}.yaml`))).toBe(false) // the form is answered
     for (let i = 0; i < 5; i++) await run('resume')
     await inspect((e) => {
       const tr = e.store.resources.get({ kind: 'TaskRun', namespace: 'default', name: taskRun })!

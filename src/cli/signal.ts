@@ -1,4 +1,6 @@
 import { randomBytes } from 'node:crypto'
+import { rmSync } from 'node:fs'
+import { join } from 'node:path'
 import { localActor } from '../engine.js'
 import type { Cli } from './context.js'
 import { withEngine } from './context.js'
@@ -33,6 +35,7 @@ export async function complete(cli: Cli, taskRun: string, file: string, namespac
       return 1
     }
     engine.signal(r.metadata.uid as string, `complete-${randomBytes(6).toString('hex')}`, localActor, completion, 'api')
+    rmSync(join(cli.cwd, '.persimmon', 'inbox', `${r.metadata.name}.yaml`), { force: true }) // the cli-human form is answered
     cli.out(`completed TaskRun/${taskRun}`)
     return 0
   })
