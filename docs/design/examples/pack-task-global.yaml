@@ -1,0 +1,17 @@
+# Global pack Task (packs/sdlc/global/30-tasks.yaml); a WorkflowRun in a Namespace without an override resolves to this.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata:
+  name: research
+spec:
+  inputs:
+    repository: {type: {kind: externalResource, provider: git, type: repository}}
+  outputs:
+    report: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport}}}
+  executorRef: {kind: Executor, name: claude-agent}
+  action:
+    instructions: "Research the problem space. Cite sources."
+    context:
+      - {kind: file, input: repository, path: AGENTS.md}
+  timeout: 20m
+  sideEffects: none

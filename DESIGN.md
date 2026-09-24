@@ -51,7 +51,7 @@ Read top to bottom within a layer; a file depends only on files above it.
 
 | File | Content | Status |
 |---|---|---|
-| `docs/design/20-pack.md` | Pack, Pipeline, ReviewLoop, Approval, override by name | planned |
+| `docs/design/20-pack.md` | Pack as a directory, lifecycle, override by name, SDLC pack content | draft |
 
 ## Cross-cutting
 

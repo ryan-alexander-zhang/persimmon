@@ -82,8 +82,7 @@ Query: `list` by the three labels, from the CLI, the API, or the `list` Engine c
 - Endpoints are `revision` or `external`; `EntityRef` dropped with entity indexing
   (`91-roadmap.md`).
 - Builtin Handlers assert no Relations in v1; pack kinds and users do.
-- The 14 SDLC artifact kinds and the `implements-v1`, `verifies-v1` RelationTypes are pack
-  content (`20-pack.md`).
+- Artifact kinds and RelationTypes beyond the examples are pack content (`20-pack.md`).
 
 ## Examples
 

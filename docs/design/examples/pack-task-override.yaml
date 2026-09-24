@@ -1,0 +1,18 @@
+# Namespace override of the pack Task `research`: same ports, different instructions and budget. A WorkflowRun in demo resolves to this one.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata:
+  name: research
+  namespace: demo
+spec:
+  inputs:
+    repository: {type: {kind: externalResource, provider: git, type: repository}}
+  outputs:
+    report: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport}}}
+  executorRef: {kind: Executor, name: claude-agent}
+  action:
+    instructions: "Research the problem space. Cite sources. Include competitor pricing."
+    context:
+      - {kind: file, input: repository, path: AGENTS.md}
+  timeout: 30m
+  sideEffects: none

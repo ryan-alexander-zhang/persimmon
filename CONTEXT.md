@@ -148,7 +148,7 @@ _Avoid_: journal, history, WAL
 **Workflow**:
 A **Definition** kind: a strict DAG of **Steps** joined by **Transitions**, with typed inputs
 and outputs. Loops only through `repeat`.
-_Avoid_: pipeline (that is a Layer 2 kind), flow, process, DAG
+_Avoid_: pipeline, flow, process, DAG
 
 **Step**:
 One entry in `Workflow.spec.steps`: `id`, `uses` (any kind with a **Step contract**), input
@@ -330,13 +330,10 @@ _Avoid_: API, engine API, SDK
 ### Layer 2
 
 **Pack**:
-Global, pre-installed definitions overridable by name in a **Namespace**. The SDLC pack ships
-Pipeline, ReviewLoop, Approval and the artifact kinds.
+A directory of Global definitions applied together, overridable by name in a **Namespace**.
+The SDLC pack ships Workflows, Tasks, Gates, Validators, Executors, Prompts, Triggers,
+artifact kinds and RelationTypes; no kinds of its own.
 _Avoid_: bundle, library, preset, plugin
-
-**Pipeline**:
-A Layer 2 step-capable kind that expands to one **Workflow** at snapshot time.
-_Avoid_: workflow (for this kind), CI pipeline
 
 ## Flagged ambiguities
 
