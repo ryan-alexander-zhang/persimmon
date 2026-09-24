@@ -136,6 +136,8 @@ imports into a server unchanged.
   a policy Resource is roadmap (reference decision 36).
 - `env` credential names are upper case with `-` as `_`: `demo/github-token` reads
   `PERSIMMON_CRED_DEMO__GITHUB_TOKEN`. Found in implementation.
+- `keychain` and `secretManager` credential sources resolve nothing in the first build; `env` and
+  `file` are implemented. Found in implementation.
 
 
 ## Examples

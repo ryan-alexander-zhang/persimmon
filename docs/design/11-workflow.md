@@ -130,6 +130,9 @@ without `repeat`, `<stepId>[<index>]` per enclosing repeat level, joined by `/`.
 - The `stepContract` names no child `spec` shape, so the `workflow` Handler builds TaskRun, GateRun
   and WorkflowRun specs itself and gives any other run kind the TaskRun shape with `<kind>Ref`. A
   contract field for the child shape is roadmap. Found in implementation.
+- A Transition counts as fired once any of its `to` steps has a run, even one another Transition
+  started; a step that is `to` of two Transitions therefore fires the second one at most through
+  its own guard. Recording fired Transitions in `status` is roadmap. Found in implementation.
 
 
 ## Examples
