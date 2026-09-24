@@ -45,7 +45,7 @@ export async function init(cli: Cli, o: { pack?: string } = {}): Promise<number>
       cli.out(`no pack at ${dir}`)
       return a
     }
-    // Other Adapters (subprocess/v1) are installed after init, so their Executors may not resolve yet (13-executor.md apply rule, skipped here)
+    // a user Adapter may be installed after init, so its Executors may not resolve yet (13-executor.md apply rule, skipped here)
     const b = await applyDocs(cli, engine, loadDocs(files) as Resource[], { global: true, skipAdapterValidation: true })
     return a || b
   })

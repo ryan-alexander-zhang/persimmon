@@ -22,7 +22,7 @@ const pidFile = (idempotencyKey) => join(pidDir(), encodeURIComponent(idempotenc
 /** `<NS>__<NAME>` upper case, `-` becomes `_`: the same grammar the engine uses for its own credential env. */
 const envName = (name) => name.toUpperCase().replaceAll('-', '_').replace('/', '__')
 
-/** driver: {adapterId, configurationSchema, parametersSchema, command(ctx) -> [cmd, args], parse({stdout, dir}) -> {outputs, summary?}} */
+/** driver: {adapterId, executorTypes?, contextKinds?, configurationSchema, parametersSchema, command(ctx) -> [cmd, args], input?(ctx) -> stdin text, parse({stdout, dir, configuration}) -> {outputs, summary?}} */
 export function serve(driver) {
   const out = (o) => process.stdout.write(JSON.stringify(o) + '\n')
   createInterface({ input: process.stdin }).once('line', async (line) => {
@@ -35,13 +35,13 @@ export function serve(driver) {
           return out({
             id, ok: true,
             result: {
-              adapterId: driver.adapterId, protocol: 'persimmon.adapter/v1', roles: ['executor'], executorTypes: ['agent'],
+              adapterId: driver.adapterId, protocol: 'persimmon.adapter/v1', roles: ['executor'], executorTypes: driver.executorTypes ?? ['agent'],
               configurationSchema: driver.configurationSchema, parametersSchema: driver.parametersSchema,
-              contextKinds: ['file', 'artifact', 'prompt'], skillFormats: [], supports: { query: false, cancel: true, complete: false }, formRenderable: false,
+              contextKinds: driver.contextKinds ?? ['file', 'artifact', 'prompt'], skillFormats: [], supports: { query: false, cancel: true, complete: false }, formRenderable: false,
             },
           })
         case 'execute':
-          out({ id, event: 'waiting', reason: 'agent' })
+          out({ id, event: 'waiting', reason: driver.executorTypes?.[0] ?? 'agent' })
           return out({ id, ok: true, result: await execute(driver, payload, log) })
         case 'cancel':
           return out({ id, ok: true, result: { state: cancel(payload.idempotencyKey) } })
@@ -58,20 +58,22 @@ export function serve(driver) {
 async function execute(driver, payload, log) {
   const { task, taskRun, inputs, context, executor, credentials, engine, deadline } = payload
   const call = callbacks(engine)
-  const prompt = await buildPrompt(task, inputs, context, call)
+  const configuration = executor.configuration ?? {}
   const schema = outputSchema(task)
   const dir = mkdtempSync(join(tmpdir(), 'persimmon-agent-'))
   let answer
   try {
-    const [cmd, args] = driver.command({ configuration: executor.configuration ?? {}, parameters: task.parameters ?? {}, schema, dir })
+    const ctx = { configuration, parameters: task.parameters ?? {}, schema, dir, payload }
+    const [cmd, args] = driver.command(ctx)
+    const stdin = driver.input ? driver.input(ctx) : await buildPrompt(task, inputs, context, call)
     let stdout
     try {
-      stdout = await run(cmd, args, prompt, { credentials, deadline, idempotencyKey: taskRun.idempotencyKey, log })
+      stdout = await run(cmd, args, stdin, { credentials, deadline, idempotencyKey: taskRun.idempotencyKey, log })
     } catch (e) {
       if (e.stdout?.trim()) driver.errorFrom?.(e.stdout) // throws the agent's own error message when it printed one
       throw e
     }
-    answer = driver.parse({ stdout, dir })
+    answer = driver.parse({ stdout, dir, configuration })
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }

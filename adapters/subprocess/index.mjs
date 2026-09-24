@@ -1,0 +1,36 @@
+// subprocess/v1: runs a program once per attempt for script and tool Executors (19-adapter-roles.md, adapter-subprocess.yaml).
+// stdin: the execute payload without `credentials` and `engine`; credentials arrive as `<NS>__<NAME>` environment.
+// The program writes `{outputs: {<port>: value | artifact content}, summary?}` to `configuration.resultFile`; the Adapter publishes.
+import { readFileSync, rmSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { AdapterError, serve } from '../lib/agent.mjs'
+
+serve({
+  adapterId: 'subprocess/v1',
+  executorTypes: ['script', 'tool'],
+  contextKinds: ['file'],
+  configurationSchema: { type: 'object', required: ['program', 'resultFile'], additionalProperties: false, properties: { program: { type: 'array', minItems: 1, items: { type: 'string' } }, resultFile: { type: 'string' } } },
+  parametersSchema: { type: 'object', additionalProperties: false, properties: { args: { type: 'array', items: { type: 'string' } } } },
+  command({ configuration: c, parameters: p }) {
+    const [program, ...args] = c.program
+    return [program, [...args, ...(p.args ?? [])]]
+  },
+  input({ payload: { credentials, engine, ...rest } }) {
+    return JSON.stringify(rest) + '\n'
+  },
+  parse({ configuration: c }) {
+    const file = resolve(process.cwd(), c.resultFile)
+    let text
+    try {
+      text = readFileSync(file, 'utf8')
+    } catch (e) {
+      throw new AdapterError('agent_failed', `${c.resultFile}: ${e.message}`, true)
+    }
+    rmSync(file, { force: true }) // one result per attempt; a stale file must not answer the next one
+    try {
+      return JSON.parse(text)
+    } catch (e) {
+      throw new AdapterError('agent_failed', `${c.resultFile} is not JSON: ${e.message}`, true)
+    }
+  },
+})

@@ -38,6 +38,13 @@ beforeAll(async () => {
       fs.writeFileSync(process.env.STUB_OUT + '/codex.json', JSON.stringify({ args: a, prompt: p, schema: JSON.parse(fs.readFileSync(a[a.indexOf('--output-schema') + 1], 'utf8')) }))
       fs.writeFileSync(a[a.indexOf('-o') + 1], process.env.STUB_RESULT)
     })`)
+  // lint stub: records stdin and args, writes the result file named by LINT_OUT
+  stub('lint', `
+    const fs = require('node:fs'); let p = ''
+    process.stdin.on('data', (c) => (p += c)).on('end', () => {
+      fs.writeFileSync(process.env.STUB_OUT + '/lint.json', JSON.stringify({ args: process.argv.slice(2), stdin: JSON.parse(p), env: { REGISTRY_TOKEN: process.env.REGISTRY_TOKEN ?? null } }))
+      if (process.env.STUB_RESULT) fs.writeFileSync(process.argv[2], process.env.STUB_RESULT)
+    })`)
   server = createServer((req, res) => {
     let data = ''
     req.on('data', (c) => (data += c))
@@ -196,3 +203,34 @@ describe('codex/v1', () => {
     expect(seen.prompt).toContain('## Instructions')
   })
 })
+
+describe('subprocess/v1', () => {
+  const executor = { type: 'script', configuration: { program: ['lint', join(cwd, 'result.json')], resultFile: 'result.json' }, security: { networkAccess: 'deny', credentialBindings: ['registry-token'] } }
+  const p = (over: Record<string, unknown> = {}) => payload({ executor, credentials: { 'registry-token': 'reg-secret' }, task: { ...payload().task, parameters: { args: ['--fix'] } }, ...over })
+
+  it('describes script and tool types with file context only', async () => {
+    const d = last(await adapter('subprocess', { id: 20, op: 'describe', payload: {} }))
+    expect(d.result).toMatchObject({ adapterId: 'subprocess/v1', executorTypes: ['script', 'tool'], contextKinds: ['file'], supports: { cancel: true } })
+  })
+
+  it('feeds the payload on stdin without secrets, appends args, reads and removes the result file, publishes artifacts', async () => {
+    calls.length = 0
+    const r = await adapter('subprocess', { id: 21, op: 'execute', payload: p() }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'Lint' }, count: 0 }, summary: 'clean' }) })
+    expect(r.lines[0]).toEqual({ id: 21, event: 'waiting', reason: 'script' })
+    expect(last(r).result).toMatchObject({ protocol: 'persimmon.result/v1', summary: 'clean', outputs: { prd: { kind: 'artifact', ref: { id: 'prd-create-001-write-prd-prd' } }, count: { kind: 'value', value: 0 } } })
+    const seen = JSON.parse(readFileSync(join(stubs, 'lint.json'), 'utf8'))
+    expect(seen.args).toEqual([join(cwd, 'result.json'), '--fix'])
+    expect(seen.stdin).not.toHaveProperty('credentials')
+    expect(seen.stdin).not.toHaveProperty('engine')
+    expect(seen.stdin.task.instructions).toBe('Write the PRD.')
+    expect(seen.env).toEqual({ REGISTRY_TOKEN: 'reg-secret' })
+    expect(existsSync(join(cwd, 'result.json'))).toBe(false)
+    expect(calls.map((c) => c.name)).toEqual(['putBlob', 'publishArtifact'])
+  })
+
+  it('a program that writes no result file fails the attempt as agent_failed', async () => {
+    const r = await adapter('subprocess', { id: 22, op: 'execute', payload: p() })
+    expect(last(r)).toMatchObject({ ok: false, error: { code: 'agent_failed', retryable: true, message: expect.stringContaining('result.json') } })
+  })
+})
+

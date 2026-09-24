@@ -1,0 +1,9 @@
+# Script and tool Executor Adapter (19-adapter-roles.md). persimmon init resolves the script path.
+apiVersion: persimmon.ai/v1
+kind: Adapter
+metadata: {name: subprocess-v1}
+spec:
+  id: subprocess/v1
+  roles: [executor]
+  transport: stdio
+  command: [node, adapters/subprocess/index.mjs]

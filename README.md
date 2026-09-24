@@ -70,7 +70,7 @@ external webhooks. See `docs/design/91-roadmap.md`.
 ```sh
 npm install && npm run build
 node dist/main.js init                          # .persimmon/, persimmon.yaml, shipped Adapters, the SDLC pack
-node dist/main.js adapter install <adapter.yaml> # a further Adapter; claude-code/v1, codex/v1 and cli-human/v1 ship with init
+node dist/main.js adapter install <adapter.yaml> # a further Adapter; claude-code/v1, codex/v1, subprocess/v1 and cli-human/v1 ship with init
 node dist/main.js create run.yaml --follow       # a WorkflowRun; runs until it reaches a terminal phase
 node dist/main.js get WorkflowRun                # phases
 node dist/main.js complete <taskRun> --file result.yaml   # answer a human Task from .persimmon/inbox/
