@@ -6,7 +6,7 @@ import type { Action, ReconcileError } from '../../reconcile/types.js'
 import type { ObjectRef, Resource } from '../../resource/types.js'
 import type { Closure, Entry } from '../../snapshot/walk.js'
 import { fromClosure, type HandlerDeps } from '../deps.js'
-import { bind, celContext, checkInputs, checkOutputs, PortError, siteOf, type Sources, unwrap } from '../ports/ports.js'
+import { bind, celContext, checkInputs, checkOutputs, overrideFindings, PortError, siteOf, type Sources, unwrap } from '../ports/ports.js'
 import type { InputSpec, OutputSpec, RuntimeValues } from '../ports/types.js'
 import { rfc3339 } from '../task/handler.js'
 import { checkWorkflow, contractPorts, type Used } from './check.js'
@@ -54,7 +54,7 @@ export function workflowHandler(deps: HandlerDeps): HandlerImpl {
   return {
     validate(resource: Resource): { findings: Finding[] } {
       if (resource.kind !== 'Workflow') return { findings: [] }
-      return { findings: checkWorkflow(resource.spec as unknown as WorkflowSpec, (ref) => resolveUsed(ref, resource.metadata.namespace)) }
+      return { findings: [...overrideFindings(deps.getResource, resource), ...checkWorkflow(resource.spec as unknown as WorkflowSpec, (ref) => resolveUsed(ref, resource.metadata.namespace))] }
     },
 
     reconcile(input: ReconcileInput): ReconcileResult {

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
 import { describe, expect, it } from 'vitest'
 import { ExpressionError } from '../../expression/site.js'
-import { bind, checkInputs, checkOutputs, expandSchema, inlineSchema, PortError, sameType, siteOf } from './ports.js'
+import { bind, checkInputs, checkOutputs, expandSchema, inlineSchema, overrideFindings, PortError, sameType, siteOf } from './ports.js'
 import type { Binding, InputSpec, OutputSpec, RuntimeValue } from './types.js'
 
 const example = (n: string) => parse(readFileSync(`docs/design/examples/${n}.yaml`, 'utf8'))
@@ -27,6 +27,19 @@ describe('port types', () => {
     expect(s.properties.results.additionalProperties.properties.evidence.items.required).toEqual(['apiVersion', 'kind', 'namespace', 'id', 'revision'])
     expect(inlineSchema({ type: 'integer' })).toEqual({ type: 'integer' })
     expect(() => inlineSchema({ $ref: 'persimmon.ai/v1#/Nope' })).toThrow(PortError)
+  })
+
+  it('an override keeps the Global ports: same names, same types, no input turned optional', () => {
+    const g = example('pack-task-global')
+    const o = example('pack-task-override')
+    const lookup = (kind: string, ns: string | undefined, name: string) => (kind === 'Task' && !ns && name === g.metadata.name ? g : undefined)
+    expect(overrideFindings(lookup, o)).toEqual([])
+    const bad = structuredClone(o)
+    bad.spec.outputs.report.type.artifactKind.kind = 'ReviewReport'
+    bad.spec.inputs.repository.required = false
+    bad.spec.inputs.extra = { type: { kind: 'value', schema: { type: 'string' } } }
+    expect(overrideFindings(lookup, bad).map((f) => f.message).sort()).toEqual(['override inputs.extra is not a port of the Global definition', 'override inputs.repository may not become optional', 'override outputs.report has a different type'])
+    expect(overrideFindings(lookup, g)).toEqual([]) // Global itself
   })
 
   it('checks inputs: required, defaults, kinds, schemas, unknown ports', () => {

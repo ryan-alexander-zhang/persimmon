@@ -56,6 +56,20 @@ describe('persimmon CLI', () => {
     expect(await run('validate', file('bad.yaml', [bad]))).toBe(1)
     expect(out.some((l) => l.startsWith('error Workflow/prd-create') && l.includes('entry must equal'))).toBe(true)
 
+    // describe-driven Task rules: parameters, context kinds, Skill formats (12-task.md)
+    const codexExecutor = { apiVersion: 'persimmon.ai/v1', kind: 'Executor', metadata: { name: 'codex-agent' }, spec: { type: 'agent', adapter: 'codex/v1', configuration: { model: 'gpt-6-sol' }, security: { networkAccess: 'deny' } } }
+    const skill = { apiVersion: 'persimmon.ai/v1', kind: 'Skill', metadata: { name: 'odd' }, spec: { source: { provider: 'git', type: 'repository', id: 'x', locator: { remote: 'r' }, version: 'v' }, digest: 'sha256:' + 'a'.repeat(64), format: 'other/v1' } }
+    const t1 = { apiVersion: 'persimmon.ai/v1', kind: 'Task', metadata: { name: 't1' }, spec: { outputs: { n: { type: { kind: 'value', schema: { type: 'integer' } } } }, executorRef: { kind: 'Executor', name: 'codex-agent' }, action: { instructions: 'x', parameters: { effort: 'high' }, context: [{ kind: 'skill', ref: { kind: 'Skill', name: 'odd' } }] }, timeout: '1m', sideEffects: 'none' } }
+    out = []
+    expect(await run('validate', file('rules.yaml', [codexExecutor, skill, t1]))).toBe(1)
+    const errors = out.filter((l) => l.startsWith('error Task/t1'))
+    expect(errors.some((l) => l.includes('parameters do not match codex/v1 describe.parametersSchema'))).toBe(true)
+    expect(errors.some((l) => l.includes('Skill odd format other/v1 is not in codex/v1 describe.skillFormats'))).toBe(true)
+    const t2 = { ...t1, metadata: { name: 't2' }, spec: { ...t1.spec, executorRef: { kind: 'Executor', name: 'lint-script' }, action: { instructions: 'x', context: [{ kind: 'prompt', ref: { kind: 'Prompt', name: 'write-prd-template' } }] } } }
+    out = []
+    expect(await run('validate', file('rules2.yaml', [t2]))).toBe(1)
+    expect(out.some((l) => l.startsWith('error Task/t2') && l.includes('subprocess/v1 does not accept prompt context'))).toBe(true)
+
     out = []
     expect(await run('get', 'Task')).toBe(0)
     expect(out.length).toBe(5)
@@ -64,6 +78,11 @@ describe('persimmon CLI', () => {
 
     // a Namespaced override shadows the Global pack Task; refs resolve Namespace first, --global reaches the shadowed one
     const override = { apiVersion: 'persimmon.ai/v1', kind: 'Task', metadata: { name: 'write-prd' }, spec: { ...(parse(readFileSync('packs/sdlc/global/50-tasks.yaml', 'utf8').split('---')[1]!).spec as object), timeout: '5m' } }
+    const incompatible = structuredClone(override) as { spec: { outputs: Record<string, unknown> } }
+    incompatible.spec.outputs = { other: { type: { kind: 'value', schema: { type: 'string' } } } }
+    err = []
+    expect(await run('apply', file('incompatible.yaml', [incompatible]), '-n', 'default')).toBe(1) // ports must match the Global definition (20-pack.md)
+    expect(err.at(-1)).toMatch(/override outputs\.prd is missing/)
     out = []
     expect(await run('apply', file('override.yaml', [override]), '-n', 'default')).toBe(0)
     expect(out.at(-1)).toBe('created Task/write-prd')

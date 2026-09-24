@@ -7,7 +7,7 @@ import { ajv } from '../../resource/ajv.js'
 import type { ObjectRef, Resource } from '../../resource/types.js'
 import type { Closure, Entry } from '../../snapshot/walk.js'
 import { fromClosure, type HandlerDeps } from '../deps.js'
-import { bind, celContext, checkInputs, PortError, sameType, siteOf } from '../ports/ports.js'
+import { bind, celContext, checkInputs, overrideFindings, PortError, sameType, siteOf } from '../ports/ports.js'
 import type { InputSpec, RuntimeValues } from '../ports/types.js'
 import { rfc3339 } from '../task/handler.js'
 import type { Gate, GateResult, GateRun, GateSpec, ValidationResult, ValidationRun, Validator, ValidatorSpec } from './types.js'
@@ -30,7 +30,7 @@ export function gateHandler(deps: HandlerDeps): HandlerImpl {
     validate(resource: Resource): { findings: Finding[] } {
       if (resource.kind !== 'Gate') return { findings: [] }
       const spec = resource.spec as unknown as GateSpec
-      const f: Finding[] = []
+      const f: Finding[] = overrideFindings(deps.getResource, resource)
       const bad = (path: string, message: string) => f.push({ severity: 'error', code: 'invalid_gate', path, message })
       const names = new Set<string>()
       for (const [i, v] of spec.validators.entries()) {
@@ -167,7 +167,7 @@ export function validatorHandler(deps: HandlerDeps): HandlerImpl {
     validate(resource: Resource): { findings: Finding[] } {
       if (resource.kind !== 'Validator') return { findings: [] }
       const spec = resource.spec as unknown as ValidatorSpec
-      const f: Finding[] = []
+      const f: Finding[] = overrideFindings(deps.getResource, resource)
       if (spec.evaluator.type === 'cel') {
         try {
           celSite(spec.inputs ?? {}, () => undefined).check(spec.evaluator.expression)

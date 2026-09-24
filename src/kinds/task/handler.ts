@@ -1,12 +1,13 @@
 // task Handler: validates Tasks, drives TaskRuns (17-runs.md task Handler table).
 import type { Describe } from '../../adapter/types.js'
 import { durationMs } from '../../config.js'
+import { ajv } from '../../resource/ajv.js'
 import type { Finding, HandlerImpl, ReconcileInput, ReconcileResult } from '../../handler/types.js'
 import type { Action, AdapterFinishedPayload, ReconcileError, PublishRequest } from '../../reconcile/types.js'
 import type { Resource, RevisionRef } from '../../resource/types.js'
 import type { Closure } from '../../snapshot/walk.js'
 import { fromClosure, type HandlerDeps } from '../deps.js'
-import { checkInputs, checkOutputs, inlineSchema, PortError } from '../ports/ports.js'
+import { checkInputs, checkOutputs, inlineSchema, overrideFindings, PortError } from '../ports/ports.js'
 import type { RuntimeValues } from '../ports/types.js'
 import { ContextError, resolveContext } from './context.js'
 import { backoffMs, shouldRetry } from './retry.js'
@@ -40,17 +41,32 @@ export function taskHandler(deps: HandlerDeps): HandlerImpl {
     validate(resource: Resource): { findings: Finding[] } {
       if (resource.kind !== 'Task') return { findings: [] }
       const spec = resource.spec as unknown as TaskSpec
-      const findings: Finding[] = []
+      const findings: Finding[] = overrideFindings(deps.getResource, resource)
       const bad = (path: string, message: string, code = 'invalid_input') => findings.push({ severity: 'error', code, path, message })
       const retryOn = new Set(spec.retryPolicy?.retryOn ?? [])
       for (const c of spec.retryPolicy?.abortOn ?? []) if (retryOn.has(c)) bad('/spec/retryPolicy', `${c} in both retryOn and abortOn`)
       for (const c of retryOn) if (neverRetried.has(c)) bad('/spec/retryPolicy/retryOn', `${c} is never retried`)
+      // the Executor's Adapter describe, when both resolve; the Executor's own validate reports an unreachable Adapter
+      const ns = resource.metadata.namespace
+      const executor = deps.getResource('Executor', ns, spec.executorRef.name)?.spec as ExecutorSpec | undefined
+      let describe: (Describe & { parametersSchema?: Record<string, unknown>; contextKinds?: string[]; skillFormats?: string[] }) | undefined
+      try {
+        describe = executor ? (deps.adapters.require(executor.adapter, 'executor').status?.describe as typeof describe) : undefined
+      } catch {
+        describe = undefined
+      }
+      if (describe?.parametersSchema && !ajv.compile(describe.parametersSchema)(spec.action.parameters ?? {})) bad('/spec/action/parameters', `parameters do not match ${executor!.adapter} describe.parametersSchema`)
       for (const [i, e] of (spec.action.context ?? []).entries()) {
+        if (describe?.contextKinds && !describe.contextKinds.includes(e.kind)) bad(`/spec/action/context/${i}/kind`, `${executor!.adapter} does not accept ${e.kind} context`)
         if (e.kind === 'file' || e.kind === 'artifact') {
           const port = spec.inputs?.[e.input]
           const want = e.kind === 'file' ? 'externalResource' : 'artifact'
           if (!port) bad(`/spec/action/context/${i}/input`, `${e.input} is not an input`)
           else if (port.type.kind !== want) bad(`/spec/action/context/${i}/input`, `${e.input} is not an ${want} port`)
+        }
+        if (e.kind === 'skill' && describe?.skillFormats) {
+          const skill = deps.getResource('Skill', ns, e.ref.name)?.spec as { format?: string } | undefined
+          if (skill && !describe.skillFormats.includes(skill.format ?? '')) bad(`/spec/action/context/${i}/ref`, `Skill ${e.ref.name} format ${skill.format} is not in ${executor!.adapter} describe.skillFormats`)
         }
       }
       return { findings }

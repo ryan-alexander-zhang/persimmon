@@ -1,6 +1,8 @@
 import { isDeepStrictEqual } from 'node:util'
 import { Site } from '../../expression/site.js'
+import type { Finding } from '../../handler/types.js'
 import type { JsonSchema } from '../../kind-definition/types.js'
+import type { Resource } from '../../resource/types.js'
 import type { ValidateFunction } from 'ajv/dist/2020.js'
 import { ajv } from '../../resource/ajv.js'
 import { celTypeOf } from '../../expression/schema-type.js'
@@ -177,3 +179,23 @@ export function siteOf(roots: { inputs?: Record<string, InputSpec>; steps?: Reco
 }
 
 export { celTypeOf }
+
+/** A Namespaced definition shadowing a Global one keeps its ports, so a run never breaks at snapshot time (20-pack.md). */
+export function overrideFindings(lookup: (kind: string, namespace: string | undefined, name: string) => Resource | undefined, resource: Resource): Finding[] {
+  if (!resource.metadata.namespace) return []
+  const global = lookup(resource.kind, undefined, resource.metadata.name)
+  if (!global || global.metadata.namespace) return []
+  const ports = (r: Resource) => r.spec as { inputs?: Record<string, InputSpec>; outputs?: Record<string, OutputSpec> }
+  const [a, b] = [ports(global), ports(resource)]
+  const out: Finding[] = []
+  for (const side of ['inputs', 'outputs'] as const) {
+    const [ga, na] = [a[side] ?? {}, b[side] ?? {}]
+    for (const name of new Set([...Object.keys(ga), ...Object.keys(na)])) {
+      const [g, n] = [ga[name], na[name]]
+      const why = !g ? 'is not a port of the Global definition' : !n ? 'is missing' : !sameType(g.type, n.type) ? 'has a different type' : side === 'inputs' && (g as InputSpec).required !== false && (n as InputSpec).required === false ? 'may not become optional' : undefined
+      if (why) out.push({ severity: 'error', code: 'override_incompatible', path: `/spec/${side}/${name}`, message: `override ${side}.${name} ${why}` })
+    }
+  }
+  return out
+}
+
