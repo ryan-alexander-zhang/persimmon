@@ -151,6 +151,11 @@ export interface TokenStore {
   revoke(scope: Record<string, unknown>): void
 }
 
+export interface CredentialStore {
+  /** Global `<name>` or `<namespace>/<name>`; never persisted anywhere (08-store.md). */
+  resolve(name: string): string | undefined
+}
+
 export interface Store {
   readonly resources: ResourceStore
   readonly snapshots: SnapshotStore

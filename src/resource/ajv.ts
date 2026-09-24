@@ -1,4 +1,4 @@
-import { Ajv2020, type ErrorObject, type ValidateFunction } from 'ajv/dist/2020.js'
+import { Ajv2020, type ErrorObject, type Options, type ValidateFunction } from 'ajv/dist/2020.js'
 import addFormatsModule from 'ajv-formats'
 import schemas from '../generated/schemas.json' with { type: 'json' }
 
@@ -11,11 +11,17 @@ const annotations = ['x-persimmon-ref', 'x-persimmon-kind-ref', 'x-persimmon-ada
 // ajv-formats ships CJS; under nodenext the default import is typed as the module namespace.
 const addFormats = addFormatsModule as unknown as typeof addFormatsModule.default
 
-// strictTypes and strictRequired off: the design schemas use `not: {required: [..]}` without a `type`.
-export const ajv = new Ajv2020({ allErrors: true, strict: true, strictTypes: false, strictRequired: false, allowUnionTypes: true })
-addFormats(ajv)
-for (const k of annotations) ajv.addKeyword({ keyword: k, metaSchema: { type: 'object' } })
-for (const [file, schema] of Object.entries(schemas)) ajv.addSchema(schema, file)
+/** An Ajv2020 holding every design schema under its file name, so "resource.yaml#/$defs/Kind" resolves. */
+export function createAjv(options: Options = {}): Ajv2020 {
+  // strictTypes and strictRequired off: the design schemas use `not: {required: [..]}` without a `type`.
+  const a = new Ajv2020({ allErrors: true, strict: true, strictTypes: false, strictRequired: false, allowUnionTypes: true, ...options })
+  addFormats(a)
+  for (const k of annotations) a.addKeyword({ keyword: k, metaSchema: { type: 'object' } })
+  for (const [file, schema] of Object.entries(schemas)) a.addSchema(schema, file)
+  return a
+}
+
+export const ajv = createAjv()
 
 /** Compiled validator for a schema file, or for a pointer inside it. */
 export function validator<T = unknown>(file: SchemaFile, pointer = ''): ValidateFunction<T> {
