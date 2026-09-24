@@ -137,6 +137,11 @@ Result: a ValidationResult (`10-ports.md`). No `credentials`, no `security` (`14
   `invalid_input`; `file` context is a pointer into the working directory, the agent reads it.
   Skill fetching and digest verification are roadmap. `security.networkAccess` and
   `allowedHosts` are not enforced by these Adapters. Found in implementation.
+- `subprocess/v1` ships on the same runner: `configuration.program` plus `parameters.args`, the
+  execute payload without `credentials` and `engine` on stdin, credentials as environment, and
+  the answer `{outputs, summary?}` read from `configuration.resultFile` (relative to the engine
+  cwd) and removed; artifact ports carry content, the Adapter publishes. Found in
+  implementation.
 - `codex/v1` sends the output schema in OpenAI strict form: closed objects, every kept
   property required, optional properties dropped, `format` removed; the prompt states the
   formats. Found in implementation.
