@@ -1,6 +1,7 @@
 // Engine callbacks server over a unix socket (local mode): POST /callbacks/<name>, bearer token, JSON args.
 import { createServer, type Server } from 'node:http'
 import { chmodSync, existsSync, unlinkSync } from 'node:fs'
+import { WriteError } from '../handler/write.js'
 import { type CallbackEngine, callback, CallbackError } from './callbacks.js'
 
 const status: Record<CallbackError['code'], number> = { unauthorized: 401, forbidden: 403, not_found: 404, invalid_input: 400 }
@@ -30,6 +31,7 @@ export function callbackServer(engine: CallbackEngine): Server {
         reply(res, 200, { result: callback(engine, token, m[1] as string, args) ?? null })
       } catch (e) {
         if (e instanceof CallbackError) return reply(res, status[e.code], { error: { code: e.code, message: e.message } })
+        if (e instanceof WriteError) return reply(res, 400, { error: { code: 'invalid_input', message: e.message } }) // bad publish content or shape
         reply(res, 500, { error: { code: 'internal', message: (e as Error).message } })
       }
     })

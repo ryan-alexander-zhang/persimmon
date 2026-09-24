@@ -118,7 +118,8 @@ async function buildPrompt(task, inputs, context, call) {
   const values = Object.entries(inputs).filter(([, v]) => v.kind !== 'artifact')
   if (values.length) parts.push(`## Inputs\n\n\`\`\`json\n${JSON.stringify(Object.fromEntries(values.map(([k, v]) => [k, v.kind === 'value' ? v.value : v.ref])), null, 2)}\n\`\`\``)
   parts.push(`## Instructions\n\n${task.instructions}`)
-  parts.push(`## Answer\n\nAnswer with one JSON object: \`outputs.<port>\` for every output port (${Object.keys(task.outputs).join(', ')}), plus a short \`summary\`. No prose outside the JSON.`)
+  const schemas = Object.entries(outputSchema(task).properties.outputs.properties).map(([port, s]) => `\`outputs.${port}\`:\n\n\`\`\`json\n${JSON.stringify(s, null, 2)}\n\`\`\``)
+  parts.push(`## Answer\n\nAnswer with one JSON object: \`outputs.<port>\` for every output port (${Object.keys(task.outputs).join(', ')}), plus a short \`summary\`. No prose outside the JSON. Each output must validate against its JSON Schema, string formats included (a \`format: uri\` string is an absolute URL).\n\n${schemas.join('\n\n')}`)
   return parts.join('\n\n') + '\n'
 }
 
@@ -201,7 +202,14 @@ function callbacks(engine) {
           } catch {
             return reject(new AdapterError('transient_network', `${name}: bad engine response`, true))
           }
-          body.error ? reject(new AdapterError(body.error.code === 'not_found' ? 'invalid_input' : 'transient_network', `${name}: ${body.error.message}`, body.error.code !== 'not_found')) : resolve(body.result)
+          if (!body.error) return resolve(body.result)
+          const { code, message } = body.error
+          // engine refusals are final; anything else (500, socket) may pass on retry
+          const mapped =
+            code === 'unauthorized' || code === 'forbidden' ? 'permission_denied'
+            : code === 'invalid_input' || code === 'not_found' ? (name === 'publishArtifact' ? 'schema_violation' : 'invalid_input')
+            : 'transient_network'
+          reject(new AdapterError(mapped, `${name}: ${message}`, mapped === 'transient_network'))
         })
       })
       r.on('error', (e) => reject(new AdapterError('transient_network', `${name}: ${e.message}`, true)))

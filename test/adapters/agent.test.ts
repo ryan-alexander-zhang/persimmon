@@ -48,10 +48,11 @@ beforeAll(async () => {
       const result =
         name === 'getArtifact' ? { spec: { identity: { id: args.id, revision: args.revision }, content: { title: 'Research', findings: [] } } }
         : name === 'putBlob' ? { uri: 'blob://x', digest: 'sha256:' + 'a'.repeat(64) }
+        : name === 'publishArtifact' && args.content.title === 'BAD' ? undefined
         : name === 'publishArtifact' ? { ...args.kind, namespace: 'demo', id: args.id, revision: 1 }
         : {}
       res.setHeader('content-type', 'application/json')
-      res.end(JSON.stringify(req.headers.authorization === 'Bearer ct-1' ? { result } : { error: { code: 'unauthorized', message: 'bad token' } }))
+      res.end(JSON.stringify(req.headers.authorization !== 'Bearer ct-1' ? { error: { code: 'unauthorized', message: 'bad token' } } : result === undefined ? { error: { code: 'invalid_input', message: 'ProductRequirement content: must match format "uri"' } } : { result }))
     })
   })
   await new Promise<void>((r) => server.listen(socketPath, r))
@@ -111,6 +112,7 @@ describe('claude-code/v1', () => {
     const order = ['ResearchReport research-checkout-v2 revision 1', 'Preserve ids.', 'File AGENTS.md', '"maxRequirements": 12', 'Write the PRD.', '## Answer'].map((s) => p.indexOf(s))
     expect(order.every((i) => i >= 0) && order.every((i, k) => k === 0 || i > order[k - 1]!)).toBe(true)
     expect(p).toContain('"title": "Research"')
+    expect(p.slice(p.indexOf('## Answer'))).toContain('"required": [\n    "title"')
     expect(seen.args).toEqual(expect.arrayContaining(['-p', '--output-format', 'json', '--model', 'sonnet', '--effort', 'low', '--restricted']))
     const schema = JSON.parse(seen.args[seen.args.indexOf('--json-schema') + 1])
     expect(schema.properties.outputs).toEqual({ type: 'object', required: ['prd', 'count'], additionalProperties: false, properties: { prd: { type: 'object', required: ['title'], properties: { title: { type: 'string' } } }, count: { type: 'integer' } } })
@@ -128,6 +130,11 @@ describe('claude-code/v1', () => {
   it('reports the agent error text when claude exits 1 with a JSON result', async () => {
     const r = await adapter('claude-code', { id: 9, op: 'execute', payload: payload() }, { STUB_AUTH: '1' })
     expect(last(r)).toMatchObject({ ok: false, error: { code: 'agent_failed', message: 'Failed to authenticate', retryable: true } })
+  })
+
+  it('a publish the engine refuses is schema_violation, not retryable', async () => {
+    const r = await adapter('claude-code', { id: 10, op: 'execute', payload: payload() }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'BAD' }, count: 1 } }) })
+    expect(last(r)).toMatchObject({ ok: false, error: { code: 'schema_violation', retryable: false, message: expect.stringContaining('format "uri"') } })
   })
 
   it('refuses a skill context entry with invalid_input', async () => {
