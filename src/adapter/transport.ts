@@ -38,8 +38,7 @@ function stdio(spec: AdapterSpec, request: Request, credentials: CredentialStore
       child.kill()
       resolve(out)
     }
-    const ms = o.deadline ? o.deadline.getTime() - Date.now() : undefined
-    const timer = ms === undefined ? undefined : setTimeout(() => done({ state: 'unknown', reason: 'deadline' }), Math.max(0, ms))
+    const timer = o.timeoutMs === undefined ? undefined : setTimeout(() => done({ state: 'unknown', reason: 'deadline' }), Math.max(0, o.timeoutMs))
 
     child.on('error', (e) => done({ state: 'unknown', reason: `spawn: ${e.message}` }))
     child.on('exit', (code) => done({ state: 'unknown', reason: `exited ${code} before responding` }))
@@ -66,7 +65,7 @@ async function http(spec: AdapterSpec, request: Request, credentials: Credential
     if (v === undefined) throw new TransportError(`${spec.id}: credential ${bearer} not found`)
     headers.authorization = `Bearer ${v}`
   }
-  const signal = o.deadline ? AbortSignal.timeout(Math.max(1, o.deadline.getTime() - Date.now())) : undefined
+  const signal = o.timeoutMs === undefined ? undefined : AbortSignal.timeout(Math.max(1, o.timeoutMs))
   let res: globalThis.Response
   try {
     res = await fetch(spec.url as string, { method: 'POST', headers, body: JSON.stringify(request), ...(signal ? { signal } : {}) })

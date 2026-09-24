@@ -31,6 +31,9 @@ export type Event = EventBase &
 
 export type EventType = Event['type']
 
+/** An Event before the RunLog assigns its sequence. */
+export type NewEvent = { [K in EventType]: Omit<Extract<Event, { type: K }>, 'sequence'> }[EventType]
+
 export interface Representation {
   name: string
   mediaType: string

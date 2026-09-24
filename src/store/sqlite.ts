@@ -53,7 +53,7 @@ create table if not exists outbox (
   claimed_by text, claimed_until integer, acked integer not null default 0
 );
 create table if not exists timers (
-  uid text not null, key text not null, at text not null, primary key (uid, key)
+  uid text not null, key text not null, at text not null, at_ms integer not null, primary key (uid, key)
 );
 create table if not exists leases (
   uid text primary key, holder text not null, until integer not null
@@ -180,6 +180,13 @@ export class SqliteStore implements Store {
       // ponytail: label filter in memory; index labels when lists get large
       return all.filter((r) => Object.entries(labels).every(([k, v]) => r.metadata.labels?.[k] === v))
     },
+
+    children: (uid: string): Resource[] =>
+      (
+        this.#db
+          .prepare("select body from resources where state = 'live' and json_extract(body, '$.metadata.ownerReferences[0].uid') = ? order by name")
+          .all(uid) as unknown as { body: string }[]
+      ).map((r) => JSON.parse(r.body) as Resource),
 
     delete: (uid: string): void =>
       this.transaction(() => {
@@ -367,14 +374,15 @@ export class SqliteStore implements Store {
   readonly timers = {
     set: (uid: string, key: string, at: string): void => {
       this.#db
-        .prepare('insert into timers (uid, key, at) values (?, ?, ?) on conflict (uid, key) do update set at = excluded.at')
-        .run(uid, key, at)
+        .prepare('insert into timers (uid, key, at, at_ms) values (?, ?, ?, ?) on conflict (uid, key) do update set at = excluded.at, at_ms = excluded.at_ms')
+        .run(uid, key, at, Date.parse(at))
     },
     clear: (uid: string, key: string): void => {
       this.#db.prepare('delete from timers where uid = ? and key = ?').run(uid, key)
     },
+    // compared as epoch ms: RFC 3339 strings differ in fraction digits and offsets
     due: (now: string): Timer[] =>
-      this.#db.prepare('select uid, key, at from timers where at <= ? order by at, uid, key').all(now) as unknown as Timer[],
+      this.#db.prepare('select uid, key, at from timers where at_ms <= ? order by at_ms, uid, key').all(Date.parse(now)) as unknown as Timer[],
   }
 
   readonly leases = {

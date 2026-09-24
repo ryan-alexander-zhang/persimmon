@@ -30,6 +30,8 @@ export interface ResourceStore {
   get(key: ResourceKey): Resource | undefined
   getByUid(uid: string): Resource | undefined
   list(kind: string, namespace?: string, labels?: Record<string, string>): Resource[]
+  /** Live Resources whose ownerReference points at `uid`. */
+  children(uid: string): Resource[]
   /** Refused while any ownerReference, ObjectRef, snapshot or RevisionRef points at it (00-resource.md). */
   delete(uid: string): void
   /** Next revision for (kind, namespace, id); never reused, gaps allowed (05-revisioned-kind.md). */

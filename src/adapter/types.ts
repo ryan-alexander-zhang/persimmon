@@ -50,8 +50,8 @@ export type CallOutcome =
   | { state: 'pending' }
 
 export interface CallOptions {
-  /** Absolute time; the process is killed and the call is `unknown` past it. */
-  deadline?: Date
+  /** Milliseconds until the call is `unknown`; the stdio process is killed then. */
+  timeoutMs?: number
   /** Bearer token the Adapter presents at `engine.endpoint`; stdio gets it as `PERSIMMON_ADAPTER_TOKEN`. */
   adapterToken?: string
   onStream?: (line: StreamLine) => void

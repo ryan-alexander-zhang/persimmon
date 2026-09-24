@@ -72,7 +72,7 @@ suite('stdio calls', () => {
   it('maps ok:false to failed, a deadline to unknown, and bad output to unknown', async () => {
     const reg = await ready()
     expect(await reg.call('fake/v1', 'fail', {})).toEqual({ state: 'failed', error: { code: 'rate_limit', message: '429', retryable: true } })
-    expect(await reg.call('fake/v1', 'hang', {}, { deadline: new Date(Date.now() + 200) })).toEqual({ state: 'unknown', reason: 'deadline' })
+    expect(await reg.call('fake/v1', 'hang', {}, { timeoutMs: 200 })).toEqual({ state: 'unknown', reason: 'deadline' })
     expect((await reg.call('fake/v1', 'garbage', {})).state).toBe('unknown')
     expect((await reg.call('fake/v1', 'nope', {})).state).toBe('unknown')
   })
