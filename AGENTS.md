@@ -74,3 +74,11 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 ## 6. Design Map
 
 - `DESIGN.md` indexes `docs/design/`; every design file is listed there with its status.
+
+## 7. Small Commits
+
+**One change per commit. Commit only when asked.**
+
+- One commit covers one design file, one decision, or one behavior change.
+- Conventional Commits header: `<type>(<scope>): <summary>`; body states why, not what.
+- Never mix a rule change with the work it governs; land the rule first.
