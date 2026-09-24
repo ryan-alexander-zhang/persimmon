@@ -59,8 +59,11 @@ The engine never fetches or interprets a bundle.
 - Bundle digest for a directory, as the shipped agent Adapters compute it: sha256 over every
   regular file in sorted posix-path order, each fed as `<path>\0<bytes>\0`, `.git` excluded.
   `git` sources are fetched once per (remote, version) into `.persimmon/skills/<hash>`; `file`
-  sources resolve `locator.path` against the engine cwd. Closes reference open question 3.
-  Found in implementation.
+  sources resolve `locator.path` against the engine cwd. A bundle holding anything but regular
+  files and directories is refused; `locator.remote` is an https, ssh, git or file URL, an
+  scp-style address or an absolute path, `version` a commit or ref name, so git never reads an
+  option or an `ext::` transport from a Skill. Closes reference open question 3. Found in
+  implementation.
 
 ## Examples
 

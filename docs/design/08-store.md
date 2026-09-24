@@ -138,7 +138,8 @@ imports into a server unchanged.
 - `env` credential names are upper case with `-` as `_`: `demo/github-token` reads
   `PERSIMMON_CRED_DEMO__GITHUB_TOKEN`. Found in implementation.
 - `keychain` reads the macOS keychain: `security find-generic-password -s persimmon -a <name> -w`,
-  one lookup per name per process, a failure means absent. `secretManager` resolves nothing
+  one lookup per name per process, exit 44 (not found) and a missing binary mean absent, any
+  other failure (locked keychain) is an error. `secretManager` resolves nothing
   until server mode. Found in implementation.
 - `persimmon run` is sugar over `create`: it writes the WorkflowRun the user would have written,
   nothing more; `--follow` reports owned runs by walking `ownerReferences`. Found in
