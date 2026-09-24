@@ -89,7 +89,8 @@ describe('task Handler', () => {
 
     // attempt 1 fails with rate_limit: abandon, backoff (exponential 30s, jitter full with random 0 → 0s in our fake; the design shows 30s)
     clock = Date.parse('2026-09-21T09:05:00Z')
-    r = handler.reconcile(input(run, log.entries[1].event)) as ReconcileResult
+    const failed = { ...log.entries[1].event, payload: { ...log.entries[1].event.payload, idempotencyKey: 'prd-create-002//research/1' } }
+    r = handler.reconcile(input(run, failed)) as ReconcileResult
     expect(clean(r.statusPatch)).toMatchObject({ phase: 'Waiting', waitingReason: 'retryBackoff', attempts: [{ index: 1, state: 'failed', error: { code: 'rate_limit' } }] })
     expect(r.actions.map((a) => a.type)).toEqual(['abandonScope', 'clearTimer', 'setTimer'])
     expect(r.actions[0]).toEqual({ type: 'abandonScope', key: 'prd-create-002//research/1' })
