@@ -55,7 +55,13 @@ export function taskHandler(deps: HandlerDeps): HandlerImpl {
       } catch {
         describe = undefined
       }
-      if (describe?.parametersSchema && !ajv.compile(describe.parametersSchema)(spec.action.parameters ?? {})) bad('/spec/action/parameters', `parameters do not match ${executor!.adapter} describe.parametersSchema`)
+      if (describe?.parametersSchema) {
+        try {
+          if (!ajv.compile(describe.parametersSchema)(spec.action.parameters ?? {})) bad('/spec/action/parameters', `parameters do not match ${executor!.adapter} describe.parametersSchema`)
+        } catch (e) {
+          findings.push({ severity: 'warning', code: 'adapter_describe', path: '/spec/action/parameters', message: `${executor!.adapter} describe.parametersSchema is not a valid schema: ${(e as Error).message}` })
+        }
+      }
       for (const [i, e] of (spec.action.context ?? []).entries()) {
         if (describe?.contextKinds && !describe.contextKinds.includes(e.kind)) bad(`/spec/action/context/${i}/kind`, `${executor!.adapter} does not accept ${e.kind} context`)
         if (e.kind === 'file' || e.kind === 'artifact') {

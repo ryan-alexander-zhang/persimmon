@@ -40,8 +40,11 @@ serve({
   command({ configuration: c, parameters: p, schema, dir, payload }) {
     writeFileSync(join(dir, 'schema.json'), JSON.stringify(strict(schema)))
     const args = ['exec', '--skip-git-repo-check', '--ephemeral', '--color', 'never', '--output-schema', join(dir, 'schema.json'), '-o', join(dir, 'answer.json'), '-s', sandbox[c.sandbox ?? 'workspace-write']]
-    // security.networkAccess: codex has one switch for the workspace-write sandbox; allowedHosts cannot be narrowed here
-    args.push('-c', `sandbox_workspace_write.network_access=${payload.executor.security?.networkAccess === 'deny' ? 'false' : 'true'}`)
+    // security.networkAccess: codex has one switch for the workspace-write sandbox; allowedHosts cannot be narrowed here.
+    // Closed unless allowlist; the full sandbox bypass ignores the switch, so deny cannot combine with it.
+    const network = payload.executor.security?.networkAccess === 'allowlist'
+    if (!network && c.sandbox === 'full') throw new AdapterError('invalid_input', 'sandbox full bypasses the network sandbox; security.networkAccess must be allowlist', false)
+    args.push('-c', `sandbox_workspace_write.network_access=${network}`)
     if (c.sandbox === 'full') args.push('--dangerously-bypass-approvals-and-sandbox')
     if (c.model) args.push('-m', c.model)
     if (c.profile) args.push('-p', c.profile)

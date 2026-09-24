@@ -222,6 +222,16 @@ describe('codex/v1', () => {
     expect(seen.schema).toEqual({ type: 'object', required: ['outputs', 'summary'], additionalProperties: false, properties: { outputs: { type: 'object', required: ['prd', 'count'], additionalProperties: false, properties: { prd: { type: 'object', required: ['title'], additionalProperties: false, properties: { title: { type: 'string' } } }, count: { type: 'integer' } } }, summary: { anyOf: [{ type: 'string' }, { type: 'null' }] } } })
   })
 
+  it('network is closed unless security.networkAccess is allowlist; deny cannot pair with the full sandbox', async () => {
+    const exec = (security: Record<string, unknown>, sandbox = 'workspace-write') => ({ type: 'agent', configuration: { model: 'gpt-6-sol', sandbox }, security })
+    await adapter('codex', { id: 30, op: 'execute', payload: payload({ executor: exec({ credentialBindings: [] }) }) }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'P' }, count: 1 } }) })
+    expect(JSON.parse(readFileSync(join(stubs, 'codex.json'), 'utf8')).args).toContain('sandbox_workspace_write.network_access=false')
+    await adapter('codex', { id: 31, op: 'execute', payload: payload({ executor: exec({ networkAccess: 'allowlist', allowedHosts: ['api.openai.com'] }) }) }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'P' }, count: 1 } }) })
+    expect(JSON.parse(readFileSync(join(stubs, 'codex.json'), 'utf8')).args).toContain('sandbox_workspace_write.network_access=true')
+    const r = await adapter('codex', { id: 32, op: 'execute', payload: payload({ executor: exec({ networkAccess: 'deny' }, 'full') }) })
+    expect(last(r)).toMatchObject({ ok: false, error: { code: 'invalid_input', retryable: false } })
+  })
+
   it('strict form recurses into items and oneOf, keeps enum and $defs, and nulls are stripped from the answer', async () => {
     const outputSchemas = { prd: { type: 'object', required: ['title', 'items'], properties: { title: { type: 'string' }, note: { type: 'string', format: 'uri' }, items: { type: 'array', items: { oneOf: [{ type: 'object', required: ['id'], properties: { id: { type: 'string' }, level: { enum: ['a', 'b'] } } }, { $ref: '#/$defs/x' }] } } }, $defs: { x: { type: 'object', properties: { y: { type: 'integer' } } } } } }
     calls.length = 0

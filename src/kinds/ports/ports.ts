@@ -29,26 +29,32 @@ export function expandSchema(schema: JsonSchema | { $ref: string } | undefined):
 }
 
 /** The schema with every `$ref` inlined from the design files, so an Adapter or a human form can read it alone. A cycle becomes `{}`. */
-export function inlineSchema(schema: JsonSchema | { $ref: string } | undefined, base = 'ports.yaml', stack: string[] = []): JsonSchema | undefined {
+export function inlineSchema(schema: JsonSchema | { $ref: string } | undefined): JsonSchema | undefined {
   if (!schema) return undefined
-  const walk = (node: unknown, file: string): unknown => {
+  const stack: string[] = []
+  // `file` is the design file a node came from; undefined while still inside the port schema itself, whose `#` refs point at its own $defs
+  const walk = (node: unknown, file: string | undefined): unknown => {
     if (Array.isArray(node)) return node.map((n) => walk(n, file))
     if (!node || typeof node !== 'object') return node
     const ref = (node as { $ref?: string }).$ref
     if (typeof ref === 'string') {
-      const abs = wellKnown.test(ref) ? wellKnownPointer(ref) : ref.startsWith('#') ? `${file}${ref}` : ref
+      const local = !file && ref.startsWith('#/')
+      const abs = wellKnown.test(ref) ? wellKnownPointer(ref) : ref.startsWith('#') ? `${file ?? ''}${ref}` : ref
       if (stack.includes(abs)) return {}
-      const target = ajv.getSchema(abs)?.schema
+      const target = local ? pointer(schema, ref.slice(2)) : ajv.getSchema(abs)?.schema
       if (!target) throw new PortError(`unknown $ref ${ref}`)
       stack.push(abs)
-      const out = walk(target, abs.split('#')[0]!)
+      const out = walk(target, local ? undefined : abs.split('#')[0]!)
       stack.pop()
       return out
     }
-    return Object.fromEntries(Object.entries(node).map(([k, v]) => [k, k === 'const' || k === 'enum' || k === 'default' ? v : walk(v, file)]))
+    return Object.fromEntries(Object.entries(node).map(([k, v]) => [k, k === 'const' || k === 'enum' || k === 'default' || k === '$defs' ? v : walk(v, file)]))
   }
-  return walk(schema, base) as JsonSchema
+  const { $defs: _d, ...rest } = walk(schema, undefined) as JsonSchema & { $defs?: unknown }
+  return rest
 }
+
+const pointer = (root: unknown, path: string): unknown => path.split('/').reduce<unknown>((n, k) => (n && typeof n === 'object' ? (n as Record<string, unknown>)[k.replaceAll('~1', '/').replaceAll('~0', '~')] : undefined), root)
 
 function validatorFor(schema: JsonSchema | { $ref: string }): ValidateFunction {
   const ref = (schema as { $ref?: string }).$ref
@@ -192,7 +198,7 @@ export function overrideFindings(lookup: (kind: string, namespace: string | unde
     const [ga, na] = [a[side] ?? {}, b[side] ?? {}]
     for (const name of new Set([...Object.keys(ga), ...Object.keys(na)])) {
       const [g, n] = [ga[name], na[name]]
-      const why = !g ? 'is not a port of the Global definition' : !n ? 'is missing' : !sameType(g.type, n.type) ? 'has a different type' : side === 'inputs' && (g as InputSpec).required !== false && (n as InputSpec).required === false ? 'may not become optional' : undefined
+      const why = !g ? 'is not a port of the Global definition' : !n ? 'is missing' : !sameType(g.type, n.type) ? 'has a different type' : side === 'inputs' && ((g as InputSpec).required !== false) !== ((n as InputSpec).required !== false) ? 'changes whether the input is required' : undefined
       if (why) out.push({ severity: 'error', code: 'override_incompatible', path: `/spec/${side}/${name}`, message: `override ${side}.${name} ${why}` })
     }
   }

@@ -26,6 +26,11 @@ describe('port types', () => {
     expect(s.properties.results.additionalProperties.properties.findings.items.properties.severity).toEqual({ enum: ['error', 'warning', 'info'] })
     expect(s.properties.results.additionalProperties.properties.evidence.items.required).toEqual(['apiVersion', 'kind', 'namespace', 'id', 'revision'])
     expect(inlineSchema({ type: 'integer' })).toEqual({ type: 'integer' })
+    // a port schema's own $defs resolve against the port schema, not the design files; $defs are dropped once inlined
+    const local = inlineSchema({ type: 'object', properties: { a: { $ref: '#/$defs/x' }, b: { $ref: '#/$defs/loop' } }, $defs: { x: { type: 'string' }, loop: { type: 'array', items: { $ref: '#/$defs/loop' } } } } as never) as Record<string, any>
+    expect(local.properties.a).toEqual({ type: 'string' })
+    expect(local.properties.b).toEqual({ type: 'array', items: {} })
+    expect(local).not.toHaveProperty('$defs')
     expect(() => inlineSchema({ $ref: 'persimmon.ai/v1#/Nope' })).toThrow(PortError)
   })
 
@@ -38,7 +43,12 @@ describe('port types', () => {
     bad.spec.outputs.report.type.artifactKind.kind = 'ReviewReport'
     bad.spec.inputs.repository.required = false
     bad.spec.inputs.extra = { type: { kind: 'value', schema: { type: 'string' } } }
-    expect(overrideFindings(lookup, bad).map((f) => f.message).sort()).toEqual(['override inputs.extra is not a port of the Global definition', 'override inputs.repository may not become optional', 'override outputs.report has a different type'])
+    expect(overrideFindings(lookup, bad).map((f) => f.message).sort()).toEqual(['override inputs.extra is not a port of the Global definition', 'override inputs.repository changes whether the input is required', 'override outputs.report has a different type'])
+    const stricter = structuredClone(o)
+    stricter.spec.inputs.repository.required = true
+    const g2 = structuredClone(g)
+    g2.spec.inputs.repository.required = false
+    expect(overrideFindings(() => g2, stricter).map((f) => f.message)).toEqual(['override inputs.repository changes whether the input is required'])
     expect(overrideFindings(lookup, g)).toEqual([]) // Global itself
   })
 
