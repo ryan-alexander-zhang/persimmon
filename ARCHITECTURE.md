@@ -74,6 +74,7 @@ the static checker calls.
 | `src/cli/` | `08-store.md` CLI verbs | one file per verb; no engine logic |
 | `src/server/` | `08-store.md` server Mode | `persimmon serve`, https API, `server.auth.tokens[]`; built with server mode |
 | `packs/sdlc/global/`, `packs/sdlc/namespaced/` | `20-pack.md` | pack files; `persimmon init` applies `global/` |
+| `adapters/<id>/` | `07-adapter.md`, `19-adapter-roles.md` | Adapters shipped with the binary: `adapter.yaml` manifest and a stdio script; `persimmon init` installs them before the pack |
 | `src/generated/` | `docs/design/schemas/` | `schemas.json`, written by `npm run gen`; never edited |
 | `src/main.ts` | | entry point |
 
