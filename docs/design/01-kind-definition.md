@@ -88,6 +88,12 @@ No closed list of step kinds exists anywhere in the engine.
   schema is frozen through `x-persimmon-kind-ref`, not by making revisions closure members.
 - `subscriptions.filter` is a CEL expression string. Reference left the shape open.
 - `versions[].statusSchema` optional; absent means `status` is free-form for that version.
+- A shipped KindDefinition's `versions[].schema` may be `{$ref: "<design file>#/<pointer>"}` into
+  `docs/design/schemas`; the engine resolves file and local refs and walks only the `oneOf`
+  branch whose `const` discriminators match. Found in implementation.
+- A `revisioned: true` KindDefinition never changes after registration; committed revisions were
+  validated against it. Found in implementation.
+
 
 ## Examples
 
