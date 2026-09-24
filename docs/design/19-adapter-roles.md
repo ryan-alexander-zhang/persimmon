@@ -127,7 +127,8 @@ Result: a ValidationResult (`10-ports.md`). No `credentials`, no `security` (`14
   (`adapters/lib/agent.mjs`). One agent process per attempt, prompt is context entries in
   order, value inputs, `instructions`, then the output schemas; the agent answers one JSON
   object `{outputs, summary}` through the CLI's structured output; the Adapter publishes the
-  artifact outputs itself. The agent never sees `engine.token` or the adapter token; task
+  artifact outputs itself under identity `<logicalExecutionId>-<port>` as a DNS label, one
+  per logical execution. The agent never sees `engine.token` or the adapter token; task
   credentials reach it as `<NS>__<NAME>` environment. Found in implementation.
 - `agent_failed` (retryable) is the Layer 1 code for an agent process that exits non-zero or
   answers no JSON; a publish the engine refuses is `schema_violation`, not retryable; a

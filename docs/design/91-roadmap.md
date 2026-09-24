@@ -65,6 +65,7 @@ later     eager joins · retention policy · policy resource · external event s
 | `cli-human/v1` TTY prompt | `20-pack.md` | file drop only |
 | `keychain` and `secretManager` credential sources | `08-store.md` | `env` and `file` only |
 | fired Transitions recorded in `WorkflowRun.status` | `11-workflow.md` | derived from step runs |
+| well-known `$ref` value schemas (`persimmon.ai/v1#/…`) in an agent Task's outputs; the execute payload carries them unexpanded | `10-ports.md`, `19-adapter-roles.md` | pack agent Tasks output artifacts only |
 | Skill fetch and digest verification, `networkAccess` and `allowedHosts` enforcement in `claude-code/v1` and `codex/v1` | `19-adapter-roles.md`, `15-prompt-skill.md` | agent runs with the CLI's own sandbox |
 | static checker rules not yet enforced: Task `parameters` against `describe.parametersSchema`, `context.kind` ∈ `contextKinds`, Skill `format` ∈ `skillFormats`, override port compatibility | `12-task.md`, `20-pack.md` | Handler `validate` covers the rest |
 
