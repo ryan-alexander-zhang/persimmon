@@ -24,7 +24,7 @@ appears twice; the earlier file owns it.
 | 5 | `00-resource.md` | Handlers act as Actor kind `handler`; reference said `service`. |
 | 6 | `00-resource.md` | One `ownerReference` at most. |
 | 7 | `00-resource.md` | A LocalDefinitionRef inside `spec` counts for the delete rule too, in its Namespaced and its Global resolution; a Workflow keeps its Tasks. Found in implementation. |
-| 8 | `01-kind-definition.md` | `scope: Any` added for definition kinds, so a pack ships Global definitions that a Namespace overrides by name (reference decision 26). Reference had `Namespaced | Global`. |
+| 8 | `01-kind-definition.md` | `scope: Any` added for definition kinds, so a pack ships Global definitions that a Namespace overrides by name (reference decision 26). Reference had `Namespaced \| Global`. |
 | 9 | `01-kind-definition.md` | `terminal` optional with `handlerRef`. Definition kinds (Workflow, Task) have a Handler for `validate` and never finish. Reference required `terminal` whenever `handlerRef` was set. |
 | 10 | `01-kind-definition.md` | `x-persimmon-ref.kinds` optional. Absent means the ref's own `kind` field decides; this is what keeps step kinds open. |
 | 11 | `01-kind-definition.md` | `revisioned: true` ⇒ `Immutable`, `Namespaced`, `snapshot: None`, no `statusSchema`. The schema is frozen through `x-persimmon-kind-ref`, not by making revisions closure members. |
@@ -145,7 +145,7 @@ appears twice; the earlier file owns it.
 | 126 | `15-prompt-skill.md` | No Skill handler and no engine-side digest check. Reference had a `skill` handler that verified when reachable; one verifier, the Adapter, means one algorithm. Reference open question 3 (Git tree digest) is the Adapter's contract. |
 | 127 | `15-prompt-skill.md` | Prompt `mediaType` restricted to `text/*`; delivered in the resolved entry. Reference allowed any and did not deliver it. |
 | 128 | `15-prompt-skill.md` | Skill `format` grammar is `<name>/v<n>`, like Adapter ids. |
-| 129 | `15-prompt-skill.md` | `source.provider` is open. Reference listed `git | oci | https | file`. |
+| 129 | `15-prompt-skill.md` | `source.provider` is open. Reference listed `git \| oci \| https \| file`. |
 | 130 | `15-prompt-skill.md` | New Layer 1 code: `skill_digest_mismatch`. |
 | 131 | `16-trigger.md` | `spec.on` renamed `spec.event`; bare `on` is a YAML 1.1 boolean. `artifactKind` nested as `{apiVersion, kind}` like a PortType. |
 | 132 | `16-trigger.md` | Trigger-created runs are ownerless (`createResource owned: false`, `03-reconcile.md`), so a Trigger stays deletable and receives no ChildFinished. |
