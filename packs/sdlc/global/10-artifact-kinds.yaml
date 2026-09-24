@@ -1,0 +1,84 @@
+# Artifact kinds the SDLC pack produces (18-artifact.md).
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata:
+  name: researchreports.engineering.persimmon.ai
+spec:
+  group: engineering.persimmon.ai
+  names: {kind: ResearchReport, plural: researchreports}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [title, findings]
+        properties:
+          title: {type: string}
+          findings:
+            type: array
+            items:
+              type: object
+              required: [id, statement, sources]
+              properties:
+                id: {type: string}
+                statement: {type: string}
+                sources: {type: array, items: {type: string, format: uri}}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"
+---
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata:
+  name: productrequirements.engineering.persimmon.ai
+spec:
+  group: engineering.persimmon.ai
+  names: {kind: ProductRequirement, plural: productrequirements}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [title, problem, requirements]
+        properties:
+          title: {type: string}
+          problem: {type: string}
+          requirements:
+            type: array
+            items:
+              type: object
+              required: [id, statement]
+              properties:
+                id: {type: string}
+                statement: {type: string}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"
+---
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata:
+  name: reviewreports.engineering.persimmon.ai
+spec:
+  group: engineering.persimmon.ai
+  names: {kind: ReviewReport, plural: reviewreports}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [subject, verdict, findings]
+        properties:
+          subject: {type: string}
+          verdict: {enum: [approve, reject, revise]}
+          findings:
+            type: array
+            items:
+              type: object
+              required: [severity, message]
+              properties:
+                severity: {enum: [error, warning, info]}
+                message: {type: string}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"

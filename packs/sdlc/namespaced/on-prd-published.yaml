@@ -1,0 +1,14 @@
+# Trigger (16-trigger.md); apply with -n <namespace>.
+apiVersion: persimmon.ai/v1
+kind: Trigger
+metadata: {name: on-prd-published}
+spec:
+  event:
+    kind: artifactPublished
+    artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement}
+  run:
+    workflowRef: {kind: Workflow, name: prd-approval}
+    inputs:
+      prd: {fromEvent: artifact}
+    timeout: 80h
+  enabled: true

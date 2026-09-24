@@ -1,0 +1,71 @@
+# Workflows (11-workflow.md).
+apiVersion: persimmon.ai/v1
+kind: Workflow
+metadata: {name: prd-create}
+spec:
+  inputs:
+    repository: {type: {kind: externalResource, provider: git, type: repository}}
+  outputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement}}}
+  outputBindings:
+    prd: {fromStep: {stepRef: write-prd, output: prd}}
+  entry: [research]
+  steps:
+    - id: research
+      uses: {kind: Task, name: research}
+      inputs: {repository: {fromInput: repository}}
+      timeout: 25m
+    - id: write-prd
+      uses: {kind: Task, name: write-prd}
+      inputs: {research: {fromStep: {stepRef: research, output: report}}}
+      timeout: 35m
+  transitions:
+    - id: to-write
+      from: [{stepRef: research, outcomes: [Succeeded]}]
+      to: [{stepRef: write-prd}]
+    - id: done
+      from: [{stepRef: write-prd, outcomes: [Succeeded]}]
+      to: [{terminal: Succeeded}]
+  timeout: 2h
+---
+apiVersion: persimmon.ai/v1
+kind: Workflow
+metadata: {name: prd-approval}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement}}}
+  outputs:
+    approved: {type: {kind: value, schema: {type: boolean}}}
+  outputBindings:
+    approved: {expression: 'steps.approval.outputs.result.passed'}
+  entry: [security-review, product-review]
+  steps:
+    - id: security-review
+      uses: {kind: Task, name: security-review}
+      inputs: {prd: {fromInput: prd}}
+      timeout: 2h
+    - id: product-review
+      uses: {kind: Task, name: product-review}
+      inputs: {prd: {fromInput: prd}}
+      timeout: 2h
+    - id: approval
+      uses: {kind: Gate, name: prd-approval-gate}
+      inputs:
+        prd: {fromInput: prd}
+        security: {fromStep: {stepRef: security-review, output: report}, onMissing: omit}   # may be unfinished or Failed
+        product: {fromStep: {stepRef: product-review, output: report}, onMissing: omit}
+      timeout: 72h
+  transitions:
+    - id: reviews-in
+      from:
+        - {stepRef: security-review, outcomes: [Succeeded, Failed]}
+        - {stepRef: product-review, outcomes: [Succeeded, Failed]}
+      join: {strategy: quorum, count: 1}
+      to: [{stepRef: approval}]
+    - id: verdict
+      from: [{stepRef: approval, outcomes: [Succeeded, Failed]}]
+      to:
+        - {terminal: Succeeded, when: 'steps.approval.phase == "Succeeded"'}
+        - {terminal: Failed, reason: gate_error}
+      dispatch: first
+  timeout: 80h

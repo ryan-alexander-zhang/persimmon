@@ -1,0 +1,11 @@
+# RelationTypes (18-artifact.md).
+apiVersion: persimmon.ai/v1
+kind: RelationType
+metadata: {name: derived-from-v1}
+spec:
+  from:
+    - {revisionKind: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement}}
+  to:
+    - {revisionKind: {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport}}
+    - {external: true}
+  description: The from revision was written using the to endpoint as a source.

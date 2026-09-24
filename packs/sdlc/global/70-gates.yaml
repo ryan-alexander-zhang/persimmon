@@ -1,0 +1,23 @@
+# Gates (14-gate.md). Structure check and human review; both must pass.
+apiVersion: persimmon.ai/v1
+kind: Gate
+metadata: {name: prd-approval-gate}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement}}}
+    minRequirements: {type: {kind: value, schema: {type: integer}}, required: false, default: {kind: value, value: 3}}
+    security: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ReviewReport}}, required: false}
+    product: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ReviewReport}}, required: false}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
+  validators:
+    - name: structure
+      ref: {kind: Validator, name: prd-structure}
+      inputs:
+        prd: {fromInput: prd}
+        minRequirements: {fromInput: minRequirements}      # optional producer with a default feeds a required input
+    - name: humanReview
+      ref: {kind: Validator, name: prd-human-review}
+      inputs: {prd: {fromInput: prd}}
+  policy: {strategy: all}
+  timeout: 72h
