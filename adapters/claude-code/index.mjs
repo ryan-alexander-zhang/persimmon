@@ -27,8 +27,9 @@ serve({
     properties: { model: { type: 'string' }, sandbox: { enum: Object.keys(sandbox) }, agent: { type: 'string', description: 'repository subagent name, run as-is' } },
   },
   parametersSchema: { type: 'object', additionalProperties: false, properties: { effort: { enum: ['low', 'medium', 'high', 'xhigh', 'max'] } } },
-  command({ configuration: c, parameters: p, schema }) {
+  command({ configuration: c, parameters: p, schema, skillDirs }) {
     const args = ['-p', '--output-format', 'json', '--no-session-persistence', '--json-schema', JSON.stringify(schema), ...sandbox[c.sandbox ?? 'workspace-write']]
+    for (const d of skillDirs) args.push('--add-dir', d) // skills live outside the working directory
     if (c.model) args.push('--model', c.model)
     if (c.agent) args.push('--agent', c.agent)
     if (p.effort) args.push('--effort', p.effort)

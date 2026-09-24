@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
 import { createHash } from 'node:crypto'
+import { fetchSkill } from './skills.mjs'
 
 export class AdapterError extends Error {
   constructor(code, message, retryable) {
@@ -22,7 +23,7 @@ const pidFile = (idempotencyKey) => join(pidDir(), encodeURIComponent(idempotenc
 /** `<NS>__<NAME>` upper case, `-` becomes `_`: the same grammar the engine uses for its own credential env. */
 const envName = (name) => name.toUpperCase().replaceAll('-', '_').replace('/', '__')
 
-/** driver: {adapterId, executorTypes?, contextKinds?, configurationSchema, parametersSchema, command(ctx) -> [cmd, args], input?(ctx) -> stdin text, parse({stdout, dir, configuration}) -> {outputs, summary?}} */
+/** driver: {adapterId, executorTypes?, contextKinds?, skillFormats?, configurationSchema, parametersSchema, command(ctx) -> [cmd, args], input?(ctx) -> stdin text, parse({stdout, dir, configuration}) -> {outputs, summary?}} */
 export function serve(driver) {
   const out = (o) => process.stdout.write(JSON.stringify(o) + '\n')
   createInterface({ input: process.stdin }).once('line', async (line) => {
@@ -37,7 +38,7 @@ export function serve(driver) {
             result: {
               adapterId: driver.adapterId, protocol: 'persimmon.adapter/v1', roles: ['executor'], executorTypes: driver.executorTypes ?? ['agent'],
               configurationSchema: driver.configurationSchema, parametersSchema: driver.parametersSchema,
-              contextKinds: driver.contextKinds ?? ['file', 'artifact', 'prompt'], skillFormats: [], supports: { query: false, cancel: true, complete: false }, formRenderable: false,
+              contextKinds: driver.contextKinds ?? ['file', 'artifact', 'prompt', 'skill'], skillFormats: driver.skillFormats ?? ['claude-code-skill/v1'], supports: { query: false, cancel: true, complete: false }, formRenderable: false,
             },
           })
         case 'execute':
@@ -63,9 +64,10 @@ async function execute(driver, payload, log) {
   const dir = mkdtempSync(join(tmpdir(), 'persimmon-agent-'))
   let answer
   try {
-    const ctx = { configuration, parameters: task.parameters ?? {}, schema, dir, payload }
+    const skills = driver.input ? [] : resolveSkills(context, driver.skillFormats ?? ['claude-code-skill/v1'])
+    const ctx = { configuration, parameters: task.parameters ?? {}, schema, dir, payload, skillDirs: skills.map((s) => s.dir) }
     const [cmd, args] = driver.command(ctx)
-    const stdin = driver.input ? driver.input(ctx) : await buildPrompt(task, inputs, context, call)
+    const stdin = driver.input ? driver.input(ctx) : await buildPrompt(task, inputs, context, call, skills)
     let stdout
     try {
       stdout = await run(cmd, args, stdin, { credentials, deadline, idempotencyKey: taskRun.idempotencyKey, log })
@@ -96,11 +98,26 @@ async function execute(driver, payload, log) {
   return result
 }
 
+/** Every skill entry fetched and verified before the agent starts (15-prompt-skill.md); the format must be one this Adapter reads. */
+function resolveSkills(context, formats) {
+  return context
+    .filter((c) => c.kind === 'skill')
+    .map((c) => {
+      if (!formats.includes(c.format)) throw new AdapterError('invalid_input', `skill ${c.name}: format ${c.format} is not supported by this Adapter`, false)
+      return { entry: c, dir: fetchSkill(c, join(process.cwd(), '.persimmon', 'skills')) }
+    })
+}
+
 /** Context entries in order, then inputs, then instructions (12-task.md). Artifacts are fetched with the call token. */
-async function buildPrompt(task, inputs, context, call) {
+async function buildPrompt(task, inputs, context, call, skills = []) {
   const parts = []
   for (const c of context) {
     switch (c.kind) {
+      case 'skill': {
+        const { dir } = skills.find((s) => s.entry === c)
+        parts.push(`## Skill ${c.name}\n\nRead \`${dir}/SKILL.md\` and follow it for this task. The skill directory is \`${dir}\`.`)
+        break
+      }
       case 'prompt':
         parts.push(c.content.trimEnd())
         break

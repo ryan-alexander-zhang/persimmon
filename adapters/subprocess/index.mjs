@@ -9,6 +9,7 @@ serve({
   adapterId: 'subprocess/v1',
   executorTypes: ['script', 'tool'],
   contextKinds: ['file'],
+  skillFormats: [],
   configurationSchema: { type: 'object', required: ['program', 'resultFile'], additionalProperties: false, properties: { program: { type: 'array', minItems: 1, items: { type: 'string' } }, resultFile: { type: 'string' } } },
   parametersSchema: { type: 'object', additionalProperties: false, properties: { args: { type: 'array', items: { type: 'string' } } } },
   command({ configuration: c, parameters: p }) {

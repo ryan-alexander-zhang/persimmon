@@ -1,11 +1,13 @@
 // The agent Adapters against stub `claude` and `codex` binaries and a fake Engine callbacks socket:
 // prompt order, output schema, artifact publication, credentials in the agent env, cancel.
-import { spawn } from 'node:child_process'
+import { execFileSync, spawn } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer, type Server } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+// @ts-expect-error plain module
+import { skillDigest } from '../../adapters/lib/skills.mjs'
 
 const root = join(import.meta.dirname, '..', '..')
 const stubs = mkdtempSync(join(tmpdir(), 'persimmon-stubs-'))
@@ -106,7 +108,7 @@ const last = (r: { lines: Record<string, unknown>[] }) => r.lines.at(-1) as { ok
 describe('claude-code/v1', () => {
   it('describes the executor Role', async () => {
     const d = last(await adapter('claude-code', { id: 1, op: 'describe', payload: {} }))
-    expect(d.result).toMatchObject({ adapterId: 'claude-code/v1', protocol: 'persimmon.adapter/v1', executorTypes: ['agent'], supports: { cancel: true, complete: false } })
+    expect(d.result).toMatchObject({ adapterId: 'claude-code/v1', protocol: 'persimmon.adapter/v1', executorTypes: ['agent'], contextKinds: ['file', 'artifact', 'prompt', 'skill'], skillFormats: ['claude-code-skill/v1'], supports: { cancel: true, complete: false } })
   })
 
   it('builds the prompt in context order, publishes artifact outputs, passes credentials as env', async () => {
@@ -154,9 +156,31 @@ describe('claude-code/v1', () => {
     expect(last(r)).toMatchObject({ ok: false, error: { code: 'schema_violation', retryable: false, message: expect.stringContaining('format "uri"') } })
   })
 
-  it('refuses a skill context entry with invalid_input', async () => {
-    const r = await adapter('claude-code', { id: 4, op: 'execute', payload: payload({ context: [{ kind: 'skill', name: 's', source: {}, digest: 'sha256:' + 'c'.repeat(64), format: 'x/v1' }] }) })
-    expect(last(r)).toMatchObject({ ok: false, error: { code: 'invalid_input', retryable: false } })
+  it('fetches a git skill at its commit, verifies the digest, and points the agent at it', async () => {
+    const repo = mkdtempSync(join(tmpdir(), 'persimmon-skill-repo-'))
+    mkdirSync(join(repo, 'prd-writer'))
+    writeFileSync(join(repo, 'prd-writer', 'SKILL.md'), '# PRD writer\nOne requirement per line.\n')
+    const git = (...a: string[]) => execFileSync('git', a, { cwd: repo, env: { ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t' } }).toString().trim()
+    git('init', '-q')
+    git('add', '.')
+    git('-c', 'commit.gpgsign=false', 'commit', '-qm', 'skill')
+    const sha = git('rev-parse', 'HEAD')
+    const digest = skillDigest(join(repo, 'prd-writer'))
+    expect(digest).toMatch(/^sha256:[0-9a-f]{64}$/)
+    const skill = { kind: 'skill', name: 'prd-writer', source: { provider: 'git', type: 'repository', id: 'skills', locator: { remote: repo, path: 'prd-writer' }, version: sha }, digest, format: 'claude-code-skill/v1' }
+    const r = await adapter('claude-code', { id: 4, op: 'execute', payload: payload({ context: [skill] }) }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'S' }, count: 1 } }) })
+    expect(last(r).ok).toBe(true)
+    const seen = JSON.parse(readFileSync(join(stubs, 'claude.json'), 'utf8'))
+    const dir = seen.args[seen.args.indexOf('--add-dir') + 1] as string
+    expect(dir).toMatch(/\.persimmon\/skills\/[0-9a-f]{16}\/prd-writer$/)
+    expect(readFileSync(join(dir, 'SKILL.md'), 'utf8')).toContain('PRD writer')
+    expect(seen.prompt).toContain(`## Skill prd-writer\n\nRead \`${dir}/SKILL.md\``)
+    // cached checkout, wrong digest: skill_digest_mismatch, never retried
+    const bad = await adapter('claude-code', { id: 41, op: 'execute', payload: payload({ context: [{ ...skill, digest: 'sha256:' + 'c'.repeat(64) }] }) })
+    expect(last(bad)).toMatchObject({ ok: false, error: { code: 'skill_digest_mismatch', retryable: false } })
+    const unknown = await adapter('claude-code', { id: 42, op: 'execute', payload: payload({ context: [{ ...skill, format: 'x/v1' }] }) })
+    expect(last(unknown)).toMatchObject({ ok: false, error: { code: 'invalid_input', retryable: false } })
+    rmSync(repo, { recursive: true, force: true })
   })
 
   it('cancel kills the running agent by the attempt idempotencyKey', async () => {
