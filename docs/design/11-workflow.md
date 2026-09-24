@@ -124,6 +124,7 @@ without `repeat`, `<stepId>[<index>]` per enclosing repeat level, joined by `/`.
 - `join`, `dispatch`, `noMatch` default to `all`, `all`, `fail`. Reference required them.
 - Layer 1 codes defined here: `no_match`, `unconsumed_failure`, `output_unbound`,
   `no_progress`, `iteration_limit`, `timeout` reused from Layer 0.
+- `any` and `quorum` never cancel the remaining `from` steps; eager joins are roadmap.
 - A Failed Workflow exports no outputs; a business rejection is Succeeded plus a verdict output
   (reference; kept). No named entrypoints (reference decision 7; kept).
 

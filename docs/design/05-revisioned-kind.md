@@ -75,7 +75,7 @@ revisions are retained flagged, excluded from get and list, and leave a gap.
   adapter path without an Actor.
 - Revisioned kinds are `Namespaced` with `snapshot: None`; the schema is frozen through
   `x-persimmon-kind-ref` (`04-snapshot.md`), not by making revisions closure members.
-  Reverses the `01-kind-definition.md` coupling `revisioned ⇒ snapshot: Definition`.
+  Recorded in `01-kind-definition.md`.
 - Engine supplies the status schema for revisioned kinds; `versions[].statusSchema` is
   forbidden on them.
 

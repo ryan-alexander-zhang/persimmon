@@ -81,6 +81,7 @@ unresolved `workflowRef` fails the create; the Trigger stalls (`03-reconcile.md`
   `(triggerName, workflowRef)` count is dropped.
 - `trigger.failed` Outbox event replaces the reference's TriggerFailed record.
 - No Trigger `terminal`.
+- `event.kind` is closed to engine-produced events; external sources and webhooks are roadmap.
 
 ## Examples
 

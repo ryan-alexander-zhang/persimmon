@@ -53,9 +53,9 @@ Delivered to subscribed kinds as a Signal **Event**.
 _Avoid_: bus event, domain event, event (unqualified)
 
 **Action**:
-The only way a **Handler** changes the world: `patchStatus`, `createResource`,
-`cancelResource`, `publishArtifact`, `commitScope`, `abandonScope`, `emitEvent`, `setTimer`,
-`clearTimer`, `callAdapter`. All actions of one reconcile commit atomically.
+The only way a **Handler** changes the world: `createResource`, `cancelResource`,
+`publishArtifact`, `commitScope`, `abandonScope`, `emitEvent`, `setTimer`, `clearTimer`,
+`callAdapter`, plus the `statusPatch` in the reconcile result. All commit atomically.
 _Avoid_: command, effect, operation
 
 **Terminal**:

@@ -131,6 +131,8 @@ imports into a server unchanged.
 - `listRevisions`, `reserveRevision` and Publication scope ops live on ResourceStore; the
   reference's ArtifactStore and RelationStore are Layer 1 views.
 - Server HTTP API is the verb set; a detailed API spec is roadmap.
+- Authentication is bearer tokens only; OIDC is roadmap. Authorization is the grant table;
+  a policy Resource is roadmap (reference decision 36).
 
 ## Examples
 

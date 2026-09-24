@@ -120,7 +120,10 @@ Adapters reach the engine only here, at `engine.endpoint`, with a token.
 - http long operations complete by POSTing to `engine.endpoint/responses`.
 - stdio spawns one process per call; no resident-process liveness in the engine.
 - `credentialBindings[0]` is the http bearer token.
-- `status.describeDigest` stored beside `describe`.
+- `status.describeDigest` stored beside `describe`. Adapter `status` is engine-written, and
+  `Ready` lives in `status.conditions[]`; the reference kept conditions out of `status` for
+  handled kinds (decision 32), an Adapter has no Handler.
+- One process per call, so a resident process with liveness handling is roadmap.
 - Conformance suite for Adapters and Handlers is roadmap (`91-roadmap.md`).
 
 ## Examples

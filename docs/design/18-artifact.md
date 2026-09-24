@@ -83,6 +83,8 @@ Query: `list` by the three labels, from the CLI, the API, or the `list` Engine c
   (`91-roadmap.md`).
 - Builtin Handlers assert no Relations in v1; pack kinds and users do.
 - Artifact kinds and RelationTypes beyond the examples are pack content (`20-pack.md`).
+- No artifact scope (internal versus exported); Workflow output contracts encapsulate, and
+  every revision stays addressable for audit (reference roadmap; kept out).
 
 ## Examples
 

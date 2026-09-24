@@ -51,8 +51,8 @@ snapshot walk rooted in that Namespace (`04-snapshot.md`). Overrides are ordinar
 | Gate | `prd-approval-gate` | |
 | Workflow | `prd-create`, `prd-with-review`, `prd-approval` | `prd-review-round`, `planning-iteration` |
 | Trigger (namespaced) | `on-prd-published`, `on-prd-approved` | |
-| artifact kinds | `ResearchReport`, `ProductRequirement` | `ReviewReport`, `PlanTask`, `ImplementationReport` |
-| RelationType | `derived-from-v1` | `implements-v1`, `verifies-v1` |
+| artifact kinds | `ResearchReport`, `ProductRequirement` | `ReviewReport` |
+| RelationType | `derived-from-v1` | |
 
 Credentials the pack Executors bind are Global names resolved at run time.
 
@@ -67,8 +67,9 @@ Credentials the pack Executors bind are Global names resolved at run time.
   `engineering-iteration` Workflows yet. Roadmap.
 - Traceability Validator and entity indexing deferred; the `list` Engine callback stays for
   Relation queries by any Handler or Adapter.
-- Artifact kinds cut from 14 to the 5 the shipped Workflows touch.
-- No `tool` Executor in v1; `subprocess/v1` reports the type for later.
+- Artifact kinds cut from 14 to the 3 the shipped Workflows touch; `PlanTask`,
+  `ImplementationReport`, `implements-v1`, `verifies-v1` arrive with the engineering Workflows.
+- No reference `tool` Executor in the pack; the type and `subprocess/v1` support stay.
 - Override must be port-compatible, so a run never breaks at snapshot time on a definition
   it did not name.
 

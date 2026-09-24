@@ -73,6 +73,7 @@ A `task` Validator's TaskRun has invocation address
 - GateRun exposes its verdict at `status.outputs.result`, like every step kind. Reference
   had `status.result`.
 - `any` and `quorum` count after every ValidationRun finishes; eager termination is roadmap.
+  No Gate-level score aggregation; `ValidationResult.score` is informational.
 - `evaluator.type` is closed: `cel`, `task`, `adapter`; the Adapter Role is always `evaluator`.
   Reference let `type` name the Role.
 - Evaluator Adapters get no `credentials` or `security`; they run on Adapter-level bindings.

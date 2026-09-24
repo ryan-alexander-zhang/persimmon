@@ -62,6 +62,8 @@ the Adapter process; Executor-level ones are per-attempt secrets for the work.
   overrides it by name.
 - `contextKinds` and `skillFormats` are checked on the Task (`12-task.md`), not here.
 - `formRenderable` and the human completion contract are owned by `19-adapter-roles.md`.
+- No unified effort hint; each Adapter defines its own in `configurationSchema`. A
+  cross-adapter hint is roadmap.
 
 ## Examples
 

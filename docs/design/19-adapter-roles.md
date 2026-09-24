@@ -113,10 +113,14 @@ Result: a ValidationResult (`10-ports.md`). No `credentials`, no `security` (`14
 - `execute` payload reshaped: `task` is `{instructions, parameters, sideEffects, outputs,
   outputSchemas}`, `taskRun` carries an ObjectRef and the attempt key. Reference nested
   `action` and sent neither key nor schemas.
-- `query` and `cancel` take the attempt's `idempotencyKey`; `query` `running` re-polls.
-- `supports.complete` ⟺ `human ∈ executorTypes`.
+- The `query` and `cancel` payloads carry the attempt's `idempotencyKey`; each call itself
+  takes a fresh key (`03-reconcile.md`). `query` `running` re-polls.
+- `supports.complete` means "finishes through `signal`" and holds iff `human ∈ executorTypes`.
 - `evaluate` receives `artifacts.<port>` as `{content, provenance}`, matching the `cel`
   environment.
+- A standard form-rendering contract for human Adapters is roadmap; v1 renders from
+  `task.outputSchemas` in Adapter-specific ways. Web, chat and email approval clients are
+  Adapters, outside this design.
 - A Claude Code Adapter may expose `configuration.agent` to run a repository subagent
   definition as-is; portable definitions use Prompt and Skill instead.
 

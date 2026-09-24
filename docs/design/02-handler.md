@@ -66,8 +66,9 @@ Every Event is delivered; an Event the Handler does not use returns `{actions: [
 - No `events[]` filter. Reference let a Handler list wanted Events; a Handler that ignores
   an Event costs one no-op call, and a filter could drop AdapterFinished or TimerFired the
   Handler itself caused.
-- `statusPatch` in the result is the only way to write `status`; the reference's separate
-  `patchStatus` action is dropped (`03-reconcile.md` follows).
+- `statusPatch` in the result is the only Handler way to write `status`; the reference's
+  separate `patchStatus` action is dropped (`03-reconcile.md` follows). The engine itself
+  writes `status` of the kinds it registers (`07-adapter.md`).
 - `context.actor` absent on engine-originated Events (TimerFired, ChildFinished,
   AdapterFinished); writes of that reconcile carry the Handler's `handler` Actor. Reference did
   not say.
