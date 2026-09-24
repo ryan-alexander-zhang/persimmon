@@ -133,10 +133,11 @@ Result: a ValidationResult (`10-ports.md`). No `credentials`, no `security` (`14
 - `agent_failed` (retryable) is the Layer 1 code for an agent process that exits non-zero or
   answers no JSON; a publish the engine refuses is `schema_violation`, not retryable; a
   callback refusal is `permission_denied`. Found in implementation.
-- Shipped agent Adapters report `skillFormats: []` and refuse `skill` context with
-  `invalid_input`; `file` context is a pointer into the working directory, the agent reads it.
-  Skill fetching and digest verification are roadmap. `security.networkAccess` and
-  `allowedHosts` are not enforced by these Adapters. Found in implementation.
+- Shipped agent Adapters read `claude-code-skill/v1` Skills: a directory with `SKILL.md`,
+  fetched and verified per `15-prompt-skill.md`, handed to `claude` with `--add-dir` and named
+  in the prompt; `file` context is a pointer into the working directory, the agent reads it.
+  `security.networkAccess` and `allowedHosts` are not enforced by these Adapters. Found in
+  implementation.
 - `subprocess/v1` ships on the same runner: `configuration.program` plus `parameters.args`, the
   execute payload without `credentials` and `engine` on stdin, credentials as environment, and
   the answer `{outputs, summary?}` read from `configuration.resultFile` (relative to the engine

@@ -56,6 +56,11 @@ The engine never fetches or interprets a bundle.
 - Skill `format` grammar is `<name>/v<n>`, like Adapter ids.
 - `source.provider` is open. Reference listed `git | oci | https | file`.
 - New Layer 1 code: `skill_digest_mismatch`.
+- Bundle digest for a directory, as the shipped agent Adapters compute it: sha256 over every
+  regular file in sorted posix-path order, each fed as `<path>\0<bytes>\0`, `.git` excluded.
+  `git` sources are fetched once per (remote, version) into `.persimmon/skills/<hash>`; `file`
+  sources resolve `locator.path` against the engine cwd. Closes reference open question 3.
+  Found in implementation.
 
 ## Examples
 

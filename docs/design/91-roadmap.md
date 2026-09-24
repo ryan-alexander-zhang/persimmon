@@ -65,7 +65,7 @@ later     eager joins · retention policy · policy resource · external event s
 | `cli-human/v1` TTY prompt | `20-pack.md` | file drop only |
 | `keychain` and `secretManager` credential sources | `08-store.md` | `env` and `file` only |
 | fired Transitions recorded in `WorkflowRun.status` | `11-workflow.md` | derived from step runs |
-| Skill fetch and digest verification, `networkAccess` and `allowedHosts` enforcement in `claude-code/v1` and `codex/v1` | `19-adapter-roles.md`, `15-prompt-skill.md` | agent runs with the CLI's own sandbox |
+| `networkAccess` and `allowedHosts` enforcement in `claude-code/v1` and `codex/v1` | `19-adapter-roles.md` | agent runs with the CLI's own sandbox |
 | static checker rules not yet enforced: Task `parameters` against `describe.parametersSchema`, `context.kind` ∈ `contextKinds`, Skill `format` ∈ `skillFormats`, override port compatibility | `12-task.md`, `20-pack.md` | Handler `validate` covers the rest |
 
 ## Open before implementation
@@ -75,5 +75,4 @@ later     eager joins · retention policy · policy resource · external event s
 | implementation language | decided: TypeScript; `ajv` for JSON Schema 2020-12 |
 | CEL library | decided: `@marcbachmann/cel-js`, checker covers static rule 11 (`10-ports.md`) |
 | canonical serialization | decided: JSON, sorted keys, UTF-8, no whitespace (`04-snapshot.md`) |
-| Skill digest for Git trees | Adapter contract (`15-prompt-skill.md`) |
 | human Adapter for local mode | decided: one `cli-human/v1` Adapter, terminal prompt when a TTY is attached, file drop in `.persimmon/inbox/` otherwise (`20-pack.md`) |
