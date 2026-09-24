@@ -78,6 +78,10 @@ resources:
       inputs: {repository: {type: {kind: externalResource, provider: git, type: repository}}}
       outputs: {report: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport}}}}
       timeout: 20m
+      retryPolicy:
+        maxAttempts: 3
+        backoff: {strategy: exponential, initial: 30s, max: 5m, jitter: none}
+        retryOn: [timeout, rate_limit, transient_network]
       sideEffects: none
   - apiVersion: persimmon.ai/v1
     kind: Task
