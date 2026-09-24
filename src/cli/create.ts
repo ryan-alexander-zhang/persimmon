@@ -53,8 +53,10 @@ async function store(cli: Cli, doc: Resource, o: FollowOptions): Promise<number>
     if (doc.kind === 'WorkflowRun') pathInputs(engine, cli.cwd, doc)
     const { resource, created } = await engine.create(doc)
     cli.out(`${created ? 'created' : 'exists'} ${resource.kind}/${resource.metadata.name}`)
-    await engine.drain()
-    if (!o.follow) return 0
+    if (!o.follow) {
+      await engine.drain()
+      return 0
+    }
     return await follow(cli, engine, resource, o.pollMs ?? 500)
   } finally {
     await engine.close()
@@ -76,21 +78,26 @@ async function follow(cli: Cli, engine: Engine, resource: Resource, pollMs: numb
       if (r.metadata.uid !== uid || phaseOf(r)) cli.out(`${r.kind}/${r.metadata.name}  ${line}`)
     }
   }
-  for (;;) {
-    const r = engine.store.resources.getByUid(uid)
-    if (!r) {
-      cli.err(`${resource.kind}/${resource.metadata.name} is gone`)
-      return 1
+  const ticker = setInterval(report, pollMs) // a drain blocks on the agent for minutes; phases still print as they commit
+  try {
+    for (;;) {
+      const r = engine.store.resources.getByUid(uid)
+      if (!r) {
+        cli.err(`${resource.kind}/${resource.metadata.name} is gone`)
+        return 1
+      }
+      report()
+      const v = readPath(r as unknown as Record<string, unknown>, t.path)
+      if (typeof v === 'string' && t.values.includes(v)) return v === 'Succeeded' ? 0 : 1
+      if (r.metadata.stalled) {
+        cli.err(`${r.kind}/${r.metadata.name} stalled after ${r.metadata.stalled.attempts} attempts: ${r.metadata.stalled.lastError ?? ''}`)
+        return 1
+      }
+      await engine.drain()
+      await new Promise((res) => setTimeout(res, pollMs)) // ponytail: poll; wake on the next timer or call when it matters
     }
-    report()
-    const v = readPath(r as unknown as Record<string, unknown>, t.path)
-    if (typeof v === 'string' && t.values.includes(v)) return v === 'Succeeded' ? 0 : 1
-    if (r.metadata.stalled) {
-      cli.err(`${r.kind}/${r.metadata.name} stalled after ${r.metadata.stalled.attempts} attempts: ${r.metadata.stalled.lastError ?? ''}`)
-      return 1
-    }
-    await new Promise((res) => setTimeout(res, pollMs)) // ponytail: poll; wake on the next timer or call when it matters
-    await engine.drain()
+  } finally {
+    clearInterval(ticker)
   }
 }
 

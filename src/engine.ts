@@ -1,5 +1,6 @@
 // Engine bootstrap: config ─▶ Store ─▶ registries ─▶ builtin Handlers ─▶ callbacks server ─▶ dispatcher (ARCHITECTURE.md).
 import { createHash, randomUUID } from 'node:crypto'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import type { Server } from 'node:http'
 import { callback, type CallbackEngine } from './adapter/callbacks.js'
@@ -116,7 +117,8 @@ export class Engine {
   }
 
   /** Loads stored KindDefinitions, Handlers and Adapters; marks open calls unknown (03-reconcile.md). */
-  async start(): Promise<void> {
+  /** Loads stored definitions; `recover: false` for a read-only process that must not mark another engine's open calls unknown. */
+  async start(o: { recover?: boolean } = {}): Promise<void> {
     if (this.#started) return
     this.#started = true
     for (const kd of this.store.resources.list('KindDefinition')) if (!this.kinds.lookup(`${(kd.spec as { group: string }).group}/v1`, (kd.spec as { names: { kind: string } }).names.kind)) this.kinds.register(kd)
@@ -128,14 +130,34 @@ export class Engine {
       this.store.tokens.revoke({ kind: 'adapter', id: adapter.spec.id })
       this.adapters.setToken(adapter.spec.id, this.store.tokens.issue({ kind: 'adapter', id: adapter.spec.id }))
     }
-    recoverCalls(this.dispatch)
+    if (o.recover !== false) recoverCalls(this.dispatch)
   }
 
-  /** Serves Engine callbacks on the unix socket; stdio Adapters need it during a drain. */
+  /** Serves Engine callbacks on the unix socket; stdio Adapters need it during a drain. One listening engine per project: a second would take the socket and re-dispatch open calls. */
   async listen(): Promise<void> {
     if (this.#server) return
+    this.#lock()
     this.#server = callbackServer(this.callbackEngine())
     await listenUnix(this.#server, this.endpoint)
+  }
+
+  #lockFile?: string
+  #lock(): void {
+    const file = `${this.cwd}/.persimmon/engine.lock`
+    if (existsSync(file)) {
+      const pid = Number(readFileSync(file, 'utf8'))
+      let alive = Number.isInteger(pid) && pid > 0
+      if (alive)
+        try {
+          process.kill(pid, 0)
+        } catch {
+          alive = false // stale lock from a killed process
+        }
+      if (alive) throw new Error(`another persimmon process (pid ${pid}) is running in this project; wait for it or stop it`)
+    }
+    mkdirSync(`${this.cwd}/.persimmon`, { recursive: true })
+    writeFileSync(file, String(process.pid))
+    this.#lockFile = file
   }
 
   /** API write as the local Actor (00-resource.md write order). Adapters are described on apply. */
@@ -206,6 +228,7 @@ export class Engine {
 
   async close(): Promise<void> {
     if (this.#server) await new Promise((r) => this.#server!.close(r))
+    if (this.#lockFile) rmSync(this.#lockFile, { force: true })
     this.store.close()
   }
 }

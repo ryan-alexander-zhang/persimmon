@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { parse } from 'yaml'
@@ -100,3 +100,19 @@ it('a deep cwd gets a short socket path under the temp dir (sun_path limit)', ()
   expect(e.endpoint.replace('unix://', '').length).toBeLessThan(100)
   expect(e.endpoint).toMatch(/persimmon-[0-9a-f]{12}\.sock$/)
 })
+
+it('one listening engine per project: a second listen fails while the first lives, a stale lock is taken over', async () => {
+  const cwd = mkdtempSync(join(tmpdir(), 'persimmon-lock-'))
+  mkdirSync(join(cwd, '.persimmon'))
+  const a = new Engine({ config: parseConfig({}), cwd, storePath: ':memory:', blobs: memoryBlobs() })
+  await a.listen()
+  const b = new Engine({ config: parseConfig({}), cwd, storePath: ':memory:', blobs: memoryBlobs() })
+  await expect(b.listen()).rejects.toThrow(new RegExp(`another persimmon process \\(pid ${process.pid}\\)`))
+  await a.close()
+  writeFileSync(join(cwd, '.persimmon', 'engine.lock'), '999999') // no such process
+  await b.listen()
+  expect(readFileSync(join(cwd, '.persimmon', 'engine.lock'), 'utf8')).toBe(String(process.pid))
+  await b.close()
+  rmSync(cwd, { recursive: true, force: true })
+})
+
