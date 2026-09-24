@@ -88,7 +88,9 @@ export async function askForm(cli: Cli, form: Form, taskRun: string): Promise<Re
     cli.out(r.error ? `(unavailable: ${r.error})` : typeof r.content === 'string' ? r.content.trimEnd() : toYaml(r.content).trimEnd())
   }
   if (reading.length === 0 && form.inputs) cli.out(toYaml({ inputs: form.inputs }).trimEnd()) // an older or foreign form: at least the references
-  const evidence = reading.filter((r) => r.ref && !r.error).map((r) => r.ref) // only what was actually shown
+  const evidence = form.reading
+    ? reading.filter((r) => r.ref && !r.error).map((r) => r.ref) // only what was actually shown
+    : Object.values(form.inputs ?? {}).flatMap((v) => ((v as { kind?: string }).kind === 'artifact' ? [(v as { ref: RevisionRef }).ref] : []))
   const outputs: Record<string, unknown> = {}
   const publish: { port: string; request: Record<string, unknown> }[] = []
   for (const [port, spec] of Object.entries(form.outputs)) {
@@ -99,8 +101,8 @@ export async function askForm(cli: Cli, form: Form, taskRun: string): Promise<Re
     if (spec.type.kind === 'value' && isValidationResult(schema)) {
       value = await askVerdict(cli, port, evidence)
       if (!ajv.compile(schema!)(value)) {
-        cli.err(`${port}: the answer does not fit this port's schema; it needs the full value`)
-        value = await askYaml(cli, port, what, schema) // the heuristic was wrong for this schema: fall back, never signal a bad value
+        cli.err(`${port}: this port needs more than approve and findings; edit the value below`)
+        value = await askYaml(cli, port, what, schema, value) // the heuristic was wrong for this schema: edit the typed answer, never signal a bad value
       }
     } else value = await askYaml(cli, port, what, schema)
     if (spec.type.kind === 'artifact') publish.push({ port, request: { kind: spec.type.artifactKind, id: dnsLabel(`${taskRun}-${port}`), content: value, representations: [] } })
@@ -133,8 +135,8 @@ async function askVerdict(cli: Cli, port: string, evidence: unknown[]): Promise<
 }
 
 /** Any other shape: an example shaped by the schema, edited as YAML, validated, asked again on a miss. */
-async function askYaml(cli: Cli, port: string, what: string, schema: Record<string, unknown> | undefined): Promise<unknown> {
-  const sample = schema ? toYaml(example(schema)).trimEnd() : ''
+async function askYaml(cli: Cli, port: string, what: string, schema: Record<string, unknown> | undefined, seed?: unknown): Promise<unknown> {
+  const sample = seed !== undefined ? toYaml(seed).trimEnd() : schema ? toYaml(example(schema)).trimEnd() : ''
   for (;;) {
     const text = await cli.ask!(`\n${what} as YAML${sample ? `, for example:\n${sample}` : ''}\nType the value, then a lone ".":\n`, 'block')
     if (text === null) throw eof()
@@ -164,7 +166,13 @@ export function example(schema: Record<string, unknown>, root: Record<string, un
     const target = schema.$ref.slice(2).split('/').reduce<unknown>((n, k) => (n && typeof n === 'object' ? (n as Record<string, unknown>)[k] : undefined), root)
     return target && typeof target === 'object' ? next(target as Record<string, unknown>) : null
   }
-  for (const k of ['anyOf', 'oneOf', 'allOf']) {
+  if (Array.isArray(schema.allOf)) {
+    // an intersection: one object with every branch's properties and required
+    const merged = (schema.allOf as Record<string, unknown>[]).reduce<Record<string, unknown>>((acc, b) => ({ ...acc, ...b, properties: { ...(acc.properties as object), ...(b.properties as object) }, required: [...((acc.required as string[]) ?? []), ...((b.required as string[]) ?? [])] }), { ...schema, allOf: undefined })
+    delete merged.allOf
+    return next(merged)
+  }
+  for (const k of ['anyOf', 'oneOf']) {
     const branches = schema[k]
     if (Array.isArray(branches) && branches[0] && typeof branches[0] === 'object') return next(branches[0] as Record<string, unknown>)
   }
@@ -178,8 +186,11 @@ export function example(schema: Record<string, unknown>, root: Record<string, un
       const keys = Array.isArray(schema.required) ? (schema.required as string[]) : Object.keys(props)
       return Object.fromEntries(keys.map((k) => [k, props[k] ? next(props[k]!) : null]))
     }
-    case 'array':
-      return schema.items && typeof schema.items === 'object' ? [next(schema.items as Record<string, unknown>)] : []
+    case 'array': {
+      if (!schema.items || typeof schema.items !== 'object' || Array.isArray(schema.items)) return []
+      const n = Math.max(1, Math.min(3, Number((schema as { minItems?: number }).minItems ?? 1)))
+      return Array.from({ length: n }, () => next(schema.items as Record<string, unknown>))
+    }
     case 'string':
       return ''
     case 'integer':

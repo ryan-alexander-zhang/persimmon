@@ -18,7 +18,8 @@ createInterface({ input: process.stdin }).once('line', async (line) => {
     id = req.id
     await handle(req)
   } catch (e) {
-    out({ id, ok: false, error: { code: e.code ?? 'invalid_input', message: e.message, retryable: e.retryable ?? false } })
+    const code = /^[a-z][a-z0-9_]*$/.test(e.code ?? '') ? e.code : 'invalid_input' // never a Node system code (reconcile.yaml ErrorCode)
+    out({ id, ok: false, error: { code, message: e.message, retryable: e.retryable ?? false } })
   }
 })
 

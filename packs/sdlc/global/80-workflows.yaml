@@ -60,7 +60,7 @@ spec:
       from:
         - {stepRef: security-review, outcomes: [Succeeded, Failed]}
         - {stepRef: product-review, outcomes: [Succeeded, Failed]}
-      join: {strategy: all}       # both reviews finished, Succeeded or Failed; a Failed one is omitted from the Gate inputs
+      join: {strategy: all}       # both reviews finished; a Failed one is omitted from the Gate inputs. Cancelled only happens when the run ends (11-workflow.md)
       to: [{stepRef: approval}]
     - id: verdict
       from: [{stepRef: approval, outcomes: [Succeeded, Failed]}]

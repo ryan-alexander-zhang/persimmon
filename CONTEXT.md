@@ -184,6 +184,12 @@ _Avoid_: inputs, attachments, references, prompt
 A **Definition** kind: instruction text, opaque to the engine, frozen in snapshots.
 _Avoid_: template, instructions, system prompt
 
+**Reading**:
+What a human executor reads before answering: the resolved **Context** entries with their
+content, in order, as the `cli-human/v1` form's `reading[]`. The **Executor** answers; the
+reading is what it answers about.
+_Avoid_: review, attachments, materials, evidence (that is the ValidationResult field)
+
 **Skill**:
 A **Definition** kind: reference to an opaque capability bundle by **ExternalResourceRef**,
 `digest`, `format`.

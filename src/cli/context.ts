@@ -2,13 +2,14 @@ import { existsSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { loadConfig } from '../config.js'
 import { Engine } from '../engine.js'
+import type { Ask } from './ask.js'
 
 export interface Cli {
   cwd: string
   out: (line: string) => void
   err: (line: string) => void
   /** Interactive answer: prints `prompt`; `line` returns the next line, `block` the lines until a lone `.`; null once stdin closed; absent when no terminal. */
-  ask?: (prompt: string, mode: 'line' | 'block') => Promise<string | null>
+  ask?: Ask
 }
 
 /** Opens the local engine for one verb: `.persimmon/` exists, stored definitions load. `listen: false` is a read-only process: no socket, no lock, no call recovery, no drain. */

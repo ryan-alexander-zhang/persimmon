@@ -180,6 +180,9 @@ describe('persimmon CLI', () => {
     expect(template({ type: 'object', required: ['title', 'tags', 'level'], properties: { title: { type: 'string' }, tags: { type: 'array', items: { type: 'string' } }, level: { enum: ['low', 'high'] }, extra: { type: 'integer' } } })).toEqual({ title: '', tags: [''], level: 'low' })
     expect(template({ type: 'object', properties: { n: { type: 'number' }, ok: { type: 'boolean' }, items: { type: 'array', items: { type: 'object', required: ['id'], properties: { id: { type: 'string' } } } } } })).toEqual({ n: 0, ok: false, items: [{ id: '' }] })
     expect(template({ type: 'object', required: ['a', 'b'], properties: { a: { $ref: '#/$defs/x' }, b: { oneOf: [{ type: 'integer' }, { type: 'string' }] } }, $defs: { x: { type: 'object', required: ['y'], properties: { y: { type: 'boolean' } } } } })).toEqual({ a: { y: false }, b: 0 })
+    expect(template({ allOf: [{ type: 'object', required: ['a'], properties: { a: { type: 'string' } } }, { required: ['b'], properties: { b: { type: 'integer' } } }] })).toEqual({ a: '', b: 0 })
+    expect(template({ type: 'array', minItems: 2, items: { type: 'string' } })).toEqual(['', ''])
+    expect(template({ type: 'array', items: [{ type: 'string' }] })).toEqual([])
   })
 
   it('the interactive form: reject with findings, an artifact answer through the example loop, a form without reading', async () => {
@@ -202,6 +205,16 @@ describe('persimmon CLI', () => {
     expect(asks[0]!.prompt).toContain('for example:\nverdict: approve') // the example, not the schema
     expect(err.filter((l) => l.startsWith('not YAML') || l.startsWith('Report:'))).toHaveLength(2)
     expect(out.join('\n')).toContain('inputs:') // no reading: the references are shown instead
+    // an artifact the adapter could not fetch is shown as unavailable and is not evidence
+    asks.length = 0
+    out = []
+    const gone = { kind: 'ReviewReport', ref: { ...prd[0]!.ref, kind: 'ReviewReport', id: 'r' }, error: 'not_found' }
+    c = await askForm({ cwd: dir, out: (l) => out.push(l), err: (l) => err.push(l), ask: scripted(['y', '']) }, { instructions: 'Approve?', reading: [...prd, gone], outputs: { result } }, 'tr')
+    expect(out.join('\n')).toContain('── ReviewReport r r1 ──\n(unavailable: not_found)')
+    expect((c.taskResult as { outputs: { result: { value: { evidence: unknown[] } } } }).outputs.result.value.evidence).toEqual([prd[0]!.ref])
+    // an older form (references only) still records the reviewed artifact as evidence
+    c = await askForm({ cwd: dir, out: (l) => out.push(l), err: (l) => err.push(l), ask: scripted(['y', '']) }, { instructions: 'Approve?', inputs: { prd: { kind: 'artifact', ref: prd[0]!.ref } }, outputs: { result } }, 'tr')
+    expect((c.taskResult as { outputs: { result: { value: { evidence: unknown[] } } } }).outputs.result.value.evidence).toEqual([prd[0]!.ref])
   })
 
   it('complete on an unknown TaskRun is not found', async () => {
