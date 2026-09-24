@@ -114,6 +114,19 @@ describe('task Handler', () => {
     expect(handler.reconcile(input(run, { type: 'TimerFired', dedupeKey: 'x', payload: { key: 'deadline', at: 'x' } }))).toEqual({ actions: [] })
   })
 
+  it('every Event after a terminal phase is a no-op', () => {
+    const done = { ...base(), status: { phase: 'Succeeded', attempts: [], outputs: {} } } as unknown as TaskRun
+    for (const ev of [{ type: 'AdapterFinished', dedupeKey: 'a', payload: { idempotencyKey: 'k', state: 'unknown' } }, { type: 'TimerFired', dedupeKey: 't', payload: { key: 'deadline', at: 'x' } }, { type: 'CancelRequested', dedupeKey: 'c' }] as const)
+      expect(handler.reconcile(input(done, ev as never))).toEqual({ actions: [] })
+  })
+
+  it('the deadline closes the running attempt as failed', () => {
+    let run = base()
+    run = apply(run, handler.reconcile(input(run, { type: 'Created', dedupeKey: 'created' })) as ReconcileResult)
+    const dead = handler.reconcile(input(run, { type: 'TimerFired', dedupeKey: 'd', payload: { key: 'deadline', at: run.spec.deadline } })) as ReconcileResult
+    expect(clean(dead.statusPatch).attempts).toMatchObject([{ index: 1, state: 'failed', error: { code: 'timeout' } }])
+  })
+
   it('an unstaged or mistyped result is schema_violation and is not retried', () => {
     let run = base()
     run = apply(run, handler.reconcile(input(run, { type: 'Created', dedupeKey: 'created' })) as ReconcileResult)

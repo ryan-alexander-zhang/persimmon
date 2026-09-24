@@ -3,7 +3,7 @@ import type { AdapterRegistry } from '../adapter/registry.js'
 import { canonicalBytes, digestOf } from '../snapshot/canonical.js'
 import type { Bound } from '../handler/registry.js'
 import type { ReconcileResult } from '../handler/types.js'
-import { audit, createResource, type Engine as WriteEngine, WriteError } from '../handler/write.js'
+import { audit, type CreateOptions, type Engine as WriteEngine, prepareCreate, storeCreate, WriteError } from '../handler/write.js'
 import { engineActor, makeEvent, reservedPrefixes, type Subject } from '../outbox/event.js'
 import type { Actor, ObjectRef, Resource, RevisionRef } from '../resource/types.js'
 import type { Store } from '../store/store.js'
@@ -43,20 +43,14 @@ export async function commit(engine: Engine, c: Commit): Promise<Resource> {
 
   const patched = applyStatusPatch(c.resource, c.result.statusPatch, kinds)
 
-  // Actions that need the async write path run before the transaction opens; each is itself transactional.
-  const creates = new Map<Action, Resource>()
+  // Validation of created Resources may ask an Adapter Handler, so it runs before the transaction; the store part runs inside.
+  const creates: { prepared: Resource; options: CreateOptions }[] = []
   for (const a of c.result.actions) {
     if (a.type !== 'createResource') continue
-    const { resource } = await createResource(engine, a.resource, {
-      actor: handlerActor,
-      owner: c.resource,
-      owned: a.owned ?? true,
-      ...(a.snapshot ? { snapshot: a.snapshot } : {}),
-      causationChain: c.causationChain,
-      producer,
-      ordinal: ordinal++,
+    creates.push({
+      prepared: await prepareCreate(engine, a.resource),
+      options: { actor: handlerActor, owner: c.resource, owned: a.owned ?? true, ...(a.snapshot ? { snapshot: a.snapshot } : {}), causationChain: c.causationChain, producer, ordinal: ordinal++ },
     })
-    creates.set(a, resource)
   }
 
   return store.transaction(() => {
@@ -66,10 +60,11 @@ export async function commit(engine: Engine, c: Commit): Promise<Resource> {
       store.audit.append(audit(stored, handlerActor, time, 'status'))
     }
 
+    for (const { prepared, options } of creates) storeCreate(engine, prepared, options)
     for (const a of c.result.actions) {
       switch (a.type) {
         case 'createResource':
-          break // done above
+          break // stored above, in this transaction
         case 'cancelResource': {
           const child = store.resources.get({ kind: a.ref.kind, namespace: a.ref.namespace, name: a.ref.name })
           if (!child) throw new CommitError(`cancelResource: ${a.ref.kind} ${a.ref.name} not found`)

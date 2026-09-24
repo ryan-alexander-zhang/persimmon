@@ -118,7 +118,13 @@ export class Engine {
     this.#started = true
     for (const kd of this.store.resources.list('KindDefinition')) if (!this.kinds.lookup(`${(kd.spec as { group: string }).group}/v1`, (kd.spec as { names: { kind: string } }).names.kind)) this.kinds.register(kd)
     for (const h of this.store.resources.list('Handler')) if (!this.handlers.lookup(`${(h.spec as { kinds: { group: string; kind: string }[] }).kinds[0]!.group}/v1`, (h.spec as { kinds: { kind: string }[] }).kinds[0]!.kind)) this.handlers.register(h)
-    for (const a of this.store.resources.list('Adapter')) this.adapters.register(a as unknown as Adapter)
+    for (const a of this.store.resources.list('Adapter')) {
+      const adapter = a as unknown as Adapter
+      this.adapters.register(adapter)
+      // adapter tokens are stored hashed, so a fresh process reissues them (07-adapter.md: expires on re-apply)
+      this.store.tokens.revoke({ kind: 'adapter', id: adapter.spec.id })
+      this.adapters.setToken(adapter.spec.id, this.store.tokens.issue({ kind: 'adapter', id: adapter.spec.id }))
+    }
     recoverCalls(this.dispatch)
   }
 
@@ -131,9 +137,19 @@ export class Engine {
 
   /** API write as the local Actor (00-resource.md write order). Adapters are described on apply. */
   async apply(input: Resource, actor: Actor = localActor): Promise<{ resource: Resource; created: boolean }> {
-    if (input.kind === 'KindDefinition') this.kinds.register(input, { replace: true })
+    if (input.kind === 'KindDefinition') {
+      const stagedKd = this.kinds.register(input, { replace: true, dryRun: true }) // validates without touching the registry
+      const out = await this.#upsert(stagedKd as unknown as Resource, actor)
+      this.kinds.register(out.resource, { replace: true })
+      return out
+    }
     if (input.kind === 'Adapter') {
-      const described = await describeAdapter(validateAdapter(input), this.credentials, this.dispatch.now, { cwd: this.cwd })
+      const spec = validateAdapter(input)
+      // adapter token: issued at apply, revoked on re-apply (07-adapter.md Token table)
+      this.store.tokens.revoke({ kind: 'adapter', id: spec.spec.id })
+      const adapterToken = this.store.tokens.issue({ kind: 'adapter', id: spec.spec.id })
+      this.adapters.setToken(spec.spec.id, adapterToken)
+      const described = await describeAdapter(spec, this.credentials, this.dispatch.now, { cwd: this.cwd, adapterToken })
       const { status: _s, ...bare } = described
       const out = await this.#upsert(bare as unknown as Resource, actor)
       const stored = this.store.resources.put({ ...out.resource, status: described.status as Record<string, unknown> })
@@ -141,7 +157,7 @@ export class Engine {
       return { resource: stored, created: out.created }
     }
     const out = await this.#upsert(input, actor)
-    if (input.kind === 'Handler') this.handlers.register(out.resource)
+    if (input.kind === 'Handler') this.handlers.register(out.resource, { replace: true })
     return out
   }
 

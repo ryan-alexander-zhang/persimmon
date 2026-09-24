@@ -128,6 +128,37 @@ describe('dispatcher', () => {
     expect(store.resources.getByUid(r2.metadata.uid!)?.status?.phase).toBe('Failed')
   })
 
+  it('a lost lease refuses the commit and the Event is redelivered', async () => {
+    let calls = 0
+    impl.reconcile = () => {
+      calls++
+      store.leases.release(r.metadata.uid!, 'test') // someone else took it while we were reconciling
+      store.leases.acquire(r.metadata.uid!, 'intruder', 60_000)
+      return { statusPatch: { phase: 'Running' }, actions: [] }
+    }
+    const r = startRun()
+    const entry = store.runLog.listOpen()[0]!
+    expect(await reconcileOnce(engine, r.metadata.uid!, entry.entry)).toBe('failed')
+    expect(errors).toEqual(['Created: lease lost'])
+    expect(store.resources.getByUid(r.metadata.uid!)?.status).toBeUndefined()
+    expect(store.runLog.listOpen()).toHaveLength(1)
+    expect(calls).toBe(1)
+  })
+
+  it('a ChildFinished on a stalled Resource clears stalled', async () => {
+    impl.reconcile = () => {
+      throw new Error('boom')
+    }
+    const r = startRun()
+    await drain(engine)
+    expect(store.resources.getByUid(r.metadata.uid!)?.metadata.stalled).toBeDefined()
+    impl.reconcile = () => ({ statusPatch: { phase: 'Running' }, actions: [] })
+    appendEvent(engine, r.metadata.uid!, { type: 'ChildFinished', dedupeKey: 'child/x', payload: { ref: { apiVersion: 'persimmon.ai/v1', kind: 'TaskRun', namespace: 'demo', name: 'c', uid: 'x' }, value: 'Succeeded' } })
+    expect(store.resources.getByUid(r.metadata.uid!)?.metadata.stalled).toBeUndefined()
+    await drain(engine)
+    expect(store.runLog.listOpen()).toEqual([])
+  })
+
   it('a deleted Resource acks its open Events; a leased Resource is skipped', async () => {
     const r = startRun()
     store.leases.acquire(r.metadata.uid!, 'someone-else', 60_000)

@@ -1,10 +1,10 @@
 // cli-human/v1: persimmon.adapter/v1 stdio Adapter for human Executors in local mode (19-adapter-roles.md).
 // execute drops the request in .persimmon/inbox/<taskRun>.yaml and answers HumanAck; the human finishes with
 // `persimmon complete <taskRun> --file <result.yaml>`. ponytail: no TTY prompt yet; file drop covers both cases.
-import { mkdirSync, writeFileSync, existsSync, unlinkSync } from 'node:fs'
+import { mkdirSync, writeFileSync, existsSync, unlinkSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
-import { stringify } from 'yaml'
+import { parse, stringify } from 'yaml'
 
 const inbox = process.env.PERSIMMON_INBOX ?? join(process.cwd(), '.persimmon', 'inbox')
 const out = (o) => process.stdout.write(JSON.stringify(o) + '\n')
@@ -28,6 +28,7 @@ createInterface({ input: process.stdin }).once('line', (line) => {
       const file = join(inbox, `${name}.yaml`)
       const form = {
         taskRun: payload.taskRun.ref,
+        logicalExecutionId: payload.taskRun.logicalExecutionId,
         instructions: payload.task.instructions,
         inputs: payload.inputs,
         context: payload.context,
@@ -42,8 +43,12 @@ createInterface({ input: process.stdin }).once('line', (line) => {
       return out({ id, ok: true, result: { accepted: true } })
     }
     case 'cancel': {
-      const file = join(inbox, `${payload.logicalExecutionId.split('/').pop()}.yaml`)
-      if (existsSync(file)) unlinkSync(file)
+      // the cancel payload names the attempt, not the TaskRun: find the form that carries this logicalExecutionId
+      if (existsSync(inbox))
+        for (const f of readdirSync(inbox)) {
+          const file = join(inbox, f)
+          if (parse(readFileSync(file, 'utf8'))?.logicalExecutionId === payload.logicalExecutionId) unlinkSync(file)
+        }
       return out({ id, ok: true, result: { state: 'cancelled' } })
     }
     case 'query':

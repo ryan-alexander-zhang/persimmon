@@ -24,6 +24,10 @@ export async function create(cli: Cli, file: string, o: { follow?: boolean; poll
         cli.out(`${r!.kind}/${r!.metadata.name} ${v}`)
         return v === 'Succeeded' ? 0 : 1
       }
+      if (r?.metadata.stalled) {
+        cli.err(`${r.kind}/${r.metadata.name} stalled after ${r.metadata.stalled.attempts} attempts: ${r.metadata.stalled.lastError ?? ''}`)
+        return 1
+      }
       await new Promise((res) => setTimeout(res, o.pollMs ?? 500)) // ponytail: poll; wake on the next timer or call when it matters
       await engine.drain()
     }

@@ -34,8 +34,9 @@ export class KindRegistry {
   readonly #kinds = new Map<string, Compiled>()
 
   /** Registers a KindDefinition; `replace` re-registers a SpecMutable one (apply again). */
-  register(value: unknown, o: { replace?: boolean } = {}): KindDefinition {
+  register(value: unknown, o: { replace?: boolean; dryRun?: boolean } = {}): KindDefinition {
     const definition = validateKindDefinition(value)
+    const staged = new Map<string, Compiled>()
     for (const version of definition.spec.versions) {
       const key = `${definition.spec.group}/${version.name}/${definition.spec.names.kind}`
       const existing = this.#kinds.get(key)
@@ -44,8 +45,9 @@ export class KindRegistry {
       if (existing?.definition.spec.revisioned && !isDeepStrictEqual(existing.definition.spec, definition.spec)) throw new KindError(`${key} is revisioned; its KindDefinition never changes`)
       const compiled: Compiled = { definition, version, spec: this.#ajv.compile(version.schema) }
       if (version.statusSchema) compiled.status = this.#ajv.compile(version.statusSchema)
-      this.#kinds.set(key, compiled)
+      staged.set(key, compiled)
     }
+    if (!o.dryRun) for (const [key, compiled] of staged) this.#kinds.set(key, compiled)
     return definition
   }
 

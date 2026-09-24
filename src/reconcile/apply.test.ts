@@ -115,6 +115,14 @@ describe('commit', () => {
     expect(store.audit.read(rev.metadata.uid!)[0]?.change).toBe('create')
   })
 
+  it('reaching a terminal value abandons every open Publication scope', async () => {
+    const uid = child.metadata.uid!
+    const rev = fresh(example('revisioned-instance'))
+    store.resources.stage({ ...rev, status: { contentDigest: 'sha256:' + 'c'.repeat(64), representations: [] } }, { uid, key: 'attempt/9' })
+    await commit(engine, commitOf(child, { type: 'Created', sequence: 1, dedupeKey: 'created' }, { statusPatch: { phase: 'Cancelled' }, actions: [] }))
+    expect(store.resources.staged(uid)).toMatchObject([{ scope: 'attempt/9', state: 'abandoned' }])
+  })
+
   it('refuses reserved emitEvent types and invalid content; nothing is acked', async () => {
     const ev: Event = { type: 'Created', sequence: 1, dedupeKey: 'created' }
     await expect(commit(engine, commitOf(child, ev, { actions: [{ type: 'emitEvent', eventType: 'resource.custom', payload: {} }] }))).rejects.toThrow(CommitError)

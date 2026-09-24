@@ -6,7 +6,7 @@ import type { Action, AdapterFinishedPayload, ReconcileError, PublishRequest } f
 import type { Resource, RevisionRef } from '../../resource/types.js'
 import type { Closure } from '../../snapshot/walk.js'
 import { fromClosure, type HandlerDeps } from '../deps.js'
-import { checkInputs, checkOutputs, expandSchema, PortError } from '../ports/ports.js'
+import { checkInputs, checkOutputs, PortError } from '../ports/ports.js'
 import type { RuntimeValues } from '../ports/types.js'
 import { ContextError, resolveContext } from './context.js'
 import { backoffMs, shouldRetry } from './retry.js'
@@ -66,10 +66,12 @@ export function taskHandler(deps: HandlerDeps): HandlerImpl {
       const lei = run.spec.address.logicalExecutionId
       const attempts = status.attempts ?? []
       const current = attempts.at(-1)
-      // merge patch: null clears a field (03-reconcile.md)
+      // statusPatch is a merge patch: `waitingReason: null` clears the field (03-reconcile.md)
       const patch = (p: Record<string, unknown>) => p
+      const closeAttempts = (error: ReconcileError): Attempt[] =>
+        attempts.map((a, i) => (i === attempts.length - 1 && (a.state === 'running' || a.state === 'unknown') ? { ...a, state: 'failed', finishedAt: rfc3339(now), error } : a))
       const fail = (error: ReconcileError, extra: Action[] = []): ReconcileResult => ({
-        statusPatch: patch({ phase: 'Failed', error, waitingReason: null }),
+        statusPatch: patch({ phase: 'Failed', error, attempts: closeAttempts(error), waitingReason: null }),
         actions: [...extra, { type: 'clearTimer', key: 'attempt' }, { type: 'clearTimer', key: 'deadline' }],
       })
 
@@ -105,7 +107,6 @@ export function taskHandler(deps: HandlerDeps): HandlerImpl {
             phase: human ? 'Waiting' : 'Running',
             ...(human ? { waitingReason: 'human' } : { waitingReason: null }),
             attempts: [...attempts, attempt],
-            ...(index === 1 ? { } : {}),
           }),
           actions: [
             {
@@ -257,4 +258,3 @@ function ref(r: { apiVersion: string; kind: string; metadata: { namespace?: stri
 
 const sameRef = (a: RevisionRef, b: RevisionRef) => a.kind === b.kind && a.namespace === b.namespace && a.id === b.id && a.revision === b.revision
 
-export { expandSchema }

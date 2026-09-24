@@ -23,6 +23,8 @@ export interface Engine {
   store: Store
   kinds: KindRegistry
   handlers: HandlerRegistry
+  /** Needed for Adapter-implemented Handlers' validate; absent in the checker. */
+  adapters?: { call(id: string, op: string, payload: Record<string, unknown>): Promise<{ state: string; result?: Record<string, unknown> }> }
   resolver: Resolver
   defaultNamespace: string
   now: () => Date
@@ -43,17 +45,37 @@ export interface CreateOptions {
 
 /** Stores a new Resource, or returns the existing one when its spec is equal (idempotent createResource). */
 export async function createResource(engine: Engine, input: unknown, o: CreateOptions): Promise<{ resource: Resource; created: boolean }> {
-  const { store, kinds, handlers } = engine
+  const prepared = await prepareCreate(engine, input)
+  return engine.store.transaction(() => storeCreate(engine, prepared, o))
+}
+
+/** Stages before the store: envelope, kind schema, Handler validate. Async because an Adapter Handler answers over the wire. */
+export async function prepareCreate(engine: Engine, input: unknown): Promise<Resource> {
+  const { kinds, handlers, adapters } = engine
   const resource = validateEnvelope(input)
   if (resource.status !== undefined) throw new WriteError(`${resource.kind} ${resource.metadata.name}: status is Handler-written`)
   const kd = kinds.get(resource.apiVersion, resource.kind).definition
   if (kd.spec.scope !== 'Global' && !resource.metadata.namespace) resource.metadata.namespace = engine.defaultNamespace
   kinds.validateResource(resource)
 
-  const findings = await handlers.lookup(resource.apiVersion, resource.kind)?.impl?.validate(resource).findings
-  const errors = (findings ?? []).filter((f) => f.severity === 'error')
+  const bound = handlers.lookup(resource.apiVersion, resource.kind)
+  let findings: Finding[] = []
+  if (bound?.impl) findings = bound.impl.validate(resource).findings
+  else if (bound && adapters && 'adapter' in bound.handler.spec.implementation) {
+    const out = await adapters.call(bound.handler.spec.implementation.adapter.id, 'validate', { resource })
+    if (out.state !== 'succeeded') throw new WriteError(`${resource.kind} ${resource.metadata.name}: Handler validate ${out.state}`)
+    findings = (out.result as { findings?: Finding[] }).findings ?? []
+  }
+  const errors = findings.filter((f) => f.severity === 'error')
   if (errors.length) throw new WriteError(`${resource.kind} ${resource.metadata.name}: ${errors.map((f) => f.message).join('; ')}`, findings)
+  return resource
+}
 
+/** The store part; runs inside the caller's transaction. */
+export function storeCreate(engine: Engine, prepared: Resource, o: CreateOptions): { resource: Resource; created: boolean } {
+  const { store, kinds } = engine
+  const resource = structuredClone(prepared)
+  const kd = kinds.get(resource.apiVersion, resource.kind).definition
   const key = { kind: resource.kind, namespace: resource.metadata.namespace, name: resource.metadata.name }
   const existing = store.resources.get(key)
   if (existing) {
@@ -61,7 +83,7 @@ export async function createResource(engine: Engine, input: unknown, o: CreateOp
     throw new WriteError(`${resource.kind} ${resource.metadata.name} exists with a different spec`)
   }
 
-  return store.transaction(() => {
+  {
     if (o.owned && o.owner) {
       const ow = o.owner
       resource.metadata.ownerReferences = [
@@ -89,7 +111,7 @@ export async function createResource(engine: Engine, input: unknown, o: CreateOp
         }),
       )
     return { resource: stored, created: true }
-  })
+  }
 }
 
 function snapshotFor(engine: Engine, resource: Resource, snapshotOnCreate: boolean, o: CreateOptions): Snapshot | undefined {

@@ -43,6 +43,7 @@ export const isReady = (a: Adapter): boolean => a.status?.conditions?.some((c) =
 /** Ready Adapters by id; the engine's view for `x-persimmon-adapter` checks and callAdapter. */
 export class AdapterRegistry {
   readonly #adapters = new Map<string, Adapter>()
+  readonly #tokens = new Map<string, string>()
   readonly #credentials: CredentialStore
   readonly #cwd: string | undefined
 
@@ -53,6 +54,11 @@ export class AdapterRegistry {
 
   register(adapter: Adapter): void {
     this.#adapters.set(adapter.spec.id, adapter)
+  }
+
+  /** The long-lived adapter token handed to every call (PERSIMMON_ADAPTER_TOKEN); it authorizes `signal` and `putBlob`. */
+  setToken(id: string, token: string): void {
+    this.#tokens.set(id, token)
   }
 
   get(id: string): Adapter | undefined {
@@ -70,6 +76,7 @@ export class AdapterRegistry {
 
   /** A Role op; the engine sets `payload.engine` before calling (07-adapter.md). */
   call(id: string, op: string, payload: Record<string, unknown>, o: CallOptions = {}): Promise<CallOutcome> {
-    return call(this.require(id).spec, op, payload, this.#credentials, { ...(this.#cwd ? { cwd: this.#cwd } : {}), ...o })
+    const token = this.#tokens.get(id)
+    return call(this.require(id).spec, op, payload, this.#credentials, { ...(this.#cwd ? { cwd: this.#cwd } : {}), ...(token ? { adapterToken: token } : {}), ...o })
   }
 }

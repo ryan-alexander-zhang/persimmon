@@ -1,4 +1,7 @@
 // Static checker (02-handler.md write path): schema plus the Handler's validate, without storing.
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { parseConfig } from '../config.js'
 import { Engine } from '../engine.js'
 import { validateEnvelope } from '../resource/envelope.js'
@@ -13,7 +16,7 @@ export interface Checked {
 
 /** Checks a batch together: every document is applied to a throwaway in-memory Engine, so files may reference each other. */
 export async function checkBatch(docs: unknown[], base?: Engine): Promise<Checked[]> {
-  const engine = new Engine({ config: parseConfig({}), storePath: ':memory:', blobs: memoryBlobs(), cwd: '/tmp/persimmon-check' })
+  const engine = new Engine({ config: parseConfig({}), storePath: ':memory:', blobs: memoryBlobs(), cwd: mkdtempSync(join(tmpdir(), 'persimmon-check-')) })
   try {
     await engine.start()
     if (base) for (const kind of ['KindDefinition', 'Handler', 'Adapter']) for (const r of base.store.resources.list(kind)) copy(engine, r)

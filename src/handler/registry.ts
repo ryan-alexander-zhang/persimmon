@@ -25,7 +25,7 @@ export class HandlerRegistry {
     this.#builtins = builtins
   }
 
-  register(value: unknown): Handler {
+  register(value: unknown, o: { replace?: boolean } = {}): Handler {
     const handler = validateHandler(value)
     const impl = 'builtin' in handler.spec.implementation ? this.#builtins.get(handler.spec.implementation.builtin) : undefined
     if ('builtin' in handler.spec.implementation && !impl)
@@ -33,7 +33,7 @@ export class HandlerRegistry {
     const keys = handler.spec.kinds.flatMap((k) => k.versions.map((v) => `${k.group}/${v}/${k.kind}`))
     for (const key of keys) {
       const other = this.#bound.get(key)
-      if (other) throw new HandlerError(`${key} already handled by ${other.handler.metadata.name}`)
+      if (other && !(o.replace && other.handler.metadata.name === handler.metadata.name)) throw new HandlerError(`${key} already handled by ${other.handler.metadata.name}`)
     }
     const bound: Bound = impl ? { handler, impl } : { handler }
     for (const key of keys) this.#bound.set(key, bound)
