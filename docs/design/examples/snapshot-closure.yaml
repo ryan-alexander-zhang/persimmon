@@ -52,7 +52,7 @@ resources:
   - apiVersion: persimmon.ai/v1
     kind: KindDefinition
     metadata: {name: workflows.persimmon.ai}
-    spec: {group: persimmon.ai, names: {kind: Workflow, plural: workflows}, scope: Any, versions: [{name: v1, schema: {type: object}}], mutability: SpecMutable, snapshot: Definition}
+    spec: {group: persimmon.ai, names: {kind: Workflow, plural: workflows}, scope: Any, versions: [{name: v1, schema: {type: object}}], mutability: SpecMutable, snapshot: Definition, handlerRef: {name: workflow}, stepContract: {inputsPath: spec.inputs, outputsPath: spec.outputs, runKind: {group: persimmon.ai, kind: WorkflowRun}, phasePath: status.phase, outputsValuePath: status.outputs, errorPath: status.error}}
   - apiVersion: persimmon.ai/v1
     kind: Prompt
     metadata: {name: write-prd-template, namespace: demo}
