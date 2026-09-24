@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto'
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { execFileSync } from 'node:child_process'
+import { existsSync, readFileSync } from 'node:fs'
+import { basename, resolve } from 'node:path'
 import { parse } from 'yaml'
 import type { Engine } from '../engine.js'
 import { readPath } from '../reconcile/merge-patch.js'
@@ -49,6 +50,7 @@ async function store(cli: Cli, doc: Resource, o: FollowOptions): Promise<number>
   const engine = await openEngine(cli)
   try {
     placeDoc(engine, doc, o)
+    if (doc.kind === 'WorkflowRun') pathInputs(engine, cli.cwd, doc)
     const { resource, created } = await engine.create(doc)
     cli.out(`${created ? 'created' : 'exists'} ${resource.kind}/${resource.metadata.name}`)
     await engine.drain()
@@ -117,3 +119,24 @@ export function describe(r: Resource): string {
   if (r.metadata.stalled) parts.push(`stalled after ${r.metadata.stalled.attempts} attempts`)
   return parts.filter(Boolean).join(' ')
 }
+
+/** `--input repository=.`: a plain path on an externalResource port becomes a git repository ref, pinned to HEAD when it is a checkout. */
+function pathInputs(engine: Engine, cwd: string, doc: Resource): void {
+  const spec = doc.spec as { workflowRef: { name: string }; inputs: Record<string, { kind: string; value?: unknown }> }
+  const ns = doc.metadata.namespace
+  const wf = (ns ? engine.store.resources.get({ kind: 'Workflow', namespace: ns, name: spec.workflowRef.name }) : undefined) ?? engine.store.resources.get({ kind: 'Workflow', name: spec.workflowRef.name }) // the run's Namespace, then Global
+  const ports = (wf?.spec as { inputs?: Record<string, { type: { kind: string } }> } | undefined)?.inputs ?? {}
+  for (const [port, v] of Object.entries(spec.inputs)) {
+    if (ports[port]?.type.kind !== 'externalResource' || v.kind !== 'value' || typeof v.value !== 'string') continue
+    const path = resolve(cwd, v.value)
+    if (!existsSync(path)) throw new Error(`--input ${port}=${v.value}: no such path`)
+    let version = 'worktree'
+    try {
+      version = execFileSync('git', ['-C', path, 'rev-parse', 'HEAD'], { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()
+    } catch {
+      /* not a git checkout: the ref still names the directory */
+    }
+    spec.inputs[port] = { kind: 'externalResource', ref: { provider: 'git', type: 'repository', id: basename(path), locator: { path }, version } } as never
+  }
+}
+

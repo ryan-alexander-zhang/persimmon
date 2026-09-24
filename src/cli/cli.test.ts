@@ -147,6 +147,13 @@ describe('persimmon CLI', () => {
     const shown = parse(out.join('\n'))
     expect(shown.spec).toMatchObject({ workflowRef: { kind: 'Workflow', name: 'prd-create' }, inputs: { repository: { kind: 'externalResource', ref: repo } }, timeout: '2h', origin: { kind: 'manual' } })
     expect(shown.metadata.namespace).toBe('default')
+    // a bare path on an externalResource port becomes a repository ref pinned to HEAD
+    out = []
+    expect(await run('run', 'prd-create', '--input', `repository=${process.cwd()}`)).toBe(0)
+    const name2 = out[0]!.split('/')[1]!
+    out = []
+    expect(await run('get', `WorkflowRun/${name2}`)).toBe(0)
+    expect(parse(out.join('\n')).spec.inputs.repository).toMatchObject({ kind: 'externalResource', ref: { provider: 'git', type: 'repository', id: 'persimmon', locator: { path: process.cwd() }, version: expect.stringMatching(/^[0-9a-f]{40}$/) } })
     expect(parseInput('n=12')).toEqual(['n', { kind: 'value', value: 12 }])
     expect(parseInput('s=hello world')).toEqual(['s', { kind: 'value', value: 'hello world' }])
     expect(parseInput('a={kind: artifact, ref: {id: x}}')).toEqual(['a', { kind: 'artifact', ref: { id: 'x' } }])

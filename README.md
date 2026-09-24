@@ -71,7 +71,7 @@ external webhooks. See `docs/design/91-roadmap.md`.
 npm install && npm run build
 alias persimmon="node $PWD/dist/main.js"
 cd <your project> && persimmon init             # .persimmon/, persimmon.yaml, shipped Adapters, the SDLC pack
-persimmon run <Workflow> --input k=v --follow    # a manual WorkflowRun; prints every run's phase until terminal
+persimmon run <Workflow> --input k=v --follow    # a manual WorkflowRun; a path fills a repository port; prints every run's phase
 persimmon get WorkflowRun                        # phases, waiting reasons, errors
 persimmon complete <taskRun>                     # answer a human Task at the terminal; --file result.yaml to script it
 persimmon resume                                 # drive waiting work after a Signal or a timer
@@ -99,11 +99,7 @@ spec:
 EOF
 persimmon apply executor.yaml -n default          # init already armed the pack's Trigger in this Namespace
 
-cat > repo.yaml <<'EOF'
-kind: externalResource
-ref: {provider: git, type: repository, id: my-repo, locator: {path: .}, version: main}
-EOF
-persimmon run prd-create --input repository=@repo.yaml --follow
+persimmon run prd-create --input repository=. --follow   # a path on a repository port becomes a ref pinned to HEAD
 # research and write-prd run on the agent; a ProductRequirement is published; the Trigger starts prd-approval
 persimmon resume                                 # security-review and product-review run; the Gate waits for you
 persimmon get TaskRun                            # ... Waiting human (.persimmon/inbox/<taskRun>.yaml)
