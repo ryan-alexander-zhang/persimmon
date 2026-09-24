@@ -141,6 +141,10 @@ imports into a server unchanged.
   one lookup per name per process, exit 44 (not found) and a missing binary mean absent, any
   other failure (locked keychain) is an error. `secretManager` resolves nothing
   until server mode. Found in implementation.
+- Local mode has one live engine per project: `listen` takes `.persimmon/engine.lock` (pid, stale
+  when the process is gone) and a second write verb fails with the holder's pid. Read verbs
+  (`get`, `describe`, `logs`, `validate`) open the store without the socket, without call
+  recovery and without a drain, so they are safe beside a running `--follow`. Found in UAT.
 - `persimmon run` is sugar over `create`: it writes the WorkflowRun the user would have written,
   nothing more; `--follow` reports owned runs by walking `ownerReferences`. Found in
   implementation.
