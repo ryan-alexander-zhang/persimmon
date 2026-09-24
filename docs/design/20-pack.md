@@ -73,6 +73,9 @@ Credentials the pack Executors bind are Global names resolved at run time.
 - Local mode human Executor: `cli-human/v1`, terminal prompt when a TTY is attached, file drop
   in `.persimmon/inbox/<taskRun>.yaml` completed by `persimmon complete <taskRun> --file`
   otherwise; `review-ui/v1` is server mode.
+- Override port compatibility is checked by the Handler `validate` of Task, Gate, Validator and
+  Workflow against the Global definition of the same name: same port names and types, no
+  input turned optional; code `override_incompatible`. Found in implementation.
 - Override must be port-compatible, so a run never breaks at snapshot time on a definition
   it did not name.
 - `cli-human/v1` v1 is the file drop only; the TTY prompt is roadmap. The pack Gate uses `policy:

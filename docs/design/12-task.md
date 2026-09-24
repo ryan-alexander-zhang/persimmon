@@ -96,6 +96,9 @@ Anything else fails the attempt with `schema_violation`.
 - No `action.kind` and no `resultProtocol` field. Reference decision 25 removed the first;
   the second was a constant.
 - `timeout` is per attempt; the enclosing deadline bounds the TaskRun.
+- The static checker rules run inside the `task` Handler's `validate`, reading the Executor and
+  the Adapter `describe` live; an unreachable Adapter skips them, the Executor reports it. Found
+  in implementation.
 - `permission_denied`, `invalid_input`, `schema_violation` are hard non-retryable, not only
   barred from `retryOn`.
 - Resolved `skill` entry carries `format`; `19-adapter-roles.md` publishes that shape.
