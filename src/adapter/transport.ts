@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { createInterface } from 'node:readline'
+import { envName } from '../store/credentials.js'
 import type { CredentialStore } from '../store/store.js'
 import type { AdapterSpec, CallOptions, CallOutcome, Request, Response, StreamLine } from './types.js'
 
@@ -20,11 +21,14 @@ export async function call(
 
 function stdio(spec: AdapterSpec, request: Request, credentials: CredentialStore, o: CallOptions): Promise<CallOutcome> {
   const [cmd, ...args] = spec.command as [string, ...string[]]
-  const env: Record<string, string> = { ...(process.env as Record<string, string>), ...spec.env }
+  // Only what the process needs: never the engine's PERSIMMON_CRED_* secrets (07-adapter.md Rules)
+  const env: Record<string, string> = {}
+  for (const k of ['PATH', 'HOME', 'TMPDIR', 'LANG', 'NODE_PATH', 'NODE_OPTIONS']) if (process.env[k]) env[k] = process.env[k] as string
+  Object.assign(env, spec.env)
   for (const name of spec.credentialBindings ?? []) {
     const v = credentials.resolve(name)
     if (v === undefined) throw new TransportError(`${spec.id}: credential ${name} not found`)
-    env[name.toUpperCase().replaceAll('-', '_')] = v
+    env[envName('', name)] = v
   }
   if (o.adapterToken) env.PERSIMMON_ADAPTER_TOKEN = o.adapterToken
 
@@ -53,6 +57,7 @@ function stdio(spec: AdapterSpec, request: Request, credentials: CredentialStore
       if (msg.id !== request.id) return done({ state: 'unknown', reason: `response id ${msg.id} != ${request.id}` })
       done(outcomeOf(msg))
     })
+    child.stdin.on('error', () => undefined) // a child that exits before reading raises EPIPE; 'exit' reports it
     child.stdin.end(JSON.stringify(request) + '\n')
   })
 }

@@ -23,8 +23,10 @@ export class FileBlobStore implements BlobStore {
   }
 
   get(uri: string): { bytes: Uint8Array; mediaType: string } | undefined {
-    const path = join(this.#dir, uri.replace(/^blob:\/\//, ''))
-    if (!existsSync(path)) return undefined
+    const hex = uri.replace(/^blob:\/\//, '')
+    if (!/^[0-9a-f]{64}$/.test(hex)) return undefined // never join caller text into the path
+    const path = join(this.#dir, hex)
+    if (!existsSync(path) || !existsSync(`${path}.type`)) return undefined
     return { bytes: readFileSync(path), mediaType: readFileSync(`${path}.type`, 'utf8') }
   }
 }

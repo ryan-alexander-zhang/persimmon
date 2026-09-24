@@ -51,17 +51,22 @@ export function callback(engine: CallbackEngine, token: string, name: string, ar
       return r
     }
     case 'list': {
-      const a = args as { kind: string; namespace?: string; labels?: Record<string, string> }
-      return store.resources.list(a.kind, a.namespace ?? ns, a.labels)
+      // confined to the caller's Namespace, then Global (07-adapter.md); a supplied namespace is ignored
+      const a = args as { kind: string; labels?: Record<string, string> }
+      const own = ns ? store.resources.list(a.kind, ns, a.labels) : []
+      return [...own, ...store.resources.list(a.kind, '', a.labels)]
     }
     case 'getArtifact': {
       const ref = args as unknown as RevisionRef
+      if (ns && ref.namespace !== ns) throw new CallbackError('forbidden', `${ref.kind} ${ref.id} is in another Namespace`)
       const r = store.resources.get({ kind: ref.kind, namespace: ref.namespace, name: `${ref.id}.r${ref.revision}` })
       if (!r) throw new CallbackError('not_found', `${ref.kind} ${ref.id} revision ${ref.revision}`)
       return r
     }
     case 'getBlob': {
-      const b = store.blobs.get(`blob://${(args.digest as string).slice(7)}`)
+      const digest = String(args.digest)
+      if (!/^sha256:[0-9a-f]{64}$/.test(digest)) throw new CallbackError('invalid_input', 'digest must be sha256:<64 hex>')
+      const b = store.blobs.get(`blob://${digest.slice(7)}`)
       if (!b) throw new CallbackError('not_found', `blob ${String(args.digest)}`)
       return { bytes: Buffer.from(b.bytes).toString('base64'), mediaType: b.mediaType }
     }

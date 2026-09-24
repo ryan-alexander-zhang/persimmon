@@ -61,6 +61,17 @@ describe('engine callbacks', () => {
     expect(() => callback(engine, t, 'getKindSchema', { apiVersion: 'x.io/v1', kind: 'Nope' })).toThrow(/not in the caller's snapshot/)
   })
 
+  it('confines list and getArtifact to the caller Namespace plus Global', () => {
+    const t = reconcileToken()
+    const other = { ...fresh(example('revisioned-instance')), metadata: { name: 'checkout-v2.r3', namespace: 'ops' } }
+    store.resources.put(other)
+    const own = store.resources.put(fresh(example('revisioned-instance')))
+    expect((callback(engine, t, 'list', { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement', namespace: 'ops' }) as Resource[]).map((r) => r.metadata.uid)).toEqual([own.metadata.uid])
+    expect(() => callback(engine, t, 'getArtifact', { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement', namespace: 'ops', id: 'checkout-v2', revision: 3 })).toThrow(/another Namespace/)
+    expect(() => callback(engine, t, 'getBlob', { digest: 'sha256:../../etc/passwd' })).toThrow(/64 hex/)
+    expect(store.blobs.get('blob://../x')).toBeUndefined()
+  })
+
   it('refuses unknown tokens and out-of-scope callbacks', () => {
     expect(() => callback(engine, 'nope', 'log', { text: 'x' })).toThrow(/unknown or expired/)
     expect(() => callback(engine, reconcileToken(), 'signal', {})).toThrow(/not allowed for a reconcile token/)
@@ -125,6 +136,7 @@ describe('engine callbacks', () => {
       expect(ok.status).toBe(200)
       expect((ok.body.result as Resource).metadata.name).toBe('research')
       expect((await post('/callbacks/getResource', 'bad', {})).status).toBe(401)
+      expect((await post('/callbacks/getResource', '', {})).status).toBe(401)
       expect((await post('/callbacks/signal', reconcileToken(), {})).status).toBe(403)
       expect((await post('/nope', reconcileToken(), {})).status).toBe(400)
     } finally {

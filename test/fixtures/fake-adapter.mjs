@@ -18,7 +18,7 @@ createInterface({ input: process.stdin }).once('line', (line) => {
       if (process.env.FAKE_MODE === 'publish') return publish(req)
       out({ id: req.id, event: 'log', text: 'working' })
       out({ id: req.id, event: 'waiting', reason: 'thinking' })
-      return out({ id: req.id, ok: true, result: { echo: req.payload, env: { token: process.env.PERSIMMON_ADAPTER_TOKEN ?? null, cred: process.env.ANTHROPIC_API_KEY ?? null } } })
+      return out({ id: req.id, ok: true, result: { echo: req.payload, env: { token: process.env.PERSIMMON_ADAPTER_TOKEN ?? null, cred: process.env.ANTHROPIC_API_KEY ?? null, leaked: process.env.PERSIMMON_CRED_LEAK_TEST ?? null } } })
     case 'fail':
       return out({ id: req.id, ok: false, error: { code: 'rate_limit', message: '429', retryable: true } })
     case 'hang':

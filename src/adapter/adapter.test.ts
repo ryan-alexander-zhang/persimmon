@@ -62,11 +62,12 @@ suite('stdio calls', () => {
   }
 
   it('streams log lines, then succeeds with credentials and token in the environment', async () => {
+    process.env.PERSIMMON_CRED_LEAK_TEST = 'must-not-reach-the-adapter'
     const reg = await ready()
     const lines: StreamLine[] = []
     const out = await reg.call('fake/v1', 'execute', { attempt: 1 }, { adapterToken: 'at-1', onStream: (l) => lines.push(l) })
     expect(lines.map((l) => l.event)).toEqual(['log', 'waiting'])
-    expect(out).toEqual({ state: 'succeeded', result: { echo: { attempt: 1 }, env: { token: 'at-1', cred: 'sk-test' } } })
+    expect(out).toEqual({ state: 'succeeded', result: { echo: { attempt: 1 }, env: { token: 'at-1', cred: 'sk-test', leaked: null } } })
   })
 
   it('maps ok:false to failed, a deadline to unknown, and bad output to unknown', async () => {

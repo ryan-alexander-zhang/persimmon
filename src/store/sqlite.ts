@@ -438,7 +438,7 @@ export class SqliteStore implements Store {
       const token = randomBytes(32).toString('hex')
       this.#db
         .prepare('insert into tokens (hash, scope, expires_at) values (?, ?, ?)')
-        .run(sha256(Buffer.from(token)), JSON.stringify(scope), expiresAt ?? null)
+        .run(sha256(Buffer.from(token)), scopeKey(scope), expiresAt ?? null)
       return token
     },
     verify: (token: string): Record<string, unknown> | undefined => {
@@ -450,7 +450,7 @@ export class SqliteStore implements Store {
       return JSON.parse(row.scope) as Record<string, unknown>
     },
     revoke: (scope: Record<string, unknown>): void => {
-      this.#db.prepare('delete from tokens where scope = ?').run(JSON.stringify(scope))
+      this.#db.prepare('delete from tokens where scope = ?').run(scopeKey(scope))
     },
   }
 
@@ -483,6 +483,9 @@ function entryOf(r: RunLogRow): RunLogEntry {
   if (r.result) entry.result = JSON.parse(r.result) as RunLogResult
   return entry
 }
+
+/** Sorted keys, so revoke matches issue whatever the object literal order. */
+const scopeKey = (scope: Record<string, unknown>): string => JSON.stringify(Object.fromEntries(Object.entries(scope).sort(([a], [b]) => a.localeCompare(b))))
 
 function revisionOf(r: Resource): number {
   return (r.spec as { identity: { revision: number } }).identity.revision
