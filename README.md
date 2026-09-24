@@ -83,7 +83,8 @@ reconcile errors. Tests: `npm test`; the end-to-end scenario is `test/scenario/p
 ## Walkthrough: the PRD loop
 
 The SDLC pack binds `claude-agent` to `claude-code/v1`. Pick a model and the sandbox in a
-Namespaced Executor override, then run the pack's two Workflows end to end.
+Namespaced Executor override, then run the pack's two Workflows end to end. `init` installed
+the pack and its Trigger `on-prd-published` in Namespace `default`.
 
 ```sh
 cat > executor.yaml <<'EOF'
@@ -96,8 +97,7 @@ spec:
   configuration: {model: sonnet, sandbox: read-only}
   security: {networkAccess: allowlist, allowedHosts: [api.anthropic.com]}
 EOF
-persimmon apply executor.yaml -n default
-persimmon apply <persimmon repo>/packs/sdlc/namespaced/on-prd-published.yaml -n default   # Trigger
+persimmon apply executor.yaml -n default          # init already armed the pack's Trigger in this Namespace
 
 cat > repo.yaml <<'EOF'
 kind: externalResource

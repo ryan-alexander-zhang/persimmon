@@ -19,13 +19,13 @@ WorkflowRun in demo ── snapshot walk resolves Namespace, then Global ──�
 | Path | Content |
 |---|---|
 | `global/NN-*.yaml` | Global definitions, multi-document files, applied in file-name order; the author orders dependencies |
-| `namespaced/*.yaml` | Namespaced kinds (Triggers), applied with `-n <namespace>` by the operator |
+| `namespaced/*.yaml` | Namespaced kinds (Triggers); `persimmon init` applies them in `defaultNamespace`, another Namespace applies them with `-n <namespace>` |
 
 ## Lifecycle
 
 | Action | Rule |
 |---|---|
-| install | `persimmon apply packs/sdlc/global/*.yaml`; needs the `admin` grant; local mode runs it at `persimmon init` |
+| install | `persimmon apply packs/sdlc/global/*.yaml --global` then `namespaced/*.yaml -n <namespace>`; needs the `admin` grant; local mode runs both at `persimmon init` |
 | upgrade | `apply` again; SpecMutable definitions change in place, running runs keep their snapshot |
 | Immutable members (artifact kinds, RelationTypes) | never change; a new version is a new name (`derived-from-v2`) |
 | uninstall | `persimmon delete` per file in reverse order; refused while referenced (`00-resource.md`) |
@@ -80,6 +80,8 @@ Credentials the pack Executors bind are Global names resolved at run time.
   in implementation.
 - Override must be port-compatible, so a run never breaks at snapshot time on a definition
   it did not name.
+- `persimmon init` also applies `namespaced/` into `defaultNamespace`: a user who ran `init` has a
+  working loop without a path into the persimmon checkout. Found in UAT.
 - `cli-human/v1` is the file drop; the terminal prompt is `persimmon complete <taskRun>` without
   `--file`, which reads the inbox form and asks one YAML answer per output port, validated
   against the port schema. A per-call Adapter process cannot own the terminal, so the prompt

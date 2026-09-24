@@ -45,7 +45,6 @@ describe('scenario: PRD lifecycle', () => {
   it('runs prd-create to Succeeded, fires the approval Trigger, and completes the human review from the inbox', { timeout: 60_000 }, async () => {
     expect(await run('init')).toBe(0)
     expect(await run('adapter', 'install', file('agent.yaml', fakeAgent))).toBe(0)
-    expect(await run('apply', 'packs/sdlc/namespaced/on-prd-published.yaml', '-n', 'default')).toBe(0)
 
     const wr = { apiVersion: 'persimmon.ai/v1', kind: 'WorkflowRun', metadata: { name: 'prd-001' }, spec: { workflowRef: { kind: 'Workflow', name: 'prd-create' }, inputs: { repository: { kind: 'externalResource', ref: repo } }, timeout: '1h', origin: { kind: 'manual' } } }
     out = []

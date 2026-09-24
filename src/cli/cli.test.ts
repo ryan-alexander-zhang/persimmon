@@ -35,6 +35,7 @@ describe('persimmon CLI', () => {
     expect(out[0]).toBe('wrote persimmon.yaml')
     expect(out.filter((l) => l.startsWith('created')).length).toBeGreaterThanOrEqual(14)
     expect(out.filter((l) => l.startsWith('warn'))).toEqual([]) // every pack Executor's Adapter ships
+    expect(out).toContain('created Trigger/on-prd-published') // the pack's Trigger listens in defaultNamespace
     out = []
     expect(await run('get', 'Workflow')).toBe(0)
     expect(out).toEqual(['Workflow/prd-approval', 'Workflow/prd-create']) // the pack is Global (20-pack.md)
