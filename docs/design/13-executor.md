@@ -64,6 +64,9 @@ the Adapter process; Executor-level ones are per-attempt secrets for the work.
 - `formRenderable` and the human completion contract are owned by `19-adapter-roles.md`.
 - No unified effort hint; each Adapter defines its own in `configurationSchema`. A
   cross-adapter hint is roadmap.
+- A credential that does not resolve at dispatch fails the attempt as AdapterFinished
+  `permission_denied`, not retryable; the engine never throws. Found in implementation.
+
 
 ## Examples
 
