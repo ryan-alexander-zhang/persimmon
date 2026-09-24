@@ -119,7 +119,8 @@ export function unwrap(values: RuntimeValues | undefined): Record<string, unknow
   return Object.fromEntries(Object.entries(values ?? {}).map(([k, v]) => [k, v.kind === 'value' ? v.value : v.ref]))
 }
 
-function celContext(s: Sources): Record<string, unknown> {
+/** CEL context of a site's Sources (10-ports.md expression profile). */
+export function celContext(s: Sources): Record<string, unknown> {
   const ctx: Record<string, unknown> = {}
   if (s.inputs) ctx.inputs = unwrap(s.inputs)
   if (s.steps) ctx.steps = Object.fromEntries(Object.entries(s.steps).map(([id, st]) => [id, { phase: st.phase, outputs: unwrap(st.outputs), ...(st.error ? { error: st.error } : {}) }]))
