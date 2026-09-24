@@ -27,7 +27,7 @@ beforeAll(async () => {
     process.stdin.on('data', (c) => (p += c)).on('end', () => {
       fs.writeFileSync(process.env.STUB_OUT + '/claude.json', JSON.stringify({ args: process.argv.slice(2), prompt: p, env: { GITHUB_TOKEN: process.env.GITHUB_TOKEN ?? null, token: process.env.PERSIMMON_ADAPTER_TOKEN ?? null } }))
       if (process.env.STUB_SLEEP) return setTimeout(() => {}, Number(process.env.STUB_SLEEP))
-      if (process.env.STUB_FAIL) { process.stderr.write('boom\\n'); process.exit(1) }
+      if (process.env.STUB_FAIL) { process.stderr.write('boom ' + process.env.GITHUB_TOKEN + '\\n'); process.exit(1) }
       if (process.env.STUB_AUTH) { process.stdout.write(JSON.stringify({ type: 'result', subtype: 'success', is_error: true, result: 'Failed to authenticate' })); process.exit(1) }
       process.stdout.write(JSON.stringify({ type: 'result', subtype: 'success', is_error: false, result: '{}', structured_output: JSON.parse(process.env.STUB_RESULT) }))
     })`)
@@ -86,7 +86,7 @@ const payload = (over: Record<string, unknown> = {}) => ({
 
 function adapter(name: string, req: unknown, env: Record<string, string> = {}) {
   return new Promise<{ lines: Record<string, unknown>[]; code: number | null }>((resolve) => {
-    const child = spawn('node', [join(root, 'adapters', name, 'index.mjs')], { cwd, env: { PATH: `${stubs}:${process.env.PATH}`, HOME: process.env.HOME!, STUB_OUT: stubs, PERSIMMON_ADAPTER_TOKEN: 'at-1', ...env } })
+    const child = spawn(process.execPath, [join(root, 'adapters', name, 'index.mjs')], { cwd, env: { PATH: `${stubs}:${process.env.PATH}`, HOME: process.env.HOME!, STUB_OUT: stubs, PERSIMMON_ADAPTER_TOKEN: 'at-1', ...env } })
     let out = ''
     child.stdout.on('data', (c) => (out += c))
     child.stderr.on('data', (c) => process.stderr.write(c))
@@ -106,7 +106,7 @@ describe('claude-code/v1', () => {
     calls.length = 0
     const r = await adapter('claude-code', { id: 2, op: 'execute', payload: payload() }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'Checkout v2' }, count: 2 }, summary: 'done' }) })
     expect(r.lines[0]).toEqual({ id: 2, event: 'waiting', reason: 'agent' })
-    expect(last(r)).toEqual({ id: 2, ok: true, result: { protocol: 'persimmon.result/v1', summary: 'done', outputs: { prd: { kind: 'artifact', ref: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement', namespace: 'demo', id: 'write-prd-prd', revision: 1 } }, count: { kind: 'value', value: 2 } } } })
+    expect(last(r)).toEqual({ id: 2, ok: true, result: { protocol: 'persimmon.result/v1', summary: 'done', outputs: { prd: { kind: 'artifact', ref: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement', namespace: 'demo', id: 'prd-create-001-write-prd-prd', revision: 1 } }, count: { kind: 'value', value: 2 } } } })
     const seen = JSON.parse(readFileSync(join(stubs, 'claude.json'), 'utf8'))
     const p: string = seen.prompt
     const order = ['ResearchReport research-checkout-v2 revision 1', 'Preserve ids.', 'File AGENTS.md', '"maxRequirements": 12', 'Write the PRD.', '## Answer'].map((s) => p.indexOf(s))
@@ -118,13 +118,23 @@ describe('claude-code/v1', () => {
     expect(schema.properties.outputs).toEqual({ type: 'object', required: ['prd', 'count'], additionalProperties: false, properties: { prd: { type: 'object', required: ['title'], properties: { title: { type: 'string' } } }, count: { type: 'integer' } } })
     expect(seen.env).toEqual({ GITHUB_TOKEN: 'ghp-secret', token: null })
     expect(calls.map((c) => c.name)).toEqual(['getArtifact', 'putBlob', 'publishArtifact'])
-    expect(calls[2]!.args).toMatchObject({ kind: { kind: 'ProductRequirement' }, id: 'write-prd-prd', content: { title: 'Checkout v2' }, inputs: [research], representations: [{ name: 'json', mediaType: 'application/json' }] })
+    expect(calls[2]!.args).toMatchObject({ kind: { kind: 'ProductRequirement' }, id: 'prd-create-001-write-prd-prd', content: { title: 'Checkout v2' }, inputs: [research], representations: [{ name: 'json', mediaType: 'application/json' }] })
   })
 
   it('reports a non-zero agent exit as agent_failed, retryable', async () => {
     const r = await adapter('claude-code', { id: 3, op: 'execute', payload: payload() }, { STUB_FAIL: '1' })
     expect(last(r)).toMatchObject({ ok: false, error: { code: 'agent_failed', retryable: true } })
-    expect(r.lines.some((l) => l.event === 'log' && l.text === 'boom')).toBe(true)
+    expect(r.lines.some((l) => l.event === 'log' && l.text === 'boom [redacted]')).toBe(true) // credential values never reach a log line
+  })
+
+  it('a missing agent binary is invalid_input, not retried', async () => {
+    const r = await adapter('claude-code', { id: 11, op: 'execute', payload: payload() }, { PATH: '/nonexistent' })
+    expect(last(r)).toMatchObject({ ok: false, error: { code: 'invalid_input', retryable: false } })
+  })
+
+  it('an attempt whose deadline has passed is timeout', async () => {
+    const r = await adapter('claude-code', { id: 12, op: 'execute', payload: payload({ deadline: new Date(Date.now() - 1000).toISOString() }) })
+    expect(last(r)).toMatchObject({ ok: false, error: { code: 'timeout', retryable: true } })
   })
 
   it('reports the agent error text when claude exits 1 with a JSON result', async () => {
@@ -142,12 +152,12 @@ describe('claude-code/v1', () => {
     expect(last(r)).toMatchObject({ ok: false, error: { code: 'invalid_input', retryable: false } })
   })
 
-  it('cancel kills the running agent by logicalExecutionId', async () => {
+  it('cancel kills the running agent by the attempt idempotencyKey', async () => {
     const running = adapter('claude-code', { id: 5, op: 'execute', payload: payload() }, { STUB_SLEEP: '30000' })
-    const pid = join(cwd, '.persimmon', 'agents', encodeURIComponent('prd-create-001//write-prd') + '.pid')
+    const pid = join(cwd, '.persimmon', 'agents', encodeURIComponent('prd-create-001//write-prd/1') + '.pid')
     for (let i = 0; i < 100 && !existsSync(pid); i++) await new Promise((r) => setTimeout(r, 50))
     expect(existsSync(pid)).toBe(true)
-    const c = last(await adapter('claude-code', { id: 6, op: 'cancel', payload: { logicalExecutionId: 'prd-create-001//write-prd', idempotencyKey: 'k' } }))
+    const c = last(await adapter('claude-code', { id: 6, op: 'cancel', payload: { logicalExecutionId: 'prd-create-001//write-prd', idempotencyKey: 'prd-create-001//write-prd/1' } }))
     expect(c.result).toEqual({ state: 'cancelled' })
     expect(last(await running)).toMatchObject({ ok: false, error: { code: 'cancelled', retryable: false } })
     expect(last(await adapter('claude-code', { id: 7, op: 'cancel', payload: { logicalExecutionId: 'nope', idempotencyKey: 'k' } })).result).toEqual({ state: 'unknown' })
@@ -158,12 +168,31 @@ describe('codex/v1', () => {
   it('writes the schema file, reads the answer file, maps sandbox and model', async () => {
     calls.length = 0
     const r = await adapter('codex', { id: 8, op: 'execute', payload: payload({ executor: { type: 'agent', configuration: { model: 'gpt-6-sol', sandbox: 'workspace-write' }, security: { networkAccess: 'deny', credentialBindings: [] } } }) }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'PRD' }, count: 1 } }) })
-    expect(last(r).result.outputs.prd.ref.id).toBe('write-prd-prd')
+    expect(last(r).result.outputs.prd.ref.id).toBe('prd-create-001-write-prd-prd')
     const seen = JSON.parse(readFileSync(join(stubs, 'codex.json'), 'utf8'))
     expect(seen.args).toEqual(expect.arrayContaining(['exec', '--ephemeral', '-s', 'workspace-write', '-m', 'gpt-6-sol', '-']))
     expect(seen.schema.properties.outputs.required).toEqual(['prd', 'count'])
-    // strict form: closed objects, every kept property required, summary dropped as optional, no format
-    expect(seen.schema).toEqual({ type: 'object', required: ['outputs'], additionalProperties: false, properties: { outputs: { type: 'object', required: ['prd', 'count'], additionalProperties: false, properties: { prd: { type: 'object', required: ['title'], additionalProperties: false, properties: { title: { type: 'string' } } }, count: { type: 'integer' } } } } })
+    // strict form: closed objects, every property required, optional ones widened with null, no format
+    expect(seen.schema).toEqual({ type: 'object', required: ['outputs', 'summary'], additionalProperties: false, properties: { outputs: { type: 'object', required: ['prd', 'count'], additionalProperties: false, properties: { prd: { type: 'object', required: ['title'], additionalProperties: false, properties: { title: { type: 'string' } } }, count: { type: 'integer' } } }, summary: { anyOf: [{ type: 'string' }, { type: 'null' }] } } })
+  })
+
+  it('strict form recurses into items and oneOf, keeps enum and $defs, and nulls are stripped from the answer', async () => {
+    const outputSchemas = { prd: { type: 'object', required: ['title', 'items'], properties: { title: { type: 'string' }, note: { type: 'string', format: 'uri' }, items: { type: 'array', items: { oneOf: [{ type: 'object', required: ['id'], properties: { id: { type: 'string' }, level: { enum: ['a', 'b'] } } }, { $ref: '#/$defs/x' }] } } }, $defs: { x: { type: 'object', properties: { y: { type: 'integer' } } } } } }
+    calls.length = 0
+    const task = { ...payload().task, outputs: { prd: payload().task.outputs.prd }, outputSchemas }
+    const r = await adapter('codex', { id: 13, op: 'execute', payload: payload({ task }) }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'P', note: null, items: [{ id: 'i', level: null }] } }, summary: null }) })
+    expect(calls.find((c) => c.name === 'publishArtifact')!.args).toMatchObject({ content: { title: 'P', items: [{ id: 'i' }] } })
+    expect(last(r).result).not.toHaveProperty('summary')
+    const seen = JSON.parse(readFileSync(join(stubs, 'codex.json'), 'utf8'))
+    expect(seen.schema.properties.outputs.properties.prd).toEqual({
+      type: 'object', required: ['title', 'note', 'items'], additionalProperties: false,
+      properties: {
+        title: { type: 'string' },
+        note: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+        items: { type: 'array', items: { anyOf: [{ type: 'object', required: ['id', 'level'], additionalProperties: false, properties: { id: { type: 'string' }, level: { anyOf: [{ enum: ['a', 'b'] }, { type: 'null' }] } } }, { $ref: '#/$defs/x' }] } },
+      },
+      $defs: { x: { type: 'object', required: ['y'], additionalProperties: false, properties: { y: { anyOf: [{ type: 'integer' }, { type: 'null' }] } } } },
+    })
     expect(seen.prompt).toContain('## Instructions')
   })
 })

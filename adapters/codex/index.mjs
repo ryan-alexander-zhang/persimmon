@@ -6,19 +6,28 @@ import { AdapterError, serve } from '../lib/agent.mjs'
 
 const sandbox = { 'read-only': 'read-only', 'workspace-write': 'workspace-write', full: 'danger-full-access' }
 
-/** OpenAI strict structured output: every object closed with all listed properties required; `format` is not accepted (the prompt states it). */
+/** OpenAI strict structured output: closed objects, every property required (optional ones widened with null), `anyOf` only, no `format` (the prompt states it). */
 function strict(s) {
-  if (Array.isArray(s)) return s.map(strict)
   if (!s || typeof s !== 'object') return s
-  const { format, ...rest } = s
-  const out = Object.fromEntries(Object.entries(rest).map(([k, v]) => [k, k === 'properties' ? Object.fromEntries(Object.entries(v).map(([n, p]) => [n, strict(p)])) : k === 'const' || k === 'enum' ? v : strict(v)]))
+  const { format, oneOf, ...out } = s
+  if (oneOf) out.anyOf = oneOf
+  for (const k of ['anyOf', 'allOf', 'prefixItems']) if (out[k]) out[k] = out[k].map(strict)
+  for (const k of ['items', 'additionalProperties', 'not']) if (typeof out[k] === 'object') out[k] = strict(out[k])
+  for (const k of ['properties', '$defs']) if (out[k]) out[k] = Object.fromEntries(Object.entries(out[k]).map(([n, p]) => [n, strict(p)]))
   if (out.type === 'object' && out.properties) {
-    const required = new Set(out.required ?? Object.keys(out.properties))
-    out.properties = Object.fromEntries(Object.entries(out.properties).filter(([n]) => required.has(n))) // optional properties cannot be expressed; drop them
+    const required = new Set(out.required ?? [])
+    for (const [n, p] of Object.entries(out.properties)) if (!required.has(n)) out.properties[n] = { anyOf: [p, { type: 'null' }] }
     out.required = Object.keys(out.properties)
     out.additionalProperties = false
   }
   return out
+}
+
+/** Optional properties come back as null under strict mode; the engine schema never allows null there. */
+function stripNulls(v) {
+  if (Array.isArray(v)) return v.map(stripNulls)
+  if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).filter(([, x]) => x !== null).map(([k, x]) => [k, stripNulls(x)]))
+  return v
 }
 
 serve({
@@ -40,7 +49,7 @@ serve({
   },
   parse({ dir }) {
     try {
-      return JSON.parse(readFileSync(join(dir, 'answer.json'), 'utf8'))
+      return stripNulls(JSON.parse(readFileSync(join(dir, 'answer.json'), 'utf8')))
     } catch (e) {
       throw new AdapterError('agent_failed', `codex wrote no JSON answer: ${e.message}`, true)
     }

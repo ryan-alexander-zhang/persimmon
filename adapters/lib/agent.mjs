@@ -7,6 +7,7 @@ import { request } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createInterface } from 'node:readline'
+import { createHash } from 'node:crypto'
 
 export class AdapterError extends Error {
   constructor(code, message, retryable) {
@@ -17,7 +18,7 @@ export class AdapterError extends Error {
 }
 
 const pidDir = () => join(process.cwd(), '.persimmon', 'agents')
-const pidFile = (logicalExecutionId) => join(pidDir(), encodeURIComponent(logicalExecutionId) + '.pid')
+const pidFile = (idempotencyKey) => join(pidDir(), encodeURIComponent(idempotencyKey) + '.pid')
 /** `<NS>__<NAME>` upper case, `-` becomes `_`: the same grammar the engine uses for its own credential env. */
 const envName = (name) => name.toUpperCase().replaceAll('-', '_').replace('/', '__')
 
@@ -25,9 +26,10 @@ const envName = (name) => name.toUpperCase().replaceAll('-', '_').replace('/', '
 export function serve(driver) {
   const out = (o) => process.stdout.write(JSON.stringify(o) + '\n')
   createInterface({ input: process.stdin }).once('line', async (line) => {
-    const { id, op, payload } = JSON.parse(line)
-    const log = (text) => out({ id, event: 'log', text })
+    let id, op, payload
     try {
+      ;({ id, op, payload } = JSON.parse(line))
+      const log = (text) => out({ id, event: 'log', text: redact(text, payload?.credentials) })
       switch (op) {
         case 'describe':
           return out({
@@ -42,9 +44,7 @@ export function serve(driver) {
           out({ id, event: 'waiting', reason: 'agent' })
           return out({ id, ok: true, result: await execute(driver, payload, log) })
         case 'cancel':
-          return out({ id, ok: true, result: { state: cancel(payload.logicalExecutionId) } })
-        case 'query':
-          return out({ id, ok: true, result: { state: existsSync(pidFile(payload.logicalExecutionId)) ? 'running' : 'unknown' } })
+          return out({ id, ok: true, result: { state: cancel(payload.idempotencyKey) } })
         default:
           throw new AdapterError('invalid_input', `unknown op ${op}`, false)
       }
@@ -66,18 +66,17 @@ async function execute(driver, payload, log) {
     const [cmd, args] = driver.command({ configuration: executor.configuration ?? {}, parameters: task.parameters ?? {}, schema, dir })
     let stdout
     try {
-      stdout = await run(cmd, args, prompt, { credentials, deadline, logicalExecutionId: taskRun.logicalExecutionId, log })
+      stdout = await run(cmd, args, prompt, { credentials, deadline, idempotencyKey: taskRun.idempotencyKey, log })
     } catch (e) {
-      if (e.stdout) driver.parse({ stdout: e.stdout, dir }) // throws the agent's own error message when it printed one
+      if (e.stdout?.trim()) driver.errorFrom?.(e.stdout) // throws the agent's own error message when it printed one
       throw e
     }
     answer = driver.parse({ stdout, dir })
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
-  if (!answer || typeof answer.outputs !== 'object') throw new AdapterError('agent_failed', 'agent answer has no outputs object', true)
+  if (!answer?.outputs || typeof answer.outputs !== 'object') throw new AdapterError('agent_failed', 'agent answer has no outputs object', true)
   const artifactInputs = Object.values(inputs).filter((v) => v.kind === 'artifact').map((v) => v.ref)
-  const step = taskRun.logicalExecutionId.split('/').pop()
   const outputs = {}
   for (const [port, spec] of Object.entries(task.outputs)) {
     const value = answer.outputs[port]
@@ -87,7 +86,7 @@ async function execute(driver, payload, log) {
       continue
     }
     const blob = await call('putBlob', { bytes: Buffer.from(JSON.stringify(value)).toString('base64'), mediaType: 'application/json' })
-    const ref = await call('publishArtifact', { kind: spec.type.artifactKind, id: `${step}-${port}`, content: value, inputs: artifactInputs, representations: [{ name: 'json', mediaType: 'application/json', digest: blob.digest }] })
+    const ref = await call('publishArtifact', { kind: spec.type.artifactKind, id: artifactId(taskRun.logicalExecutionId, port), content: value, inputs: artifactInputs, representations: [{ name: 'json', mediaType: 'application/json', digest: blob.digest }] })
     outputs[port] = { kind: 'artifact', ref }
   }
   const result = { protocol: 'persimmon.result/v1', outputs }
@@ -123,6 +122,18 @@ async function buildPrompt(task, inputs, context, call) {
   return parts.join('\n\n') + '\n'
 }
 
+/** One identity per logical execution and port: `<run>/<iteration>/<step>` + port as a DNS label (revisioned.yaml Id). */
+function artifactId(logicalExecutionId, port) {
+  const slug = `${logicalExecutionId}-${port}`.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+  return slug.length <= 63 ? slug : `${slug.slice(0, 50)}-${createHash('sha256').update(slug).digest('hex').slice(0, 12)}`
+}
+
+/** Credential values never reach a log line, whatever the agent echoed (07-adapter.md). */
+function redact(text, credentials) {
+  for (const v of Object.values(credentials ?? {})) if (v) text = text.split(v).join('[redacted]')
+  return text
+}
+
 /** Structured output: artifact ports take the frozen content schema, value ports their port schema. */
 function outputSchema(task) {
   const properties = {}
@@ -135,30 +146,39 @@ function outputSchema(task) {
 }
 
 /** One agent process per attempt; pid recorded for cancel; killed at the deadline, on cancel, or when this process is killed. */
-function run(cmd, args, prompt, { credentials, deadline, logicalExecutionId, log }) {
+function run(cmd, args, prompt, { credentials, deadline, idempotencyKey, log }) {
   const env = { ...process.env }
   delete env.PERSIMMON_ADAPTER_TOKEN
   for (const [name, secret] of Object.entries(credentials ?? {})) env[envName(name)] = secret
+  const left = deadline ? Date.parse(deadline) - Date.now() : Infinity
+  if (!(left > 0)) return Promise.reject(new AdapterError('timeout', 'attempt deadline already passed', true))
   return new Promise((resolve, reject) => {
     const child = spawn(cmd, args, { env, stdio: ['pipe', 'pipe', 'pipe'] })
     mkdirSync(pidDir(), { recursive: true })
-    const pid = pidFile(logicalExecutionId)
-    writeFileSync(pid, String(child.pid))
-    const stop = () => child.kill('SIGTERM')
+    const pid = pidFile(idempotencyKey)
+    const mine = () => existsSync(pid) && readFileSync(pid, 'utf8') === String(child.pid)
+    const stop = () => {
+      child.kill('SIGTERM')
+      setTimeout(() => child.kill('SIGKILL'), 5000).unref()
+    }
     process.once('SIGTERM', stop)
-    const left = deadline ? Date.parse(deadline) - Date.now() : 0
     let timedOut = false
-    const timer = left > 0 ? setTimeout(() => ((timedOut = true), stop()), left) : undefined
+    const timer = left < Infinity ? setTimeout(() => ((timedOut = true), stop()), left) : undefined
     let stdout = ''
     let stderr = ''
-    child.stdout.on('data', (c) => (stdout += c))
-    child.stderr.on('data', (c) => (stderr += c))
-    child.on('error', reject)
+    child.stdout.setEncoding('utf8').on('data', (c) => (stdout += c))
+    child.stderr.setEncoding('utf8').on('data', (c) => (stderr += c))
+    child.on('spawn', () => writeFileSync(pid, String(child.pid)))
+    child.on('error', (e) => {
+      clearTimeout(timer)
+      process.off('SIGTERM', stop)
+      reject(e.code === 'ENOENT' || e.code === 'EACCES' ? new AdapterError('invalid_input', `${cmd}: ${e.message}`, false) : e)
+    })
     child.on('close', (code, signal) => {
       clearTimeout(timer)
       process.off('SIGTERM', stop)
-      const cancelled = !existsSync(pid)
-      if (existsSync(pid)) unlinkSync(pid)
+      const cancelled = !mine() // cancel removed the file first; a stale file from another attempt is left alone
+      if (mine()) unlinkSync(pid)
       if (timedOut) return reject(new AdapterError('timeout', `${cmd} exceeded the deadline`, true))
       if (cancelled) return reject(new AdapterError('cancelled', `${cmd} was cancelled`, false))
       if (code !== 0) {
@@ -175,11 +195,12 @@ function run(cmd, args, prompt, { credentials, deadline, logicalExecutionId, log
 }
 
 /** cancel removes the pid file first, so the exiting run reports `cancelled` rather than a failure. */
-function cancel(logicalExecutionId) {
-  const pid = pidFile(logicalExecutionId)
+function cancel(idempotencyKey) {
+  const pid = pidFile(idempotencyKey)
   if (!existsSync(pid)) return 'unknown'
   const n = Number(readFileSync(pid, 'utf8'))
   unlinkSync(pid)
+  if (!Number.isInteger(n) || n <= 0) return 'unknown' // never signal the process group
   try {
     process.kill(n, 'SIGTERM')
   } catch {

@@ -8,6 +8,18 @@ const sandbox = {
   full: ['--dangerously-skip-permissions'],
 }
 
+/** The `--output-format json` result object, or the agent's own error. */
+function result(stdout) {
+  let r
+  try {
+    r = JSON.parse(stdout)
+  } catch {
+    throw new AdapterError('agent_failed', 'claude printed no JSON result', true)
+  }
+  if (r.is_error || r.subtype !== 'success') throw new AdapterError(r.subtype === 'error_max_turns' ? 'timeout' : 'agent_failed', typeof r.result === 'string' ? r.result : String(r.subtype), true)
+  return r
+}
+
 serve({
   adapterId: 'claude-code/v1',
   configurationSchema: {
@@ -23,13 +35,10 @@ serve({
     return ['claude', args]
   },
   parse({ stdout }) {
-    let r
-    try {
-      r = JSON.parse(stdout)
-    } catch {
-      throw new AdapterError('agent_failed', 'claude printed no JSON result', true)
-    }
-    if (r.is_error || r.subtype !== 'success') throw new AdapterError(r.subtype === 'error_max_turns' ? 'timeout' : 'agent_failed', typeof r.result === 'string' ? r.result : r.subtype, true)
+    const r = result(stdout)
     return r.structured_output ?? JSON.parse(r.result)
+  },
+  errorFrom(stdout) {
+    result(stdout)
   },
 })
