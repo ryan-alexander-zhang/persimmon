@@ -65,7 +65,7 @@ later     eager joins · retention policy · policy resource · external event s
 | Question | Current lean |
 |---|---|
 | implementation language | decided: TypeScript; `ajv` for JSON Schema 2020-12 |
-| CEL library | open: evaluate `cel-js` coverage of the expression profile (`10-ports.md`) first; a gap here breaks static rule 11 |
+| CEL library | decided: `@marcbachmann/cel-js`, checker covers static rule 11 (`10-ports.md`) |
 | canonical serialization | decided: JSON, sorted keys, UTF-8, no whitespace (`04-snapshot.md`) |
 | Skill digest for Git trees | Adapter contract (`15-prompt-skill.md`) |
 | human Adapter for local mode | decided: one `cli-human/v1` Adapter, terminal prompt when a TTY is attached, file drop in `.persimmon/inbox/` otherwise (`20-pack.md`) |

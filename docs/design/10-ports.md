@@ -73,6 +73,9 @@ CEL, with the environment of the site:
 Artifact and externalResource values appear as their ref objects. No side effects, no
 network, no custom functions.
 
+Values enter CEL typed by the port schema: `integer` → `int`, `number` → `double`, `string`,
+`boolean`, `array` → `list`, `object` → `map`. Map literals may mix value types.
+
 ## Well-known value schemas
 
 `{$ref: "persimmon.ai/v1#/<Name>"}` resolves inside the engine.
@@ -108,6 +111,13 @@ network, no custom functions.
 - `fromEvent` reads an engine projection, not the raw Outbox event, because payloads are
   pointers (`06-outbox.md`).
 - `Finding.severity` gains `info`.
+- CEL library: `@marcbachmann/cel-js`. Spike over every expression in `examples/`: it evaluates
+  all of them and its `Environment.check` rejects unknown roots, unknown fields and type errors
+  before any run, which is what static rule 11 needs. `cel-js` lacks the `size()` method form and
+  `startsWith`; `@bufbuild/cel` has no exported checker. Needs `homogeneousAggregateLiterals: false`
+  for the ValidationResult map literal.
+- Port values bind to CEL by schema type, because a JSON integer bound as `double` makes
+  `inputs.n + 1` a type error in every spec-conformant library.
 - `inputs` and `outputs` optional on a definition.
 
 ## Examples
