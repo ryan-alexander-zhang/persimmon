@@ -134,6 +134,9 @@ imports into a server unchanged.
 - Server HTTP API is the verb set; a detailed API spec is roadmap.
 - Authentication is bearer tokens only; OIDC is roadmap. Authorization is the grant table;
   a policy Resource is roadmap (reference decision 36).
+- `env` credential names are upper case with `-` as `_`: `demo/github-token` reads
+  `PERSIMMON_CRED_DEMO__GITHUB_TOKEN`. Found in implementation.
+
 
 ## Examples
 
