@@ -43,6 +43,14 @@ resources:
       stepContract: {inputsPath: spec.inputs, outputsPath: spec.outputs, runKind: {group: persimmon.ai, kind: TaskRun}, phasePath: status.phase, outputsValuePath: status.outputs, errorPath: status.error}
   - apiVersion: persimmon.ai/v1
     kind: KindDefinition
+    metadata: {name: taskruns.persimmon.ai}
+    spec: {group: persimmon.ai, names: {kind: TaskRun, plural: taskruns}, scope: Namespaced, versions: [{name: v1, schema: {type: object}}], mutability: Immutable, snapshot: "None", handlerRef: {name: task}, terminal: {path: status.phase, values: [Succeeded, Failed, Cancelled]}}
+  - apiVersion: persimmon.ai/v1
+    kind: KindDefinition
+    metadata: {name: workflowruns.persimmon.ai}
+    spec: {group: persimmon.ai, names: {kind: WorkflowRun, plural: workflowruns}, scope: Namespaced, versions: [{name: v1, schema: {type: object}}], mutability: Immutable, snapshot: "None", snapshotOnCreate: true, handlerRef: {name: workflow}, terminal: {path: status.phase, values: [Succeeded, Failed, Cancelled]}}
+  - apiVersion: persimmon.ai/v1
+    kind: KindDefinition
     metadata: {name: workflows.persimmon.ai}
     spec: {group: persimmon.ai, names: {kind: Workflow, plural: workflows}, scope: Any, versions: [{name: v1, schema: {type: object}}], mutability: SpecMutable, snapshot: Definition}
   - apiVersion: persimmon.ai/v1
