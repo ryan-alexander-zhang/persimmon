@@ -95,7 +95,6 @@ export interface RunLog {
 export interface OutboxRecord {
   eventId: string
   type: string
-  [field: string]: unknown
 }
 
 export interface Outbox {

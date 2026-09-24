@@ -51,6 +51,11 @@ export class KindRegistry {
     return definition
   }
 
+  /** Every registered KindDefinition once. */
+  definitions(): KindDefinition[] {
+    return [...new Set([...this.#kinds.values()].map((c) => c.definition))]
+  }
+
   /** By kind name alone, as a LocalDefinitionRef names it. Kind names are unique across groups in v1. */
   byKind(kind: string): Compiled | undefined {
     for (const c of this.#kinds.values()) if (c.definition.spec.names.kind === kind) return c
