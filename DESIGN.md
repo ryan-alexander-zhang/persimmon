@@ -1,6 +1,6 @@
 # Design
 
-Map of `docs/design/`. Terms per `CONTEXT.md`. Baseline: `docs/reference/`.
+Map of `docs/design/`. Product shape: `README.md`. Terms per `CONTEXT.md`. Baseline: `docs/reference/`.
 
 ```text
 Layer 3  User kinds        docs/design/3x-*      LATER
