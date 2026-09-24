@@ -62,7 +62,6 @@ later     eager joins · retention policy · policy resource · external event s
 | server mode: `persimmon serve`, https API, Postgres Store, bearer auth and grants, http Adapter `/responses` | `08-store.md`, `07-adapter.md` | local mode only in the first build |
 | `stepContract` child spec shape | `01-kind-definition.md`, `11-workflow.md` | engine knows the three core run kinds |
 | `describe` at every snapshot resolution | `04-snapshot.md` | cached digest checked instead |
-| `cli-human/v1` TTY prompt | `20-pack.md` | file drop only |
 | `secretManager` credential source | `08-store.md` | server mode |
 | fired Transitions recorded in `WorkflowRun.status` | `11-workflow.md` | derived from step runs |
 | `allowedHosts` enforcement and a network switch for `claude-code/v1` | `19-adapter-roles.md` | agent runs with the CLI's own sandbox; codex has the on/off switch |

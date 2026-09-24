@@ -78,14 +78,13 @@ Credentials the pack Executors bind are Global names resolved at run time.
   input turned optional; code `override_incompatible`. Found in implementation.
 - Override must be port-compatible, so a run never breaks at snapshot time on a definition
   it did not name.
-- `cli-human/v1` v1 is the file drop only; the TTY prompt is roadmap. The pack Gate uses `policy:
-  all` over `prd-structure` and `prd-human-review`; `prd-security-scan` joins when `threat-model/v1`
-  ships. Global pack Executors bind Global credential names (`github-token`, `registry-token`).
-  Found in implementation.
-
-
-## Examples
-
+- `cli-human/v1` is the file drop; the terminal prompt is `persimmon complete <taskRun>` without
+  `--file`, which reads the inbox form and asks one YAML answer per output port, validated
+  against the port schema. A per-call Adapter process cannot own the terminal, so the prompt
+  lives in the verb. The pack Gate uses `policy: all` over `prd-structure` and
+  `prd-human-review`; `prd-security-scan` joins when `threat-model/v1` ships. Global pack
+  Executors bind Global credential names (`github-token`, `registry-token`). Found in
+  implementation.
 - [`examples/pack-task-global.yaml`](examples/pack-task-global.yaml) and
   [`examples/pack-task-override.yaml`](examples/pack-task-override.yaml): a Global pack Task
   and its port-compatible Namespace override; both validate against `schemas/task.yaml`
