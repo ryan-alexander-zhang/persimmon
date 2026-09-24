@@ -141,6 +141,11 @@ imports into a server unchanged.
   one lookup per name per process, exit 44 (not found) and a missing binary mean absent, any
   other failure (locked keychain) is an error. `secretManager` resolves nothing
   until server mode. Found in implementation.
+- `persimmon complete` has two modes. Interactive, the default at a terminal: prints what the
+  human reads, asks `approve? [y/n]` and findings one per line for a ValidationResult port, an
+  example shaped by the schema for any other port, validates every answer before the Signal.
+  Scripted: `--file <result.yaml>`, no prompts; required when no terminal is attached. Found in
+  UAT.
 - Local mode has one live engine per project: `listen` takes `.persimmon/engine.lock` (pid, stale
   when the process is gone) and a second write verb fails with the holder's pid. Read verbs
   (`get`, `describe`, `logs`, `validate`) open the store without the socket, without call

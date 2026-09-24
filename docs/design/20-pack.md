@@ -80,6 +80,10 @@ Credentials the pack Executors bind are Global names resolved at run time.
   in implementation.
 - Override must be port-compatible, so a run never breaks at snapshot time on a definition
   it did not name.
+- `approve-prd` takes the security and product ReviewReports as optional inputs and context; the
+  `reviews-in` Transition joins with `all` over Succeeded and Failed, so the human reads both
+  reviews, a failed one omitted. The `cli-human/v1` form carries `reading[]`: every context
+  entry with its content, fetched with the call token, so the form stands alone. Found in UAT.
 - `persimmon init` also applies `namespaced/` into `defaultNamespace`: a user who ran `init` has a
   working loop without a path into the persimmon checkout. Found in UAT.
 - `cli-human/v1` is the file drop; the terminal prompt is `persimmon complete <taskRun>` without

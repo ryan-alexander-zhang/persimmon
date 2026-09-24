@@ -98,118 +98,120 @@ appears twice; the earlier file owns it.
 | 79 | `08-store.md` | Authentication is bearer tokens only; OIDC is roadmap. Authorization is the grant table; a policy Resource is roadmap (reference decision 36). |
 | 80 | `08-store.md` | `env` credential names are upper case with `-` as `_`: `demo/github-token` reads `PERSIMMON_CRED_DEMO__GITHUB_TOKEN`. Found in implementation. |
 | 81 | `08-store.md` | `keychain` reads the macOS keychain: `security find-generic-password -s persimmon -a <name> -w`, one lookup per name per process, exit 44 (not found) and a missing binary mean absent, any other failure (locked keychain) is an error. `secretManager` resolves nothing until server mode. Found in implementation. |
-| 82 | `08-store.md` | Local mode has one live engine per project: `listen` takes `.persimmon/engine.lock` (pid, stale when the process is gone) and a second write verb fails with the holder's pid. Read verbs (`get`, `describe`, `logs`, `validate`) open the store without the socket, without call recovery and without a drain, so they are safe beside a running `--follow`. Found in UAT. |
-| 83 | `08-store.md` | `persimmon run` is sugar over `create`: it writes the WorkflowRun the user would have written, nothing more; `--follow` reports owned runs by walking `ownerReferences`. Found in implementation. |
-| 84 | `08-store.md` | `defaultNamespace` fills a `Namespaced` kind on the write path; a `scope: Any` Resource written without a Namespace is Global (`00-resource.md`). The CLI places its own docs in `-n` or `defaultNamespace` unless `--global`; `persimmon init` and `apply --global` install a pack as Global (`20-pack.md`). CLI refs resolve Namespace first, then Global. Found in implementation. |
-| 85 | `10-ports.md` | The execute payload carries every value port schema with its `$ref`s inlined from the design files, so an Adapter or a human form reads it alone. Found in implementation. |
-| 86 | `10-ports.md` | Well-known `ArtifactRef` renamed `RevisionRef` everywhere, including the `$ref` id; `CONTEXT.md` amended. `EntityRef` dropped with entity indexing (`91-roadmap.md`). |
-| 87 | `10-ports.md` | Step ids allow `-`. Reference allowed `_` only; every example and `logicalExecutionId` use `-`. |
-| 88 | `10-ports.md` | `artifact` PortType carries `artifactKind` with `x-persimmon-kind-ref`, so the snapshot walk freezes the schema. |
-| 89 | `10-ports.md` | `fromEvent` reads an engine projection, not the raw Outbox event, because payloads are pointers (`06-outbox.md`). |
-| 90 | `10-ports.md` | `Finding.severity` gains `info`. |
-| 91 | `10-ports.md` | CEL library: `@marcbachmann/cel-js`. Spike over every expression in `examples/`: it evaluates all of them and its `Environment.check` rejects unknown roots, unknown fields and type errors before any run, which is what static rule 11 needs. `cel-js` lacks the `size()` method form and `startsWith`; `@bufbuild/cel` has no exported checker. Needs `homogeneousAggregateLiterals: false` for the ValidationResult map literal. |
-| 92 | `10-ports.md` | Port values bind to CEL by schema type, because a JSON integer bound as `double` makes `inputs.n + 1` a type error in every spec-conformant library. |
-| 93 | `10-ports.md` | `inputs` and `outputs` optional on a definition. |
-| 94 | `11-workflow.md` | Workflow is `scope: Any` (`01-kind-definition.md`): pack Workflows are Global, overridable by Namespace. |
-| 95 | `11-workflow.md` | Mixed `to` lists are legal with `dispatch: first`; the static rule bounds `dispatch: all` only. Reference rule 6 read as a rule on the fired set. |
-| 96 | `11-workflow.md` | A Failed outcome is consumed when the step's Transition lists `Failed`; decidable statically, independent of when the Transition fired. |
-| 97 | `11-workflow.md` | Every step is `from` of exactly one Transition; the reference allowed none. |
-| 98 | `11-workflow.md` | `reason` is snake_case and becomes `error.code` verbatim; optional on Succeeded. |
-| 99 | `11-workflow.md` | `join`, `dispatch`, `noMatch` default to `all`, `all`, `fail`. Reference required them. |
-| 100 | `11-workflow.md` | Layer 1 codes defined here: `no_match`, `unconsumed_failure`, `output_unbound`, `no_progress`, `iteration_limit`, `timeout` reused from Layer 0. |
-| 101 | `11-workflow.md` | `any` and `quorum` never cancel the remaining `from` steps; eager joins are roadmap. |
-| 102 | `11-workflow.md` | A Failed Workflow exports no outputs; a business rejection is Succeeded plus a verdict output (reference; kept). No named entrypoints (reference decision 7; kept). |
-| 103 | `11-workflow.md` | The `stepContract` names no child `spec` shape, so the `workflow` Handler builds TaskRun, GateRun and WorkflowRun specs itself and gives any other run kind the TaskRun shape with `<kind>Ref`. A contract field for the child shape is roadmap. Found in implementation. |
-| 104 | `11-workflow.md` | A Transition counts as fired once any of its `to` steps has a run, even one another Transition started; a step that is `to` of two Transitions therefore fires the second one at most through its own guard. Recording fired Transitions in `status` is roadmap. Found in implementation. |
-| 105 | `12-task.md` | No `action.kind` and no `resultProtocol` field. Reference decision 25 removed the first; the second was a constant. |
-| 106 | `12-task.md` | `timeout` is per attempt; the enclosing deadline bounds the TaskRun. |
-| 107 | `12-task.md` | The static checker rules run inside the `task` Handler's `validate`, reading the Executor and the Adapter `describe` live; an unreachable Adapter skips them, the Executor reports it. Found in implementation. |
-| 108 | `12-task.md` | `permission_denied`, `invalid_input`, `schema_violation` are hard non-retryable, not only barred from `retryOn`. |
-| 109 | `12-task.md` | Resolved `skill` entry carries `format`; `19-adapter-roles.md` publishes that shape. Resolved `prompt` entry carries `mediaType`, `content` and `digest`. |
-| 110 | `12-task.md` | No context inheritance; every Task states its own context (reference decision 14; kept). |
-| 111 | `12-task.md` | `TaskResult.summary` added; logs go through the `log` callback. |
-| 112 | `12-task.md` | Attempt indices and `idempotencyKey` suffixes are 1-based. |
-| 113 | `12-task.md` | Codes used: `invalid_input`, `schema_violation`, `timeout`, `unknown_result`, `permission_denied` from Layer 0; `adapter_unavailable` as a warning code. |
-| 114 | `13-executor.md` | `allowedOperations` and `validateConfig` dropped. Reference listed both; neither had a consumer beyond what `describe.configurationSchema` gives. `CONTEXT.md` updated. |
-| 115 | `13-executor.md` | `configuration` and `action.parameters` never merge; a key in both is two keys. |
-| 116 | `13-executor.md` | `security` absent means `networkAccess: deny`. |
-| 117 | `13-executor.md` | Credentials resolve per attempt, so rotation applies to the next attempt. |
-| 118 | `13-executor.md` | Executor is `scope: Any`; a Namespace that wants a pack Executor with its own credentials overrides it by name. |
-| 119 | `13-executor.md` | `contextKinds` and `skillFormats` are checked on the Task (`12-task.md`), not here. |
-| 120 | `13-executor.md` | `formRenderable` and the human completion contract are owned by `19-adapter-roles.md`. |
-| 121 | `13-executor.md` | No unified effort hint; each Adapter defines its own in `configurationSchema`. A cross-adapter hint is roadmap. |
-| 122 | `13-executor.md` | A credential that does not resolve at dispatch fails the attempt as AdapterFinished `permission_denied`, not retryable; the engine never throws. Found in implementation. |
-| 123 | `14-gate.md` | GateRun exposes its verdict at `status.outputs.result`, like every step kind. Reference had `status.result`. |
-| 124 | `14-gate.md` | `any` and `quorum` count after every ValidationRun finishes; eager termination is roadmap. No Gate-level score aggregation; `ValidationResult.score` is informational. |
-| 125 | `14-gate.md` | `evaluator.type` is closed: `cel`, `task`, `adapter`; the Adapter Role is always `evaluator`. Reference let `type` name the Role. |
-| 126 | `14-gate.md` | Evaluator Adapters get no `credentials` or `security`; they run on Adapter-level bindings. |
-| 127 | `14-gate.md` | Validator inputs are bound per Gate, so one Validator serves many Gates. |
-| 128 | `14-gate.md` | `cel` sees `{content, provenance}` per artifact and may return a full ValidationResult. |
-| 129 | `14-gate.md` | Gate and Validator inputs exclude `externalResource`: a Validator judges produced facts; a repository check is a `task` Validator whose Task reads the repository. |
-| 130 | `14-gate.md` | A ValidationRun exists only under a GateRun in v1. |
-| 131 | `14-gate.md` | `resultOutput` needs a `value` port; the ValidationResult `$ref` is recommended, the runtime check is what binds (reference rule 14; kept). |
-| 132 | `14-gate.md` | Gate and Validator are `scope: Any`. `validateConfig` dropped for the evaluator Role too. |
-| 133 | `14-gate.md` | Demo instance names are free text; `CONTEXT.md` governs design prose, not example names. |
-| 134 | `15-prompt-skill.md` | No Skill handler and no engine-side digest check. Reference had a `skill` handler that verified when reachable; one verifier, the Adapter, means one algorithm. Reference open question 3 (Git tree digest) is the Adapter's contract. |
-| 135 | `15-prompt-skill.md` | Prompt `mediaType` restricted to `text/*`; delivered in the resolved entry. Reference allowed any and did not deliver it. |
-| 136 | `15-prompt-skill.md` | Skill `format` grammar is `<name>/v<n>`, like Adapter ids. |
-| 137 | `15-prompt-skill.md` | `source.provider` is open. Reference listed `git \| oci \| https \| file`. |
-| 138 | `15-prompt-skill.md` | New Layer 1 code: `skill_digest_mismatch`. |
-| 139 | `15-prompt-skill.md` | Bundle digest for a directory, as the shipped agent Adapters compute it: sha256 over every regular file in sorted posix-path order, each fed as `<path>\0<bytes>\0`, `.git` excluded. `git` sources are fetched once per (remote, version) into `.persimmon/skills/<hash>`; `file` sources resolve `locator.path` against the engine cwd. A bundle holding anything but regular files and directories is refused; `locator.remote` is an https, ssh, git or file URL, an scp-style address or an absolute path, `version` a commit or ref name, so git never reads an option or an `ext::` transport from a Skill. Closes reference open question 3. Found in implementation. |
-| 140 | `16-trigger.md` | `spec.on` renamed `spec.event`; bare `on` is a YAML 1.1 boolean. `artifactKind` nested as `{apiVersion, kind}` like a PortType. |
-| 141 | `16-trigger.md` | Trigger-created runs are ownerless (`createResource owned: false`, `03-reconcile.md`), so a Trigger stays deletable and receives no ChildFinished. |
-| 142 | `16-trigger.md` | `enabled: false` is a Handler check; delivery is kind-level (`06-outbox.md`). Reference had disabled Triggers receive nothing. |
-| 143 | `16-trigger.md` | Idempotency by run name `<trigger>-<12 hex>`; a deleted and recreated Trigger does not refire. Reference keyed on `(triggerName, eventId)` without a mechanism. |
-| 144 | `16-trigger.md` | `fromEvent: run` dropped; no ObjectRef PortType. Reference had it. |
-| 145 | `16-trigger.md` | `workflowRunFinished` matches root runs only. |
-| 146 | `16-trigger.md` | Loop guard is the Layer 0 causation chain, per Signal (`06-outbox.md`); the reference's `(triggerName, workflowRef)` count is dropped. |
-| 147 | `16-trigger.md` | `trigger.failed` Outbox event replaces the reference's TriggerFailed record. |
-| 148 | `16-trigger.md` | No Trigger `terminal`. |
-| 149 | `16-trigger.md` | `event.kind` is closed to engine-produced events; external sources and webhooks are roadmap. |
-| 150 | `17-runs.md` | Builtin Handlers use the Engine callbacks in process (`02-handler.md`); a Handler needs to read child runs, artifacts and its Executor. |
-| 151 | `17-runs.md` | Child runs carry an absolute `spec.deadline` set by the creator; the step deadline is enforced by the child, not by a per-step timer on the parent. |
-| 152 | `17-runs.md` | Attempt deadline expiry is an attempt failure `timeout` and follows `retryPolicy`; the enclosing `deadline` fails the run unconditionally. |
-| 153 | `17-runs.md` | Cancel is immediate: the run is Cancelled in the reconcile that received CancelRequested; children are cancelled best effort. Reference waited for children. |
-| 154 | `17-runs.md` | `address` groups the Invocation address fields on TaskRun, GateRun and ValidationRun. |
-| 155 | `17-runs.md` | `steps` is a map keyed by step id without outputs; readers follow `runRef`. |
-| 156 | `17-runs.md` | `approvalGroup` dropped; human quorum is Gate `policy`. `loadedArtifacts` dropped; `spec.inputs` already records the exact revisions. |
-| 157 | `17-runs.md` | GateRun records `validationRuns: {<name>: ObjectRef}` and exposes the verdict at `status.outputs.result`. ValidationRun `gateRunRef` required. |
-| 158 | `17-runs.md` | Run kind refs other than `workflowRef` are unannotated; they resolve against the inherited snapshot. |
-| 159 | `17-runs.md` | `query` after `unknown` uses key `<logicalExecutionId>/<n>/query`. |
-| 160 | `17-runs.md` | Human completion is a Signal through the `signal` callback; no `complete` op. |
-| 161 | `17-runs.md` | `TaskRun.status.actor` from the completing Signal's `context.actor` (reference decision 22). |
-| 162 | `18-artifact.md` | No separate ArtifactStore or RelationStore: artifacts and Relations are Resources; queries are `list` with engine-stamped labels. Reference had two stores. |
-| 163 | `18-artifact.md` | New Engine callback `list(kind, namespace, labels)` (`07-adapter.md`), so a pack traceability Validator can read Relations. |
-| 164 | `18-artifact.md` | `assertedBy` dropped; the audit record of the create carries the Actor. Reference had it as a field. |
-| 165 | `18-artifact.md` | The engine writes labels under the reserved `persimmon.ai/` prefix (`00-resource.md`). |
-| 166 | `18-artifact.md` | Endpoints are `revision` or `external`; `EntityRef` dropped with entity indexing (`91-roadmap.md`). |
-| 167 | `18-artifact.md` | Builtin Handlers assert no Relations in v1; pack kinds and users do. |
-| 168 | `18-artifact.md` | Artifact kinds and RelationTypes beyond the examples are pack content (`20-pack.md`). |
-| 169 | `18-artifact.md` | No artifact scope (internal versus exported); Workflow output contracts encapsulate, and every revision stays addressable for audit (reference roadmap; kept out). |
-| 170 | `19-adapter-roles.md` | `validateConfig` and `complete` removed from the Role op sets; completion is the Layer 0 `signal` callback (`07-adapter.md`, `13-executor.md`). |
-| 171 | `19-adapter-roles.md` | Human completion carries content: the Signal body is `{taskResult, publish[]}` and the `task` Handler publishes into its own reconcile. No long-lived call token, and the engine stamps the human Actor because the commit is that reconcile. Reference had the Adapter publish with a call token before `complete`. |
-| 172 | `19-adapter-roles.md` | `execute` returns HumanAck for `type: human`; the `task` Handler recognises it and stays Waiting. Layer 0 mapping to AdapterFinished is unchanged. |
-| 173 | `19-adapter-roles.md` | `execute` payload reshaped: `task` is `{instructions, parameters, sideEffects, outputs, outputSchemas}`, `taskRun` carries an ObjectRef and the attempt key. Reference nested `action` and sent neither key nor schemas. |
-| 174 | `19-adapter-roles.md` | The `query` and `cancel` payloads carry the attempt's `idempotencyKey`; each call itself takes a fresh key (`03-reconcile.md`). `query` `running` re-polls. |
-| 175 | `19-adapter-roles.md` | `supports.complete` means "finishes through `signal`" and holds iff `human ∈ executorTypes`. |
-| 176 | `19-adapter-roles.md` | `evaluate` receives `artifacts.<port>` as `{content, provenance}`, matching the `cel` environment. |
-| 177 | `19-adapter-roles.md` | A standard form-rendering contract for human Adapters is roadmap; v1 renders from `task.outputSchemas` in Adapter-specific ways. Web, chat and email approval clients are Adapters, outside this design. |
-| 178 | `19-adapter-roles.md` | A Claude Code Adapter may expose `configuration.agent` to run a repository subagent definition as-is; portable definitions use Prompt and Skill instead. |
-| 179 | `19-adapter-roles.md` | Shipped agent Adapters `claude-code/v1` and `codex/v1` share one runner (`adapters/lib/agent.mjs`). One agent process per attempt, prompt is context entries in order, value inputs, `instructions`, then the output schemas; the agent answers one JSON object `{outputs, summary}` through the CLI's structured output; the Adapter publishes the artifact outputs itself under identity `<logicalExecutionId>-<port>` as a DNS label, one per logical execution. The agent never sees `engine.token` or the adapter token; task credentials reach it as `<NS>__<NAME>` environment. Found in implementation. |
-| 180 | `19-adapter-roles.md` | `agent_failed` (retryable) is the Layer 1 code for an agent process that exits non-zero or answers no JSON; a publish the engine refuses is `schema_violation`, not retryable; a callback refusal is `permission_denied`. Found in implementation. |
-| 181 | `19-adapter-roles.md` | Shipped agent Adapters read `claude-code-skill/v1` Skills: a directory with `SKILL.md`, fetched and verified per `15-prompt-skill.md`, handed to `claude` with `--add-dir` and named in the prompt; `file` context is a pointer into the working directory, the agent reads it. `codex/v1` maps `security.networkAccess` to `sandbox_workspace_write.network_access`, closed unless `allowlist`, and refuses `deny` with `sandbox: full` since the bypass ignores the switch; `allowedHosts` and the claude sandbox network are not enforced by these Adapters. Found in implementation. |
-| 182 | `19-adapter-roles.md` | `subprocess/v1` ships on the same runner: `configuration.program` plus `parameters.args`, the execute payload without `credentials` and `engine` on stdin, credentials as environment, and the answer `{outputs, summary?}` read from `configuration.resultFile` (relative to the engine cwd) and removed; artifact ports carry content, the Adapter publishes. Found in implementation. |
-| 183 | `19-adapter-roles.md` | `codex/v1` sends the output schema in OpenAI strict form: closed objects, every kept property required, optional properties dropped, `format` removed; the prompt states the formats. Found in implementation. |
-| 184 | `20-pack.md` | No pack manifest, version, dependency resolution or `pack` verb: reference roadmap excluded a pack format from v1. A Pack is a directory and `apply`. |
-| 185 | `20-pack.md` | No composition kinds. Reference planned `Pipeline`, `ReviewLoop`, `Approval` expanding to Workflows at snapshot time; `repeat` plus a Gate express both, and expansion would need a Layer 0 compile hook. Roadmap. |
-| 186 | `20-pack.md` | Deployment out of the v1 lifecycle: no `Rollout`, no `sdlc`, `research`, `engineering-iteration` Workflows yet. Roadmap. |
-| 187 | `20-pack.md` | Traceability Validator and entity indexing deferred; the `list` Engine callback stays for Relation queries by any Handler or Adapter. |
-| 188 | `20-pack.md` | Artifact kinds cut from 14 to the 3 the shipped Workflows touch; `PlanTask`, `ImplementationReport`, `implements-v1`, `verifies-v1` arrive with the engineering Workflows. |
-| 189 | `20-pack.md` | No reference `tool` Executor in the pack; the type and `subprocess/v1` support stay. |
-| 190 | `20-pack.md` | Local mode human Executor: `cli-human/v1`, terminal prompt when a TTY is attached, file drop in `.persimmon/inbox/<taskRun>.yaml` completed by `persimmon complete <taskRun> --file` otherwise; `review-ui/v1` is server mode. |
-| 191 | `20-pack.md` | Override port compatibility is checked by the Handler `validate` of Task, Gate, Validator and Workflow against the Global definition of the same name: same port names and types, same required-ness on inputs; code `override_incompatible`. The check runs when the override is written; a later change to the Global definition is not re-checked against its shadows. Found in implementation. |
-| 192 | `20-pack.md` | Override must be port-compatible, so a run never breaks at snapshot time on a definition it did not name. |
-| 193 | `20-pack.md` | `persimmon init` also applies `namespaced/` into `defaultNamespace`: a user who ran `init` has a working loop without a path into the persimmon checkout. Found in UAT. |
-| 194 | `20-pack.md` | `cli-human/v1` is the file drop; the terminal prompt is `persimmon complete <taskRun>` without `--file`, which reads the inbox form and asks one YAML answer per output port, validated against the port schema. A per-call Adapter process cannot own the terminal, so the prompt lives in the verb. The pack Gate uses `policy: all` over `prd-structure` and `prd-human-review`; `prd-security-scan` joins when `threat-model/v1` ships. Global pack Executors bind Global credential names (`github-token`, `registry-token`). Found in implementation. |
-| 195 | `20-pack.md` | [`examples/pack-task-global.yaml`](examples/pack-task-global.yaml) and [`examples/pack-task-override.yaml`](examples/pack-task-override.yaml): a Global pack Task and its port-compatible Namespace override; both validate against `schemas/task.yaml` |
-| 196 | `20-pack.md` | pack members: every example named in the content table |
+| 82 | `08-store.md` | `persimmon complete` has two modes. Interactive, the default at a terminal: prints what the human reads, asks `approve? [y/n]` and findings one per line for a ValidationResult port, an example shaped by the schema for any other port, validates every answer before the Signal. Scripted: `--file <result.yaml>`, no prompts; required when no terminal is attached. Found in UAT. |
+| 83 | `08-store.md` | Local mode has one live engine per project: `listen` takes `.persimmon/engine.lock` (pid, stale when the process is gone) and a second write verb fails with the holder's pid. Read verbs (`get`, `describe`, `logs`, `validate`) open the store without the socket, without call recovery and without a drain, so they are safe beside a running `--follow`. Found in UAT. |
+| 84 | `08-store.md` | `persimmon run` is sugar over `create`: it writes the WorkflowRun the user would have written, nothing more; `--follow` reports owned runs by walking `ownerReferences`. Found in implementation. |
+| 85 | `08-store.md` | `defaultNamespace` fills a `Namespaced` kind on the write path; a `scope: Any` Resource written without a Namespace is Global (`00-resource.md`). The CLI places its own docs in `-n` or `defaultNamespace` unless `--global`; `persimmon init` and `apply --global` install a pack as Global (`20-pack.md`). CLI refs resolve Namespace first, then Global. Found in implementation. |
+| 86 | `10-ports.md` | The execute payload carries every value port schema with its `$ref`s inlined from the design files, so an Adapter or a human form reads it alone. Found in implementation. |
+| 87 | `10-ports.md` | Well-known `ArtifactRef` renamed `RevisionRef` everywhere, including the `$ref` id; `CONTEXT.md` amended. `EntityRef` dropped with entity indexing (`91-roadmap.md`). |
+| 88 | `10-ports.md` | Step ids allow `-`. Reference allowed `_` only; every example and `logicalExecutionId` use `-`. |
+| 89 | `10-ports.md` | `artifact` PortType carries `artifactKind` with `x-persimmon-kind-ref`, so the snapshot walk freezes the schema. |
+| 90 | `10-ports.md` | `fromEvent` reads an engine projection, not the raw Outbox event, because payloads are pointers (`06-outbox.md`). |
+| 91 | `10-ports.md` | `Finding.severity` gains `info`. |
+| 92 | `10-ports.md` | CEL library: `@marcbachmann/cel-js`. Spike over every expression in `examples/`: it evaluates all of them and its `Environment.check` rejects unknown roots, unknown fields and type errors before any run, which is what static rule 11 needs. `cel-js` lacks the `size()` method form and `startsWith`; `@bufbuild/cel` has no exported checker. Needs `homogeneousAggregateLiterals: false` for the ValidationResult map literal. |
+| 93 | `10-ports.md` | Port values bind to CEL by schema type, because a JSON integer bound as `double` makes `inputs.n + 1` a type error in every spec-conformant library. |
+| 94 | `10-ports.md` | `inputs` and `outputs` optional on a definition. |
+| 95 | `11-workflow.md` | Workflow is `scope: Any` (`01-kind-definition.md`): pack Workflows are Global, overridable by Namespace. |
+| 96 | `11-workflow.md` | Mixed `to` lists are legal with `dispatch: first`; the static rule bounds `dispatch: all` only. Reference rule 6 read as a rule on the fired set. |
+| 97 | `11-workflow.md` | A Failed outcome is consumed when the step's Transition lists `Failed`; decidable statically, independent of when the Transition fired. |
+| 98 | `11-workflow.md` | Every step is `from` of exactly one Transition; the reference allowed none. |
+| 99 | `11-workflow.md` | `reason` is snake_case and becomes `error.code` verbatim; optional on Succeeded. |
+| 100 | `11-workflow.md` | `join`, `dispatch`, `noMatch` default to `all`, `all`, `fail`. Reference required them. |
+| 101 | `11-workflow.md` | Layer 1 codes defined here: `no_match`, `unconsumed_failure`, `output_unbound`, `no_progress`, `iteration_limit`, `timeout` reused from Layer 0. |
+| 102 | `11-workflow.md` | `any` and `quorum` never cancel the remaining `from` steps; eager joins are roadmap. |
+| 103 | `11-workflow.md` | A Failed Workflow exports no outputs; a business rejection is Succeeded plus a verdict output (reference; kept). No named entrypoints (reference decision 7; kept). |
+| 104 | `11-workflow.md` | The `stepContract` names no child `spec` shape, so the `workflow` Handler builds TaskRun, GateRun and WorkflowRun specs itself and gives any other run kind the TaskRun shape with `<kind>Ref`. A contract field for the child shape is roadmap. Found in implementation. |
+| 105 | `11-workflow.md` | A Transition counts as fired once any of its `to` steps has a run, even one another Transition started; a step that is `to` of two Transitions therefore fires the second one at most through its own guard. Recording fired Transitions in `status` is roadmap. Found in implementation. |
+| 106 | `12-task.md` | No `action.kind` and no `resultProtocol` field. Reference decision 25 removed the first; the second was a constant. |
+| 107 | `12-task.md` | `timeout` is per attempt; the enclosing deadline bounds the TaskRun. |
+| 108 | `12-task.md` | The static checker rules run inside the `task` Handler's `validate`, reading the Executor and the Adapter `describe` live; an unreachable Adapter skips them, the Executor reports it. Found in implementation. |
+| 109 | `12-task.md` | `permission_denied`, `invalid_input`, `schema_violation` are hard non-retryable, not only barred from `retryOn`. |
+| 110 | `12-task.md` | Resolved `skill` entry carries `format`; `19-adapter-roles.md` publishes that shape. Resolved `prompt` entry carries `mediaType`, `content` and `digest`. |
+| 111 | `12-task.md` | No context inheritance; every Task states its own context (reference decision 14; kept). |
+| 112 | `12-task.md` | `TaskResult.summary` added; logs go through the `log` callback. |
+| 113 | `12-task.md` | Attempt indices and `idempotencyKey` suffixes are 1-based. |
+| 114 | `12-task.md` | Codes used: `invalid_input`, `schema_violation`, `timeout`, `unknown_result`, `permission_denied` from Layer 0; `adapter_unavailable` as a warning code. |
+| 115 | `13-executor.md` | `allowedOperations` and `validateConfig` dropped. Reference listed both; neither had a consumer beyond what `describe.configurationSchema` gives. `CONTEXT.md` updated. |
+| 116 | `13-executor.md` | `configuration` and `action.parameters` never merge; a key in both is two keys. |
+| 117 | `13-executor.md` | `security` absent means `networkAccess: deny`. |
+| 118 | `13-executor.md` | Credentials resolve per attempt, so rotation applies to the next attempt. |
+| 119 | `13-executor.md` | Executor is `scope: Any`; a Namespace that wants a pack Executor with its own credentials overrides it by name. |
+| 120 | `13-executor.md` | `contextKinds` and `skillFormats` are checked on the Task (`12-task.md`), not here. |
+| 121 | `13-executor.md` | `formRenderable` and the human completion contract are owned by `19-adapter-roles.md`. |
+| 122 | `13-executor.md` | No unified effort hint; each Adapter defines its own in `configurationSchema`. A cross-adapter hint is roadmap. |
+| 123 | `13-executor.md` | A credential that does not resolve at dispatch fails the attempt as AdapterFinished `permission_denied`, not retryable; the engine never throws. Found in implementation. |
+| 124 | `14-gate.md` | GateRun exposes its verdict at `status.outputs.result`, like every step kind. Reference had `status.result`. |
+| 125 | `14-gate.md` | `any` and `quorum` count after every ValidationRun finishes; eager termination is roadmap. No Gate-level score aggregation; `ValidationResult.score` is informational. |
+| 126 | `14-gate.md` | `evaluator.type` is closed: `cel`, `task`, `adapter`; the Adapter Role is always `evaluator`. Reference let `type` name the Role. |
+| 127 | `14-gate.md` | Evaluator Adapters get no `credentials` or `security`; they run on Adapter-level bindings. |
+| 128 | `14-gate.md` | Validator inputs are bound per Gate, so one Validator serves many Gates. |
+| 129 | `14-gate.md` | `cel` sees `{content, provenance}` per artifact and may return a full ValidationResult. |
+| 130 | `14-gate.md` | Gate and Validator inputs exclude `externalResource`: a Validator judges produced facts; a repository check is a `task` Validator whose Task reads the repository. |
+| 131 | `14-gate.md` | A ValidationRun exists only under a GateRun in v1. |
+| 132 | `14-gate.md` | `resultOutput` needs a `value` port; the ValidationResult `$ref` is recommended, the runtime check is what binds (reference rule 14; kept). |
+| 133 | `14-gate.md` | Gate and Validator are `scope: Any`. `validateConfig` dropped for the evaluator Role too. |
+| 134 | `14-gate.md` | Demo instance names are free text; `CONTEXT.md` governs design prose, not example names. |
+| 135 | `15-prompt-skill.md` | No Skill handler and no engine-side digest check. Reference had a `skill` handler that verified when reachable; one verifier, the Adapter, means one algorithm. Reference open question 3 (Git tree digest) is the Adapter's contract. |
+| 136 | `15-prompt-skill.md` | Prompt `mediaType` restricted to `text/*`; delivered in the resolved entry. Reference allowed any and did not deliver it. |
+| 137 | `15-prompt-skill.md` | Skill `format` grammar is `<name>/v<n>`, like Adapter ids. |
+| 138 | `15-prompt-skill.md` | `source.provider` is open. Reference listed `git \| oci \| https \| file`. |
+| 139 | `15-prompt-skill.md` | New Layer 1 code: `skill_digest_mismatch`. |
+| 140 | `15-prompt-skill.md` | Bundle digest for a directory, as the shipped agent Adapters compute it: sha256 over every regular file in sorted posix-path order, each fed as `<path>\0<bytes>\0`, `.git` excluded. `git` sources are fetched once per (remote, version) into `.persimmon/skills/<hash>`; `file` sources resolve `locator.path` against the engine cwd. A bundle holding anything but regular files and directories is refused; `locator.remote` is an https, ssh, git or file URL, an scp-style address or an absolute path, `version` a commit or ref name, so git never reads an option or an `ext::` transport from a Skill. Closes reference open question 3. Found in implementation. |
+| 141 | `16-trigger.md` | `spec.on` renamed `spec.event`; bare `on` is a YAML 1.1 boolean. `artifactKind` nested as `{apiVersion, kind}` like a PortType. |
+| 142 | `16-trigger.md` | Trigger-created runs are ownerless (`createResource owned: false`, `03-reconcile.md`), so a Trigger stays deletable and receives no ChildFinished. |
+| 143 | `16-trigger.md` | `enabled: false` is a Handler check; delivery is kind-level (`06-outbox.md`). Reference had disabled Triggers receive nothing. |
+| 144 | `16-trigger.md` | Idempotency by run name `<trigger>-<12 hex>`; a deleted and recreated Trigger does not refire. Reference keyed on `(triggerName, eventId)` without a mechanism. |
+| 145 | `16-trigger.md` | `fromEvent: run` dropped; no ObjectRef PortType. Reference had it. |
+| 146 | `16-trigger.md` | `workflowRunFinished` matches root runs only. |
+| 147 | `16-trigger.md` | Loop guard is the Layer 0 causation chain, per Signal (`06-outbox.md`); the reference's `(triggerName, workflowRef)` count is dropped. |
+| 148 | `16-trigger.md` | `trigger.failed` Outbox event replaces the reference's TriggerFailed record. |
+| 149 | `16-trigger.md` | No Trigger `terminal`. |
+| 150 | `16-trigger.md` | `event.kind` is closed to engine-produced events; external sources and webhooks are roadmap. |
+| 151 | `17-runs.md` | Builtin Handlers use the Engine callbacks in process (`02-handler.md`); a Handler needs to read child runs, artifacts and its Executor. |
+| 152 | `17-runs.md` | Child runs carry an absolute `spec.deadline` set by the creator; the step deadline is enforced by the child, not by a per-step timer on the parent. |
+| 153 | `17-runs.md` | Attempt deadline expiry is an attempt failure `timeout` and follows `retryPolicy`; the enclosing `deadline` fails the run unconditionally. |
+| 154 | `17-runs.md` | Cancel is immediate: the run is Cancelled in the reconcile that received CancelRequested; children are cancelled best effort. Reference waited for children. |
+| 155 | `17-runs.md` | `address` groups the Invocation address fields on TaskRun, GateRun and ValidationRun. |
+| 156 | `17-runs.md` | `steps` is a map keyed by step id without outputs; readers follow `runRef`. |
+| 157 | `17-runs.md` | `approvalGroup` dropped; human quorum is Gate `policy`. `loadedArtifacts` dropped; `spec.inputs` already records the exact revisions. |
+| 158 | `17-runs.md` | GateRun records `validationRuns: {<name>: ObjectRef}` and exposes the verdict at `status.outputs.result`. ValidationRun `gateRunRef` required. |
+| 159 | `17-runs.md` | Run kind refs other than `workflowRef` are unannotated; they resolve against the inherited snapshot. |
+| 160 | `17-runs.md` | `query` after `unknown` uses key `<logicalExecutionId>/<n>/query`. |
+| 161 | `17-runs.md` | Human completion is a Signal through the `signal` callback; no `complete` op. |
+| 162 | `17-runs.md` | `TaskRun.status.actor` from the completing Signal's `context.actor` (reference decision 22). |
+| 163 | `18-artifact.md` | No separate ArtifactStore or RelationStore: artifacts and Relations are Resources; queries are `list` with engine-stamped labels. Reference had two stores. |
+| 164 | `18-artifact.md` | New Engine callback `list(kind, namespace, labels)` (`07-adapter.md`), so a pack traceability Validator can read Relations. |
+| 165 | `18-artifact.md` | `assertedBy` dropped; the audit record of the create carries the Actor. Reference had it as a field. |
+| 166 | `18-artifact.md` | The engine writes labels under the reserved `persimmon.ai/` prefix (`00-resource.md`). |
+| 167 | `18-artifact.md` | Endpoints are `revision` or `external`; `EntityRef` dropped with entity indexing (`91-roadmap.md`). |
+| 168 | `18-artifact.md` | Builtin Handlers assert no Relations in v1; pack kinds and users do. |
+| 169 | `18-artifact.md` | Artifact kinds and RelationTypes beyond the examples are pack content (`20-pack.md`). |
+| 170 | `18-artifact.md` | No artifact scope (internal versus exported); Workflow output contracts encapsulate, and every revision stays addressable for audit (reference roadmap; kept out). |
+| 171 | `19-adapter-roles.md` | `validateConfig` and `complete` removed from the Role op sets; completion is the Layer 0 `signal` callback (`07-adapter.md`, `13-executor.md`). |
+| 172 | `19-adapter-roles.md` | Human completion carries content: the Signal body is `{taskResult, publish[]}` and the `task` Handler publishes into its own reconcile. No long-lived call token, and the engine stamps the human Actor because the commit is that reconcile. Reference had the Adapter publish with a call token before `complete`. |
+| 173 | `19-adapter-roles.md` | `execute` returns HumanAck for `type: human`; the `task` Handler recognises it and stays Waiting. Layer 0 mapping to AdapterFinished is unchanged. |
+| 174 | `19-adapter-roles.md` | `execute` payload reshaped: `task` is `{instructions, parameters, sideEffects, outputs, outputSchemas}`, `taskRun` carries an ObjectRef and the attempt key. Reference nested `action` and sent neither key nor schemas. |
+| 175 | `19-adapter-roles.md` | The `query` and `cancel` payloads carry the attempt's `idempotencyKey`; each call itself takes a fresh key (`03-reconcile.md`). `query` `running` re-polls. |
+| 176 | `19-adapter-roles.md` | `supports.complete` means "finishes through `signal`" and holds iff `human ∈ executorTypes`. |
+| 177 | `19-adapter-roles.md` | `evaluate` receives `artifacts.<port>` as `{content, provenance}`, matching the `cel` environment. |
+| 178 | `19-adapter-roles.md` | A standard form-rendering contract for human Adapters is roadmap; v1 renders from `task.outputSchemas` in Adapter-specific ways. Web, chat and email approval clients are Adapters, outside this design. |
+| 179 | `19-adapter-roles.md` | A Claude Code Adapter may expose `configuration.agent` to run a repository subagent definition as-is; portable definitions use Prompt and Skill instead. |
+| 180 | `19-adapter-roles.md` | Shipped agent Adapters `claude-code/v1` and `codex/v1` share one runner (`adapters/lib/agent.mjs`). One agent process per attempt, prompt is context entries in order, value inputs, `instructions`, then the output schemas; the agent answers one JSON object `{outputs, summary}` through the CLI's structured output; the Adapter publishes the artifact outputs itself under identity `<logicalExecutionId>-<port>` as a DNS label, one per logical execution. The agent never sees `engine.token` or the adapter token; task credentials reach it as `<NS>__<NAME>` environment. Found in implementation. |
+| 181 | `19-adapter-roles.md` | `agent_failed` (retryable) is the Layer 1 code for an agent process that exits non-zero or answers no JSON; a publish the engine refuses is `schema_violation`, not retryable; a callback refusal is `permission_denied`. Found in implementation. |
+| 182 | `19-adapter-roles.md` | Shipped agent Adapters read `claude-code-skill/v1` Skills: a directory with `SKILL.md`, fetched and verified per `15-prompt-skill.md`, handed to `claude` with `--add-dir` and named in the prompt; `file` context is a pointer into the working directory, the agent reads it. `codex/v1` maps `security.networkAccess` to `sandbox_workspace_write.network_access`, closed unless `allowlist`, and refuses `deny` with `sandbox: full` since the bypass ignores the switch; `allowedHosts` and the claude sandbox network are not enforced by these Adapters. Found in implementation. |
+| 183 | `19-adapter-roles.md` | `subprocess/v1` ships on the same runner: `configuration.program` plus `parameters.args`, the execute payload without `credentials` and `engine` on stdin, credentials as environment, and the answer `{outputs, summary?}` read from `configuration.resultFile` (relative to the engine cwd) and removed; artifact ports carry content, the Adapter publishes. Found in implementation. |
+| 184 | `19-adapter-roles.md` | `codex/v1` sends the output schema in OpenAI strict form: closed objects, every kept property required, optional properties dropped, `format` removed; the prompt states the formats. Found in implementation. |
+| 185 | `20-pack.md` | No pack manifest, version, dependency resolution or `pack` verb: reference roadmap excluded a pack format from v1. A Pack is a directory and `apply`. |
+| 186 | `20-pack.md` | No composition kinds. Reference planned `Pipeline`, `ReviewLoop`, `Approval` expanding to Workflows at snapshot time; `repeat` plus a Gate express both, and expansion would need a Layer 0 compile hook. Roadmap. |
+| 187 | `20-pack.md` | Deployment out of the v1 lifecycle: no `Rollout`, no `sdlc`, `research`, `engineering-iteration` Workflows yet. Roadmap. |
+| 188 | `20-pack.md` | Traceability Validator and entity indexing deferred; the `list` Engine callback stays for Relation queries by any Handler or Adapter. |
+| 189 | `20-pack.md` | Artifact kinds cut from 14 to the 3 the shipped Workflows touch; `PlanTask`, `ImplementationReport`, `implements-v1`, `verifies-v1` arrive with the engineering Workflows. |
+| 190 | `20-pack.md` | No reference `tool` Executor in the pack; the type and `subprocess/v1` support stay. |
+| 191 | `20-pack.md` | Local mode human Executor: `cli-human/v1`, terminal prompt when a TTY is attached, file drop in `.persimmon/inbox/<taskRun>.yaml` completed by `persimmon complete <taskRun> --file` otherwise; `review-ui/v1` is server mode. |
+| 192 | `20-pack.md` | Override port compatibility is checked by the Handler `validate` of Task, Gate, Validator and Workflow against the Global definition of the same name: same port names and types, same required-ness on inputs; code `override_incompatible`. The check runs when the override is written; a later change to the Global definition is not re-checked against its shadows. Found in implementation. |
+| 193 | `20-pack.md` | Override must be port-compatible, so a run never breaks at snapshot time on a definition it did not name. |
+| 194 | `20-pack.md` | `approve-prd` takes the security and product ReviewReports as optional inputs and context; the `reviews-in` Transition joins with `all` over Succeeded and Failed, so the human reads both reviews, a failed one omitted. The `cli-human/v1` form carries `reading[]`: every context entry with its content, fetched with the call token, so the form stands alone. Found in UAT. |
+| 195 | `20-pack.md` | `persimmon init` also applies `namespaced/` into `defaultNamespace`: a user who ran `init` has a working loop without a path into the persimmon checkout. Found in UAT. |
+| 196 | `20-pack.md` | `cli-human/v1` is the file drop; the terminal prompt is `persimmon complete <taskRun>` without `--file`, which reads the inbox form and asks one YAML answer per output port, validated against the port schema. A per-call Adapter process cannot own the terminal, so the prompt lives in the verb. The pack Gate uses `policy: all` over `prd-structure` and `prd-human-review`; `prd-security-scan` joins when `threat-model/v1` ships. Global pack Executors bind Global credential names (`github-token`, `registry-token`). Found in implementation. |
+| 197 | `20-pack.md` | [`examples/pack-task-global.yaml`](examples/pack-task-global.yaml) and [`examples/pack-task-override.yaml`](examples/pack-task-override.yaml): a Global pack Task and its port-compatible Namespace override; both validate against `schemas/task.yaml` |
+| 198 | `20-pack.md` | pack members: every example named in the content table |
