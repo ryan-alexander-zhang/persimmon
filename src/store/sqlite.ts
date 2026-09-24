@@ -44,9 +44,12 @@ create table if not exists audit (
 create table if not exists runlog (
   uid text not null, sequence integer not null, dedupe_key text not null,
   event text not null, deliveries integer not null default 0,
-  applied_at text, result text,
+  applied_at text, result text, actor text,
   primary key (uid, sequence),
   unique (uid, dedupe_key)
+);
+create table if not exists runlog_logs (
+  seq integer primary key, uid text not null, sequence integer not null, text text not null
 );
 create table if not exists outbox (
   seq integer primary key, event_id text not null unique, body text not null,
@@ -283,7 +286,7 @@ export class SqliteStore implements Store {
   }
 
   readonly runLog = {
-    append: (uid: string, event: RunLogEvent): number =>
+    append: (uid: string, event: RunLogEvent, actor?: Record<string, unknown>): number =>
       this.transaction(() => {
         const dup = this.#db
           .prepare('select sequence from runlog where uid = ? and dedupe_key = ?')
@@ -292,14 +295,21 @@ export class SqliteStore implements Store {
         const last = this.#db.prepare('select max(sequence) as s from runlog where uid = ?').get(uid) as { s: number | null }
         const sequence = (last.s ?? 0) + 1
         this.#db
-          .prepare('insert into runlog (uid, sequence, dedupe_key, event) values (?, ?, ?, ?)')
-          .run(uid, sequence, event.dedupeKey, JSON.stringify(event))
+          .prepare('insert into runlog (uid, sequence, dedupe_key, event, actor) values (?, ?, ?, ?, ?)')
+          .run(uid, sequence, event.dedupeKey, JSON.stringify(event), actor ? JSON.stringify(actor) : null)
         if (event.type === 'AdapterFinished' && typeof event.payload?.idempotencyKey === 'string')
           this.#db
             .prepare('update calls set finished = 1 where uid = ? and idempotency_key = ?')
             .run(uid, event.payload.idempotencyKey)
         return sequence
       }),
+
+    log: (uid: string, sequence: number, text: string): void => {
+      this.#db.prepare('insert into runlog_logs (uid, sequence, text) values (?, ?, ?)').run(uid, sequence, text)
+    },
+
+    logs: (uid: string, sequence: number): string[] =>
+      (this.#db.prepare('select text from runlog_logs where uid = ? and sequence = ? order by seq').all(uid, sequence) as unknown as { text: string }[]).map((r) => r.text),
 
     markDelivery: (uid: string, sequence: number): number => {
       this.#db.prepare('update runlog set deliveries = deliveries + 1 where uid = ? and sequence = ?').run(uid, sequence)
@@ -462,10 +472,12 @@ interface RunLogRow {
   deliveries: number
   applied_at: string | null
   result: string | null
+  actor: string | null
 }
 
 function entryOf(r: RunLogRow): RunLogEntry {
   const entry: RunLogEntry = { event: { ...(JSON.parse(r.event) as RunLogEvent), sequence: r.sequence } }
+  if (r.actor) entry.actor = JSON.parse(r.actor) as Record<string, unknown>
   if (r.deliveries > 0) entry.deliveries = r.deliveries
   if (r.applied_at) entry.appliedAt = r.applied_at
   if (r.result) entry.result = JSON.parse(r.result) as RunLogResult

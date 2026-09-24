@@ -75,12 +75,9 @@ export async function commit(engine: Engine, c: Commit): Promise<Resource> {
           store.runLog.append(child.metadata.uid as string, { type: 'CancelRequested', dedupeKey: 'cancel', payload: {}, causationChain: c.causationChain })
           break
         }
-        case 'publishArtifact': {
-          const scope = { uid, key: `reconcile/${c.event.sequence}` }
-          stageRevision(engine, a, stored, scope, writer, time)
-          for (const r of store.resources.commitScope(scope)) commitRevision(store, r, writer, time, emit)
+        case 'publishArtifact':
+          stageRevision(engine, a, stored, reconcileScope(uid, c.event.sequence), writer, time)
           break
-        }
         case 'commitScope':
           for (const r of store.resources.commitScope({ uid, key: a.key })) commitRevision(store, r, writer, time, emit)
           break
@@ -103,6 +100,9 @@ export async function commit(engine: Engine, c: Commit): Promise<Resource> {
       }
     }
 
+    // revisions staged by publishArtifact actions and by callbacks with this reconcile's token
+    for (const r of store.resources.commitScope(reconcileScope(uid, c.event.sequence))) commitRevision(store, r, writer, time, emit)
+
     store.runLog.ack(uid, c.event.sequence, { ...(c.result.statusPatch ? { statusPatch: c.result.statusPatch } : {}), actions: c.result.actions as unknown as Record<string, unknown>[] }, time)
 
     // Step 4: terminal reached.
@@ -119,6 +119,9 @@ export async function commit(engine: Engine, c: Commit): Promise<Resource> {
     return stored
   })
 }
+
+/** Publication scope of one reconcile: what it stages commits with it (05-revisioned-kind.md). */
+export const reconcileScope = (uid: string, sequence: number) => ({ uid, key: `reconcile/${sequence}` })
 
 /** Stages a revision from a publish request (05-revisioned-kind.md): engine stamps name, identity, provenance, digests. */
 export function stageRevision(engine: Engine, req: PublishRequest, producer: Resource, scope: { uid: string; key: string }, actor: Actor, time: string): RevisionRef {

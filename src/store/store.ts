@@ -71,6 +71,8 @@ export interface RunLogEntry {
   appliedAt?: string
   deliveries?: number
   result?: RunLogResult
+  /** Actor of an API or adapter Signal; becomes `context.actor`. Store-side only, not part of the wire shape. */
+  actor?: Record<string, unknown>
 }
 
 export interface OutstandingCall {
@@ -81,7 +83,10 @@ export interface OutstandingCall {
 
 export interface RunLog {
   /** Idempotent on (uid, dedupeKey): a repeat returns the existing sequence. */
-  append(uid: string, event: RunLogEvent): number
+  append(uid: string, event: RunLogEvent, actor?: Record<string, unknown>): number
+  /** `log` callback text, kept beside the entry. */
+  log(uid: string, sequence: number, text: string): void
+  logs(uid: string, sequence: number): string[]
   /** Counts one reconcile call for the entry; returns the count. */
   markDelivery(uid: string, sequence: number): number
   /** Records the committed result; a second ack is a no-op. */

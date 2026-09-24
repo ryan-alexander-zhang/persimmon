@@ -40,7 +40,7 @@ export async function reconcileOnce(engine: Engine, uid: string, entry: RunLogEn
     const attempt = store.runLog.markDelivery(uid, entry.event.sequence)
     const token = store.tokens.issue({ kind: 'reconcile', uid, sequence: event.sequence })
     try {
-      const input: ReconcileInput = { resource, event, context: contextOf(engine, resource, event), engine: { endpoint: engine.endpoint, token } }
+      const input: ReconcileInput = { resource, event, context: contextOf(engine, resource, entry), engine: { endpoint: engine.endpoint, token } }
       const result: ReconcileResult = bound.impl
         ? await bound.impl.reconcile(input)
         : await reconcileViaAdapter(engine, bound.handler.spec.implementation as { adapter: { id: string } }, input)
@@ -61,7 +61,7 @@ export async function reconcileOnce(engine: Engine, uid: string, entry: RunLogEn
   }
 }
 
-function contextOf(engine: Engine, resource: Resource, event: Event): Context {
+function contextOf(engine: Engine, resource: Resource, entry: RunLogEntry): Context {
   const { store, kinds } = engine
   const uid = resource.metadata.uid as string
   const children = store.resources.children(uid).map((c) => {
@@ -72,18 +72,8 @@ function contextOf(engine: Engine, resource: Resource, event: Event): Context {
   const staged = store.resources.staged(uid).filter((s) => s.state === 'staged').map(({ ref, scope }) => ({ ref, scope }))
   const ctx: Context = { children, timers, staged }
   if (resource.metadata.snapshot) ctx.snapshot = resource.metadata.snapshot
-  const actor = actorOf(event)
-  if (actor) ctx.actor = actor
+  if (entry.actor) ctx.actor = entry.actor as unknown as Actor // API and adapter Signals; engine-originated Events have none
   return ctx
-}
-
-/** Actor of the triggering Event: API and adapter Signals carry one in the audit; engine-originated Events have none. */
-function actorOf(event: Event): Actor | undefined {
-  if (event.type === 'Signal') {
-    const a = (event.payload as { actor?: Actor }).actor
-    return a
-  }
-  return undefined
 }
 
 async function reconcileViaAdapter(engine: Engine, impl: { adapter: { id: string } }, input: ReconcileInput): Promise<ReconcileResult> {
@@ -103,10 +93,10 @@ function stall(engine: Engine, resource: Resource, attempts: number, lastError: 
 }
 
 /** Any new Event on a stalled Resource clears `stalled` (03-reconcile.md Failure). */
-export function appendEvent(engine: Engine, uid: string, event: NewEvent): number {
+export function appendEvent(engine: Engine, uid: string, event: NewEvent, actor?: Actor): number {
   const { store } = engine
   return store.transaction(() => {
-    const seq = store.runLog.append(uid, event as never)
+    const seq = store.runLog.append(uid, event as never, actor as unknown as Record<string, unknown> | undefined)
     const r = store.resources.getByUid(uid)
     if (r?.metadata.stalled) {
       const { stalled: _s, ...metadata } = r.metadata
