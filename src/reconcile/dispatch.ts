@@ -4,11 +4,14 @@ import type { Context, ReconcileInput, ReconcileResult } from '../handler/types.
 import { audit } from '../handler/write.js'
 import { deliverOnce } from '../outbox/deliver.js'
 import { engineActor, makeEvent } from '../outbox/event.js'
-import type { Actor, Resource } from '../resource/types.js'
+import type { Resource } from '../resource/types.js'
 import type { CredentialStore, RunLogEntry } from '../store/store.js'
 import { type Engine as CommitEngine, commit, refOf } from './apply.js'
+import { appendEvent } from './events.js'
+
+export { appendEvent }
 import { terminalValue } from './status.js'
-import type { AdapterFinishedPayload, Event, NewEvent } from './types.js'
+import type { AdapterFinishedPayload, Event } from './types.js'
 
 export interface Engine extends CommitEngine {
   credentials: CredentialStore
@@ -18,6 +21,8 @@ export interface Engine extends CommitEngine {
   /** Base of the exponential backoff between attempts; 0 in tests. */
   retryBaseMs: number
   holder: string
+  /** callAdapter keys this engine is executing right now. */
+  inFlight: Set<string>
   onError?: (uid: string, event: Event, error: Error) => void
 }
 
@@ -27,7 +32,7 @@ export type Outcome = 'committed' | 'failed' | 'skipped'
 
 /** Delivers one open RunLog entry: `skipped` when stalled or leased elsewhere, `failed` when it will retry or just stalled. */
 export async function reconcileOnce(engine: Engine, uid: string, entry: RunLogEntry): Promise<Outcome> {
-  const { store, kinds, handlers } = engine
+  const { store, handlers } = engine
   const resource = store.resources.getByUid(uid)
   if (!resource) {
     store.runLog.ack(uid, entry.event.sequence, { actions: [] }, engine.now().toISOString()) // deleted meanwhile
@@ -39,7 +44,8 @@ export async function reconcileOnce(engine: Engine, uid: string, entry: RunLogEn
     const bound = handlers.get(resource.apiVersion, resource.kind)
     const event = entry.event as unknown as Event
     const attempt = store.runLog.markDelivery(uid, entry.event.sequence)
-    const token = store.tokens.issue({ kind: 'reconcile', uid, sequence: event.sequence })
+    // expires with the lease, so a crash between issue and revoke leaves no live token
+    const token = store.tokens.issue({ kind: 'reconcile', uid, sequence: event.sequence }, new Date(engine.now().getTime() + engine.leaseTtlMs).toISOString())
     try {
       const input: ReconcileInput = { resource, event, context: contextOf(engine, resource, entry), engine: { endpoint: engine.endpoint, token } }
       const result: ReconcileResult = bound.impl
@@ -73,7 +79,7 @@ function contextOf(engine: Engine, resource: Resource, entry: RunLogEntry): Cont
   const staged = store.resources.staged(uid).filter((s) => s.state === 'staged').map(({ ref, scope }) => ({ ref, scope }))
   const ctx: Context = { children, timers, staged }
   if (resource.metadata.snapshot) ctx.snapshot = resource.metadata.snapshot
-  if (entry.actor) ctx.actor = entry.actor as unknown as Actor // API and adapter Signals; engine-originated Events have none
+  if (entry.actor) ctx.actor = entry.actor as never // API and adapter Signals; engine-originated Events have none
   return ctx
 }
 
@@ -93,21 +99,6 @@ function stall(engine: Engine, resource: Resource, attempts: number, lastError: 
   })
 }
 
-/** Any new Event on a stalled Resource clears `stalled` (03-reconcile.md Failure). */
-export function appendEvent(engine: Engine, uid: string, event: NewEvent, actor?: Actor): number {
-  const { store } = engine
-  return store.transaction(() => {
-    const seq = store.runLog.append(uid, event as never, actor as unknown as Record<string, unknown> | undefined)
-    const r = store.resources.getByUid(uid)
-    if (r?.metadata.stalled) {
-      const { stalled: _s, ...metadata } = r.metadata
-      const stored = store.resources.put({ ...r, metadata })
-      store.audit.append(audit(stored, engineActor, engine.now().toISOString(), 'metadata'))
-    }
-    return seq
-  })
-}
-
 /** Due timers become TimerFired Events and are cleared. */
 export function pumpTimers(engine: Engine): number {
   const now = engine.now().toISOString()
@@ -121,41 +112,36 @@ export function pumpTimers(engine: Engine): number {
   return due.length
 }
 
-const inFlight = new Set<string>()
-
 /** Dispatches every outstanding callAdapter not already in flight; answers arrive as AdapterFinished. */
 export async function dispatchCalls(engine: Engine): Promise<number> {
-  const calls = engine.store.runLog.outstandingCalls().filter((c) => !inFlight.has(`${c.uid}/${c.action.idempotencyKey}`))
+  const calls = engine.store.runLog.outstandingCalls().filter((c) => !engine.inFlight.has(`${c.uid}/${c.action.idempotencyKey}`))
   await Promise.all(
     calls.map(async (c) => {
       const key = `${c.uid}/${c.action.idempotencyKey}`
-      inFlight.add(key)
+      engine.inFlight.add(key)
+      const a = c.action as { adapterId: string; op: string; payload: Record<string, unknown>; idempotencyKey: string; deadline?: string }
+      const scope = { kind: 'call', uid: c.uid, idempotencyKey: a.idempotencyKey }
+      const finished = (payload: AdapterFinishedPayload) => appendEvent(engine, c.uid, { type: 'AdapterFinished', dedupeKey: `adapter/${a.idempotencyKey}`, payload })
       try {
-        const a = c.action as { adapterId: string; op: string; payload: Record<string, unknown>; idempotencyKey: string; deadline?: string }
         const deadline = a.deadline ? new Date(a.deadline) : new Date(engine.now().getTime() + engine.defaultCallDeadlineMs)
-        let credentials: { credentials?: Record<string, string> }
-        try {
-          credentials = credentialsFor(engine, a.payload)
-        } catch (e) {
-          // an unresolvable credential fails the attempt, never the engine (13-executor.md per attempt)
-          appendEvent(engine, c.uid, { type: 'AdapterFinished', dedupeKey: `adapter/${a.idempotencyKey}`, payload: { idempotencyKey: a.idempotencyKey, state: 'failed', error: { code: 'permission_denied', message: (e as Error).message, retryable: false } } })
-          return
-        }
-        const token = engine.store.tokens.issue({ kind: 'call', uid: c.uid, idempotencyKey: a.idempotencyKey }, deadline.toISOString())
-        const out = await engine.adapters.call(a.adapterId, a.op, { ...a.payload, ...credentials, engine: { endpoint: engine.endpoint, token } }, {
+        const token = engine.store.tokens.issue(scope, deadline.toISOString())
+        const out = await engine.adapters.call(a.adapterId, a.op, { ...a.payload, ...credentialsFor(engine, a.payload), engine: { endpoint: engine.endpoint, token } }, {
           timeoutMs: deadline.getTime() - engine.now().getTime(),
         })
-        if (out.state === 'pending') return
-        const payload: AdapterFinishedPayload =
+        if (out.state === 'pending') return // http 202: the answer arrives at engine.endpoint/responses; the token lives to the deadline
+        finished(
           out.state === 'succeeded'
             ? { idempotencyKey: a.idempotencyKey, state: 'succeeded', result: out.result }
             : out.state === 'failed'
               ? { idempotencyKey: a.idempotencyKey, state: 'failed', error: out.error }
-              : { idempotencyKey: a.idempotencyKey, state: 'unknown' }
-        appendEvent(engine, c.uid, { type: 'AdapterFinished', dedupeKey: `adapter/${a.idempotencyKey}`, payload })
-        engine.store.tokens.revoke({ kind: 'call', uid: c.uid, idempotencyKey: a.idempotencyKey })
+              : { idempotencyKey: a.idempotencyKey, state: 'unknown' },
+        )
+      } catch (e) {
+        // an unresolvable credential or a refused Adapter fails the attempt, never the engine (13-executor.md per attempt)
+        finished({ idempotencyKey: a.idempotencyKey, state: 'failed', error: { code: 'permission_denied', message: (e as Error).message, retryable: false } })
       } finally {
-        inFlight.delete(key)
+        engine.store.tokens.revoke(scope)
+        engine.inFlight.delete(key)
       }
     }),
   )

@@ -97,6 +97,7 @@ export class Engine {
       maxReconcileAttempts: o.config.maxReconcileAttempts,
       leaseTtlMs: durationMs(o.config.leaseTtl),
       retryBaseMs: Number(process.env.PERSIMMON_RETRY_BASE_MS ?? 100),
+      inFlight: new Set(),
       holder: `${process.pid}-${randomUUID().slice(0, 8)}`,
       onError: (uid, ev, err) => {
         if (process.env.PERSIMMON_DEBUG) process.stderr.write(`reconcile ${uid} ${ev.type}#${ev.sequence}: ${err.stack ?? err.message}\n`)

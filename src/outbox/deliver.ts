@@ -5,6 +5,7 @@ import type { JsonSchema, KindDefinition } from '../kind-definition/types.js'
 import { ajv } from '../resource/ajv.js'
 import type { Resource } from '../resource/types.js'
 import type { Store } from '../store/store.js'
+import { appendEvent } from '../reconcile/events.js'
 import { engineActor, isRevisionRef, makeEvent, type OutboxEvent } from './event.js'
 
 const eventSchema = ajv.getSchema('outbox.yaml#/$defs/OutboxEvent')?.schema as JsonSchema
@@ -60,7 +61,7 @@ export function deliverOnce(store: Store, kinds: KindRegistry, limit: number, o:
       if (event.causationChain.length > o.maxCausationDepth) {
         if (event.type !== 'event.suppressed') suppress(event, store, o)
       } else {
-        deliver(event, store, kinds)
+        deliver(event, store, kinds, o.now)
       }
       store.outbox.ack(event.eventId)
     })
@@ -68,17 +69,17 @@ export function deliverOnce(store: Store, kinds: KindRegistry, limit: number, o:
   return claimed.length
 }
 
-function deliver(event: OutboxEvent, store: Store, kinds: KindRegistry): void {
+function deliver(event: OutboxEvent, store: Store, kinds: KindRegistry, now: () => Date): void {
   let subject: unknown
   for (const kd of kinds.definitions()) {
     const subs = (kd.spec.subscriptions ?? []).filter((s) => matches(event, s))
     if (subs.length === 0) continue
     subject ??= subjectOf(event, store)
     for (const r of receiversOf(event, kd, store)) {
-      store.runLog.append(r.metadata.uid as string, {
+      appendEvent({ store, now }, r.metadata.uid as string, {
         type: 'Signal',
         dedupeKey: `signal/${event.eventId}`,
-        payload: { source: 'outbox', eventId: event.eventId, payload: { event, subject } },
+        payload: { source: 'outbox', eventId: event.eventId, payload: { event: event as unknown as Record<string, unknown>, subject: subject as Record<string, unknown> } },
         causationChain: [...event.causationChain, event.eventId],
       })
     }

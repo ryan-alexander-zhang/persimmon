@@ -77,7 +77,7 @@ export function callback(engine: CallbackEngine, token: string, name: string, ar
       const owner = engine.handlers?.lookup(caller.apiVersion, caller.kind)?.handler.metadata.name
       const actor: Actor = { kind: 'handler', id: owner ?? 'engine' }
       const publication = scope.kind === 'call' ? { uid: scope.uid, key: scope.idempotencyKey } : reconcileScope((scope as { uid: string }).uid, (scope as { sequence: number }).sequence)
-      return stageRevision(engine as CommitEngine, args as unknown as PublishRequest, caller, publication, actor, engine.now().toISOString())
+      return stageRevision(engine as CommitEngine, args as unknown as PublishRequest, caller, publication, actor)
     }
     case 'getKindSchema': {
       const a = args as { apiVersion: string; kind: string }

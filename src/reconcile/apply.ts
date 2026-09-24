@@ -7,6 +7,7 @@ import { audit, createResource, type Engine as WriteEngine, WriteError } from '.
 import { engineActor, makeEvent, reservedPrefixes, type Subject } from '../outbox/event.js'
 import type { Actor, ObjectRef, Resource, RevisionRef } from '../resource/types.js'
 import type { Store } from '../store/store.js'
+import { appendEvent } from './events.js'
 import { applyStatusPatch, CommitError, terminalValue } from './status.js'
 import type { Action, Event, PublishRequest } from './types.js'
 
@@ -72,11 +73,11 @@ export async function commit(engine: Engine, c: Commit): Promise<Resource> {
         case 'cancelResource': {
           const child = store.resources.get({ kind: a.ref.kind, namespace: a.ref.namespace, name: a.ref.name })
           if (!child) throw new CommitError(`cancelResource: ${a.ref.kind} ${a.ref.name} not found`)
-          store.runLog.append(child.metadata.uid as string, { type: 'CancelRequested', dedupeKey: 'cancel', payload: {}, causationChain: c.causationChain })
+          appendEvent(engine, child.metadata.uid as string, { type: 'CancelRequested', dedupeKey: 'cancel', payload: {}, causationChain: c.causationChain })
           break
         }
         case 'publishArtifact':
-          stageRevision(engine, a, stored, reconcileScope(uid, c.event.sequence), writer, time)
+          stageRevision(engine, a, stored, reconcileScope(uid, c.event.sequence), writer)
           break
         case 'commitScope':
           for (const r of store.resources.commitScope({ uid, key: a.key })) commitRevision(store, r, writer, time, emit)
@@ -111,7 +112,7 @@ export async function commit(engine: Engine, c: Commit): Promise<Resource> {
       const value = terminalValue(stored, t)
       if (value !== undefined) {
         const owner = stored.metadata.ownerReferences?.[0]
-        if (owner?.uid) store.runLog.append(owner.uid, { type: 'ChildFinished', dedupeKey: `child/${uid}`, payload: { ref: refOf(stored), value }, causationChain: c.causationChain })
+        if (owner?.uid) appendEvent(engine, owner.uid, { type: 'ChildFinished', dedupeKey: `child/${uid}`, payload: { ref: refOf(stored), value }, causationChain: c.causationChain })
         emit('resource.finished', subject, { value })
         for (const s of store.resources.staged(uid)) if (s.state === 'staged') store.resources.abandonScope({ uid, key: s.scope })
       }
@@ -124,13 +125,14 @@ export async function commit(engine: Engine, c: Commit): Promise<Resource> {
 export const reconcileScope = (uid: string, sequence: number) => ({ uid, key: `reconcile/${sequence}` })
 
 /** Stages a revision from a publish request (05-revisioned-kind.md): engine stamps name, identity, provenance, digests. */
-export function stageRevision(engine: Engine, req: PublishRequest, producer: Resource, scope: { uid: string; key: string }, actor: Actor, time: string): RevisionRef {
+export function stageRevision(engine: Engine, req: PublishRequest, producer: Resource, scope: { uid: string; key: string }, actor: Actor): RevisionRef {
   const { store, kinds } = engine
   const c = kinds.get(req.kind.apiVersion, req.kind.kind)
   if (!c.definition.spec.revisioned) throw new WriteError(`${req.kind.kind} is not revisioned`)
   if (!c.spec(req.content)) throw new WriteError(`${req.kind.kind} content: ${c.spec.errors?.map((e) => e.message).join('; ')}`)
   for (const r of req.representations) if (!store.blobs.get(`blob://${r.digest.slice(7)}`)) throw new WriteError(`representation ${r.name}: blob ${r.digest} missing`)
-  const namespace = producer.metadata.namespace as string
+  const namespace = producer.metadata.namespace
+  if (!namespace) throw new WriteError(`${producer.kind} ${producer.metadata.name} is Global; revisioned kinds are Namespaced`)
   const revision = store.resources.reserveRevision(req.kind.kind, namespace, req.id)
   const ref: RevisionRef = { apiVersion: req.kind.apiVersion, kind: req.kind.kind, namespace, id: req.id, revision }
   store.resources.stage(
@@ -143,7 +145,6 @@ export function stageRevision(engine: Engine, req: PublishRequest, producer: Res
     },
     scope,
   )
-  void time
   return ref
 }
 
