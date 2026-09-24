@@ -101,6 +101,7 @@ A Namespaced Resource may bind only its own Namespace's names and Global names.
 | `persimmon resume` | redeliver unacked Events and outstanding calls, drain the Outbox |
 | `persimmon get` · `describe` · `logs` | read Resources, status, RunLog |
 | `persimmon init` | local mode: create `.persimmon/`, apply the SDLC pack (`20-pack.md`) |
+| `persimmon complete <taskRun> --file <result.yaml>` | local mode: `signal` for a `cli-human/v1` attempt as the local Actor |
 | `persimmon delete <kind>/<name>` | refused while referenced (`00-resource.md`) |
 | `persimmon serve` | server mode daemon; the API is these verbs over https |
 

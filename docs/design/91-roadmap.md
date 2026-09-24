@@ -64,7 +64,8 @@ later     eager joins · retention policy · policy resource · external event s
 
 | Question | Current lean |
 |---|---|
-| implementation language, CEL library | undecided; protocol-first design keeps it deferrable |
+| implementation language | decided: TypeScript; `ajv` for JSON Schema 2020-12 |
+| CEL library | open: evaluate `cel-js` coverage of the expression profile (`10-ports.md`) first; a gap here breaks static rule 11 |
 | canonical serialization | decided: JSON, sorted keys, UTF-8, no whitespace (`04-snapshot.md`) |
 | Skill digest for Git trees | Adapter contract (`15-prompt-skill.md`) |
-| human Adapter for local mode | terminal prompt or file drop; `review-ui/v1` is server-shaped |
+| human Adapter for local mode | decided: one `cli-human/v1` Adapter, terminal prompt when a TTY is attached, file drop in `.persimmon/inbox/` otherwise (`20-pack.md`) |

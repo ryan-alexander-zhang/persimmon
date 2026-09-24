@@ -44,7 +44,7 @@ snapshot walk rooted in that Namespace (`04-snapshot.md`). Overrides are ordinar
 
 | Kind | Backed by an example | Definition owed |
 |---|---|---|
-| Executor | `claude-agent`, `lint-script`, `product-reviewers` | |
+| Executor | `claude-agent`, `lint-script`, `product-reviewers` | `local-reviewer` on `cli-human/v1` |
 | Prompt | `write-prd-template` | `code-agent` |
 | Task | `research`, `write-prd`, `approve-prd` | `implement-task`, `security-review`, `product-review` |
 | Validator | `prd-structure`, `prd-human-review`, `prd-security-scan` | |
@@ -70,6 +70,9 @@ Credentials the pack Executors bind are Global names resolved at run time.
 - Artifact kinds cut from 14 to the 3 the shipped Workflows touch; `PlanTask`,
   `ImplementationReport`, `implements-v1`, `verifies-v1` arrive with the engineering Workflows.
 - No reference `tool` Executor in the pack; the type and `subprocess/v1` support stay.
+- Local mode human Executor: `cli-human/v1`, terminal prompt when a TTY is attached, file drop
+  in `.persimmon/inbox/<taskRun>.yaml` completed by `persimmon complete <taskRun> --file`
+  otherwise; `review-ui/v1` is server mode.
 - Override must be port-compatible, so a run never breaks at snapshot time on a definition
   it did not name.
 
