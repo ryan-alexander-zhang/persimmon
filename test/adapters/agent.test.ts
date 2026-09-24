@@ -1,7 +1,7 @@
 // The agent Adapters against stub `claude` and `codex` binaries and a fake Engine callbacks socket:
 // prompt order, output schema, artifact publication, credentials in the agent env, cancel.
 import { execFileSync, spawn } from 'node:child_process'
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { createServer, type Server } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -180,6 +180,21 @@ describe('claude-code/v1', () => {
     expect(last(bad)).toMatchObject({ ok: false, error: { code: 'skill_digest_mismatch', retryable: false } })
     const unknown = await adapter('claude-code', { id: 42, op: 'execute', payload: payload({ context: [{ ...skill, format: 'x/v1' }] }) })
     expect(last(unknown)).toMatchObject({ ok: false, error: { code: 'invalid_input', retryable: false } })
+    // git never sees a transport or an option smuggled in remote or version
+    for (const bad of [{ remote: "ext::sh -c 'touch /tmp/pwned'" }, { remote: '--upload-pack=touch /tmp/pwned' }, { remote: repo, version: '--upload-pack=x' }, { remote: repo, path: '../..' }]) {
+      const r = await adapter('claude-code', { id: 43, op: 'execute', payload: payload({ context: [{ ...skill, source: { ...skill.source, locator: { ...skill.source.locator, ...bad }, version: bad.version ?? sha } }] }) })
+      expect(last(r), JSON.stringify(bad)).toMatchObject({ ok: false, error: { code: 'invalid_input', retryable: false } })
+    }
+    // a symlink in the bundle is refused, so the digest pins every byte the agent reads
+    symlinkSync('/etc/hosts', join(repo, 'prd-writer', 'hosts'))
+    git('add', '.')
+    git('-c', 'commit.gpgsign=false', 'commit', '-qm', 'link')
+    const linked = await adapter('claude-code', { id: 44, op: 'execute', payload: payload({ context: [{ ...skill, source: { ...skill.source, version: git('rev-parse', 'HEAD') } }] }) })
+    expect(last(linked)).toMatchObject({ ok: false, error: { code: 'invalid_input', message: expect.stringContaining('hosts is not a regular file') } })
+    // an unreachable remote is transient and leaves no half checkout behind
+    const gone = await adapter('claude-code', { id: 45, op: 'execute', payload: payload({ context: [{ ...skill, source: { ...skill.source, locator: { remote: join(repo, 'nope'), path: 'prd-writer' } } }] }) })
+    expect(last(gone)).toMatchObject({ ok: false, error: { code: 'transient_network', retryable: true } })
+    expect(readdirSync(join(cwd, '.persimmon', 'skills')).filter((d) => d.startsWith('fetch-'))).toEqual([])
     rmSync(repo, { recursive: true, force: true })
   })
 
