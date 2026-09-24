@@ -65,6 +65,20 @@ Layer 1 in one line each:
 No deployment lifecycle, no web UI, no composition kinds, no cross-Namespace references, no
 external webhooks. See `docs/design/91-roadmap.md`.
 
+## Quickstart
+
+```sh
+npm install && npm run build
+node dist/main.js init                          # .persimmon/, persimmon.yaml, cli-human/v1, the SDLC pack
+node dist/main.js adapter install <adapter.yaml> # an executor Adapter, for example claude-code/v1
+node dist/main.js create run.yaml --follow       # a WorkflowRun; runs until it reaches a terminal phase
+node dist/main.js get WorkflowRun                # phases
+node dist/main.js complete <taskRun> --file result.yaml   # answer a human Task from .persimmon/inbox/
+```
+
+Every verb runs the engine in process and drains before it exits. `PERSIMMON_DEBUG=1` prints
+reconcile errors. Tests: `npm test`; the end-to-end scenario is `test/scenario/prd.test.ts`.
+
 ## Read next
 
 - [`DESIGN.md`](DESIGN.md): map of the design, one file per model with schema and examples
