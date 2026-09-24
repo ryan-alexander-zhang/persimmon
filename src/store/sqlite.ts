@@ -2,7 +2,17 @@ import { randomUUID } from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
 import { isDeepStrictEqual } from 'node:util'
 import type { AuditRecord, ObjectRef, Resource } from '../resource/types.js'
-import { ConflictError, NotFoundError, ReferencedError, type ResourceKey, type Store } from './store.js'
+import {
+  ConflictError,
+  NotFoundError,
+  ReferencedError,
+  type OutstandingCall,
+  type ResourceKey,
+  type RunLogEntry,
+  type RunLogEvent,
+  type RunLogResult,
+  type Store,
+} from './store.js'
 
 const schema = `
 create table if not exists resources (
@@ -17,6 +27,18 @@ create table if not exists refs (
 create index if not exists refs_to on refs (kind, namespace, name);
 create table if not exists audit (
   seq integer primary key, uid text not null, body text not null
+);
+create table if not exists runlog (
+  uid text not null, sequence integer not null, dedupe_key text not null,
+  event text not null, deliveries integer not null default 0,
+  applied_at text, result text,
+  primary key (uid, sequence),
+  unique (uid, dedupe_key)
+);
+create table if not exists calls (
+  uid text not null, idempotency_key text not null, sequence integer not null,
+  action text not null, finished integer not null default 0,
+  primary key (uid, idempotency_key)
 );
 `
 
@@ -131,6 +153,69 @@ export class SqliteStore implements Store {
       }),
   }
 
+  readonly runLog = {
+    append: (uid: string, event: RunLogEvent): number =>
+      this.transaction(() => {
+        const dup = this.#db
+          .prepare('select sequence from runlog where uid = ? and dedupe_key = ?')
+          .get(uid, event.dedupeKey) as { sequence: number } | undefined
+        if (dup) return dup.sequence
+        const last = this.#db.prepare('select max(sequence) as s from runlog where uid = ?').get(uid) as { s: number | null }
+        const sequence = (last.s ?? 0) + 1
+        this.#db
+          .prepare('insert into runlog (uid, sequence, dedupe_key, event) values (?, ?, ?, ?)')
+          .run(uid, sequence, event.dedupeKey, JSON.stringify(event))
+        if (event.type === 'AdapterFinished' && typeof event.payload?.idempotencyKey === 'string')
+          this.#db
+            .prepare('update calls set finished = 1 where uid = ? and idempotency_key = ?')
+            .run(uid, event.payload.idempotencyKey)
+        return sequence
+      }),
+
+    markDelivery: (uid: string, sequence: number): number => {
+      this.#db.prepare('update runlog set deliveries = deliveries + 1 where uid = ? and sequence = ?').run(uid, sequence)
+      const row = this.#db.prepare('select deliveries from runlog where uid = ? and sequence = ?').get(uid, sequence) as
+        | { deliveries: number }
+        | undefined
+      if (!row) throw new NotFoundError(`runlog ${uid}#${sequence}`)
+      return row.deliveries
+    },
+
+    ack: (uid: string, sequence: number, result: RunLogResult, appliedAt: string): void =>
+      this.transaction(() => {
+        const r = this.#db
+          .prepare('update runlog set result = ?, applied_at = ? where uid = ? and sequence = ? and applied_at is null')
+          .run(JSON.stringify(result), appliedAt, uid, sequence)
+        if (r.changes === 0) return
+        const ins = this.#db.prepare(
+          'insert or ignore into calls (uid, idempotency_key, sequence, action) values (?, ?, ?, ?)',
+        )
+        for (const a of result.actions)
+          if (a.type === 'callAdapter') ins.run(uid, a.idempotencyKey as string, sequence, JSON.stringify(a))
+      }),
+
+    read: (uid: string, from = 1): RunLogEntry[] =>
+      (
+        this.#db
+          .prepare('select * from runlog where uid = ? and sequence >= ? order by sequence')
+          .all(uid, from) as unknown as RunLogRow[]
+      ).map(entryOf),
+
+    listOpen: (): { uid: string; entry: RunLogEntry }[] =>
+      (this.#db.prepare('select * from runlog where applied_at is null order by uid, sequence').all() as unknown as RunLogRow[]).map(
+        (r) => ({ uid: r.uid, entry: entryOf(r) }),
+      ),
+
+    outstandingCalls: (): OutstandingCall[] =>
+      (
+        this.#db.prepare('select uid, sequence, action from calls where finished = 0 order by uid, sequence').all() as {
+          uid: string
+          sequence: number
+          action: string
+        }[]
+      ).map((r) => ({ uid: r.uid, sequence: r.sequence, action: JSON.parse(r.action) as Record<string, unknown> })),
+  }
+
   readonly audit = {
     append: (record: AuditRecord): void => {
       this.#db.prepare('insert into audit (uid, body) values (?, ?)').run(record.uid, JSON.stringify(record))
@@ -140,6 +225,23 @@ export class SqliteStore implements Store {
         (r) => JSON.parse(r.body) as AuditRecord,
       ),
   }
+}
+
+interface RunLogRow {
+  uid: string
+  sequence: number
+  event: string
+  deliveries: number
+  applied_at: string | null
+  result: string | null
+}
+
+function entryOf(r: RunLogRow): RunLogEntry {
+  const entry: RunLogEntry = { event: { ...(JSON.parse(r.event) as RunLogEvent), sequence: r.sequence } }
+  if (r.deliveries > 0) entry.deliveries = r.deliveries
+  if (r.applied_at) entry.appliedAt = r.applied_at
+  if (r.result) entry.result = JSON.parse(r.result) as RunLogResult
+  return entry
 }
 
 function keyOf(r: Resource): ResourceKey {
