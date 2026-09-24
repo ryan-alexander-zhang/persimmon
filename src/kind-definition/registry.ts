@@ -1,11 +1,8 @@
 import { isDeepStrictEqual } from 'node:util'
-import { Ajv2020, type ValidateFunction } from 'ajv/dist/2020.js'
-import addFormatsModule from 'ajv-formats'
-import { formatErrors, validator } from '../resource/ajv.js'
+import type { ValidateFunction } from 'ajv/dist/2020.js'
+import { createAjv, formatErrors, validator } from '../resource/ajv.js'
 import type { Resource } from '../resource/types.js'
 import type { KindDefinition, KindVersion } from './types.js'
-
-const addFormats = addFormatsModule as unknown as typeof addFormatsModule.default
 
 export class KindError extends Error {}
 
@@ -32,12 +29,9 @@ interface Compiled {
 /** Registered kinds keyed by `apiVersion/kind`. Compiles each version's schemas once. */
 export class KindRegistry {
   // User schemas may carry keywords ajv does not know, so this instance is not strict.
-  readonly #ajv = new Ajv2020({ allErrors: true, strict: false, allowUnionTypes: true })
+  // It holds the design schemas too, so a shipped KindDefinition may $ref "ports.yaml#/$defs/Bindings".
+  readonly #ajv = createAjv({ strict: false })
   readonly #kinds = new Map<string, Compiled>()
-
-  constructor() {
-    addFormats(this.#ajv)
-  }
 
   register(value: unknown): KindDefinition {
     const definition = validateKindDefinition(value)
