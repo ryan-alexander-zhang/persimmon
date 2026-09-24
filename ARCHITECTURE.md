@@ -45,10 +45,10 @@ file, named after the file; a directory that holds several kinds is named after 
 | `src/checker/` | rules tables in `10`–`14`, `20` | static checker; run by the write path and by `persimmon validate` |
 | `src/reconcile/` | `03-reconcile.md` | Event queue, Action apply, lease, atomic commit, retry, stalled |
 | `src/snapshot/` | `04-snapshot.md` | closure walk, canonical bytes, digest |
-| `src/revisioned/` | `05-revisioned-kind.md` | revision naming, Publication scope, representations |
+| `src/reconcile/apply.ts` (`stageRevision`) | `05-revisioned-kind.md` | revision naming, Publication scope, representations; `src/store/` holds reservation and staging |
 | `src/outbox/` | `06-outbox.md` | event shape, subscription match, causation chain, poller: claim, deliver as Signal, ack |
 | `src/adapter/` | `07-adapter.md`, `19-adapter-roles.md` | `persimmon.adapter/v1` client: stdio and http transports, `describe`, Role payloads; Engine callbacks server; token scopes (persistence is TokenStore) |
-| `src/authz.ts` | `08-store.md` Authentication and authorization | grant check on the full Actor; local mode: the local Actor is admin |
+| `src/authz.ts` | `08-store.md` Authentication and authorization | roadmap with server mode; local mode: the local Actor is admin |
 
 ### Kinds
 
@@ -62,17 +62,17 @@ the static checker calls.
 | `src/kinds/task/` | `12-task.md` |
 | `src/kinds/executor/` | `13-executor.md` |
 | `src/kinds/gate/` | `14-gate.md` Gate, Validator |
-| `src/kinds/prompt-skill/` | `15-prompt-skill.md` |
+| `src/kinds/task/context.ts` | `15-prompt-skill.md` resolution; Prompt and Skill have no Handler |
 | `src/kinds/trigger/` | `16-trigger.md` |
-| `src/kinds/runs/` | `17-runs.md` WorkflowRun, TaskRun, GateRun, ValidationRun |
-| `src/kinds/artifact/` | `18-artifact.md` Artifact, Relation, RelationType |
+| `src/kinds/{workflow,task,gate}/handler.ts` | `17-runs.md` WorkflowRun, TaskRun, GateRun, ValidationRun Handlers |
+| `src/kinds/core.ts` | `18-artifact.md` Relation and RelationType KindDefinitions; artifact kinds are pack content |
 
 ### Edges
 
 | Path | Design file | Holds |
 |---|---|---|
 | `src/cli/` | `08-store.md` CLI verbs | one file per verb; no engine logic |
-| `src/server/` | `08-store.md` server Mode | `persimmon serve`, https API, `server.auth.tokens[]`; built with server mode |
+| `src/server/` | `08-store.md` server Mode | roadmap: `persimmon serve`, https API, `server.auth.tokens[]` |
 | `packs/sdlc/global/`, `packs/sdlc/namespaced/` | `20-pack.md` | pack files; `persimmon init` applies `global/` |
 | `adapters/<id>/` | `07-adapter.md`, `19-adapter-roles.md` | Adapters shipped with the binary: `adapter.yaml` manifest and a stdio script; `persimmon init` installs them before the pack |
 | `src/generated/` | `docs/design/schemas/` | `schemas.json`, written by `npm run gen`; never edited |
@@ -122,7 +122,7 @@ Postgres driver, https server framework: chosen with server mode.
 | Kind | Where | Checks |
 |---|---|---|
 | unit | `src/**/*.test.ts` beside the code | one behavior per file |
-| examples | `test/examples.test.ts` | every `docs/design/examples/*.yaml` against its schema pointer; the example-to-pointer table lives in that file |
+| examples | unit tests beside each module | design examples drive the module tests; `persimmon validate` covers the DSL |
 | scenario | `test/scenario/` | a Workflow runs end to end on SQLite with a fake Adapter |
 
 ## Reading order
