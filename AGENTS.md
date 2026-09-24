@@ -74,6 +74,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 ## 6. Design Map
 
 - `DESIGN.md` indexes `docs/design/`; every design file is listed there with its status.
+- `ARCHITECTURE.md` maps `src/` to design files; a new directory is added there first.
 
 ## 7. Small Commits
 
