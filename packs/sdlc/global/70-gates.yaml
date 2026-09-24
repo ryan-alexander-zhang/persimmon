@@ -18,6 +18,9 @@ spec:
         minRequirements: {fromInput: minRequirements}      # optional producer with a default feeds a required input
     - name: humanReview
       ref: {kind: Validator, name: prd-human-review}
-      inputs: {prd: {fromInput: prd}}
+      inputs:
+        prd: {fromInput: prd}
+        security: {fromInput: security, onMissing: omit}
+        product: {fromInput: product, onMissing: omit}
   policy: {strategy: all}
   timeout: 72h

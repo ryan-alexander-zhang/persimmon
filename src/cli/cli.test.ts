@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { parse, stringify } from 'yaml'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { parseInput } from './create.js'
+import { example as template } from './signal.js'
 import { runCli } from './index.js'
 
 const example = (n: string) => parse(readFileSync(`docs/design/examples/${n}.yaml`, 'utf8'))
@@ -173,6 +174,17 @@ describe('persimmon CLI', () => {
     await runCli(['create', file('run.yaml', [{ apiVersion: wr.apiVersion, kind: wr.kind, metadata: { name: 'demo-002' }, spec: { ...wr.spec, timeout: '1h' } }]), '--follow'], { cwd: dir, out: (l) => out.push(l), err: (l) => err.push(l) })
     expect(await run('complete', 'demo-002-research', '--file', file('r.yaml', [{ protocol: 'persimmon.result/v1', outputs: {} }]))).toBe(1)
     expect(err.at(-1)).toMatch(/is Failed.*not waiting for a human/)
+  })
+
+  it('a form template is a value shaped like the schema, never the schema', () => {
+    expect(template({ type: 'object', required: ['title', 'tags', 'level'], properties: { title: { type: 'string' }, tags: { type: 'array', items: { type: 'string' } }, level: { enum: ['low', 'high'] }, extra: { type: 'integer' } } })).toEqual({ title: '', tags: [], level: 'low' })
+    expect(template({ type: 'object', properties: { n: { type: 'number' }, ok: { type: 'boolean' }, items: { type: 'array', minItems: 1, items: { type: 'object', required: ['id'], properties: { id: { type: 'string' } } } } } })).toEqual({ n: 0, ok: false, items: [{ id: '' }] })
+  })
+
+  it('complete without a terminal and without --file is an error, not a hang', async () => {
+    await run('init')
+    expect(await run('complete', 'nope')).toBe(1)
+    expect(err.at(-1)).toMatch(/not found/)
   })
 })
 

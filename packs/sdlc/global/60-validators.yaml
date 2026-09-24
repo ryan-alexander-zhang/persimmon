@@ -24,6 +24,8 @@ metadata: {name: prd-human-review}
 spec:
   inputs:
     prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement}}}
+    security: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ReviewReport}}, required: false}
+    product: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ReviewReport}}, required: false}
   evaluator:
     type: task
     taskRef: {kind: Task, name: approve-prd}

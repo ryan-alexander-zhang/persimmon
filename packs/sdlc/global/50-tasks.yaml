@@ -51,13 +51,17 @@ metadata: {name: approve-prd}
 spec:
   inputs:
     prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement}}}
+    security: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ReviewReport}}, required: false}
+    product: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ReviewReport}}, required: false}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
   executorRef: {kind: Executor, name: local-reviewer}
   action:
-    instructions: "Approve or reject this PRD. List blocking findings."
+    instructions: "Approve or reject this PRD. The security and product reviews are attached when they finished. List blocking findings."
     context:
       - {kind: artifact, input: prd}
+      - {kind: artifact, input: security}     # dropped when the review did not finish (12-task.md)
+      - {kind: artifact, input: product}
   timeout: 48h
   sideEffects: none
 ---
