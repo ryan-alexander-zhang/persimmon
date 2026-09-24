@@ -96,7 +96,8 @@ A Namespaced Resource may bind only its own Namespace's names and Global names.
 | `persimmon validate <files>` | schema plus static rules; non-zero exit on `error` findings |
 | `persimmon apply <files> [--skip-adapter-validation]` | write definitions; fails on an unreachable Adapter unless skipped (`13-executor.md`) |
 | `persimmon adapter install <manifest>` · `adapter list` | apply an Adapter, run `describe`, Ready |
-| `persimmon create <file> [--follow]` | store any Resource; `--follow` runs the engine until it reaches a `terminal.values` value; Ctrl-C leaves it resumable |
+| `persimmon create <file> [--follow]` | store any Resource; `--follow` runs the engine until it reaches a `terminal.values` value and prints every phase change of the runs it owns; Ctrl-C leaves it resumable |
+| `persimmon run <Workflow> [--input <port>=<yaml \| @file>]... [--timeout <d>] [--follow]` | a manual WorkflowRun named `<workflow>-<hex6>` without writing its YAML; a scalar becomes `{kind: value, value}`, a RuntimeValue object passes through |
 | `persimmon signal <kind>/<name> --payload <file> [--event-id <id>]` | Signal `{source: api}` as the local Actor; id generated when absent |
 | `persimmon resume` | redeliver unacked Events and outstanding calls, drain the Outbox |
 | `persimmon get` · `describe` · `logs` | read Resources, status, RunLog |
@@ -138,6 +139,9 @@ imports into a server unchanged.
   `PERSIMMON_CRED_DEMO__GITHUB_TOKEN`. Found in implementation.
 - `keychain` and `secretManager` credential sources resolve nothing in the first build; `env` and
   `file` are implemented. Found in implementation.
+- `persimmon run` is sugar over `create`: it writes the WorkflowRun the user would have written,
+  nothing more; `--follow` reports owned runs by walking `ownerReferences`. Found in
+  implementation.
 - `defaultNamespace` fills a `Namespaced` kind on the write path; a `scope: Any` Resource written
   without a Namespace is Global (`00-resource.md`). The CLI places its own docs in `-n` or
   `defaultNamespace` unless `--global`; `persimmon init` and `apply --global` install a pack as

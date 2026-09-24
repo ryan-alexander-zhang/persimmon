@@ -69,15 +69,58 @@ external webhooks. See `docs/design/91-roadmap.md`.
 
 ```sh
 npm install && npm run build
-node dist/main.js init                          # .persimmon/, persimmon.yaml, shipped Adapters, the SDLC pack
-node dist/main.js adapter install <adapter.yaml> # a further Adapter; claude-code/v1, codex/v1, subprocess/v1 and cli-human/v1 ship with init
-node dist/main.js create run.yaml --follow       # a WorkflowRun; runs until it reaches a terminal phase
-node dist/main.js get WorkflowRun                # phases
-node dist/main.js complete <taskRun> --file result.yaml   # answer a human Task from .persimmon/inbox/
+alias persimmon="node $PWD/dist/main.js"
+cd <your project> && persimmon init             # .persimmon/, persimmon.yaml, shipped Adapters, the SDLC pack
+persimmon run <Workflow> --input k=v --follow    # a manual WorkflowRun; prints every run's phase until terminal
+persimmon get WorkflowRun                        # phases, waiting reasons, errors
+persimmon complete <taskRun> --file result.yaml  # answer a human Task from .persimmon/inbox/
+persimmon resume                                 # drive waiting work after a Signal or a timer
 ```
 
 Every verb runs the engine in process and drains before it exits. `PERSIMMON_DEBUG=1` prints
 reconcile errors. Tests: `npm test`; the end-to-end scenario is `test/scenario/prd.test.ts`.
+
+## Walkthrough: the PRD loop
+
+The SDLC pack binds `claude-agent` to `claude-code/v1`. Pick a model and the sandbox in a
+Namespaced Executor override, then run the pack's two Workflows end to end.
+
+```sh
+cat > executor.yaml <<'EOF'
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: claude-agent}
+spec:
+  type: agent
+  adapter: claude-code/v1                        # or codex/v1 with {model: gpt-6-sol}
+  configuration: {model: sonnet, sandbox: read-only}
+  security: {networkAccess: allowlist, allowedHosts: [api.anthropic.com]}
+EOF
+persimmon apply executor.yaml -n default
+persimmon apply <persimmon repo>/packs/sdlc/namespaced/on-prd-published.yaml -n default   # Trigger
+
+cat > repo.yaml <<'EOF'
+kind: externalResource
+ref: {provider: git, type: repository, id: my-repo, locator: {path: .}, version: main}
+EOF
+persimmon run prd-create --input repository=@repo.yaml --follow
+# research and write-prd run on the agent; a ProductRequirement is published; the Trigger starts prd-approval
+persimmon resume                                 # security-review and product-review run; the Gate waits for you
+persimmon get TaskRun                            # ... Waiting human (.persimmon/inbox/<taskRun>.yaml)
+cat > approve.yaml <<'EOF'
+protocol: persimmon.result/v1
+outputs:
+  result: {kind: value, value: {passed: true, findings: [], evidence: []}}
+EOF
+persimmon complete <taskRun> --file approve.yaml
+persimmon resume
+persimmon get WorkflowRun                        # on-prd-published-<id>  Succeeded
+persimmon get ProductRequirement                 # <run>-write-prd-prd.r1
+```
+
+A script Executor runs the same way: `subprocess/v1` feeds the execute payload on stdin and
+reads `{outputs, summary}` from `configuration.resultFile`. Credentials come from
+`PERSIMMON_CRED_<NAME>` in the environment or `.persimmon/credentials.yaml`.
 
 ## Read next
 
