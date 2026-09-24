@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { SqliteStore } from './sqlite.js'
+import { memoryBlobs } from './test-util.js'
 import type { RunLogEntry } from './store.js'
 
 const log = parse(readFileSync('docs/design/examples/reconcile-runlog.yaml', 'utf8')) as { uid: string; entries: RunLogEntry[] }
@@ -13,7 +14,7 @@ const stripSeq = (e: RunLogEntry['event']) => {
 describe('SqliteStore.runLog', () => {
   let store: SqliteStore
   beforeEach(() => {
-    store = new SqliteStore(':memory:')
+    store = new SqliteStore(':memory:', { blobs: memoryBlobs() })
   })
   afterEach(() => store.close())
 

@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { SqliteStore } from './sqlite.js'
+import { memoryBlobs } from './test-util.js'
 import type { OutboxRecord } from './store.js'
 
 const events = parse(readFileSync('docs/design/examples/outbox-events.yaml', 'utf8')) as OutboxRecord[]
@@ -11,7 +12,7 @@ describe('SqliteStore queues', () => {
   let store: SqliteStore
   beforeEach(() => {
     clock = Date.parse('2026-09-24T00:00:00Z')
-    store = new SqliteStore(':memory:', () => new Date(clock))
+    store = new SqliteStore(':memory:', { blobs: memoryBlobs(), now: () => new Date(clock) })
   })
   afterEach(() => store.close())
 

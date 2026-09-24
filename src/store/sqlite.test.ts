@@ -3,6 +3,7 @@ import { parse } from 'yaml'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { Resource } from '../resource/types.js'
 import { SqliteStore } from './sqlite.js'
+import { memoryBlobs } from './test-util.js'
 import { ConflictError, NotFoundError, ReferencedError } from './store.js'
 
 const example = (name: string) => parse(readFileSync(`docs/design/examples/${name}.yaml`, 'utf8')) as Resource
@@ -18,7 +19,7 @@ const fresh = (r: Resource): Resource => {
 describe('SqliteStore.resources', () => {
   let store: SqliteStore
   beforeEach(() => {
-    store = new SqliteStore(':memory:', () => new Date('2026-09-24T00:00:00Z'))
+    store = new SqliteStore(':memory:', { blobs: memoryBlobs(), now: () => new Date('2026-09-24T00:00:00Z') })
   })
   afterEach(() => store.close())
 

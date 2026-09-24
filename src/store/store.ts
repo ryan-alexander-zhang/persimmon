@@ -101,8 +101,36 @@ export interface LeaseStore {
   release(uid: string, holder: string): void
 }
 
+export interface Addressed {
+  uri: string
+  digest: string
+}
+
+export interface SnapshotStore {
+  /** `snapshot://<digest hex>`; identical bytes share one copy (04-snapshot.md). */
+  put(bytes: Uint8Array): Addressed
+  get(uri: string): Uint8Array | undefined
+}
+
+export interface BlobStore {
+  /** `blob://<digest hex>`; idempotent (05-revisioned-kind.md). */
+  put(bytes: Uint8Array, mediaType: string): Addressed
+  get(uri: string): { bytes: Uint8Array; mediaType: string } | undefined
+}
+
+export interface TokenStore {
+  /** Returns the bearer token; only its hash is stored. `expiresAt` is RFC 3339. */
+  issue(scope: Record<string, unknown>, expiresAt?: string): string
+  verify(token: string): Record<string, unknown> | undefined
+  /** Revokes every token issued for exactly this scope. */
+  revoke(scope: Record<string, unknown>): void
+}
+
 export interface Store {
   readonly resources: ResourceStore
+  readonly snapshots: SnapshotStore
+  readonly blobs: BlobStore
+  readonly tokens: TokenStore
   readonly audit: AuditLog
   readonly runLog: RunLog
   readonly outbox: Outbox

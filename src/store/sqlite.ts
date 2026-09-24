@@ -1,8 +1,10 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
 import { isDeepStrictEqual } from 'node:util'
 import type { AuditRecord, ObjectRef, Resource } from '../resource/types.js'
 import {
+  type Addressed,
+  type BlobStore,
   ConflictError,
   NotFoundError,
   ReferencedError,
@@ -47,6 +49,12 @@ create table if not exists timers (
 create table if not exists leases (
   uid text primary key, holder text not null, until integer not null
 );
+create table if not exists snapshots (
+  digest text primary key, bytes blob not null
+);
+create table if not exists tokens (
+  hash text primary key, scope text not null, expires_at text
+);
 create table if not exists calls (
   uid text not null, idempotency_key text not null, sequence integer not null,
   action text not null, finished integer not null default 0,
@@ -54,17 +62,26 @@ create table if not exists calls (
 );
 `
 
-/** Local-mode Store on one SQLite file (08-store.md). `:memory:` for tests. */
+export interface SqliteStoreOptions {
+  blobs: BlobStore
+  now?: () => Date
+}
+
+export const sha256 = (bytes: Uint8Array): string => createHash('sha256').update(bytes).digest('hex')
+
+/** Local-mode Store on one SQLite file (08-store.md). `:memory:` for tests. Blobs live outside the file. */
 export class SqliteStore implements Store {
   readonly #db: DatabaseSync
   readonly #now: () => Date
+  readonly blobs: BlobStore
   #depth = 0
 
-  constructor(path: string, now: () => Date = () => new Date()) {
+  constructor(path: string, options: SqliteStoreOptions) {
     this.#db = new DatabaseSync(path)
     this.#db.exec('pragma journal_mode = wal; pragma foreign_keys = on;')
     this.#db.exec(schema)
-    this.#now = now
+    this.#now = options.now ?? (() => new Date())
+    this.blobs = options.blobs
   }
 
   close(): void {
@@ -289,6 +306,40 @@ export class SqliteStore implements Store {
     },
     release: (uid: string, holder: string): void => {
       this.#db.prepare('delete from leases where uid = ? and holder = ?').run(uid, holder)
+    },
+  }
+
+  readonly snapshots = {
+    put: (bytes: Uint8Array): Addressed => {
+      const hex = sha256(bytes)
+      this.#db.prepare('insert or ignore into snapshots (digest, bytes) values (?, ?)').run(hex, bytes)
+      return { uri: `snapshot://${hex}`, digest: `sha256:${hex}` }
+    },
+    get: (uri: string): Uint8Array | undefined => {
+      const hex = uri.replace(/^snapshot:\/\//, '')
+      const row = this.#db.prepare('select bytes from snapshots where digest = ?').get(hex) as { bytes: Uint8Array } | undefined
+      return row?.bytes
+    },
+  }
+
+  readonly tokens = {
+    issue: (scope: Record<string, unknown>, expiresAt?: string): string => {
+      const token = randomBytes(32).toString('hex')
+      this.#db
+        .prepare('insert into tokens (hash, scope, expires_at) values (?, ?, ?)')
+        .run(sha256(Buffer.from(token)), JSON.stringify(scope), expiresAt ?? null)
+      return token
+    },
+    verify: (token: string): Record<string, unknown> | undefined => {
+      const row = this.#db
+        .prepare('select scope, expires_at from tokens where hash = ?')
+        .get(sha256(Buffer.from(token))) as { scope: string; expires_at: string | null } | undefined
+      if (!row) return undefined
+      if (row.expires_at && Date.parse(row.expires_at) <= this.#now().getTime()) return undefined
+      return JSON.parse(row.scope) as Record<string, unknown>
+    },
+    revoke: (scope: Record<string, unknown>): void => {
+      this.#db.prepare('delete from tokens where scope = ?').run(JSON.stringify(scope))
     },
   }
 
