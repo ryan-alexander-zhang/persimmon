@@ -75,6 +75,11 @@ Credentials the pack Executors bind are Global names resolved at run time.
   otherwise; `review-ui/v1` is server mode.
 - Override must be port-compatible, so a run never breaks at snapshot time on a definition
   it did not name.
+- `cli-human/v1` v1 is the file drop only; the TTY prompt is roadmap. The pack Gate uses `policy:
+  all` over `prd-structure` and `prd-human-review`; `prd-security-scan` joins when `threat-model/v1`
+  ships. Global pack Executors bind Global credential names (`github-token`, `registry-token`).
+  Found in implementation.
+
 
 ## Examples
 
