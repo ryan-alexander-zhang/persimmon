@@ -127,6 +127,9 @@ export async function dispatchCalls(engine: Engine): Promise<number> {
         const token = engine.store.tokens.issue(scope, deadline.toISOString())
         const out = await engine.adapters.call(a.adapterId, a.op, { ...a.payload, ...credentialsFor(engine, a.payload), engine: { endpoint: engine.endpoint, token } }, {
           timeoutMs: deadline.getTime() - engine.now().getTime(),
+          onStream: (l) => {
+            if (l.event === 'log') engine.store.runLog.log(c.uid, c.sequence, l.text) // stream log lines land beside the `log` callback (07-adapter.md)
+          },
         })
         if (out.state === 'pending') return // http 202: the answer arrives at engine.endpoint/responses; the token lives to the deadline
         finished(

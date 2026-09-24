@@ -115,6 +115,7 @@ describe('dispatcher', () => {
     expect(finished.payload.result.echo).toMatchObject({ attempt: 1, engine: { endpoint: 'unix://test.sock', token: expect.any(String) } })
     expect(store.runLog.outstandingCalls()).toEqual([])
     expect(store.tokens.verify(finished.payload.result.echo!['engine' as never]['token'])).toBeUndefined()
+    expect(store.runLog.logs(r.metadata.uid!, 1)).toEqual(['working']) // the fake's stream log line, on the entry that issued the call
 
     // a second run whose call never answered before restart
     seen = []

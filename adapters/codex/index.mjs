@@ -6,6 +6,21 @@ import { AdapterError, serve } from '../lib/agent.mjs'
 
 const sandbox = { 'read-only': 'read-only', 'workspace-write': 'workspace-write', full: 'danger-full-access' }
 
+/** OpenAI strict structured output: every object closed with all listed properties required; `format` is not accepted (the prompt states it). */
+function strict(s) {
+  if (Array.isArray(s)) return s.map(strict)
+  if (!s || typeof s !== 'object') return s
+  const { format, ...rest } = s
+  const out = Object.fromEntries(Object.entries(rest).map(([k, v]) => [k, k === 'properties' ? Object.fromEntries(Object.entries(v).map(([n, p]) => [n, strict(p)])) : k === 'const' || k === 'enum' ? v : strict(v)]))
+  if (out.type === 'object' && out.properties) {
+    const required = new Set(out.required ?? Object.keys(out.properties))
+    out.properties = Object.fromEntries(Object.entries(out.properties).filter(([n]) => required.has(n))) // optional properties cannot be expressed; drop them
+    out.required = Object.keys(out.properties)
+    out.additionalProperties = false
+  }
+  return out
+}
+
 serve({
   adapterId: 'codex/v1',
   configurationSchema: {
@@ -14,7 +29,7 @@ serve({
   },
   parametersSchema: { type: 'object', additionalProperties: false, properties: { reasoningEffort: { enum: ['minimal', 'low', 'medium', 'high', 'xhigh'] } } },
   command({ configuration: c, parameters: p, schema, dir }) {
-    writeFileSync(join(dir, 'schema.json'), JSON.stringify(schema))
+    writeFileSync(join(dir, 'schema.json'), JSON.stringify(strict(schema)))
     const args = ['exec', '--skip-git-repo-check', '--ephemeral', '--color', 'never', '--output-schema', join(dir, 'schema.json'), '-o', join(dir, 'answer.json'), '-s', sandbox[c.sandbox ?? 'workspace-write']]
     if (c.sandbox === 'full') args.push('--dangerously-bypass-approvals-and-sandbox')
     if (c.model) args.push('-m', c.model)

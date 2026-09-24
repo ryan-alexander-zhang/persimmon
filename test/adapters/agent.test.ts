@@ -162,6 +162,8 @@ describe('codex/v1', () => {
     const seen = JSON.parse(readFileSync(join(stubs, 'codex.json'), 'utf8'))
     expect(seen.args).toEqual(expect.arrayContaining(['exec', '--ephemeral', '-s', 'workspace-write', '-m', 'gpt-6-sol', '-']))
     expect(seen.schema.properties.outputs.required).toEqual(['prd', 'count'])
+    // strict form: closed objects, every kept property required, summary dropped as optional, no format
+    expect(seen.schema).toEqual({ type: 'object', required: ['outputs'], additionalProperties: false, properties: { outputs: { type: 'object', required: ['prd', 'count'], additionalProperties: false, properties: { prd: { type: 'object', required: ['title'], additionalProperties: false, properties: { title: { type: 'string' } } }, count: { type: 'integer' } } } } })
     expect(seen.prompt).toContain('## Instructions')
   })
 })
