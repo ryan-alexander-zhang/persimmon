@@ -120,6 +120,7 @@ reads `{outputs, summary}` from `configuration.resultFile`. Credentials come fro
 
 ## Read next
 
+- [`examples/`](examples/): one project per scenario with a step-by-step README; start with `example01`, an idea to an approved PRD
 - [`DESIGN.md`](DESIGN.md): map of the design, one file per model with schema and examples
 - [`CONTEXT.md`](CONTEXT.md): glossary; one canonical term per concept
 - [`docs/design/90-decisions.md`](docs/design/90-decisions.md): every decision, by file
