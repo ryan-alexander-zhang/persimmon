@@ -125,10 +125,7 @@ export class Engine {
 
   /** API write as the local Actor (00-resource.md write order). Adapters are described on apply. */
   async apply(input: Resource, actor: Actor = localActor): Promise<{ resource: Resource; created: boolean }> {
-    if (input.kind === 'KindDefinition') {
-      const kd = this.kinds.register(input)
-      void kd
-    }
+    if (input.kind === 'KindDefinition') this.kinds.register(input, { replace: true })
     if (input.kind === 'Adapter') {
       const described = await describeAdapter(validateAdapter(input), this.credentials, this.dispatch.now)
       const { status: _s, ...bare } = described

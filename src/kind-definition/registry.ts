@@ -33,11 +33,15 @@ export class KindRegistry {
   readonly #ajv = createAjv({ strict: false })
   readonly #kinds = new Map<string, Compiled>()
 
-  register(value: unknown): KindDefinition {
+  /** Registers a KindDefinition; `replace` re-registers a SpecMutable one (apply again). */
+  register(value: unknown, o: { replace?: boolean } = {}): KindDefinition {
     const definition = validateKindDefinition(value)
     for (const version of definition.spec.versions) {
       const key = `${definition.spec.group}/${version.name}/${definition.spec.names.kind}`
-      if (this.#kinds.has(key)) throw new KindError(`already registered: ${key}`)
+      const existing = this.#kinds.get(key)
+      if (existing && !o.replace) throw new KindError(`already registered: ${key}`)
+      // a revisioned kind's schema is frozen: committed revisions were validated against it (05-revisioned-kind.md)
+      if (existing?.definition.spec.revisioned && !isDeepStrictEqual(existing.definition.spec, definition.spec)) throw new KindError(`${key} is revisioned; its KindDefinition never changes`)
       const compiled: Compiled = { definition, version, spec: this.#ajv.compile(version.schema) }
       if (version.statusSchema) compiled.status = this.#ajv.compile(version.statusSchema)
       this.#kinds.set(key, compiled)

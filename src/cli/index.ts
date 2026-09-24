@@ -1,0 +1,97 @@
+// persimmon CLI (08-store.md verbs). Local mode: every verb drains before exit.
+import { parseArgs } from 'node:util'
+import { apply } from './apply.js'
+import type { Cli } from './context.js'
+import { create } from './create.js'
+import { get, logs } from './get.js'
+import { init } from './init.js'
+import { adapterList, del, resume } from './misc.js'
+import { complete, signal } from './signal.js'
+import { validate } from './validate.js'
+
+const usage = `usage: persimmon <verb> [args]
+  validate <files>                         schema plus static rules
+  apply <files> [-n ns] [--skip-adapter-validation]
+  create <file> [--follow]
+  signal <kind>/<name> --payload <file> [--event-id <id>]
+  complete <taskRun> --file <result.yaml>
+  resume
+  get <kind>[/<name>] [-n ns]
+  describe <kind>/<name> [-n ns]
+  logs <kind>/<name> [-n ns]
+  init
+  delete <kind>/<name> [-n ns]
+  adapter install <manifest> | adapter list`
+
+export async function runCli(argv: string[], cli: Cli): Promise<number> {
+  const { values, positionals } = parseArgs({
+    args: argv,
+    allowPositionals: true,
+    options: {
+      namespace: { type: 'string', short: 'n' },
+      follow: { type: 'boolean' },
+      'skip-adapter-validation': { type: 'boolean' },
+      payload: { type: 'string' },
+      'event-id': { type: 'string' },
+      file: { type: 'string' },
+      server: { type: 'string' },
+      help: { type: 'boolean', short: 'h' },
+    },
+  })
+  const [verb, ...rest] = positionals
+  if (!verb || values.help) {
+    cli.out(usage)
+    return verb ? 0 : 2
+  }
+  if (values.server) {
+    cli.err('--server: server mode is not built yet')
+    return 2
+  }
+  const need = (n: number, what: string) => {
+    if (rest.length < n) throw new Error(`${verb}: ${what} required`)
+  }
+  try {
+    switch (verb) {
+      case 'validate':
+        need(1, 'files')
+        return await validate(cli, rest)
+      case 'apply':
+        need(1, 'files')
+        return await apply(cli, rest, { ...(values.namespace ? { namespace: values.namespace } : {}), ...(values['skip-adapter-validation'] ? { skipAdapterValidation: true } : {}) })
+      case 'create':
+        need(1, 'file')
+        return await create(cli, rest[0]!, { ...(values.follow ? { follow: true } : {}) })
+      case 'signal':
+        need(1, '<kind>/<name>')
+        return await signal(cli, rest[0]!, { ...(values.payload ? { payload: values.payload } : {}), ...(values['event-id'] ? { eventId: values['event-id'] } : {}), ...(values.namespace ? { namespace: values.namespace } : {}) })
+      case 'complete':
+        need(1, '<taskRun>')
+        if (!values.file) throw new Error('complete: --file required')
+        return await complete(cli, rest[0]!, values.file, values.namespace)
+      case 'resume':
+        return await resume(cli)
+      case 'get':
+      case 'describe':
+        need(1, '<kind>[/<name>]')
+        return await get(cli, rest[0]!, values.namespace)
+      case 'logs':
+        need(1, '<kind>/<name>')
+        return await logs(cli, rest[0]!, values.namespace)
+      case 'init':
+        return await init(cli)
+      case 'delete':
+        need(1, '<kind>/<name>')
+        return await del(cli, rest[0]!, values.namespace)
+      case 'adapter':
+        if (rest[0] === 'list') return await adapterList(cli)
+        if (rest[0] === 'install' && rest[1]) return await apply(cli, [rest[1]])
+        throw new Error('adapter: install <manifest> | list')
+      default:
+        cli.err(`unknown verb ${verb}\n${usage}`)
+        return 2
+    }
+  } catch (e) {
+    cli.err(`error: ${(e as Error).message}`)
+    return 1
+  }
+}
