@@ -1,6 +1,6 @@
 # Decisions
 
-status: draft · Every deviation from `docs/reference/` and every choice the reference left open, as
+status: active · Every deviation from `docs/reference/` and every choice the reference left open, as
 recorded in the `## Decisions` section of each design file. This file is the index; the design
 file is the source.
 

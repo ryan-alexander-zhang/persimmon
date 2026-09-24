@@ -1,6 +1,6 @@
 # Reconcile
 
-status: draft · layer: 0 · schema: [`schemas/reconcile.yaml`](schemas/reconcile.yaml)
+status: active · layer: 0 · schema: [`schemas/reconcile.yaml`](schemas/reconcile.yaml)
 
 One Event in, one transaction out, per Resource, in order.
 

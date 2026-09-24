@@ -1,6 +1,6 @@
 # Handler
 
-status: draft · layer: 0 · schema: [`schemas/handler.yaml`](schemas/handler.yaml)
+status: active · layer: 0 · schema: [`schemas/handler.yaml`](schemas/handler.yaml)
 
 One Global Resource binds kinds to behaviour. Built in or an Adapter; same contract.
 

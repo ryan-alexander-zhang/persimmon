@@ -1,6 +1,6 @@
 # Adapter
 
-status: draft · layer: 0 · schema: [`schemas/adapter.yaml`](schemas/adapter.yaml)
+status: active · layer: 0 · schema: [`schemas/adapter.yaml`](schemas/adapter.yaml)
 
 Out-of-process code the engine talks to over `persimmon.adapter/v1`. The engine knows the
 protocol and the transport, never what an Adapter does.

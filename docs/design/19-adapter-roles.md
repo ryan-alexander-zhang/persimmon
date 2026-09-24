@@ -1,6 +1,6 @@
 # Adapter roles: executor and evaluator
 
-status: draft · layer: 1 · schema: [`schemas/adapter-roles.yaml`](schemas/adapter-roles.yaml)
+status: active · layer: 1 · schema: [`schemas/adapter-roles.yaml`](schemas/adapter-roles.yaml)
 
 Part B of `persimmon.adapter/v1`: the two Roles the core kinds bind to. Part A, the envelope,
 transports, `handler` Role and Engine callbacks, is `07-adapter.md`.

@@ -1,6 +1,6 @@
 # Workflow
 
-status: draft · layer: 1 · schema: [`schemas/workflow.yaml`](schemas/workflow.yaml)
+status: active · layer: 1 · schema: [`schemas/workflow.yaml`](schemas/workflow.yaml)
 
 A Definition kind: a strict DAG of Steps joined by Transitions, with typed ports. Loops only
 through `repeat`. Runs as a WorkflowRun (`17-runs.md`).

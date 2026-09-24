@@ -1,6 +1,6 @@
 # Pack
 
-status: draft · layer: 2 · schema: none; a Pack is a directory of ordinary Resource files
+status: active · layer: 2 · schema: none; a Pack is a directory of ordinary Resource files
 
 A Pack is a directory of Global definitions applied together and overridden by name in a
 Namespace. The SDLC pack ships a working lifecycle built only from Layer 1 kinds; it adds no

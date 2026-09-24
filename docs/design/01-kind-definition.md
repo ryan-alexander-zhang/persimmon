@@ -1,6 +1,6 @@
 # KindDefinition
 
-status: draft · layer: 0 · schema: [`schemas/kind-definition.yaml`](schemas/kind-definition.yaml)
+status: active · layer: 0 · schema: [`schemas/kind-definition.yaml`](schemas/kind-definition.yaml)
 
 One Global Resource registers one Kind. Shipped kinds and user kinds use the same object.
 

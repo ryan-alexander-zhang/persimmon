@@ -1,6 +1,6 @@
 # Task
 
-status: draft · layer: 1 · schema: [`schemas/task.yaml`](schemas/task.yaml)
+status: active · layer: 1 · schema: [`schemas/task.yaml`](schemas/task.yaml)
 
 A Definition kind: one unit of work, executor-agnostic. Who does it is the Executor; what to
 do is `action`. Runs as a TaskRun (`17-runs.md`).

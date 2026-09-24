@@ -1,6 +1,6 @@
 # Snapshot
 
-status: draft · layer: 0 · schema: [`schemas/snapshot.yaml`](schemas/snapshot.yaml)
+status: active · layer: 0 · schema: [`schemas/snapshot.yaml`](schemas/snapshot.yaml)
 
 A run reads definitions from a frozen closure, never from the live store.
 

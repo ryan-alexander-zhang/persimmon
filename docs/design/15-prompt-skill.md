@@ -1,6 +1,6 @@
 # Prompt and Skill
 
-status: draft · layer: 1 · schema: [`schemas/prompt-skill.yaml`](schemas/prompt-skill.yaml)
+status: active · layer: 1 · schema: [`schemas/prompt-skill.yaml`](schemas/prompt-skill.yaml)
 
 Two pure-data Definition kinds referenced from `Task.action.context`. The engine stores and
 freezes them; Adapters interpret them.

@@ -1,6 +1,6 @@
 # Gate and Validator
 
-status: draft · layer: 1 · schema: [`schemas/gate.yaml`](schemas/gate.yaml)
+status: active · layer: 1 · schema: [`schemas/gate.yaml`](schemas/gate.yaml)
 
 A Gate decides; a Validator asks a question; the Executor behind a Validator's Task answers.
 A human, an agent and a script Executor are one shape behind a Validator.

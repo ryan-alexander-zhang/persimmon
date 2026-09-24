@@ -1,6 +1,6 @@
 # Runs
 
-status: draft · layer: 1 · schema: [`schemas/runs.yaml`](schemas/runs.yaml)
+status: active · layer: 1 · schema: [`schemas/runs.yaml`](schemas/runs.yaml)
 
 Four Immutable run kinds and the four builtin Handlers that drive them on the reconcile
 loop. Everything here is Handler logic, not engine logic.

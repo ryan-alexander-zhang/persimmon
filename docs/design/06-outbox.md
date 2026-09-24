@@ -1,6 +1,6 @@
 # Outbox
 
-status: draft · layer: 0 · schema: [`schemas/outbox.yaml`](schemas/outbox.yaml)
+status: active · layer: 0 · schema: [`schemas/outbox.yaml`](schemas/outbox.yaml)
 
 The Outbox is a Store component; a write and the Outbox event it causes commit together.
 

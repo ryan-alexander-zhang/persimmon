@@ -1,6 +1,6 @@
 # Ports and bindings
 
-status: draft · layer: 1 · schema: [`schemas/ports.yaml`](schemas/ports.yaml)
+status: active · layer: 1 · schema: [`schemas/ports.yaml`](schemas/ports.yaml)
 
 Typed slots on definitions, typed values at run time, and the rules that connect them.
 

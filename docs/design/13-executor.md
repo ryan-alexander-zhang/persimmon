@@ -1,6 +1,6 @@
 # Executor
 
-status: draft · layer: 1 · schema: [`schemas/executor.yaml`](schemas/executor.yaml)
+status: active · layer: 1 · schema: [`schemas/executor.yaml`](schemas/executor.yaml)
 
 A Definition kind naming who does a Task: an Adapter with Role `executor`, its opaque
 configuration, and the security envelope for every attempt.

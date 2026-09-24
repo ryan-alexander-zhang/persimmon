@@ -1,6 +1,6 @@
 # Artifact, Relation, RelationType
 
-status: draft · layer: 1 · schema: [`schemas/relation.yaml`](schemas/relation.yaml) (Relation, RelationType; the artifact instance is `schemas/revisioned.yaml`)
+status: active · layer: 1 · schema: [`schemas/relation.yaml`](schemas/relation.yaml) (Relation, RelationType; the artifact instance is `schemas/revisioned.yaml`)
 
 An Artifact is a Resource of an artifact kind (`05-revisioned-kind.md`). Layer 1 adds how
 artifact kinds are registered, how Relations connect revisions, and what is retained.

@@ -1,6 +1,6 @@
 # Roadmap
 
-status: draft · What v1 leaves out, by layer, with the design file that defers it, or the reference item when no design file names it.
+status: active · What v1 leaves out, by layer, with the design file that defers it, or the reference item when no design file names it.
 
 ```text
 v1        Layer 0 framework · Layer 1 core kinds · Layer 2 SDLC pack as a directory

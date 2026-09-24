@@ -1,6 +1,6 @@
 # Trigger
 
-status: draft · layer: 1 · schema: [`schemas/trigger.yaml`](schemas/trigger.yaml)
+status: active · layer: 1 · schema: [`schemas/trigger.yaml`](schemas/trigger.yaml)
 
 A kind that creates a WorkflowRun from an Outbox event. Not referenceable, not in
 snapshots.

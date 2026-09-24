@@ -1,6 +1,6 @@
 # Resource
 
-status: draft · layer: 0 · schema: [`schemas/resource.yaml`](schemas/resource.yaml)
+status: active · layer: 0 · schema: [`schemas/resource.yaml`](schemas/resource.yaml)
 
 Every stored Resource has one envelope and three write paths.
 

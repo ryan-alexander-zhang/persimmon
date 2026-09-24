@@ -1,6 +1,6 @@
 # Store and Mode
 
-status: draft · layer: 0 · schema: [`schemas/store.yaml`](schemas/store.yaml) (engine config; the Store interface is prose)
+status: active · layer: 0 · schema: [`schemas/store.yaml`](schemas/store.yaml) (engine config; the Store interface is prose)
 
 One engine library, one Store interface, two implementations. Anything that works only in
 server mode is a design error.

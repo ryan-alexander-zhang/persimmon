@@ -1,6 +1,6 @@
 # Revisioned kind
 
-status: draft · layer: 0 · schema: [`schemas/revisioned.yaml`](schemas/revisioned.yaml)
+status: active · layer: 0 · schema: [`schemas/revisioned.yaml`](schemas/revisioned.yaml)
 
 `revisioned: true` makes a kind an append-only series of immutable revisions under one id.
 
