@@ -75,7 +75,7 @@ describe('commit', () => {
     expect(store.runLog.read(uid).every((e) => e.appliedAt)).toBe(true)
     expect(store.timers.due('2099-01-01T00:00:00Z')).toEqual([])
     expect(store.resources.get({ kind: 'ResearchReport', namespace: 'demo', name: 'research-checkout-v2.r1' })).toBeDefined()
-    expect(store.runLog.outstandingCalls().map((c) => c.action.idempotencyKey)).toEqual(['prd-create-001//research/2'])
+    expect(store.runLog.outstandingCalls()).toEqual([]) // AdapterFinished for attempt 2 closed the call
     const ownerLog = store.runLog.read(owner.metadata.uid!)
     expect(ownerLog.map((e) => e.event.type)).toEqual(['ChildFinished'])
     expect(ownerLog[0]!.event.payload).toEqual({ ref: { apiVersion: 'persimmon.ai/v1', kind: 'TaskRun', namespace: 'demo', name: child.metadata.name, uid }, value: 'Succeeded' })
