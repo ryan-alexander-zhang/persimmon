@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { parse, stringify } from 'yaml'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { parseInput } from './create.js'
 import { runCli } from './index.js'
 
 const example = (n: string) => parse(readFileSync(`docs/design/examples/${n}.yaml`, 'utf8'))
@@ -92,7 +93,9 @@ describe('persimmon CLI', () => {
     out = []
     const code = await runCli(['create', file('run.yaml', [runDoc]), '--follow'], { cwd: dir, out: (l) => out.push(l), err: (l) => err.push(l) })
     expect(code).toBe(1) // the fake adapter's execute answer is not a TaskResult
-    expect(out).toEqual(['created WorkflowRun/demo-001', 'WorkflowRun/demo-001 Failed'])
+    expect(out[0]).toBe('created WorkflowRun/demo-001')
+    expect(out.at(-1)).toBe('WorkflowRun/demo-001  Failed no_progress: every activated step finished and no terminal was selected')
+    expect(out.some((l) => /^TaskRun\/demo-001-research  Failed schema_violation/.test(l))).toBe(true) // owned runs report as they change
     out = []
     expect(await run('get', 'WorkflowRun/demo-001')).toBe(0)
     const shown = parse(out.join('\n'))
@@ -108,4 +111,26 @@ describe('persimmon CLI', () => {
     expect(await run('nope')).toBe(2)
     expect(await run()).toBe(2)
   })
+
+  it('run builds a manual WorkflowRun from --input values and follows it', async () => {
+    await run('init')
+    await run('adapter', 'install', file('a.yaml', [fakeAdapter('claude-code/v1')]))
+    const repo = example('resource-refs').externalResourceRef
+    writeFileSync(join(dir, 'repo.yaml'), stringify({ kind: 'externalResource', ref: repo }))
+    out = []
+    const code = await runCli(['run', 'prd-create', '--input', `repository=@${join(dir, 'repo.yaml')}`, '--timeout', '2h', '--follow'], { cwd: dir, out: (l) => out.push(l), err: (l) => err.push(l) })
+    expect(code).toBe(1)
+    expect(out[0]).toMatch(/^created WorkflowRun\/prd-create-[0-9a-f]{6}$/)
+    const name = out[0]!.split('/')[1]!
+    out = []
+    expect(await run('get', `WorkflowRun/${name}`)).toBe(0)
+    const shown = parse(out.join('\n'))
+    expect(shown.spec).toMatchObject({ workflowRef: { kind: 'Workflow', name: 'prd-create' }, inputs: { repository: { kind: 'externalResource', ref: repo } }, timeout: '2h', origin: { kind: 'manual' } })
+    expect(shown.metadata.namespace).toBe('default')
+    expect(parseInput('n=12')).toEqual(['n', { kind: 'value', value: 12 }])
+    expect(parseInput('s=hello world')).toEqual(['s', { kind: 'value', value: 'hello world' }])
+    expect(parseInput('a={kind: artifact, ref: {id: x}}')).toEqual(['a', { kind: 'artifact', ref: { id: 'x' } }])
+    expect(() => parseInput('novalue')).toThrow(/<port>=<value>/)
+  })
 })
+

@@ -2,7 +2,7 @@
 import { parseArgs } from 'node:util'
 import { apply } from './apply.js'
 import type { Cli } from './context.js'
-import { create } from './create.js'
+import { create, run } from './create.js'
 import { get, logs } from './get.js'
 import { init } from './init.js'
 import { adapterList, del, resume } from './misc.js'
@@ -13,6 +13,7 @@ const usage = `usage: persimmon <verb> [args]
   validate <files>                         schema plus static rules
   apply <files> [-n ns | --global] [--skip-adapter-validation]
   create <file> [-n ns] [--follow]
+  run <Workflow> [--input <port>=<yaml | @file>]... [--timeout <d>] [-n ns] [--follow]
   signal <kind>/<name> --payload <file> [--event-id <id>]
   complete <taskRun> --file <result.yaml>
   resume
@@ -30,6 +31,8 @@ export async function runCli(argv: string[], cli: Cli): Promise<number> {
     options: {
       namespace: { type: 'string', short: 'n' },
       follow: { type: 'boolean' },
+      input: { type: 'string', multiple: true },
+      timeout: { type: 'string' },
       global: { type: 'boolean' },
       'skip-adapter-validation': { type: 'boolean' },
       payload: { type: 'string' },
@@ -63,6 +66,9 @@ export async function runCli(argv: string[], cli: Cli): Promise<number> {
       case 'create':
         need(1, 'file')
         return await create(cli, rest[0]!, { ...(values.follow ? { follow: true } : {}), ...(values.namespace ? { namespace: values.namespace } : {}) })
+      case 'run':
+        need(1, '<Workflow>')
+        return await run(cli, rest[0]!, { ...(values.follow ? { follow: true } : {}), ...(values.namespace ? { namespace: values.namespace } : {}), ...(values.input ? { inputs: values.input } : {}), ...(values.timeout ? { timeout: values.timeout } : {}) })
       case 'signal':
         need(1, '<kind>/<name>')
         return await signal(cli, rest[0]!, { ...(values.payload ? { payload: values.payload } : {}), ...(values['event-id'] ? { eventId: values['event-id'] } : {}), ...(values.namespace ? { namespace: values.namespace } : {}) })

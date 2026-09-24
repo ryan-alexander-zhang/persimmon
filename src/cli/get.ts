@@ -1,6 +1,7 @@
 import type { Resource } from '../resource/types.js'
 import type { Cli } from './context.js'
 import { withEngine } from './context.js'
+import { describe } from './create.js'
 import { parseRef, toYaml } from './io.js'
 
 export interface Where {
@@ -23,7 +24,10 @@ export async function get(cli: Cli, ref: string, o: Where = {}): Promise<number>
         cli.out(toYaml(r))
         return 0
       }
-      for (const r of engine.store.resources.list(kind, o.global ? '' : o.namespace)) cli.out(`${r.kind}/${r.metadata.name}${r.metadata.namespace ? `  -n ${r.metadata.namespace}` : ''}${phaseOf(r) ? `  ${phaseOf(r)}` : ''}`)
+      for (const r of engine.store.resources.list(kind, o.global ? '' : o.namespace)) {
+        const state = describe(r)
+        cli.out(`${r.kind}/${r.metadata.name}${r.metadata.namespace ? `  -n ${r.metadata.namespace}` : ''}${state ? `  ${state}` : ''}`)
+      }
       return 0
     },
     { listen: false },
@@ -51,8 +55,6 @@ export async function logs(cli: Cli, ref: string, o: Where = {}): Promise<number
     { listen: false },
   )
 }
-
-const phaseOf = (r: { status?: Record<string, unknown> }) => (typeof r.status?.phase === 'string' ? r.status.phase : undefined)
 
 /** `--global` or `-n` when given; else defaultNamespace, then Global: the LocalDefinitionRef order (00-resource.md). */
 export function find(engine: { store: { resources: { get(ref: { kind: string; namespace?: string; name: string }): Resource | undefined } }; dispatch: { defaultNamespace: string } }, kind: string, name: string, o: Where = {}): Resource | undefined {

@@ -50,7 +50,7 @@ describe('scenario: PRD lifecycle', () => {
     const wr = { apiVersion: 'persimmon.ai/v1', kind: 'WorkflowRun', metadata: { name: 'prd-001' }, spec: { workflowRef: { kind: 'Workflow', name: 'prd-create' }, inputs: { repository: { kind: 'externalResource', ref: repo } }, timeout: '1h', origin: { kind: 'manual' } } }
     out = []
     expect(await runCli(['create', file('run.yaml', wr), '--follow'], cli())).toBe(0)
-    expect(out.at(-1)).toBe('WorkflowRun/prd-001 Succeeded')
+    expect(out.at(-1)).toBe('WorkflowRun/prd-001  Succeeded')
 
     await inspect((e) => {
       const done = e.store.resources.get({ kind: 'WorkflowRun', namespace: 'default', name: 'prd-001' })!
