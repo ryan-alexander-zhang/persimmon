@@ -77,8 +77,10 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ## 7. Small Commits
 
-**One change per commit. Commit only when asked.**
+**One verified unit, one commit. Commit it yourself.**
 
-- One commit covers one design file, one decision, or one behavior change.
+- A unit is one function, one module, one test, one behavior change, or one design decision.
+- Verify first: tests pass, examples validate, or the check named in the plan step holds.
+- Commit right after verification. Do not batch units; do not wait to be asked.
 - Conventional Commits header: `<type>(<scope>): <summary>`; body states why, not what.
 - Never mix a rule change with the work it governs; land the rule first.
