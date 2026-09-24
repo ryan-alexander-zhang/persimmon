@@ -15,7 +15,7 @@ const usage = `usage: persimmon <verb> [args]
   create <file> [-n ns] [--follow]
   run <Workflow> [--input <port>=<yaml | @file>]... [--timeout <d>] [-n ns] [--follow]
   signal <kind>/<name> --payload <file> [--event-id <id>]
-  complete <taskRun> --file <result.yaml>
+  complete <taskRun> [--file <result.yaml>]         no file: answer the inbox form at the terminal
   resume
   get <kind>[/<name>] [-n ns | --global]
   describe <kind>/<name> [-n ns]
@@ -74,7 +74,6 @@ export async function runCli(argv: string[], cli: Cli): Promise<number> {
         return await signal(cli, rest[0]!, { ...(values.payload ? { payload: values.payload } : {}), ...(values['event-id'] ? { eventId: values['event-id'] } : {}), ...(values.namespace ? { namespace: values.namespace } : {}) })
       case 'complete':
         need(1, '<taskRun>')
-        if (!values.file) throw new Error('complete: --file required')
         return await complete(cli, rest[0]!, values.file, values.namespace)
       case 'resume':
         return await resume(cli)

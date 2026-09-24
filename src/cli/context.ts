@@ -7,6 +7,8 @@ export interface Cli {
   cwd: string
   out: (line: string) => void
   err: (line: string) => void
+  /** Interactive answer: prints `prompt`, returns the lines typed until a lone `.` or EOF; absent when no terminal. */
+  ask?: (prompt: string) => Promise<string>
 }
 
 /** Opens the local engine for one verb: `.persimmon/` exists, callbacks listen, stored definitions load. */

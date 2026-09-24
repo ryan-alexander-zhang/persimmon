@@ -82,10 +82,14 @@ describe('scenario: PRD lifecycle', () => {
       expect(structure.status).toMatchObject({ phase: 'Succeeded', result: { passed: false, findings: [{ code: 'too_few' }] } }) // 2 requirements < minRequirements 3
     })
 
-    // the human approves
-    const result = { protocol: 'persimmon.result/v1', outputs: { result: { kind: 'value', value: { passed: true, findings: [], evidence: [] } } } }
+    // the human approves at the terminal: a bad first answer is asked again, then the ValidationResult
+    const answers = ['passed: yes', 'passed: true\nfindings: []\nevidence: []']
+    const asked: string[] = []
     out = []
-    expect(await run('complete', taskRun, '--file', file('result.yaml', result))).toBe(0)
+    expect(await runCli(['complete', taskRun], { ...cli(), ask: async (p) => (asked.push(p), answers.shift()!) })).toBe(0)
+    expect(asked.length).toBe(2)
+    expect(asked[0]).toContain('result (value) as YAML')
+    expect(out.some((l) => l.startsWith('ERR result:') && l.includes('passed'))).toBe(true) // the first answer failed the schema
     expect(existsSync(join(dir, '.persimmon', 'inbox', `${taskRun}.yaml`))).toBe(false) // the form is answered
     for (let i = 0; i < 5; i++) await run('resume')
     await inspect((e) => {
