@@ -127,6 +127,10 @@ without `repeat`, `<stepId>[<index>]` per enclosing repeat level, joined by `/`.
 - `any` and `quorum` never cancel the remaining `from` steps; eager joins are roadmap.
 - A Failed Workflow exports no outputs; a business rejection is Succeeded plus a verdict output
   (reference; kept). No named entrypoints (reference decision 7; kept).
+- The `stepContract` names no child `spec` shape, so the `workflow` Handler builds TaskRun, GateRun
+  and WorkflowRun specs itself and gives any other run kind the TaskRun shape with `<kind>Ref`. A
+  contract field for the child shape is roadmap. Found in implementation.
+
 
 ## Examples
 
