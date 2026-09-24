@@ -103,6 +103,9 @@ Deviations from `docs/reference/05-framework.md`, taken here:
   writes and `signal` for external Signals.
 - Handlers act as Actor kind `handler`; reference said `service`.
 - One `ownerReference` at most.
+- A LocalDefinitionRef inside `spec` counts for the delete rule too, in its Namespaced and its
+  Global resolution; a Workflow keeps its Tasks. Found in implementation.
+
 
 ## Examples
 
