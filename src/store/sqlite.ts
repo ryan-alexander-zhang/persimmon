@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
 import { isDeepStrictEqual } from 'node:util'
-import type { AuditRecord, ObjectRef, Resource } from '../resource/types.js'
+import type { AuditRecord, ObjectRef, Resource, RevisionRef } from '../resource/types.js'
 import {
   type Addressed,
   type BlobStore,
@@ -10,10 +10,12 @@ import {
   ReferencedError,
   type OutboxRecord,
   type OutstandingCall,
+  type PublicationScope,
   type ResourceKey,
   type RunLogEntry,
   type RunLogEvent,
   type RunLogResult,
+  type Staged,
   type Store,
   type Timer,
 } from './store.js'
@@ -23,7 +25,14 @@ create table if not exists resources (
   uid text primary key,
   kind text not null, namespace text not null, name text not null,
   body text not null,
+  state text not null default 'live',
+  scope_uid text, scope_key text,
   unique (kind, namespace, name)
+);
+create index if not exists resources_scope on resources (scope_uid, scope_key);
+create table if not exists revisions (
+  kind text not null, namespace text not null, id text not null, next integer not null,
+  primary key (kind, namespace, id)
 );
 create table if not exists refs (
   from_uid text not null, kind text not null, namespace text not null, name text not null
@@ -146,21 +155,25 @@ export class SqliteStore implements Store {
 
     get: (key: ResourceKey): Resource | undefined => {
       const row = this.#db
-        .prepare('select body from resources where kind = ? and namespace = ? and name = ?')
+        .prepare("select body from resources where kind = ? and namespace = ? and name = ? and state = 'live'")
         .get(key.kind, key.namespace ?? '', key.name) as { body: string } | undefined
       return row ? (JSON.parse(row.body) as Resource) : undefined
     },
 
     getByUid: (uid: string): Resource | undefined => {
-      const row = this.#db.prepare('select body from resources where uid = ?').get(uid) as { body: string } | undefined
+      const row = this.#db.prepare("select body from resources where uid = ? and state = 'live'").get(uid) as
+        | { body: string }
+        | undefined
       return row ? (JSON.parse(row.body) as Resource) : undefined
     },
 
     list: (kind: string, namespace?: string, labels?: Record<string, string>): Resource[] => {
       const rows = (
         namespace === undefined
-          ? this.#db.prepare('select body from resources where kind = ? order by namespace, name').all(kind)
-          : this.#db.prepare('select body from resources where kind = ? and namespace = ? order by name').all(kind, namespace)
+          ? this.#db.prepare("select body from resources where kind = ? and state = 'live' order by namespace, name").all(kind)
+          : this.#db
+              .prepare("select body from resources where kind = ? and namespace = ? and state = 'live' order by name")
+              .all(kind, namespace)
       ) as { body: string }[]
       const all = rows.map((r) => JSON.parse(r.body) as Resource)
       if (!labels) return all
@@ -179,6 +192,86 @@ export class SqliteStore implements Store {
         if (holder) throw new ReferencedError(`${describe(key)} is referenced by ${holder.from_uid}`)
         this.#db.prepare('delete from resources where uid = ?').run(uid)
         this.#db.prepare('delete from refs where from_uid = ?').run(uid)
+      }),
+
+    reserveRevision: (kind: string, namespace: string, id: string): number =>
+      this.transaction(() => {
+        this.#db
+          .prepare(
+            `insert into revisions (kind, namespace, id, next) values (?, ?, ?, 2)
+             on conflict (kind, namespace, id) do update set next = next + 1`,
+          )
+          .run(kind, namespace, id)
+        const row = this.#db
+          .prepare('select next from revisions where kind = ? and namespace = ? and id = ?')
+          .get(kind, namespace, id) as { next: number }
+        return row.next - 1
+      }),
+
+    listRevisions: (kind: string, namespace: string, id: string): Resource[] =>
+      (
+        this.#db
+          .prepare("select body from resources where kind = ? and namespace = ? and name glob ? and state = 'live'")
+          .all(kind, namespace, `${id}.r*`) as unknown as { body: string }[]
+      )
+        .map((r) => JSON.parse(r.body) as Resource)
+        .sort((a, b) => revisionOf(a) - revisionOf(b)),
+
+    stage: (revision: Resource, scope: PublicationScope): Resource =>
+      this.transaction(() => {
+        const key = keyOf(revision)
+        const stored = structuredClone(revision)
+        const m = stored.metadata
+        m.uid = randomUUID()
+        m.creationTimestamp = this.#now().toISOString()
+        m.resourceVersion = '1'
+        m.generation = 1
+        this.#db
+          .prepare(
+            `insert into resources (uid, kind, namespace, name, body, state, scope_uid, scope_key)
+             values (?, ?, ?, ?, ?, 'staged', ?, ?)`,
+          )
+          .run(m.uid, key.kind, key.namespace ?? '', key.name, JSON.stringify(stored), scope.uid, scope.key)
+        return stored
+      }),
+
+    commitScope: (scope: PublicationScope): Resource[] =>
+      this.transaction(() => {
+        const rows = this.#db
+          .prepare("select uid, body from resources where scope_uid = ? and scope_key = ? and state = 'staged'")
+          .all(scope.uid, scope.key) as unknown as { uid: string; body: string }[]
+        const upd = this.#db.prepare("update resources set state = 'live' where uid = ?")
+        const ins = this.#db.prepare('insert into refs (from_uid, kind, namespace, name) values (?, ?, ?, ?)')
+        return rows.map((r) => {
+          const res = JSON.parse(r.body) as Resource
+          upd.run(r.uid)
+          for (const ref of referencesOf(res)) ins.run(r.uid, ref.kind, ref.namespace ?? res.metadata.namespace ?? '', ref.name)
+          return res
+        })
+      }),
+
+    abandonScope: (scope: PublicationScope): void => {
+      this.#db
+        .prepare("update resources set state = 'abandoned' where scope_uid = ? and scope_key = ? and state = 'staged'")
+        .run(scope.uid, scope.key)
+    },
+
+    staged: (uid: string): Staged[] =>
+      (
+        this.#db
+          .prepare('select body, state, scope_key from resources where scope_uid = ? order by rowid')
+          .all(uid) as unknown as { body: string; state: string; scope_key: string }[]
+      ).map((r) => {
+        const res = JSON.parse(r.body) as Resource
+        const identity = (res.spec as { identity: { id: string; revision: number } }).identity
+        const ref: RevisionRef = {
+          apiVersion: res.apiVersion,
+          kind: res.kind,
+          namespace: res.metadata.namespace as string,
+          id: identity.id,
+          revision: identity.revision,
+        }
+        return { ref, scope: r.scope_key, state: r.state === 'live' ? 'committed' : (r.state as Staged['state']) }
       }),
   }
 
@@ -369,6 +462,10 @@ function entryOf(r: RunLogRow): RunLogEntry {
   if (r.applied_at) entry.appliedAt = r.applied_at
   if (r.result) entry.result = JSON.parse(r.result) as RunLogResult
   return entry
+}
+
+function revisionOf(r: Resource): number {
+  return (r.spec as { identity: { revision: number } }).identity.revision
 }
 
 function keyOf(r: Resource): ResourceKey {

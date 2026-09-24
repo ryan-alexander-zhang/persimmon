@@ -1,5 +1,5 @@
 // Store interface (08-store.md). One implementation per mode; the engine sees only this.
-import type { AuditRecord, Resource } from '../resource/types.js'
+import type { AuditRecord, Resource, RevisionRef } from '../resource/types.js'
 
 export class ConflictError extends Error {}
 export class NotFoundError extends Error {}
@@ -11,6 +11,19 @@ export interface ResourceKey {
   name: string
 }
 
+export interface PublicationScope {
+  /** Owner of the scope: the reconciling Resource. */
+  uid: string
+  /** The callAdapter idempotencyKey, or the reconcile's own key. */
+  key: string
+}
+
+export interface Staged {
+  ref: RevisionRef
+  scope: string
+  state: 'staged' | 'committed' | 'abandoned'
+}
+
 export interface ResourceStore {
   /** Create when `metadata.resourceVersion` is absent; otherwise CAS update. Returns the stored Resource. */
   put(resource: Resource): Resource
@@ -19,6 +32,18 @@ export interface ResourceStore {
   list(kind: string, namespace?: string, labels?: Record<string, string>): Resource[]
   /** Refused while any ownerReference, ObjectRef, snapshot or RevisionRef points at it (00-resource.md). */
   delete(uid: string): void
+  /** Next revision for (kind, namespace, id); never reused, gaps allowed (05-revisioned-kind.md). */
+  reserveRevision(kind: string, namespace: string, id: string): number
+  /** Live revisions of one identity, ascending. */
+  listRevisions(kind: string, namespace: string, id: string): Resource[]
+  /** Stores a revision invisible to get and list until its scope commits. */
+  stage(revision: Resource, scope: PublicationScope): Resource
+  /** Makes every revision staged under the scope visible; returns them. */
+  commitScope(scope: PublicationScope): Resource[]
+  /** Retains the scope's revisions flagged; they never become visible. */
+  abandonScope(scope: PublicationScope): void
+  /** Every revision staged by this owner, with its state. */
+  staged(uid: string): Staged[]
 }
 
 export interface AuditLog {
