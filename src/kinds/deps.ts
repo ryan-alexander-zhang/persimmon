@@ -14,6 +14,7 @@ export interface HandlerDeps {
   callback(token: string, name: string, args: Record<string, unknown>): unknown
   /** Live read for kinds outside snapshots (Trigger resolving its Workflow, child runs). Namespace first, then Global. */
   getResource(kind: string, namespace: string | undefined, name: string): Resource | undefined
+  getByUid(uid: string): Resource | undefined
   /** Random in [0, 1); injectable for jitter tests. */
   random(): number
 }

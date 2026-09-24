@@ -55,7 +55,7 @@ describe('task Handler', () => {
         published.push(args)
         return { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement', namespace: 'demo', id: (args as { id: string }).id, revision: 7 }
       },
-      getResource: () => undefined,
+      getResource: () => undefined, getByUid: () => undefined,
     }
     handler = taskHandler(deps)
   })

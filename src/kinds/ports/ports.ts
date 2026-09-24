@@ -131,7 +131,7 @@ export function celContext(s: Sources): Record<string, unknown> {
 }
 
 /** The CEL environment of a site (10-ports.md expression profile). Ports become typed roots. */
-export function siteOf(roots: { inputs?: Record<string, InputSpec>; steps?: Record<string, Record<string, OutputSpec>>; state?: Record<string, InputSpec>; iterationOutputs?: Record<string, OutputSpec>; event?: JsonSchema }): Site {
+export function siteOf(roots: { inputs?: Record<string, InputSpec>; steps?: Record<string, Record<string, OutputSpec>>; state?: Record<string, InputSpec>; iterationOutputs?: Record<string, OutputSpec>; event?: JsonSchema; extra?: Record<string, JsonSchema> }): Site {
   const portSchema = (t: PortType): JsonSchema => (t.kind === 'value' ? (expandSchema(t.schema) ?? {}) : expandSchema({ $ref: t.kind === 'artifact' ? 'persimmon.ai/v1#/RevisionRef' : 'persimmon.ai/v1#/ExternalResourceRef' }) ?? {})
   const objectOf = (ports: Record<string, { type: PortType }> | undefined): JsonSchema | undefined =>
     ports && { type: 'object', properties: Object.fromEntries(Object.entries(ports).map(([k, p]) => [k, portSchema(p.type)])) }
@@ -150,6 +150,7 @@ export function siteOf(roots: { inputs?: Record<string, InputSpec>; steps?: Reco
   if (roots.state) r.state = objectOf(roots.state)
   if (roots.iterationOutputs) r.iteration = { type: 'object', properties: { index: { type: 'integer' }, outputs: objectOf(roots.iterationOutputs) ?? {} } }
   if (roots.event) r.event = roots.event
+  Object.assign(r, roots.extra)
   return new Site(r)
 }
 

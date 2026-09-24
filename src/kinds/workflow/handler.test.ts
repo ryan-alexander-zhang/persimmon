@@ -44,7 +44,7 @@ describe('workflow Handler', () => {
     clock = Date.parse('2026-09-21T09:00:00Z')
     const kinds = new KindRegistry()
     for (const kd of closure.resources.filter((r) => r.kind === 'KindDefinition')) kinds.register(kd)
-    const deps: HandlerDeps = { kinds, adapters: new AdapterRegistry({ resolve: () => undefined }), now: () => new Date(clock), closure: () => closure, callback: () => undefined, getResource: () => undefined, random: () => 0 }
+    const deps: HandlerDeps = { kinds, adapters: new AdapterRegistry({ resolve: () => undefined }), now: () => new Date(clock), closure: () => closure, callback: () => undefined, getResource: () => undefined, getByUid: () => undefined, random: () => 0 }
     handler = workflowHandler(deps)
   })
 
