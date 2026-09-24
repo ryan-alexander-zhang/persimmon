@@ -1,0 +1,9 @@
+# Local-mode human Executor Adapter (20-pack.md). persimmon init resolves the script path.
+apiVersion: persimmon.ai/v1
+kind: Adapter
+metadata: {name: cli-human-v1}
+spec:
+  id: cli-human/v1
+  roles: [executor]
+  transport: stdio
+  command: [node, adapters/cli-human/index.mjs]
