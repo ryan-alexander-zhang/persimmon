@@ -12,6 +12,9 @@
     "persimmon": "dist/main.js"
   },
   "scripts": {
+    "gen": "node scripts/gen-schemas.mjs",
+    "prebuild": "npm run gen",
+    "pretest": "npm run gen",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

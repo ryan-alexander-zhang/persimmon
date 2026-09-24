@@ -1,0 +1,6686 @@
+{
+ "adapter-roles.yaml": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Adapter roles",
+  "description": "persimmon.adapter/v1 part B, executor and evaluator Roles.",
+  "$defs": {
+   "ExecutorDescribe": {
+    "allOf": [
+     {
+      "$ref": "adapter.yaml#/$defs/Describe"
+     },
+     {
+      "type": "object",
+      "required": [
+       "executorTypes",
+       "configurationSchema",
+       "parametersSchema",
+       "contextKinds",
+       "skillFormats",
+       "supports",
+       "formRenderable"
+      ],
+      "properties": {
+       "executorTypes": {
+        "type": "array",
+        "minItems": 1,
+        "uniqueItems": true,
+        "items": {
+         "enum": [
+          "agent",
+          "script",
+          "tool",
+          "human"
+         ]
+        }
+       },
+       "configurationSchema": {
+        "type": "object"
+       },
+       "parametersSchema": {
+        "type": "object"
+       },
+       "contextKinds": {
+        "type": "array",
+        "uniqueItems": true,
+        "items": {
+         "enum": [
+          "file",
+          "artifact",
+          "prompt",
+          "skill"
+         ]
+        }
+       },
+       "skillFormats": {
+        "type": "array",
+        "uniqueItems": true,
+        "items": {
+         "$ref": "reconcile.yaml#/$defs/AdapterId"
+        }
+       },
+       "supports": {
+        "type": "object",
+        "required": [
+         "query",
+         "cancel",
+         "complete"
+        ],
+        "additionalProperties": false,
+        "properties": {
+         "query": {
+          "type": "boolean"
+         },
+         "cancel": {
+          "type": "boolean"
+         },
+         "complete": {
+          "type": "boolean"
+         }
+        }
+       },
+       "formRenderable": {
+        "type": "boolean"
+       }
+      },
+      "if": {
+       "properties": {
+        "executorTypes": {
+         "contains": {
+          "const": "human"
+         }
+        }
+       }
+      },
+      "then": {
+       "properties": {
+        "supports": {
+         "properties": {
+          "complete": {
+           "const": true
+          }
+         }
+        }
+       }
+      },
+      "else": {
+       "properties": {
+        "supports": {
+         "properties": {
+          "complete": {
+           "const": false
+          }
+         }
+        }
+       }
+      }
+     }
+    ]
+   },
+   "EvaluatorDescribe": {
+    "allOf": [
+     {
+      "$ref": "adapter.yaml#/$defs/Describe"
+     },
+     {
+      "type": "object",
+      "required": [
+       "configurationSchema"
+      ],
+      "properties": {
+       "configurationSchema": {
+        "type": "object"
+       }
+      }
+     }
+    ]
+   },
+   "TaskRunRef": {
+    "type": "object",
+    "required": [
+     "ref",
+     "logicalExecutionId",
+     "idempotencyKey",
+     "attempt"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "ref": {
+      "$ref": "resource.yaml#/$defs/ObjectRef"
+     },
+     "logicalExecutionId": {
+      "type": "string",
+      "minLength": 1
+     },
+     "idempotencyKey": {
+      "$ref": "reconcile.yaml#/$defs/IdempotencyKey"
+     },
+     "attempt": {
+      "type": "integer",
+      "minimum": 1
+     }
+    }
+   },
+   "ValidationRunRef": {
+    "type": "object",
+    "required": [
+     "ref",
+     "logicalExecutionId",
+     "idempotencyKey"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "ref": {
+      "$ref": "resource.yaml#/$defs/ObjectRef"
+     },
+     "logicalExecutionId": {
+      "type": "string",
+      "minLength": 1
+     },
+     "idempotencyKey": {
+      "$ref": "reconcile.yaml#/$defs/IdempotencyKey"
+     }
+    }
+   },
+   "ExecutePayload": {
+    "type": "object",
+    "required": [
+     "taskRun",
+     "task",
+     "executor",
+     "inputs",
+     "context",
+     "deadline",
+     "credentials",
+     "engine"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "taskRun": {
+      "$ref": "#/$defs/TaskRunRef"
+     },
+     "task": {
+      "type": "object",
+      "required": [
+       "instructions",
+       "parameters",
+       "sideEffects",
+       "outputs",
+       "outputSchemas"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "instructions": {
+        "type": "string"
+       },
+       "parameters": {
+        "type": "object"
+       },
+       "sideEffects": {
+        "enum": [
+         "none",
+         "idempotent",
+         "nonIdempotent"
+        ]
+       },
+       "outputs": {
+        "$ref": "ports.yaml#/$defs/Ports/properties/outputs"
+       },
+       "outputSchemas": {
+        "type": "object",
+        "propertyNames": {
+         "$ref": "ports.yaml#/$defs/PortName"
+        },
+        "additionalProperties": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "executor": {
+      "type": "object",
+      "required": [
+       "type",
+       "configuration",
+       "security"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "type": {
+        "enum": [
+         "agent",
+         "script",
+         "tool",
+         "human"
+        ]
+       },
+       "configuration": {
+        "type": "object"
+       },
+       "security": {
+        "$ref": "executor.yaml#/$defs/Security"
+       }
+      }
+     },
+     "inputs": {
+      "$ref": "ports.yaml#/$defs/RuntimeValues"
+     },
+     "context": {
+      "$ref": "runs.yaml#/$defs/ResolvedContext"
+     },
+     "deadline": {
+      "type": "string",
+      "format": "date-time"
+     },
+     "credentials": {
+      "type": "object",
+      "propertyNames": {
+       "$ref": "store.yaml#/$defs/CredentialName"
+      },
+      "additionalProperties": {
+       "type": "string"
+      }
+     },
+     "engine": {
+      "$ref": "adapter.yaml#/$defs/Engine"
+     }
+    }
+   },
+   "ExecuteResult": {
+    "oneOf": [
+     {
+      "$ref": "task.yaml#/$defs/TaskResult"
+     },
+     {
+      "$ref": "#/$defs/HumanAck"
+     }
+    ]
+   },
+   "HumanAck": {
+    "type": "object",
+    "required": [
+     "accepted"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "accepted": {
+      "const": true
+     }
+    }
+   },
+   "HumanCompletion": {
+    "type": "object",
+    "required": [
+     "taskResult",
+     "publish"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "taskResult": {
+      "$ref": "task.yaml#/$defs/TaskResult"
+     },
+     "publish": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "required": [
+        "port",
+        "request"
+       ],
+       "additionalProperties": false,
+       "properties": {
+        "port": {
+         "$ref": "ports.yaml#/$defs/PortName"
+        },
+        "request": {
+         "$ref": "revisioned.yaml#/$defs/PublishRequest"
+        }
+       }
+      }
+     }
+    }
+   },
+   "QueryPayload": {
+    "type": "object",
+    "required": [
+     "logicalExecutionId",
+     "idempotencyKey"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "logicalExecutionId": {
+      "type": "string",
+      "minLength": 1
+     },
+     "idempotencyKey": {
+      "$ref": "reconcile.yaml#/$defs/IdempotencyKey"
+     }
+    }
+   },
+   "QueryResult": {
+    "type": "object",
+    "required": [
+     "state"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "state": {
+      "enum": [
+       "running",
+       "succeeded",
+       "failed",
+       "unknown"
+      ]
+     },
+     "result": {
+      "$ref": "task.yaml#/$defs/TaskResult"
+     },
+     "error": {
+      "$ref": "reconcile.yaml#/$defs/Error"
+     }
+    },
+    "allOf": [
+     {
+      "if": {
+       "properties": {
+        "state": {
+         "const": "succeeded"
+        }
+       }
+      },
+      "then": {
+       "required": [
+        "result"
+       ]
+      },
+      "else": {
+       "not": {
+        "required": [
+         "result"
+        ]
+       }
+      }
+     },
+     {
+      "if": {
+       "properties": {
+        "state": {
+         "const": "failed"
+        }
+       }
+      },
+      "then": {
+       "required": [
+        "error"
+       ]
+      },
+      "else": {
+       "not": {
+        "required": [
+         "error"
+        ]
+       }
+      }
+     }
+    ]
+   },
+   "CancelResult": {
+    "type": "object",
+    "required": [
+     "state"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "state": {
+      "enum": [
+       "running",
+       "succeeded",
+       "failed",
+       "unknown",
+       "cancelled"
+      ]
+     }
+    }
+   },
+   "EvaluatePayload": {
+    "type": "object",
+    "required": [
+     "validationRun",
+     "validator",
+     "inputs",
+     "artifacts",
+     "deadline",
+     "engine"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "validationRun": {
+      "$ref": "#/$defs/ValidationRunRef"
+     },
+     "validator": {
+      "type": "object",
+      "required": [
+       "configuration"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "configuration": {
+        "type": "object"
+       }
+      }
+     },
+     "inputs": {
+      "$ref": "ports.yaml#/$defs/RuntimeValues"
+     },
+     "artifacts": {
+      "type": "object",
+      "propertyNames": {
+       "$ref": "ports.yaml#/$defs/PortName"
+      },
+      "additionalProperties": {
+       "type": "object",
+       "required": [
+        "content",
+        "provenance"
+       ],
+       "additionalProperties": false,
+       "properties": {
+        "content": {
+         "type": "object"
+        },
+        "provenance": {
+         "$ref": "revisioned.yaml#/$defs/Provenance"
+        }
+       }
+      }
+     },
+     "deadline": {
+      "type": "string",
+      "format": "date-time"
+     },
+     "engine": {
+      "$ref": "adapter.yaml#/$defs/Engine"
+     }
+    }
+   }
+  }
+ },
+ "adapter.yaml": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Adapter",
+  "description": "Adapter registration and the persimmon.adapter/v1 message shapes. Global.",
+  "type": "object",
+  "required": [
+   "apiVersion",
+   "kind",
+   "metadata",
+   "spec"
+  ],
+  "additionalProperties": false,
+  "properties": {
+   "apiVersion": {
+    "const": "persimmon.ai/v1"
+   },
+   "kind": {
+    "const": "Adapter"
+   },
+   "metadata": {
+    "allOf": [
+     {
+      "$ref": "resource.yaml#/$defs/Metadata"
+     },
+     {
+      "not": {
+       "required": [
+        "namespace"
+       ]
+      }
+     }
+    ]
+   },
+   "spec": {
+    "$ref": "#/$defs/Spec"
+   },
+   "status": {
+    "$ref": "#/$defs/Status"
+   }
+  },
+  "$defs": {
+   "Role": {
+    "type": "string",
+    "pattern": "^[a-z][a-zA-Z0-9]*$"
+   },
+   "Op": {
+    "type": "string",
+    "pattern": "^[a-z][a-zA-Z0-9]*$"
+   },
+   "CredentialName": {
+    "$ref": "store.yaml#/$defs/GlobalCredentialName"
+   },
+   "Spec": {
+    "type": "object",
+    "required": [
+     "id",
+     "roles",
+     "transport"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "id": {
+      "$ref": "reconcile.yaml#/$defs/AdapterId"
+     },
+     "roles": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+       "$ref": "#/$defs/Role"
+      }
+     },
+     "transport": {
+      "enum": [
+       "stdio",
+       "http"
+      ]
+     },
+     "command": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+       "type": "string"
+      }
+     },
+     "url": {
+      "type": "string",
+      "pattern": "^https://"
+     },
+     "env": {
+      "$ref": "resource.yaml#/$defs/StringMap"
+     },
+     "credentialBindings": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+       "$ref": "#/$defs/CredentialName"
+      }
+     }
+    },
+    "oneOf": [
+     {
+      "properties": {
+       "transport": {
+        "const": "stdio"
+       }
+      },
+      "required": [
+       "command"
+      ],
+      "not": {
+       "required": [
+        "url"
+       ]
+      }
+     },
+     {
+      "properties": {
+       "transport": {
+        "const": "http"
+       }
+      },
+      "required": [
+       "url"
+      ],
+      "not": {
+       "anyOf": [
+        {
+         "required": [
+          "command"
+         ]
+        },
+        {
+         "required": [
+          "env"
+         ]
+        }
+       ]
+      }
+     }
+    ]
+   },
+   "Describe": {
+    "type": "object",
+    "required": [
+     "adapterId",
+     "protocol",
+     "roles"
+    ],
+    "properties": {
+     "adapterId": {
+      "$ref": "reconcile.yaml#/$defs/AdapterId"
+     },
+     "protocol": {
+      "const": "persimmon.adapter/v1"
+     },
+     "roles": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+       "$ref": "#/$defs/Role"
+      }
+     },
+     "kinds": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "required": [
+        "group",
+        "kind",
+        "versions"
+       ],
+       "additionalProperties": false,
+       "properties": {
+        "group": {
+         "$ref": "resource.yaml#/$defs/DnsSubdomain"
+        },
+        "kind": {
+         "$ref": "resource.yaml#/$defs/Kind"
+        },
+        "versions": {
+         "type": "array",
+         "minItems": 1,
+         "items": {
+          "type": "string",
+          "pattern": "^v[0-9]+$"
+         }
+        }
+       }
+      }
+     }
+    }
+   },
+   "Status": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+     "describe": {
+      "$ref": "#/$defs/Describe"
+     },
+     "describeDigest": {
+      "$ref": "resource.yaml#/$defs/Digest"
+     },
+     "conditions": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "required": [
+        "type",
+        "status"
+       ],
+       "additionalProperties": false,
+       "properties": {
+        "type": {
+         "const": "Ready"
+        },
+        "status": {
+         "enum": [
+          "True",
+          "False"
+         ]
+        },
+        "reason": {
+         "type": "string"
+        },
+        "lastTransitionTime": {
+         "type": "string",
+         "format": "date-time"
+        }
+       }
+      }
+     }
+    }
+   },
+   "Engine": {
+    "type": "object",
+    "required": [
+     "endpoint",
+     "token"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "endpoint": {
+      "type": "string",
+      "pattern": "^(unix|https)://"
+     },
+     "token": {
+      "type": "string",
+      "minLength": 1
+     }
+    }
+   },
+   "Ack": {
+    "type": "object",
+    "required": [
+     "id"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "id": {
+      "type": "string",
+      "minLength": 1
+     }
+    }
+   },
+   "Request": {
+    "type": "object",
+    "required": [
+     "protocol",
+     "id",
+     "op",
+     "payload"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "protocol": {
+      "const": "persimmon.adapter/v1"
+     },
+     "id": {
+      "type": "string",
+      "minLength": 1
+     },
+     "op": {
+      "$ref": "#/$defs/Op"
+     },
+     "payload": {
+      "type": "object"
+     }
+    }
+   },
+   "Response": {
+    "type": "object",
+    "required": [
+     "id",
+     "ok"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "id": {
+      "type": "string",
+      "minLength": 1
+     },
+     "ok": {
+      "type": "boolean"
+     },
+     "result": {
+      "type": "object"
+     },
+     "error": {
+      "$ref": "reconcile.yaml#/$defs/Error"
+     }
+    },
+    "oneOf": [
+     {
+      "properties": {
+       "ok": {
+        "const": true
+       }
+      },
+      "required": [
+       "result"
+      ],
+      "not": {
+       "required": [
+        "error"
+       ]
+      }
+     },
+     {
+      "properties": {
+       "ok": {
+        "const": false
+       }
+      },
+      "required": [
+       "error"
+      ],
+      "not": {
+       "required": [
+        "result"
+       ]
+      }
+     }
+    ]
+   },
+   "StreamLine": {
+    "type": "object",
+    "required": [
+     "id",
+     "event"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "id": {
+      "type": "string",
+      "minLength": 1
+     },
+     "event": {
+      "enum": [
+       "log",
+       "waiting"
+      ]
+     },
+     "text": {
+      "type": "string"
+     },
+     "reason": {
+      "type": "string"
+     }
+    },
+    "oneOf": [
+     {
+      "properties": {
+       "event": {
+        "const": "log"
+       }
+      },
+      "required": [
+       "text"
+      ]
+     },
+     {
+      "properties": {
+       "event": {
+        "const": "waiting"
+       }
+      },
+      "required": [
+       "reason"
+      ]
+     }
+    ]
+   },
+   "Exchange": {
+    "type": "object",
+    "required": [
+     "request",
+     "response"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "request": {
+      "$ref": "#/$defs/Request"
+     },
+     "stream": {
+      "type": "array",
+      "items": {
+       "$ref": "#/$defs/StreamLine"
+      }
+     },
+     "ack": {
+      "$ref": "#/$defs/Ack"
+     },
+     "response": {
+      "$ref": "#/$defs/Response"
+     }
+    }
+   },
+   "Callback": {
+    "type": "object",
+    "required": [
+     "callback",
+     "token",
+     "args"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "callback": {
+      "enum": [
+       "getResource",
+       "list",
+       "getArtifact",
+       "getBlob",
+       "putBlob",
+       "publishArtifact",
+       "getKindSchema",
+       "log",
+       "signal"
+      ]
+     },
+     "token": {
+      "type": "string",
+      "minLength": 1
+     },
+     "args": {
+      "type": "object"
+     },
+     "result": {}
+    },
+    "allOf": [
+     {
+      "if": {
+       "properties": {
+        "callback": {
+         "const": "getResource"
+        }
+       }
+      },
+      "then": {
+       "properties": {
+        "args": {
+         "$ref": "resource.yaml#/$defs/ObjectRef"
+        },
+        "result": {
+         "$ref": "resource.yaml"
+        }
+       }
+      }
+     },
+     {
+      "if": {
+       "properties": {
+        "callback": {
+         "const": "list"
+        }
+       }
+      },
+      "then": {
+       "properties": {
+        "args": {
+         "type": "object",
+         "required": [
+          "apiVersion",
+          "kind"
+         ],
+         "additionalProperties": false,
+         "properties": {
+          "apiVersion": {
+           "$ref": "resource.yaml#/$defs/ApiVersion"
+          },
+          "kind": {
+           "$ref": "resource.yaml#/$defs/Kind"
+          },
+          "namespace": {
+           "$ref": "resource.yaml#/$defs/DnsLabel"
+          },
+          "labels": {
+           "$ref": "resource.yaml#/$defs/StringMap"
+          }
+         }
+        },
+        "result": {
+         "type": "array",
+         "items": {
+          "$ref": "resource.yaml"
+         }
+        }
+       }
+      }
+     },
+     {
+      "if": {
+       "properties": {
+        "callback": {
+         "const": "getArtifact"
+        }
+       }
+      },
+      "then": {
+       "properties": {
+        "args": {
+         "$ref": "resource.yaml#/$defs/RevisionRef"
+        },
+        "result": {
+         "$ref": "revisioned.yaml#/$defs/Instance"
+        }
+       }
+      }
+     },
+     {
+      "if": {
+       "properties": {
+        "callback": {
+         "const": "getBlob"
+        }
+       }
+      },
+      "then": {
+       "properties": {
+        "args": {
+         "type": "object",
+         "required": [
+          "digest"
+         ],
+         "additionalProperties": false,
+         "properties": {
+          "digest": {
+           "$ref": "resource.yaml#/$defs/Digest"
+          }
+         }
+        },
+        "result": {
+         "type": "object",
+         "required": [
+          "bytes"
+         ],
+         "additionalProperties": false,
+         "properties": {
+          "bytes": {
+           "type": "string",
+           "contentEncoding": "base64"
+          }
+         }
+        }
+       }
+      }
+     },
+     {
+      "if": {
+       "properties": {
+        "callback": {
+         "const": "putBlob"
+        }
+       }
+      },
+      "then": {
+       "properties": {
+        "args": {
+         "type": "object",
+         "required": [
+          "bytes",
+          "mediaType"
+         ],
+         "additionalProperties": false,
+         "properties": {
+          "bytes": {
+           "type": "string",
+           "contentEncoding": "base64"
+          },
+          "mediaType": {
+           "$ref": "revisioned.yaml#/$defs/MediaType"
+          }
+         }
+        },
+        "result": {
+         "type": "object",
+         "required": [
+          "uri",
+          "digest"
+         ],
+         "additionalProperties": false,
+         "properties": {
+          "uri": {
+           "type": "string",
+           "pattern": "^blob://[a-f0-9]{64}$"
+          },
+          "digest": {
+           "$ref": "resource.yaml#/$defs/Digest"
+          }
+         }
+        }
+       }
+      }
+     },
+     {
+      "if": {
+       "properties": {
+        "callback": {
+         "const": "publishArtifact"
+        }
+       }
+      },
+      "then": {
+       "properties": {
+        "args": {
+         "$ref": "revisioned.yaml#/$defs/PublishRequest"
+        },
+        "result": {
+         "$ref": "resource.yaml#/$defs/RevisionRef"
+        }
+       }
+      }
+     },
+     {
+      "if": {
+       "properties": {
+        "callback": {
+         "const": "getKindSchema"
+        }
+       }
+      },
+      "then": {
+       "properties": {
+        "args": {
+         "type": "object",
+         "required": [
+          "apiVersion",
+          "kind"
+         ],
+         "additionalProperties": false,
+         "properties": {
+          "apiVersion": {
+           "$ref": "resource.yaml#/$defs/ApiVersion"
+          },
+          "kind": {
+           "$ref": "resource.yaml#/$defs/Kind"
+          }
+         }
+        },
+        "result": {
+         "type": "object",
+         "required": [
+          "name",
+          "schema"
+         ],
+         "properties": {
+          "name": {
+           "type": "string"
+          },
+          "schema": {
+           "type": "object"
+          }
+         }
+        }
+       }
+      }
+     },
+     {
+      "if": {
+       "properties": {
+        "callback": {
+         "const": "log"
+        }
+       }
+      },
+      "then": {
+       "properties": {
+        "args": {
+         "type": "object",
+         "required": [
+          "text"
+         ],
+         "additionalProperties": false,
+         "properties": {
+          "text": {
+           "type": "string"
+          }
+         }
+        }
+       },
+       "not": {
+        "required": [
+         "result"
+        ]
+       }
+      }
+     },
+     {
+      "if": {
+       "properties": {
+        "callback": {
+         "const": "signal"
+        }
+       }
+      },
+      "then": {
+       "properties": {
+        "args": {
+         "type": "object",
+         "required": [
+          "ref",
+          "eventId",
+          "actor"
+         ],
+         "additionalProperties": false,
+         "properties": {
+          "ref": {
+           "$ref": "resource.yaml#/$defs/ObjectRef"
+          },
+          "eventId": {
+           "type": "string",
+           "minLength": 1
+          },
+          "actor": {
+           "$ref": "resource.yaml#/$defs/Actor"
+          },
+          "payload": {
+           "type": "object"
+          }
+         }
+        }
+       },
+       "not": {
+        "required": [
+         "result"
+        ]
+       }
+      }
+     }
+    ]
+   }
+  }
+ },
+ "executor.yaml": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Executor",
+  "description": "Who does a Task. Definition kind, scope Any.",
+  "type": "object",
+  "required": [
+   "apiVersion",
+   "kind",
+   "metadata",
+   "spec"
+  ],
+  "additionalProperties": false,
+  "properties": {
+   "apiVersion": {
+    "const": "persimmon.ai/v1"
+   },
+   "kind": {
+    "const": "Executor"
+   },
+   "metadata": {
+    "$ref": "resource.yaml#/$defs/Metadata"
+   },
+   "spec": {
+    "$ref": "#/$defs/Spec"
+   },
+   "status": {
+    "type": "object"
+   }
+  },
+  "$defs": {
+   "Spec": {
+    "type": "object",
+    "required": [
+     "type",
+     "adapter"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "type": {
+      "enum": [
+       "agent",
+       "script",
+       "tool",
+       "human"
+      ]
+     },
+     "adapter": {
+      "allOf": [
+       {
+        "$ref": "reconcile.yaml#/$defs/AdapterId"
+       }
+      ],
+      "x-persimmon-adapter": {
+       "roles": [
+        "executor"
+       ]
+      }
+     },
+     "configuration": {
+      "type": "object",
+      "default": {}
+     },
+     "security": {
+      "allOf": [
+       {
+        "$ref": "#/$defs/Security"
+       }
+      ],
+      "default": {
+       "networkAccess": "deny"
+      }
+     }
+    }
+   },
+   "Security": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+     "networkAccess": {
+      "enum": [
+       "deny",
+       "allowlist"
+      ],
+      "default": "deny"
+     },
+     "allowedHosts": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+       "type": "string",
+       "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*(:[0-9]+)?$"
+      }
+     },
+     "credentialBindings": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+       "$ref": "store.yaml#/$defs/CredentialName"
+      }
+     }
+    },
+    "if": {
+     "properties": {
+      "networkAccess": {
+       "const": "allowlist"
+      }
+     },
+     "required": [
+      "networkAccess"
+     ]
+    },
+    "then": {
+     "required": [
+      "allowedHosts"
+     ]
+    },
+    "else": {
+     "not": {
+      "required": [
+       "allowedHosts"
+      ]
+     }
+    }
+   }
+  }
+ },
+ "gate.yaml": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Gate and Validator",
+  "description": "Gate decides over Validators. Definition kinds, scope Any.",
+  "$defs": {
+   "ValueOrArtifactPorts": {
+    "type": "object",
+    "propertyNames": {
+     "$ref": "ports.yaml#/$defs/PortName"
+    },
+    "additionalProperties": {
+     "allOf": [
+      {
+       "$ref": "ports.yaml#/$defs/InputSpec"
+      },
+      {
+       "properties": {
+        "type": {
+         "properties": {
+          "kind": {
+           "enum": [
+            "value",
+            "artifact"
+           ]
+          }
+         }
+        }
+       }
+      }
+     ]
+    }
+   },
+   "GateOutputs": {
+    "const": {
+     "result": {
+      "type": {
+       "kind": "value",
+       "schema": {
+        "$ref": "persimmon.ai/v1#/GateResult"
+       }
+      }
+     }
+    }
+   },
+   "ValidatorBinding": {
+    "allOf": [
+     {
+      "$ref": "ports.yaml#/$defs/Binding"
+     }
+    ],
+    "not": {
+     "anyOf": [
+      {
+       "required": [
+        "fromStep"
+       ]
+      },
+      {
+       "required": [
+        "fromState"
+       ]
+      },
+      {
+       "required": [
+        "fromIterationOutput"
+       ]
+      },
+      {
+       "required": [
+        "fromEvent"
+       ]
+      }
+     ]
+    }
+   },
+   "Gate": {
+    "type": "object",
+    "required": [
+     "apiVersion",
+     "kind",
+     "metadata",
+     "spec"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "apiVersion": {
+      "const": "persimmon.ai/v1"
+     },
+     "kind": {
+      "const": "Gate"
+     },
+     "metadata": {
+      "$ref": "resource.yaml#/$defs/Metadata"
+     },
+     "spec": {
+      "type": "object",
+      "required": [
+       "outputs",
+       "validators",
+       "timeout"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "inputs": {
+        "$ref": "#/$defs/ValueOrArtifactPorts"
+       },
+       "outputs": {
+        "$ref": "#/$defs/GateOutputs"
+       },
+       "validators": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+         "type": "object",
+         "required": [
+          "name",
+          "ref"
+         ],
+         "additionalProperties": false,
+         "properties": {
+          "name": {
+           "$ref": "ports.yaml#/$defs/PortName"
+          },
+          "ref": {
+           "allOf": [
+            {
+             "$ref": "resource.yaml#/$defs/LocalDefinitionRef"
+            },
+            {
+             "properties": {
+              "kind": {
+               "const": "Validator"
+              }
+             }
+            }
+           ],
+           "x-persimmon-ref": {
+            "kinds": [
+             "Validator"
+            ]
+           }
+          },
+          "inputs": {
+           "type": "object",
+           "propertyNames": {
+            "$ref": "ports.yaml#/$defs/PortName"
+           },
+           "additionalProperties": {
+            "$ref": "#/$defs/ValidatorBinding"
+           }
+          }
+         }
+        }
+       },
+       "policy": {
+        "type": "object",
+        "required": [
+         "strategy"
+        ],
+        "default": {
+         "strategy": "all"
+        },
+        "additionalProperties": false,
+        "properties": {
+         "strategy": {
+          "enum": [
+           "all",
+           "any",
+           "quorum"
+          ]
+         },
+         "count": {
+          "type": "integer",
+          "minimum": 1
+         }
+        },
+        "if": {
+         "properties": {
+          "strategy": {
+           "const": "quorum"
+          }
+         }
+        },
+        "then": {
+         "required": [
+          "count"
+         ]
+        },
+        "else": {
+         "not": {
+          "required": [
+           "count"
+          ]
+         }
+        }
+       },
+       "timeout": {
+        "$ref": "ports.yaml#/$defs/Duration"
+       }
+      }
+     },
+     "status": {
+      "type": "object"
+     }
+    }
+   },
+   "Validator": {
+    "type": "object",
+    "required": [
+     "apiVersion",
+     "kind",
+     "metadata",
+     "spec"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "apiVersion": {
+      "const": "persimmon.ai/v1"
+     },
+     "kind": {
+      "const": "Validator"
+     },
+     "metadata": {
+      "$ref": "resource.yaml#/$defs/Metadata"
+     },
+     "spec": {
+      "type": "object",
+      "required": [
+       "evaluator",
+       "timeout"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "inputs": {
+        "$ref": "#/$defs/ValueOrArtifactPorts"
+       },
+       "evaluator": {
+        "$ref": "#/$defs/Evaluator"
+       },
+       "timeout": {
+        "$ref": "ports.yaml#/$defs/Duration"
+       }
+      }
+     },
+     "status": {
+      "type": "object"
+     }
+    }
+   },
+   "Evaluator": {
+    "type": "object",
+    "required": [
+     "type"
+    ],
+    "properties": {
+     "type": {
+      "enum": [
+       "cel",
+       "task",
+       "adapter"
+      ]
+     }
+    },
+    "oneOf": [
+     {
+      "properties": {
+       "type": {
+        "const": "cel"
+       },
+       "expression": {
+        "type": "string",
+        "minLength": 1
+       }
+      },
+      "required": [
+       "expression"
+      ],
+      "additionalProperties": false
+     },
+     {
+      "properties": {
+       "type": {
+        "const": "task"
+       },
+       "taskRef": {
+        "allOf": [
+         {
+          "$ref": "resource.yaml#/$defs/LocalDefinitionRef"
+         },
+         {
+          "properties": {
+           "kind": {
+            "const": "Task"
+           }
+          }
+         }
+        ],
+        "x-persimmon-ref": {
+         "kinds": [
+          "Task"
+         ]
+        }
+       },
+       "resultOutput": {
+        "$ref": "ports.yaml#/$defs/PortName"
+       }
+      },
+      "required": [
+       "taskRef",
+       "resultOutput"
+      ],
+      "additionalProperties": false
+     },
+     {
+      "properties": {
+       "type": {
+        "const": "adapter"
+       },
+       "adapter": {
+        "allOf": [
+         {
+          "$ref": "reconcile.yaml#/$defs/AdapterId"
+         }
+        ],
+        "x-persimmon-adapter": {
+         "roles": [
+          "evaluator"
+         ]
+        }
+       },
+       "configuration": {
+        "type": "object",
+        "default": {}
+       }
+      },
+      "required": [
+       "adapter"
+      ],
+      "additionalProperties": false
+     }
+    ]
+   }
+  }
+ },
+ "handler.yaml": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Handler",
+  "description": "Binds kinds to behaviour. Global.",
+  "type": "object",
+  "required": [
+   "apiVersion",
+   "kind",
+   "metadata",
+   "spec"
+  ],
+  "additionalProperties": false,
+  "properties": {
+   "apiVersion": {
+    "const": "persimmon.ai/v1"
+   },
+   "kind": {
+    "const": "Handler"
+   },
+   "metadata": {
+    "allOf": [
+     {
+      "$ref": "resource.yaml#/$defs/Metadata"
+     },
+     {
+      "not": {
+       "required": [
+        "namespace"
+       ]
+      }
+     }
+    ]
+   },
+   "spec": {
+    "$ref": "#/$defs/Spec"
+   },
+   "status": {
+    "type": "object"
+   }
+  },
+  "$defs": {
+   "Spec": {
+    "type": "object",
+    "required": [
+     "kinds",
+     "implementation"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "kinds": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+       "type": "object",
+       "required": [
+        "group",
+        "kind",
+        "versions"
+       ],
+       "additionalProperties": false,
+       "properties": {
+        "group": {
+         "$ref": "resource.yaml#/$defs/DnsSubdomain"
+        },
+        "kind": {
+         "$ref": "resource.yaml#/$defs/Kind"
+        },
+        "versions": {
+         "type": "array",
+         "minItems": 1,
+         "items": {
+          "type": "string",
+          "pattern": "^v[0-9]+$"
+         }
+        }
+       }
+      }
+     },
+     "implementation": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "maxProperties": 1,
+      "properties": {
+       "builtin": {
+        "$ref": "resource.yaml#/$defs/DnsLabel"
+       },
+       "adapter": {
+        "type": "object",
+        "required": [
+         "id"
+        ],
+        "additionalProperties": false,
+        "properties": {
+         "id": {
+          "$ref": "reconcile.yaml#/$defs/AdapterId"
+         }
+        }
+       }
+      }
+     }
+    }
+   },
+   "Finding": {
+    "type": "object",
+    "required": [
+     "severity",
+     "message"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "severity": {
+      "enum": [
+       "error",
+       "warning"
+      ]
+     },
+     "code": {
+      "type": "string"
+     },
+     "path": {
+      "type": "string",
+      "pattern": "^(/[^/]*)*$"
+     },
+     "message": {
+      "type": "string"
+     }
+    }
+   },
+   "ValidateResult": {
+    "type": "object",
+    "required": [
+     "findings"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "findings": {
+      "type": "array",
+      "items": {
+       "$ref": "#/$defs/Finding"
+      }
+     }
+    }
+   },
+   "Context": {
+    "type": "object",
+    "required": [
+     "children",
+     "timers"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "children": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "required": [
+        "ref",
+        "terminal"
+       ],
+       "additionalProperties": false,
+       "properties": {
+        "ref": {
+         "$ref": "resource.yaml#/$defs/ObjectRef"
+        },
+        "terminal": {
+         "type": "boolean"
+        },
+        "status": {
+         "type": "object"
+        }
+       }
+      }
+     },
+     "snapshot": {
+      "$ref": "resource.yaml#/$defs/Snapshot"
+     },
+     "actor": {
+      "$ref": "resource.yaml#/$defs/Actor"
+     },
+     "timers": {
+      "type": "array",
+      "items": {
+       "type": "string"
+      }
+     },
+     "staged": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "required": [
+        "ref",
+        "scope"
+       ],
+       "additionalProperties": false,
+       "properties": {
+        "ref": {
+         "$ref": "resource.yaml#/$defs/RevisionRef"
+        },
+        "scope": {
+         "$ref": "reconcile.yaml#/$defs/IdempotencyKey"
+        }
+       }
+      }
+     }
+    }
+   },
+   "ReconcileInput": {
+    "type": "object",
+    "required": [
+     "resource",
+     "event",
+     "context",
+     "engine"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "resource": {
+      "$ref": "resource.yaml"
+     },
+     "event": {
+      "$ref": "reconcile.yaml#/$defs/Event"
+     },
+     "context": {
+      "$ref": "#/$defs/Context"
+     },
+     "engine": {
+      "$ref": "adapter.yaml#/$defs/Engine"
+     }
+    }
+   },
+   "ReconcileResult": {
+    "type": "object",
+    "required": [
+     "actions"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "statusPatch": {
+      "type": "object"
+     },
+     "actions": {
+      "type": "array",
+      "items": {
+       "$ref": "reconcile.yaml#/$defs/Action"
+      }
+     }
+    }
+   }
+  }
+ },
+ "kind-definition.yaml": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "KindDefinition",
+  "description": "Registers one Kind. Global.",
+  "type": "object",
+  "required": [
+   "apiVersion",
+   "kind",
+   "metadata",
+   "spec"
+  ],
+  "additionalProperties": false,
+  "properties": {
+   "apiVersion": {
+    "const": "persimmon.ai/v1"
+   },
+   "kind": {
+    "const": "KindDefinition"
+   },
+   "metadata": {
+    "allOf": [
+     {
+      "$ref": "resource.yaml#/$defs/Metadata"
+     },
+     {
+      "not": {
+       "required": [
+        "namespace"
+       ]
+      }
+     }
+    ]
+   },
+   "spec": {
+    "$ref": "#/$defs/Spec"
+   },
+   "status": {
+    "type": "object"
+   }
+  },
+  "$defs": {
+   "JsonSchema": {
+    "type": "object",
+    "description": "JSON Schema 2020-12 document."
+   },
+   "Path": {
+    "type": "string",
+    "pattern": "^status(\\.[A-Za-z_][A-Za-z0-9_]*)+$"
+   },
+   "DefinitionPath": {
+    "type": "string",
+    "pattern": "^spec(\\.[A-Za-z_][A-Za-z0-9_]*)+$"
+   },
+   "Spec": {
+    "type": "object",
+    "required": [
+     "group",
+     "names",
+     "scope",
+     "versions",
+     "mutability",
+     "snapshot"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "group": {
+      "$ref": "resource.yaml#/$defs/DnsSubdomain"
+     },
+     "names": {
+      "type": "object",
+      "required": [
+       "kind",
+       "plural"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "kind": {
+        "$ref": "resource.yaml#/$defs/Kind"
+       },
+       "plural": {
+        "$ref": "resource.yaml#/$defs/DnsLabel"
+       }
+      }
+     },
+     "scope": {
+      "enum": [
+       "Namespaced",
+       "Global",
+       "Any"
+      ]
+     },
+     "versions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+       "type": "object",
+       "required": [
+        "name",
+        "schema"
+       ],
+       "additionalProperties": false,
+       "properties": {
+        "name": {
+         "type": "string",
+         "pattern": "^v[0-9]+$"
+        },
+        "schema": {
+         "$ref": "#/$defs/JsonSchema"
+        },
+        "statusSchema": {
+         "$ref": "#/$defs/JsonSchema"
+        }
+       }
+      }
+     },
+     "mutability": {
+      "enum": [
+       "SpecMutable",
+       "Immutable"
+      ]
+     },
+     "revisioned": {
+      "type": "boolean",
+      "default": false
+     },
+     "snapshot": {
+      "enum": [
+       "Definition",
+       "None"
+      ]
+     },
+     "snapshotOnCreate": {
+      "type": "boolean",
+      "default": false
+     },
+     "handlerRef": {
+      "type": "object",
+      "required": [
+       "name"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "name": {
+        "$ref": "resource.yaml#/$defs/DnsSubdomain"
+       }
+      }
+     },
+     "terminal": {
+      "type": "object",
+      "required": [
+       "path",
+       "values"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "path": {
+        "$ref": "#/$defs/Path"
+       },
+       "values": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+         "type": "string"
+        }
+       }
+      }
+     },
+     "stepContract": {
+      "$ref": "#/$defs/StepContract"
+     },
+     "subscriptions": {
+      "type": "array",
+      "items": {
+       "$ref": "outbox.yaml#/$defs/Subscription"
+      }
+     }
+    },
+    "dependentRequired": {
+     "subscriptions": [
+      "handlerRef"
+     ]
+    },
+    "if": {
+     "properties": {
+      "revisioned": {
+       "const": true
+      }
+     },
+     "required": [
+      "revisioned"
+     ]
+    },
+    "then": {
+     "properties": {
+      "mutability": {
+       "const": "Immutable"
+      },
+      "scope": {
+       "const": "Namespaced"
+      },
+      "snapshot": {
+       "const": "None"
+      },
+      "versions": {
+       "items": {
+        "not": {
+         "required": [
+          "statusSchema"
+         ]
+        }
+       }
+      }
+     }
+    }
+   },
+   "StepContract": {
+    "type": "object",
+    "required": [
+     "inputsPath",
+     "outputsPath",
+     "runKind",
+     "phasePath",
+     "outputsValuePath",
+     "errorPath"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "inputsPath": {
+      "$ref": "#/$defs/DefinitionPath"
+     },
+     "outputsPath": {
+      "$ref": "#/$defs/DefinitionPath"
+     },
+     "runKind": {
+      "type": "object",
+      "required": [
+       "group",
+       "kind"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "group": {
+        "$ref": "resource.yaml#/$defs/DnsSubdomain"
+       },
+       "kind": {
+        "$ref": "resource.yaml#/$defs/Kind"
+       }
+      }
+     },
+     "phasePath": {
+      "$ref": "#/$defs/Path"
+     },
+     "outputsValuePath": {
+      "$ref": "#/$defs/Path"
+     },
+     "errorPath": {
+      "$ref": "#/$defs/Path"
+     }
+    }
+   }
+  }
+ },
+ "outbox.yaml": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Outbox",
+  "description": "Outbox event, framework payloads, subscription delivery.",
+  "$defs": {
+   "EventId": {
+    "$ref": "resource.yaml#/$defs/Digest"
+   },
+   "Producer": {
+    "type": "object",
+    "required": [
+     "uid",
+     "sequence"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "uid": {
+      "type": "string",
+      "minLength": 1
+     },
+     "sequence": {
+      "type": "integer",
+      "minimum": 1
+     }
+    }
+   },
+   "OutboxEvent": {
+    "type": "object",
+    "required": [
+     "eventId",
+     "type",
+     "time",
+     "subject",
+     "ordinal",
+     "actor",
+     "causationChain",
+     "payload"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "eventId": {
+      "$ref": "#/$defs/EventId"
+     },
+     "type": {
+      "$ref": "reconcile.yaml#/$defs/OutboxEventType"
+     },
+     "time": {
+      "type": "string",
+      "format": "date-time"
+     },
+     "subject": {
+      "oneOf": [
+       {
+        "$ref": "resource.yaml#/$defs/ObjectRef"
+       },
+       {
+        "$ref": "resource.yaml#/$defs/RevisionRef"
+       }
+      ]
+     },
+     "producer": {
+      "$ref": "#/$defs/Producer"
+     },
+     "ordinal": {
+      "type": "integer",
+      "minimum": 0
+     },
+     "actor": {
+      "$ref": "resource.yaml#/$defs/Actor"
+     },
+     "causationChain": {
+      "type": "array",
+      "items": {
+       "$ref": "#/$defs/EventId"
+      }
+     },
+     "payload": {
+      "type": "object"
+     }
+    },
+    "allOf": [
+     {
+      "if": {
+       "properties": {
+        "type": {
+         "const": "resource.created"
+        }
+       }
+      },
+      "then": {
+       "properties": {
+        "payload": {
+         "type": "object",
+         "additionalProperties": false
+        }
+       },
+       "not": {
+        "required": [
+         "producer"
+        ]
+       }
+      }
+     },
+     {
+      "if": {
+       "properties": {
+        "type": {
+         "const": "resource.finished"
+        }
+       }
+      },
+      "then": {
+       "required": [
+        "producer"
+       ],
+       "properties": {
+        "payload": {
+         "type": "object",
+         "required": [
+          "value"
+         ],
+         "additionalProperties": false,
+         "properties": {
+          "value": {
+           "type": "string"
+          }
+         }
+        }
+       }
+      }
+     },
+     {
+      "if": {
+       "properties": {
+        "type": {
+         "const": "resource.stalled"
+        }
+       }
+      },
+      "then": {
+       "properties": {
+        "actor": {
+         "const": {
+          "kind": "service",
+          "id": "engine"
+         }
+        },
+        "payload": {
+         "type": "object",
+         "required": [
+          "attempts"
+         ],
+         "additionalProperties": false,
+         "properties": {
+          "attempts": {
+           "type": "integer",
+           "minimum": 1
+          },
+          "lastError": {
+           "type": "string"
+          }
+         }
+        }
+       }
+      }
+     },
+     {
+      "if": {
+       "properties": {
+        "type": {
+         "const": "artifact.published"
+        }
+       }
+      },
+      "then": {
+       "required": [
+        "producer"
+       ],
+       "properties": {
+        "subject": {
+         "$ref": "resource.yaml#/$defs/RevisionRef"
+        },
+        "payload": {
+         "type": "object",
+         "required": [
+          "contentDigest"
+         ],
+         "additionalProperties": false,
+         "properties": {
+          "contentDigest": {
+           "$ref": "resource.yaml#/$defs/Digest"
+          }
+         }
+        }
+       }
+      }
+     },
+     {
+      "if": {
+       "properties": {
+        "type": {
+         "const": "event.suppressed"
+        }
+       }
+      },
+      "then": {
+       "properties": {
+        "actor": {
+         "const": {
+          "kind": "service",
+          "id": "engine"
+         }
+        },
+        "payload": {
+         "type": "object",
+         "required": [
+          "suppressedEventId",
+          "suppressedType",
+          "causationChain"
+         ],
+         "additionalProperties": false,
+         "properties": {
+          "suppressedEventId": {
+           "$ref": "#/$defs/EventId"
+          },
+          "suppressedType": {
+           "$ref": "reconcile.yaml#/$defs/OutboxEventType"
+          },
+          "causationChain": {
+           "type": "array",
+           "minItems": 33,
+           "items": {
+            "$ref": "#/$defs/EventId"
+           }
+          }
+         }
+        }
+       },
+       "not": {
+        "required": [
+         "producer"
+        ]
+       }
+      }
+     }
+    ]
+   },
+   "Subscription": {
+    "type": "object",
+    "required": [
+     "eventType"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "eventType": {
+      "$ref": "reconcile.yaml#/$defs/OutboxEventType"
+     },
+     "filter": {
+      "type": "string",
+      "minLength": 1
+     }
+    }
+   },
+   "Delivery": {
+    "type": "object",
+    "required": [
+     "event",
+     "subscription",
+     "receivers",
+     "signal"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "event": {
+      "$ref": "#/$defs/OutboxEvent"
+     },
+     "subscription": {
+      "type": "object",
+      "required": [
+       "kind",
+       "subscription"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "kind": {
+        "$ref": "resource.yaml#/$defs/Kind"
+       },
+       "subscription": {
+        "$ref": "#/$defs/Subscription"
+       }
+      }
+     },
+     "receivers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+       "$ref": "resource.yaml#/$defs/ObjectRef"
+      }
+     },
+     "signal": {
+      "allOf": [
+       {
+        "$ref": "reconcile.yaml#/$defs/Event"
+       },
+       {
+        "properties": {
+         "type": {
+          "const": "Signal"
+         },
+         "payload": {
+          "properties": {
+           "source": {
+            "const": "outbox"
+           },
+           "payload": {
+            "type": "object",
+            "required": [
+             "event",
+             "subject"
+            ],
+            "additionalProperties": false,
+            "properties": {
+             "event": {
+              "$ref": "#/$defs/OutboxEvent"
+             },
+             "subject": {
+              "$ref": "resource.yaml"
+             }
+            }
+           }
+          }
+         }
+        }
+       }
+      ]
+     }
+    }
+   }
+  }
+ },
+ "ports.yaml": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Ports and bindings",
+  "description": "PortType, InputSpec, OutputSpec, RuntimeValue, Binding, Duration, well-known value schemas.",
+  "$defs": {
+   "PortName": {
+    "type": "string",
+    "pattern": "^[a-z][a-zA-Z0-9]*$"
+   },
+   "StepId": {
+    "type": "string",
+    "pattern": "^[a-z][a-z0-9-]*$"
+   },
+   "Duration": {
+    "type": "string",
+    "pattern": "^[0-9]+(ms|s|m|h|d)$"
+   },
+   "WellKnownRef": {
+    "type": "object",
+    "required": [
+     "$ref"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "$ref": {
+      "enum": [
+       "persimmon.ai/v1#/Finding",
+       "persimmon.ai/v1#/ValidationResult",
+       "persimmon.ai/v1#/GateResult",
+       "persimmon.ai/v1#/RevisionRef",
+       "persimmon.ai/v1#/ExternalResourceRef"
+      ]
+     }
+    }
+   },
+   "PortType": {
+    "type": "object",
+    "required": [
+     "kind"
+    ],
+    "properties": {
+     "kind": {
+      "enum": [
+       "value",
+       "artifact",
+       "externalResource"
+      ]
+     }
+    },
+    "oneOf": [
+     {
+      "properties": {
+       "kind": {
+        "const": "value"
+       },
+       "schema": {
+        "oneOf": [
+         {
+          "$ref": "#/$defs/WellKnownRef"
+         },
+         {
+          "type": "object",
+          "not": {
+           "required": [
+            "$ref"
+           ]
+          }
+         }
+        ]
+       }
+      },
+      "additionalProperties": false
+     },
+     {
+      "properties": {
+       "kind": {
+        "const": "artifact"
+       },
+       "artifactKind": {
+        "type": "object",
+        "required": [
+         "apiVersion",
+         "kind"
+        ],
+        "additionalProperties": false,
+        "x-persimmon-kind-ref": {},
+        "properties": {
+         "apiVersion": {
+          "$ref": "resource.yaml#/$defs/ApiVersion"
+         },
+         "kind": {
+          "$ref": "resource.yaml#/$defs/Kind"
+         }
+        }
+       }
+      },
+      "required": [
+       "artifactKind"
+      ],
+      "additionalProperties": false
+     },
+     {
+      "properties": {
+       "kind": {
+        "const": "externalResource"
+       },
+       "provider": {
+        "type": "string",
+        "minLength": 1
+       },
+       "type": {
+        "type": "string",
+        "minLength": 1
+       }
+      },
+      "required": [
+       "provider",
+       "type"
+      ],
+      "additionalProperties": false
+     }
+    ]
+   },
+   "RuntimeValue": {
+    "type": "object",
+    "required": [
+     "kind"
+    ],
+    "properties": {
+     "kind": {
+      "enum": [
+       "value",
+       "artifact",
+       "externalResource"
+      ]
+     }
+    },
+    "oneOf": [
+     {
+      "properties": {
+       "kind": {
+        "const": "value"
+       },
+       "value": true
+      },
+      "required": [
+       "value"
+      ],
+      "additionalProperties": false
+     },
+     {
+      "properties": {
+       "kind": {
+        "const": "artifact"
+       },
+       "ref": {
+        "$ref": "resource.yaml#/$defs/RevisionRef"
+       }
+      },
+      "required": [
+       "ref"
+      ],
+      "additionalProperties": false
+     },
+     {
+      "properties": {
+       "kind": {
+        "const": "externalResource"
+       },
+       "ref": {
+        "$ref": "resource.yaml#/$defs/ExternalResourceRef"
+       }
+      },
+      "required": [
+       "ref"
+      ],
+      "additionalProperties": false
+     }
+    ]
+   },
+   "InputSpec": {
+    "type": "object",
+    "required": [
+     "type"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "type": {
+      "$ref": "#/$defs/PortType"
+     },
+     "required": {
+      "type": "boolean",
+      "default": true
+     },
+     "default": {
+      "$ref": "#/$defs/RuntimeValue"
+     },
+     "description": {
+      "type": "string"
+     }
+    },
+    "if": {
+     "properties": {
+      "required": {
+       "const": false
+      }
+     },
+     "required": [
+      "required"
+     ]
+    },
+    "else": {
+     "not": {
+      "required": [
+       "default"
+      ]
+     }
+    }
+   },
+   "OutputSpec": {
+    "type": "object",
+    "required": [
+     "type"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "type": {
+      "$ref": "#/$defs/PortType"
+     },
+     "description": {
+      "type": "string"
+     }
+    }
+   },
+   "Ports": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+     "inputs": {
+      "type": "object",
+      "default": {},
+      "propertyNames": {
+       "$ref": "#/$defs/PortName"
+      },
+      "additionalProperties": {
+       "$ref": "#/$defs/InputSpec"
+      }
+     },
+     "outputs": {
+      "type": "object",
+      "default": {},
+      "propertyNames": {
+       "$ref": "#/$defs/PortName"
+      },
+      "additionalProperties": {
+       "$ref": "#/$defs/OutputSpec"
+      }
+     }
+    }
+   },
+   "RuntimeValues": {
+    "type": "object",
+    "propertyNames": {
+     "$ref": "#/$defs/PortName"
+    },
+    "additionalProperties": {
+     "$ref": "#/$defs/RuntimeValue"
+    }
+   },
+   "Binding": {
+    "type": "object",
+    "properties": {
+     "onMissing": {
+      "const": "omit"
+     }
+    },
+    "oneOf": [
+     {
+      "properties": {
+       "literal": true
+      },
+      "required": [
+       "literal"
+      ],
+      "additionalProperties": false
+     },
+     {
+      "properties": {
+       "fromInput": {
+        "$ref": "#/$defs/PortName"
+       },
+       "onMissing": true
+      },
+      "required": [
+       "fromInput"
+      ],
+      "additionalProperties": false
+     },
+     {
+      "properties": {
+       "fromStep": {
+        "type": "object",
+        "required": [
+         "stepRef",
+         "output"
+        ],
+        "additionalProperties": false,
+        "properties": {
+         "stepRef": {
+          "$ref": "#/$defs/StepId"
+         },
+         "output": {
+          "$ref": "#/$defs/PortName"
+         }
+        }
+       },
+       "onMissing": true
+      },
+      "required": [
+       "fromStep"
+      ],
+      "additionalProperties": false
+     },
+     {
+      "properties": {
+       "fromState": {
+        "$ref": "#/$defs/PortName"
+       },
+       "onMissing": true
+      },
+      "required": [
+       "fromState"
+      ],
+      "additionalProperties": false
+     },
+     {
+      "properties": {
+       "fromIterationOutput": {
+        "$ref": "#/$defs/PortName"
+       },
+       "onMissing": true
+      },
+      "required": [
+       "fromIterationOutput"
+      ],
+      "additionalProperties": false
+     },
+     {
+      "properties": {
+       "expression": {
+        "type": "string",
+        "minLength": 1
+       }
+      },
+      "required": [
+       "expression"
+      ],
+      "additionalProperties": false
+     },
+     {
+      "properties": {
+       "fromEvent": {
+        "type": "string",
+        "pattern": "^[a-z][a-zA-Z0-9]*(\\.[a-zA-Z0-9_]+)*$"
+       },
+       "onMissing": true
+      },
+      "required": [
+       "fromEvent"
+      ],
+      "additionalProperties": false
+     }
+    ]
+   },
+   "Bindings": {
+    "type": "object",
+    "propertyNames": {
+     "$ref": "#/$defs/PortName"
+    },
+    "additionalProperties": {
+     "$ref": "#/$defs/Binding"
+    }
+   },
+   "Finding": {
+    "type": "object",
+    "required": [
+     "severity",
+     "message"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "severity": {
+      "enum": [
+       "error",
+       "warning",
+       "info"
+      ]
+     },
+     "code": {
+      "type": "string"
+     },
+     "message": {
+      "type": "string"
+     }
+    }
+   },
+   "ValidationResult": {
+    "type": "object",
+    "required": [
+     "passed",
+     "findings",
+     "evidence"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "passed": {
+      "type": "boolean"
+     },
+     "findings": {
+      "type": "array",
+      "items": {
+       "$ref": "#/$defs/Finding"
+      }
+     },
+     "evidence": {
+      "type": "array",
+      "items": {
+       "$ref": "resource.yaml#/$defs/RevisionRef"
+      }
+     },
+     "score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+     }
+    }
+   },
+   "GateResult": {
+    "type": "object",
+    "required": [
+     "passed",
+     "results"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "passed": {
+      "type": "boolean"
+     },
+     "results": {
+      "type": "object",
+      "additionalProperties": {
+       "$ref": "#/$defs/ValidationResult"
+      }
+     }
+    }
+   }
+  }
+ },
+ "prompt-skill.yaml": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Prompt and Skill",
+  "description": "Pure-data Definition kinds referenced from Task context. Scope Any.",
+  "$defs": {
+   "Prompt": {
+    "type": "object",
+    "required": [
+     "apiVersion",
+     "kind",
+     "metadata",
+     "spec"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "apiVersion": {
+      "const": "persimmon.ai/v1"
+     },
+     "kind": {
+      "const": "Prompt"
+     },
+     "metadata": {
+      "$ref": "resource.yaml#/$defs/Metadata"
+     },
+     "spec": {
+      "type": "object",
+      "required": [
+       "mediaType",
+       "content"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "mediaType": {
+        "type": "string",
+        "pattern": "^text/[a-z0-9.+-]+$"
+       },
+       "content": {
+        "type": "string"
+       }
+      }
+     },
+     "status": {
+      "type": "object"
+     }
+    }
+   },
+   "Skill": {
+    "type": "object",
+    "required": [
+     "apiVersion",
+     "kind",
+     "metadata",
+     "spec"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "apiVersion": {
+      "const": "persimmon.ai/v1"
+     },
+     "kind": {
+      "const": "Skill"
+     },
+     "metadata": {
+      "$ref": "resource.yaml#/$defs/Metadata"
+     },
+     "spec": {
+      "type": "object",
+      "required": [
+       "source",
+       "digest",
+       "format"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "source": {
+        "allOf": [
+         {
+          "$ref": "resource.yaml#/$defs/ExternalResourceRef"
+         },
+         {
+          "required": [
+           "version"
+          ]
+         }
+        ]
+       },
+       "digest": {
+        "$ref": "resource.yaml#/$defs/Digest"
+       },
+       "format": {
+        "$ref": "reconcile.yaml#/$defs/AdapterId"
+       }
+      }
+     },
+     "status": {
+      "type": "object"
+     }
+    }
+   }
+  }
+ },
+ "reconcile.yaml": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Reconcile",
+  "description": "Event set, Action set, RunLog record.",
+  "$defs": {
+   "EventType": {
+    "enum": [
+     "Created",
+     "SpecUpdated",
+     "ChildFinished",
+     "TimerFired",
+     "Signal",
+     "CancelRequested",
+     "AdapterFinished"
+    ]
+   },
+   "ActionType": {
+    "enum": [
+     "createResource",
+     "cancelResource",
+     "publishArtifact",
+     "commitScope",
+     "abandonScope",
+     "emitEvent",
+     "setTimer",
+     "clearTimer",
+     "callAdapter"
+    ]
+   },
+   "OutboxEventType": {
+    "type": "string",
+    "pattern": "^[a-z][a-zA-Z0-9]*(\\.[a-z][a-zA-Z0-9]*)+$"
+   },
+   "Error": {
+    "type": "object",
+    "required": [
+     "code",
+     "message",
+     "retryable"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "code": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+     },
+     "message": {
+      "type": "string"
+     },
+     "retryable": {
+      "type": "boolean"
+     }
+    }
+   },
+   "IdempotencyKey": {
+    "type": "string",
+    "minLength": 1
+   },
+   "TimerKey": {
+    "type": "string",
+    "pattern": "^[a-z][a-z0-9_-]*$"
+   },
+   "AdapterId": {
+    "type": "string",
+    "pattern": "^[a-z0-9][-a-z0-9]*/v[0-9]+$"
+   },
+   "Event": {
+    "type": "object",
+    "required": [
+     "type",
+     "sequence",
+     "dedupeKey"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "type": {
+      "$ref": "#/$defs/EventType"
+     },
+     "sequence": {
+      "type": "integer",
+      "minimum": 1
+     },
+     "dedupeKey": {
+      "type": "string",
+      "minLength": 1
+     },
+     "payload": {
+      "type": "object"
+     }
+    },
+    "oneOf": [
+     {
+      "properties": {
+       "type": {
+        "const": "Created"
+       }
+      },
+      "not": {
+       "required": [
+        "payload"
+       ]
+      }
+     },
+     {
+      "properties": {
+       "type": {
+        "const": "SpecUpdated"
+       },
+       "payload": {
+        "type": "object",
+        "required": [
+         "generation"
+        ],
+        "additionalProperties": false,
+        "properties": {
+         "generation": {
+          "type": "integer",
+          "minimum": 2
+         }
+        }
+       }
+      },
+      "required": [
+       "payload"
+      ]
+     },
+     {
+      "properties": {
+       "type": {
+        "const": "ChildFinished"
+       },
+       "payload": {
+        "type": "object",
+        "required": [
+         "ref",
+         "value"
+        ],
+        "additionalProperties": false,
+        "properties": {
+         "ref": {
+          "allOf": [
+           {
+            "$ref": "resource.yaml#/$defs/ObjectRef"
+           },
+           {
+            "required": [
+             "uid"
+            ]
+           }
+          ]
+         },
+         "value": {
+          "type": "string"
+         }
+        }
+       }
+      },
+      "required": [
+       "payload"
+      ]
+     },
+     {
+      "properties": {
+       "type": {
+        "const": "TimerFired"
+       },
+       "payload": {
+        "type": "object",
+        "required": [
+         "key",
+         "at"
+        ],
+        "additionalProperties": false,
+        "properties": {
+         "key": {
+          "$ref": "#/$defs/TimerKey"
+         },
+         "at": {
+          "type": "string",
+          "format": "date-time"
+         }
+        }
+       }
+      },
+      "required": [
+       "payload"
+      ]
+     },
+     {
+      "properties": {
+       "type": {
+        "const": "Signal"
+       },
+       "payload": {
+        "type": "object",
+        "required": [
+         "source",
+         "eventId"
+        ],
+        "additionalProperties": false,
+        "properties": {
+         "source": {
+          "enum": [
+           "adapter",
+           "api",
+           "outbox"
+          ]
+         },
+         "eventId": {
+          "type": "string",
+          "minLength": 1
+         },
+         "payload": {
+          "type": "object"
+         }
+        }
+       }
+      },
+      "required": [
+       "payload"
+      ]
+     },
+     {
+      "properties": {
+       "type": {
+        "const": "CancelRequested"
+       },
+       "payload": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+         "reason": {
+          "type": "string"
+         }
+        }
+       }
+      }
+     },
+     {
+      "properties": {
+       "type": {
+        "const": "AdapterFinished"
+       },
+       "payload": {
+        "$ref": "#/$defs/AdapterFinishedPayload"
+       }
+      },
+      "required": [
+       "payload"
+      ]
+     }
+    ]
+   },
+   "AdapterFinishedPayload": {
+    "type": "object",
+    "required": [
+     "idempotencyKey",
+     "state"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "idempotencyKey": {
+      "$ref": "#/$defs/IdempotencyKey"
+     },
+     "state": {
+      "enum": [
+       "succeeded",
+       "failed",
+       "unknown"
+      ]
+     },
+     "result": {
+      "type": "object"
+     },
+     "error": {
+      "$ref": "#/$defs/Error"
+     }
+    },
+    "oneOf": [
+     {
+      "properties": {
+       "state": {
+        "const": "succeeded"
+       }
+      },
+      "required": [
+       "result"
+      ],
+      "not": {
+       "required": [
+        "error"
+       ]
+      }
+     },
+     {
+      "properties": {
+       "state": {
+        "const": "failed"
+       }
+      },
+      "required": [
+       "error"
+      ],
+      "not": {
+       "required": [
+        "result"
+       ]
+      }
+     },
+     {
+      "properties": {
+       "state": {
+        "const": "unknown"
+       }
+      },
+      "not": {
+       "anyOf": [
+        {
+         "required": [
+          "result"
+         ]
+        },
+        {
+         "required": [
+          "error"
+         ]
+        }
+       ]
+      }
+     }
+    ]
+   },
+   "Action": {
+    "type": "object",
+    "required": [
+     "type"
+    ],
+    "properties": {
+     "type": {
+      "$ref": "#/$defs/ActionType"
+     }
+    },
+    "oneOf": [
+     {
+      "properties": {
+       "type": {
+        "const": "createResource"
+       },
+       "resource": {
+        "$ref": "resource.yaml"
+       },
+       "snapshot": {
+        "enum": [
+         "inherit",
+         "new"
+        ],
+        "default": "inherit"
+       },
+       "owned": {
+        "type": "boolean",
+        "default": true
+       }
+      },
+      "required": [
+       "resource"
+      ],
+      "additionalProperties": false
+     },
+     {
+      "properties": {
+       "type": {
+        "const": "cancelResource"
+       },
+       "ref": {
+        "$ref": "resource.yaml#/$defs/ObjectRef"
+       }
+      },
+      "required": [
+       "ref"
+      ],
+      "additionalProperties": false
+     },
+     {
+      "allOf": [
+       {
+        "$ref": "revisioned.yaml#/$defs/PublishRequest"
+       }
+      ],
+      "properties": {
+       "type": {
+        "const": "publishArtifact"
+       }
+      },
+      "unevaluatedProperties": false
+     },
+     {
+      "properties": {
+       "type": {
+        "enum": [
+         "commitScope",
+         "abandonScope"
+        ]
+       },
+       "key": {
+        "$ref": "#/$defs/IdempotencyKey"
+       }
+      },
+      "required": [
+       "key"
+      ],
+      "additionalProperties": false
+     },
+     {
+      "properties": {
+       "type": {
+        "const": "emitEvent"
+       },
+       "eventType": {
+        "$ref": "#/$defs/OutboxEventType"
+       },
+       "payload": {
+        "type": "object"
+       }
+      },
+      "required": [
+       "eventType",
+       "payload"
+      ],
+      "additionalProperties": false
+     },
+     {
+      "properties": {
+       "type": {
+        "const": "setTimer"
+       },
+       "key": {
+        "$ref": "#/$defs/TimerKey"
+       },
+       "at": {
+        "type": "string",
+        "format": "date-time"
+       }
+      },
+      "required": [
+       "key",
+       "at"
+      ],
+      "additionalProperties": false
+     },
+     {
+      "properties": {
+       "type": {
+        "const": "clearTimer"
+       },
+       "key": {
+        "$ref": "#/$defs/TimerKey"
+       }
+      },
+      "required": [
+       "key"
+      ],
+      "additionalProperties": false
+     },
+     {
+      "properties": {
+       "type": {
+        "const": "callAdapter"
+       },
+       "adapterId": {
+        "$ref": "#/$defs/AdapterId"
+       },
+       "op": {
+        "type": "string",
+        "pattern": "^[a-z][a-zA-Z0-9]*$"
+       },
+       "payload": {
+        "type": "object"
+       },
+       "idempotencyKey": {
+        "$ref": "#/$defs/IdempotencyKey"
+       },
+       "deadline": {
+        "type": "string",
+        "format": "date-time"
+       }
+      },
+      "required": [
+       "adapterId",
+       "op",
+       "payload",
+       "idempotencyKey"
+      ],
+      "additionalProperties": false
+     }
+    ]
+   },
+   "RunLogEntry": {
+    "type": "object",
+    "required": [
+     "event"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "event": {
+      "$ref": "#/$defs/Event"
+     },
+     "appliedAt": {
+      "type": "string",
+      "format": "date-time"
+     },
+     "deliveries": {
+      "type": "integer",
+      "minimum": 1
+     },
+     "result": {
+      "type": "object",
+      "required": [
+       "actions"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "statusPatch": {
+        "type": "object"
+       },
+       "actions": {
+        "type": "array",
+        "items": {
+         "$ref": "#/$defs/Action"
+        }
+       }
+      }
+     }
+    }
+   },
+   "RunLog": {
+    "type": "object",
+    "required": [
+     "uid",
+     "entries"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "uid": {
+      "type": "string",
+      "minLength": 1
+     },
+     "entries": {
+      "type": "array",
+      "items": {
+       "$ref": "#/$defs/RunLogEntry"
+      }
+     }
+    }
+   }
+  }
+ },
+ "relation.yaml": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Relation and RelationType",
+  "description": "Immutable assertions between artifact revisions and external resources.",
+  "$defs": {
+   "EndpointKind": {
+    "type": "object",
+    "minProperties": 1,
+    "maxProperties": 1,
+    "additionalProperties": false,
+    "properties": {
+     "revisionKind": {
+      "type": "object",
+      "required": [
+       "apiVersion",
+       "kind"
+      ],
+      "additionalProperties": false,
+      "x-persimmon-kind-ref": {},
+      "properties": {
+       "apiVersion": {
+        "$ref": "resource.yaml#/$defs/ApiVersion"
+       },
+       "kind": {
+        "$ref": "resource.yaml#/$defs/Kind"
+       }
+      }
+     },
+     "external": {
+      "const": true
+     }
+    }
+   },
+   "Endpoint": {
+    "type": "object",
+    "minProperties": 1,
+    "maxProperties": 1,
+    "additionalProperties": false,
+    "properties": {
+     "revision": {
+      "$ref": "resource.yaml#/$defs/RevisionRef"
+     },
+     "external": {
+      "$ref": "resource.yaml#/$defs/ExternalResourceRef"
+     }
+    }
+   },
+   "RelationType": {
+    "type": "object",
+    "required": [
+     "apiVersion",
+     "kind",
+     "metadata",
+     "spec"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "apiVersion": {
+      "const": "persimmon.ai/v1"
+     },
+     "kind": {
+      "const": "RelationType"
+     },
+     "metadata": {
+      "$ref": "resource.yaml#/$defs/Metadata"
+     },
+     "spec": {
+      "type": "object",
+      "required": [
+       "from",
+       "to"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "from": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+         "$ref": "#/$defs/EndpointKind"
+        }
+       },
+       "to": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+         "$ref": "#/$defs/EndpointKind"
+        }
+       },
+       "description": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   },
+   "Relation": {
+    "type": "object",
+    "required": [
+     "apiVersion",
+     "kind",
+     "metadata",
+     "spec"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "apiVersion": {
+      "const": "persimmon.ai/v1"
+     },
+     "kind": {
+      "const": "Relation"
+     },
+     "metadata": {
+      "allOf": [
+       {
+        "$ref": "resource.yaml#/$defs/Metadata"
+       },
+       {
+        "required": [
+         "namespace"
+        ]
+       }
+      ]
+     },
+     "spec": {
+      "type": "object",
+      "required": [
+       "type",
+       "from",
+       "to",
+       "evidence"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "type": {
+        "allOf": [
+         {
+          "$ref": "resource.yaml#/$defs/LocalDefinitionRef"
+         },
+         {
+          "properties": {
+           "kind": {
+            "const": "RelationType"
+           }
+          }
+         }
+        ],
+        "x-persimmon-ref": {
+         "kinds": [
+          "RelationType"
+         ]
+        }
+       },
+       "from": {
+        "$ref": "#/$defs/Endpoint"
+       },
+       "to": {
+        "$ref": "#/$defs/Endpoint"
+       },
+       "evidence": {
+        "type": "array",
+        "items": {
+         "$ref": "resource.yaml#/$defs/RevisionRef"
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ "resource.yaml": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Resource",
+  "description": "Envelope of every Resource. spec validated by the kind's schema, status by its statusSchema.",
+  "type": "object",
+  "required": [
+   "apiVersion",
+   "kind",
+   "metadata",
+   "spec"
+  ],
+  "additionalProperties": false,
+  "properties": {
+   "apiVersion": {
+    "$ref": "#/$defs/ApiVersion"
+   },
+   "kind": {
+    "$ref": "#/$defs/Kind"
+   },
+   "metadata": {
+    "$ref": "#/$defs/Metadata"
+   },
+   "spec": {
+    "type": "object"
+   },
+   "status": {
+    "type": "object"
+   }
+  },
+  "$defs": {
+   "ApiVersion": {
+    "type": "string",
+    "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/v[0-9]+$",
+    "examples": [
+     "persimmon.ai/v1",
+     "engineering.persimmon.ai/v1"
+    ]
+   },
+   "Kind": {
+    "type": "string",
+    "pattern": "^[A-Z][A-Za-z0-9]*$"
+   },
+   "DnsLabel": {
+    "type": "string",
+    "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+    "maxLength": 63
+   },
+   "DnsSubdomain": {
+    "type": "string",
+    "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$",
+    "maxLength": 253
+   },
+   "Digest": {
+    "type": "string",
+    "pattern": "^sha256:[a-f0-9]{64}$"
+   },
+   "Snapshot": {
+    "type": "object",
+    "required": [
+     "uri",
+     "digest"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "uri": {
+      "type": "string",
+      "pattern": "^snapshot://[a-f0-9]{64}$"
+     },
+     "digest": {
+      "$ref": "#/$defs/Digest"
+     }
+    }
+   },
+   "StringMap": {
+    "type": "object",
+    "additionalProperties": {
+     "type": "string"
+    }
+   },
+   "Metadata": {
+    "type": "object",
+    "required": [
+     "name"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "name": {
+      "$ref": "#/$defs/DnsSubdomain"
+     },
+     "namespace": {
+      "$ref": "#/$defs/DnsLabel"
+     },
+     "labels": {
+      "$ref": "#/$defs/StringMap"
+     },
+     "annotations": {
+      "$ref": "#/$defs/StringMap"
+     },
+     "uid": {
+      "type": "string",
+      "minLength": 1
+     },
+     "resourceVersion": {
+      "type": "string",
+      "minLength": 1
+     },
+     "generation": {
+      "type": "integer",
+      "minimum": 1
+     },
+     "creationTimestamp": {
+      "type": "string",
+      "format": "date-time"
+     },
+     "ownerReferences": {
+      "type": "array",
+      "maxItems": 1,
+      "items": {
+       "$ref": "#/$defs/ObjectRef"
+      }
+     },
+     "snapshot": {
+      "$ref": "#/$defs/Snapshot"
+     },
+     "stalled": {
+      "type": "object",
+      "required": [
+       "attempts"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "attempts": {
+        "type": "integer",
+        "minimum": 1
+       },
+       "lastError": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   },
+   "Actor": {
+    "type": "object",
+    "required": [
+     "kind",
+     "id"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "kind": {
+      "enum": [
+       "user",
+       "service",
+       "handler"
+      ]
+     },
+     "id": {
+      "type": "string",
+      "minLength": 1
+     },
+     "display": {
+      "type": "string"
+     }
+    }
+   },
+   "ObjectRef": {
+    "type": "object",
+    "required": [
+     "apiVersion",
+     "kind",
+     "name"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "apiVersion": {
+      "$ref": "#/$defs/ApiVersion"
+     },
+     "kind": {
+      "$ref": "#/$defs/Kind"
+     },
+     "namespace": {
+      "$ref": "#/$defs/DnsLabel"
+     },
+     "name": {
+      "$ref": "#/$defs/DnsSubdomain"
+     },
+     "uid": {
+      "type": "string",
+      "minLength": 1
+     }
+    }
+   },
+   "LocalDefinitionRef": {
+    "type": "object",
+    "required": [
+     "kind",
+     "name"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "kind": {
+      "$ref": "#/$defs/Kind"
+     },
+     "name": {
+      "$ref": "#/$defs/DnsSubdomain"
+     }
+    }
+   },
+   "RevisionRef": {
+    "type": "object",
+    "required": [
+     "apiVersion",
+     "kind",
+     "namespace",
+     "id",
+     "revision"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "apiVersion": {
+      "$ref": "#/$defs/ApiVersion"
+     },
+     "kind": {
+      "$ref": "#/$defs/Kind"
+     },
+     "namespace": {
+      "$ref": "#/$defs/DnsLabel"
+     },
+     "id": {
+      "$ref": "#/$defs/DnsLabel"
+     },
+     "revision": {
+      "type": "integer",
+      "minimum": 1
+     }
+    }
+   },
+   "ExternalResourceRef": {
+    "type": "object",
+    "required": [
+     "provider",
+     "type",
+     "id",
+     "locator"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "provider": {
+      "type": "string",
+      "minLength": 1
+     },
+     "type": {
+      "type": "string",
+      "minLength": 1
+     },
+     "id": {
+      "type": "string",
+      "minLength": 1
+     },
+     "locator": {
+      "type": "object"
+     },
+     "version": {
+      "type": "string"
+     },
+     "url": {
+      "type": "string",
+      "format": "uri"
+     }
+    }
+   },
+   "AuditRecord": {
+    "type": "object",
+    "required": [
+     "actor",
+     "time",
+     "kind",
+     "name",
+     "uid",
+     "generation",
+     "change"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "actor": {
+      "$ref": "#/$defs/Actor"
+     },
+     "time": {
+      "type": "string",
+      "format": "date-time"
+     },
+     "kind": {
+      "$ref": "#/$defs/Kind"
+     },
+     "namespace": {
+      "$ref": "#/$defs/DnsLabel"
+     },
+     "name": {
+      "$ref": "#/$defs/DnsSubdomain"
+     },
+     "uid": {
+      "type": "string",
+      "minLength": 1
+     },
+     "generation": {
+      "type": "integer",
+      "minimum": 1
+     },
+     "change": {
+      "enum": [
+       "create",
+       "spec",
+       "status",
+       "metadata",
+       "delete",
+       "signal"
+      ]
+     }
+    }
+   }
+  }
+ },
+ "revisioned.yaml": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Revisioned kind",
+  "description": "Framework-owned fields of a revisioned Resource, and the publish request.",
+  "$defs": {
+   "Id": {
+    "$ref": "resource.yaml#/$defs/DnsLabel"
+   },
+   "Revision": {
+    "type": "integer",
+    "minimum": 1
+   },
+   "MediaType": {
+    "type": "string",
+    "pattern": "^[a-z]+/[a-zA-Z0-9.+-]+$"
+   },
+   "Identity": {
+    "type": "object",
+    "required": [
+     "id",
+     "revision"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "id": {
+      "$ref": "#/$defs/Id"
+     },
+     "revision": {
+      "$ref": "#/$defs/Revision"
+     }
+    }
+   },
+   "Provenance": {
+    "type": "object",
+    "required": [
+     "producerRef",
+     "inputs",
+     "actor"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "producerRef": {
+      "$ref": "resource.yaml#/$defs/ObjectRef"
+     },
+     "inputs": {
+      "type": "array",
+      "items": {
+       "$ref": "resource.yaml#/$defs/RevisionRef"
+      }
+     },
+     "actor": {
+      "$ref": "resource.yaml#/$defs/Actor"
+     }
+    }
+   },
+   "Representation": {
+    "type": "object",
+    "required": [
+     "name",
+     "mediaType",
+     "digest"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "name": {
+      "$ref": "resource.yaml#/$defs/DnsLabel"
+     },
+     "mediaType": {
+      "$ref": "#/$defs/MediaType"
+     },
+     "digest": {
+      "$ref": "resource.yaml#/$defs/Digest"
+     }
+    }
+   },
+   "Spec": {
+    "type": "object",
+    "required": [
+     "identity",
+     "content",
+     "provenance"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "identity": {
+      "$ref": "#/$defs/Identity"
+     },
+     "content": {
+      "type": "object"
+     },
+     "provenance": {
+      "$ref": "#/$defs/Provenance"
+     }
+    }
+   },
+   "Status": {
+    "type": "object",
+    "required": [
+     "contentDigest",
+     "representations"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "contentDigest": {
+      "$ref": "resource.yaml#/$defs/Digest"
+     },
+     "representations": {
+      "type": "array",
+      "items": {
+       "$ref": "#/$defs/Representation"
+      }
+     }
+    }
+   },
+   "Instance": {
+    "allOf": [
+     {
+      "$ref": "resource.yaml"
+     },
+     {
+      "type": "object",
+      "required": [
+       "status"
+      ],
+      "properties": {
+       "metadata": {
+        "required": [
+         "namespace"
+        ],
+        "properties": {
+         "name": {
+          "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?\\.r[1-9][0-9]*$"
+         }
+        }
+       },
+       "spec": {
+        "$ref": "#/$defs/Spec"
+       },
+       "status": {
+        "$ref": "#/$defs/Status"
+       }
+      }
+     }
+    ]
+   },
+   "PublishRequest": {
+    "type": "object",
+    "required": [
+     "kind",
+     "id",
+     "content",
+     "representations"
+    ],
+    "properties": {
+     "kind": {
+      "type": "object",
+      "required": [
+       "apiVersion",
+       "kind"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "apiVersion": {
+        "$ref": "resource.yaml#/$defs/ApiVersion"
+       },
+       "kind": {
+        "$ref": "resource.yaml#/$defs/Kind"
+       }
+      }
+     },
+     "id": {
+      "$ref": "#/$defs/Id"
+     },
+     "content": {
+      "type": "object"
+     },
+     "inputs": {
+      "type": "array",
+      "items": {
+       "$ref": "resource.yaml#/$defs/RevisionRef"
+      }
+     },
+     "representations": {
+      "type": "array",
+      "items": {
+       "$ref": "#/$defs/Representation"
+      }
+     }
+    }
+   },
+   "Staged": {
+    "type": "object",
+    "required": [
+     "ref",
+     "scope",
+     "state"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "ref": {
+      "$ref": "resource.yaml#/$defs/RevisionRef"
+     },
+     "scope": {
+      "$ref": "reconcile.yaml#/$defs/IdempotencyKey"
+     },
+     "state": {
+      "enum": [
+       "staged",
+       "committed",
+       "abandoned"
+      ]
+     }
+    }
+   },
+   "Flow": {
+    "type": "object",
+    "required": [
+     "steps"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "steps": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "required": [
+        "at",
+        "by",
+        "does"
+       ],
+       "additionalProperties": false,
+       "properties": {
+        "at": {
+         "type": "string",
+         "format": "date-time"
+        },
+        "by": {
+         "enum": [
+          "handler",
+          "adapter",
+          "engine"
+         ]
+        },
+        "does": {
+         "type": "string"
+        },
+        "staged": {
+         "type": "array",
+         "items": {
+          "$ref": "#/$defs/Staged"
+         }
+        }
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ "runs.yaml": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Runs",
+  "description": "WorkflowRun, TaskRun, GateRun, ValidationRun. Immutable, Namespaced.",
+  "$defs": {
+   "Phase": {
+    "enum": [
+     "Pending",
+     "Running",
+     "Waiting",
+     "Succeeded",
+     "Failed",
+     "Cancelled"
+    ]
+   },
+   "StepPhase": {
+    "enum": [
+     "Pending",
+     "Running",
+     "Waiting",
+     "Succeeded",
+     "Failed",
+     "Cancelled",
+     "Skipped"
+    ]
+   },
+   "IterationPath": {
+    "type": "string",
+    "pattern": "^([a-z][a-z0-9-]*\\[[1-9][0-9]*\\](/[a-z][a-z0-9-]*\\[[1-9][0-9]*\\])*)?$"
+   },
+   "Deadline": {
+    "type": "string",
+    "format": "date-time"
+   },
+   "RunMetadata": {
+    "allOf": [
+     {
+      "$ref": "resource.yaml#/$defs/Metadata"
+     },
+     {
+      "required": [
+       "namespace"
+      ]
+     }
+    ]
+   },
+   "Origin": {
+    "type": "object",
+    "required": [
+     "kind"
+    ],
+    "properties": {
+     "kind": {
+      "enum": [
+       "manual",
+       "trigger",
+       "parent"
+      ]
+     }
+    },
+    "oneOf": [
+     {
+      "properties": {
+       "kind": {
+        "const": "manual"
+       },
+       "actor": {
+        "$ref": "resource.yaml#/$defs/Actor"
+       }
+      },
+      "additionalProperties": false
+     },
+     {
+      "properties": {
+       "kind": {
+        "const": "trigger"
+       },
+       "triggerRef": {
+        "$ref": "resource.yaml#/$defs/ObjectRef"
+       },
+       "eventId": {
+        "$ref": "resource.yaml#/$defs/Digest"
+       },
+       "causationRef": {
+        "$ref": "resource.yaml#/$defs/ObjectRef"
+       }
+      },
+      "required": [
+       "triggerRef",
+       "eventId"
+      ],
+      "additionalProperties": false
+     },
+     {
+      "properties": {
+       "kind": {
+        "const": "parent"
+       }
+      },
+      "additionalProperties": false
+     }
+    ]
+   },
+   "Address": {
+    "type": "object",
+    "required": [
+     "workflowRunRef",
+     "stepRef",
+     "iterationPath",
+     "logicalExecutionId"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "workflowRunRef": {
+      "$ref": "resource.yaml#/$defs/ObjectRef"
+     },
+     "stepRef": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*(/[a-z][a-zA-Z0-9]*)?$"
+     },
+     "iterationPath": {
+      "$ref": "#/$defs/IterationPath"
+     },
+     "logicalExecutionId": {
+      "type": "string",
+      "pattern": "^[a-z0-9.-]+/[^/]*(/[^/]+)*/[a-z][a-z0-9-]*(/[a-z][a-zA-Z0-9]*)?$"
+     }
+    }
+   },
+   "StatusCommon": {
+    "type": "object",
+    "properties": {
+     "phase": {
+      "$ref": "#/$defs/Phase"
+     },
+     "error": {
+      "$ref": "reconcile.yaml#/$defs/Error"
+     },
+     "waitingReason": {
+      "type": "string"
+     }
+    },
+    "allOf": [
+     {
+      "if": {
+       "properties": {
+        "phase": {
+         "const": "Failed"
+        }
+       },
+       "required": [
+        "phase"
+       ]
+      },
+      "then": {
+       "required": [
+        "error"
+       ]
+      },
+      "else": {
+       "not": {
+        "required": [
+         "error"
+        ]
+       }
+      }
+     },
+     {
+      "if": {
+       "properties": {
+        "phase": {
+         "const": "Waiting"
+        }
+       },
+       "required": [
+        "phase"
+       ]
+      },
+      "else": {
+       "not": {
+        "required": [
+         "waitingReason"
+        ]
+       }
+      }
+     }
+    ]
+   },
+   "WorkflowRun": {
+    "type": "object",
+    "required": [
+     "apiVersion",
+     "kind",
+     "metadata",
+     "spec"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "apiVersion": {
+      "const": "persimmon.ai/v1"
+     },
+     "kind": {
+      "const": "WorkflowRun"
+     },
+     "metadata": {
+      "$ref": "#/$defs/RunMetadata"
+     },
+     "spec": {
+      "type": "object",
+      "required": [
+       "workflowRef",
+       "inputs",
+       "timeout",
+       "origin"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "workflowRef": {
+        "allOf": [
+         {
+          "$ref": "resource.yaml#/$defs/LocalDefinitionRef"
+         },
+         {
+          "properties": {
+           "kind": {
+            "const": "Workflow"
+           }
+          }
+         }
+        ],
+        "x-persimmon-ref": {
+         "kinds": [
+          "Workflow"
+         ]
+        }
+       },
+       "inputs": {
+        "$ref": "ports.yaml#/$defs/RuntimeValues"
+       },
+       "timeout": {
+        "$ref": "ports.yaml#/$defs/Duration"
+       },
+       "origin": {
+        "$ref": "#/$defs/Origin"
+       },
+       "parent": {
+        "type": "object",
+        "required": [
+         "workflowRunRef",
+         "stepRef",
+         "iterationPath"
+        ],
+        "additionalProperties": false,
+        "properties": {
+         "workflowRunRef": {
+          "$ref": "resource.yaml#/$defs/ObjectRef"
+         },
+         "stepRef": {
+          "$ref": "ports.yaml#/$defs/StepId"
+         },
+         "iterationPath": {
+          "$ref": "#/$defs/IterationPath"
+         }
+        }
+       }
+      },
+      "if": {
+       "properties": {
+        "origin": {
+         "properties": {
+          "kind": {
+           "const": "parent"
+          }
+         }
+        }
+       }
+      },
+      "then": {
+       "required": [
+        "parent"
+       ]
+      },
+      "else": {
+       "not": {
+        "required": [
+         "parent"
+        ]
+       }
+      }
+     },
+     "status": {
+      "allOf": [
+       {
+        "$ref": "#/$defs/StatusCommon"
+       },
+       {
+        "type": "object",
+        "required": [
+         "phase",
+         "steps"
+        ],
+        "additionalProperties": false,
+        "properties": {
+         "phase": true,
+         "error": true,
+         "waitingReason": true,
+         "steps": {
+          "type": "object",
+          "propertyNames": {
+           "$ref": "ports.yaml#/$defs/StepId"
+          },
+          "additionalProperties": {
+           "type": "object",
+           "required": [
+            "phase"
+           ],
+           "additionalProperties": false,
+           "properties": {
+            "phase": {
+             "$ref": "#/$defs/StepPhase"
+            },
+            "runRef": {
+             "$ref": "resource.yaml#/$defs/ObjectRef"
+            },
+            "iteration": {
+             "type": "integer",
+             "minimum": 1
+            },
+            "error": {
+             "$ref": "reconcile.yaml#/$defs/Error"
+            }
+           }
+          }
+         },
+         "outputs": {
+          "$ref": "ports.yaml#/$defs/RuntimeValues"
+         },
+         "reason": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$"
+         }
+        },
+        "if": {
+         "properties": {
+          "phase": {
+           "const": "Succeeded"
+          }
+         }
+        },
+        "then": {
+         "required": [
+          "outputs"
+         ]
+        },
+        "else": {
+         "not": {
+          "required": [
+           "outputs"
+          ]
+         }
+        }
+       }
+      ]
+     }
+    }
+   },
+   "Attempt": {
+    "type": "object",
+    "required": [
+     "index",
+     "state",
+     "idempotencyKey",
+     "startedAt"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "index": {
+      "type": "integer",
+      "minimum": 1
+     },
+     "state": {
+      "enum": [
+       "running",
+       "succeeded",
+       "failed",
+       "unknown"
+      ]
+     },
+     "idempotencyKey": {
+      "$ref": "reconcile.yaml#/$defs/IdempotencyKey"
+     },
+     "startedAt": {
+      "type": "string",
+      "format": "date-time"
+     },
+     "finishedAt": {
+      "type": "string",
+      "format": "date-time"
+     },
+     "error": {
+      "$ref": "reconcile.yaml#/$defs/Error"
+     },
+     "acknowledged": {
+      "type": "boolean"
+     }
+    }
+   },
+   "ResolvedContext": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "kind"
+     ],
+     "oneOf": [
+      {
+       "properties": {
+        "kind": {
+         "const": "file"
+        },
+        "ref": {
+         "$ref": "resource.yaml#/$defs/ExternalResourceRef"
+        },
+        "path": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "ref",
+        "path"
+       ],
+       "additionalProperties": false
+      },
+      {
+       "properties": {
+        "kind": {
+         "const": "artifact"
+        },
+        "ref": {
+         "$ref": "resource.yaml#/$defs/RevisionRef"
+        }
+       },
+       "required": [
+        "ref"
+       ],
+       "additionalProperties": false
+      },
+      {
+       "properties": {
+        "kind": {
+         "const": "prompt"
+        },
+        "name": {
+         "type": "string"
+        },
+        "mediaType": {
+         "type": "string"
+        },
+        "content": {
+         "type": "string"
+        },
+        "digest": {
+         "$ref": "resource.yaml#/$defs/Digest"
+        }
+       },
+       "required": [
+        "name",
+        "mediaType",
+        "content",
+        "digest"
+       ],
+       "additionalProperties": false
+      },
+      {
+       "properties": {
+        "kind": {
+         "const": "skill"
+        },
+        "name": {
+         "type": "string"
+        },
+        "source": {
+         "$ref": "resource.yaml#/$defs/ExternalResourceRef"
+        },
+        "digest": {
+         "$ref": "resource.yaml#/$defs/Digest"
+        },
+        "format": {
+         "type": "string"
+        }
+       },
+       "required": [
+        "name",
+        "source",
+        "digest",
+        "format"
+       ],
+       "additionalProperties": false
+      }
+     ]
+    }
+   },
+   "TaskRun": {
+    "type": "object",
+    "required": [
+     "apiVersion",
+     "kind",
+     "metadata",
+     "spec"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "apiVersion": {
+      "const": "persimmon.ai/v1"
+     },
+     "kind": {
+      "const": "TaskRun"
+     },
+     "metadata": {
+      "$ref": "#/$defs/RunMetadata"
+     },
+     "spec": {
+      "type": "object",
+      "required": [
+       "taskRef",
+       "address",
+       "deadline",
+       "inputs",
+       "context"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "taskRef": {
+        "allOf": [
+         {
+          "$ref": "resource.yaml#/$defs/LocalDefinitionRef"
+         },
+         {
+          "properties": {
+           "kind": {
+            "const": "Task"
+           }
+          }
+         }
+        ]
+       },
+       "address": {
+        "$ref": "#/$defs/Address"
+       },
+       "deadline": {
+        "$ref": "#/$defs/Deadline"
+       },
+       "inputs": {
+        "$ref": "ports.yaml#/$defs/RuntimeValues"
+       },
+       "context": {
+        "$ref": "#/$defs/ResolvedContext"
+       }
+      }
+     },
+     "status": {
+      "allOf": [
+       {
+        "$ref": "#/$defs/StatusCommon"
+       },
+       {
+        "type": "object",
+        "required": [
+         "phase",
+         "attempts"
+        ],
+        "additionalProperties": false,
+        "properties": {
+         "phase": true,
+         "error": true,
+         "waitingReason": true,
+         "attempts": {
+          "type": "array",
+          "items": {
+           "$ref": "#/$defs/Attempt"
+          }
+         },
+         "outputs": {
+          "$ref": "ports.yaml#/$defs/RuntimeValues"
+         },
+         "actor": {
+          "$ref": "resource.yaml#/$defs/Actor"
+         }
+        },
+        "if": {
+         "properties": {
+          "phase": {
+           "const": "Succeeded"
+          }
+         }
+        },
+        "then": {
+         "required": [
+          "outputs"
+         ]
+        },
+        "else": {
+         "not": {
+          "required": [
+           "outputs"
+          ]
+         }
+        }
+       }
+      ]
+     }
+    }
+   },
+   "GateRun": {
+    "type": "object",
+    "required": [
+     "apiVersion",
+     "kind",
+     "metadata",
+     "spec"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "apiVersion": {
+      "const": "persimmon.ai/v1"
+     },
+     "kind": {
+      "const": "GateRun"
+     },
+     "metadata": {
+      "$ref": "#/$defs/RunMetadata"
+     },
+     "spec": {
+      "type": "object",
+      "required": [
+       "gateRef",
+       "address",
+       "deadline",
+       "inputs"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "gateRef": {
+        "allOf": [
+         {
+          "$ref": "resource.yaml#/$defs/LocalDefinitionRef"
+         },
+         {
+          "properties": {
+           "kind": {
+            "const": "Gate"
+           }
+          }
+         }
+        ]
+       },
+       "address": {
+        "$ref": "#/$defs/Address"
+       },
+       "deadline": {
+        "$ref": "#/$defs/Deadline"
+       },
+       "inputs": {
+        "$ref": "ports.yaml#/$defs/RuntimeValues"
+       }
+      }
+     },
+     "status": {
+      "allOf": [
+       {
+        "$ref": "#/$defs/StatusCommon"
+       },
+       {
+        "type": "object",
+        "required": [
+         "phase",
+         "validationRuns"
+        ],
+        "additionalProperties": false,
+        "properties": {
+         "phase": true,
+         "error": true,
+         "waitingReason": true,
+         "validationRuns": {
+          "type": "object",
+          "propertyNames": {
+           "$ref": "ports.yaml#/$defs/PortName"
+          },
+          "additionalProperties": {
+           "$ref": "resource.yaml#/$defs/ObjectRef"
+          }
+         },
+         "outputs": {
+          "type": "object",
+          "required": [
+           "result"
+          ],
+          "additionalProperties": false,
+          "properties": {
+           "result": {
+            "type": "object",
+            "required": [
+             "kind",
+             "value"
+            ],
+            "additionalProperties": false,
+            "properties": {
+             "kind": {
+              "const": "value"
+             },
+             "value": {
+              "$ref": "ports.yaml#/$defs/GateResult"
+             }
+            }
+           }
+          }
+         }
+        },
+        "if": {
+         "properties": {
+          "phase": {
+           "const": "Succeeded"
+          }
+         }
+        },
+        "then": {
+         "required": [
+          "outputs"
+         ]
+        },
+        "else": {
+         "not": {
+          "required": [
+           "outputs"
+          ]
+         }
+        }
+       }
+      ]
+     }
+    }
+   },
+   "ValidationRun": {
+    "type": "object",
+    "required": [
+     "apiVersion",
+     "kind",
+     "metadata",
+     "spec"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "apiVersion": {
+      "const": "persimmon.ai/v1"
+     },
+     "kind": {
+      "const": "ValidationRun"
+     },
+     "metadata": {
+      "$ref": "#/$defs/RunMetadata"
+     },
+     "spec": {
+      "type": "object",
+      "required": [
+       "validatorRef",
+       "gateRunRef",
+       "name",
+       "address",
+       "deadline",
+       "inputs"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "validatorRef": {
+        "allOf": [
+         {
+          "$ref": "resource.yaml#/$defs/LocalDefinitionRef"
+         },
+         {
+          "properties": {
+           "kind": {
+            "const": "Validator"
+           }
+          }
+         }
+        ]
+       },
+       "gateRunRef": {
+        "$ref": "resource.yaml#/$defs/ObjectRef"
+       },
+       "name": {
+        "$ref": "ports.yaml#/$defs/PortName"
+       },
+       "address": {
+        "$ref": "#/$defs/Address"
+       },
+       "deadline": {
+        "$ref": "#/$defs/Deadline"
+       },
+       "inputs": {
+        "$ref": "ports.yaml#/$defs/RuntimeValues"
+       }
+      }
+     },
+     "status": {
+      "allOf": [
+       {
+        "$ref": "#/$defs/StatusCommon"
+       },
+       {
+        "type": "object",
+        "required": [
+         "phase"
+        ],
+        "additionalProperties": false,
+        "properties": {
+         "phase": true,
+         "error": true,
+         "waitingReason": true,
+         "result": {
+          "$ref": "ports.yaml#/$defs/ValidationResult"
+         },
+         "taskRunRef": {
+          "$ref": "resource.yaml#/$defs/ObjectRef"
+         }
+        },
+        "if": {
+         "properties": {
+          "phase": {
+           "const": "Succeeded"
+          }
+         }
+        },
+        "then": {
+         "required": [
+          "result"
+         ]
+        },
+        "else": {
+         "not": {
+          "required": [
+           "result"
+          ]
+         }
+        }
+       }
+      ]
+     }
+    }
+   }
+  }
+ },
+ "snapshot.yaml": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Snapshot",
+  "description": "Definition closure as stored, before canonical encoding. No run identity inside.",
+  "type": "object",
+  "required": [
+   "version",
+   "resources",
+   "adapters"
+  ],
+  "additionalProperties": false,
+  "properties": {
+   "version": {
+    "const": 1
+   },
+   "resources": {
+    "type": "array",
+    "items": {
+     "$ref": "#/$defs/Entry"
+    }
+   },
+   "adapters": {
+    "type": "array",
+    "items": {
+     "type": "object",
+     "required": [
+      "id",
+      "describeDigest"
+     ],
+     "additionalProperties": false,
+     "properties": {
+      "id": {
+       "$ref": "reconcile.yaml#/$defs/AdapterId"
+      },
+      "describeDigest": {
+       "$ref": "resource.yaml#/$defs/Digest"
+      }
+     }
+    }
+   }
+  },
+  "$defs": {
+   "Entry": {
+    "type": "object",
+    "required": [
+     "apiVersion",
+     "kind",
+     "metadata",
+     "spec"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "apiVersion": {
+      "$ref": "resource.yaml#/$defs/ApiVersion"
+     },
+     "kind": {
+      "$ref": "resource.yaml#/$defs/Kind"
+     },
+     "metadata": {
+      "type": "object",
+      "required": [
+       "name"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "name": {
+        "$ref": "resource.yaml#/$defs/DnsSubdomain"
+       },
+       "namespace": {
+        "$ref": "resource.yaml#/$defs/DnsLabel"
+       }
+      }
+     },
+     "spec": {
+      "type": "object"
+     }
+    }
+   }
+  }
+ },
+ "store.yaml": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Engine config",
+  "description": "persimmon.yaml. Store, mode, limits, auth, grants. The Store interface itself is prose in 08-store.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+   "mode": {
+    "enum": [
+     "local",
+     "server"
+    ],
+    "default": "local"
+   },
+   "store": {
+    "type": "object",
+    "additionalProperties": false,
+    "minProperties": 1,
+    "maxProperties": 1,
+    "default": {
+     "sqlite": ".persimmon/persimmon.db"
+    },
+    "properties": {
+     "sqlite": {
+      "type": "string",
+      "minLength": 1
+     },
+     "postgres": {
+      "type": "string",
+      "pattern": "^postgres(ql)?://"
+     }
+    }
+   },
+   "blobs": {
+    "type": "string",
+    "pattern": "^(s3://[^/]+(/.*)?|[^:]+)$",
+    "default": ".persimmon/blobs"
+   },
+   "defaultNamespace": {
+    "$ref": "resource.yaml#/$defs/DnsLabel",
+    "default": "default"
+   },
+   "credentials": {
+    "type": "array",
+    "minItems": 1,
+    "default": [
+     {
+      "source": "env"
+     }
+    ],
+    "items": {
+     "$ref": "#/$defs/CredentialSource"
+    }
+   },
+   "maxReconcileAttempts": {
+    "type": "integer",
+    "minimum": 1,
+    "default": 10
+   },
+   "maxCausationDepth": {
+    "type": "integer",
+    "minimum": 1,
+    "default": 32
+   },
+   "defaultCallDeadline": {
+    "$ref": "#/$defs/Duration",
+    "default": "1h"
+   },
+   "leaseTtl": {
+    "$ref": "#/$defs/Duration",
+    "default": "30s"
+   },
+   "server": {
+    "$ref": "#/$defs/Server"
+   }
+  },
+  "allOf": [
+   {
+    "if": {
+     "properties": {
+      "mode": {
+       "const": "server"
+      }
+     },
+     "required": [
+      "mode"
+     ]
+    },
+    "then": {
+     "required": [
+      "server"
+     ],
+     "properties": {
+      "credentials": {
+       "items": {
+        "properties": {
+         "source": {
+          "enum": [
+           "env",
+           "file",
+           "secretManager"
+          ]
+         }
+        }
+       }
+      }
+     }
+    }
+   },
+   {
+    "if": {
+     "not": {
+      "properties": {
+       "mode": {
+        "const": "server"
+       }
+      },
+      "required": [
+       "mode"
+      ]
+     }
+    },
+    "then": {
+     "not": {
+      "required": [
+       "server"
+      ]
+     },
+     "properties": {
+      "credentials": {
+       "items": {
+        "properties": {
+         "source": {
+          "enum": [
+           "env",
+           "file",
+           "keychain"
+          ]
+         }
+        }
+       }
+      }
+     }
+    }
+   }
+  ],
+  "$defs": {
+   "Duration": {
+    "type": "string",
+    "pattern": "^[0-9]+(ms|s|m|h|d)$"
+   },
+   "CredentialSource": {
+    "type": "object",
+    "required": [
+     "source"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "source": {
+      "enum": [
+       "env",
+       "file",
+       "keychain",
+       "secretManager"
+      ]
+     },
+     "prefix": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]*$",
+      "default": "PERSIMMON_CRED_"
+     },
+     "path": {
+      "type": "string",
+      "minLength": 1
+     },
+     "url": {
+      "type": "string",
+      "pattern": "^https://"
+     }
+    },
+    "allOf": [
+     {
+      "if": {
+       "properties": {
+        "source": {
+         "const": "file"
+        }
+       }
+      },
+      "then": {
+       "required": [
+        "path"
+       ],
+       "not": {
+        "anyOf": [
+         {
+          "required": [
+           "url"
+          ]
+         },
+         {
+          "required": [
+           "prefix"
+          ]
+         }
+        ]
+       }
+      }
+     },
+     {
+      "if": {
+       "properties": {
+        "source": {
+         "const": "secretManager"
+        }
+       }
+      },
+      "then": {
+       "required": [
+        "url"
+       ],
+       "not": {
+        "anyOf": [
+         {
+          "required": [
+           "path"
+          ]
+         },
+         {
+          "required": [
+           "prefix"
+          ]
+         }
+        ]
+       }
+      }
+     },
+     {
+      "if": {
+       "properties": {
+        "source": {
+         "const": "env"
+        }
+       }
+      },
+      "then": {
+       "not": {
+        "anyOf": [
+         {
+          "required": [
+           "path"
+          ]
+         },
+         {
+          "required": [
+           "url"
+          ]
+         }
+        ]
+       }
+      }
+     },
+     {
+      "if": {
+       "properties": {
+        "source": {
+         "const": "keychain"
+        }
+       }
+      },
+      "then": {
+       "not": {
+        "anyOf": [
+         {
+          "required": [
+           "path"
+          ]
+         },
+         {
+          "required": [
+           "url"
+          ]
+         },
+         {
+          "required": [
+           "prefix"
+          ]
+         }
+        ]
+       }
+      }
+     }
+    ]
+   },
+   "ActorKey": {
+    "type": "object",
+    "required": [
+     "kind",
+     "id"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "kind": {
+      "enum": [
+       "user",
+       "service"
+      ]
+     },
+     "id": {
+      "type": "string",
+      "minLength": 1
+     }
+    }
+   },
+   "Grant": {
+    "type": "object",
+    "required": [
+     "actor",
+     "namespaces"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "actor": {
+      "$ref": "#/$defs/ActorKey"
+     },
+     "namespaces": {
+      "oneOf": [
+       {
+        "const": "*"
+       },
+       {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+         "$ref": "resource.yaml#/$defs/DnsLabel"
+        }
+       }
+      ]
+     },
+     "admin": {
+      "type": "boolean",
+      "default": false
+     }
+    }
+   },
+   "Server": {
+    "type": "object",
+    "required": [
+     "listen",
+     "tls",
+     "auth",
+     "grants"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "listen": {
+      "type": "string",
+      "pattern": "^[^:]*:[0-9]+$"
+     },
+     "tls": {
+      "type": "object",
+      "required": [
+       "cert",
+       "key"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "cert": {
+        "type": "string",
+        "minLength": 1
+       },
+       "key": {
+        "type": "string",
+        "minLength": 1
+       }
+      }
+     },
+     "auth": {
+      "type": "object",
+      "required": [
+       "tokens"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "tokens": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+         "type": "object",
+         "required": [
+          "actor",
+          "tokenHash"
+         ],
+         "additionalProperties": false,
+         "properties": {
+          "actor": {
+           "$ref": "#/$defs/ActorKey"
+          },
+          "tokenHash": {
+           "$ref": "resource.yaml#/$defs/Digest"
+          }
+         }
+        }
+       }
+      }
+     },
+     "grants": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+       "$ref": "#/$defs/Grant"
+      }
+     }
+    }
+   },
+   "GlobalCredentialName": {
+    "$ref": "resource.yaml#/$defs/DnsLabel"
+   },
+   "CredentialName": {
+    "type": "string",
+    "pattern": "^([a-z0-9]([-a-z0-9]*[a-z0-9])?/)?[a-z0-9]([-a-z0-9]*[a-z0-9])?$"
+   },
+   "CredentialsFile": {
+    "type": "object",
+    "propertyNames": {
+     "$ref": "#/$defs/CredentialName"
+    },
+    "additionalProperties": {
+     "type": "string"
+    }
+   }
+  }
+ },
+ "task.yaml": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Task",
+  "description": "One unit of work, executor-agnostic. Definition kind.",
+  "type": "object",
+  "required": [
+   "apiVersion",
+   "kind",
+   "metadata",
+   "spec"
+  ],
+  "additionalProperties": false,
+  "properties": {
+   "apiVersion": {
+    "const": "persimmon.ai/v1"
+   },
+   "kind": {
+    "const": "Task"
+   },
+   "metadata": {
+    "$ref": "resource.yaml#/$defs/Metadata"
+   },
+   "spec": {
+    "$ref": "#/$defs/Spec"
+   },
+   "status": {
+    "type": "object"
+   }
+  },
+  "$defs": {
+   "ErrorCode": {
+    "type": "string",
+    "pattern": "^[a-z][a-z0-9_]*$"
+   },
+   "Spec": {
+    "type": "object",
+    "required": [
+     "executorRef",
+     "action",
+     "timeout",
+     "sideEffects"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "inputs": {
+      "$ref": "ports.yaml#/$defs/Ports/properties/inputs"
+     },
+     "outputs": {
+      "$ref": "ports.yaml#/$defs/Ports/properties/outputs"
+     },
+     "executorRef": {
+      "allOf": [
+       {
+        "$ref": "resource.yaml#/$defs/LocalDefinitionRef"
+       },
+       {
+        "properties": {
+         "kind": {
+          "const": "Executor"
+         }
+        }
+       }
+      ],
+      "x-persimmon-ref": {
+       "kinds": [
+        "Executor"
+       ]
+      }
+     },
+     "action": {
+      "$ref": "#/$defs/Action"
+     },
+     "timeout": {
+      "$ref": "ports.yaml#/$defs/Duration"
+     },
+     "retryPolicy": {
+      "$ref": "#/$defs/RetryPolicy"
+     },
+     "sideEffects": {
+      "enum": [
+       "none",
+       "idempotent",
+       "nonIdempotent"
+      ]
+     }
+    }
+   },
+   "Action": {
+    "type": "object",
+    "required": [
+     "instructions"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "instructions": {
+      "type": "string",
+      "minLength": 1
+     },
+     "context": {
+      "type": "array",
+      "items": {
+       "$ref": "#/$defs/ContextEntry"
+      }
+     },
+     "parameters": {
+      "type": "object"
+     }
+    }
+   },
+   "ContextEntry": {
+    "type": "object",
+    "required": [
+     "kind"
+    ],
+    "properties": {
+     "kind": {
+      "enum": [
+       "file",
+       "artifact",
+       "prompt",
+       "skill"
+      ]
+     }
+    },
+    "oneOf": [
+     {
+      "properties": {
+       "kind": {
+        "const": "file"
+       },
+       "input": {
+        "$ref": "ports.yaml#/$defs/PortName"
+       },
+       "path": {
+        "type": "string",
+        "minLength": 1
+       }
+      },
+      "required": [
+       "input",
+       "path"
+      ],
+      "additionalProperties": false
+     },
+     {
+      "properties": {
+       "kind": {
+        "const": "artifact"
+       },
+       "input": {
+        "$ref": "ports.yaml#/$defs/PortName"
+       }
+      },
+      "required": [
+       "input"
+      ],
+      "additionalProperties": false
+     },
+     {
+      "properties": {
+       "kind": {
+        "const": "prompt"
+       },
+       "ref": {
+        "allOf": [
+         {
+          "$ref": "resource.yaml#/$defs/LocalDefinitionRef"
+         },
+         {
+          "properties": {
+           "kind": {
+            "const": "Prompt"
+           }
+          }
+         }
+        ],
+        "x-persimmon-ref": {
+         "kinds": [
+          "Prompt"
+         ]
+        }
+       }
+      },
+      "required": [
+       "ref"
+      ],
+      "additionalProperties": false
+     },
+     {
+      "properties": {
+       "kind": {
+        "const": "skill"
+       },
+       "ref": {
+        "allOf": [
+         {
+          "$ref": "resource.yaml#/$defs/LocalDefinitionRef"
+         },
+         {
+          "properties": {
+           "kind": {
+            "const": "Skill"
+           }
+          }
+         }
+        ],
+        "x-persimmon-ref": {
+         "kinds": [
+          "Skill"
+         ]
+        }
+       }
+      },
+      "required": [
+       "ref"
+      ],
+      "additionalProperties": false
+     }
+    ]
+   },
+   "RetryPolicy": {
+    "type": "object",
+    "required": [
+     "maxAttempts",
+     "backoff"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "maxAttempts": {
+      "type": "integer",
+      "minimum": 1
+     },
+     "backoff": {
+      "type": "object",
+      "required": [
+       "strategy",
+       "initial",
+       "max"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "strategy": {
+        "enum": [
+         "fixed",
+         "linear",
+         "exponential"
+        ]
+       },
+       "initial": {
+        "$ref": "ports.yaml#/$defs/Duration"
+       },
+       "max": {
+        "$ref": "ports.yaml#/$defs/Duration"
+       },
+       "jitter": {
+        "enum": [
+         "none",
+         "full"
+        ],
+        "default": "none"
+       }
+      }
+     },
+     "retryOn": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+       "$ref": "#/$defs/ErrorCode"
+      }
+     },
+     "abortOn": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+       "$ref": "#/$defs/ErrorCode"
+      }
+     }
+    }
+   },
+   "TaskResult": {
+    "type": "object",
+    "required": [
+     "protocol",
+     "outputs"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "protocol": {
+      "const": "persimmon.result/v1"
+     },
+     "outputs": {
+      "$ref": "ports.yaml#/$defs/RuntimeValues"
+     },
+     "summary": {
+      "type": "string"
+     }
+    }
+   }
+  }
+ },
+ "trigger.yaml": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Trigger",
+  "description": "Creates a WorkflowRun from an Outbox event. Namespaced, never finishes.",
+  "type": "object",
+  "required": [
+   "apiVersion",
+   "kind",
+   "metadata",
+   "spec"
+  ],
+  "additionalProperties": false,
+  "properties": {
+   "apiVersion": {
+    "const": "persimmon.ai/v1"
+   },
+   "kind": {
+    "const": "Trigger"
+   },
+   "metadata": {
+    "allOf": [
+     {
+      "$ref": "resource.yaml#/$defs/Metadata"
+     },
+     {
+      "required": [
+       "namespace"
+      ]
+     }
+    ]
+   },
+   "spec": {
+    "$ref": "#/$defs/Spec"
+   },
+   "status": {
+    "$ref": "#/$defs/Status"
+   }
+  },
+  "$defs": {
+   "EventBinding": {
+    "allOf": [
+     {
+      "$ref": "ports.yaml#/$defs/Binding"
+     }
+    ],
+    "anyOf": [
+     {
+      "required": [
+       "fromEvent"
+      ]
+     },
+     {
+      "required": [
+       "literal"
+      ]
+     }
+    ]
+   },
+   "Spec": {
+    "type": "object",
+    "required": [
+     "event",
+     "run"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "event": {
+      "$ref": "#/$defs/EventSelector"
+     },
+     "run": {
+      "type": "object",
+      "required": [
+       "workflowRef",
+       "timeout"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "workflowRef": {
+        "allOf": [
+         {
+          "$ref": "resource.yaml#/$defs/LocalDefinitionRef"
+         },
+         {
+          "properties": {
+           "kind": {
+            "const": "Workflow"
+           }
+          }
+         }
+        ]
+       },
+       "inputs": {
+        "type": "object",
+        "propertyNames": {
+         "$ref": "ports.yaml#/$defs/PortName"
+        },
+        "additionalProperties": {
+         "$ref": "#/$defs/EventBinding"
+        }
+       },
+       "timeout": {
+        "$ref": "ports.yaml#/$defs/Duration"
+       }
+      }
+     },
+     "enabled": {
+      "type": "boolean",
+      "default": true
+     }
+    }
+   },
+   "EventSelector": {
+    "type": "object",
+    "required": [
+     "kind"
+    ],
+    "properties": {
+     "kind": {
+      "enum": [
+       "artifactPublished",
+       "workflowRunFinished"
+      ]
+     }
+    },
+    "oneOf": [
+     {
+      "properties": {
+       "kind": {
+        "const": "artifactPublished"
+       },
+       "artifactKind": {
+        "type": "object",
+        "required": [
+         "apiVersion",
+         "kind"
+        ],
+        "additionalProperties": false,
+        "x-persimmon-kind-ref": {},
+        "properties": {
+         "apiVersion": {
+          "$ref": "resource.yaml#/$defs/ApiVersion"
+         },
+         "kind": {
+          "$ref": "resource.yaml#/$defs/Kind"
+         }
+        }
+       }
+      },
+      "required": [
+       "artifactKind"
+      ],
+      "additionalProperties": false
+     },
+     {
+      "properties": {
+       "kind": {
+        "const": "workflowRunFinished"
+       },
+       "workflowRef": {
+        "allOf": [
+         {
+          "$ref": "resource.yaml#/$defs/LocalDefinitionRef"
+         },
+         {
+          "properties": {
+           "kind": {
+            "const": "Workflow"
+           }
+          }
+         }
+        ]
+       },
+       "phases": {
+        "type": "array",
+        "minItems": 1,
+        "uniqueItems": true,
+        "items": {
+         "enum": [
+          "Succeeded",
+          "Failed",
+          "Cancelled"
+         ]
+        }
+       }
+      },
+      "required": [
+       "workflowRef",
+       "phases"
+      ],
+      "additionalProperties": false
+     }
+    ]
+   },
+   "Status": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+     "lastRun": {
+      "type": "object",
+      "required": [
+       "ref",
+       "eventId",
+       "at"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "ref": {
+        "$ref": "resource.yaml#/$defs/ObjectRef"
+       },
+       "eventId": {
+        "$ref": "resource.yaml#/$defs/Digest"
+       },
+       "at": {
+        "type": "string",
+        "format": "date-time"
+       }
+      }
+     },
+     "failures": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+       "type": "object",
+       "required": [
+        "eventId",
+        "at",
+        "error"
+       ],
+       "additionalProperties": false,
+       "properties": {
+        "eventId": {
+         "$ref": "resource.yaml#/$defs/Digest"
+        },
+        "at": {
+         "type": "string",
+         "format": "date-time"
+        },
+        "error": {
+         "$ref": "reconcile.yaml#/$defs/Error"
+        }
+       }
+      }
+     }
+    }
+   },
+   "Firing": {
+    "type": "object",
+    "required": [
+     "signal",
+     "inputs",
+     "run"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "signal": {
+      "$ref": "reconcile.yaml#/$defs/Event"
+     },
+     "inputs": {
+      "$ref": "ports.yaml#/$defs/RuntimeValues"
+     },
+     "run": {
+      "$ref": "resource.yaml"
+     }
+    }
+   }
+  }
+ },
+ "workflow.yaml": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Workflow",
+  "description": "Strict DAG of Steps joined by Transitions. Definition kind.",
+  "type": "object",
+  "required": [
+   "apiVersion",
+   "kind",
+   "metadata",
+   "spec"
+  ],
+  "additionalProperties": false,
+  "properties": {
+   "apiVersion": {
+    "const": "persimmon.ai/v1"
+   },
+   "kind": {
+    "const": "Workflow"
+   },
+   "metadata": {
+    "$ref": "resource.yaml#/$defs/Metadata"
+   },
+   "spec": {
+    "$ref": "#/$defs/Spec"
+   },
+   "status": {
+    "type": "object"
+   }
+  },
+  "$defs": {
+   "Spec": {
+    "type": "object",
+    "required": [
+     "entry",
+     "steps",
+     "transitions",
+     "timeout"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "inputs": {
+      "$ref": "ports.yaml#/$defs/Ports/properties/inputs"
+     },
+     "outputs": {
+      "$ref": "ports.yaml#/$defs/Ports/properties/outputs"
+     },
+     "outputBindings": {
+      "$ref": "ports.yaml#/$defs/Bindings"
+     },
+     "entry": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+       "$ref": "ports.yaml#/$defs/StepId"
+      }
+     },
+     "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+       "$ref": "#/$defs/Step"
+      }
+     },
+     "transitions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+       "$ref": "#/$defs/Transition"
+      }
+     },
+     "timeout": {
+      "$ref": "ports.yaml#/$defs/Duration"
+     }
+    }
+   },
+   "Step": {
+    "type": "object",
+    "required": [
+     "id",
+     "uses",
+     "timeout"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "id": {
+      "$ref": "ports.yaml#/$defs/StepId"
+     },
+     "uses": {
+      "allOf": [
+       {
+        "$ref": "resource.yaml#/$defs/LocalDefinitionRef"
+       }
+      ],
+      "x-persimmon-ref": {}
+     },
+     "inputs": {
+      "$ref": "ports.yaml#/$defs/Bindings"
+     },
+     "timeout": {
+      "$ref": "ports.yaml#/$defs/Duration"
+     },
+     "repeat": {
+      "$ref": "#/$defs/RepeatPolicy"
+     }
+    }
+   },
+   "Outcome": {
+    "enum": [
+     "Succeeded",
+     "Failed"
+    ]
+   },
+   "Identifier": {
+    "type": "string",
+    "pattern": "^[a-z][a-z0-9-]*$"
+   },
+   "Transition": {
+    "type": "object",
+    "required": [
+     "id",
+     "from",
+     "to"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "id": {
+      "$ref": "#/$defs/Identifier"
+     },
+     "from": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+       "type": "object",
+       "required": [
+        "stepRef",
+        "outcomes"
+       ],
+       "additionalProperties": false,
+       "properties": {
+        "stepRef": {
+         "$ref": "ports.yaml#/$defs/StepId"
+        },
+        "outcomes": {
+         "type": "array",
+         "minItems": 1,
+         "uniqueItems": true,
+         "items": {
+          "$ref": "#/$defs/Outcome"
+         }
+        }
+       }
+      }
+     },
+     "join": {
+      "type": "object",
+      "required": [
+       "strategy"
+      ],
+      "default": {
+       "strategy": "all"
+      },
+      "additionalProperties": false,
+      "properties": {
+       "strategy": {
+        "enum": [
+         "all",
+         "any",
+         "quorum"
+        ]
+       },
+       "count": {
+        "type": "integer",
+        "minimum": 1
+       }
+      },
+      "if": {
+       "properties": {
+        "strategy": {
+         "const": "quorum"
+        }
+       }
+      },
+      "then": {
+       "required": [
+        "count"
+       ]
+      },
+      "else": {
+       "not": {
+        "required": [
+         "count"
+        ]
+       }
+      }
+     },
+     "to": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+       "$ref": "#/$defs/Target"
+      }
+     },
+     "dispatch": {
+      "enum": [
+       "all",
+       "first"
+      ],
+      "default": "all"
+     },
+     "noMatch": {
+      "enum": [
+       "fail",
+       "skip"
+      ],
+      "default": "fail"
+     }
+    }
+   },
+   "Target": {
+    "type": "object",
+    "properties": {
+     "when": {
+      "type": "string",
+      "minLength": 1
+     }
+    },
+    "oneOf": [
+     {
+      "properties": {
+       "stepRef": {
+        "$ref": "ports.yaml#/$defs/StepId"
+       },
+       "when": true
+      },
+      "required": [
+       "stepRef"
+      ],
+      "additionalProperties": false
+     },
+     {
+      "properties": {
+       "terminal": {
+        "$ref": "#/$defs/Outcome"
+       },
+       "reason": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_]*$"
+       },
+       "when": true
+      },
+      "required": [
+       "terminal"
+      ],
+      "additionalProperties": false,
+      "if": {
+       "properties": {
+        "terminal": {
+         "const": "Failed"
+        }
+       }
+      },
+      "then": {
+       "required": [
+        "reason"
+       ]
+      }
+     }
+    ]
+   },
+   "RepeatPolicy": {
+    "type": "object",
+    "required": [
+     "state",
+     "initial",
+     "next",
+     "until",
+     "maxIterations"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "state": {
+      "$ref": "ports.yaml#/$defs/Ports/properties/inputs"
+     },
+     "initial": {
+      "$ref": "ports.yaml#/$defs/Bindings"
+     },
+     "next": {
+      "$ref": "ports.yaml#/$defs/Bindings"
+     },
+     "until": {
+      "type": "string",
+      "minLength": 1
+     },
+     "maxIterations": {
+      "type": "integer",
+      "minimum": 1
+     }
+    }
+   }
+  }
+ }
+}

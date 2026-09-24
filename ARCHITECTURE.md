@@ -74,6 +74,7 @@ the static checker calls.
 | `src/cli/` | `08-store.md` CLI verbs | one file per verb; no engine logic |
 | `src/server/` | `08-store.md` server Mode | `persimmon serve`, https API, `server.auth.tokens[]`; built with server mode |
 | `packs/sdlc/global/`, `packs/sdlc/namespaced/` | `20-pack.md` | pack files; `persimmon init` applies `global/` |
+| `src/generated/` | `docs/design/schemas/` | `schemas.json`, written by `npm run gen`; never edited |
 | `src/main.ts` | | entry point |
 
 ## Dependency direction
@@ -94,9 +95,10 @@ kinds ───────────┘
 
 ## Schemas
 
-`docs/design/schemas/*.yaml` is the source. A build step copies the Layer 0 schemas into the
-shipped KindDefinitions and the config validator; the binary never reads `docs/`. TypeScript
-types are hand-written until a generator earns its place.
+`docs/design/schemas/*.yaml` is the source. `npm run gen` (`scripts/gen-schemas.mjs`) copies
+them into `src/generated/schemas.json`, keyed by file name, so relative `$ref` values resolve
+by key; `pretest` and `prebuild` run it. The binary never reads `docs/`. TypeScript types are
+hand-written until a generator earns its place.
 
 ## Dependencies
 
