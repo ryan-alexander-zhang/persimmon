@@ -73,7 +73,7 @@ describe('scenario: PRD lifecycle', () => {
     expect(forms).toHaveLength(1)
     const form = parse(readFileSync(join(dir, '.persimmon', 'inbox', forms[0]!), 'utf8'))
     expect(form.instructions).toMatch(/Approve or reject/)
-    expect(form.outputs.result.type.schema).toEqual({ $ref: 'persimmon.ai/v1#/ValidationResult' })
+    expect(form.outputs.result.type.schema).toMatchObject({ type: 'object', required: ['passed', 'findings', 'evidence'] }) // inlined for the human
     const taskRun = forms[0]!.replace(/\.yaml$/, '')
     await inspect((e) => {
       const tr = e.store.resources.get({ kind: 'TaskRun', namespace: 'default', name: taskRun })!
