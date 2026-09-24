@@ -75,6 +75,7 @@ the static checker calls.
 | `src/server/` | `08-store.md` server Mode | roadmap: `persimmon serve`, https API, `server.auth.tokens[]` |
 | `packs/sdlc/global/`, `packs/sdlc/namespaced/` | `20-pack.md` | pack files; `persimmon init` applies `global/` |
 | `adapters/<id>/` | `07-adapter.md`, `19-adapter-roles.md` | Adapters shipped with the binary: `adapter.yaml` manifest and a stdio script; `persimmon init` installs them before the pack |
+| `adapters/lib/` | `19-adapter-roles.md` executor Role | `agent.mjs`: the one agent runner behind `claude-code/v1` and `codex/v1`; a driver supplies the command line and the result parser |
 | `src/generated/` | `docs/design/schemas/` | `schemas.json`, written by `npm run gen`; never edited |
 | `src/main.ts` | | entry point |
 
