@@ -1,0 +1,10 @@
+# Codex agent Executor Adapter (19-adapter-roles.md). persimmon init resolves the script path.
+# Uses the local `codex` login; add credentialBindings: [openai-api-key] to run on an API key instead.
+apiVersion: persimmon.ai/v1
+kind: Adapter
+metadata: {name: codex-v1}
+spec:
+  id: codex/v1
+  roles: [executor]
+  transport: stdio
+  command: [node, adapters/codex/index.mjs]

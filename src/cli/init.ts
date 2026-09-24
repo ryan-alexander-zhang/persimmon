@@ -45,7 +45,7 @@ export async function init(cli: Cli, o: { pack?: string } = {}): Promise<number>
       cli.out(`no pack at ${dir}`)
       return a
     }
-    // Other Adapters (claude-code/v1) are installed after init, so their Executors may not resolve yet (13-executor.md apply rule, skipped here)
+    // Other Adapters (subprocess/v1) are installed after init, so their Executors may not resolve yet (13-executor.md apply rule, skipped here)
     const b = await applyDocs(cli, engine, loadDocs(files) as Resource[], { skipAdapterValidation: true })
     return a || b
   })

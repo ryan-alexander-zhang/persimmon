@@ -1,0 +1,10 @@
+# Claude Code agent Executor Adapter (19-adapter-roles.md). persimmon init resolves the script path.
+# Uses the local `claude` login; add credentialBindings: [anthropic-api-key] to run on an API key instead.
+apiVersion: persimmon.ai/v1
+kind: Adapter
+metadata: {name: claude-code-v1}
+spec:
+  id: claude-code/v1
+  roles: [executor]
+  transport: stdio
+  command: [node, adapters/claude-code/index.mjs]

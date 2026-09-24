@@ -1,0 +1,202 @@
+// Shared persimmon.adapter/v1 runner for agent Executors (19-adapter-roles.md). A driver names the agent
+// command line and parses its final answer; this file owns the protocol: prompt assembly from context,
+// structured output schema, artifact publication through the Engine callbacks, cancel by pid file.
+import { spawn } from 'node:child_process'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
+import { request } from 'node:http'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { createInterface } from 'node:readline'
+
+export class AdapterError extends Error {
+  constructor(code, message, retryable) {
+    super(message)
+    this.code = code
+    this.retryable = retryable
+  }
+}
+
+const pidDir = () => join(process.cwd(), '.persimmon', 'agents')
+const pidFile = (logicalExecutionId) => join(pidDir(), encodeURIComponent(logicalExecutionId) + '.pid')
+/** `<NS>__<NAME>` upper case, `-` becomes `_`: the same grammar the engine uses for its own credential env. */
+const envName = (name) => name.toUpperCase().replaceAll('-', '_').replace('/', '__')
+
+/** driver: {adapterId, configurationSchema, parametersSchema, command(ctx) -> [cmd, args], parse({stdout, dir}) -> {outputs, summary?}} */
+export function serve(driver) {
+  const out = (o) => process.stdout.write(JSON.stringify(o) + '\n')
+  createInterface({ input: process.stdin }).once('line', async (line) => {
+    const { id, op, payload } = JSON.parse(line)
+    const log = (text) => out({ id, event: 'log', text })
+    try {
+      switch (op) {
+        case 'describe':
+          return out({
+            id, ok: true,
+            result: {
+              adapterId: driver.adapterId, protocol: 'persimmon.adapter/v1', roles: ['executor'], executorTypes: ['agent'],
+              configurationSchema: driver.configurationSchema, parametersSchema: driver.parametersSchema,
+              contextKinds: ['file', 'artifact', 'prompt'], skillFormats: [], supports: { query: false, cancel: true, complete: false }, formRenderable: false,
+            },
+          })
+        case 'execute':
+          out({ id, event: 'waiting', reason: 'agent' })
+          return out({ id, ok: true, result: await execute(driver, payload, log) })
+        case 'cancel':
+          return out({ id, ok: true, result: { state: cancel(payload.logicalExecutionId) } })
+        case 'query':
+          return out({ id, ok: true, result: { state: existsSync(pidFile(payload.logicalExecutionId)) ? 'running' : 'unknown' } })
+        default:
+          throw new AdapterError('invalid_input', `unknown op ${op}`, false)
+      }
+    } catch (e) {
+      const code = e instanceof AdapterError ? e.code : 'agent_failed'
+      out({ id, ok: false, error: { code, message: e.message, retryable: e instanceof AdapterError ? e.retryable : true } })
+    }
+  })
+}
+
+async function execute(driver, payload, log) {
+  const { task, taskRun, inputs, context, executor, credentials, engine, deadline } = payload
+  const call = callbacks(engine)
+  const prompt = await buildPrompt(task, inputs, context, call)
+  const schema = outputSchema(task)
+  const dir = mkdtempSync(join(tmpdir(), 'persimmon-agent-'))
+  let answer
+  try {
+    const [cmd, args] = driver.command({ configuration: executor.configuration ?? {}, parameters: task.parameters ?? {}, schema, dir })
+    const stdout = await run(cmd, args, prompt, { credentials, deadline, logicalExecutionId: taskRun.logicalExecutionId, log })
+    answer = driver.parse({ stdout, dir })
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+  if (!answer || typeof answer.outputs !== 'object') throw new AdapterError('agent_failed', 'agent answer has no outputs object', true)
+  const artifactInputs = Object.values(inputs).filter((v) => v.kind === 'artifact').map((v) => v.ref)
+  const step = taskRun.logicalExecutionId.split('/').pop()
+  const outputs = {}
+  for (const [port, spec] of Object.entries(task.outputs)) {
+    const value = answer.outputs[port]
+    if (value === undefined) continue // the task Handler reports the missing port as schema_violation
+    if (spec.type.kind !== 'artifact') {
+      outputs[port] = { kind: 'value', value }
+      continue
+    }
+    const blob = await call('putBlob', { bytes: Buffer.from(JSON.stringify(value)).toString('base64'), mediaType: 'application/json' })
+    const ref = await call('publishArtifact', { kind: spec.type.artifactKind, id: `${step}-${port}`, content: value, inputs: artifactInputs, representations: [{ name: 'json', mediaType: 'application/json', digest: blob.digest }] })
+    outputs[port] = { kind: 'artifact', ref }
+  }
+  const result = { protocol: 'persimmon.result/v1', outputs }
+  if (typeof answer.summary === 'string') result.summary = answer.summary
+  return result
+}
+
+/** Context entries in order, then inputs, then instructions (12-task.md). Artifacts are fetched with the call token. */
+async function buildPrompt(task, inputs, context, call) {
+  const parts = []
+  for (const c of context) {
+    switch (c.kind) {
+      case 'prompt':
+        parts.push(c.content.trimEnd())
+        break
+      case 'artifact': {
+        const a = await call('getArtifact', c.ref)
+        parts.push(`## ${c.ref.kind} ${c.ref.id} revision ${c.ref.revision}\n\n\`\`\`json\n${JSON.stringify(a.spec.content, null, 2)}\n\`\`\``)
+        break
+      }
+      case 'file':
+        parts.push(`## File ${c.path}\n\nRead \`${c.path}\` in the working directory. Source: ${JSON.stringify(c.ref)}.`)
+        break
+      default:
+        throw new AdapterError('invalid_input', `context kind ${c.kind} is not supported by this Adapter`, false)
+    }
+  }
+  const values = Object.entries(inputs).filter(([, v]) => v.kind !== 'artifact')
+  if (values.length) parts.push(`## Inputs\n\n\`\`\`json\n${JSON.stringify(Object.fromEntries(values.map(([k, v]) => [k, v.kind === 'value' ? v.value : v.ref])), null, 2)}\n\`\`\``)
+  parts.push(`## Instructions\n\n${task.instructions}`)
+  parts.push(`## Answer\n\nAnswer with one JSON object: \`outputs.<port>\` for every output port (${Object.keys(task.outputs).join(', ')}), plus a short \`summary\`. No prose outside the JSON.`)
+  return parts.join('\n\n') + '\n'
+}
+
+/** Structured output: artifact ports take the frozen content schema, value ports their port schema. */
+function outputSchema(task) {
+  const properties = {}
+  for (const [port, spec] of Object.entries(task.outputs))
+    properties[port] = spec.type.kind === 'artifact' ? task.outputSchemas[port] ?? { type: 'object' } : spec.type.schema ?? {}
+  return {
+    type: 'object', required: ['outputs'], additionalProperties: false,
+    properties: { outputs: { type: 'object', required: Object.keys(properties), additionalProperties: false, properties }, summary: { type: 'string' } },
+  }
+}
+
+/** One agent process per attempt; pid recorded for cancel; killed at the deadline, on cancel, or when this process is killed. */
+function run(cmd, args, prompt, { credentials, deadline, logicalExecutionId, log }) {
+  const env = { ...process.env }
+  delete env.PERSIMMON_ADAPTER_TOKEN
+  for (const [name, secret] of Object.entries(credentials ?? {})) env[envName(name)] = secret
+  return new Promise((resolve, reject) => {
+    const child = spawn(cmd, args, { env, stdio: ['pipe', 'pipe', 'pipe'] })
+    mkdirSync(pidDir(), { recursive: true })
+    const pid = pidFile(logicalExecutionId)
+    writeFileSync(pid, String(child.pid))
+    const stop = () => child.kill('SIGTERM')
+    process.once('SIGTERM', stop)
+    const left = deadline ? Date.parse(deadline) - Date.now() : 0
+    let timedOut = false
+    const timer = left > 0 ? setTimeout(() => ((timedOut = true), stop()), left) : undefined
+    let stdout = ''
+    let stderr = ''
+    child.stdout.on('data', (c) => (stdout += c))
+    child.stderr.on('data', (c) => (stderr += c))
+    child.on('error', reject)
+    child.on('close', (code, signal) => {
+      clearTimeout(timer)
+      process.off('SIGTERM', stop)
+      const cancelled = !existsSync(pid)
+      if (existsSync(pid)) unlinkSync(pid)
+      if (timedOut) return reject(new AdapterError('timeout', `${cmd} exceeded the deadline`, true))
+      if (cancelled) return reject(new AdapterError('cancelled', `${cmd} was cancelled`, false))
+      if (code !== 0) {
+        log(stderr.trim().split('\n').slice(-5).join('\n'))
+        return reject(new AdapterError('agent_failed', `${cmd} exited with ${code ?? signal}`, true))
+      }
+      resolve(stdout)
+    })
+    child.stdin.on('error', () => {})
+    child.stdin.end(prompt)
+  })
+}
+
+/** cancel removes the pid file first, so the exiting run reports `cancelled` rather than a failure. */
+function cancel(logicalExecutionId) {
+  const pid = pidFile(logicalExecutionId)
+  if (!existsSync(pid)) return 'unknown'
+  const n = Number(readFileSync(pid, 'utf8'))
+  unlinkSync(pid)
+  try {
+    process.kill(n, 'SIGTERM')
+  } catch {
+    return 'unknown'
+  }
+  return 'cancelled'
+}
+
+function callbacks(engine) {
+  const socketPath = engine.endpoint.replace(/^unix:\/\//, '')
+  return (name, args) =>
+    new Promise((resolve, reject) => {
+      const r = request({ socketPath, path: `/callbacks/${name}`, method: 'POST', headers: { authorization: `Bearer ${engine.token}`, 'content-type': 'application/json' } }, (res) => {
+        let data = ''
+        res.on('data', (c) => (data += c))
+        res.on('end', () => {
+          let body
+          try {
+            body = JSON.parse(data)
+          } catch {
+            return reject(new AdapterError('transient_network', `${name}: bad engine response`, true))
+          }
+          body.error ? reject(new AdapterError(body.error.code === 'not_found' ? 'invalid_input' : 'transient_network', `${name}: ${body.error.message}`, body.error.code !== 'not_found')) : resolve(body.result)
+        })
+      })
+      r.on('error', (e) => reject(new AdapterError('transient_network', `${name}: ${e.message}`, true)))
+      r.end(JSON.stringify(args))
+    })
+}
