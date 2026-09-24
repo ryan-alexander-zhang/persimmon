@@ -79,6 +79,9 @@ fail the read. No fallback to live definitions.
   against the schema the run was admitted with.
 - Every hop resolves in the root's Namespace, so a Namespaced override of a Global pack
   definition applies through the whole closure.
+- At resolution the walk checks the Adapter is Ready and records its cached `describeDigest`; it
+  does not call `describe` again. Re-describing on every walk is roadmap. Found in implementation.
+
 
 ## Examples
 
