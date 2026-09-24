@@ -6,12 +6,14 @@ import {
   ConflictError,
   NotFoundError,
   ReferencedError,
+  type OutboxRecord,
   type OutstandingCall,
   type ResourceKey,
   type RunLogEntry,
   type RunLogEvent,
   type RunLogResult,
   type Store,
+  type Timer,
 } from './store.js'
 
 const schema = `
@@ -34,6 +36,16 @@ create table if not exists runlog (
   applied_at text, result text,
   primary key (uid, sequence),
   unique (uid, dedupe_key)
+);
+create table if not exists outbox (
+  seq integer primary key, event_id text not null unique, body text not null,
+  claimed_by text, claimed_until integer, acked integer not null default 0
+);
+create table if not exists timers (
+  uid text not null, key text not null, at text not null, primary key (uid, key)
+);
+create table if not exists leases (
+  uid text primary key, holder text not null, until integer not null
 );
 create table if not exists calls (
   uid text not null, idempotency_key text not null, sequence integer not null,
@@ -214,6 +226,70 @@ export class SqliteStore implements Store {
           action: string
         }[]
       ).map((r) => ({ uid: r.uid, sequence: r.sequence, action: JSON.parse(r.action) as Record<string, unknown> })),
+  }
+
+  readonly outbox = {
+    enqueue: (event: OutboxRecord): void => {
+      this.#db
+        .prepare('insert or ignore into outbox (event_id, body) values (?, ?)')
+        .run(event.eventId, JSON.stringify(event))
+    },
+
+    claim: (limit: number, holder: string, ttlMs: number): OutboxRecord[] =>
+      this.transaction(() => {
+        const now = this.#now().getTime()
+        const rows = this.#db
+          .prepare(
+            `select seq, body from outbox where acked = 0 and (claimed_until is null or claimed_until <= ?)
+             order by seq limit ?`,
+          )
+          .all(now, limit) as unknown as { seq: number; body: string }[]
+        const upd = this.#db.prepare('update outbox set claimed_by = ?, claimed_until = ? where seq = ?')
+        for (const r of rows) upd.run(holder, now + ttlMs, r.seq)
+        return rows.map((r) => JSON.parse(r.body) as OutboxRecord)
+      }),
+
+    ack: (eventId: string): void => {
+      this.#db.prepare('update outbox set acked = 1 where event_id = ?').run(eventId)
+    },
+  }
+
+  readonly timers = {
+    set: (uid: string, key: string, at: string): void => {
+      this.#db
+        .prepare('insert into timers (uid, key, at) values (?, ?, ?) on conflict (uid, key) do update set at = excluded.at')
+        .run(uid, key, at)
+    },
+    clear: (uid: string, key: string): void => {
+      this.#db.prepare('delete from timers where uid = ? and key = ?').run(uid, key)
+    },
+    due: (now: string): Timer[] =>
+      this.#db.prepare('select uid, key, at from timers where at <= ? order by at, uid, key').all(now) as unknown as Timer[],
+  }
+
+  readonly leases = {
+    acquire: (uid: string, holder: string, ttlMs: number): boolean =>
+      this.transaction(() => {
+        const now = this.#now().getTime()
+        const r = this.#db
+          .prepare(
+            `insert into leases (uid, holder, until) values (?, ?, ?)
+             on conflict (uid) do update set holder = excluded.holder, until = excluded.until
+             where leases.holder = excluded.holder or leases.until <= ?`,
+          )
+          .run(uid, holder, now + ttlMs, now)
+        return r.changes === 1
+      }),
+    renew: (uid: string, holder: string, ttlMs: number): boolean => {
+      const now = this.#now().getTime()
+      const r = this.#db
+        .prepare('update leases set until = ? where uid = ? and holder = ? and until > ?')
+        .run(now + ttlMs, uid, holder, now)
+      return r.changes === 1
+    },
+    release: (uid: string, holder: string): void => {
+      this.#db.prepare('delete from leases where uid = ? and holder = ?').run(uid, holder)
+    },
   }
 
   readonly audit = {

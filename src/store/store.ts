@@ -66,10 +66,48 @@ export interface RunLog {
   outstandingCalls(): OutstandingCall[]
 }
 
+/** Outbox event as stored; `src/outbox/` owns the full shape (06-outbox.md). */
+export interface OutboxRecord {
+  eventId: string
+  type: string
+  [field: string]: unknown
+}
+
+export interface Outbox {
+  /** Called inside the producing transaction. A repeated eventId is a no-op. */
+  enqueue(event: OutboxRecord): void
+  /** Hands out unclaimed events, invisible to other holders until `ttlMs` passes. */
+  claim(limit: number, holder: string, ttlMs: number): OutboxRecord[]
+  ack(eventId: string): void
+}
+
+export interface Timer {
+  uid: string
+  key: string
+  at: string
+}
+
+export interface TimerStore {
+  /** Same (uid, key) replaces. */
+  set(uid: string, key: string, at: string): void
+  clear(uid: string, key: string): void
+  due(now: string): Timer[]
+}
+
+export interface LeaseStore {
+  /** True when this holder now owns the lease; an expired lease may be taken. */
+  acquire(uid: string, holder: string, ttlMs: number): boolean
+  renew(uid: string, holder: string, ttlMs: number): boolean
+  release(uid: string, holder: string): void
+}
+
 export interface Store {
   readonly resources: ResourceStore
   readonly audit: AuditLog
   readonly runLog: RunLog
+  readonly outbox: Outbox
+  readonly timers: TimerStore
+  readonly leases: LeaseStore
   /** One transaction; nested calls join the outer one. Throwing rolls back. */
   transaction<T>(fn: () => T): T
   close(): void
