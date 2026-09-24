@@ -93,3 +93,10 @@ describe('Engine', () => {
     expect(engine.store.timers.due('2099-01-01T00:00:00Z')).toEqual([])
   })
 })
+
+it('a deep cwd gets a short socket path under the temp dir (sun_path limit)', () => {
+  const cwd = '/' + 'd'.repeat(120)
+  const e = new Engine({ config: parseConfig({}), cwd, storePath: ':memory:', blobs: memoryBlobs() })
+  expect(e.endpoint.replace('unix://', '').length).toBeLessThan(100)
+  expect(e.endpoint).toMatch(/persimmon-[0-9a-f]{12}\.sock$/)
+})

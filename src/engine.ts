@@ -1,5 +1,6 @@
 // Engine bootstrap: config ─▶ Store ─▶ registries ─▶ builtin Handlers ─▶ callbacks server ─▶ dispatcher (ARCHITECTURE.md).
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
+import { tmpdir } from 'node:os'
 import type { Server } from 'node:http'
 import { callback, type CallbackEngine } from './adapter/callbacks.js'
 import { AdapterRegistry, describe as describeAdapter, validateAdapter } from './adapter/registry.js'
@@ -58,7 +59,9 @@ export class Engine {
     this.store = new SqliteStore(o.storePath ?? `${cwd}/${sqlite}`, { blobs: o.blobs ?? new FileBlobStore(`${cwd}/${o.config.blobs}`), now })
     this.credentials = new ConfigCredentialStore(o.config.credentials)
     this.adapters = new AdapterRegistry(this.credentials, cwd)
-    this.endpoint = `unix://${cwd}/.persimmon/engine.sock`
+    // sun_path is 104 bytes on macOS; a deep cwd gets a short socket in the temp dir keyed by cwd
+    const sock = `${cwd}/.persimmon/engine.sock`
+    this.endpoint = `unix://${sock.length < 100 ? sock : `${tmpdir()}/persimmon-${createHash('sha256').update(cwd).digest('hex').slice(0, 12)}.sock`}`
 
     const deps: HandlerDeps = {
       kinds: this.kinds,
