@@ -110,6 +110,10 @@ Append-only per `uid`; the only log.
 - `setTimer` with an existing key replaces it.
 - Stalled recovery is any new Event. Reference had no recovery path.
 - `patchStatus` action removed (`02-handler.md`).
+- The RunLog entry keeps the Signal's Actor and the `log` callback text beside the Event; neither
+  is in the wire `RunLogEntry` shape. `context.actor` is read from the entry. Found in
+  implementation.
+
 
 ## Examples
 
