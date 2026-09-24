@@ -133,8 +133,16 @@ export async function dispatchCalls(engine: Engine): Promise<number> {
       try {
         const a = c.action as { adapterId: string; op: string; payload: Record<string, unknown>; idempotencyKey: string; deadline?: string }
         const deadline = a.deadline ? new Date(a.deadline) : new Date(engine.now().getTime() + engine.defaultCallDeadlineMs)
+        let credentials: { credentials?: Record<string, string> }
+        try {
+          credentials = credentialsFor(engine, a.payload)
+        } catch (e) {
+          // an unresolvable credential fails the attempt, never the engine (13-executor.md per attempt)
+          appendEvent(engine, c.uid, { type: 'AdapterFinished', dedupeKey: `adapter/${a.idempotencyKey}`, payload: { idempotencyKey: a.idempotencyKey, state: 'failed', error: { code: 'permission_denied', message: (e as Error).message, retryable: false } } })
+          return
+        }
         const token = engine.store.tokens.issue({ kind: 'call', uid: c.uid, idempotencyKey: a.idempotencyKey }, deadline.toISOString())
-        const out = await engine.adapters.call(a.adapterId, a.op, { ...a.payload, ...credentialsFor(engine, a.payload), engine: { endpoint: engine.endpoint, token } }, {
+        const out = await engine.adapters.call(a.adapterId, a.op, { ...a.payload, ...credentials, engine: { endpoint: engine.endpoint, token } }, {
           timeoutMs: deadline.getTime() - engine.now().getTime(),
         })
         if (out.state === 'pending') return

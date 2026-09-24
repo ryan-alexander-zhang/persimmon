@@ -2,13 +2,17 @@
 import { createInterface } from 'node:readline'
 
 const roles = (process.env.FAKE_ROLES ?? 'executor').split(',')
+const executorTypes = (process.env.FAKE_TYPES ?? 'agent,script').split(',')
+const executor = roles.includes('executor')
+  ? { executorTypes, configurationSchema: { type: 'object' }, parametersSchema: { type: 'object' }, contextKinds: ['file', 'artifact', 'prompt', 'skill'], skillFormats: ['claude-code-skill/v1'], supports: { query: false, cancel: true, complete: executorTypes.includes('human') }, formRenderable: false }
+  : { configurationSchema: { type: 'object' } }
 const out = (o) => process.stdout.write(JSON.stringify(o) + '\n')
 
 createInterface({ input: process.stdin }).once('line', (line) => {
   const req = JSON.parse(line)
   switch (req.op) {
     case 'describe':
-      return out({ id: req.id, ok: true, result: { adapterId: process.env.FAKE_ID ?? 'fake/v1', protocol: 'persimmon.adapter/v1', roles, executorTypes: ['script'] } })
+      return out({ id: req.id, ok: true, result: { adapterId: process.env.FAKE_ID ?? 'fake/v1', protocol: 'persimmon.adapter/v1', roles, ...executor } })
     case 'execute':
       out({ id: req.id, event: 'log', text: 'working' })
       out({ id: req.id, event: 'waiting', reason: 'thinking' })
