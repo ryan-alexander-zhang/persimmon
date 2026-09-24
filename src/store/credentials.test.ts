@@ -24,12 +24,16 @@ describe('credentials', () => {
     const run = (_cmd: string, args: string[]) => {
       calls.push(args)
       if (args.includes('demo/registry-token')) return 'reg-1\n'
-      throw new Error('The specified item could not be found in the keychain.')
+      throw Object.assign(new Error('The specified item could not be found in the keychain.'), { status: 44 })
     }
     const store = new ConfigCredentialStore([{ source: 'keychain' }], {}, run)
     expect(store.resolve('demo/registry-token')).toBe('reg-1')
     expect(store.resolve('demo/registry-token')).toBe('reg-1')
     expect(store.resolve('nope')).toBeUndefined()
     expect(calls).toEqual([['find-generic-password', '-s', 'persimmon', '-a', 'demo/registry-token', '-w'], ['find-generic-password', '-s', 'persimmon', '-a', 'nope', '-w']])
+    const locked = new ConfigCredentialStore([{ source: 'keychain' }], {}, () => {
+      throw Object.assign(new Error('User interaction is not allowed.'), { status: 36 })
+    })
+    expect(() => locked.resolve('x')).toThrow(/keychain lookup of x failed \(exit 36\)/)
   })
 })

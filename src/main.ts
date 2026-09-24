@@ -9,12 +9,13 @@ const code = await runCli(process.argv.slice(2), {
   ...(process.stdin.isTTY
     ? {
         ask: (prompt: string) =>
-          new Promise<string>((resolve) => {
+          new Promise<string | null>((resolve) => {
             process.stdout.write(prompt)
             const lines: string[] = []
+            let done = false
             const rl = createInterface({ input: process.stdin })
-            rl.on('line', (l) => (l === '.' ? rl.close() : lines.push(l)))
-            rl.on('close', () => resolve(lines.join('\n')))
+            rl.on('line', (l) => (l === '.' ? ((done = true), rl.close()) : lines.push(l)))
+            rl.on('close', () => resolve(done ? lines.join('\n') : null)) // close without "." is EOF
           }),
       }
     : {}),

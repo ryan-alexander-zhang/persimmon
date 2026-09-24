@@ -23,7 +23,7 @@ export class ConfigCredentialStore implements CredentialStore {
   readonly #run: (cmd: string, args: string[]) => string
   readonly #keychain = new Map<string, string | undefined>()
 
-  constructor(sources: CredentialSource[], env: NodeJS.ProcessEnv = process.env, run = (cmd: string, args: string[]) => execFileSync(cmd, args, { stdio: ['ignore', 'pipe', 'ignore'] }).toString()) {
+  constructor(sources: CredentialSource[], env: NodeJS.ProcessEnv = process.env, run = (cmd: string, args: string[]) => execFileSync(cmd, args, { stdio: ['ignore', 'pipe', 'ignore'], timeout: 30_000 }).toString()) {
     this.#sources = sources
     this.#env = env
     this.#run = run
@@ -56,8 +56,10 @@ export class ConfigCredentialStore implements CredentialStore {
       let v: string | undefined
       try {
         v = this.#run('security', ['find-generic-password', '-s', 'persimmon', '-a', name, '-w']).trimEnd()
-      } catch {
-        v = undefined // not found, or no keychain on this platform
+      } catch (e) {
+        const status = (e as { status?: number | null }).status
+        if (status !== 44 && status !== undefined && status !== null) throw new Error(`keychain lookup of ${name} failed (exit ${status}); is the keychain unlocked?`) // 44 = item not found
+        v = undefined // not found, no security binary, or a killed lookup: absent
       }
       this.#keychain.set(name, v)
     }

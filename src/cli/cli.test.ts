@@ -151,5 +151,20 @@ describe('persimmon CLI', () => {
     expect(parseInput('a={kind: artifact, ref: {id: x}}')).toEqual(['a', { kind: 'artifact', ref: { id: 'x' } }])
     expect(() => parseInput('novalue')).toThrow(/<port>=<value>/)
   })
+
+  it('an unknown flag is an error with usage, exit 2', async () => {
+    expect(await run('run', 'wf', '--inputs', 'x=1')).toBe(2)
+    expect(err.at(-1)).toMatch(/Unknown option '--inputs'/)
+    expect(out.at(-1)).toMatch(/^usage: persimmon/)
+  })
+
+  it('complete refuses a TaskRun that is not waiting for a human, and stops at EOF keeping the form', async () => {
+    await run('init')
+    await run('adapter', 'install', file('a.yaml', [fakeAdapter('claude-code/v1')]))
+    const wr = example('run-workflowrun')
+    await runCli(['create', file('run.yaml', [{ apiVersion: wr.apiVersion, kind: wr.kind, metadata: { name: 'demo-002' }, spec: { ...wr.spec, timeout: '1h' } }]), '--follow'], { cwd: dir, out: (l) => out.push(l), err: (l) => err.push(l) })
+    expect(await run('complete', 'demo-002-research', '--file', file('r.yaml', [{ protocol: 'persimmon.result/v1', outputs: {} }]))).toBe(1)
+    expect(err.at(-1)).toMatch(/is Failed.*not waiting for a human/)
+  })
 })
 

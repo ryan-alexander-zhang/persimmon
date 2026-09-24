@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { parse } from 'yaml'
 import type { Engine } from '../engine.js'
 import { readPath } from '../reconcile/merge-patch.js'
@@ -24,22 +25,22 @@ export async function create(cli: Cli, file: string, o: FollowOptions = {}): Pro
 
 /** `persimmon run <Workflow> [--input k=v]... [--timeout d] [--follow]`: a manual WorkflowRun without writing its YAML. */
 export async function run(cli: Cli, workflow: string, o: FollowOptions & { inputs?: string[]; timeout?: string } = {}): Promise<number> {
-  const inputs = Object.fromEntries((o.inputs ?? []).map(parseInput))
+  const inputs = Object.fromEntries((o.inputs ?? []).map((a) => parseInput(a, cli.cwd)))
   const doc: Resource = {
     apiVersion: 'persimmon.ai/v1',
     kind: 'WorkflowRun',
-    metadata: { name: `${workflow}-${randomBytes(3).toString('hex')}` },
+    metadata: { name: `${workflow.slice(0, 56)}-${randomBytes(3).toString('hex')}` }, // stays a DNS label
     spec: { workflowRef: { kind: 'Workflow', name: workflow }, inputs, timeout: o.timeout ?? '24h', origin: { kind: 'manual' } },
   }
   return store(cli, doc, o)
 }
 
 /** `k=v`: `v` is YAML; `@file` reads the file; a RuntimeValue object passes through, anything else becomes `{kind: value, value}`. */
-export function parseInput(arg: string): [string, unknown] {
+export function parseInput(arg: string, cwd = process.cwd()): [string, unknown] {
   const eq = arg.indexOf('=')
   if (eq < 1) throw new Error(`--input ${arg}: expected <port>=<value>`)
   const [port, raw] = [arg.slice(0, eq), arg.slice(eq + 1)]
-  const v: unknown = parse(raw.startsWith('@') ? readFileSync(raw.slice(1), 'utf8') : raw)
+  const v: unknown = parse(raw.startsWith('@') ? readFileSync(resolve(cwd, raw.slice(1)), 'utf8') : raw)
   const kind = (v as { kind?: unknown } | null)?.kind
   return [port, kind === 'value' || kind === 'artifact' || kind === 'externalResource' ? v : { kind: 'value', value: v }]
 }
@@ -65,7 +66,8 @@ async function follow(cli: Cli, engine: Engine, resource: Resource, pollMs: numb
   const uid = resource.metadata.uid as string
   const seen = new Map<string, string>()
   const report = () => {
-    for (const r of [...children(engine, resource), engine.store.resources.getByUid(uid)!]) {
+    const self = engine.store.resources.getByUid(uid)
+    for (const r of [...children(engine, resource, new Set()), ...(self ? [self] : [])]) {
       const line = describe(r)
       if (seen.get(r.metadata.uid as string) === line) continue
       seen.set(r.metadata.uid as string, line)
@@ -73,7 +75,11 @@ async function follow(cli: Cli, engine: Engine, resource: Resource, pollMs: numb
     }
   }
   for (;;) {
-    const r = engine.store.resources.getByUid(uid)!
+    const r = engine.store.resources.getByUid(uid)
+    if (!r) {
+      cli.err(`${resource.kind}/${resource.metadata.name} is gone`)
+      return 1
+    }
     report()
     const v = readPath(r as unknown as Record<string, unknown>, t.path)
     if (typeof v === 'string' && t.values.includes(v)) return v === 'Succeeded' ? 0 : 1
@@ -87,12 +93,15 @@ async function follow(cli: Cli, engine: Engine, resource: Resource, pollMs: numb
 }
 
 /** Runs owned by `owner`, recursively: TaskRuns, GateRuns, ValidationRuns and their children. */
-function children(engine: Engine, owner: Resource): Resource[] {
+function children(engine: Engine, owner: Resource, seen: Set<string>): Resource[] {
   const ns = owner.metadata.namespace
   const out: Resource[] = []
   for (const kind of ['WorkflowRun', 'TaskRun', 'GateRun', 'ValidationRun'])
     for (const r of engine.store.resources.list(kind, ns))
-      if (r.metadata.ownerReferences?.some((o) => o.uid === owner.metadata.uid)) out.push(r, ...children(engine, r))
+      if (!seen.has(r.metadata.uid as string) && r.metadata.ownerReferences?.some((o) => o.uid === owner.metadata.uid)) {
+        seen.add(r.metadata.uid as string)
+        out.push(r, ...children(engine, r, seen))
+      }
   return out
 }
 

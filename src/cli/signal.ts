@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import { existsSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { localActor } from '../engine.js'
@@ -35,6 +35,11 @@ export async function complete(cli: Cli, taskRun: string, file: string | undefin
       cli.err(`TaskRun/${taskRun} not found`)
       return 1
     }
+    const status = (r.status ?? {}) as { phase?: string; waitingReason?: string }
+    if (status.phase !== 'Waiting' || status.waitingReason !== 'human') {
+      cli.err(`TaskRun/${taskRun} is ${status.phase ?? 'Pending'}${status.waitingReason ? ` (${status.waitingReason})` : ''}, not waiting for a human`)
+      return 1
+    }
     const form = join(cli.cwd, '.persimmon', 'inbox', `${r.metadata.name}.yaml`)
     let completion: Record<string, unknown>
     if (file) {
@@ -56,6 +61,13 @@ interface Form {
   instructions: string
   inputs?: Record<string, unknown>
   outputs: Record<string, OutputSpec>
+  outputSchemas?: Record<string, Record<string, unknown>>
+}
+
+/** `<taskRun>-<port>` as a DNS label (revisioned.yaml Id); the same rule the agent runner applies. */
+const dnsLabel = (s: string) => {
+  const slug = s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+  return slug.length <= 63 ? slug : `${slug.slice(0, 50)}-${createHash('sha256').update(slug).digest('hex').slice(0, 12)}`
 }
 
 /** One question per output port: value ports take YAML validated against the port schema, artifact ports take the content to publish. */
@@ -65,10 +77,12 @@ async function askForm(cli: Cli, form: Form, taskRun: string): Promise<Record<st
   const outputs: Record<string, unknown> = {}
   const publish: { port: string; request: Record<string, unknown> }[] = []
   for (const [port, spec] of Object.entries(form.outputs)) {
-    const schema = spec.type.kind === 'value' ? (spec.type.schema as Record<string, unknown> | undefined) : undefined
-    const hint = schema ? toYaml({ schema }).trimEnd() : spec.type.kind === 'artifact' ? `content of a ${spec.type.artifactKind.kind}` : ''
+    if (spec.type.kind === 'externalResource') throw new Error(`complete: output ${port} is an externalResource port; answer it with --file`)
+    const schema = spec.type.kind === 'value' ? (spec.type.schema as Record<string, unknown> | undefined) : form.outputSchemas?.[port]
+    const hint = spec.type.kind === 'artifact' ? `content of a ${spec.type.artifactKind.kind}${schema ? `\n${toYaml({ schema }).trimEnd()}` : ''}` : schema ? toYaml({ schema }).trimEnd() : ''
     for (;;) {
       const text = await cli.ask!(`\n${port} (${spec.type.kind}) as YAML${hint ? `:\n${hint}` : ''}\nEnd with a line holding only "."\n> `)
+      if (text === null) throw new Error('complete: input closed before every output was answered; the form is kept')
       let value: unknown
       try {
         value = parse(text)
@@ -80,7 +94,7 @@ async function askForm(cli: Cli, form: Form, taskRun: string): Promise<Record<st
         cli.err(`${port}: ${formatErrors(ajv.compile(schema).errors)}`)
         continue
       }
-      if (spec.type.kind === 'artifact') publish.push({ port, request: { kind: spec.type.artifactKind, id: `${taskRun}-${port}`, content: value, representations: [] } })
+      if (spec.type.kind === 'artifact') publish.push({ port, request: { kind: spec.type.artifactKind, id: dnsLabel(`${taskRun}-${port}`), content: value, representations: [] } })
       else outputs[port] = { kind: 'value', value }
       break
     }

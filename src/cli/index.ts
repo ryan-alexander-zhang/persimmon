@@ -25,7 +25,29 @@ const usage = `usage: persimmon <verb> [args]
   adapter install <manifest> | adapter list`
 
 export async function runCli(argv: string[], cli: Cli): Promise<number> {
-  const { values, positionals } = parseArgs({
+  let parsed: ReturnType<typeof parseCliArgs>
+  try {
+    parsed = parseCliArgs(argv)
+  } catch (e) {
+    cli.err(`error: ${(e as Error).message}`)
+    cli.out(usage)
+    return 2
+  }
+  const { values, positionals } = parsed
+  const [verb, ...rest] = positionals
+  if (!verb || values.help) {
+    cli.out(usage)
+    return verb ? 0 : 2
+  }
+  if (values.server) {
+    cli.err('--server: server mode is not built yet')
+    return 2
+  }
+  return await dispatchVerb(cli, verb, rest, values)
+}
+
+function parseCliArgs(argv: string[]) {
+  return parseArgs({
     args: argv,
     allowPositionals: true,
     options: {
@@ -42,15 +64,9 @@ export async function runCli(argv: string[], cli: Cli): Promise<number> {
       help: { type: 'boolean', short: 'h' },
     },
   })
-  const [verb, ...rest] = positionals
-  if (!verb || values.help) {
-    cli.out(usage)
-    return verb ? 0 : 2
-  }
-  if (values.server) {
-    cli.err('--server: server mode is not built yet')
-    return 2
-  }
+}
+
+async function dispatchVerb(cli: Cli, verb: string, rest: string[], values: ReturnType<typeof parseCliArgs>['values']): Promise<number> {
   const where = { ...(values.namespace ? { namespace: values.namespace } : {}), ...(values.global ? { global: true } : {}) }
   const need = (n: number, what: string) => {
     if (rest.length < n) throw new Error(`${verb}: ${what} required`)

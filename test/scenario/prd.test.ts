@@ -83,10 +83,13 @@ describe('scenario: PRD lifecycle', () => {
     })
 
     // the human approves at the terminal: a bad first answer is asked again, then the ValidationResult
+    const formPath = join(dir, '.persimmon', 'inbox', `${taskRun}.yaml`)
+    expect(await runCli(['complete', taskRun], { ...cli(), ask: async () => null })).toBe(1) // EOF: nothing sent, form kept
+    expect(existsSync(formPath)).toBe(true)
     const answers = ['passed: yes', 'passed: true\nfindings: []\nevidence: []']
     const asked: string[] = []
     out = []
-    expect(await runCli(['complete', taskRun], { ...cli(), ask: async (p) => (asked.push(p), answers.shift()!) })).toBe(0)
+    expect(await runCli(['complete', taskRun], { ...cli(), ask: async (p) => (asked.push(p), answers.shift() ?? null) })).toBe(0)
     expect(asked.length).toBe(2)
     expect(asked[0]).toContain('result (value) as YAML')
     expect(out.some((l) => l.startsWith('ERR result:') && l.includes('passed'))).toBe(true) // the first answer failed the schema
