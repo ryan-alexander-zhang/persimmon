@@ -9,6 +9,7 @@ import { loadDocs, parseRef, toYaml } from './io.js'
 import { parse } from 'yaml'
 import { ajv, formatErrors } from '../resource/ajv.js'
 import type { OutputSpec } from '../kinds/ports/types.js'
+import type { RevisionRef } from '../resource/types.js'
 
 /** `persimmon signal <kind>/<name> --payload <file> [--event-id <id>]`. */
 export async function signal(cli: Cli, ref: string, o: { payload?: string; eventId?: string; namespace?: string }): Promise<number> {
@@ -57,9 +58,9 @@ export async function complete(cli: Cli, taskRun: string, file: string | undefin
   })
 }
 
-interface Form {
+export interface Form {
   instructions: string
-  review?: { kind: string; name?: string; id?: string; revision?: number; content?: unknown; error?: string }[]
+  reading?: { kind: string; name?: string; ref?: RevisionRef; content?: unknown; error?: string }[]
   inputs?: Record<string, unknown>
   outputs: Record<string, OutputSpec>
   outputSchemas?: Record<string, Record<string, unknown>>
@@ -76,24 +77,32 @@ const isValidationResult = (schema: Record<string, unknown> | undefined) => {
   return Array.isArray(req) && ['passed', 'findings', 'evidence'].every((k) => req.includes(k))
 }
 
-/** Interactive form: what the reviewer reads first, then one plain question per output port. */
-async function askForm(cli: Cli, form: Form, taskRun: string): Promise<Record<string, unknown>> {
+/** Interactive form: what the human reads first, then one plain question per output port. */
+export async function askForm(cli: Cli, form: Form, taskRun: string): Promise<Record<string, unknown>> {
   cli.out('')
   cli.out(form.instructions)
-  for (const r of form.review ?? []) {
+  const reading = form.reading ?? []
+  for (const r of reading) {
     cli.out('')
-    cli.out(`── ${r.kind}${r.id ? ` ${r.id} r${r.revision}` : r.name ? ` ${r.name}` : ''} ──`)
+    cli.out(`── ${r.kind}${r.ref ? ` ${r.ref.id} r${r.ref.revision}` : r.name ? ` ${r.name}` : ''} ──`)
     cli.out(r.error ? `(unavailable: ${r.error})` : typeof r.content === 'string' ? r.content.trimEnd() : toYaml(r.content).trimEnd())
   }
-  const evidence = Object.values(form.inputs ?? {}).filter((v): v is { kind: 'artifact'; ref: unknown } => (v as { kind?: string }).kind === 'artifact').map((v) => v.ref)
+  if (reading.length === 0 && form.inputs) cli.out(toYaml({ inputs: form.inputs }).trimEnd()) // an older or foreign form: at least the references
+  const evidence = reading.filter((r) => r.ref && !r.error).map((r) => r.ref) // only what was actually shown
   const outputs: Record<string, unknown> = {}
   const publish: { port: string; request: Record<string, unknown> }[] = []
   for (const [port, spec] of Object.entries(form.outputs)) {
     if (spec.type.kind === 'externalResource') throw new Error(`complete: output ${port} is an externalResource port; answer it with --file`)
     const schema = spec.type.kind === 'value' ? (spec.type.schema as Record<string, unknown> | undefined) : form.outputSchemas?.[port]
+    const what = spec.type.kind === 'artifact' ? `content of a ${spec.type.artifactKind.kind}` : port
     let value: unknown
-    if (spec.type.kind === 'value' && isValidationResult(schema)) value = await askVerdict(cli, port, evidence)
-    else value = await askYaml(cli, port, spec.type.kind === 'artifact' ? `content of a ${spec.type.artifactKind.kind}` : port, schema)
+    if (spec.type.kind === 'value' && isValidationResult(schema)) {
+      value = await askVerdict(cli, port, evidence)
+      if (!ajv.compile(schema!)(value)) {
+        cli.err(`${port}: the answer does not fit this port's schema; it needs the full value`)
+        value = await askYaml(cli, port, what, schema) // the heuristic was wrong for this schema: fall back, never signal a bad value
+      }
+    } else value = await askYaml(cli, port, what, schema)
     if (spec.type.kind === 'artifact') publish.push({ port, request: { kind: spec.type.artifactKind, id: dnsLabel(`${taskRun}-${port}`), content: value, representations: [] } })
     else outputs[port] = { kind: 'value', value }
   }
@@ -106,14 +115,14 @@ const eof = () => new Error('complete: input closed before every output was answ
 async function askVerdict(cli: Cli, port: string, evidence: unknown[]): Promise<unknown> {
   let passed: boolean | undefined
   while (passed === undefined) {
-    const a = await cli.ask!(`\n${port}: approve? [y/n] `)
+    const a = await cli.ask!(`\n${port}: approve? [y/n] `, 'line')
     if (a === null) throw eof()
     const t = a.trim().toLowerCase()
     if (t === 'y' || t === 'yes') passed = true
     else if (t === 'n' || t === 'no') passed = false
     else cli.err('answer y or n')
   }
-  const text = await cli.ask!(`${passed ? 'Notes' : 'Blocking findings'}, one per line; a lone "." ends the list:\n`)
+  const text = await cli.ask!(`\n${passed ? 'Notes' : 'Blocking findings'}, one per line (empty is fine); a lone "." ends the list:\n`, 'block')
   if (text === null) throw eof()
   const findings = text
     .split('\n')
@@ -123,11 +132,11 @@ async function askVerdict(cli: Cli, port: string, evidence: unknown[]): Promise<
   return { passed, findings, evidence }
 }
 
-/** Any other shape: a template filled from the schema, edited as YAML, validated, asked again on a miss. */
+/** Any other shape: an example shaped by the schema, edited as YAML, validated, asked again on a miss. */
 async function askYaml(cli: Cli, port: string, what: string, schema: Record<string, unknown> | undefined): Promise<unknown> {
-  const template = schema ? toYaml(example(schema)).trimEnd() : ''
+  const sample = schema ? toYaml(example(schema)).trimEnd() : ''
   for (;;) {
-    const text = await cli.ask!(`\n${what} as YAML${template ? `; template:\n${template}` : ''}\nType the value, then a lone ".":\n`)
+    const text = await cli.ask!(`\n${what} as YAML${sample ? `, for example:\n${sample}` : ''}\nType the value, then a lone ".":\n`, 'block')
     if (text === null) throw eof()
     let value: unknown
     try {
@@ -147,8 +156,18 @@ async function askYaml(cli: Cli, port: string, what: string, schema: Record<stri
   }
 }
 
-/** A value that fits the schema's shape: required properties, first enum member, zero, empty. Never the schema itself. */
-export function example(schema: Record<string, unknown>): unknown {
+/** A value that fits the schema's shape: required properties, one array item, first enum member or branch, zero, empty. Never the schema itself. */
+export function example(schema: Record<string, unknown>, root: Record<string, unknown> = schema, depth = 0): unknown {
+  if (depth > 8) return null
+  const next = (s: Record<string, unknown>) => example(s, root, depth + 1)
+  if (typeof schema.$ref === 'string' && schema.$ref.startsWith('#/')) {
+    const target = schema.$ref.slice(2).split('/').reduce<unknown>((n, k) => (n && typeof n === 'object' ? (n as Record<string, unknown>)[k] : undefined), root)
+    return target && typeof target === 'object' ? next(target as Record<string, unknown>) : null
+  }
+  for (const k of ['anyOf', 'oneOf', 'allOf']) {
+    const branches = schema[k]
+    if (Array.isArray(branches) && branches[0] && typeof branches[0] === 'object') return next(branches[0] as Record<string, unknown>)
+  }
   if ('const' in schema) return schema.const
   if (Array.isArray(schema.enum)) return schema.enum[0]
   if ('default' in schema) return schema.default
@@ -157,10 +176,10 @@ export function example(schema: Record<string, unknown>): unknown {
     case 'object': {
       const props = (schema.properties ?? {}) as Record<string, Record<string, unknown>>
       const keys = Array.isArray(schema.required) ? (schema.required as string[]) : Object.keys(props)
-      return Object.fromEntries(keys.map((k) => [k, props[k] ? example(props[k]!) : null]))
+      return Object.fromEntries(keys.map((k) => [k, props[k] ? next(props[k]!) : null]))
     }
     case 'array':
-      return schema.items && typeof schema.items === 'object' && (schema as { minItems?: number }).minItems ? [example(schema.items as Record<string, unknown>)] : []
+      return schema.items && typeof schema.items === 'object' ? [next(schema.items as Record<string, unknown>)] : []
     case 'string':
       return ''
     case 'integer':

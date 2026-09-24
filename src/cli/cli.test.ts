@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { parse, stringify } from 'yaml'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { parseInput } from './create.js'
-import { example as template } from './signal.js'
+import { askForm, example as template, type Form } from './signal.js'
 import { runCli } from './index.js'
 
 const example = (n: string) => parse(readFileSync(`docs/design/examples/${n}.yaml`, 'utf8'))
@@ -176,12 +176,35 @@ describe('persimmon CLI', () => {
     expect(err.at(-1)).toMatch(/is Failed.*not waiting for a human/)
   })
 
-  it('a form template is a value shaped like the schema, never the schema', () => {
-    expect(template({ type: 'object', required: ['title', 'tags', 'level'], properties: { title: { type: 'string' }, tags: { type: 'array', items: { type: 'string' } }, level: { enum: ['low', 'high'] }, extra: { type: 'integer' } } })).toEqual({ title: '', tags: [], level: 'low' })
-    expect(template({ type: 'object', properties: { n: { type: 'number' }, ok: { type: 'boolean' }, items: { type: 'array', minItems: 1, items: { type: 'object', required: ['id'], properties: { id: { type: 'string' } } } } } })).toEqual({ n: 0, ok: false, items: [{ id: '' }] })
+  it('a form example is a value shaped like the schema, never the schema', () => {
+    expect(template({ type: 'object', required: ['title', 'tags', 'level'], properties: { title: { type: 'string' }, tags: { type: 'array', items: { type: 'string' } }, level: { enum: ['low', 'high'] }, extra: { type: 'integer' } } })).toEqual({ title: '', tags: [''], level: 'low' })
+    expect(template({ type: 'object', properties: { n: { type: 'number' }, ok: { type: 'boolean' }, items: { type: 'array', items: { type: 'object', required: ['id'], properties: { id: { type: 'string' } } } } } })).toEqual({ n: 0, ok: false, items: [{ id: '' }] })
+    expect(template({ type: 'object', required: ['a', 'b'], properties: { a: { $ref: '#/$defs/x' }, b: { oneOf: [{ type: 'integer' }, { type: 'string' }] } }, $defs: { x: { type: 'object', required: ['y'], properties: { y: { type: 'boolean' } } } } })).toEqual({ a: { y: false }, b: 0 })
   })
 
-  it('complete without a terminal and without --file is an error, not a hang', async () => {
+  it('the interactive form: reject with findings, an artifact answer through the example loop, a form without reading', async () => {
+    const asks: { prompt: string; mode: string }[] = []
+    const scripted = (answers: (string | null)[]) => async (prompt: string, mode: string) => (asks.push({ prompt, mode }), answers.shift() ?? null)
+    const prd: Form['reading'] = [{ kind: 'ProductRequirement', ref: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement', namespace: 'default', id: 'p', revision: 1 }, content: { title: 'P' } }]
+    const result = { type: { kind: 'value' as const, schema: { type: 'object', required: ['passed', 'findings', 'evidence'], properties: { passed: { type: 'boolean' }, findings: { type: 'array' }, evidence: { type: 'array' } } } } }
+    // reject: n, two blocking findings; evidence is what was shown
+    let c = await askForm({ cwd: dir, out: (l) => out.push(l), err: (l) => err.push(l), ask: scripted(['n', 'no acceptance criteria\nno owner']) }, { instructions: 'Approve?', reading: prd, outputs: { result } }, 'tr')
+    expect(c).toEqual({ taskResult: { protocol: 'persimmon.result/v1', outputs: { result: { kind: 'value', value: { passed: false, findings: [{ severity: 'error', code: 'blocking_1', message: 'no acceptance criteria' }, { severity: 'error', code: 'blocking_2', message: 'no owner' }], evidence: [prd[0]!.ref] } } } }, publish: [] })
+    expect(asks.map((a) => a.mode)).toEqual(['line', 'block'])
+    expect(out.join('\n')).toContain('── ProductRequirement p r1 ──\ntitle: P')
+    // artifact output: bad YAML, then a schema miss, then a good answer; published under a DNS-label id
+    asks.length = 0
+    out = []
+    const report = { type: { kind: 'artifact' as const, artifactKind: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ReviewReport' } } }
+    c = await askForm({ cwd: dir, out: (l) => out.push(l), err: (l) => err.push(l), ask: scripted(['verdict: [', 'verdict: 3', 'verdict: approve']) }, { instructions: 'Review', reading: [], inputs: { prd: { kind: 'artifact', ref: prd[0]!.ref } }, outputs: { Report: report }, outputSchemas: { Report: { type: 'object', required: ['verdict'], properties: { verdict: { enum: ['approve', 'revise'] } } } } }, 'my-Run')
+    expect(c).toEqual({ taskResult: { protocol: 'persimmon.result/v1', outputs: {} }, publish: [{ port: 'Report', request: { kind: report.type.artifactKind, id: 'my-run-report', content: { verdict: 'approve' }, representations: [] } }] })
+    expect(asks).toHaveLength(3)
+    expect(asks[0]!.prompt).toContain('for example:\nverdict: approve') // the example, not the schema
+    expect(err.filter((l) => l.startsWith('not YAML') || l.startsWith('Report:'))).toHaveLength(2)
+    expect(out.join('\n')).toContain('inputs:') // no reading: the references are shown instead
+  })
+
+  it('complete on an unknown TaskRun is not found', async () => {
     await run('init')
     expect(await run('complete', 'nope')).toBe(1)
     expect(err.at(-1)).toMatch(/not found/)

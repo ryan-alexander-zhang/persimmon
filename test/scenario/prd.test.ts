@@ -74,13 +74,10 @@ describe('scenario: PRD lifecycle', () => {
     expect(form.instructions).toMatch(/Approve or reject/)
     expect(form.outputs.result.type.schema).toMatchObject({ type: 'object', required: ['passed', 'findings', 'evidence'] }) // inlined for the human
     // the reviewer reads the PRD and both reviews from the form itself
-    // the Gate opens on the first finished review (quorum 1), so one or two ReviewReports are attached
-    const kinds = form.review.map((r: { kind: string }) => r.kind)
-    expect(kinds[0]).toBe('ProductRequirement')
-    expect(kinds.slice(1).length).toBeGreaterThanOrEqual(1)
-    expect(kinds.slice(1).every((k: string) => k === 'ReviewReport')).toBe(true)
-    expect(form.review[0].content).toMatchObject({ title: 'Checkout v2', requirements: [{ id: 'R1' }, { id: 'R2' }] })
-    expect(form.review[1].content).toMatchObject({ verdict: 'approve' })
+    // the Gate opens once both reviews finished, so the human reads the PRD and both ReviewReports
+    expect(form.reading.map((r: { kind: string }) => r.kind)).toEqual(['ProductRequirement', 'ReviewReport', 'ReviewReport'])
+    expect(form.reading[0].content).toMatchObject({ title: 'Checkout v2', requirements: [{ id: 'R1' }, { id: 'R2' }] })
+    expect(form.reading[1].content).toMatchObject({ verdict: 'approve' })
     const taskRun = forms[0]!.replace(/\.yaml$/, '')
     await inspect((e) => {
       const tr = e.store.resources.get({ kind: 'TaskRun', namespace: 'default', name: taskRun })!
@@ -91,6 +88,8 @@ describe('scenario: PRD lifecycle', () => {
 
     // the human approves at the terminal: a bad first answer is asked again, then the ValidationResult
     const formPath = join(dir, '.persimmon', 'inbox', `${taskRun}.yaml`)
+    expect(await runCli(['complete', taskRun], cli())).toBe(1) // no terminal, no --file
+    expect(out.at(-1)).toMatch(/--file required without a terminal/)
     expect(await runCli(['complete', taskRun], { ...cli(), ask: async () => null })).toBe(1) // EOF: nothing sent, form kept
     expect(existsSync(formPath)).toBe(true)
     // plain questions: an unclear answer is asked again, then approve, then one note
@@ -98,7 +97,7 @@ describe('scenario: PRD lifecycle', () => {
     const asked: string[] = []
     out = []
     expect(await runCli(['complete', taskRun], { ...cli(), ask: async (p) => (asked.push(p), answers.shift() ?? null) })).toBe(0)
-    expect(asked.map((a) => a.trim())).toEqual(['result: approve? [y/n]', 'result: approve? [y/n]', 'Notes, one per line; a lone "." ends the list:'])
+    expect(asked.map((a) => a.trim())).toEqual(['result: approve? [y/n]', 'result: approve? [y/n]', 'Notes, one per line (empty is fine); a lone "." ends the list:'])
     expect(out).toContain('ERR answer y or n')
     expect(out.join('\n')).toContain('── ProductRequirement write-prd-productrequirement r1 ──') // the review was shown before the question
     expect(out.join('\n')).toContain('title: Checkout v2')
@@ -107,7 +106,7 @@ describe('scenario: PRD lifecycle', () => {
     for (let i = 0; i < 5; i++) await run('resume')
     await inspect((e) => {
       const tr = e.store.resources.get({ kind: 'TaskRun', namespace: 'default', name: taskRun })!
-      expect(tr.status).toMatchObject({ phase: 'Succeeded', actor: { kind: 'user', id: 'local' }, outputs: { result: { kind: 'value', value: { passed: true, findings: [{ severity: 'info', code: 'note_1', message: 'looks fine' }], evidence: expect.arrayContaining([{ kind: 'ProductRequirement', id: 'write-prd-productrequirement', revision: 1, apiVersion: 'engineering.persimmon.ai/v1', namespace: 'default' }]) } } } })
+      expect(tr.status).toMatchObject({ phase: 'Succeeded', actor: { kind: 'user', id: 'local' }, outputs: { result: { kind: 'value', value: { passed: true, findings: [{ severity: 'info', code: 'note_1', message: 'looks fine' }], evidence: [expect.objectContaining({ kind: 'ProductRequirement', id: 'write-prd-productrequirement', revision: 1 }), expect.objectContaining({ kind: 'ReviewReport' }), expect.objectContaining({ kind: 'ReviewReport' })] } } } })
       const approval = e.store.resources.list('WorkflowRun', 'default').find((r) => r.metadata.name.startsWith('on-prd-published-'))!
       // the Gate policy is all: structure failed its check, so the Gate Succeeded with passed false and the run failed on its verdict
       const gate = e.store.resources.list('GateRun', 'default')[0]!

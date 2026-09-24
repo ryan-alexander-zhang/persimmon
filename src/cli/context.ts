@@ -7,8 +7,8 @@ export interface Cli {
   cwd: string
   out: (line: string) => void
   err: (line: string) => void
-  /** Interactive answer: prints `prompt`, returns the lines typed until a lone `.`; null once stdin closed; absent when no terminal. */
-  ask?: (prompt: string) => Promise<string | null>
+  /** Interactive answer: prints `prompt`; `line` returns the next line, `block` the lines until a lone `.`; null once stdin closed; absent when no terminal. */
+  ask?: (prompt: string, mode: 'line' | 'block') => Promise<string | null>
 }
 
 /** Opens the local engine for one verb: `.persimmon/` exists, stored definitions load. `listen: false` is a read-only process: no socket, no lock, no call recovery, no drain. */

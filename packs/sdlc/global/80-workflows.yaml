@@ -60,7 +60,7 @@ spec:
       from:
         - {stepRef: security-review, outcomes: [Succeeded, Failed]}
         - {stepRef: product-review, outcomes: [Succeeded, Failed]}
-      join: {strategy: quorum, count: 1}
+      join: {strategy: all}       # both reviews finished, Succeeded or Failed; a Failed one is omitted from the Gate inputs
       to: [{stepRef: approval}]
     - id: verdict
       from: [{stepRef: approval, outcomes: [Succeeded, Failed]}]

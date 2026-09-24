@@ -228,7 +228,7 @@ function cancel(idempotencyKey) {
   return 'cancelled'
 }
 
-function callbacks(engine) {
+export function callbacks(engine) {
   const socketPath = engine.endpoint.replace(/^unix:\/\//, '')
   return (name, args) =>
     new Promise((resolve, reject) => {
