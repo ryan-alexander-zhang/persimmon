@@ -93,8 +93,8 @@ Inputs the Triggers bound, visible in each run's `spec.inputs`:
 A disabled Trigger ignores its events; it does not queue them.
 
 ```sh
-sed 's/enabled: true/enabled: false/' release.yaml > paused.yaml && persimmon apply paused.yaml
-sed 's/revision: 1/revision: 2/; s/todo-cli.r1/todo-cli.r2/; s/1\.2\.0/1.2.1/g' notes.yaml > notes2.yaml
+sed 's/enabled: true/enabled: false/' release.yaml > paused.yaml && persimmon apply paused.yaml   # 2 updated, 7 unchanged
+sed 's/revision 1/revision 2/; s/revision: 1/revision: 2/; s/todo-cli.r1/todo-cli.r2/; s/1\.2\.0/1.2.1/g' notes.yaml > notes2.yaml
 persimmon create notes2.yaml               # created ReleaseNotes/todo-cli.r2, nothing runs
 persimmon apply release.yaml               # enabled again
 persimmon get WorkflowRun                  # still two runs: the r2 event was consumed while paused
@@ -108,6 +108,8 @@ persimmon run package --input notes=@notes2.yaml --input version=1.2.1 --input t
 ```
 
 `on-package-built` fires on that run too: a Trigger does not care who started the run it watches.
+`--follow` shows the package run only; `persimmon get WorkflowRun` lists the announce run it
+caused, and `announce/1.2.1.txt` is there.
 
 ## Change it
 
@@ -115,13 +117,13 @@ persimmon run package --input notes=@notes2.yaml --input version=1.2.1 --input t
 |---|---|---|
 | only failures announced | `on-package-built`: `phases: [Failed]` | `persimmon apply release.yaml` |
 | another channel | `channel: {literal: ...}` | apply |
-| a Trigger that restarts its own Workflow | `on-package-built`: `run.workflowRef` `package` | `persimmon validate` refuses: `a run-finished Trigger must start a different Workflow` |
-| a Workflow that republishes what triggered it | a Workflow with a `ReleaseNotes` output behind `on-notes-published` | refused: `target Workflow outputs the triggering artifact kind` |
+| a Trigger that restarts its own Workflow | copy `on-package-built` to `loop.yaml`, set `run.workflowRef` to `package` and its `inputs` to the `package` Workflow's | `persimmon validate loop.yaml` refuses: `a run-finished Trigger must start a different Workflow` |
+| a Workflow that republishes what triggered it | give the `package` Task and Workflow a second output of kind `ReleaseNotes` | `persimmon validate release.yaml` refuses the Trigger: `target Workflow outputs the triggering artifact kind` |
 
 ## Reset
 
 ```sh
-rm -rf .persimmon persimmon.yaml build announce paused.yaml notes2.yaml
+rm -rf .persimmon persimmon.yaml build announce paused.yaml notes2.yaml loop.yaml
 ```
 
 ## Known limits
