@@ -70,6 +70,7 @@ export async function tree(cli: Cli, ref: string, o: Where = {}): Promise<number
       const print = (node: Resource, depth: number) => {
         const state = describe(node)
         cli.out(`${'  '.repeat(depth)}${node.kind}/${node.metadata.name}${state ? `  ${state}` : ''}`)
+        for (const line of outputLines(node)) cli.out(`${'  '.repeat(depth + 1)}${line}`)
         for (const c of ownedBy(engine, node)) print(c, depth + 1)
       }
       print(r, 0)
@@ -77,6 +78,18 @@ export async function tree(cli: Cli, ref: string, o: Where = {}): Promise<number
     },
     { listen: false },
   )
+}
+
+/** What a run produced: an artifact as `<Kind>/<id>.r<n>`, a value as `port: <short json>`, a result as `port: passed true`. */
+function outputLines(r: Resource): string[] {
+  const outputs = (r.status as { outputs?: Record<string, { kind: string; ref?: { kind: string; id: string; revision: number }; value?: unknown }> } | undefined)?.outputs ?? {}
+  return Object.entries(outputs).map(([port, v]) => {
+    if (v.kind === 'artifact' && v.ref) return `${v.ref.kind}/${v.ref.id}.r${v.ref.revision}`
+    const val = v.value as { passed?: unknown } | undefined
+    if (val && typeof val === 'object' && typeof val.passed === 'boolean') return `${port}: passed ${val.passed}`
+    const json = JSON.stringify(v.value) ?? ''
+    return `${port}: ${json.length > 60 ? `${json.slice(0, 57)}...` : json}`
+  })
 }
 
 /** `--global` or `-n` when given; else defaultNamespace, then Global: the LocalDefinitionRef order (00-resource.md). */

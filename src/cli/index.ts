@@ -20,7 +20,7 @@ const usage = `usage: persimmon <verb> [args]
   get <kind>[/<name>] [-n ns | --global]
   describe <kind>/<name> [-n ns]
   logs <kind>/<name> [-n ns | --global]
-  tree <kind>/<name> [-n ns]                        a run and every run it owns, nested
+  tree <kind>/<name> [-n ns]                        a run, what it produced, and every run it owns, nested
   init
   delete <kind>/<name> [-n ns | --global]
   adapter install <manifest> | adapter list`

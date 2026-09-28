@@ -50,6 +50,16 @@ describe('scenario: PRD lifecycle', () => {
     out = []
     expect(await runCli(['create', file('run.yaml', wr), '--follow'], cli())).toBe(0)
     expect(out.at(-1)).toBe('WorkflowRun/prd-001  Succeeded')
+    out = []
+    expect(await run('tree', 'WorkflowRun/prd-001')).toBe(0)
+    expect(out).toEqual([
+      'WorkflowRun/prd-001  Succeeded',
+      '  ProductRequirement/write-prd-productrequirement.r1', // the run's own outputs, then the runs it owns with theirs
+      '  TaskRun/prd-001-research  Succeeded',
+      '    ResearchReport/research-researchreport.r1',
+      '  TaskRun/prd-001-write-prd  Succeeded',
+      '    ProductRequirement/write-prd-productrequirement.r1',
+    ])
 
     await inspect((e) => {
       const done = e.store.resources.get({ kind: 'WorkflowRun', namespace: 'default', name: 'prd-001' })!
