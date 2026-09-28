@@ -166,7 +166,7 @@ function outputSchema(task) {
 }
 
 /** Whole lines of the agent's own output become `log` stream lines, at most `maxLogLines` per attempt; the store keeps them beside the call (07-adapter.md). */
-export const maxLogLines = 500
+export const maxLogLines = 5000
 function lineLogger(log) {
   let buf = ''
   let n = 0

@@ -151,7 +151,8 @@ Result: a ValidationResult (`10-ports.md`). No `credentials`, no `security` (`14
 - Agent output streams to the RunLog as `log` lines while the process runs: every whole line of
   stderr, and of stdout when the driver marks it a transcript (`codex/v1`, whose answer is a file;
   `claude-code/v1` answers on stdout, so only its stderr streams). Credentials redacted, at most
-  500 lines per attempt, the last one says so. `persimmon logs` shows what the agent did after a
+  5000 lines per attempt (a coding agent's transcript with tool output runs past 500), the last one
+  says so. `persimmon logs` shows what the agent did after a
   success too. Found in UAT.
 
 ## Examples
