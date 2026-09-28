@@ -93,6 +93,14 @@ describe('workflow Handler', () => {
     expect(clean(failed.statusPatch)).toMatchObject({ phase: 'Failed', error: { code: 'draft_failed' }, reason: 'draft_failed', steps: { review: { phase: 'Skipped' } } })
   })
 
+  it('a repeat body run addresses its steps by its own name: no doubled iteration', () => {
+    const body = run('prd-create', { repository: { kind: 'externalResource', ref: repo } }, 'loop-review-1')
+    body.spec = { ...body.spec, origin: { kind: 'parent' }, parent: { workflowRunRef: { apiVersion: 'persimmon.ai/v1', kind: 'WorkflowRun', namespace: 'demo', name: 'loop' }, stepRef: 'review', iterationPath: 'review[1]' } } as WorkflowRun['spec']
+    const [research] = created(handler.reconcile(input(body, { type: 'Created', dedupeKey: 'created' })) as ReconcileResult)
+    expect(research!.metadata.name).toBe('loop-review-1-research')
+    expect((research!.spec as { address: unknown }).address).toMatchObject({ stepRef: 'research', iterationPath: 'review[1]', logicalExecutionId: 'loop-review-1//research' })
+  })
+
   it('repeats a body Workflow with state until accepted', () => {
     let r = run('prd-with-review', { research: { kind: 'artifact', ref: reportRef } }, 'loop')
     r = apply(r, handler.reconcile(input(r, { type: 'Created', dedupeKey: 'created' })) as ReconcileResult)

@@ -90,8 +90,10 @@ Per-step phase, recorded in `WorkflowRun.status.steps.<id>` (`17-runs.md`):
 | iteration Succeeded, `until` false, index = `maxIterations` | step Failed with `iteration_limit`; no outputs |
 | iteration Failed | step Failed with the iteration's error; `until` not evaluated |
 
-Invocation address: `<workflowRunName>/<iterationPath>/<stepId>`; `iterationPath` is empty
-without `repeat`, `<stepId>[<index>]` per enclosing repeat level, joined by `/`.
+Invocation address: `{workflowRunRef, stepRef, iterationPath, logicalExecutionId}`. `iterationPath`
+is empty without `repeat`, `<stepId>[<index>]` per enclosing repeat level, joined by `/`.
+`logicalExecutionId` is `<workflowRunName>/<own iteration>/<stepId>`, double slash when the step
+has no `repeat`; the run name already carries the enclosing iterations (`<parent>-<step>-<n>`).
 
 ## Rules
 

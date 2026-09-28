@@ -36,7 +36,7 @@ true`; the others inherit the parent's snapshot.
 | `origin` | `{kind: manual, actor?}` \| `{kind: trigger, triggerRef, eventId, causationRef?}` \| `{kind: parent}` |
 | `parent` | `{workflowRunRef, stepRef, iterationPath}`; required with `origin.kind: parent`, forbidden otherwise |
 | `timeout` (WorkflowRun) | overrides the Workflow's; clock starts at `creationTimestamp` |
-| `address` | the Invocation address: `{workflowRunRef, stepRef, iterationPath, logicalExecutionId}`; `logicalExecutionId` = `<workflowRunName>/<iterationPath>/<stepRef>`, double slash when `iterationPath` is empty; a Validator's TaskRun has `stepRef` `<gateStepId>/<validatorName>` |
+| `address` | the Invocation address: `{workflowRunRef, stepRef, iterationPath, logicalExecutionId}`; `logicalExecutionId` = `<workflowRunName>/<own iteration>/<stepRef>`, double slash when the step has no `repeat` (`11-workflow.md`); a Validator's TaskRun has `stepRef` `<gateStepId>/<validatorName>` |
 | `deadline` | absolute RFC 3339, written by the creating Handler as min of the enclosing deadlines (`11-workflow.md`, `12-task.md`, `14-gate.md`) |
 | `steps` | `{<stepId>: {phase, runRef?, iteration?, error?}}`; one entry per declared step from Created; outputs are read from `runRef` at the used kind's `stepContract` paths, the latest iteration for `repeat` |
 | `attempts[]` | `{index ≥ 1, state: running \| succeeded \| failed \| unknown, idempotencyKey, startedAt, finishedAt?, error?, acknowledged?}`; `acknowledged` after a human HumanAck |

@@ -261,7 +261,9 @@ running, succeeded, failed, unknown. Retries are attempts, never new TaskRuns.
 _Avoid_: retry, try, run, execution
 
 **Invocation address**:
-`workflowRunName / iterationPath / stepRef`. Equals `logicalExecutionId`.
+`{workflowRunRef, stepRef, iterationPath, logicalExecutionId}`; `logicalExecutionId` is
+`workflowRunName / own iteration / stepRef`, unique because the run name carries the enclosing
+iterations.
 _Avoid_: path, key, id (unqualified)
 
 **Phase**:
