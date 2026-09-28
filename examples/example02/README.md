@@ -65,30 +65,42 @@ Expected shape (round numbers vary):
 
 ```text
 created WorkflowRun/spec-to-code-<hex>
-WorkflowRun/spec-to-code-<hex>  Running
-WorkflowRun/spec-to-code-<hex>-rounds-1  Running
-TaskRun/spec-to-code-<hex>-rounds-1-implement  Running
-TaskRun/spec-to-code-<hex>-rounds-1-implement  Succeeded
-GateRun/spec-to-code-<hex>-rounds-1-gate  Running
-ValidationRun/spec-to-code-<hex>-rounds-1-gate-coverage  Running
-ValidationRun/spec-to-code-<hex>-rounds-1-gate-acceptance  Running
-TaskRun/spec-to-code-<hex>-rounds-1-gate-coverage-task  Succeeded
-TaskRun/spec-to-code-<hex>-rounds-1-gate-acceptance-task  Succeeded
+WorkflowRun   spec-to-code-<hex>   Running
+rounds-1   WorkflowRun   Running
+rounds-1/implement   TaskRun   codex/v1   Running
+rounds-1/implement   TaskRun   codex/v1   Succeeded
+rounds-1/gate   GateRun   Running
+rounds-1/gate/coverage   ValidationRun   Running
+rounds-1/gate/coverage/task   TaskRun   subprocess/v1   Running
+rounds-1/gate/acceptance   ValidationRun   Running
+rounds-1/gate/acceptance/task   TaskRun   claude-code/v1   Running
 ...
-GateRun/spec-to-code-<hex>-rounds-1-gate  Succeeded
-WorkflowRun/spec-to-code-<hex>-rounds-1  Succeeded
-TaskRun/spec-to-code-<hex>-report  Succeeded
-WorkflowRun/spec-to-code-<hex>  Succeeded
+rounds-1/gate   GateRun   passed
+rounds-1   WorkflowRun   Succeeded
+report   TaskRun   claude-code/v1   Succeeded
+WorkflowRun   spec-to-code-<hex>   Succeeded
+
+WorkflowRun   spec-to-code-<hex>                    Succeeded 3m07s
+├─ rounds-1   WorkflowRun                           Succeeded 2m48s
+│  ├─ implement   TaskRun   codex/v1                Succeeded 2m28s
+│  │     ImplementationReport/spec-to-code-<hex>-rounds-1-implement-report.r1
+│  └─ gate   GateRun                                passed      20s
+│     ├─ coverage   ValidationRun                   passed      20s
+│     │  └─ task   TaskRun   subprocess/v1          Succeeded   20s
+│     └─ acceptance   ValidationRun                 passed      20s
+│        └─ task   TaskRun   claude-code/v1         Succeeded   20s
+└─ report   TaskRun   claude-code/v1                Succeeded   19s
+      TestReport/spec-to-code-<hex>-report-testreport.r1
+
+outputs
+  passed      true
+  testReport  TestReport/spec-to-code-<hex>-report-testreport.r1
 ```
 
-`persimmon tree WorkflowRun/spec-to-code-<hex>` prints the same runs nested, with what each
-produced: the round body under the outer run, the Gate under the round with `result: passed true`,
-each Validator's TaskRun under its ValidationRun, and under the coder and the reporter the
-artifacts they published, named as you `get` them (`ImplementationReport/<...>.r1`,
-`TestReport/<...>.r1`).
-
-Lines that commit in the same tick print parent before child (WorkflowRun, GateRun, ValidationRun,
-TaskRun), not in time order, so a `rounds-1  Succeeded` line can precede its Gate's. About three
+Each line is one run: its labels from the root down (`rounds-1/gate/coverage/task`), its kind, the
+Adapter behind a TaskRun, its state. A Gate or Validator shows `passed` or `rejected`, a rejected
+Validator lists its findings underneath. The tree at the end names every artifact as `get` takes
+it. Lines that commit in the same tick print parent before child, not in time order. About three
 minutes in all: the coder takes two and a half, the two Validators run in parallel in twenty
 seconds, the report in twenty.
 
@@ -110,8 +122,8 @@ cd app && npm run coverage                                           # run the t
 ```
 
 `logs` prints the RunLog as YAML: one entry per event, each with a `logs:` list holding the
-agent's or program's output lines, at most 5000 per attempt. The Claude Tasks show nothing:
-`claude -p` prints its transcript nowhere the Adapter reads yet (roadmap).
+agent's or program's output lines, at most 5000 per attempt. A Claude Task's lines are what it
+said, `> <tool> <input>` for each call and `< <result>` for what came back.
 
 ## Change it
 
@@ -120,7 +132,7 @@ agent's or program's output lines, at most 5000 per attempt. The Claude Tasks sh
 | another threshold | `threshold` in `scripts/coverage.mjs` | nothing, the script is read at run time |
 | more rounds | `--input maxRounds=5` on `run` | |
 | your own spec | copy `spec.yaml`, change `identity.id` and the content | `--input spec=@your.yaml` |
-| Claude as the coder | Executor `coder`: `adapter: claude-code/v1`, `configuration: {model: claude-sonnet-5, sandbox: full}` | `persimmon apply spec-to-code.yaml`; `workspace-write` cannot run `npm test` without prompts |
+| Claude as the coder | Executor `coder`: `adapter: claude-code/v1`, `configuration: {model: claude-sonnet-5, sandbox: workspace-write, allowedTools: ["Bash(npm test:*)", "Bash(npm run coverage:*)"]}` | `persimmon apply spec-to-code.yaml`; `allowedTools` lets it run the tests without a prompt |
 
 ## Reset
 

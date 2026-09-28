@@ -103,7 +103,7 @@ persimmon apply executor.yaml -n default          # init already armed the pack'
 persimmon run prd-create --input repository=. --follow   # a path on a repository port becomes a ref pinned to HEAD
 # research and write-prd run on the agent; a ProductRequirement is published; the Trigger starts prd-approval
 persimmon resume                                 # security-review and product-review run; the Gate waits for you
-persimmon get TaskRun                            # ... Waiting human (.persimmon/inbox/<taskRun>.yaml)
+persimmon tree WorkflowRun/on-prd-published-<id> # ... approve   TaskRun   cli-human/v1   Waiting human
 cat > approve.yaml <<'EOF'
 protocol: persimmon.result/v1
 outputs:

@@ -61,15 +61,30 @@ each, about seven minutes in all. Expected output:
 
 ```text
 created WorkflowRun/idea-to-prd-<hex>
-WorkflowRun/idea-to-prd-<hex>  Running
-TaskRun/idea-to-prd-<hex>-research  Running
-TaskRun/idea-to-prd-<hex>-research  Succeeded
-TaskRun/idea-to-prd-<hex>-write  Running
+WorkflowRun   idea-to-prd-<hex>   Running
+research   TaskRun   codex/v1   Running
+research   TaskRun   codex/v1   Succeeded
+write   TaskRun   claude-code/v1   Running
 ...
-TaskRun/idea-to-prd-<hex>-fix  Succeeded
-TaskRun/idea-to-prd-<hex>-approve  Waiting human (.persimmon/inbox/idea-to-prd-<hex>-approve.yaml)
+fix   TaskRun   claude-code/v1   Succeeded
+approve   TaskRun   cli-human/v1   Waiting human
+
+WorkflowRun   idea-to-prd-<hex>                      Running   6m39s
+├─ research   TaskRun   codex/v1                     Succeeded 3m39s
+│     ResearchReport/idea-to-prd-<hex>-research-report.r1
+├─ write   TaskRun   claude-code/v1                  Succeeded 1m30s
+│     EarsPrd/idea-to-prd-<hex>-write-prd.r1
+├─ review   TaskRun   claude-code/v1                 Succeeded   50s
+│     ReviewReport/idea-to-prd-<hex>-review-report.r1
+├─ fix   TaskRun   claude-code/v1                    Succeeded   39s
+│     EarsPrd/idea-to-prd-<hex>-fix-prd.r1
+└─ approve   TaskRun   cli-human/v1                  Waiting human
+      persimmon complete idea-to-prd-<hex>-approve
 parked on you: persimmon complete idea-to-prd-<hex>-approve
 ```
+
+Each line is one run: its name under the run that owns it, its kind, the Adapter behind it, its
+state. The tree at the end lists every artifact by the name `get` takes.
 
 Ctrl-C is safe at any point; `persimmon resume` continues where the run stopped.
 
@@ -103,7 +118,9 @@ persimmon get EarsPrd                              # <run>-write-prd.r1 and <run
 persimmon get EarsPrd/idea-to-prd-<hex>-fix-prd.r1 # the approved PRD, content under spec
 persimmon get ResearchReport                       # what codex found, with source URLs
 persimmon get ReviewReport                         # the P0/P1 findings
-persimmon logs TaskRun/idea-to-prd-<hex>-research  # what codex printed while it worked, per attempt
+persimmon tree WorkflowRun/idea-to-prd-<hex>       # every run and every artifact, by name
+persimmon logs TaskRun/idea-to-prd-<hex>-research  # under logs: what codex printed while it worked
+persimmon logs TaskRun/idea-to-prd-<hex>-write     # under logs: what claude said and which tools it ran
 ```
 
 ## Change it
