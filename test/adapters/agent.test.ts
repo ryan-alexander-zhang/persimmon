@@ -27,7 +27,7 @@ beforeAll(async () => {
   stub('claude', `
     const fs = require('node:fs'); let p = ''
     process.stdin.on('data', (c) => (p += c)).on('end', () => {
-      fs.writeFileSync(process.env.STUB_OUT + '/claude.json', JSON.stringify({ args: process.argv.slice(2), prompt: p, cwd: process.cwd(), env: { GITHUB_TOKEN: process.env.GITHUB_TOKEN ?? null, token: process.env.PERSIMMON_ADAPTER_TOKEN ?? null } }))
+      fs.writeFileSync(process.env.STUB_OUT + '/claude.json', JSON.stringify({ args: process.argv.slice(2), prompt: p, cwd: process.cwd(), note: fs.existsSync('NOTE.md'), env: { GITHUB_TOKEN: process.env.GITHUB_TOKEN ?? null, token: process.env.PERSIMMON_ADAPTER_TOKEN ?? null } }))
       if (process.env.STUB_SLEEP) return setTimeout(() => {}, Number(process.env.STUB_SLEEP))
       if (process.env.STUB_FAIL) { process.stderr.write('boom ' + process.env.GITHUB_TOKEN + '\\n' + (process.env.DEPLOY_KEY ?? '') + '\\n'); process.exit(1) }
       if (process.env.STUB_AUTH) { process.stdout.write(JSON.stringify({ type: 'result', subtype: 'success', is_error: true, result: 'Failed to authenticate' })); process.exit(1) }
@@ -136,9 +136,14 @@ describe('claude-code/v1', () => {
 
   it('runs the agent in payload.workspace; a missing one is invalid_input', async () => {
     const ws = mkdtempSync(join(tmpdir(), 'persimmon-ws-'))
-    const r = await adapter('claude-code', { id: 12, op: 'execute', payload: payload({ workspace: ws }) }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'PRD' }, count: 1 } }) })
+    writeFileSync(join(ws, 'NOTE.md'), 'read me')
+    const fileCtx = { kind: 'file', ref: { provider: 'git', type: 'repository', id: 'r', locator: { path: ws }, version: 'v' }, path: 'NOTE.md' }
+    const r = await adapter('claude-code', { id: 12, op: 'execute', payload: payload({ workspace: ws, context: [fileCtx] }) }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'PRD' }, count: 1 } }) })
     expect(last(r).ok).toBe(true)
-    expect(JSON.parse(readFileSync(join(stubs, 'claude.json'), 'utf8')).cwd).toBe(realpathSync(ws))
+    const seen = JSON.parse(readFileSync(join(stubs, 'claude.json'), 'utf8'))
+    expect(seen.cwd).toBe(realpathSync(ws))
+    expect(seen.prompt).toContain('Read `NOTE.md` in the working directory')
+    expect(seen.note).toBe(true) // a file context path resolves inside the workspace, where the agent runs
     rmSync(ws, { recursive: true })
     const r2 = await adapter('claude-code', { id: 13, op: 'execute', payload: payload({ workspace: ws }) })
     expect(last(r2)).toMatchObject({ ok: false, error: { code: 'invalid_input', retryable: false, message: `workspace ${ws} is not a directory` } })
