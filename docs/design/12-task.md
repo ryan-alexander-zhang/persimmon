@@ -25,7 +25,7 @@ Task ── executorRef ──▶ Executor ── adapter ──▶ Adapter (rol
 | `action.instructions` | text; no templating |
 | `action.context[]` | ordered Context entries |
 | `action.parameters` | object; validated against the Executor's adapter `describe.parametersSchema` |
-| `action.workspace` | optional; `{path}` relative to the project directory, or `{input}` naming an `externalResource` input whose `ref.locator.path` is a directory. The attempt's working directory: the agent's cwd and sandbox root, the root `file` context paths point into, a script's cwd and `resultFile` root. Absent: the project directory |
+| `action.workspace` | optional; `{path}` relative to the project directory, or `{input}` naming an `externalResource` input whose `ref.locator.path` is a directory. The attempt's working directory: the agent's cwd and sandbox root, the root `file` context paths point into, a script's cwd and `resultFile` root. Absent: the project directory. `{path}` may leave the project with `..` or an absolute path, and an `{input}` `locator.path` may be absolute; a relative one resolves against the project directory. Local mode: the attempt runs with the engine user's rights wherever it points |
 | `timeout` | Duration per attempt |
 | `retryPolicy` | optional RetryPolicy; absent means one attempt |
 | `sideEffects` | `none` \| `idempotent` \| `nonIdempotent`; `unknown_result` is retried unless `nonIdempotent` |
@@ -85,7 +85,8 @@ Anything else fails the attempt with `schema_violation`.
 | `executorRef`, `prompt.ref`, `skill.ref` resolve | `x-persimmon-ref` (`04-snapshot.md`) |
 | the Executor's adapter is reachable and Ready | `13-executor.md` |
 | `action.parameters` validates against `describe.parametersSchema` | static checker |
-| `action.workspace.input` names an `externalResource` input; at run time its `locator.path` is a directory, else `invalid_input` | static checker; task Handler |
+| `action.workspace.input` names an `externalResource` input; at run time its `locator.path` is a string (task Handler) and a directory (Adapter), else `invalid_input` | static checker; task Handler; Adapter |
+| `file` context `path` resolves inside `action.workspace`; the entry's `ref` is provenance, not a root | none; stated |
 | every `context.kind` ∈ adapter `describe.contextKinds` | static checker |
 | `file.input` is an `externalResource` port; `artifact.input` is an `artifact` port | static checker |
 | the referenced Skill's `format` ∈ adapter `describe.skillFormats` | static checker |
