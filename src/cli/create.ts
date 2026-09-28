@@ -98,12 +98,13 @@ async function follow(cli: Cli, engine: Engine, resource: Resource, pollMs: numb
         cli.err(`${r.kind}/${r.metadata.name} stalled after ${r.metadata.stalled.attempts} attempts: ${r.metadata.stalled.lastError ?? ''}`)
         return 1
       }
+      await engine.drain() // a resumed run may hold undelivered events; parked is judged only after the engine is idle
       const parked = parkedOn(children(engine, resource, new Set()))
       if (parked.length) {
+        report()
         for (const p of parked) cli.out(`parked on you: persimmon complete ${p.metadata.name}`)
         return 0
       }
-      await engine.drain()
       await new Promise((res) => setTimeout(res, pollMs)) // ponytail: poll; wake on the next timer or call when it matters
     }
   } finally {
@@ -125,6 +126,7 @@ function children(engine: Engine, owner: Resource, seen: Set<string>): Resource[
 }
 
 /** The human Tasks the run waits on, when nothing else is in flight: every TaskRun is finished or waits on a human, at least one does. */
+// ponytail: only TaskRuns can idle on a timer today; a run kind that gains a poll or backoff wait must count as busy here too
 function parkedOn(runs: Resource[]): Resource[] {
   const tasks = runs.filter((r) => r.kind === 'TaskRun')
   const human = tasks.filter((r) => phaseOf(r) === 'Waiting' && (r.status as { waitingReason?: string }).waitingReason === 'human')
