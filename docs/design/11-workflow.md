@@ -133,7 +133,10 @@ without `repeat`, `<stepId>[<index>]` per enclosing repeat level, joined by `/`.
 - A Transition counts as fired once any of its `to` steps has a run, even one another Transition
   started; a step that is `to` of two Transitions therefore fires the second one at most through
   its own guard. Recording fired Transitions in `status` is roadmap. Found in implementation.
-
+- `logicalExecutionId` is `<runName>/<own iteration>/<stepId>`: the child run of a repeat body is
+  named `<parent>-<step>-<n>`, so repeating the enclosing `iterationPath` doubled it in artifact
+  ids (`...-rounds-1-rounds-1-implement-report`). `address.iterationPath` keeps the full path.
+  Found in UAT.
 
 ## Examples
 

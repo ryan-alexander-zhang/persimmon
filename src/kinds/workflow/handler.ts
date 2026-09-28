@@ -121,7 +121,8 @@ export function workflowHandler(deps: HandlerDeps): HandlerImpl {
       /** Starts a step (or a repeat iteration): one child run with inherited snapshot and bound inputs. */
       const start = (step: Step, iteration?: number, state?: RuntimeValues): void => {
         const u = used.get(step.id)!
-        const iterationPath = [run.spec.parent?.iterationPath, iteration ? `${step.id}[${iteration}]` : undefined].filter(Boolean).join('/')
+        const own = iteration ? `${step.id}[${iteration}]` : ''
+        const iterationPath = [run.spec.parent?.iterationPath, own].filter(Boolean).join('/')
         let inputs: RuntimeValues
         try {
           inputs = checkInputs(u.inputs, bind(step.inputs ?? {}, sources(state ? { state } : {}), site(step)))
@@ -136,7 +137,7 @@ export function workflowHandler(deps: HandlerDeps): HandlerImpl {
         const name = iteration ? `${run.metadata.name}-${step.id}-${iteration}` : `${run.metadata.name}-${step.id}`
         const runRef: ObjectRef = { apiVersion: `${u.contract.runKind.group}/v1`, kind: u.contract.runKind.kind, namespace: ns, name }
         const { uid: _u, ...workflowRunRef } = refOf(run)
-        const address = { workflowRunRef, stepRef: step.id, iterationPath, logicalExecutionId: `${run.metadata.name}/${iterationPath}/${step.id}` }
+        const address = { workflowRunRef, stepRef: step.id, iterationPath, logicalExecutionId: `${run.metadata.name}/${own}/${step.id}` } // the run name already carries the enclosing iterations
         const resource: Resource = { apiVersion: runRef.apiVersion, kind: runRef.kind, metadata: { name, namespace: ns }, spec: childSpec(u.contract.runKind.kind, step, inputs, address, deadline, run) }
         actions.push({ type: 'createResource', resource, snapshot: 'inherit', owned: true })
         steps[step.id] = { phase: 'Pending', runRef, ...(iteration ? { iteration } : {}) } // the child reports its phase through ChildFinished
