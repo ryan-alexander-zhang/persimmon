@@ -158,6 +158,8 @@ Result: a ValidationResult (`10-ports.md`). No `credentials`, no `security` (`14
 - The shipped Adapters spawn the agent or program with `cwd: payload.workspace`; `subprocess/v1`
   resolves `resultFile` against it. `.persimmon/` state (pid files, skills cache, inbox) stays under
   the engine's cwd. Found in UAT.
+- `claude-code/v1` answers `permission_denied`, not retryable, when the CLI reports a login or API
+  key failure; retrying a dead login burned attempts. Found in UAT.
 
 ## Examples
 

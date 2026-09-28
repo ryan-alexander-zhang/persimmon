@@ -16,7 +16,11 @@ function result(stdout) {
   } catch {
     throw new AdapterError('agent_failed', 'claude printed no JSON result', true)
   }
-  if (r.is_error || r.subtype !== 'success') throw new AdapterError(r.subtype === 'error_max_turns' ? 'timeout' : 'agent_failed', typeof r.result === 'string' ? r.result : String(r.subtype), true)
+  if (r.is_error || r.subtype !== 'success') {
+    const message = typeof r.result === 'string' ? r.result : String(r.subtype)
+    if (/authenticat|not logged in|login|api key/i.test(message)) throw new AdapterError('permission_denied', message, false) // a dead login never heals by retrying
+    throw new AdapterError(r.subtype === 'error_max_turns' ? 'timeout' : 'agent_failed', message, true)
+  }
   return r
 }
 

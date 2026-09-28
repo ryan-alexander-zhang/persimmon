@@ -170,7 +170,7 @@ describe('claude-code/v1', () => {
 
   it('reports the agent error text when claude exits 1 with a JSON result', async () => {
     const r = await adapter('claude-code', { id: 9, op: 'execute', payload: payload() }, { STUB_AUTH: '1' })
-    expect(last(r)).toMatchObject({ ok: false, error: { code: 'agent_failed', message: 'Failed to authenticate', retryable: true } })
+    expect(last(r)).toMatchObject({ ok: false, error: { code: 'permission_denied', message: 'Failed to authenticate', retryable: false } }) // a dead login is not retried
   })
 
   it('a publish the engine refuses is schema_violation, not retryable', async () => {
