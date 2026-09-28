@@ -94,7 +94,7 @@ A Namespaced Resource may bind only its own Namespace's names and Global names.
 | Verb | Effect |
 |---|---|
 | `persimmon validate <files>` | schema plus static rules; non-zero exit on `error` findings |
-| `persimmon apply <files> [--skip-adapter-validation]` | write definitions; fails on an unreachable Adapter unless skipped (`13-executor.md`) |
+| `persimmon apply <files> [--skip-adapter-validation]` | write definitions: `created`, `updated`, or `unchanged` (equal spec, labels and annotations: no write, no version bump); fails on an unreachable Adapter unless skipped (`13-executor.md`) |
 | `persimmon adapter install <manifest>` · `adapter list` | apply an Adapter, run `describe`, Ready |
 | `persimmon create <file> [--follow]` | store any Resource; a revisioned one is stamped like a publish (`05-revisioned-kind.md`); `--follow` runs the engine until it reaches a `terminal.values` value or waits only on human Tasks, prints every phase change as `<labels from the root>   <Kind>   <Adapter>   <state>` (the root line is `<Kind>   <name>`), then the `tree` and the `complete` command for each parked Task; Ctrl-C leaves it resumable |
 | `persimmon run <Workflow> [--input <port>=<yaml \| @file>]... [--timeout <d>] [--follow]` | a manual WorkflowRun named `<workflow>-<hex6>` without writing its YAML; a scalar becomes `{kind: value, value}`, a RuntimeValue object passes through, a path on an `externalResource` port becomes a git ref, a revision document (`@spec.yaml`) on an `artifact` port is stored once and referenced; `timeout` absent means the Workflow's |
@@ -173,6 +173,9 @@ imports into a server unchanged.
 - `--follow` speaks the tree's language: one line per change, labelled from the root
   (`rounds-1/implement   TaskRun   codex/v1   Running`), and the full tree when it stops. Found in
   UAT, three times.
+- `apply` of an unchanged definition writes nothing and says `unchanged`; it used to say `updated`
+  and bump `resourceVersion`, so a re-applied file hid what had changed. A KindDefinition or
+  Adapter still re-registers or re-describes. Found in UAT.
 
 ## Examples
 

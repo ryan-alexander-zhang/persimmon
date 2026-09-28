@@ -2,6 +2,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
+import { isDeepStrictEqual } from 'node:util'
 import type { Server } from 'node:http'
 import { callback, type CallbackEngine } from './adapter/callbacks.js'
 import { AdapterRegistry, describe as describeAdapter, validateAdapter } from './adapter/registry.js'
@@ -162,7 +163,7 @@ export class Engine {
   }
 
   /** API write as the local Actor (00-resource.md write order). Adapters are described on apply. */
-  async apply(input: Resource, actor: Actor = localActor): Promise<{ resource: Resource; created: boolean }> {
+  async apply(input: Resource, actor: Actor = localActor): Promise<{ resource: Resource; created: boolean; changed: boolean }> {
     if (input.kind === 'KindDefinition') {
       const stagedKd = this.kinds.register(input, { replace: true, dryRun: true }) // validates without touching the registry
       const out = await this.#upsert(stagedKd as unknown as Resource, actor)
@@ -180,19 +181,24 @@ export class Engine {
       const out = await this.#upsert(bare as unknown as Resource, actor)
       const stored = this.store.resources.put({ ...out.resource, status: described.status as Record<string, unknown> })
       this.adapters.register(stored as unknown as Adapter)
-      return { resource: stored, created: out.created }
+      return { resource: stored, created: out.created, changed: true } // re-described every time
     }
     const out = await this.#upsert(input, actor)
     if (input.kind === 'Handler') this.handlers.register(out.resource, { replace: true })
     return out
   }
 
-  async #upsert(input: Resource, actor: Actor): Promise<{ resource: Resource; created: boolean }> {
+  async #upsert(input: Resource, actor: Actor): Promise<{ resource: Resource; created: boolean; changed: boolean }> {
     const existing = this.store.resources.get({ kind: input.kind, namespace: input.metadata.namespace ?? (this.kinds.get(input.apiVersion, input.kind).definition.spec.scope === 'Global' ? undefined : this.dispatch.defaultNamespace), name: input.metadata.name })
-    if (!existing) return createResourceRaw(this.dispatch, input, { actor })
+    if (!existing) {
+      const r = await createResourceRaw(this.dispatch, input, { actor }) // a scope Any lookup misses the Global one; create then finds it and returns it unchanged
+      return { ...r, changed: r.created }
+    }
     // SpecMutable update: CAS on the stored version, generation bump, SpecUpdated when spec changed
     this.kinds.checkMutability(existing, input)
-    this.kinds.validateResource({ ...input, metadata: existing.metadata })
+    this.kinds.validateResource({ ...input, metadata: existing.metadata }) // fills schema defaults, so the comparison below sees what would be stored
+    const same = (k: 'labels' | 'annotations') => !input.metadata[k] || isDeepStrictEqual(input.metadata[k], existing.metadata[k])
+    if (isDeepStrictEqual(existing.spec, input.spec) && same('labels') && same('annotations')) return { resource: existing, created: false, changed: false } // nothing to write, no version bump
     const next: Resource = { ...existing, spec: input.spec, metadata: { ...existing.metadata, ...(input.metadata.labels ? { labels: input.metadata.labels } : {}), ...(input.metadata.annotations ? { annotations: input.metadata.annotations } : {}) } }
     const stored = this.store.transaction(() => {
       const s = this.store.resources.put(next)
@@ -201,7 +207,7 @@ export class Engine {
         appendEvent(this.dispatch, s.metadata.uid as string, { type: 'SpecUpdated', dedupeKey: `spec/${s.metadata.generation}`, payload: { generation: s.metadata.generation as number } })
       return s
     })
-    return { resource: stored, created: false }
+    return { resource: stored, created: false, changed: true }
   }
 
   create(input: Resource, o: Partial<CreateOptions> = {}): Promise<{ resource: Resource; created: boolean }> {

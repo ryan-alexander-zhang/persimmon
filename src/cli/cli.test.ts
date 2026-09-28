@@ -98,6 +98,10 @@ describe('persimmon CLI', () => {
     err = []
     out = []
     expect([await run('apply', file('ns.yaml', [{ ...override, metadata: { name: 'write-prd-2' } }]), '--global'), err, out.at(-1)]).toEqual([0, [], 'created Task/write-prd-2']) // scope Any: allowed
+    expect([await run('apply', file('ns.yaml', [{ ...override, metadata: { name: 'write-prd-2' } }]), '--global'), out.at(-1)]).toEqual([0, 'unchanged Task/write-prd-2']) // same spec: no write
+    out = []
+    expect(await run('get', 'Task/write-prd-2')).toBe(0)
+    expect(parse(out.join('\n')).metadata.resourceVersion).toBe('1')
     out = []
     expect(await run('get', 'Task/write-prd-2')).toBe(0)
     expect(out.join('\n')).not.toMatch(/namespace:/)

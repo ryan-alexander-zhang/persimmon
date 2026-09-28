@@ -31,7 +31,7 @@ export async function applyDocs(cli: Cli, engine: Engine, docs: Resource[], o: A
   for (const doc of docs) {
     try {
       placeDoc(engine, doc, o)
-      const { resource, created } = await engine.apply(doc)
+      const { resource, created, changed } = await engine.apply(doc)
       const impl = engine.handlers.lookup(resource.apiVersion, resource.kind)?.impl
       const warnings = impl?.validate(resource).findings.filter((f) => f.severity === 'warning') ?? []
       if (!o.skipAdapterValidation && warnings.some((w) => w.code === 'adapter_unavailable')) {
@@ -40,7 +40,7 @@ export async function applyDocs(cli: Cli, engine: Engine, docs: Resource[], o: A
         continue
       }
       for (const w of warnings) cli.out(`warn  ${doc.kind}/${doc.metadata.name}: ${w.message}`)
-      cli.out(`${created ? 'created' : 'updated'} ${resource.kind}/${resource.metadata.name}`)
+      cli.out(`${created ? 'created' : changed ? 'updated' : 'unchanged'} ${resource.kind}/${resource.metadata.name}`)
     } catch (e) {
       cli.err(`error ${doc.kind}/${doc.metadata.name}: ${(e as Error).message}`)
       code = 1
