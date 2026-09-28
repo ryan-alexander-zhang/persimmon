@@ -7,6 +7,7 @@ import { AdapterError, serve } from '../lib/agent.mjs'
 
 serve({
   adapterId: 'subprocess/v1',
+  transcript: true, // the answer is the result file; stdout is the program's own output
   executorTypes: ['script', 'tool'],
   contextKinds: ['file'],
   skillFormats: [],

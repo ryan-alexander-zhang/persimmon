@@ -47,6 +47,7 @@ beforeAll(async () => {
     const fs = require('node:fs'); let p = ''
     process.stdin.on('data', (c) => (p += c)).on('end', () => {
       fs.writeFileSync(process.env.STUB_OUT + '/lint.json', JSON.stringify({ args: process.argv.slice(2), stdin: JSON.parse(p), env: { REGISTRY_TOKEN: process.env.REGISTRY_TOKEN ?? null } }))
+      process.stdout.write('lint: 3 files checked\\n')
       if (process.env.STUB_RESULT) fs.writeFileSync(process.argv[2], process.env.STUB_RESULT)
     })`)
   server = createServer((req, res) => {
@@ -282,6 +283,7 @@ describe('subprocess/v1', () => {
     expect(seen.env).toEqual({ REGISTRY_TOKEN: 'reg-secret' })
     expect(existsSync(join(cwd, 'result.json'))).toBe(false)
     expect(calls.map((c) => c.name)).toEqual(['putBlob', 'publishArtifact'])
+    expect(r.lines.filter((l) => l.event === 'log').map((l) => l.text)).toEqual(['lint: 3 files checked']) // the program's stdout streams as log lines
   })
 
   it('a program that writes no result file fails the attempt as agent_failed', async () => {
