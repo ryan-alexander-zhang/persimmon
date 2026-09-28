@@ -81,8 +81,11 @@ TaskRun/spec-to-code-<hex>-report  Succeeded
 WorkflowRun/spec-to-code-<hex>  Succeeded
 ```
 
-`persimmon tree WorkflowRun/spec-to-code-<hex>` prints the same runs nested: the round body under
-the outer run, the Gate under the round, each Validator's TaskRun under its ValidationRun.
+`persimmon tree WorkflowRun/spec-to-code-<hex>` prints the same runs nested, with what each
+produced: the round body under the outer run, the Gate under the round with `result: passed true`,
+each Validator's TaskRun under its ValidationRun, and under the coder and the reporter the
+artifacts they published, named as you `get` them (`ImplementationReport/<...>.r1`,
+`TestReport/<...>.r1`).
 
 Lines that commit in the same tick print parent before child (WorkflowRun, GateRun, ValidationRun,
 TaskRun), not in time order, so a `rounds-1  Succeeded` line can precede its Gate's. About three
@@ -97,9 +100,10 @@ report is still written and the run ends `Failed quality_not_met`.
 
 ```sh
 open app/reports/test-report.html                                    # the HTML report (macOS)
-persimmon get TestReport                                             # spec-to-code-<hex>-report-testreport.r1
+persimmon tree WorkflowRun/spec-to-code-<hex>                        # every run and every artifact, by name
+persimmon get TestReport/spec-to-code-<hex>-report-testreport.r1     # content under spec.content
 persimmon get GateRun/spec-to-code-<hex>-rounds-1-gate               # status.outputs.result.results.coverage / .acceptance
-persimmon get ImplementationReport                                   # one per round: spec-to-code-<hex>-rounds-1-implement-report.r1
+persimmon get ImplementationReport/spec-to-code-<hex>-rounds-1-implement-report.r1
 persimmon logs TaskRun/spec-to-code-<hex>-rounds-1-implement         # the RunLog: events, and under logs: what codex printed
 persimmon logs TaskRun/spec-to-code-<hex>-rounds-1-gate-coverage-task  # under logs: the vitest output
 cd app && npm run coverage                                           # run the tests yourself
