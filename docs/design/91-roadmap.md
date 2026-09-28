@@ -66,7 +66,6 @@ later     eager joins · retention policy · policy resource · external event s
 | fired Transitions recorded in `WorkflowRun.status` | `11-workflow.md` | derived from step runs |
 | `allowedHosts` enforcement and a network switch for `claude-code/v1` | `19-adapter-roles.md` | agent runs with the CLI's own sandbox; codex has the on/off switch |
 | WorkflowRun and Trigger `run.timeout` defaulting to the Workflow's in the Handler | `08-store.md`, `16-trigger.md` | v1: `persimmon run` and `create` fill it; `apply` and a Trigger still require it |
-| agent transcript for `claude-code/v1` | `19-adapter-roles.md` | v1: its stderr streams; the transcript needs `--verbose --output-format stream-json` |
 
 ## Open before implementation
 

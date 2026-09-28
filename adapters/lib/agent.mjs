@@ -23,7 +23,7 @@ const pidFile = (idempotencyKey) => join(pidDir(), encodeURIComponent(idempotenc
 /** `<NS>__<NAME>` upper case, `-` becomes `_`: the same grammar the engine uses for its own credential env. */
 const envName = (name) => name.toUpperCase().replaceAll('-', '_').replace('/', '__')
 
-/** driver: {adapterId, executorTypes?, contextKinds?, skillFormats?, configurationSchema, parametersSchema, command(ctx) -> [cmd, args], input?(ctx) -> stdin text, parse({stdout, dir, configuration, workspace}) -> {outputs, summary?}, transcript?: true when stdout is the agent's transcript, not its answer} */
+/** driver: {adapterId, executorTypes?, contextKinds?, skillFormats?, configurationSchema, parametersSchema, command(ctx) -> [cmd, args], input?(ctx) -> stdin text, parse({stdout, dir, configuration, workspace}) -> {outputs, summary?}, transcript?: true when stdout is the agent's transcript, or (line) -> text | undefined to turn a structured stdout line into a log line} */
 export function serve(driver) {
   const out = (o) => process.stdout.write(JSON.stringify(o) + '\n')
   createInterface({ input: process.stdin }).once('line', async (line) => {
@@ -167,20 +167,27 @@ function outputSchema(task) {
   }
 }
 
-/** Whole lines of the agent's own output become `log` stream lines, ANSI escapes stripped, at most `maxLogLines` per attempt; the store keeps them beside the call (07-adapter.md). */
+/** Whole lines of the agent's own output become `log` stream lines, ANSI escapes stripped, at most `maxLogLines` per stream per attempt; `map` turns a line into log text or drops it (undefined). The store keeps them beside the call (07-adapter.md). */
 export const maxLogLines = 5000
-function lineLogger(log) {
+function lineLogger(log, map = (line) => line) {
   let buf = ''
   let n = 0
   return (chunk) => {
     buf += chunk
     let i
     while ((i = buf.indexOf('\n')) >= 0) {
-      const line = buf.slice(0, i).replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, '') // terminal colours mean nothing in a log
+      const raw = buf.slice(0, i).replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, '') // terminal colours mean nothing in a log
       buf = buf.slice(i + 1)
-      if (!line.trim()) continue
+      if (!raw.trim()) continue
+      let line
+      try {
+        line = map(raw)
+      } catch {
+        line = raw // a mapper that chokes on a line still leaves the line
+      }
+      if (line === undefined || !String(line).trim()) continue
       if (++n > maxLogLines) continue
-      log(n === maxLogLines ? `${line}\n[log capped at ${maxLogLines} lines]` : line)
+      log(n === maxLogLines ? `${line}\n[log capped at ${maxLogLines} lines]` : String(line))
     }
   }
 }
@@ -206,9 +213,10 @@ function run(cmd, args, prompt, { credentials, deadline, idempotencyKey, log, tr
     const timer = left < Infinity ? setTimeout(() => ((timedOut = true), stop()), left) : undefined
     let stdout = ''
     let stderr = ''
-    const tap = lineLogger(log) // ponytail: one buffer for both streams; a partial stdout line may join a stderr line
-    child.stdout.setEncoding('utf8').on('data', (c) => ((stdout += c), transcript && tap(c)))
-    child.stderr.setEncoding('utf8').on('data', (c) => ((stderr += c), tap(c)))
+    const tapErr = lineLogger(log)
+    const tapOut = transcript ? lineLogger(log, typeof transcript === 'function' ? transcript : undefined) : () => {}
+    child.stdout.setEncoding('utf8').on('data', (c) => ((stdout += c), tapOut(c)))
+    child.stderr.setEncoding('utf8').on('data', (c) => ((stderr += c), tapErr(c)))
     child.on('spawn', () => writeFileSync(pid, String(child.pid)))
     child.on('error', (e) => {
       clearTimeout(timer)
@@ -220,7 +228,8 @@ function run(cmd, args, prompt, { credentials, deadline, idempotencyKey, log, tr
       process.off('SIGTERM', stop)
       const cancelled = !mine() // cancel removed the file first; a stale file from another attempt is left alone
       if (mine()) unlinkSync(pid)
-      tap('\n') // flush the partial last line, the most telling one when the agent was killed
+      tapOut('\n') // flush the partial last lines, the most telling ones when the agent was killed
+      tapErr('\n')
       if (timedOut) return reject(new AdapterError('timeout', `${cmd} exceeded the deadline`, true))
       if (cancelled) return reject(new AdapterError('cancelled', `${cmd} was cancelled`, false))
       if (code !== 0) {

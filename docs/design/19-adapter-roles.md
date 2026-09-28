@@ -163,6 +163,10 @@ Result: a ValidationResult (`10-ports.md`). No `credentials`, no `security` (`14
 - `claude-code/v1` configuration `allowedTools[]` passes `--allowedTools`, so a `workspace-write`
   Executor can run named commands (`Bash(npm test:*)`) headlessly without the `full` sandbox;
   `-p` has nobody to answer a permission prompt. Found in UAT.
+- `claude-code/v1` runs `--output-format stream-json --verbose` and turns the events into log
+  lines: the agent's text, `> <tool> <input>`, `< <result>`; init, rate limit and result events
+  are dropped; the `result` event is the answer. A driver's `transcript` may be a line mapper. One
+  line logger per stream, so a partial stdout line no longer joins a stderr line. Found in UAT.
 
 ## Examples
 

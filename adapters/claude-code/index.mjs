@@ -8,14 +8,22 @@ const sandbox = {
   full: ['--dangerously-skip-permissions'],
 }
 
-/** The `--output-format json` result object, or the agent's own error. */
+/** The `result` event of `--output-format stream-json` (one JSON object per line, the result last), or the agent's own error. */
 function result(stdout) {
   let r
-  try {
-    r = JSON.parse(stdout)
-  } catch {
-    throw new AdapterError('agent_failed', 'claude printed no JSON result', true)
+  for (const line of stdout.split('\n').reverse()) {
+    if (!line.trim()) continue
+    try {
+      const o = JSON.parse(line)
+      if (o.type === 'result') {
+        r = o
+        break
+      }
+    } catch {
+      /* a partial or non-JSON line */
+    }
   }
+  if (!r) throw new AdapterError('agent_failed', 'claude printed no JSON result', true)
   if (r.is_error || r.subtype !== 'success') {
     const message = typeof r.result === 'string' ? r.result : String(r.subtype)
     if (/authenticat|not logged in|login|api key/i.test(message)) throw new AdapterError('permission_denied', message, false) // a dead login never heals by retrying
@@ -24,8 +32,33 @@ function result(stdout) {
   return r
 }
 
+const shortJson = (v, n = 160) => {
+  const s = typeof v === 'string' ? v : JSON.stringify(v) ?? ''
+  return s.length > n ? `${s.slice(0, n - 3)}...` : s
+}
+
+/** One stream-json event as a log line: what the agent said, which tool it called, what came back. Everything else is dropped. */
+function transcript(line) {
+  const e = JSON.parse(line)
+  if (e.type === 'assistant') {
+    const out = []
+    for (const c of e.message?.content ?? []) {
+      if (c.type === 'text' && c.text.trim()) out.push(c.text.trim())
+      if (c.type === 'tool_use') out.push(`> ${c.name} ${shortJson(c.name === 'Bash' && c.input?.command ? c.input.command : c.input)}`)
+    }
+    return out.length ? out.join('\n') : undefined
+  }
+  if (e.type === 'user') {
+    const out = []
+    for (const c of e.message?.content ?? []) if (c.type === 'tool_result') out.push(`< ${shortJson(Array.isArray(c.content) ? c.content.map((x) => x.text ?? '').join(' ') : c.content)}`)
+    return out.length ? out.join('\n') : undefined
+  }
+  return undefined // system, result, rate limit events
+}
+
 serve({
   adapterId: 'claude-code/v1',
+  transcript,
   configurationSchema: {
     type: 'object', additionalProperties: false,
     properties: {
@@ -37,7 +70,7 @@ serve({
   },
   parametersSchema: { type: 'object', additionalProperties: false, properties: { effort: { enum: ['low', 'medium', 'high', 'xhigh', 'max'] } } },
   command({ configuration: c, parameters: p, schema, skillDirs }) {
-    const args = ['-p', '--output-format', 'json', '--no-session-persistence', '--json-schema', JSON.stringify(schema), ...sandbox[c.sandbox ?? 'workspace-write']]
+    const args = ['-p', '--output-format', 'stream-json', '--verbose', '--no-session-persistence', '--json-schema', JSON.stringify(schema), ...sandbox[c.sandbox ?? 'workspace-write']]
     for (const d of skillDirs) args.push('--add-dir', d) // skills live outside the working directory
     if (c.model) args.push('--model', c.model)
     if (c.agent) args.push('--agent', c.agent)

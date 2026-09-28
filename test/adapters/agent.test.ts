@@ -23,7 +23,7 @@ const stub = (name: string, body: string) => {
 }
 
 beforeAll(async () => {
-  // claude stub: records args and prompt, answers like `claude -p --output-format json`
+  // claude stub: records args and prompt, answers like `claude -p --output-format stream-json --verbose`
   stub('claude', `
     const fs = require('node:fs'); let p = ''
     process.stdin.on('data', (c) => (p += c)).on('end', () => {
@@ -32,7 +32,11 @@ beforeAll(async () => {
       if (process.env.STUB_FAIL) { process.stderr.write('boom ' + process.env.GITHUB_TOKEN + '\\n' + (process.env.DEPLOY_KEY ?? '') + '\\n'); process.exit(1) }
       if (process.env.STUB_AUTH) { process.stdout.write(JSON.stringify({ type: 'result', subtype: 'success', is_error: true, result: 'Failed to authenticate' })); process.exit(1) }
       process.stderr.write('\\x1b[1mthinking\\x1b[0m about ' + (process.env.GITHUB_TOKEN ?? '') + '\\n')
-      process.stdout.write(JSON.stringify({ type: 'result', subtype: 'success', is_error: false, result: '{}', structured_output: JSON.parse(process.env.STUB_RESULT) }))
+      const ev = (o) => process.stdout.write(JSON.stringify(o) + '\\n')
+      ev({ type: 'system', subtype: 'init', tools: ['Bash'] })
+      ev({ type: 'assistant', message: { content: [{ type: 'text', text: 'Reading the brief.' }, { type: 'tool_use', name: 'Bash', input: { command: 'npm test' } }] } })
+      ev({ type: 'user', message: { content: [{ type: 'tool_result', content: '6 passed' }] } })
+      ev({ type: 'result', subtype: 'success', is_error: false, result: '{}', structured_output: JSON.parse(process.env.STUB_RESULT) })
     })`)
   // codex stub: records args and prompt, writes the answer file named by -o
   stub('codex', `
@@ -125,13 +129,17 @@ describe('claude-code/v1', () => {
     expect(order.every((i) => i >= 0) && order.every((i, k) => k === 0 || i > order[k - 1]!)).toBe(true)
     expect(p).toContain('"title": "Research"')
     expect(p.slice(p.indexOf('## Answer'))).toContain('"required": [\n    "title"')
-    expect(seen.args).toEqual(expect.arrayContaining(['-p', '--output-format', 'json', '--model', 'sonnet', '--effort', 'low', '--restricted']))
+    expect(seen.args).toEqual(expect.arrayContaining(['-p', '--output-format', 'stream-json', '--verbose', '--model', 'sonnet', '--effort', 'low', '--restricted']))
     const schema = JSON.parse(seen.args[seen.args.indexOf('--json-schema') + 1])
     expect(schema.properties.outputs).toEqual({ type: 'object', required: ['prd', 'count'], additionalProperties: false, properties: { prd: { type: 'object', required: ['title'], properties: { title: { type: 'string' } } }, count: { type: 'integer' } } })
     expect(seen.env).toEqual({ GITHUB_TOKEN: 'ghp-secret', token: null })
     expect(calls.map((c) => c.name)).toEqual(['getArtifact', 'putBlob', 'publishArtifact'])
     expect(calls[2]!.args).toMatchObject({ kind: { kind: 'ProductRequirement' }, id: 'prd-create-001-write-prd-prd', content: { title: 'Checkout v2' }, inputs: [research], representations: [{ name: 'json', mediaType: 'application/json' }] })
-    expect(r.lines.filter((l) => l.event === 'log').map((l) => l.text)).toEqual(['thinking about [redacted]']) // the agent's stderr streams as log lines, credentials redacted; the JSON answer on stdout does not
+    const logs = r.lines.filter((l) => l.event === 'log').map((l) => l.text)
+    expect(logs).toContain('thinking about [redacted]') // stderr streams as log lines, credentials redacted
+    expect(logs).toContain('Reading the brief.\n> Bash npm test') // stream-json events become a transcript: what it said, what it ran
+    expect(logs).toContain('< 6 passed') // and what came back; init and result events are dropped
+    expect(logs.some((t) => t.includes('structured_output'))).toBe(false)
   })
 
   it('configuration.allowedTools reaches claude as --allowedTools', async () => {
