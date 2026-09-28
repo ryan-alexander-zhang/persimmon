@@ -16,11 +16,11 @@ Prompt, two Executors, five Tasks and the Workflow `idea-to-prd`.
 
 - persimmon built: `npm install && npm run build` in the repository root
 - `codex` and `claude` CLIs installed and logged in (`codex login`, `claude`)
-- an alias to the binary, from the repository root:
+- an alias to the binary, run from anywhere inside the repository:
 
 ```sh
-alias persimmon="node $PWD/dist/main.js"                       # bash, zsh
-alias persimmon "node $PWD/dist/main.js"                       # fish
+alias persimmon="node $(git rev-parse --show-toplevel)/dist/main.js"    # bash, zsh
+alias persimmon "node (git rev-parse --show-toplevel)/dist/main.js"     # fish
 ```
 
 ## Steps
@@ -35,7 +35,9 @@ persimmon init
 ```
 
 Expected: `wrote persimmon.yaml`, then one `created ...` line per shipped Adapter and pack
-definition. `init` also installs the built-in SDLC pack; this example does not use it.
+definition. `init` also installs the built-in SDLC pack; this example reuses three of its
+definitions: the `local-reviewer` Executor (you, at the terminal) and the `ResearchReport` and
+`ReviewReport` artifact kinds.
 
 ### 2. Install the workflow
 
@@ -53,20 +55,23 @@ persimmon get Workflow               # ... Workflow/idea-to-prd  -n default
 persimmon run idea-to-prd --input idea="A CLI that turns a meeting transcript into tracked action items" --follow
 ```
 
-`--follow` prints every phase change and returns when the run stops. The first three agent
-steps take several minutes each. Expected tail:
+`--follow` prints every phase change and returns when the run finishes or waits on you. Four
+agent steps run in sequence: research takes a few minutes, the other three under two minutes
+each, about seven minutes in all. Expected output:
 
 ```text
 created WorkflowRun/idea-to-prd-<hex>
+WorkflowRun/idea-to-prd-<hex>  Running
 TaskRun/idea-to-prd-<hex>-research  Running
 TaskRun/idea-to-prd-<hex>-research  Succeeded
 TaskRun/idea-to-prd-<hex>-write  Running
 ...
+TaskRun/idea-to-prd-<hex>-fix  Succeeded
 TaskRun/idea-to-prd-<hex>-approve  Waiting human (.persimmon/inbox/idea-to-prd-<hex>-approve.yaml)
-WorkflowRun/idea-to-prd-<hex>  Running
+parked on you: persimmon complete idea-to-prd-<hex>-approve
 ```
 
-The run is parked on you. Ctrl-C is safe at any point; `persimmon resume` continues.
+Ctrl-C is safe at any point; `persimmon resume` continues where the run stopped.
 
 ### 4. Approve or reject
 
@@ -81,12 +86,12 @@ run finishes in the same command.
 Scripted instead (no terminal, CI):
 
 ```sh
-cat > approve.yaml <<'YAML'
+cat > .persimmon/approve.yaml <<'YAML'
 protocol: persimmon.result/v1
 outputs:
   result: {kind: value, value: {passed: true, findings: [], evidence: []}}
 YAML
-persimmon complete idea-to-prd-<hex>-approve --file approve.yaml
+persimmon complete idea-to-prd-<hex>-approve --file .persimmon/approve.yaml
 ```
 
 ### 5. Read the results
@@ -98,7 +103,7 @@ persimmon get EarsPrd                              # <run>-write-prd.r1 and <run
 persimmon get EarsPrd/idea-to-prd-<hex>-fix-prd.r1 # the approved PRD, content under spec
 persimmon get ResearchReport                       # what codex found, with source URLs
 persimmon get ReviewReport                         # the P0/P1 findings
-persimmon logs TaskRun/idea-to-prd-<hex>-research  # the agent's stream, per attempt
+persimmon logs TaskRun/idea-to-prd-<hex>-research  # what codex printed while it worked, per attempt
 ```
 
 ## Change it
