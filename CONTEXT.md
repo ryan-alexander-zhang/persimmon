@@ -312,8 +312,9 @@ _Avoid_: link, edge, association
 
 **Publish**:
 Stage a revision through the `publishArtifact` **Action** or engine callback; visible only
-after commit.
-_Avoid_: save, write, upload, create
+after commit. `persimmon create` of a revisioned Resource publishes too, stamped by the engine
+(`05-revisioned-kind.md`).
+_Avoid_: save, write, upload
 
 ### Layer 1: adapter roles
 

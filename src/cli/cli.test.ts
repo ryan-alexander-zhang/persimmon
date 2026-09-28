@@ -205,6 +205,14 @@ describe('persimmon CLI', () => {
     const wrong = { ...prdDoc, metadata: { name: 'spec-1.r3' }, spec: { ...prdDoc.spec, identity: { id: 'spec-1', revision: 3 } } }
     expect(await run('create', file('prd3.yaml', [wrong]))).toBe(1)
     expect(err.at(-1)).toMatch(/revision 3 is not the next one \(2\)/)
+    const bumped = { ...prdDoc, spec: { ...prdDoc.spec, identity: { id: 'spec-1', revision: 2 } } } // name still spec-1.r1: refused, not mistaken for the stored one
+    expect(await run('create', file('prd-bumped.yaml', [bumped]))).toBe(1)
+    expect(err.at(-1)).toMatch(/name must be spec-1\.r2/)
+    const forged = { ...prdDoc, metadata: { name: 'spec-1.r2' }, spec: { ...prdDoc.spec, identity: { id: 'spec-1', revision: 2 }, content: { ...prdDoc.spec.content, title: 'Spec 2' }, provenance: { producerRef: { apiVersion: 'persimmon.ai/v1', kind: 'TaskRun', name: 'x' }, inputs: [], actor: { kind: 'handler', id: 'task' } } } }
+    expect(await run('create', file('prd-forged.yaml', [forged]))).toBe(0)
+    out = []
+    expect(await run('get', 'ProductRequirement/spec-1.r2')).toBe(0)
+    expect(parse(out.join('\n')).spec.provenance.actor).toEqual({ kind: 'user', id: 'local' }) // provenance is never caller-supplied
     expect(parseInput('n=12')).toEqual(['n', { kind: 'value', value: 12 }])
     expect(parseInput('s=hello world')).toEqual(['s', { kind: 'value', value: 'hello world' }])
     expect(parseInput('a={kind: artifact, ref: {id: x}}')).toEqual(['a', { kind: 'artifact', ref: { id: 'x' } }])

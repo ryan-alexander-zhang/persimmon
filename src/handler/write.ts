@@ -59,6 +59,12 @@ export async function prepareCreate(engine: Engine, input: unknown): Promise<Res
   // scope Any without a Namespace is Global (00-resource.md); the CLI fills defaultNamespace for its own docs (08-store.md)
   if (kd.spec.scope === 'Namespaced' && !resource.metadata.namespace) resource.metadata.namespace = engine.defaultNamespace
   kinds.validateResource(resource)
+  if (kd.spec.revisioned) {
+    // name and identity agree before the existence lookup, so a re-create with a bumped revision is never mistaken for the stored one
+    const identity = (resource.spec as { identity?: { id: string; revision: number } }).identity
+    if (!identity || typeof identity.id !== 'string' || !Number.isInteger(identity.revision)) throw new WriteError(`${resource.kind} ${resource.metadata.name}: spec.identity {id, revision} required`)
+    if (resource.metadata.name !== `${identity.id}.r${identity.revision}`) throw new WriteError(`${resource.kind} ${resource.metadata.name}: name must be ${identity.id}.r${identity.revision}`)
+  }
 
   const bound = handlers.lookup(resource.apiVersion, resource.kind)
   let findings: Finding[] = []
@@ -113,13 +119,11 @@ export function storeCreate(engine: Engine, prepared: Resource, o: CreateOptions
 
 /** A revision written by hand (`persimmon create spec.yaml`) gets what a publish gets: the next revision number checked, provenance with the writer as actor, the content digest (05-revisioned-kind.md). */
 function stampRevision(engine: Engine, resource: Resource, actor: Actor): { id: string; revision: number } {
-  const spec = resource.spec as { identity?: { id: string; revision: number }; content: unknown; provenance?: unknown }
-  const identity = spec.identity
-  if (!identity) throw new WriteError(`${resource.kind} ${resource.metadata.name}: spec.identity required`)
-  if (resource.metadata.name !== `${identity.id}.r${identity.revision}`) throw new WriteError(`${resource.kind} ${resource.metadata.name}: name must be ${identity.id}.r${identity.revision}`)
+  const spec = resource.spec as { identity: { id: string; revision: number }; content: unknown; provenance?: unknown }
+  const identity = spec.identity // checked against the name in prepareCreate
   const next = engine.store.resources.reserveRevision(resource.kind, resource.metadata.namespace as string, identity.id) // rolled back with the transaction on error
   if (next !== identity.revision) throw new WriteError(`${resource.kind} ${identity.id}: revision ${identity.revision} is not the next one (${next})`)
-  spec.provenance ??= { producerRef: { apiVersion: resource.apiVersion, kind: resource.kind, namespace: resource.metadata.namespace, name: resource.metadata.name }, inputs: [], actor } // self-authored: the revision is its own producer
+  spec.provenance = { producerRef: { apiVersion: resource.apiVersion, kind: resource.kind, namespace: resource.metadata.namespace, name: resource.metadata.name }, inputs: [], actor } // self-authored: the revision is its own producer; whatever the file said is replaced, provenance is never caller-supplied
   resource.status = { contentDigest: digestOf(canonicalBytes(spec.content)), representations: [] }
   return identity
 }
