@@ -188,3 +188,8 @@ examples/example02/app/*
 !examples/example02/app/vitest.config.mjs
 !examples/example02/app/AGENTS.md
 !examples/example02/app/CLAUDE.md
+# example03: what the release scripts write
+examples/example03/build/
+examples/example03/announce/
+examples/example03/paused.yaml
+examples/example03/notes2.yaml

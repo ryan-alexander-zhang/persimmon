@@ -1,0 +1,165 @@
+# Event-driven release chain: notes published -> package (script) -> announce (script). Two Triggers, no agents.
+# Install: persimmon apply release.yaml    Start: persimmon create notes.yaml
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata: {name: releasenotes.engineering.persimmon.ai}
+spec:
+  group: engineering.persimmon.ai
+  names: {kind: ReleaseNotes, plural: releasenotes}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [version, title, changes]
+        properties:
+          version: {type: string, pattern: "^[0-9]+\\.[0-9]+\\.[0-9]+$"}
+          title: {type: string}
+          changes: {type: array, minItems: 1, items: {type: string}}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"
+---
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata: {name: packages.engineering.persimmon.ai}
+spec:
+  group: engineering.persimmon.ai
+  names: {kind: Package, plural: packages}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [version, file, bytes]
+        properties:
+          version: {type: string}
+          file: {type: string, description: "path under build/, relative to the project"}
+          bytes: {type: integer}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"
+---
+# One script Executor; each Task names its script through parameters.args. Runs share resultFile, one at a time.
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: release-script}
+spec:
+  type: script
+  adapter: subprocess/v1
+  configuration: {program: [node], resultFile: .persimmon/release-result.json}
+  security: {networkAccess: deny}
+---
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: package}
+spec:
+  inputs:
+    notes: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ReleaseNotes}}}
+    version: {type: {kind: value, schema: {type: string}}}
+    title: {type: {kind: value, schema: {type: string}}}
+  outputs:
+    package: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: Package}}}
+    version: {type: {kind: value, schema: {type: string}}}
+  executorRef: {kind: Executor, name: release-script}
+  action:
+    instructions: "Build the release archive for this version and publish a Package."
+    parameters: {args: [scripts/package.mjs]}
+  timeout: 2m
+  sideEffects: idempotent
+---
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: announce}
+spec:
+  inputs:
+    package: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: Package}}}
+    version: {type: {kind: value, schema: {type: string}}}
+    channel: {type: {kind: value, schema: {type: string}}}
+  outputs:
+    posted: {type: {kind: value, schema: {type: boolean}}}
+  executorRef: {kind: Executor, name: release-script}
+  action:
+    instructions: "Write the announcement for the package to the channel."
+    parameters: {args: [scripts/announce.mjs]}
+  timeout: 2m
+  sideEffects: idempotent
+---
+apiVersion: persimmon.ai/v1
+kind: Workflow
+metadata: {name: package}
+spec:
+  inputs:
+    notes: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ReleaseNotes}}}
+    version: {type: {kind: value, schema: {type: string}}}
+    title: {type: {kind: value, schema: {type: string}}}
+  outputs:
+    package: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: Package}}}
+    version: {type: {kind: value, schema: {type: string}}}
+  outputBindings:
+    package: {fromStep: {stepRef: build, output: package}}
+    version: {fromStep: {stepRef: build, output: version}}
+  entry: [build]
+  steps:
+    - id: build
+      uses: {kind: Task, name: package}
+      inputs: {notes: {fromInput: notes}, version: {fromInput: version}, title: {fromInput: title}}
+      timeout: 5m
+  transitions:
+    - {id: done, from: [{stepRef: build, outcomes: [Succeeded]}], to: [{terminal: Succeeded}]}
+  timeout: 10m
+---
+apiVersion: persimmon.ai/v1
+kind: Workflow
+metadata: {name: announce}
+spec:
+  inputs:
+    package: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: Package}}}
+    version: {type: {kind: value, schema: {type: string}}}
+    channel: {type: {kind: value, schema: {type: string}}}
+  outputs:
+    posted: {type: {kind: value, schema: {type: boolean}}}
+  outputBindings:
+    posted: {fromStep: {stepRef: post, output: posted}}
+  entry: [post]
+  steps:
+    - id: post
+      uses: {kind: Task, name: announce}
+      inputs: {package: {fromInput: package}, version: {fromInput: version}, channel: {fromInput: channel}}
+      timeout: 5m
+  transitions:
+    - {id: done, from: [{stepRef: post, outcomes: [Succeeded]}], to: [{terminal: Succeeded}]}
+  timeout: 10m
+---
+# A ReleaseNotes revision appears (published by a run, or by `persimmon create`): package it.
+apiVersion: persimmon.ai/v1
+kind: Trigger
+metadata: {name: on-notes-published}
+spec:
+  event:
+    kind: artifactPublished
+    artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ReleaseNotes}
+  run:
+    workflowRef: {kind: Workflow, name: package}
+    inputs:
+      notes: {fromEvent: artifact}            # the RevisionRef of what was published
+      version: {fromEvent: content.version}   # a field of its content, as a value
+      title: {fromEvent: content.title}
+  enabled: true
+---
+# A root `package` run finished Succeeded: announce it. Failed runs stay silent (phases).
+apiVersion: persimmon.ai/v1
+kind: Trigger
+metadata: {name: on-package-built}
+spec:
+  event:
+    kind: workflowRunFinished
+    workflowRef: {kind: Workflow, name: package}
+    phases: [Succeeded]
+  run:
+    workflowRef: {kind: Workflow, name: announce}
+    inputs:
+      package: {fromEvent: outputs.package}   # the finished run's outputs, by port
+      version: {fromEvent: outputs.version}
+      channel: {literal: releases}            # a fixed value
+  enabled: true

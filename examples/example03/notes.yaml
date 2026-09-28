@@ -1,0 +1,12 @@
+# Release notes, revision 1. `persimmon create notes.yaml` publishes it, and the chain starts.
+apiVersion: engineering.persimmon.ai/v1
+kind: ReleaseNotes
+metadata: {name: todo-cli.r1}
+spec:
+  identity: {id: todo-cli, revision: 1}
+  content:
+    version: 1.2.0
+    title: Todo CLI 1.2.0
+    changes:
+      - "`todo done` accepts several ids"
+      - "`todo list` prints done items last"
