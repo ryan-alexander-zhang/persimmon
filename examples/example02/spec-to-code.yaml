@@ -66,7 +66,7 @@ spec:
         required: [passed, path, summary]
         properties:
           passed: {type: boolean}
-          path: {type: string, description: "the HTML file, relative to the project directory"}
+          path: {type: string, description: "the HTML file, relative to the app directory"}
           summary: {type: string}
           coverage: {type: string}
   mutability: Immutable
@@ -106,7 +106,7 @@ metadata: {name: coverage-script}
 spec:
   type: script
   adapter: subprocess/v1
-  configuration: {program: [node, scripts/coverage.mjs], resultFile: .persimmon/coverage-result.json}
+  configuration: {program: [node, ../scripts/coverage.mjs], resultFile: coverage/result.json}   # runs in the workspace, app/
   security: {networkAccess: deny}
 ---
 apiVersion: persimmon.ai/v1
@@ -121,11 +121,12 @@ spec:
   executorRef: {kind: Executor, name: coder}
   action:
     instructions: |
-      Implement the spec in ./app (Node ESM, no dependencies; vitest is installed there). Source under app/src,
-      tests under app/test/*.test.mjs, one test per acceptance criterion, its name starting with the AC id.
-      Run `npm run coverage` inside app until every test passes and every metric is at least 90%.
+      Implement the spec in the current directory, the app (Node ESM, no dependencies; vitest is installed).
+      Source under src/, tests under test/*.test.mjs, one test per acceptance criterion, its name starting
+      with the AC id. Run `npm run coverage` until every test passes and every metric is at least 90%.
       The `previous` input, when present, is the last Gate verdict: fix every finding in it first.
-      Publish an ImplementationReport: summary, the files you wrote, and which test covers which AC.
+      Never run git. Publish an ImplementationReport: summary, the files you wrote, which test covers which AC.
+    workspace: {path: app}
     parameters: {reasoningEffort: medium}
   timeout: 30m
   sideEffects: idempotent
@@ -141,6 +142,7 @@ spec:
   executorRef: {kind: Executor, name: coverage-script}
   action:
     instructions: "Run the tests with coverage; pass when every metric is at least 90%."
+    workspace: {path: app}
   timeout: 10m
   sideEffects: idempotent
 ---
@@ -156,13 +158,14 @@ spec:
   executorRef: {kind: Executor, name: checker}
   action:
     instructions: |
-      Read the code and tests in ./app. For every acceptance criterion in the spec decide: is it implemented,
+      Read the code and tests in the current directory, the app. For every acceptance criterion in the spec decide: is it implemented,
       and is there a test that verifies exactly it? Do not trust the report; read the files.
       Answer a ValidationResult: passed only when every AC is implemented and tested; one finding per
       unmet AC, severity error, code = the AC id, message = what is missing. evidence may be empty.
     context:
       - {kind: artifact, input: spec}
       - {kind: artifact, input: report}
+    workspace: {path: app}
     parameters: {effort: medium}
   timeout: 15m
   sideEffects: none
@@ -180,14 +183,15 @@ spec:
   executorRef: {kind: Executor, name: reporter}
   action:
     instructions: |
-      Write a self-contained HTML test report to reports/test-report.html (relative to the current directory;
-      create the directory). Sections: verdict (passed or not), coverage numbers from the
+      Write a self-contained HTML test report to reports/test-report.html in the current directory, the app
+      (create the directory). Sections: verdict (passed or not), coverage numbers from the
       coverage validator finding, one table row per acceptance criterion with its test and status from the
       acceptance validator, and the implementation summary. Plain HTML and inline CSS, no scripts.
       Then publish a TestReport: passed, path, summary, coverage.
     context:
       - {kind: artifact, input: spec}
       - {kind: artifact, input: report}
+    workspace: {path: app}
     parameters: {effort: low}
   timeout: 15m
   sideEffects: idempotent

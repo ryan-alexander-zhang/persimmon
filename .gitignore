@@ -186,4 +186,5 @@ examples/*/persimmon.yaml
 examples/example02/app/*
 !examples/example02/app/package.json
 !examples/example02/app/vitest.config.mjs
-examples/example02/reports/
+!examples/example02/app/AGENTS.md
+!examples/example02/app/CLAUDE.md
