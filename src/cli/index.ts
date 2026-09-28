@@ -3,6 +3,7 @@ import { parseArgs } from 'node:util'
 import { apply } from './apply.js'
 import type { Cli } from './context.js'
 import { create, run } from './create.js'
+import { digest } from './digest.js'
 import { get, logs } from './get.js'
 import { tree } from './tree.js'
 import { init } from './init.js'
@@ -22,6 +23,7 @@ const usage = `usage: persimmon <verb> [args]
   describe <kind>/<name> [-n ns]
   logs <kind>/<name> [-n ns | --global]
   tree <kind>/<name> [-n ns]                        a run, what it produced, and every run it owns, nested
+  digest <dir>                                      the bundle digest a Skill declares for that directory
   init
   delete <kind>/<name> [-n ns | --global]
   adapter install <manifest> | adapter list`
@@ -105,6 +107,9 @@ async function dispatchVerb(cli: Cli, verb: string, rest: string[], values: Retu
       case 'tree':
         need(1, '<kind>/<name>')
         return await tree(cli, rest[0]!, where)
+      case 'digest':
+        need(1, '<dir>')
+        return await digest(cli, rest[0]!)
       case 'init':
         return await init(cli)
       case 'delete':

@@ -66,6 +66,9 @@ The engine never fetches or interprets a bundle.
   implementation.
 - The cache under `.persimmon/skills/<hash>` is the source of truth; what the agent sees is a
   per-attempt link in its workspace's native skill directory (`19-adapter-roles.md`). Found in UAT.
+- `persimmon digest <dir>` prints the bundle digest, so a Skill can be declared for a local
+  directory without computing sha256 by hand; the CLI and the Adapters share the algorithm by
+  test. Found in UAT.
 
 ## Examples
 
