@@ -155,6 +155,7 @@ describe('persimmon CLI', () => {
     out = []
     expect(await run('get', `WorkflowRun/${name2}`)).toBe(0)
     expect(parse(out.join('\n')).spec.inputs.repository).toMatchObject({ kind: 'externalResource', ref: { provider: 'git', type: 'repository', id: 'persimmon', locator: { path: process.cwd() }, version: expect.stringMatching(/^[0-9a-f]{40}$/) } })
+    expect(parse(out.join('\n')).spec.timeout).toBe('2h') // no --timeout: the Workflow's own (prd-create: 2h)
     expect(parseInput('n=12')).toEqual(['n', { kind: 'value', value: 12 }])
     expect(parseInput('s=hello world')).toEqual(['s', { kind: 'value', value: 'hello world' }])
     expect(parseInput('a={kind: artifact, ref: {id: x}}')).toEqual(['a', { kind: 'artifact', ref: { id: 'x' } }])

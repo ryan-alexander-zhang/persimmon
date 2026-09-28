@@ -97,7 +97,7 @@ A Namespaced Resource may bind only its own Namespace's names and Global names.
 | `persimmon apply <files> [--skip-adapter-validation]` | write definitions; fails on an unreachable Adapter unless skipped (`13-executor.md`) |
 | `persimmon adapter install <manifest>` · `adapter list` | apply an Adapter, run `describe`, Ready |
 | `persimmon create <file> [--follow]` | store any Resource; `--follow` runs the engine until it reaches a `terminal.values` value and prints every phase change of the runs it owns; Ctrl-C leaves it resumable |
-| `persimmon run <Workflow> [--input <port>=<yaml \| @file>]... [--timeout <d>] [--follow]` | a manual WorkflowRun named `<workflow>-<hex6>` without writing its YAML; a scalar becomes `{kind: value, value}`, a RuntimeValue object passes through |
+| `persimmon run <Workflow> [--input <port>=<yaml \| @file>]... [--timeout <d>] [--follow]` | a manual WorkflowRun named `<workflow>-<hex6>` without writing its YAML; a scalar becomes `{kind: value, value}`, a RuntimeValue object passes through; `timeout` is the Workflow's unless given |
 | `persimmon signal <kind>/<name> --payload <file> [--event-id <id>]` | Signal `{source: api}` as the local Actor; id generated when absent |
 | `persimmon resume` | redeliver unacked Events and outstanding calls, drain the Outbox |
 | `persimmon get` · `describe` · `logs` | read Resources, status, RunLog |
@@ -157,7 +157,8 @@ imports into a server unchanged.
   without a Namespace is Global (`00-resource.md`). The CLI places its own docs in `-n` or
   `defaultNamespace` unless `--global`; `persimmon init` and `apply --global` install a pack as
   Global (`20-pack.md`). CLI refs resolve Namespace first, then Global. Found in implementation.
-
+- A WorkflowRun written without `timeout` takes its Workflow's `spec.timeout`; the CLI's old 24h
+  default cut a 52h Workflow short. Found in UAT.
 
 ## Examples
 

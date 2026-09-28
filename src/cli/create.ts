@@ -31,7 +31,7 @@ export async function run(cli: Cli, workflow: string, o: FollowOptions & { input
     apiVersion: 'persimmon.ai/v1',
     kind: 'WorkflowRun',
     metadata: { name: `${workflow.slice(0, 56)}-${randomBytes(3).toString('hex')}` }, // stays a DNS label
-    spec: { workflowRef: { kind: 'Workflow', name: workflow }, inputs, timeout: o.timeout ?? '24h', origin: { kind: 'manual' } },
+    spec: { workflowRef: { kind: 'Workflow', name: workflow }, inputs, ...(o.timeout ? { timeout: o.timeout } : {}), origin: { kind: 'manual' } }, // timeout: the Workflow's unless --timeout
   }
   return store(cli, doc, o)
 }
@@ -50,7 +50,12 @@ async function store(cli: Cli, doc: Resource, o: FollowOptions): Promise<number>
   const engine = await openEngine(cli)
   try {
     placeDoc(engine, doc, o)
-    if (doc.kind === 'WorkflowRun') pathInputs(engine, cli.cwd, doc)
+    if (doc.kind === 'WorkflowRun') {
+      const wf = workflowOf(engine, doc)
+      const spec = doc.spec as { timeout?: string }
+      spec.timeout ??= (wf?.spec as { timeout?: string } | undefined)?.timeout ?? '24h' // 24h only when the Workflow is missing; validation then reports it
+      pathInputs(engine, wf, cli.cwd, doc)
+    }
     const { resource, created } = await engine.create(doc)
     cli.out(`${created ? 'created' : 'exists'} ${resource.kind}/${resource.metadata.name}`)
     if (!o.follow) {
@@ -127,11 +132,16 @@ export function describe(r: Resource): string {
   return parts.filter(Boolean).join(' ')
 }
 
-/** `--input repository=.`: a plain path on an externalResource port becomes a git repository ref, pinned to HEAD when it is a checkout. */
-function pathInputs(engine: Engine, cwd: string, doc: Resource): void {
-  const spec = doc.spec as { workflowRef: { name: string }; inputs: Record<string, { kind: string; value?: unknown }> }
+/** The run's Workflow: its Namespace first, then Global. */
+function workflowOf(engine: Engine, doc: Resource): Resource | undefined {
+  const { workflowRef } = doc.spec as { workflowRef: { name: string } }
   const ns = doc.metadata.namespace
-  const wf = (ns ? engine.store.resources.get({ kind: 'Workflow', namespace: ns, name: spec.workflowRef.name }) : undefined) ?? engine.store.resources.get({ kind: 'Workflow', name: spec.workflowRef.name }) // the run's Namespace, then Global
+  return (ns ? engine.store.resources.get({ kind: 'Workflow', namespace: ns, name: workflowRef.name }) : undefined) ?? engine.store.resources.get({ kind: 'Workflow', name: workflowRef.name })
+}
+
+/** `--input repository=.`: a plain path on an externalResource port becomes a git repository ref, pinned to HEAD when it is a checkout. */
+function pathInputs(engine: Engine, wf: Resource | undefined, cwd: string, doc: Resource): void {
+  const spec = doc.spec as { inputs: Record<string, { kind: string; value?: unknown }> }
   const ports = (wf?.spec as { inputs?: Record<string, { type: { kind: string } }> } | undefined)?.inputs ?? {}
   for (const [port, v] of Object.entries(spec.inputs)) {
     if (ports[port]?.type.kind !== 'externalResource' || v.kind !== 'value' || typeof v.value !== 'string') continue
