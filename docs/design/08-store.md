@@ -103,7 +103,7 @@ A Namespaced Resource may bind only its own Namespace's names and Global names.
 | `persimmon get` · `describe` · `logs` | read Resources, status, RunLog |
 | `persimmon tree <kind>/<name>` | a run and every run it owns, nested by `ownerReferences`, oldest first; a child is labelled by its name minus its owner's, then its kind, then a TaskRun's Adapter; right column: phase (`passed` \| `rejected` for a Gate or Validator verdict) and elapsed time; under a run: its error, the `complete` command it waits for, a rejected Validator's findings, the artifacts a TaskRun published as `<Kind>/<id>.r<n>`; a footer lists the root's outputs |
 | `persimmon init` | local mode: create `.persimmon/`, apply the SDLC pack (`20-pack.md`) |
-| `persimmon complete <taskRun> --file <result.yaml>` | local mode: `signal` for a `cli-human/v1` attempt as the local Actor |
+| `persimmon complete <taskRun> [--file <result.yaml>]` | local mode: `signal` for a `cli-human/v1` attempt as the local Actor; drains, then prints the `tree` of the run the Task belongs to, in both modes |
 | `persimmon delete <kind>/<name>` | refused while referenced (`00-resource.md`) |
 | `persimmon serve` | server mode daemon; the API is these verbs over https |
 
@@ -176,6 +176,8 @@ imports into a server unchanged.
 - `apply` of an unchanged definition writes nothing and says `unchanged`; it used to say `updated`
   and bump `resourceVersion`, so a re-applied file hid what had changed. A KindDefinition or
   Adapter still re-registers or re-describes. Found in UAT.
+- `complete` drains and ends with the `tree` of the run its Task belongs to, whichever mode: the
+  scripted path printed one line and the caller had to go looking. Found in UAT.
 
 ## Examples
 

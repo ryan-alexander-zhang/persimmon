@@ -5,11 +5,12 @@ import { localActor } from '../engine.js'
 import type { Cli } from './context.js'
 import { withEngine } from './context.js'
 import { find } from './get.js'
+import { renderTree } from './tree.js'
 import { loadDocs, parseRef, toYaml } from './io.js'
 import { parse } from 'yaml'
 import { ajv, formatErrors } from '../resource/ajv.js'
 import type { OutputSpec } from '../kinds/ports/types.js'
-import type { RevisionRef } from '../resource/types.js'
+import type { Resource, RevisionRef } from '../resource/types.js'
 
 /** `persimmon signal <kind>/<name> --payload <file> [--event-id <id>]`. */
 export async function signal(cli: Cli, ref: string, o: { payload?: string; eventId?: string; namespace?: string }): Promise<number> {
@@ -54,6 +55,15 @@ export async function complete(cli: Cli, taskRun: string, file: string | undefin
     engine.signal(r.metadata.uid as string, `complete-${randomBytes(6).toString('hex')}`, localActor, completion, 'api')
     rmSync(form, { force: true }) // the cli-human form is answered
     cli.out(`completed TaskRun/${taskRun}`)
+    await engine.drain() // the run continues here, agents included; then the tree shows where it got
+    let root: Resource = engine.store.resources.getByUid(r.metadata.uid as string) ?? r
+    for (let o = root.metadata.ownerReferences?.[0]; o?.uid; o = root.metadata.ownerReferences?.[0]) {
+      const owner = engine.store.resources.getByUid(o.uid)
+      if (!owner) break
+      root = owner
+    }
+    cli.out('')
+    for (const line of renderTree(engine, root)) cli.out(line)
     return 0
   })
 }
