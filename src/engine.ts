@@ -92,6 +92,7 @@ export class Engine {
       handlers: this.handlers,
       adapters: this.adapters,
       credentials: this.credentials,
+      cwd,
       resolver: liveResolver(this.kinds, this.store, this.adapters),
       defaultNamespace: o.config.defaultNamespace,
       now,

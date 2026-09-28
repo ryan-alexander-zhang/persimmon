@@ -17,6 +17,8 @@ import type { AdapterFinishedPayload, Event } from './types.js'
 export interface Engine extends CommitEngine {
   credentials: CredentialStore
   endpoint: string
+  /** Project directory; Task workspaces resolve against it (12-task.md). */
+  cwd: string
   maxReconcileAttempts: number
   leaseTtlMs: number
   /** Base of the exponential backoff between attempts; 0 in tests. */
