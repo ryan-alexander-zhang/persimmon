@@ -81,6 +81,9 @@ TaskRun/spec-to-code-<hex>-report  Succeeded
 WorkflowRun/spec-to-code-<hex>  Succeeded
 ```
 
+`persimmon tree WorkflowRun/spec-to-code-<hex>` prints the same runs nested: the round body under
+the outer run, the Gate under the round, each Validator's TaskRun under its ValidationRun.
+
 Lines that commit in the same tick print parent before child (WorkflowRun, GateRun, ValidationRun,
 TaskRun), not in time order, so a `rounds-1  Succeeded` line can precede its Gate's. About three
 minutes in all: the coder takes two and a half, the two Validators run in parallel in twenty
