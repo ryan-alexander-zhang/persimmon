@@ -69,6 +69,7 @@ spec:
           path: {type: string, description: "the HTML file, relative to the app directory"}
           summary: {type: string}
           coverage: {type: string}
+          rounds: {type: integer, description: "how many implement rounds the Gate took"}
   mutability: Immutable
   revisioned: true
   snapshot: "None"
@@ -180,16 +181,17 @@ spec:
     spec: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: AppSpec}}}
     report: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ImplementationReport}}}
     verdict: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
+    rounds: {type: {kind: value, schema: {type: integer}}}
   outputs:
     testReport: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: TestReport}}}
   executorRef: {kind: Executor, name: reporter}
   action:
     instructions: |
       Write a self-contained HTML test report to reports/test-report.html in the current directory, the app
-      (create the directory). Sections: verdict (passed or not), coverage numbers from the
+      (create the directory). Sections: verdict (passed or not, rounds taken), coverage numbers from the
       coverage validator finding, one table row per acceptance criterion with its test and status from the
       acceptance validator, and the implementation summary. Plain HTML and inline CSS, no scripts.
-      Then publish a TestReport: passed, path, summary, coverage.
+      Then publish a TestReport: passed, path, summary, coverage, rounds.
     context:
       - {kind: artifact, input: spec}
       - {kind: artifact, input: report}
@@ -299,6 +301,7 @@ spec:
         spec: {fromInput: spec}
         report: {fromStep: {stepRef: rounds, output: report}}
         verdict: {fromStep: {stepRef: rounds, output: verdict}}
+        rounds: {expression: 'steps.rounds.iterations'}       # how many implement rounds the Gate took
       timeout: 20m
   transitions:
     - {id: to-report, from: [{stepRef: rounds, outcomes: [Succeeded]}], to: [{stepRef: report}]}
