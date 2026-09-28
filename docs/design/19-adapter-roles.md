@@ -160,6 +160,9 @@ Result: a ValidationResult (`10-ports.md`). No `credentials`, no `security` (`14
   the engine's cwd. Found in UAT.
 - `claude-code/v1` answers `permission_denied`, not retryable, when the CLI reports a login or API
   key failure; retrying a dead login burned attempts. Found in UAT.
+- `claude-code/v1` configuration `allowedTools[]` passes `--allowedTools`, so a `workspace-write`
+  Executor can run named commands (`Bash(npm test:*)`) headlessly without the `full` sandbox;
+  `-p` has nobody to answer a permission prompt. Found in UAT.
 
 ## Examples
 

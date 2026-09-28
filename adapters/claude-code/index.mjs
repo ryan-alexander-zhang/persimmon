@@ -28,7 +28,12 @@ serve({
   adapterId: 'claude-code/v1',
   configurationSchema: {
     type: 'object', additionalProperties: false,
-    properties: { model: { type: 'string' }, sandbox: { enum: Object.keys(sandbox) }, agent: { type: 'string', description: 'repository subagent name, run as-is' } },
+    properties: {
+      model: { type: 'string' },
+      sandbox: { enum: Object.keys(sandbox) },
+      agent: { type: 'string', description: 'repository subagent name, run as-is' },
+      allowedTools: { type: 'array', items: { type: 'string' }, description: 'claude --allowedTools patterns, e.g. "Bash(npm test:*)"; lets workspace-write run commands without a prompt' },
+    },
   },
   parametersSchema: { type: 'object', additionalProperties: false, properties: { effort: { enum: ['low', 'medium', 'high', 'xhigh', 'max'] } } },
   command({ configuration: c, parameters: p, schema, skillDirs }) {
@@ -36,6 +41,7 @@ serve({
     for (const d of skillDirs) args.push('--add-dir', d) // skills live outside the working directory
     if (c.model) args.push('--model', c.model)
     if (c.agent) args.push('--agent', c.agent)
+    if (c.allowedTools?.length) args.push('--allowedTools', ...c.allowedTools)
     if (p.effort) args.push('--effort', p.effort)
     return ['claude', args]
   },

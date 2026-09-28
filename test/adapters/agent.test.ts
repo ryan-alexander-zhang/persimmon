@@ -134,6 +134,14 @@ describe('claude-code/v1', () => {
     expect(r.lines.filter((l) => l.event === 'log').map((l) => l.text)).toEqual(['thinking about [redacted]']) // the agent's stderr streams as log lines, credentials redacted; the JSON answer on stdout does not
   })
 
+  it('configuration.allowedTools reaches claude as --allowedTools', async () => {
+    const r = await adapter('claude-code', { id: 14, op: 'execute', payload: payload({ executor: { type: 'agent', configuration: { sandbox: 'workspace-write', allowedTools: ['Bash(npm test:*)', 'Bash(npm run coverage:*)'] }, security: { networkAccess: 'deny', credentialBindings: [] } } }) }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'PRD' }, count: 1 } }) })
+    expect(last(r).ok).toBe(true)
+    const args = JSON.parse(readFileSync(join(stubs, 'claude.json'), 'utf8')).args as string[]
+    expect(args.slice(args.indexOf('--allowedTools'), args.indexOf('--allowedTools') + 3)).toEqual(['--allowedTools', 'Bash(npm test:*)', 'Bash(npm run coverage:*)'])
+    expect(args).toContain('acceptEdits')
+  })
+
   it('runs the agent in payload.workspace; a missing one is invalid_input', async () => {
     const ws = mkdtempSync(join(tmpdir(), 'persimmon-ws-'))
     writeFileSync(join(ws, 'NOTE.md'), 'read me')
