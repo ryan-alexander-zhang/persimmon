@@ -172,6 +172,8 @@ Result: a ValidationResult (`10-ports.md`). No `credentials`, no `security` (`14
   the verified cache for the attempt and removes the link after. `--add-dir` only granted read
   access; a native skill can be invoked. An entry under that name that is not a persimmon link is
   never replaced: `invalid_input`. Found in UAT.
+- The skill directories the Adapter creates for its links (`.agents/skills/`, `.claude/`) go with
+  the links after the attempt, when empty; a directory the user had stays. Found in UAT.
 
 ## Examples
 

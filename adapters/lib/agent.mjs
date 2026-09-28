@@ -2,10 +2,10 @@
 // command line and parses its final answer; this file owns the protocol: prompt assembly from context,
 // structured output schema, artifact publication through the Engine callbacks, cancel by pid file.
 import { spawn } from 'node:child_process'
-import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmdirSync, rmSync, statSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
 import { request } from 'node:http'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { createInterface } from 'node:readline'
 import { createHash } from 'node:crypto'
 import { fetchSkill } from './skills.mjs'
@@ -64,7 +64,7 @@ async function execute(driver, payload, log) {
   if (workspace && !(existsSync(workspace) && statSync(workspace).isDirectory())) throw new AdapterError('invalid_input', `workspace ${workspace} is not a directory`, false)
   const schema = outputSchema(task)
   const dir = mkdtempSync(join(tmpdir(), 'persimmon-agent-'))
-  const links = [] // skill links made in the workspace for this attempt; removed after it
+  const links = [] // skill links and the directories made for them in the workspace, this attempt; removed after it
   let answer
   try {
     const skills = driver.input ? [] : resolveSkills(context, driver.skillFormats ?? ['claude-code-skill/v1'])
@@ -82,7 +82,15 @@ async function execute(driver, payload, log) {
     answer = driver.parse({ stdout, dir, configuration, workspace: cwd })
   } finally {
     rmSync(dir, { recursive: true, force: true })
-    for (const l of links) rmSync(l, { force: true })
+    for (const l of links) {
+      if (l.endsWith('/')) {
+        try {
+          rmdirSync(l) // only when empty: a directory we made, nothing else moved in
+        } catch {
+          /* not empty or already gone */
+        }
+      } else rmSync(l, { force: true })
+    }
   }
   if (!answer?.outputs || typeof answer.outputs !== 'object') throw new AdapterError('agent_failed', 'agent answer has no outputs object', true)
   const artifactInputs = Object.values(inputs).filter((v) => v.kind === 'artifact').map((v) => v.ref)
@@ -116,9 +124,11 @@ function installSkills(skills, workspace, skillDir) {
     }
     if (st && !st.isSymbolicLink()) throw new AdapterError('invalid_input', `skill ${entry.name}: ${skillDir}/${entry.name} exists in the workspace and is not a persimmon link`, false)
     if (st) unlinkSync(at) // a stale link of ours from a killed attempt
+    const created = []
+    for (let d = join(workspace, skillDir); d !== workspace && !existsSync(d); d = dirname(d)) created.push(`${d}/`) // deepest first
     mkdirSync(join(workspace, skillDir), { recursive: true })
     symlinkSync(dir, at)
-    made.push(at)
+    made.push(at, ...created) // the link goes first, then its directories, deepest first
   }
   return made
 }

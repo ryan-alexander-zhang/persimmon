@@ -211,14 +211,20 @@ describe('claude-code/v1', () => {
     const seen = JSON.parse(readFileSync(join(stubs, 'claude.json'), 'utf8'))
     expect(seen.args).not.toContain('--add-dir')
     expect(seen.skill).toBe(true) // linked into .claude/skills/<name> while the agent ran, from the verified cache
-    expect(existsSync(join(cwd, '.claude', 'skills', 'prd-writer'))).toBe(false) // and gone after
+    expect(existsSync(join(cwd, '.claude'))).toBe(false) // link and the directories made for it gone after
     expect(readdirSync(join(cwd, '.persimmon', 'skills')).some((h) => existsSync(join(cwd, '.persimmon', 'skills', h, 'prd-writer', 'SKILL.md')))).toBe(true) // the cache stays
     expect(seen.prompt).toContain('## Skill prd-writer\n\nThe skill `prd-writer` is installed at `.claude/skills/prd-writer` in the working directory.')
     // codex gets the same skill under its own directory
     const cx = await adapter('codex', { id: 45, op: 'execute', payload: payload({ executor: { type: 'agent', configuration: { model: 'gpt-6-sol', sandbox: 'workspace-write' }, security: { networkAccess: 'deny', credentialBindings: [] } }, context: [skill] }) }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'S' }, count: 1 } }) })
     expect(last(cx).ok).toBe(true)
     expect(JSON.parse(readFileSync(join(stubs, 'codex.json'), 'utf8')).skill).toBe(true)
-    expect(existsSync(join(cwd, '.agents', 'skills', 'prd-writer'))).toBe(false)
+    expect(existsSync(join(cwd, '.agents'))).toBe(false)
+    // a directory the user already had stays, with its content
+    mkdirSync(join(cwd, '.claude', 'skills', 'mine'), { recursive: true })
+    await adapter('claude-code', { id: 49, op: 'execute', payload: payload({ context: [skill] }) }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'S' }, count: 1 } }) })
+    expect(existsSync(join(cwd, '.claude', 'skills', 'mine'))).toBe(true)
+    expect(existsSync(join(cwd, '.claude', 'skills', 'prd-writer'))).toBe(false)
+    rmSync(join(cwd, '.claude'), { recursive: true })
     // a file bundle is verified, then copied into the cache under its digest: the link points at the copy
     mkdirSync(join(cwd, 'skills', 'prd-writer'), { recursive: true })
     writeFileSync(join(cwd, 'skills', 'prd-writer', 'SKILL.md'), '# local\n')
