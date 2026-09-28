@@ -31,6 +31,7 @@ beforeAll(async () => {
       if (process.env.STUB_SLEEP) return setTimeout(() => {}, Number(process.env.STUB_SLEEP))
       if (process.env.STUB_FAIL) { process.stderr.write('boom ' + process.env.GITHUB_TOKEN + '\\n'); process.exit(1) }
       if (process.env.STUB_AUTH) { process.stdout.write(JSON.stringify({ type: 'result', subtype: 'success', is_error: true, result: 'Failed to authenticate' })); process.exit(1) }
+      process.stderr.write('thinking about ' + (process.env.GITHUB_TOKEN ?? '') + '\\n')
       process.stdout.write(JSON.stringify({ type: 'result', subtype: 'success', is_error: false, result: '{}', structured_output: JSON.parse(process.env.STUB_RESULT) }))
     })`)
   // codex stub: records args and prompt, writes the answer file named by -o
@@ -38,6 +39,7 @@ beforeAll(async () => {
     const fs = require('node:fs'); let p = ''; const a = process.argv.slice(2)
     process.stdin.on('data', (c) => (p += c)).on('end', () => {
       fs.writeFileSync(process.env.STUB_OUT + '/codex.json', JSON.stringify({ args: a, prompt: p, schema: JSON.parse(fs.readFileSync(a[a.indexOf('--output-schema') + 1], 'utf8')) }))
+      process.stdout.write('codex: reading the brief\\n')
       fs.writeFileSync(a[a.indexOf('-o') + 1], process.env.STUB_RESULT)
     })`)
   // lint stub: records stdin and args, writes the result file named by LINT_OUT
@@ -128,6 +130,7 @@ describe('claude-code/v1', () => {
     expect(seen.env).toEqual({ GITHUB_TOKEN: 'ghp-secret', token: null })
     expect(calls.map((c) => c.name)).toEqual(['getArtifact', 'putBlob', 'publishArtifact'])
     expect(calls[2]!.args).toMatchObject({ kind: { kind: 'ProductRequirement' }, id: 'prd-create-001-write-prd-prd', content: { title: 'Checkout v2' }, inputs: [research], representations: [{ name: 'json', mediaType: 'application/json' }] })
+    expect(r.lines.filter((l) => l.event === 'log').map((l) => l.text)).toEqual(['thinking about [redacted]']) // the agent's stderr streams as log lines, credentials redacted; the JSON answer on stdout does not
   })
 
   it('reports a non-zero agent exit as agent_failed, retryable', async () => {
@@ -215,6 +218,7 @@ describe('codex/v1', () => {
     calls.length = 0
     const r = await adapter('codex', { id: 8, op: 'execute', payload: payload({ executor: { type: 'agent', configuration: { model: 'gpt-6-sol', sandbox: 'workspace-write' }, security: { networkAccess: 'deny', credentialBindings: [] } } }) }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'PRD' }, count: 1 } }) })
     expect(last(r).result.outputs.prd.ref.id).toBe('prd-create-001-write-prd-prd')
+    expect(r.lines.filter((l) => l.event === 'log').map((l) => l.text)).toEqual(['codex: reading the brief']) // stdout is the transcript: it streams as log lines
     const seen = JSON.parse(readFileSync(join(stubs, 'codex.json'), 'utf8'))
     expect(seen.args).toEqual(expect.arrayContaining(['exec', '--ephemeral', '-s', 'workspace-write', '-m', 'gpt-6-sol', '-c', 'sandbox_workspace_write.network_access=false', '-']))
     expect(seen.schema.properties.outputs.required).toEqual(['prd', 'count'])

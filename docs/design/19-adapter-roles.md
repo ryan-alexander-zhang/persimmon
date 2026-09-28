@@ -148,6 +148,11 @@ Result: a ValidationResult (`10-ports.md`). No `credentials`, no `security` (`14
 - `codex/v1` sends the output schema in OpenAI strict form: closed objects, every kept
   property required, optional properties dropped, `format` removed; the prompt states the
   formats. Found in implementation.
+- Agent output streams to the RunLog as `log` lines while the process runs: every whole line of
+  stderr, and of stdout when the driver marks it a transcript (`codex/v1`, whose answer is a file;
+  `claude-code/v1` answers on stdout, so only its stderr streams). Credentials redacted, at most
+  500 lines per attempt, the last one says so. `persimmon logs` shows what the agent did after a
+  success too. Found in UAT.
 
 ## Examples
 

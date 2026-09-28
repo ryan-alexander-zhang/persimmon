@@ -32,6 +32,7 @@ function stripNulls(v) {
 
 serve({
   adapterId: 'codex/v1',
+  transcript: true, // the answer is in answer.json; stdout is what the agent did
   configurationSchema: {
     type: 'object', additionalProperties: false,
     properties: { model: { type: 'string' }, sandbox: { enum: Object.keys(sandbox) }, profile: { type: 'string' } },

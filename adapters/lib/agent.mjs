@@ -23,7 +23,7 @@ const pidFile = (idempotencyKey) => join(pidDir(), encodeURIComponent(idempotenc
 /** `<NS>__<NAME>` upper case, `-` becomes `_`: the same grammar the engine uses for its own credential env. */
 const envName = (name) => name.toUpperCase().replaceAll('-', '_').replace('/', '__')
 
-/** driver: {adapterId, executorTypes?, contextKinds?, skillFormats?, configurationSchema, parametersSchema, command(ctx) -> [cmd, args], input?(ctx) -> stdin text, parse({stdout, dir, configuration}) -> {outputs, summary?}} */
+/** driver: {adapterId, executorTypes?, contextKinds?, skillFormats?, configurationSchema, parametersSchema, command(ctx) -> [cmd, args], input?(ctx) -> stdin text, parse({stdout, dir, configuration}) -> {outputs, summary?}, transcript?: true when stdout is the agent's transcript, not its answer} */
 export function serve(driver) {
   const out = (o) => process.stdout.write(JSON.stringify(o) + '\n')
   createInterface({ input: process.stdin }).once('line', async (line) => {
@@ -70,7 +70,7 @@ async function execute(driver, payload, log) {
     const stdin = driver.input ? driver.input(ctx) : await buildPrompt(task, inputs, context, call, skills)
     let stdout
     try {
-      stdout = await run(cmd, args, stdin, { credentials, deadline, idempotencyKey: taskRun.idempotencyKey, log })
+      stdout = await run(cmd, args, stdin, { credentials, deadline, idempotencyKey: taskRun.idempotencyKey, log, transcript: driver.transcript })
     } catch (e) {
       if (e.stdout?.trim()) driver.errorFrom?.(e.stdout) // throws the agent's own error message when it printed one
       throw e
@@ -164,8 +164,26 @@ function outputSchema(task) {
   }
 }
 
+/** Whole lines of the agent's own output become `log` stream lines, at most `maxLogLines` per attempt; the store keeps them beside the call (07-adapter.md). */
+export const maxLogLines = 500
+function lineLogger(log) {
+  let buf = ''
+  let n = 0
+  return (chunk) => {
+    buf += chunk
+    let i
+    while ((i = buf.indexOf('\n')) >= 0) {
+      const line = buf.slice(0, i)
+      buf = buf.slice(i + 1)
+      if (!line.trim()) continue
+      if (++n > maxLogLines) continue
+      log(n === maxLogLines ? `${line}\n[log capped at ${maxLogLines} lines]` : line)
+    }
+  }
+}
+
 /** One agent process per attempt; pid recorded for cancel; killed at the deadline, on cancel, or when this process is killed. */
-function run(cmd, args, prompt, { credentials, deadline, idempotencyKey, log }) {
+function run(cmd, args, prompt, { credentials, deadline, idempotencyKey, log, transcript }) {
   const env = { ...process.env }
   delete env.PERSIMMON_ADAPTER_TOKEN
   for (const [name, secret] of Object.entries(credentials ?? {})) env[envName(name)] = secret
@@ -185,8 +203,9 @@ function run(cmd, args, prompt, { credentials, deadline, idempotencyKey, log }) 
     const timer = left < Infinity ? setTimeout(() => ((timedOut = true), stop()), left) : undefined
     let stdout = ''
     let stderr = ''
-    child.stdout.setEncoding('utf8').on('data', (c) => (stdout += c))
-    child.stderr.setEncoding('utf8').on('data', (c) => (stderr += c))
+    const tap = lineLogger(log)
+    child.stdout.setEncoding('utf8').on('data', (c) => ((stdout += c), transcript && tap(c)))
+    child.stderr.setEncoding('utf8').on('data', (c) => ((stderr += c), tap(c)))
     child.on('spawn', () => writeFileSync(pid, String(child.pid)))
     child.on('error', (e) => {
       clearTimeout(timer)
@@ -200,8 +219,8 @@ function run(cmd, args, prompt, { credentials, deadline, idempotencyKey, log }) 
       if (mine()) unlinkSync(pid)
       if (timedOut) return reject(new AdapterError('timeout', `${cmd} exceeded the deadline`, true))
       if (cancelled) return reject(new AdapterError('cancelled', `${cmd} was cancelled`, false))
+      tap('\n')
       if (code !== 0) {
-        if (stderr.trim()) log(stderr.trim().split('\n').slice(-5).join('\n'))
         const e = new AdapterError('agent_failed', `${cmd} exited with ${code ?? signal}`, true)
         e.stdout = stdout // the driver may read a better message out of it
         return reject(e)
