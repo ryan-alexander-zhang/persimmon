@@ -26,7 +26,7 @@ function result(stdout) {
   if (!r) throw new AdapterError('agent_failed', 'claude printed no JSON result', true)
   if (r.is_error || r.subtype !== 'success') {
     const message = typeof r.result === 'string' ? r.result : String(r.subtype)
-    if (/authenticat|not logged in|login|api key/i.test(message)) throw new AdapterError('permission_denied', message, false) // a dead login never heals by retrying
+    if (/not logged in|failed to authenticate|authentication_error|invalid api key|invalid x-api-key/i.test(message)) throw new AdapterError('permission_denied', message, false) // the CLI's own login phrasing, not the agent's prose
     throw new AdapterError(r.subtype === 'error_max_turns' ? 'timeout' : 'agent_failed', message, true)
   }
   return r
@@ -80,7 +80,12 @@ serve({
   },
   parse({ stdout }) {
     const r = result(stdout)
-    return r.structured_output ?? JSON.parse(r.result)
+    if (r.structured_output) return r.structured_output
+    try {
+      return JSON.parse(r.result)
+    } catch {
+      throw new AdapterError('agent_failed', 'claude answered no structured output', true)
+    }
   },
   errorFrom(stdout) {
     result(stdout)
