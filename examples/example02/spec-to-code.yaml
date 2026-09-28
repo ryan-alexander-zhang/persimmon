@@ -126,6 +126,8 @@ spec:
       with the AC id. Run `npm run coverage` until every test passes and every metric is at least 90%.
       The `previous` input, when present, is the last Gate verdict: fix every finding in it first.
       Never run git. Publish an ImplementationReport: summary, the files you wrote, which test covers which AC.
+    context:
+      - {kind: artifact, input: spec}      # the spec text goes into the prompt; an input without a context entry is only a reference
     workspace: {path: app}
     parameters: {reasoningEffort: medium}
   timeout: 30m
