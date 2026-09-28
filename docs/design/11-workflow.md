@@ -62,6 +62,7 @@ Per-step phase, recorded in `WorkflowRun.status.steps.<id>` (`17-runs.md`):
 | `dispatch: all` | every `to` whose `when` is true or absent |
 | `dispatch: first` | the first such `to` in order |
 | `when` reads a `Skipped` step or an unfinished step's outputs | evaluates to false |
+| `steps.<id>.iterations` | how many iterations a finished `repeat` step ran; absent without `repeat` |
 | a step input reads an unfinished or `Skipped` step | absent; requires `onMissing: omit` (static) |
 | no `to` matches | `noMatch: fail` fails the run with `no_match`; `skip` skips every `to` step |
 | terminal Succeeded selected | wait for every activated step; then a step ended `Failed` whose Transition does not list `Failed` fails the run with `unconsumed_failure`; else evaluate `outputBindings`, a source absent fails with `output_unbound`; else Succeeded |
@@ -139,6 +140,8 @@ has no `repeat`; the run name already carries the enclosing iterations (`<parent
   named `<parent>-<step>-<n>`, so repeating the enclosing `iterationPath` doubled it in artifact
   ids (`...-rounds-1-rounds-1-implement-report`). `address.iterationPath` keeps the full path.
   Found in UAT.
+- `steps.<id>.iterations` is readable in `when` and in later steps' bindings once a `repeat` step
+  finished: a report step wanted the round count. Found in UAT.
 
 ## Examples
 

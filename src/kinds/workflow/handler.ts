@@ -82,13 +82,13 @@ export function workflowHandler(deps: HandlerDeps): HandlerImpl {
       }
 
       /** Outputs of a finished step, read at its used kind's stepContract paths on the child run. */
-      const stepOutputs = (id: string): { phase: string; outputs?: RuntimeValues; error?: ReconcileError } | undefined => {
+      const stepOutputs = (id: string): { phase: string; outputs?: RuntimeValues; error?: ReconcileError; iterations?: number } | undefined => {
         const st = steps[id]!
         if (!finished.has(st.phase) || st.phase === 'Skipped') return undefined
         const child = st.runRef && childByName.get(st.runRef.name)
         const contract = used.get(id)!.contract
         const outputs = child ? (readPath({ status: child.status }, contract.outputsValuePath) as RuntimeValues | undefined) : undefined
-        return { phase: st.phase, ...(outputs ? { outputs } : {}), ...(st.error ? { error: st.error } : {}) }
+        return { phase: st.phase, ...(outputs ? { outputs } : {}), ...(st.error ? { error: st.error } : {}), ...(st.iteration ? { iterations: st.iteration } : {}) } // iterations: how many rounds a repeat step ran
       }
       const sources = (extra: Partial<Sources> = {}): Sources => ({
         inputs: runInputs,

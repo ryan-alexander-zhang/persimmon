@@ -90,6 +90,12 @@ describe('bindings', () => {
     event: { artifact: { id: 'checkout-v2' }, content: { targetPrd: 'x' } },
   }
 
+  it('steps.<id>.iterations is typed at the site and read from a finished repeat step', () => {
+    const rounds = { ...sources, steps: { ...sources.steps, review: { ...sources.steps.review, iterations: 3 } } }
+    expect(bind({ n: { expression: 'steps.review.iterations' } }, rounds, site)).toEqual({ n: { kind: 'value', value: 3 } })
+    expect(bind({ ok: { expression: 'steps.review.iterations >= inputs.maxRounds' } }, rounds, site)).toEqual({ ok: { kind: 'value', value: true } })
+  })
+
   it('evaluates every design Binding shape', () => {
     const out = bind(Object.fromEntries(bindings.map((b, i) => [`p${i}`, b])), sources, site)
     expect(out).toEqual({
