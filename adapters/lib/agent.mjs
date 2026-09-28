@@ -167,7 +167,7 @@ function outputSchema(task) {
   }
 }
 
-/** Whole lines of the agent's own output become `log` stream lines, at most `maxLogLines` per attempt; the store keeps them beside the call (07-adapter.md). */
+/** Whole lines of the agent's own output become `log` stream lines, ANSI escapes stripped, at most `maxLogLines` per attempt; the store keeps them beside the call (07-adapter.md). */
 export const maxLogLines = 5000
 function lineLogger(log) {
   let buf = ''
@@ -176,7 +176,7 @@ function lineLogger(log) {
     buf += chunk
     let i
     while ((i = buf.indexOf('\n')) >= 0) {
-      const line = buf.slice(0, i)
+      const line = buf.slice(0, i).replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, '') // terminal colours mean nothing in a log
       buf = buf.slice(i + 1)
       if (!line.trim()) continue
       if (++n > maxLogLines) continue
