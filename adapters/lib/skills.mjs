@@ -3,7 +3,7 @@
 // anything that is not a regular file or a directory (a symlink, a device) is refused, so the digest pins what the agent reads.
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync } from 'node:fs'
+import { cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync } from 'node:fs'
 import { isAbsolute, join, posix, relative, resolve, sep } from 'node:path'
 import { AdapterError } from './agent.mjs'
 
@@ -68,5 +68,15 @@ export function fetchSkill(entry, cacheRoot) {
   if (relative(realpathSync(base), real).startsWith('..') || !lstatSync(real).isDirectory()) throw new AdapterError('invalid_input', `skill ${name}: locator.path leaves the bundle`, false)
   const actual = skillDigest(real)
   if (actual !== digest) throw new AdapterError('skill_digest_mismatch', `skill ${name}: bundle digest ${actual} differs from ${digest}`, false)
-  return real.split(sep).join(posix.sep)
+  if (source.provider !== 'file') return real.split(sep).join(posix.sep)
+  // a file bundle is copied into the cache under its digest, so the agent reads the bytes that were verified, not a directory being edited
+  const pinned = join(cacheRoot, `file-${digest.slice(7, 23)}`)
+  if (!existsSync(pinned)) {
+    mkdirSync(cacheRoot, { recursive: true })
+    const tmp = mkdtempSync(join(cacheRoot, 'copy-'))
+    cpSync(real, tmp, { recursive: true })
+    renameSync(tmp, pinned)
+  }
+  if (skillDigest(pinned) !== digest) throw new AdapterError('skill_digest_mismatch', `skill ${name}: cached bundle ${pinned} is damaged; remove it`, false)
+  return pinned.split(sep).join(posix.sep)
 }

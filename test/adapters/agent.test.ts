@@ -219,6 +219,18 @@ describe('claude-code/v1', () => {
     expect(last(cx).ok).toBe(true)
     expect(JSON.parse(readFileSync(join(stubs, 'codex.json'), 'utf8')).skill).toBe(true)
     expect(existsSync(join(cwd, '.agents', 'skills', 'prd-writer'))).toBe(false)
+    // a file bundle is verified, then copied into the cache under its digest: the link points at the copy
+    mkdirSync(join(cwd, 'skills', 'prd-writer'), { recursive: true })
+    writeFileSync(join(cwd, 'skills', 'prd-writer', 'SKILL.md'), '# local\n')
+    const local = { ...skill, source: { provider: 'file', type: 'directory', id: 'local', locator: { path: 'skills/prd-writer' }, version: '1' }, digest: skillDigest(join(cwd, 'skills', 'prd-writer')) }
+    const lr = await adapter('claude-code', { id: 47, op: 'execute', payload: payload({ context: [local] }) }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'S' }, count: 1 } }) })
+    expect(last(lr).ok).toBe(true)
+    expect(JSON.parse(readFileSync(join(stubs, 'claude.json'), 'utf8')).skill).toBe(true)
+    const pinned = join(cwd, '.persimmon', 'skills', `file-${local.digest.slice(7, 23)}`)
+    expect(readFileSync(join(pinned, 'SKILL.md'), 'utf8')).toBe('# local\n')
+    writeFileSync(join(cwd, 'skills', 'prd-writer', 'SKILL.md'), '# edited\n') // an edit after review: the declared digest no longer matches the directory
+    expect(last(await adapter('claude-code', { id: 48, op: 'execute', payload: payload({ context: [local] }) }))).toMatchObject({ ok: false, error: { code: 'skill_digest_mismatch' } })
+    expect(readFileSync(join(pinned, 'SKILL.md'), 'utf8')).toBe('# local\n') // the cache keeps the reviewed bytes
     // a real directory of the user's under the same name is never replaced
     mkdirSync(join(cwd, '.claude', 'skills', 'prd-writer'), { recursive: true })
     const clash = await adapter('claude-code', { id: 46, op: 'execute', payload: payload({ context: [skill] }) })

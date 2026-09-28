@@ -59,7 +59,8 @@ The engine never fetches or interprets a bundle.
 - Bundle digest for a directory, as the shipped agent Adapters compute it: sha256 over every
   regular file in sorted posix-path order, each fed as `<path>\0<bytes>\0`, `.git` excluded.
   `git` sources are fetched once per (remote, version) into `.persimmon/skills/<hash>`; `file`
-  sources resolve `locator.path` against the engine cwd. A bundle holding anything but regular
+  sources resolve `locator.path` against the engine cwd and, once verified, are copied into
+  `.persimmon/skills/file-<digest16>`, so the agent reads the bytes that matched the digest. A bundle holding anything but regular
   files and directories is refused; `locator.remote` is an https, ssh, git or file URL, an
   scp-style address or an absolute path, `version` a commit or ref name, so git never reads an
   option or an `ext::` transport from a Skill. Closes reference open question 3. Found in
@@ -69,6 +70,9 @@ The engine never fetches or interprets a bundle.
 - `persimmon digest <dir>` prints the bundle digest, so a Skill can be declared for a local
   directory without computing sha256 by hand; the CLI and the Adapters share the algorithm by
   test. Found in UAT.
+- A `file` Skill is cached by digest like a `git` one: the source directory is verified, then
+  copied; an edit made after the digest was declared fails the next attempt instead of reaching
+  the agent unpinned. Found in UAT.
 
 ## Examples
 
