@@ -69,6 +69,10 @@ describe('trigger Handler', () => {
     const res = handler.reconcile(input(t, signal(finished))) as ReconcileResult
     const create = res.actions[0] as Extract<Action, { type: 'createResource' }>
     expect(create.resource.spec).toMatchObject({ workflowRef: { kind: 'Workflow', name: 'planning-iteration' }, inputs: { approved: { kind: 'value', value: true }, mode: { kind: 'value', value: 'full' } }, timeout: '24h' })
+    // no run.timeout on the Trigger: the run carries none and the Workflow's applies
+    const bare = { ...t, spec: { ...t.spec, run: { workflowRef: t.spec.run.workflowRef, inputs: t.spec.run.inputs } } } as typeof t
+    const res2 = handler.reconcile(input(bare, signal(finished))) as ReconcileResult
+    expect((res2.actions[0] as Extract<Action, { type: 'createResource' }>).resource.spec).not.toHaveProperty('timeout')
     expect(create.resource.metadata.name).toBe(`on-prd-approved-${'a'.repeat(12)}`)
     const child = { ...finished, spec: { ...finished.spec, origin: { kind: 'parent' } } }
     expect(handler.reconcile(input(t, signal(child)))).toEqual({ actions: [] })

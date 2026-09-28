@@ -15,7 +15,7 @@ export type EventSelector =
 
 export interface TriggerSpec {
   event: EventSelector
-  run: { workflowRef: LocalDefinitionRef; inputs?: Record<string, Binding>; timeout: string }
+  run: { workflowRef: LocalDefinitionRef; inputs?: Record<string, Binding>; timeout?: string }
   enabled?: boolean
 }
 export type Trigger = Resource<TriggerSpec, { lastRun?: { ref: ObjectRef; eventId: string; at: string }; failures?: { eventId: string; at: string; error: ReconcileError }[] }>
@@ -135,7 +135,7 @@ export function triggerHandler(deps: HandlerDeps): HandlerImpl {
         spec: {
           workflowRef: t.spec.run.workflowRef,
           inputs,
-          timeout: t.spec.run.timeout,
+          ...(t.spec.run.timeout ? { timeout: t.spec.run.timeout } : {}), // absent: the Workflow's
           origin: { kind: 'trigger', triggerRef: { apiVersion: t.apiVersion, kind: t.kind, namespace: t.metadata.namespace as string, name: t.metadata.name, uid: t.metadata.uid as string }, eventId: event.eventId, ...(causationRef ? { causationRef } : {}) },
         },
       }

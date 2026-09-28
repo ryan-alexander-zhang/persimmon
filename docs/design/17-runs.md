@@ -26,7 +26,7 @@ true`; the others inherit the parent's snapshot.
 
 | Kind | Handler | spec | status |
 |---|---|---|---|
-| WorkflowRun | `workflow` | `workflowRef, inputs, timeout, origin, parent?` | `phase, steps, outputs?, error?, reason?, waitingReason?` |
+| WorkflowRun | `workflow` | `workflowRef, inputs, timeout?, origin, parent?` | `phase, steps, outputs?, error?, reason?, waitingReason?` |
 | TaskRun | `task` | `taskRef, address, deadline, inputs, context` | `phase, attempts[], outputs?, error?, actor?, waitingReason?` |
 | GateRun | `gate` | `gateRef, address, deadline, inputs` | `phase, outputs?, error?, validationRuns, waitingReason?` |
 | ValidationRun | `validator` | `validatorRef, gateRunRef, name, address, deadline, inputs` | `phase, result?, error?, taskRunRef?, waitingReason?` |
@@ -35,7 +35,7 @@ true`; the others inherit the parent's snapshot.
 |---|---|
 | `origin` | `{kind: manual, actor?}` \| `{kind: trigger, triggerRef, eventId, causationRef?}` \| `{kind: parent}` |
 | `parent` | `{workflowRunRef, stepRef, iterationPath}`; required with `origin.kind: parent`, forbidden otherwise |
-| `timeout` (WorkflowRun) | overrides the Workflow's; clock starts at `creationTimestamp` |
+| `timeout` (WorkflowRun) | optional; overrides the Workflow's `spec.timeout`; clock starts at `creationTimestamp` |
 | `address` | the Invocation address: `{workflowRunRef, stepRef, iterationPath, logicalExecutionId}`; `logicalExecutionId` = `<workflowRunName>/<own iteration>/<stepRef>`, double slash when the step has no `repeat` (`11-workflow.md`); a Validator's TaskRun has `stepRef` `<gateStepId>/<validatorName>` |
 | `deadline` | absolute RFC 3339, written by the creating Handler as min of the enclosing deadlines (`11-workflow.md`, `12-task.md`, `14-gate.md`) |
 | `steps` | `{<stepId>: {phase, runRef?, iteration?, error?}}`; one entry per declared step from Created; outputs are read from `runRef` at the used kind's `stepContract` paths, the latest iteration for `repeat` |
@@ -130,6 +130,9 @@ CancelRequested → `cancelResource` or `callAdapter(cancel)`; Cancelled.
 - `query` after `unknown` uses key `<logicalExecutionId>/<n>/query`.
 - Human completion is a Signal through the `signal` callback; no `complete` op.
 - `TaskRun.status.actor` from the completing Signal's `context.actor` (reference decision 22).
+- `WorkflowRun.spec.timeout` and `Trigger.spec.run.timeout` are optional: the `workflow` Handler
+  reads the Workflow's `spec.timeout` when the run carries none, so every writer (CLI, Trigger,
+  API) inherits it the same way. Found in UAT.
 
 ## Examples
 

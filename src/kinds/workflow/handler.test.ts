@@ -67,6 +67,11 @@ describe('workflow Handler', () => {
     const [research] = created(res)
     expect(research!.spec).toEqual({ taskRef: { kind: 'Task', name: 'research' }, address: { workflowRunRef: { apiVersion: 'persimmon.ai/v1', kind: 'WorkflowRun', namespace: 'demo', name: 'prd-create-001' }, stepRef: 'research', iterationPath: '', logicalExecutionId: 'prd-create-001//research' }, deadline: '2026-09-21T09:25:00Z', inputs: { repository: { kind: 'externalResource', ref: repo } }, context: [] })
     expect(res.actions.at(-1)).toEqual({ type: 'setTimer', key: 'deadline', at: '2026-09-21T11:00:00Z' })
+    // no run timeout: the Workflow's own (prd-create: 2h) sets the deadline
+    const noTimeout = run('prd-create', { repository: { kind: 'externalResource', ref: repo } }, 'r2')
+    delete (noTimeout.spec as { timeout?: string }).timeout
+    const res2 = handler.reconcile(input(noTimeout, { type: 'Created', dedupeKey: 'created' })) as ReconcileResult
+    expect(res2.actions.at(-1)).toEqual({ type: 'setTimer', key: 'deadline', at: '2026-09-21T11:00:00Z' })
     r = apply(r, res)
 
     clock = Date.parse('2026-09-21T10:00:00Z')

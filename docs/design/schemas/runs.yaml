@@ -61,14 +61,14 @@ $defs:
       metadata: {$ref: "#/$defs/RunMetadata"}
       spec:
         type: object
-        required: [workflowRef, inputs, timeout, origin]
+        required: [workflowRef, inputs, origin]
         additionalProperties: false
         properties:
           workflowRef:
             allOf: [{$ref: "resource.yaml#/$defs/LocalDefinitionRef"}, {properties: {kind: {const: Workflow}}}]
             x-persimmon-ref: {kinds: [Workflow]}
           inputs: {$ref: "ports.yaml#/$defs/RuntimeValues"}
-          timeout: {$ref: "ports.yaml#/$defs/Duration"}
+          timeout: {$ref: "ports.yaml#/$defs/Duration", description: "absent: the Workflow's spec.timeout"}
           origin: {$ref: "#/$defs/Origin"}
           parent:
             type: object

@@ -4665,7 +4665,6 @@
       "required": [
        "workflowRef",
        "inputs",
-       "timeout",
        "origin"
       ],
       "additionalProperties": false,
@@ -4693,7 +4692,8 @@
         "$ref": "ports.yaml#/$defs/RuntimeValues"
        },
        "timeout": {
-        "$ref": "ports.yaml#/$defs/Duration"
+        "$ref": "ports.yaml#/$defs/Duration",
+        "description": "absent: the Workflow's spec.timeout"
        },
        "origin": {
         "$ref": "#/$defs/Origin"
@@ -6215,8 +6215,7 @@
      "run": {
       "type": "object",
       "required": [
-       "workflowRef",
-       "timeout"
+       "workflowRef"
       ],
       "additionalProperties": false,
       "properties": {

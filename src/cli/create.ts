@@ -31,7 +31,7 @@ export async function run(cli: Cli, workflow: string, o: FollowOptions & { input
     apiVersion: 'persimmon.ai/v1',
     kind: 'WorkflowRun',
     metadata: { name: `${workflow.slice(0, 56)}-${randomBytes(3).toString('hex')}` }, // stays a DNS label
-    spec: { workflowRef: { kind: 'Workflow', name: workflow }, inputs, ...(o.timeout ? { timeout: o.timeout } : {}), origin: { kind: 'manual' } }, // timeout: the Workflow's unless --timeout
+    spec: { workflowRef: { kind: 'Workflow', name: workflow }, inputs, ...(o.timeout ? { timeout: o.timeout } : {}), origin: { kind: 'manual' } }, // timeout absent: the Workflow's (17-runs.md)
   }
   return store(cli, doc, o)
 }
@@ -52,8 +52,6 @@ async function store(cli: Cli, doc: Resource, o: FollowOptions): Promise<number>
     placeDoc(engine, doc, o)
     if (doc.kind === 'WorkflowRun') {
       const wf = workflowOf(engine, doc)
-      const spec = doc.spec as { timeout?: string }
-      spec.timeout ??= (wf?.spec as { timeout?: string } | undefined)?.timeout ?? '24h' // 24h only when the Workflow is missing; validation then reports it
       pathInputs(engine, wf, cli.cwd, doc)
       await artifactInputs(engine, wf, doc)
     }

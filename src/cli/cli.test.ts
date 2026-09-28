@@ -118,7 +118,7 @@ describe('persimmon CLI', () => {
     expect(out).toContain(`TaskRun/${name}-ask  Waiting human (.persimmon/inbox/${name}-ask.yaml)`)
     out = []
     expect(await run('get', `WorkflowRun/${name}`)).toBe(0)
-    expect(parse(out.join('\n')).spec.timeout).toBe('3h')
+    expect(parse(out.join('\n')).spec.timeout).toBeUndefined() // the Workflow's 3h applies in the Handler
   })
 
   it('create --follow drives a run to its terminal value and logs show the RunLog', async () => {
@@ -177,7 +177,7 @@ describe('persimmon CLI', () => {
     out = []
     expect(await run('get', `WorkflowRun/${name2}`)).toBe(0)
     expect(parse(out.join('\n')).spec.inputs.repository).toMatchObject({ kind: 'externalResource', ref: { provider: 'git', type: 'repository', id: 'persimmon', locator: { path: process.cwd() }, version: expect.stringMatching(/^[0-9a-f]{40}$/) } })
-    expect(parse(out.join('\n')).spec.timeout).toBe('2h') // no --timeout: the Workflow's own (prd-create: 2h)
+    expect(parse(out.join('\n')).spec.timeout).toBeUndefined() // no --timeout: the Handler uses the Workflow's (17-runs.md)
     // a revision document on an artifact port is stored and referenced
     const prdDoc = { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement', metadata: { name: 'spec-1.r1' }, spec: { identity: { id: 'spec-1', revision: 1 }, content: { title: 'Spec', problem: 'p', requirements: [{ id: 'R1', statement: 's' }] } } }
     out = []

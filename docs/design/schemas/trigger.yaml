@@ -25,7 +25,7 @@ $defs:
       event: {$ref: "#/$defs/EventSelector"}
       run:
         type: object
-        required: [workflowRef, timeout]
+        required: [workflowRef]
         additionalProperties: false
         properties:
           workflowRef:

@@ -55,7 +55,8 @@ export type Origin =
 export interface WorkflowRunSpec {
   workflowRef: LocalDefinitionRef
   inputs: RuntimeValues
-  timeout: string
+  /** Absent: the Workflow's `spec.timeout` (17-runs.md). */
+  timeout?: string
   origin: Origin
   parent?: { workflowRunRef: ObjectRef; stepRef: string; iterationPath: string }
 }

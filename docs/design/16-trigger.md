@@ -21,7 +21,7 @@ Outbox event ─▶ Trigger kind subscription ─▶ Signal {event, subject} to 
 | `event` selectors | per kind, below |
 | `run.workflowRef` | LocalDefinitionRef to a Workflow; resolved at run creation in the Trigger's Namespace, then Global |
 | `run.inputs` | optional; `{<port>: Binding}`; `fromEvent` and `literal` only |
-| `run.timeout` | required; Duration for the created run |
+| `run.timeout` | optional; Duration for the created run; absent: the Workflow's |
 | `enabled` | default true; false: Signals arrive and are ignored |
 
 | `event.kind` | Selectors | Outbox type | Roots for `fromEvent` (from the Signal's `subject`) |

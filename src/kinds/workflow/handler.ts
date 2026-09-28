@@ -67,7 +67,7 @@ export function workflowHandler(deps: HandlerDeps): HandlerImpl {
       const { workflow, used } = load(run)
       const spec = workflow.spec
       const ns = run.metadata.namespace as string
-      const runDeadline = new Date(Date.parse(run.metadata.creationTimestamp as string) + durationMs(run.spec.timeout))
+      const runDeadline = new Date(Date.parse(run.metadata.creationTimestamp as string) + durationMs(run.spec.timeout ?? spec.timeout)) // the run's own, else the Workflow's (17-runs.md)
       const stepsById = new Map(spec.steps.map((s) => [s.id, s]))
       const steps: Record<string, StepStatus> = structuredClone(status.steps)
       for (const s of spec.steps) steps[s.id] ??= { phase: 'Pending' }
