@@ -27,7 +27,7 @@ beforeAll(async () => {
   stub('claude', `
     const fs = require('node:fs'); let p = ''
     process.stdin.on('data', (c) => (p += c)).on('end', () => {
-      fs.writeFileSync(process.env.STUB_OUT + '/claude.json', JSON.stringify({ args: process.argv.slice(2), prompt: p, cwd: process.cwd(), note: fs.existsSync('NOTE.md'), env: { GITHUB_TOKEN: process.env.GITHUB_TOKEN ?? null, token: process.env.PERSIMMON_ADAPTER_TOKEN ?? null } }))
+      fs.writeFileSync(process.env.STUB_OUT + '/claude.json', JSON.stringify({ args: process.argv.slice(2), prompt: p, cwd: process.cwd(), note: fs.existsSync('NOTE.md'), skill: fs.existsSync('.claude/skills/prd-writer/SKILL.md'), env: { GITHUB_TOKEN: process.env.GITHUB_TOKEN ?? null, token: process.env.PERSIMMON_ADAPTER_TOKEN ?? null } }))
       if (process.env.STUB_SLEEP) return setTimeout(() => {}, Number(process.env.STUB_SLEEP))
       if (process.env.STUB_FAIL) { process.stderr.write('boom ' + process.env.GITHUB_TOKEN + '\\n' + (process.env.DEPLOY_KEY ?? '') + '\\n'); process.exit(1) }
       if (process.env.STUB_AUTH) { process.stdout.write(JSON.stringify({ type: 'result', subtype: 'success', is_error: true, result: 'Failed to authenticate' })); process.exit(1) }
@@ -42,7 +42,7 @@ beforeAll(async () => {
   stub('codex', `
     const fs = require('node:fs'); let p = ''; const a = process.argv.slice(2)
     process.stdin.on('data', (c) => (p += c)).on('end', () => {
-      fs.writeFileSync(process.env.STUB_OUT + '/codex.json', JSON.stringify({ args: a, prompt: p, schema: JSON.parse(fs.readFileSync(a[a.indexOf('--output-schema') + 1], 'utf8')) }))
+      fs.writeFileSync(process.env.STUB_OUT + '/codex.json', JSON.stringify({ args: a, prompt: p, skill: fs.existsSync('.agents/skills/prd-writer/SKILL.md'), schema: JSON.parse(fs.readFileSync(a[a.indexOf('--output-schema') + 1], 'utf8')) }))
       process.stdout.write('codex: reading the brief\\n')
       fs.writeFileSync(a[a.indexOf('-o') + 1], process.env.STUB_RESULT)
     })`)
@@ -209,10 +209,21 @@ describe('claude-code/v1', () => {
     const r = await adapter('claude-code', { id: 4, op: 'execute', payload: payload({ context: [skill] }) }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'S' }, count: 1 } }) })
     expect(last(r).ok).toBe(true)
     const seen = JSON.parse(readFileSync(join(stubs, 'claude.json'), 'utf8'))
-    const dir = seen.args[seen.args.indexOf('--add-dir') + 1] as string
-    expect(dir).toMatch(/\.persimmon\/skills\/[0-9a-f]{16}\/prd-writer$/)
-    expect(readFileSync(join(dir, 'SKILL.md'), 'utf8')).toContain('PRD writer')
-    expect(seen.prompt).toContain(`## Skill prd-writer\n\nRead \`${dir}/SKILL.md\``)
+    expect(seen.args).not.toContain('--add-dir')
+    expect(seen.skill).toBe(true) // linked into .claude/skills/<name> while the agent ran, from the verified cache
+    expect(existsSync(join(cwd, '.claude', 'skills', 'prd-writer'))).toBe(false) // and gone after
+    expect(readdirSync(join(cwd, '.persimmon', 'skills')).some((h) => existsSync(join(cwd, '.persimmon', 'skills', h, 'prd-writer', 'SKILL.md')))).toBe(true) // the cache stays
+    expect(seen.prompt).toContain('## Skill prd-writer\n\nThe skill `prd-writer` is installed at `.claude/skills/prd-writer` in the working directory.')
+    // codex gets the same skill under its own directory
+    const cx = await adapter('codex', { id: 45, op: 'execute', payload: payload({ executor: { type: 'agent', configuration: { model: 'gpt-6-sol', sandbox: 'workspace-write' }, security: { networkAccess: 'deny', credentialBindings: [] } }, context: [skill] }) }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'S' }, count: 1 } }) })
+    expect(last(cx).ok).toBe(true)
+    expect(JSON.parse(readFileSync(join(stubs, 'codex.json'), 'utf8')).skill).toBe(true)
+    expect(existsSync(join(cwd, '.agents', 'skills', 'prd-writer'))).toBe(false)
+    // a real directory of the user's under the same name is never replaced
+    mkdirSync(join(cwd, '.claude', 'skills', 'prd-writer'), { recursive: true })
+    const clash = await adapter('claude-code', { id: 46, op: 'execute', payload: payload({ context: [skill] }) })
+    expect(last(clash)).toMatchObject({ ok: false, error: { code: 'invalid_input', message: expect.stringContaining('is not a persimmon link') } })
+    rmSync(join(cwd, '.claude'), { recursive: true })
     // cached checkout, wrong digest: skill_digest_mismatch, never retried
     const bad = await adapter('claude-code', { id: 41, op: 'execute', payload: payload({ context: [{ ...skill, digest: 'sha256:' + 'c'.repeat(64) }] }) })
     expect(last(bad)).toMatchObject({ ok: false, error: { code: 'skill_digest_mismatch', retryable: false } })

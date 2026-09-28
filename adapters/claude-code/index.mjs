@@ -59,6 +59,7 @@ function transcript(line) {
 serve({
   adapterId: 'claude-code/v1',
   transcript,
+  skillDir: '.claude/skills', // where claude discovers repository skills
   configurationSchema: {
     type: 'object', additionalProperties: false,
     properties: {
@@ -69,9 +70,8 @@ serve({
     },
   },
   parametersSchema: { type: 'object', additionalProperties: false, properties: { effort: { enum: ['low', 'medium', 'high', 'xhigh', 'max'] } } },
-  command({ configuration: c, parameters: p, schema, skillDirs }) {
+  command({ configuration: c, parameters: p, schema }) {
     const args = ['-p', '--output-format', 'stream-json', '--verbose', '--no-session-persistence', '--json-schema', JSON.stringify(schema), ...sandbox[c.sandbox ?? 'workspace-write']]
-    for (const d of skillDirs) args.push('--add-dir', d) // skills live outside the working directory
     if (c.model) args.push('--model', c.model)
     if (c.agent) args.push('--agent', c.agent)
     if (c.allowedTools?.length) args.push('--allowedTools', ...c.allowedTools)

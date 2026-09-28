@@ -64,6 +64,8 @@ The engine never fetches or interprets a bundle.
   scp-style address or an absolute path, `version` a commit or ref name, so git never reads an
   option or an `ext::` transport from a Skill. Closes reference open question 3. Found in
   implementation.
+- The cache under `.persimmon/skills/<hash>` is the source of truth; what the agent sees is a
+  per-attempt link in its workspace's native skill directory (`19-adapter-roles.md`). Found in UAT.
 
 ## Examples
 

@@ -2,7 +2,7 @@
 // command line and parses its final answer; this file owns the protocol: prompt assembly from context,
 // structured output schema, artifact publication through the Engine callbacks, cancel by pid file.
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
 import { request } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -23,7 +23,7 @@ const pidFile = (idempotencyKey) => join(pidDir(), encodeURIComponent(idempotenc
 /** `<NS>__<NAME>` upper case, `-` becomes `_`: the same grammar the engine uses for its own credential env. */
 const envName = (name) => name.toUpperCase().replaceAll('-', '_').replace('/', '__')
 
-/** driver: {adapterId, executorTypes?, contextKinds?, skillFormats?, configurationSchema, parametersSchema, command(ctx) -> [cmd, args], input?(ctx) -> stdin text, parse({stdout, dir, configuration, workspace}) -> {outputs, summary?}, transcript?: true when stdout is the agent's transcript, or (line) -> text | undefined to turn a structured stdout line into a log line} */
+/** driver: {adapterId, executorTypes?, contextKinds?, skillFormats?, configurationSchema, parametersSchema, command(ctx) -> [cmd, args], input?(ctx) -> stdin text, skillDir?: where the CLI discovers skills, relative to the workspace (`.claude/skills`), parse({stdout, dir, configuration, workspace}) -> {outputs, summary?}, transcript?: true when stdout is the agent's transcript, or (line) -> text | undefined to turn a structured stdout line into a log line} */
 export function serve(driver) {
   const out = (o) => process.stdout.write(JSON.stringify(o) + '\n')
   createInterface({ input: process.stdin }).once('line', async (line) => {
@@ -64,12 +64,14 @@ async function execute(driver, payload, log) {
   if (workspace && !(existsSync(workspace) && statSync(workspace).isDirectory())) throw new AdapterError('invalid_input', `workspace ${workspace} is not a directory`, false)
   const schema = outputSchema(task)
   const dir = mkdtempSync(join(tmpdir(), 'persimmon-agent-'))
+  const links = [] // skill links made in the workspace for this attempt; removed after it
   let answer
   try {
     const skills = driver.input ? [] : resolveSkills(context, driver.skillFormats ?? ['claude-code-skill/v1'])
-    const ctx = { configuration, parameters: task.parameters ?? {}, schema, dir, payload, workspace: cwd, skillDirs: skills.map((s) => s.dir) }
+    links.push(...installSkills(skills, cwd, driver.skillDir ?? '.claude/skills'))
+    const ctx = { configuration, parameters: task.parameters ?? {}, schema, dir, payload, workspace: cwd }
     const [cmd, args] = driver.command(ctx)
-    const stdin = driver.input ? driver.input(ctx) : await buildPrompt(task, inputs, context, call, skills)
+    const stdin = driver.input ? driver.input(ctx) : await buildPrompt(task, inputs, context, call, driver.skillDir ?? '.claude/skills')
     let stdout
     try {
       stdout = await run(cmd, args, stdin, { credentials, deadline, idempotencyKey: taskRun.idempotencyKey, log, transcript: driver.transcript, cwd })
@@ -80,6 +82,7 @@ async function execute(driver, payload, log) {
     answer = driver.parse({ stdout, dir, configuration, workspace: cwd })
   } finally {
     rmSync(dir, { recursive: true, force: true })
+    for (const l of links) rmSync(l, { force: true })
   }
   if (!answer?.outputs || typeof answer.outputs !== 'object') throw new AdapterError('agent_failed', 'agent answer has no outputs object', true)
   const artifactInputs = Object.values(inputs).filter((v) => v.kind === 'artifact').map((v) => v.ref)
@@ -100,6 +103,26 @@ async function execute(driver, payload, log) {
   return result
 }
 
+/** Each verified skill appears where the CLI looks for skills: `<workspace>/<skillDir>/<name>` links to the cache. An entry that is not ours is never replaced. */
+function installSkills(skills, workspace, skillDir) {
+  const made = []
+  for (const { entry, dir } of skills) {
+    const at = join(workspace, skillDir, entry.name)
+    let st
+    try {
+      st = lstatSync(at)
+    } catch {
+      /* absent */
+    }
+    if (st && !st.isSymbolicLink()) throw new AdapterError('invalid_input', `skill ${entry.name}: ${skillDir}/${entry.name} exists in the workspace and is not a persimmon link`, false)
+    if (st) unlinkSync(at) // a stale link of ours from a killed attempt
+    mkdirSync(join(workspace, skillDir), { recursive: true })
+    symlinkSync(dir, at)
+    made.push(at)
+  }
+  return made
+}
+
 /** Every skill entry fetched and verified before the agent starts (15-prompt-skill.md); the format must be one this Adapter reads. */
 function resolveSkills(context, formats) {
   return context
@@ -111,13 +134,12 @@ function resolveSkills(context, formats) {
 }
 
 /** Context entries in order, then inputs, then instructions (12-task.md). Artifacts are fetched with the call token. */
-async function buildPrompt(task, inputs, context, call, skills = []) {
+async function buildPrompt(task, inputs, context, call, skillDir = '.claude/skills') {
   const parts = []
   for (const c of context) {
     switch (c.kind) {
       case 'skill': {
-        const { dir } = skills.find((s) => s.entry === c)
-        parts.push(`## Skill ${c.name}\n\nRead \`${dir}/SKILL.md\` and follow it for this task. The skill directory is \`${dir}\`.`)
+        parts.push(`## Skill ${c.name}\n\nThe skill \`${c.name}\` is installed at \`${skillDir}/${c.name}\` in the working directory. Use it for this task.`)
         break
       }
       case 'prompt':
