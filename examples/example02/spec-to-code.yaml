@@ -1,0 +1,305 @@
+# spec-to-code: a spec artifact -> code (codex) -> quality Gate (coverage >= 90%, every AC implemented and tested) -> loop -> HTML test report.
+# Install: persimmon apply spec-to-code.yaml    Run: persimmon run spec-to-code --input spec="{kind: artifact, ref: {apiVersion: engineering.persimmon.ai/v1, kind: AppSpec, namespace: default, id: todo-cli, revision: 1}}" --follow
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata: {name: appspecs.engineering.persimmon.ai}
+spec:
+  group: engineering.persimmon.ai
+  names: {kind: AppSpec, plural: appspecs}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [title, description, features]
+        properties:
+          title: {type: string}
+          description: {type: string}
+          features:
+            type: array
+            minItems: 1
+            items:
+              type: object
+              required: [id, name, acceptance]
+              properties:
+                id: {type: string}
+                name: {type: string}
+                acceptance:
+                  type: array
+                  minItems: 1
+                  items: {type: object, required: [id, statement], properties: {id: {type: string}, statement: {type: string}}}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"
+---
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata: {name: implementationreports.engineering.persimmon.ai}
+spec:
+  group: engineering.persimmon.ai
+  names: {kind: ImplementationReport, plural: implementationreports}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [summary, files, tests]
+        properties:
+          summary: {type: string}
+          files: {type: array, items: {type: string}, description: "paths written or changed, relative to app/"}
+          tests: {type: array, items: {type: object, required: [ac, file], properties: {ac: {type: string}, file: {type: string}, name: {type: string}}}, description: "which test covers which acceptance criterion"}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"
+---
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata: {name: testreports.engineering.persimmon.ai}
+spec:
+  group: engineering.persimmon.ai
+  names: {kind: TestReport, plural: testreports}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [passed, path, summary]
+        properties:
+          passed: {type: boolean}
+          path: {type: string, description: "the HTML file, relative to the project directory"}
+          summary: {type: string}
+          coverage: {type: string}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"
+---
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: coder}
+spec:
+  type: agent
+  adapter: codex/v1
+  configuration: {model: gpt-6-sol, sandbox: workspace-write}
+  security: {networkAccess: deny}       # dependencies are installed before the run; the sandbox lets it run npm test
+---
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: checker}
+spec:
+  type: agent
+  adapter: claude-code/v1
+  configuration: {model: claude-sonnet-5, sandbox: read-only}
+  security: {networkAccess: allowlist, allowedHosts: [api.anthropic.com]}
+---
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: reporter}
+spec:
+  type: agent
+  adapter: claude-code/v1
+  configuration: {model: claude-sonnet-5, sandbox: workspace-write}
+  security: {networkAccess: allowlist, allowedHosts: [api.anthropic.com]}
+---
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: coverage-script}
+spec:
+  type: script
+  adapter: subprocess/v1
+  configuration: {program: [node, scripts/coverage.mjs], resultFile: .persimmon/coverage-result.json}
+  security: {networkAccess: deny}
+---
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: implement}
+spec:
+  inputs:
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: AppSpec}}}
+    previous: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+  outputs:
+    report: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ImplementationReport}}}
+  executorRef: {kind: Executor, name: coder}
+  action:
+    instructions: |
+      Implement the spec in ./app (Node ESM, no dependencies; vitest is installed there). Source under app/src,
+      tests under app/test/*.test.mjs, one test per acceptance criterion, its name starting with the AC id.
+      Run `npm run coverage` inside app until every test passes and every metric is at least 90%.
+      The `previous` input, when present, is the last Gate verdict: fix every finding in it first.
+      Publish an ImplementationReport: summary, the files you wrote, and which test covers which AC.
+    parameters: {reasoningEffort: medium}
+  timeout: 30m
+  sideEffects: idempotent
+---
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: coverage-check}
+spec:
+  inputs:
+    report: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ImplementationReport}}}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
+  executorRef: {kind: Executor, name: coverage-script}
+  action:
+    instructions: "Run the tests with coverage; pass when every metric is at least 90%."
+  timeout: 10m
+  sideEffects: idempotent
+---
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: ac-check}
+spec:
+  inputs:
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: AppSpec}}}
+    report: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ImplementationReport}}}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
+  executorRef: {kind: Executor, name: checker}
+  action:
+    instructions: |
+      Read the code and tests in ./app. For every acceptance criterion in the spec decide: is it implemented,
+      and is there a test that verifies exactly it? Do not trust the report; read the files.
+      Answer a ValidationResult: passed only when every AC is implemented and tested; one finding per
+      unmet AC, severity error, code = the AC id, message = what is missing. evidence may be empty.
+    context:
+      - {kind: artifact, input: spec}
+      - {kind: artifact, input: report}
+    parameters: {effort: medium}
+  timeout: 15m
+  sideEffects: none
+---
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: write-report}
+spec:
+  inputs:
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: AppSpec}}}
+    report: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ImplementationReport}}}
+    verdict: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
+  outputs:
+    testReport: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: TestReport}}}
+  executorRef: {kind: Executor, name: reporter}
+  action:
+    instructions: |
+      Write a self-contained HTML test report to reports/test-report.html (relative to the current directory;
+      create the directory). Sections: verdict (passed or not), coverage numbers from the
+      coverage validator finding, one table row per acceptance criterion with its test and status from the
+      acceptance validator, and the implementation summary. Plain HTML and inline CSS, no scripts.
+      Then publish a TestReport: passed, path, summary, coverage.
+    context:
+      - {kind: artifact, input: spec}
+      - {kind: artifact, input: report}
+    parameters: {effort: low}
+  timeout: 15m
+  sideEffects: idempotent
+---
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: coverage}
+spec:
+  inputs:
+    report: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ImplementationReport}}}
+  evaluator: {type: task, taskRef: {kind: Task, name: coverage-check}, resultOutput: result}
+  timeout: 10m
+---
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: acceptance}
+spec:
+  inputs:
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: AppSpec}}}
+    report: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ImplementationReport}}}
+  evaluator: {type: task, taskRef: {kind: Task, name: ac-check}, resultOutput: result}
+  timeout: 15m
+---
+apiVersion: persimmon.ai/v1
+kind: Gate
+metadata: {name: quality-gate}
+spec:
+  inputs:
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: AppSpec}}}
+    report: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ImplementationReport}}}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
+  validators:
+    - name: coverage
+      ref: {kind: Validator, name: coverage}
+      inputs: {report: {fromInput: report}}
+    - name: acceptance
+      ref: {kind: Validator, name: acceptance}
+      inputs: {spec: {fromInput: spec}, report: {fromInput: report}}
+  policy: {strategy: all}
+  timeout: 30m
+---
+# One round: implement, then the Gate. Succeeds with passed false when the Gate rejects; the outer loop decides.
+apiVersion: persimmon.ai/v1
+kind: Workflow
+metadata: {name: code-round}
+spec:
+  inputs:
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: AppSpec}}}
+    previous: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+  outputs:
+    report: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ImplementationReport}}}
+    verdict: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
+    passed: {type: {kind: value, schema: {type: boolean}}}
+  outputBindings:
+    report: {fromStep: {stepRef: implement, output: report}}
+    verdict: {fromStep: {stepRef: gate, output: result}}
+    passed: {expression: 'steps.gate.outputs.result.passed'}
+  entry: [implement]
+  steps:
+    - id: implement
+      uses: {kind: Task, name: implement}
+      inputs: {spec: {fromInput: spec}, previous: {fromInput: previous, onMissing: omit}}
+      timeout: 35m
+    - id: gate
+      uses: {kind: Gate, name: quality-gate}
+      inputs: {spec: {fromInput: spec}, report: {fromStep: {stepRef: implement, output: report}}}
+      timeout: 35m
+  transitions:
+    - {id: to-gate, from: [{stepRef: implement, outcomes: [Succeeded]}], to: [{stepRef: gate}]}
+    - {id: done, from: [{stepRef: gate, outcomes: [Succeeded]}], to: [{terminal: Succeeded}]}
+  timeout: 2h
+---
+apiVersion: persimmon.ai/v1
+kind: Workflow
+metadata: {name: spec-to-code}
+spec:
+  inputs:
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: AppSpec}}}
+    maxRounds: {type: {kind: value, schema: {type: integer, minimum: 1}}, required: false, default: {kind: value, value: 3}}
+  outputs:
+    passed: {type: {kind: value, schema: {type: boolean}}}
+    testReport: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: TestReport}}}
+  outputBindings:
+    passed: {fromStep: {stepRef: rounds, output: passed}}
+    testReport: {fromStep: {stepRef: report, output: testReport}}
+  entry: [rounds]
+  steps:
+    - id: rounds
+      uses: {kind: Workflow, name: code-round}
+      inputs: {spec: {fromInput: spec}, previous: {fromState: previous, onMissing: omit}}
+      timeout: 6h
+      repeat:
+        state:
+          previous: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+        initial: {}
+        next: {previous: {fromIterationOutput: verdict}}
+        until: 'iteration.outputs.passed || iteration.index >= inputs.maxRounds'
+        maxIterations: 10
+    - id: report
+      uses: {kind: Task, name: write-report}
+      inputs:
+        spec: {fromInput: spec}
+        report: {fromStep: {stepRef: rounds, output: report}}
+        verdict: {fromStep: {stepRef: rounds, output: verdict}}
+      timeout: 20m
+  transitions:
+    - {id: to-report, from: [{stepRef: rounds, outcomes: [Succeeded]}], to: [{stepRef: report}]}
+    - id: done
+      from: [{stepRef: report, outcomes: [Succeeded]}]
+      to:
+        - {terminal: Succeeded, when: 'steps.rounds.outputs.passed == true'}
+        - {terminal: Failed, reason: quality_not_met}
+      dispatch: first
+  timeout: 8h

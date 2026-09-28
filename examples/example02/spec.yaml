@@ -1,0 +1,27 @@
+# The spec artifact, revision 1. `persimmon create spec.yaml` stores it; the Workflow takes it as input.
+apiVersion: engineering.persimmon.ai/v1
+kind: AppSpec
+metadata: {name: todo-cli.r1}
+spec:
+  identity: {id: todo-cli, revision: 1}
+  content:
+    title: Todo CLI
+    description: >
+      A command-line todo list stored in a JSON file. Node ESM, no dependencies.
+      Entry point src/cli.mjs; the logic lives in src/todo.mjs so tests import it directly.
+    features:
+      - id: F1
+        name: Add a todo
+        acceptance:
+          - {id: F1-AC1, statement: "`todo add <text>` appends an item with a new numeric id and prints the id."}
+          - {id: F1-AC2, statement: "Adding an empty text fails with exit code 1 and the message `text required`."}
+      - id: F2
+        name: List todos
+        acceptance:
+          - {id: F2-AC1, statement: "`todo list` prints one line per item: id, `[x]` when done else `[ ]`, text."}
+          - {id: F2-AC2, statement: "An empty list prints `no todos`."}
+      - id: F3
+        name: Mark done
+        acceptance:
+          - {id: F3-AC1, statement: "`todo done <id>` marks the item done and prints `done <id>`."}
+          - {id: F3-AC2, statement: "An unknown id fails with exit code 1 and the message `no todo <id>`."}
