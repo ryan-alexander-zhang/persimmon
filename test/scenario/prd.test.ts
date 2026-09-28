@@ -49,7 +49,8 @@ describe('scenario: PRD lifecycle', () => {
     const wr = { apiVersion: 'persimmon.ai/v1', kind: 'WorkflowRun', metadata: { name: 'prd-001' }, spec: { workflowRef: { kind: 'Workflow', name: 'prd-create' }, inputs: { repository: { kind: 'externalResource', ref: repo } }, timeout: '1h', origin: { kind: 'manual' } } }
     out = []
     expect(await runCli(['create', file('run.yaml', wr), '--follow'], cli())).toBe(0)
-    expect(out.at(-1)).toBe('WorkflowRun/prd-001  Succeeded')
+    expect(out).toContain('WorkflowRun   prd-001   Succeeded')
+    expect(out.at(-1)).toMatch(/^ {2}prd\s+ProductRequirement\/write-prd-productrequirement\.r1$/) // follow ends with the tree and its outputs
     out = []
     expect(await run('tree', 'WorkflowRun/prd-001')).toBe(0)
     const plain = out.map((l) => l.replace(/\s+\d+[smh]\S*$/, '').replace(/\s+/g, ' ').trimEnd()) // padding and elapsed time vary
