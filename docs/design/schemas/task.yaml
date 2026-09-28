@@ -37,6 +37,12 @@ $defs:
       instructions: {type: string, minLength: 1}
       context: {type: array, items: {$ref: "#/$defs/ContextEntry"}}
       parameters: {type: object}
+      workspace:
+        type: object
+        additionalProperties: false
+        oneOf:
+          - {required: [path], properties: {path: {type: string, minLength: 1}}}
+          - {required: [input], properties: {input: {$ref: "ports.yaml#/$defs/PortName"}}}
 
   ContextEntry:
     type: object

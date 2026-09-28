@@ -25,6 +25,7 @@ Task ── executorRef ──▶ Executor ── adapter ──▶ Adapter (rol
 | `action.instructions` | text; no templating |
 | `action.context[]` | ordered Context entries |
 | `action.parameters` | object; validated against the Executor's adapter `describe.parametersSchema` |
+| `action.workspace` | optional; `{path}` relative to the project directory, or `{input}` naming an `externalResource` input whose `ref.locator.path` is a directory. The attempt's working directory: the agent's cwd and sandbox root, the root `file` context paths point into, a script's cwd and `resultFile` root. Absent: the project directory |
 | `timeout` | Duration per attempt |
 | `retryPolicy` | optional RetryPolicy; absent means one attempt |
 | `sideEffects` | `none` \| `idempotent` \| `nonIdempotent`; `unknown_result` is retried only with `none` |
@@ -84,6 +85,7 @@ Anything else fails the attempt with `schema_violation`.
 | `executorRef`, `prompt.ref`, `skill.ref` resolve | `x-persimmon-ref` (`04-snapshot.md`) |
 | the Executor's adapter is reachable and Ready | `13-executor.md` |
 | `action.parameters` validates against `describe.parametersSchema` | static checker |
+| `action.workspace.input` names an `externalResource` input; at run time its `locator.path` is a directory, else `invalid_input` | static checker; task Handler |
 | every `context.kind` ∈ adapter `describe.contextKinds` | static checker |
 | `file.input` is an `externalResource` port; `artifact.input` is an `artifact` port | static checker |
 | the referenced Skill's `format` ∈ adapter `describe.skillFormats` | static checker |
@@ -108,6 +110,10 @@ Anything else fails the attempt with `schema_violation`.
 - Attempt indices and `idempotencyKey` suffixes are 1-based.
 - Codes used: `invalid_input`, `schema_violation`, `timeout`, `unknown_result`,
   `permission_denied` from Layer 0; `adapter_unavailable` as a warning code.
+- `action.workspace` names where an attempt works. Without it the agent inherited the engine's cwd,
+  so a coder run from a subdirectory of a checkout found that checkout's `.git` and `AGENTS.md`
+  and committed to it. The workspace is the Task's, not the Executor's: it is what the work
+  touches, not who does it; an Executor-level cap is roadmap. Found in UAT.
 
 ## Examples
 

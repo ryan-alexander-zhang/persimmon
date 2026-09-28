@@ -80,6 +80,7 @@ $defs:
       inputs: {$ref: "ports.yaml#/$defs/RuntimeValues"}
       context: {$ref: "runs.yaml#/$defs/ResolvedContext"}
       deadline: {type: string, format: date-time}
+      workspace: {type: string, minLength: 1}
       credentials: {type: object, propertyNames: {$ref: "store.yaml#/$defs/CredentialName"}, additionalProperties: {type: string}}
       engine: {$ref: "adapter.yaml#/$defs/Engine"}
 

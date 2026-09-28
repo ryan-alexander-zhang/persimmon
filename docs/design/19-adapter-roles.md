@@ -38,6 +38,7 @@ Validator.evaluator.adapter ─▶ Adapter role evaluator: describe | evaluate
 | `inputs` | `{<port>: RuntimeValue}` |
 | `context[]` | resolved entries, in order (`12-task.md`, `15-prompt-skill.md`) |
 | `deadline` | RFC 3339 |
+| `workspace` | absolute path when the Task declares `action.workspace`; the Adapter runs the attempt there, `invalid_input` when it is not a directory; absent means the Adapter's own cwd |
 | `credentials` | `{<name>: secret}` for `security.credentialBindings`; required, `{}` when none |
 | `engine` | `{endpoint, token}`; call token |
 
@@ -154,6 +155,9 @@ Result: a ValidationResult (`10-ports.md`). No `credentials`, no `security` (`14
   5000 lines per attempt (a coding agent's transcript with tool output runs past 500), the last one
   says so. `persimmon logs` shows what the agent did after a
   success too. Found in UAT.
+- The shipped Adapters spawn the agent or program with `cwd: payload.workspace`; `subprocess/v1`
+  resolves `resultFile` against it. `.persimmon/` state (pid files, skills cache, inbox) stays under
+  the engine's cwd. Found in UAT.
 
 ## Examples
 
