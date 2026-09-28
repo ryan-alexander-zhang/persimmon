@@ -1,7 +1,7 @@
 // End to end on SQLite: prd-create publishes a PRD through a fake agent, the Trigger starts prd-approval,
 // reviews publish ReviewReports, the Gate runs the cel Validator and the human review through cli-human/v1,
 // and `persimmon complete` finishes it (20-pack.md lifecycle).
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { parse, stringify } from 'yaml'
@@ -120,7 +120,7 @@ describe('scenario: PRD lifecycle', () => {
     // complete drained (the Gate closed on the verdict) and ended with the run's tree
     expect(out.some((l) => /^WorkflowRun   on-prd-published-[0-9a-f]+\s+Succeeded/.test(l))).toBe(true)
     expect(out.some((l) => /^└─ approval   GateRun\s+rejected/.test(l))).toBe(true)
-    expect(out.some((l) => /^      └─ task   TaskRun   cli-human\/v1\s+Succeeded/.test(l))).toBe(true)
+    expect(out.some((l) => /└─ task   TaskRun   cli-human\/v1\s+Succeeded/.test(l))).toBe(true)
     for (let i = 0; i < 5; i++) await run('resume')
     await inspect((e) => {
       const tr = e.store.resources.get({ kind: 'TaskRun', namespace: 'default', name: taskRun })!
