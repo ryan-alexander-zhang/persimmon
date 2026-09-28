@@ -5928,27 +5928,25 @@
      "workspace": {
       "type": "object",
       "additionalProperties": false,
+      "properties": {
+       "path": {
+        "type": "string",
+        "minLength": 1
+       },
+       "input": {
+        "$ref": "ports.yaml#/$defs/PortName"
+       }
+      },
       "oneOf": [
        {
         "required": [
          "path"
-        ],
-        "properties": {
-         "path": {
-          "type": "string",
-          "minLength": 1
-         }
-        }
+        ]
        },
        {
         "required": [
          "input"
-        ],
-        "properties": {
-         "input": {
-          "$ref": "ports.yaml#/$defs/PortName"
-         }
-        }
+        ]
        }
       ]
      }
