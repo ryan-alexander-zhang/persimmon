@@ -52,13 +52,16 @@ describe('scenario: PRD lifecycle', () => {
     expect(out.at(-1)).toBe('WorkflowRun/prd-001  Succeeded')
     out = []
     expect(await run('tree', 'WorkflowRun/prd-001')).toBe(0)
-    expect(out).toEqual([
-      'WorkflowRun/prd-001  Succeeded',
-      '  ProductRequirement/write-prd-productrequirement.r1', // the run's own outputs, then the runs it owns with theirs
-      '  TaskRun/prd-001-research  Succeeded',
-      '    ResearchReport/research-researchreport.r1',
-      '  TaskRun/prd-001-write-prd  Succeeded',
-      '    ProductRequirement/write-prd-productrequirement.r1',
+    const plain = out.map((l) => l.replace(/\s+\d+[smh]\S*$/, '').replace(/\s+/g, ' ').trimEnd()) // padding and elapsed time vary
+    expect(plain).toEqual([
+      'WorkflowRun prd-001 Succeeded',
+      '├─ research TaskRun claude-code/v1 Succeeded', // label = name minus the owner's; kind; the Adapter behind it
+      '│ ResearchReport/research-researchreport.r1', // what it published, as get takes it
+      '└─ write-prd TaskRun claude-code/v1 Succeeded',
+      ' ProductRequirement/write-prd-productrequirement.r1',
+      '',
+      'outputs',
+      ' prd ProductRequirement/write-prd-productrequirement.r1', // the run's declared outputs
     ])
 
     await inspect((e) => {

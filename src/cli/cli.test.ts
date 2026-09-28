@@ -142,9 +142,11 @@ describe('persimmon CLI', () => {
     expect(out.join('\n')).toMatch(/type: AdapterFinished/)
     out = []
     expect(await run('tree', 'WorkflowRun/demo-001')).toBe(0)
-    expect(out[0]).toMatch(/^WorkflowRun\/demo-001  Failed no_progress/)
-    expect(out[1]).toMatch(/^  TaskRun\/demo-001-research  Failed schema_violation/) // owned runs indented under their owner
-    expect(out).toHaveLength(2)
+    expect(out[0]).toMatch(/^WorkflowRun   demo-001\s+Failed\s+\d+s$/)
+    expect(out[1]).toBe('   no_progress: every activated step finished and no terminal was selected') // the error under the run
+    expect(out[2]).toMatch(/^└─ research   TaskRun   claude-code\/v1\s+Failed\s+\d+s$/) // owned runs branch under their owner
+    expect(out[3]).toMatch(/^      schema_violation: /)
+    expect(out).toHaveLength(4)
     out = []
     expect(await run('resume')).toBe(0)
     expect(out).toEqual(['open events: 0'])

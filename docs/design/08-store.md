@@ -101,7 +101,7 @@ A Namespaced Resource may bind only its own Namespace's names and Global names.
 | `persimmon signal <kind>/<name> --payload <file> [--event-id <id>]` | Signal `{source: api}` as the local Actor; id generated when absent |
 | `persimmon resume` | redeliver unacked Events and outstanding calls, drain the Outbox |
 | `persimmon get` · `describe` · `logs` | read Resources, status, RunLog |
-| `persimmon tree <kind>/<name>` | a run and every run it owns, nested by `ownerReferences`, oldest first, one line each with its phase; under each run its outputs: an artifact as `<Kind>/<id>.r<n>`, a value in short form |
+| `persimmon tree <kind>/<name>` | a run and every run it owns, nested by `ownerReferences`, oldest first; a child is labelled by its name minus its owner's, then its kind, then a TaskRun's Adapter; right column: phase (`passed` \| `rejected` for a Gate or Validator verdict) and elapsed time; under a run: its error, the `complete` command it waits for, a rejected Validator's findings, the artifacts a TaskRun published as `<Kind>/<id>.r<n>`; a footer lists the root's outputs |
 | `persimmon init` | local mode: create `.persimmon/`, apply the SDLC pack (`20-pack.md`) |
 | `persimmon complete <taskRun> --file <result.yaml>` | local mode: `signal` for a `cli-human/v1` attempt as the local Actor |
 | `persimmon delete <kind>/<name>` | refused while referenced (`00-resource.md`) |
