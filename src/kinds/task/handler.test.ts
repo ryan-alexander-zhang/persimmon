@@ -26,7 +26,8 @@ describe('retry policy', () => {
     expect(shouldRetry({ ...policy, retryOn: ['schema_violation'] }, 1, { code: 'schema_violation', message: '', retryable: true }, 'none')).toBe(false)
     expect(shouldRetry(policy, 1, { code: 'other', message: '', retryable: true }, 'none')).toBe(true)
     expect(shouldRetry(policy, 1, { code: 'other', message: '', retryable: false }, 'none')).toBe(false)
-    expect(shouldRetry(policy, 1, { code: 'unknown_result', message: '', retryable: true }, 'idempotent')).toBe(false)
+    expect(shouldRetry(policy, 1, { code: 'unknown_result', message: '', retryable: true }, 'idempotent')).toBe(true) // re-execution is safe
+    expect(shouldRetry(policy, 1, { code: 'unknown_result', message: '', retryable: true }, 'nonIdempotent')).toBe(false)
     expect(shouldRetry(undefined, 1, { code: 'rate_limit', message: '', retryable: true }, 'none')).toBe(false)
   })
   it('computes backoff', () => {

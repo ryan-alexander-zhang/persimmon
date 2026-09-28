@@ -28,7 +28,7 @@ Task ── executorRef ──▶ Executor ── adapter ──▶ Adapter (rol
 | `action.workspace` | optional; `{path}` relative to the project directory, or `{input}` naming an `externalResource` input whose `ref.locator.path` is a directory. The attempt's working directory: the agent's cwd and sandbox root, the root `file` context paths point into, a script's cwd and `resultFile` root. Absent: the project directory |
 | `timeout` | Duration per attempt |
 | `retryPolicy` | optional RetryPolicy; absent means one attempt |
-| `sideEffects` | `none` \| `idempotent` \| `nonIdempotent`; `unknown_result` is retried only with `none` |
+| `sideEffects` | `none` \| `idempotent` \| `nonIdempotent`; `unknown_result` is retried unless `nonIdempotent` |
 
 Step contract: `inputsPath: spec.inputs`, `outputsPath: spec.outputs`, `runKind: TaskRun`,
 `phasePath: status.phase`, `outputsValuePath: status.outputs`, `errorPath: status.error`.
@@ -90,7 +90,7 @@ Anything else fails the attempt with `schema_violation`.
 | `file.input` is an `externalResource` port; `artifact.input` is an `artifact` port | static checker |
 | the referenced Skill's `format` ∈ adapter `describe.skillFormats` | static checker |
 | `retryOn ∩ abortOn = ∅`; the three never-retried codes ∉ `retryOn` | static checker |
-| `unknown_result` retried only when `sideEffects: none`; `retryPolicy` cannot override | `task` handler (`17-runs.md`) |
+| `unknown_result` retried unless `sideEffects: nonIdempotent`; `retryPolicy` cannot override | `task` handler (`17-runs.md`) |
 | `file` ref without `version` at attempt start | `task` handler: `invalid_input` |
 
 ## Decisions
@@ -114,6 +114,10 @@ Anything else fails the attempt with `schema_violation`.
   so a coder run from a subdirectory of a checkout found that checkout's `.git` and `AGENTS.md`
   and committed to it. The workspace is the Task's, not the Executor's: it is what the work
   touches, not who does it; an Executor-level cap is roadmap. Found in UAT.
+- `unknown_result` is retried for `none` and `idempotent`, refused for `nonIdempotent`. The earlier
+  rule (only `none`) made `idempotent` behave like `nonIdempotent`, the one place `sideEffects` is
+  read; and in local mode a killed engine kills its stdio Adapter and agent, so a resumed call with
+  no answer had done nothing, yet an `idempotent` Task failed for good. Found in UAT.
 
 ## Examples
 

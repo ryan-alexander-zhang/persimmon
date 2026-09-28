@@ -68,7 +68,7 @@ Terminal selection follows `11-workflow.md`; Succeeded evaluates `outputBindings
 | AdapterFinished succeeded, result is HumanAck | `attempts[n].acknowledged`; Waiting `human` |
 | AdapterFinished succeeded, result is a TaskResult | validate: exactly the declared outputs, types equal, every artifact in `context.staged` for this key; `commitScope(key)`; `outputs`; Succeeded. Invalid → as failed `schema_violation` |
 | AdapterFinished failed, or TimerFired(attempt) | `abandonScope(key)`; `clearTimer(attempt)`; another attempt allowed (`12-task.md`; `timeout` is the attempt's code) → `setTimer(backoff)`, Waiting `retryBackoff`; else Failed with the error |
-| AdapterFinished unknown | acknowledged attempt: no-op; else `describe.supports.query` → `callAdapter(query, key: <logicalExecutionId>/<n>/query)`, mapped per `19-adapter-roles.md`; else failed `unknown_result`, retryable only with `sideEffects: none` |
+| AdapterFinished unknown | acknowledged attempt: no-op; else `describe.supports.query` → `callAdapter(query, key: <logicalExecutionId>/<n>/query)`, mapped per `19-adapter-roles.md`; else failed `unknown_result`, retryable unless `sideEffects: nonIdempotent` |
 | TimerFired(backoff) | attempt n+1 as Created |
 | TimerFired(deadline) | `callAdapter(cancel)` if `supports.cancel`; `abandonScope`; Failed `timeout` |
 | Signal (human completion) | `context.actor` → `status.actor`; body `{taskResult, publish[]}`; `publishArtifact` per `publish[]` into this reconcile, outputs filled from the returned refs; then validate and Succeeded as for a TaskResult |

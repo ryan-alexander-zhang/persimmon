@@ -6,7 +6,7 @@ import { neverRetried, type RetryPolicy, type SideEffects } from './types.js'
 export function shouldRetry(policy: RetryPolicy | undefined, index: number, error: ReconcileError, sideEffects: SideEffects): boolean {
   if (!policy || index >= policy.maxAttempts) return false
   if (neverRetried.has(error.code)) return false
-  if (error.code === 'unknown_result') return sideEffects === 'none'
+  if (error.code === 'unknown_result') return sideEffects !== 'nonIdempotent' // re-execution is safe unless the Task says otherwise (12-task.md)
   if (policy.abortOn?.includes(error.code)) return false
   if (policy.retryOn?.includes(error.code)) return true
   return error.retryable

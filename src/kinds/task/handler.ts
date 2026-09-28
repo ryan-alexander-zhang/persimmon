@@ -267,7 +267,7 @@ export function taskHandler(deps: HandlerDeps): HandlerImpl {
           const marked: Attempt = { ...a, state: 'unknown' }
           return { statusPatch: patch({ phase: 'Waiting', waitingReason: 'adapter', attempts: [...attempts.slice(0, -1), marked] }), actions: query(marked).actions }
         }
-        return attemptFailed(a, err('unknown_result', 'no recorded answer', load(run).task.spec.sideEffects === 'none'))
+        return attemptFailed(a, err('unknown_result', 'no recorded answer', load(run).task.spec.sideEffects !== 'nonIdempotent'))
       }
 
       function query(a: Attempt): ReconcileResult {
@@ -276,12 +276,12 @@ export function taskHandler(deps: HandlerDeps): HandlerImpl {
       }
 
       function onQuery(a: Attempt, p: AdapterFinishedPayload): ReconcileResult {
-        if (p.state !== 'succeeded') return attemptFailed({ ...a, state: 'running' }, err('unknown_result', 'query failed', load(run).task.spec.sideEffects === 'none'))
+        if (p.state !== 'succeeded') return attemptFailed({ ...a, state: 'running' }, err('unknown_result', 'query failed', load(run).task.spec.sideEffects !== 'nonIdempotent'))
         const q = p.result as { state: string; result?: TaskResult; error?: ReconcileError }
         if (q.state === 'succeeded' && q.result) return succeed(a, q.result)
         if (q.state === 'failed' && q.error) return attemptFailed(a, q.error)
         if (q.state === 'running') return { actions: [{ type: 'setTimer', key: 'query', at: rfc3339(new Date(now.getTime() + 30_000)) }] }
-        return attemptFailed(a, err('unknown_result', 'adapter does not know', load(run).task.spec.sideEffects === 'none'))
+        return attemptFailed(a, err('unknown_result', 'adapter does not know', load(run).task.spec.sideEffects !== 'nonIdempotent'))
       }
     },
   }
