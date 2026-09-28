@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { AdapterRegistry } from '../../adapter/registry.js'
+import { validator as schemaOf } from '../../resource/ajv.js'
 import { KindRegistry } from '../../kind-definition/registry.js'
 import type { ReconcileInput, ReconcileResult } from '../../handler/types.js'
 import type { Event } from '../../reconcile/types.js'
@@ -216,7 +217,11 @@ describe('task Handler', () => {
     const call = (run = base()) => handler.reconcile(input(run, { type: 'Created', dedupeKey: 'created' })) as ReconcileResult
     const payload = (run?: TaskRun) => (call(run).actions[0] as { payload: Record<string, unknown> }).payload
     task.action.workspace = { path: 'app' }
-    expect(payload().workspace).toBe('app')
+    const withWorkspace = payload()
+    expect(withWorkspace.workspace).toBe('app')
+    const complete = (p: Record<string, unknown>) => ({ ...p, credentials: {}, engine: { endpoint: 'unix://x', token: 't' } }) // the dispatcher adds these
+    expect(schemaOf('adapter-roles.yaml', '/$defs/ExecutePayload')(complete(withWorkspace))).toBe(true) // the payload is the documented shape, no extra keys
+    expect(schemaOf('adapter-roles.yaml', '/$defs/ExecutePayload')(example('adapter-roles-execute'))).toBe(true) // 19-adapter-roles.md example
     task.action.workspace = { input: 'repository' } // the fixture's repository is remote: no locator.path
     expect(clean(call().statusPatch)).toMatchObject({ phase: 'Failed', error: { code: 'invalid_input', message: 'workspace input repository has no locator.path' } })
     const local = base()
