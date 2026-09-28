@@ -171,6 +171,18 @@ describe('persimmon CLI', () => {
     expect(await run('get', `WorkflowRun/${name2}`)).toBe(0)
     expect(parse(out.join('\n')).spec.inputs.repository).toMatchObject({ kind: 'externalResource', ref: { provider: 'git', type: 'repository', id: 'persimmon', locator: { path: process.cwd() }, version: expect.stringMatching(/^[0-9a-f]{40}$/) } })
     expect(parse(out.join('\n')).spec.timeout).toBe('2h') // no --timeout: the Workflow's own (prd-create: 2h)
+    // a revision document on an artifact port is stored and referenced
+    const prdDoc = { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement', metadata: { name: 'spec-1.r1' }, spec: { identity: { id: 'spec-1', revision: 1 }, content: { title: 'Spec', problem: 'p', requirements: [{ id: 'R1', statement: 's' }] } } }
+    out = []
+    expect(await run('run', 'prd-approval', '--input', `prd=@${file('prd.yaml', [prdDoc])}`)).toBe(0)
+    const name3 = out[0]!.split('/')[1]!
+    out = []
+    expect(await run('get', `WorkflowRun/${name3}`)).toBe(0)
+    expect(parse(out.join('\n')).spec.inputs.prd).toEqual({ kind: 'artifact', ref: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement', namespace: 'default', id: 'spec-1', revision: 1 } })
+    out = []
+    expect(await run('get', 'ProductRequirement/spec-1.r1')).toBe(0)
+    expect(parse(out.join('\n')).spec.content.title).toBe('Spec')
+    expect(await run('run', 'prd-approval', '--input', `prd=@${file('prd.yaml', [prdDoc])}`)).toBe(0) // a second run reuses the stored revision
     expect(parseInput('n=12')).toEqual(['n', { kind: 'value', value: 12 }])
     expect(parseInput('s=hello world')).toEqual(['s', { kind: 'value', value: 'hello world' }])
     expect(parseInput('a={kind: artifact, ref: {id: x}}')).toEqual(['a', { kind: 'artifact', ref: { id: 'x' } }])

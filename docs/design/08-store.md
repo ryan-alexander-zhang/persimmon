@@ -97,7 +97,7 @@ A Namespaced Resource may bind only its own Namespace's names and Global names.
 | `persimmon apply <files> [--skip-adapter-validation]` | write definitions; fails on an unreachable Adapter unless skipped (`13-executor.md`) |
 | `persimmon adapter install <manifest>` · `adapter list` | apply an Adapter, run `describe`, Ready |
 | `persimmon create <file> [--follow]` | store any Resource; `--follow` runs the engine until it reaches a `terminal.values` value or waits only on human Tasks, prints every phase change of the runs it owns and the `complete` command for each parked Task; Ctrl-C leaves it resumable |
-| `persimmon run <Workflow> [--input <port>=<yaml \| @file>]... [--timeout <d>] [--follow]` | a manual WorkflowRun named `<workflow>-<hex6>` without writing its YAML; a scalar becomes `{kind: value, value}`, a RuntimeValue object passes through; `timeout` is the Workflow's unless given |
+| `persimmon run <Workflow> [--input <port>=<yaml \| @file>]... [--timeout <d>] [--follow]` | a manual WorkflowRun named `<workflow>-<hex6>` without writing its YAML; a scalar becomes `{kind: value, value}`, a RuntimeValue object passes through, a path on an `externalResource` port becomes a git ref, a revision document (`@spec.yaml`) on an `artifact` port is stored once and referenced; `timeout` is the Workflow's unless given |
 | `persimmon signal <kind>/<name> --payload <file> [--event-id <id>]` | Signal `{source: api}` as the local Actor; id generated when absent |
 | `persimmon resume` | redeliver unacked Events and outstanding calls, drain the Outbox |
 | `persimmon get` · `describe` · `logs` | read Resources, status, RunLog |
@@ -162,6 +162,10 @@ imports into a server unchanged.
 - `--follow` returns, exit 0, when every TaskRun the run owns is finished or waits on a human and
   at least one waits: the engine has nothing to do until `complete`. It prints
   `parked on you: persimmon complete <taskRun>` per parked Task. Found in UAT.
+- `persimmon run --input <port>=@<file>` on an `artifact` port takes a revision document (a
+  Resource with `spec.identity` and `spec.content`), stores it in the run's Namespace when absent,
+  and passes its RevisionRef; a second run with the same file reuses the revision. One command
+  instead of `create` then `run`. Found in UAT.
 
 ## Examples
 

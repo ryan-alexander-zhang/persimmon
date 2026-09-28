@@ -55,6 +55,7 @@ async function store(cli: Cli, doc: Resource, o: FollowOptions): Promise<number>
       const spec = doc.spec as { timeout?: string }
       spec.timeout ??= (wf?.spec as { timeout?: string } | undefined)?.timeout ?? '24h' // 24h only when the Workflow is missing; validation then reports it
       pathInputs(engine, wf, cli.cwd, doc)
+      await artifactInputs(engine, wf, doc)
     }
     const { resource, created } = await engine.create(doc)
     cli.out(`${created ? 'created' : 'exists'} ${resource.kind}/${resource.metadata.name}`)
@@ -145,6 +146,21 @@ export function describe(r: Resource): string {
   if (s.error) parts.push(`${s.error.code}: ${s.error.message}`)
   if (r.metadata.stalled) parts.push(`stalled after ${r.metadata.stalled.attempts} attempts`)
   return parts.filter(Boolean).join(' ')
+}
+
+/** `--input spec=@spec.yaml` on an artifact port: a revision document in the file is stored (once) and the run gets its reference. */
+async function artifactInputs(engine: Engine, wf: Resource | undefined, doc: Resource): Promise<void> {
+  const spec = doc.spec as { inputs: Record<string, { kind: string; value?: unknown }> }
+  const ports = (wf?.spec as { inputs?: Record<string, { type: { kind: string } }> } | undefined)?.inputs ?? {}
+  for (const [port, v] of Object.entries(spec.inputs)) {
+    const d = v.value as Resource | undefined
+    if (ports[port]?.type.kind !== 'artifact' || v.kind !== 'value' || !d?.apiVersion || !d.kind || !d.metadata) continue
+    const identity = (d.spec as { identity?: { id: string; revision: number } } | undefined)?.identity
+    if (!identity) throw new Error(`--input ${port}: ${d.kind}/${d.metadata.name} has no spec.identity`)
+    if (!d.metadata.namespace && doc.metadata.namespace) d.metadata.namespace = doc.metadata.namespace // the run's Namespace
+    const { resource } = await engine.create(d) // exists: same name, same content by immutability
+    spec.inputs[port] = { kind: 'artifact', ref: { apiVersion: resource.apiVersion, kind: resource.kind, namespace: resource.metadata.namespace, id: identity.id, revision: identity.revision } } as never
+  }
 }
 
 /** The run's Workflow: its Namespace first, then Global. */
