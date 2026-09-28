@@ -106,6 +106,21 @@ describe('persimmon CLI', () => {
     expect(err.at(-1)).toMatch(/--global does not apply/)
   })
 
+  it('run --follow returns when the run is parked on a human Task', async () => {
+    await run('init')
+    const ask = { apiVersion: 'persimmon.ai/v1', kind: 'Task', metadata: { name: 'ask' }, spec: { inputs: { q: { type: { kind: 'value', schema: { type: 'string' } } } }, outputs: { result: { type: { kind: 'value', schema: { $ref: 'persimmon.ai/v1#/ValidationResult' } } } }, executorRef: { kind: 'Executor', name: 'local-reviewer' }, action: { instructions: 'Answer' }, timeout: '1h', sideEffects: 'none' } }
+    const wf = { apiVersion: 'persimmon.ai/v1', kind: 'Workflow', metadata: { name: 'ask-wf' }, spec: { inputs: { q: { type: { kind: 'value', schema: { type: 'string' } } } }, entry: ['ask'], steps: [{ id: 'ask', uses: { kind: 'Task', name: 'ask' }, inputs: { q: { fromInput: 'q' } }, timeout: '1h' }], transitions: [{ id: 'done', from: [{ stepRef: 'ask', outcomes: ['Succeeded'] }], to: [{ terminal: 'Succeeded' }] }], timeout: '3h' } }
+    expect(await run('apply', file('ask.yaml', [ask, wf]))).toBe(0)
+    out = []
+    expect(await run('run', 'ask-wf', '--input', 'q=ok?', '--follow')).toBe(0)
+    const name = out[0]!.split('/')[1]!
+    expect(out.at(-1)).toBe(`parked on you: persimmon complete ${name}-ask`)
+    expect(out).toContain(`TaskRun/${name}-ask  Waiting human (.persimmon/inbox/${name}-ask.yaml)`)
+    out = []
+    expect(await run('get', `WorkflowRun/${name}`)).toBe(0)
+    expect(parse(out.join('\n')).spec.timeout).toBe('3h')
+  })
+
   it('create --follow drives a run to its terminal value and logs show the RunLog', async () => {
     await run('init')
     await run('adapter', 'install', file('a.yaml', [fakeAdapter('claude-code/v1')]))

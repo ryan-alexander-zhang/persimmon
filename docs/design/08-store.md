@@ -96,7 +96,7 @@ A Namespaced Resource may bind only its own Namespace's names and Global names.
 | `persimmon validate <files>` | schema plus static rules; non-zero exit on `error` findings |
 | `persimmon apply <files> [--skip-adapter-validation]` | write definitions; fails on an unreachable Adapter unless skipped (`13-executor.md`) |
 | `persimmon adapter install <manifest>` · `adapter list` | apply an Adapter, run `describe`, Ready |
-| `persimmon create <file> [--follow]` | store any Resource; `--follow` runs the engine until it reaches a `terminal.values` value and prints every phase change of the runs it owns; Ctrl-C leaves it resumable |
+| `persimmon create <file> [--follow]` | store any Resource; `--follow` runs the engine until it reaches a `terminal.values` value or waits only on human Tasks, prints every phase change of the runs it owns and the `complete` command for each parked Task; Ctrl-C leaves it resumable |
 | `persimmon run <Workflow> [--input <port>=<yaml \| @file>]... [--timeout <d>] [--follow]` | a manual WorkflowRun named `<workflow>-<hex6>` without writing its YAML; a scalar becomes `{kind: value, value}`, a RuntimeValue object passes through; `timeout` is the Workflow's unless given |
 | `persimmon signal <kind>/<name> --payload <file> [--event-id <id>]` | Signal `{source: api}` as the local Actor; id generated when absent |
 | `persimmon resume` | redeliver unacked Events and outstanding calls, drain the Outbox |
@@ -159,6 +159,9 @@ imports into a server unchanged.
   Global (`20-pack.md`). CLI refs resolve Namespace first, then Global. Found in implementation.
 - A WorkflowRun written without `timeout` takes its Workflow's `spec.timeout`; the CLI's old 24h
   default cut a 52h Workflow short. Found in UAT.
+- `--follow` returns, exit 0, when every TaskRun the run owns is finished or waits on a human and
+  at least one waits: the engine has nothing to do until `complete`. It prints
+  `parked on you: persimmon complete <taskRun>` per parked Task. Found in UAT.
 
 ## Examples
 

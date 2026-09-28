@@ -98,6 +98,11 @@ async function follow(cli: Cli, engine: Engine, resource: Resource, pollMs: numb
         cli.err(`${r.kind}/${r.metadata.name} stalled after ${r.metadata.stalled.attempts} attempts: ${r.metadata.stalled.lastError ?? ''}`)
         return 1
       }
+      const parked = parkedOn(children(engine, resource, new Set()))
+      if (parked.length) {
+        for (const p of parked) cli.out(`parked on you: persimmon complete ${p.metadata.name}`)
+        return 0
+      }
       await engine.drain()
       await new Promise((res) => setTimeout(res, pollMs)) // ponytail: poll; wake on the next timer or call when it matters
     }
@@ -117,6 +122,14 @@ function children(engine: Engine, owner: Resource, seen: Set<string>): Resource[
         out.push(r, ...children(engine, r, seen))
       }
   return out
+}
+
+/** The human Tasks the run waits on, when nothing else is in flight: every TaskRun is finished or waits on a human, at least one does. */
+function parkedOn(runs: Resource[]): Resource[] {
+  const tasks = runs.filter((r) => r.kind === 'TaskRun')
+  const human = tasks.filter((r) => phaseOf(r) === 'Waiting' && (r.status as { waitingReason?: string }).waitingReason === 'human')
+  const busy = tasks.some((r) => !['Succeeded', 'Failed', 'Cancelled'].includes(phaseOf(r) ?? '') && !human.includes(r))
+  return busy ? [] : human
 }
 
 const phaseOf = (r: Resource) => (typeof r.status?.phase === 'string' ? r.status.phase : undefined)
