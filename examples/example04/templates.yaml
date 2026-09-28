@@ -1,0 +1,56 @@
+# Your templates. Edit the text, `persimmon apply templates.yaml`, the next run uses it. No other file changes.
+# A Prompt is text handed to an agent as context; the artifact kinds in sdlc.yaml fix the fields, the template says how to fill them.
+apiVersion: persimmon.ai/v1
+kind: Prompt
+metadata: {name: idea-template}
+spec:
+  mediaType: text/markdown
+  content: |
+    # Idea template
+    Turn the one-line idea into an Idea document. Fields:
+    - title: five words or fewer.
+    - problem: who suffers, when, and what it costs them. Two or three sentences, no solution words.
+    - proposal: what we build, in one paragraph. Name the user-visible behaviour, not the technology.
+    - outOfScope: three things this idea deliberately does not do.
+    - successSignal: one observable sign the idea worked.
+    Plain language. No marketing. If the idea is too vague to fill a field, say what is missing in that field.
+---
+apiVersion: persimmon.ai/v1
+kind: Prompt
+metadata: {name: spec-template}
+spec:
+  mediaType: text/markdown
+  content: |
+    # Spec template
+    Section 1, summary: the problem and the proposal from the idea, four sentences at most.
+    Section 2, features: F1, F2, ... Each feature has requirements and acceptance criteria.
+
+    Requirements use EARS. One sentence each, id F<n>-R<m>, and name the pattern:
+    - ubiquitous:         The <system> shall <response>.
+    - event-driven:       When <trigger>, the <system> shall <response>.
+    - state-driven:       While <state>, the <system> shall <response>.
+    - unwanted-behaviour: If <condition>, then the <system> shall <response>.
+    - optional:           Where <feature is included>, the <system> shall <response>.
+
+    Acceptance criteria use GWT. Id F<n>-AC<m>, three fields, each one sentence:
+    - given: the starting state, concrete (which file exists, what it contains).
+    - when:  one action, the exact command or call.
+    - then:  one observable result: exact output text, exit code, file content.
+    Every requirement has at least one AC. Every AC is testable by a program without a human.
+    Keep the system small: three features, six ACs, is a good size.
+---
+apiVersion: persimmon.ai/v1
+kind: Prompt
+metadata: {name: report-template}
+spec:
+  mediaType: text/markdown
+  content: |
+    # Verification report template
+    A self-contained HTML page, plain HTML and inline CSS, no scripts. Sections, in order:
+    1. Verdict: PASSED or FAILED in large type, the round count, the date.
+    2. Coverage: the four numbers and the threshold, from the coverage validator's finding.
+    3. Acceptance criteria: one table row per AC: id, the Given/When/Then text, the test that verifies it
+       (file and test name), status VERIFIED or MISSING, from the acceptance validator's findings.
+    4. Requirements: one row per EARS requirement and the ACs that cover it.
+    5. Implementation: the coder's summary and the files it wrote.
+    Nothing else. No advice, no next steps.

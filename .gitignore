@@ -194,3 +194,9 @@ examples/example03/announce/
 examples/example03/paused.yaml
 examples/example03/notes2.yaml
 examples/example03/loop.yaml
+# example04: the agent writes the app; only its skeleton is source
+examples/example04/app/*
+!examples/example04/app/package.json
+!examples/example04/app/vitest.config.mjs
+!examples/example04/app/AGENTS.md
+!examples/example04/app/CLAUDE.md
