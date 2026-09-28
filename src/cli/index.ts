@@ -3,7 +3,7 @@ import { parseArgs } from 'node:util'
 import { apply } from './apply.js'
 import type { Cli } from './context.js'
 import { create, run } from './create.js'
-import { get, logs } from './get.js'
+import { get, logs, tree } from './get.js'
 import { init } from './init.js'
 import { adapterList, del, resume } from './misc.js'
 import { complete, signal } from './signal.js'
@@ -20,6 +20,7 @@ const usage = `usage: persimmon <verb> [args]
   get <kind>[/<name>] [-n ns | --global]
   describe <kind>/<name> [-n ns]
   logs <kind>/<name> [-n ns | --global]
+  tree <kind>/<name> [-n ns]                        a run and every run it owns, nested
   init
   delete <kind>/<name> [-n ns | --global]
   adapter install <manifest> | adapter list`
@@ -100,6 +101,9 @@ async function dispatchVerb(cli: Cli, verb: string, rest: string[], values: Retu
       case 'logs':
         need(1, '<kind>/<name>')
         return await logs(cli, rest[0]!, where)
+      case 'tree':
+        need(1, '<kind>/<name>')
+        return await tree(cli, rest[0]!, where)
       case 'init':
         return await init(cli)
       case 'delete':

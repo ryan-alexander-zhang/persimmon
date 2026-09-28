@@ -141,6 +141,11 @@ describe('persimmon CLI', () => {
     expect(out.join('\n')).toMatch(/type: Created/)
     expect(out.join('\n')).toMatch(/type: AdapterFinished/)
     out = []
+    expect(await run('tree', 'WorkflowRun/demo-001')).toBe(0)
+    expect(out[0]).toMatch(/^WorkflowRun\/demo-001  Failed no_progress/)
+    expect(out[1]).toMatch(/^  TaskRun\/demo-001-research  Failed schema_violation/) // owned runs indented under their owner
+    expect(out).toHaveLength(2)
+    out = []
     expect(await run('resume')).toBe(0)
     expect(out).toEqual(['open events: 0'])
     expect(await run('signal', 'WorkflowRun/demo-001', '--event-id', 'e1')).toBe(0)

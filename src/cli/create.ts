@@ -113,16 +113,23 @@ async function follow(cli: Cli, engine: Engine, resource: Resource, pollMs: numb
   }
 }
 
-/** Runs owned by `owner`, recursively: TaskRuns, GateRuns, ValidationRuns and their children. */
-function children(engine: Engine, owner: Resource, seen: Set<string>): Resource[] {
+/** Runs `owner` owns directly, oldest first. */
+export function ownedBy(engine: Engine, owner: Resource): Resource[] {
   const ns = owner.metadata.namespace
   const out: Resource[] = []
   for (const kind of ['WorkflowRun', 'TaskRun', 'GateRun', 'ValidationRun'])
-    for (const r of engine.store.resources.list(kind, ns))
-      if (!seen.has(r.metadata.uid as string) && r.metadata.ownerReferences?.some((o) => o.uid === owner.metadata.uid)) {
-        seen.add(r.metadata.uid as string)
-        out.push(r, ...children(engine, r, seen))
-      }
+    for (const r of engine.store.resources.list(kind, ns)) if (r.metadata.ownerReferences?.some((o) => o.uid === owner.metadata.uid)) out.push(r)
+  return out.sort((a, b) => String(a.metadata.creationTimestamp).localeCompare(String(b.metadata.creationTimestamp)))
+}
+
+/** Runs owned by `owner`, recursively: TaskRuns, GateRuns, ValidationRuns and their children. */
+function children(engine: Engine, owner: Resource, seen: Set<string>): Resource[] {
+  const out: Resource[] = []
+  for (const r of ownedBy(engine, owner))
+    if (!seen.has(r.metadata.uid as string)) {
+      seen.add(r.metadata.uid as string)
+      out.push(r, ...children(engine, r, seen))
+    }
   return out
 }
 

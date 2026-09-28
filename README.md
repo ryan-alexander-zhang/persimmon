@@ -73,6 +73,7 @@ alias persimmon="node $PWD/dist/main.js"
 cd <your project> && persimmon init             # .persimmon/, persimmon.yaml, shipped Adapters, the SDLC pack
 persimmon run <Workflow> --input k=v --follow    # a manual WorkflowRun; a path fills a repository port; prints every run's phase
 persimmon get WorkflowRun                        # phases, waiting reasons, errors
+persimmon tree WorkflowRun/<name>                # the run and every run it owns, nested
 persimmon complete <taskRun>                     # answer a human Task at the terminal; --file result.yaml to script it
 persimmon resume                                 # drive waiting work after a Signal or a timer
 ```

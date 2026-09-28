@@ -1,7 +1,7 @@
 import type { Resource } from '../resource/types.js'
 import type { Cli } from './context.js'
 import { withEngine } from './context.js'
-import { describe } from './create.js'
+import { describe, ownedBy } from './create.js'
 import { parseRef, toYaml } from './io.js'
 
 export interface Where {
@@ -50,6 +50,29 @@ export async function logs(cli: Cli, ref: string, o: Where = {}): Promise<number
         cli.out(toYaml({ ...e, logs: engine.store.runLog.logs(uid, e.event.sequence) }).trimEnd())
         cli.out('---')
       }
+      return 0
+    },
+    { listen: false },
+  )
+}
+
+/** `persimmon tree <kind>/<name>`: the run and every run it owns, nested, one line each with its phase. */
+export async function tree(cli: Cli, ref: string, o: Where = {}): Promise<number> {
+  return withEngine(
+    cli,
+    async (engine) => {
+      const { kind, name } = parseRef(ref)
+      const r = name && find(engine, kind, name, o)
+      if (!r) {
+        cli.err(`${ref} not found`)
+        return 1
+      }
+      const print = (node: Resource, depth: number) => {
+        const state = describe(node)
+        cli.out(`${'  '.repeat(depth)}${node.kind}/${node.metadata.name}${state ? `  ${state}` : ''}`)
+        for (const c of ownedBy(engine, node)) print(c, depth + 1)
+      }
+      print(r, 0)
       return 0
     },
     { listen: false },

@@ -101,6 +101,7 @@ A Namespaced Resource may bind only its own Namespace's names and Global names.
 | `persimmon signal <kind>/<name> --payload <file> [--event-id <id>]` | Signal `{source: api}` as the local Actor; id generated when absent |
 | `persimmon resume` | redeliver unacked Events and outstanding calls, drain the Outbox |
 | `persimmon get` · `describe` · `logs` | read Resources, status, RunLog |
+| `persimmon tree <kind>/<name>` | a run and every run it owns, nested by `ownerReferences`, oldest first, one line each with its phase |
 | `persimmon init` | local mode: create `.persimmon/`, apply the SDLC pack (`20-pack.md`) |
 | `persimmon complete <taskRun> --file <result.yaml>` | local mode: `signal` for a `cli-human/v1` attempt as the local Actor |
 | `persimmon delete <kind>/<name>` | refused while referenced (`00-resource.md`) |
@@ -148,7 +149,7 @@ imports into a server unchanged.
   UAT.
 - Local mode has one live engine per project: `listen` takes `.persimmon/engine.lock` (pid, stale
   when the process is gone) and a second write verb fails with the holder's pid. Read verbs
-  (`get`, `describe`, `logs`, `validate`) open the store without the socket, without call
+  (`get`, `describe`, `logs`, `tree`, `validate`) open the store without the socket, without call
   recovery and without a drain, so they are safe beside a running `--follow`. Found in UAT.
 - `persimmon run` is sugar over `create`: it writes the WorkflowRun the user would have written,
   nothing more; `--follow` reports owned runs by walking `ownerReferences`. Found in
@@ -166,6 +167,8 @@ imports into a server unchanged.
   Resource with `spec.identity` and `spec.content`), stores it in the run's Namespace when absent,
   and passes its RevisionRef; a second run with the same file reuses the revision. One command
   instead of `create` then `run`. Found in UAT.
+- `persimmon tree` prints the run tree that `--follow` reports flat; a Gate inside a repeat body
+  makes nine runs for one command, and the flat list hid who owns whom. Found in UAT.
 
 ## Examples
 
