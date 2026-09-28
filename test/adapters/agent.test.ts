@@ -29,7 +29,7 @@ beforeAll(async () => {
     process.stdin.on('data', (c) => (p += c)).on('end', () => {
       fs.writeFileSync(process.env.STUB_OUT + '/claude.json', JSON.stringify({ args: process.argv.slice(2), prompt: p, env: { GITHUB_TOKEN: process.env.GITHUB_TOKEN ?? null, token: process.env.PERSIMMON_ADAPTER_TOKEN ?? null } }))
       if (process.env.STUB_SLEEP) return setTimeout(() => {}, Number(process.env.STUB_SLEEP))
-      if (process.env.STUB_FAIL) { process.stderr.write('boom ' + process.env.GITHUB_TOKEN + '\\n'); process.exit(1) }
+      if (process.env.STUB_FAIL) { process.stderr.write('boom ' + process.env.GITHUB_TOKEN + '\\n' + (process.env.DEPLOY_KEY ?? '') + '\\n'); process.exit(1) }
       if (process.env.STUB_AUTH) { process.stdout.write(JSON.stringify({ type: 'result', subtype: 'success', is_error: true, result: 'Failed to authenticate' })); process.exit(1) }
       process.stderr.write('thinking about ' + (process.env.GITHUB_TOKEN ?? '') + '\\n')
       process.stdout.write(JSON.stringify({ type: 'result', subtype: 'success', is_error: false, result: '{}', structured_output: JSON.parse(process.env.STUB_RESULT) }))
@@ -134,9 +134,12 @@ describe('claude-code/v1', () => {
   })
 
   it('reports a non-zero agent exit as agent_failed, retryable', async () => {
-    const r = await adapter('claude-code', { id: 3, op: 'execute', payload: payload() }, { STUB_FAIL: '1' })
+    const r = await adapter('claude-code', { id: 3, op: 'execute', payload: payload({ credentials: { 'github-token': 'ghp-secret', 'deploy-key': '-----BEGIN KEY-----\nabcdefgh12345678\n-----END KEY-----' } }) }, { STUB_FAIL: '1' })
     expect(last(r)).toMatchObject({ ok: false, error: { code: 'agent_failed', retryable: true } })
-    expect(r.lines.some((l) => l.event === 'log' && l.text === 'boom [redacted]')).toBe(true) // credential values never reach a log line
+    const logs = r.lines.filter((l) => l.event === 'log').map((l) => l.text)
+    expect(logs).toContain('boom [redacted]') // credential values never reach a log line
+    expect(logs.filter((t) => t === '[redacted]')).toHaveLength(3) // each line of a multi-line secret on its own
+    expect(logs.join('\n')).not.toMatch(/abcdefgh|BEGIN KEY/)
   })
 
   it('a missing agent binary is invalid_input, not retried', async () => {

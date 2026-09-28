@@ -147,9 +147,10 @@ function artifactId(logicalExecutionId, port) {
   return slug.length <= 63 ? slug : `${slug.slice(0, 50)}-${createHash('sha256').update(slug).digest('hex').slice(0, 12)}`
 }
 
-/** Credential values never reach a log line, whatever the agent echoed (07-adapter.md). */
+/** Credential values never reach a log line, whatever the agent echoed (07-adapter.md). Log lines are single lines, so every line of a multi-line secret (a PEM key) is redacted on its own. */
 function redact(text, credentials) {
-  for (const v of Object.values(credentials ?? {})) if (v) text = text.split(v).join('[redacted]')
+  for (const v of Object.values(credentials ?? {}))
+    for (const part of String(v ?? '').split('\n')) if (part.trim().length >= 8) text = text.split(part).join('[redacted]')
   return text
 }
 
@@ -203,7 +204,7 @@ function run(cmd, args, prompt, { credentials, deadline, idempotencyKey, log, tr
     const timer = left < Infinity ? setTimeout(() => ((timedOut = true), stop()), left) : undefined
     let stdout = ''
     let stderr = ''
-    const tap = lineLogger(log)
+    const tap = lineLogger(log) // ponytail: one buffer for both streams; a partial stdout line may join a stderr line
     child.stdout.setEncoding('utf8').on('data', (c) => ((stdout += c), transcript && tap(c)))
     child.stderr.setEncoding('utf8').on('data', (c) => ((stderr += c), tap(c)))
     child.on('spawn', () => writeFileSync(pid, String(child.pid)))
@@ -217,9 +218,9 @@ function run(cmd, args, prompt, { credentials, deadline, idempotencyKey, log, tr
       process.off('SIGTERM', stop)
       const cancelled = !mine() // cancel removed the file first; a stale file from another attempt is left alone
       if (mine()) unlinkSync(pid)
+      tap('\n') // flush the partial last line, the most telling one when the agent was killed
       if (timedOut) return reject(new AdapterError('timeout', `${cmd} exceeded the deadline`, true))
       if (cancelled) return reject(new AdapterError('cancelled', `${cmd} was cancelled`, false))
-      tap('\n')
       if (code !== 0) {
         const e = new AdapterError('agent_failed', `${cmd} exited with ${code ?? signal}`, true)
         e.stdout = stdout // the driver may read a better message out of it
