@@ -75,9 +75,10 @@ export function renderTree(engine: Engine, root: Resource): string[] {
   walk(root, undefined, '', true)
   const width = Math.max(...rows.map((r) => r.left.length))
   const dwidth = Math.max(...rows.map((r) => r.duration.length))
+  const swidth = Math.max(10, ...rows.map((r) => r.state.length + 1))
   const out: string[] = []
   for (const r of rows) {
-    out.push(`${r.left.padEnd(width)}   ${r.state.padEnd(10)}${r.duration.padStart(dwidth)}`.trimEnd())
+    out.push(`${r.left.padEnd(width)}   ${r.state.padEnd(swidth)}${r.duration.padStart(dwidth)}`.trimEnd())
     for (const e of r.extra) out.push(`${r.extraPrefix}${e}`)
   }
   const outputs = Object.entries(((root.status ?? {}) as Status).outputs ?? {})
