@@ -1,4 +1,4 @@
-# The spec artifact, revision 1. `persimmon create spec.yaml` stores it; the Workflow takes it as input.
+# The spec artifact, revision 1. `persimmon run ... --input spec=@spec.yaml` stores it and passes its reference.
 apiVersion: engineering.persimmon.ai/v1
 kind: AppSpec
 metadata: {name: todo-cli.r1}

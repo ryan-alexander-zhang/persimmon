@@ -1,5 +1,5 @@
 # spec-to-code: a spec artifact -> code (codex) -> quality Gate (coverage >= 90%, every AC implemented and tested) -> loop -> HTML test report.
-# Install: persimmon apply spec-to-code.yaml    Run: persimmon run spec-to-code --input spec="{kind: artifact, ref: {apiVersion: engineering.persimmon.ai/v1, kind: AppSpec, namespace: default, id: todo-cli, revision: 1}}" --follow
+# Install: persimmon apply spec-to-code.yaml    Run: persimmon run spec-to-code --input spec=@spec.yaml --follow
 apiVersion: persimmon.ai/v1
 kind: KindDefinition
 metadata: {name: appspecs.engineering.persimmon.ai}

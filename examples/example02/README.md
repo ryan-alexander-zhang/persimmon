@@ -50,21 +50,16 @@ persimmon validate spec-to-code.yaml       # every line ok
 persimmon apply spec-to-code.yaml          # 16 created
 ```
 
-### 2. Store the spec
+### 2. Run it
 
 ```sh
-persimmon create spec.yaml                 # created AppSpec/todo-cli.r1
-persimmon get AppSpec/todo-cli.r1
+persimmon run spec-to-code --input spec=@spec.yaml --follow
 ```
 
-An artifact is a revision: `metadata.name` is `<id>.r<n>`, the content sits under `spec.content`.
-A Workflow input of kind `artifact` takes a reference to it.
-
-### 3. Run it
-
-```sh
-persimmon run spec-to-code --input 'spec={kind: artifact, ref: {apiVersion: engineering.persimmon.ai/v1, kind: AppSpec, namespace: default, id: todo-cli, revision: 1}}' --follow
-```
+`spec.yaml` is a revision document: `metadata.name` is `<id>.r<n>`, the content sits under
+`spec.content`. `run` stores it as the artifact `AppSpec/todo-cli.r1` (once; a second run reuses
+it) and passes its reference to the Workflow's `spec` input. `persimmon get AppSpec/todo-cli.r1`
+shows it. Persimmon reads nothing from disk during a run: agents and Gates see the stored revision.
 
 Expected shape (round numbers vary):
 
@@ -95,7 +90,7 @@ A Gate that rejects still `Succeeded`: its result says `passed: false`, and the 
 `rounds-2` with that result as the `previous` input of `implement`. After three rejected rounds the
 report is still written and the run ends `Failed quality_not_met`.
 
-### 4. Read the results
+### 3. Read the results
 
 ```sh
 open app/reports/test-report.html                                    # the HTML report (macOS)
@@ -117,7 +112,7 @@ agent's or program's output lines, at most 5000 per attempt. The Claude Tasks sh
 |---|---|---|
 | another threshold | `threshold` in `scripts/coverage.mjs` | nothing, the script is read at run time |
 | more rounds | `--input maxRounds=5` on `run` | |
-| your own spec | copy `spec.yaml`, change `identity.id` and the content | `persimmon create`, pass its ref |
+| your own spec | copy `spec.yaml`, change `identity.id` and the content | `--input spec=@your.yaml` |
 | Claude as the coder | Executor `coder`: `adapter: claude-code/v1`, `configuration: {model: claude-sonnet-5, sandbox: full}` | `persimmon apply spec-to-code.yaml`; `workspace-write` cannot run `npm test` without prompts |
 
 ## Reset
