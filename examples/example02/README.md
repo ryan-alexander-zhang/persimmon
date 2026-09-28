@@ -45,7 +45,7 @@ Run every command inside `examples/example02`.
 ### 1. Create the project and install the definitions
 
 ```sh
-persimmon init                             # wrote persimmon.yaml, then the shipped Adapters and the built-in SDLC pack (22 created; unused here)
+persimmon init                             # wrote persimmon.yaml, then the shipped Adapters and the built-in SDLC pack (23 created; unused here)
 persimmon validate spec-to-code.yaml       # every line ok
 persimmon apply spec-to-code.yaml          # 16 created
 ```
@@ -86,9 +86,10 @@ TaskRun/spec-to-code-<hex>-report  Succeeded
 WorkflowRun/spec-to-code-<hex>  Succeeded
 ```
 
-Lines that commit in the same tick print in name order, not in time order. About four minutes in all:
-the coder takes three, the two Validators run in parallel in under half a minute, the report a
-quarter of a minute.
+Lines that commit in the same tick print parent before child (WorkflowRun, GateRun, ValidationRun,
+TaskRun), not in time order, so a `rounds-1  Succeeded` line can precede its Gate's. About three
+minutes in all: the coder takes two and a half, the two Validators run in parallel in twenty
+seconds, the report in twenty.
 
 A Gate that rejects still `Succeeded`: its result says `passed: false`, and the `rounds` step starts
 `rounds-2` with that result as the `previous` input of `implement`. After three rejected rounds the
@@ -107,8 +108,8 @@ cd app && npm run coverage                                           # run the t
 ```
 
 `logs` prints the RunLog as YAML: one entry per event, each with a `logs:` list holding the
-agent's or program's output lines, at most 5000 per attempt. The Claude Tasks keep only what
-`claude` prints to stderr, so their lists are short.
+agent's or program's output lines, at most 5000 per attempt. The Claude Tasks show nothing:
+`claude -p` prints its transcript nowhere the Adapter reads yet (roadmap).
 
 ## Change it
 
@@ -123,6 +124,7 @@ agent's or program's output lines, at most 5000 per attempt. The Claude Tasks ke
 
 ```sh
 rm -rf .persimmon persimmon.yaml app/src app/test app/coverage app/reports
+git checkout app/package.json              # a coder may add a bin entry despite AGENTS.md
 ```
 
 ## Known limits
