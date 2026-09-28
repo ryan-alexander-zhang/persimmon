@@ -1,7 +1,7 @@
 // The agent Adapters against stub `claude` and `codex` binaries and a fake Engine callbacks socket:
 // prompt order, output schema, artifact publication, credentials in the agent env, cancel.
 import { execFileSync, spawn } from 'node:child_process'
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { createServer, type Server } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -27,7 +27,7 @@ beforeAll(async () => {
   stub('claude', `
     const fs = require('node:fs'); let p = ''
     process.stdin.on('data', (c) => (p += c)).on('end', () => {
-      fs.writeFileSync(process.env.STUB_OUT + '/claude.json', JSON.stringify({ args: process.argv.slice(2), prompt: p, env: { GITHUB_TOKEN: process.env.GITHUB_TOKEN ?? null, token: process.env.PERSIMMON_ADAPTER_TOKEN ?? null } }))
+      fs.writeFileSync(process.env.STUB_OUT + '/claude.json', JSON.stringify({ args: process.argv.slice(2), prompt: p, cwd: process.cwd(), env: { GITHUB_TOKEN: process.env.GITHUB_TOKEN ?? null, token: process.env.PERSIMMON_ADAPTER_TOKEN ?? null } }))
       if (process.env.STUB_SLEEP) return setTimeout(() => {}, Number(process.env.STUB_SLEEP))
       if (process.env.STUB_FAIL) { process.stderr.write('boom ' + process.env.GITHUB_TOKEN + '\\n' + (process.env.DEPLOY_KEY ?? '') + '\\n'); process.exit(1) }
       if (process.env.STUB_AUTH) { process.stdout.write(JSON.stringify({ type: 'result', subtype: 'success', is_error: true, result: 'Failed to authenticate' })); process.exit(1) }
@@ -132,6 +132,16 @@ describe('claude-code/v1', () => {
     expect(calls.map((c) => c.name)).toEqual(['getArtifact', 'putBlob', 'publishArtifact'])
     expect(calls[2]!.args).toMatchObject({ kind: { kind: 'ProductRequirement' }, id: 'prd-create-001-write-prd-prd', content: { title: 'Checkout v2' }, inputs: [research], representations: [{ name: 'json', mediaType: 'application/json' }] })
     expect(r.lines.filter((l) => l.event === 'log').map((l) => l.text)).toEqual(['thinking about [redacted]']) // the agent's stderr streams as log lines, credentials redacted; the JSON answer on stdout does not
+  })
+
+  it('runs the agent in payload.workspace; a missing one is invalid_input', async () => {
+    const ws = mkdtempSync(join(tmpdir(), 'persimmon-ws-'))
+    const r = await adapter('claude-code', { id: 12, op: 'execute', payload: payload({ workspace: ws }) }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'PRD' }, count: 1 } }) })
+    expect(last(r).ok).toBe(true)
+    expect(JSON.parse(readFileSync(join(stubs, 'claude.json'), 'utf8')).cwd).toBe(realpathSync(ws))
+    rmSync(ws, { recursive: true })
+    const r2 = await adapter('claude-code', { id: 13, op: 'execute', payload: payload({ workspace: ws }) })
+    expect(last(r2)).toMatchObject({ ok: false, error: { code: 'invalid_input', retryable: false, message: `workspace ${ws} is not a directory` } })
   })
 
   it('reports a non-zero agent exit as agent_failed, retryable', async () => {
@@ -268,6 +278,14 @@ describe('subprocess/v1', () => {
   it('describes script and tool types with file context only', async () => {
     const d = last(await adapter('subprocess', { id: 20, op: 'describe', payload: {} }))
     expect(d.result).toMatchObject({ adapterId: 'subprocess/v1', executorTypes: ['script', 'tool'], contextKinds: ['file'], supports: { cancel: true } })
+  })
+
+  it('reads the result file from the workspace', async () => {
+    const ws = mkdtempSync(join(tmpdir(), 'persimmon-ws-'))
+    const r = await adapter('subprocess', { id: 24, op: 'execute', payload: p({ workspace: ws, executor: { ...executor, configuration: { program: ['lint', join(ws, 'result.json')], resultFile: 'result.json' } } }) }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'Lint' }, count: 0 } }) })
+    expect(last(r).ok).toBe(true)
+    expect(existsSync(join(ws, 'result.json'))).toBe(false) // consumed there, not under the adapter's cwd
+    rmSync(ws, { recursive: true })
   })
 
   it('feeds the payload on stdin without secrets, appends args, reads and removes the result file, publishes artifacts', async () => {

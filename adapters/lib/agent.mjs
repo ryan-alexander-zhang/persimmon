@@ -2,7 +2,7 @@
 // command line and parses its final answer; this file owns the protocol: prompt assembly from context,
 // structured output schema, artifact publication through the Engine callbacks, cancel by pid file.
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { request } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -23,7 +23,7 @@ const pidFile = (idempotencyKey) => join(pidDir(), encodeURIComponent(idempotenc
 /** `<NS>__<NAME>` upper case, `-` becomes `_`: the same grammar the engine uses for its own credential env. */
 const envName = (name) => name.toUpperCase().replaceAll('-', '_').replace('/', '__')
 
-/** driver: {adapterId, executorTypes?, contextKinds?, skillFormats?, configurationSchema, parametersSchema, command(ctx) -> [cmd, args], input?(ctx) -> stdin text, parse({stdout, dir, configuration}) -> {outputs, summary?}, transcript?: true when stdout is the agent's transcript, not its answer} */
+/** driver: {adapterId, executorTypes?, contextKinds?, skillFormats?, configurationSchema, parametersSchema, command(ctx) -> [cmd, args], input?(ctx) -> stdin text, parse({stdout, dir, configuration, workspace}) -> {outputs, summary?}, transcript?: true when stdout is the agent's transcript, not its answer} */
 export function serve(driver) {
   const out = (o) => process.stdout.write(JSON.stringify(o) + '\n')
   createInterface({ input: process.stdin }).once('line', async (line) => {
@@ -57,25 +57,27 @@ export function serve(driver) {
 }
 
 async function execute(driver, payload, log) {
-  const { task, taskRun, inputs, context, executor, credentials, engine, deadline } = payload
+  const { task, taskRun, inputs, context, executor, credentials, engine, deadline, workspace } = payload
   const call = callbacks(engine)
   const configuration = executor.configuration ?? {}
+  const cwd = workspace ?? process.cwd() // the Task's workspace (12-task.md); .persimmon/ state stays under the engine's cwd
+  if (workspace && !(existsSync(workspace) && statSync(workspace).isDirectory())) throw new AdapterError('invalid_input', `workspace ${workspace} is not a directory`, false)
   const schema = outputSchema(task)
   const dir = mkdtempSync(join(tmpdir(), 'persimmon-agent-'))
   let answer
   try {
     const skills = driver.input ? [] : resolveSkills(context, driver.skillFormats ?? ['claude-code-skill/v1'])
-    const ctx = { configuration, parameters: task.parameters ?? {}, schema, dir, payload, skillDirs: skills.map((s) => s.dir) }
+    const ctx = { configuration, parameters: task.parameters ?? {}, schema, dir, payload, workspace: cwd, skillDirs: skills.map((s) => s.dir) }
     const [cmd, args] = driver.command(ctx)
     const stdin = driver.input ? driver.input(ctx) : await buildPrompt(task, inputs, context, call, skills)
     let stdout
     try {
-      stdout = await run(cmd, args, stdin, { credentials, deadline, idempotencyKey: taskRun.idempotencyKey, log, transcript: driver.transcript })
+      stdout = await run(cmd, args, stdin, { credentials, deadline, idempotencyKey: taskRun.idempotencyKey, log, transcript: driver.transcript, cwd })
     } catch (e) {
       if (e.stdout?.trim()) driver.errorFrom?.(e.stdout) // throws the agent's own error message when it printed one
       throw e
     }
-    answer = driver.parse({ stdout, dir, configuration })
+    answer = driver.parse({ stdout, dir, configuration, workspace: cwd })
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
@@ -184,14 +186,14 @@ function lineLogger(log) {
 }
 
 /** One agent process per attempt; pid recorded for cancel; killed at the deadline, on cancel, or when this process is killed. */
-function run(cmd, args, prompt, { credentials, deadline, idempotencyKey, log, transcript }) {
+function run(cmd, args, prompt, { credentials, deadline, idempotencyKey, log, transcript, cwd }) {
   const env = { ...process.env }
   delete env.PERSIMMON_ADAPTER_TOKEN
   for (const [name, secret] of Object.entries(credentials ?? {})) env[envName(name)] = secret
   const left = deadline ? Date.parse(deadline) - Date.now() : Infinity
   if (!(left > 0)) return Promise.reject(new AdapterError('timeout', 'attempt deadline already passed', true))
   return new Promise((resolve, reject) => {
-    const child = spawn(cmd, args, { env, stdio: ['pipe', 'pipe', 'pipe'] })
+    const child = spawn(cmd, args, { env, cwd, stdio: ['pipe', 'pipe', 'pipe'] })
     mkdirSync(pidDir(), { recursive: true })
     const pid = pidFile(idempotencyKey)
     const mine = () => existsSync(pid) && readFileSync(pid, 'utf8') === String(child.pid)

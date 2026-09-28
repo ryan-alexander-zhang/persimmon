@@ -20,8 +20,8 @@ serve({
   input({ payload: { credentials, engine, ...rest } }) {
     return JSON.stringify(rest) + '\n'
   },
-  parse({ configuration: c }) {
-    const file = resolve(process.cwd(), c.resultFile)
+  parse({ configuration: c, workspace }) {
+    const file = resolve(workspace, c.resultFile) // the program ran there
     let text
     try {
       text = readFileSync(file, 'utf8')
