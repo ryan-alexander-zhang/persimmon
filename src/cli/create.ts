@@ -10,6 +10,7 @@ import { placeDoc } from './apply.js'
 import type { Cli } from './context.js'
 import { openEngine } from './context.js'
 import { loadDocs } from './io.js'
+import { adapterOf, labelPath, ownedBy, renderTree, type Status, stateOf } from './tree.js'
 
 export interface FollowOptions {
   follow?: boolean
@@ -76,11 +77,17 @@ async function follow(cli: Cli, engine: Engine, resource: Resource, pollMs: numb
   const report = () => {
     const self = engine.store.resources.getByUid(uid)
     for (const r of [...children(engine, resource, new Set()), ...(self ? [self] : [])]) {
-      const line = describe(r)
+      const line = followLine(engine, r, resource)
       if (seen.get(r.metadata.uid as string) === line) continue
       seen.set(r.metadata.uid as string, line)
-      if (r.metadata.uid !== uid || phaseOf(r)) cli.out(`${r.kind}/${r.metadata.name}  ${line}`)
+      if (r.metadata.uid !== uid || phaseOf(r)) cli.out(line)
     }
+  }
+  const summary = () => {
+    const self = engine.store.resources.getByUid(uid)
+    if (!self) return
+    cli.out('')
+    for (const line of renderTree(engine, self)) cli.out(line)
   }
   const ticker = setInterval(report, pollMs) // a drain blocks on the agent for minutes; phases still print as they commit
   try {
@@ -92,7 +99,10 @@ async function follow(cli: Cli, engine: Engine, resource: Resource, pollMs: numb
       }
       report()
       const v = readPath(r as unknown as Record<string, unknown>, t.path)
-      if (typeof v === 'string' && t.values.includes(v)) return v === 'Succeeded' ? 0 : 1
+      if (typeof v === 'string' && t.values.includes(v)) {
+        summary()
+        return v === 'Succeeded' ? 0 : 1
+      }
       if (r.metadata.stalled) {
         cli.err(`${r.kind}/${r.metadata.name} stalled after ${r.metadata.stalled.attempts} attempts: ${r.metadata.stalled.lastError ?? ''}`)
         return 1
@@ -101,6 +111,7 @@ async function follow(cli: Cli, engine: Engine, resource: Resource, pollMs: numb
       const parked = parkedOn(children(engine, resource, new Set()))
       if (parked.length) {
         report()
+        summary()
         for (const p of parked) cli.out(`parked on you: persimmon complete ${p.metadata.name}`)
         return 0
       }
@@ -111,13 +122,13 @@ async function follow(cli: Cli, engine: Engine, resource: Resource, pollMs: numb
   }
 }
 
-/** Runs `owner` owns directly, oldest first. */
-export function ownedBy(engine: Engine, owner: Resource): Resource[] {
-  const ns = owner.metadata.namespace
-  const out: Resource[] = []
-  for (const kind of ['WorkflowRun', 'TaskRun', 'GateRun', 'ValidationRun'])
-    for (const r of engine.store.resources.list(kind, ns)) if (r.metadata.ownerReferences?.some((o) => o.uid === owner.metadata.uid)) out.push(r)
-  return out.sort((a, b) => String(a.metadata.creationTimestamp).localeCompare(String(b.metadata.creationTimestamp)))
+/** `rounds-1/implement   TaskRun   codex/v1   Running`: the same words the tree uses, one line per change. */
+function followLine(engine: Engine, r: Resource, root: Resource): string {
+  const s = (r.status ?? {}) as Status
+  const label = r.metadata.uid === root.metadata.uid ? `${r.kind}   ${r.metadata.name}` : `${labelPath(engine, r, root)}   ${r.kind}`
+  const adapter = r.kind === 'TaskRun' ? adapterOf(engine, r) : undefined
+  const state = [stateOf(r, s), s.error ? `${s.error.code}: ${s.error.message}` : undefined, r.metadata.stalled ? `stalled after ${r.metadata.stalled.attempts} attempts` : undefined].filter(Boolean).join('  ')
+  return [label, adapter, state].filter(Boolean).join('   ')
 }
 
 /** Runs owned by `owner`, recursively: TaskRuns, GateRuns, ValidationRuns and their children. */

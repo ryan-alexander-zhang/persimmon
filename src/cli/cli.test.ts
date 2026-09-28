@@ -115,7 +115,9 @@ describe('persimmon CLI', () => {
     expect(await run('run', 'ask-wf', '--input', 'q=ok?', '--follow')).toBe(0)
     const name = out[0]!.split('/')[1]!
     expect(out.at(-1)).toBe(`parked on you: persimmon complete ${name}-ask`)
-    expect(out).toContain(`TaskRun/${name}-ask  Waiting human (.persimmon/inbox/${name}-ask.yaml)`)
+    expect(out).toContain('ask   TaskRun   cli-human/v1   Waiting human') // follow lines carry the tree's words
+    expect(out.some((l) => /^└─ ask   TaskRun   cli-human\/v1\s+Waiting human/.test(l))).toBe(true) // the tree once it parks
+    expect(out).toContain(`      persimmon complete ${name}-ask`)
     out = []
     expect(await run('get', `WorkflowRun/${name}`)).toBe(0)
     expect(parse(out.join('\n')).spec.timeout).toBeUndefined() // the Workflow's 3h applies in the Handler
@@ -130,8 +132,9 @@ describe('persimmon CLI', () => {
     const code = await runCli(['create', file('run.yaml', [runDoc]), '--follow'], { cwd: dir, out: (l) => out.push(l), err: (l) => err.push(l) })
     expect(code).toBe(1) // the fake adapter's execute answer is not a TaskResult
     expect(out[0]).toBe('created WorkflowRun/demo-001')
-    expect(out.at(-1)).toBe('WorkflowRun/demo-001  Failed no_progress: every activated step finished and no terminal was selected')
-    expect(out.some((l) => /^TaskRun\/demo-001-research  Failed schema_violation/.test(l))).toBe(true) // owned runs report as they change
+    expect(out).toContain('WorkflowRun   demo-001   Failed  no_progress: every activated step finished and no terminal was selected')
+    expect(out.some((l) => /^research   TaskRun   claude-code\/v1   Failed  schema_violation/.test(l))).toBe(true) // owned runs report as they change
+    expect(out.at(-1)).toMatch(/^      schema_violation: /) // then the tree
     out = []
     expect(await run('get', 'WorkflowRun/demo-001')).toBe(0)
     const shown = parse(out.join('\n'))

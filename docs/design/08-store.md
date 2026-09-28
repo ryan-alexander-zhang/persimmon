@@ -96,7 +96,7 @@ A Namespaced Resource may bind only its own Namespace's names and Global names.
 | `persimmon validate <files>` | schema plus static rules; non-zero exit on `error` findings |
 | `persimmon apply <files> [--skip-adapter-validation]` | write definitions; fails on an unreachable Adapter unless skipped (`13-executor.md`) |
 | `persimmon adapter install <manifest>` · `adapter list` | apply an Adapter, run `describe`, Ready |
-| `persimmon create <file> [--follow]` | store any Resource; `--follow` runs the engine until it reaches a `terminal.values` value or waits only on human Tasks, prints every phase change of the runs it owns and the `complete` command for each parked Task; Ctrl-C leaves it resumable |
+| `persimmon create <file> [--follow]` | store any Resource; `--follow` runs the engine until it reaches a `terminal.values` value or waits only on human Tasks, prints every phase change as `<labels from the root>   <Kind>   <Adapter>   <state>`, then the `tree` and the `complete` command for each parked Task; Ctrl-C leaves it resumable |
 | `persimmon run <Workflow> [--input <port>=<yaml \| @file>]... [--timeout <d>] [--follow]` | a manual WorkflowRun named `<workflow>-<hex6>` without writing its YAML; a scalar becomes `{kind: value, value}`, a RuntimeValue object passes through, a path on an `externalResource` port becomes a git ref, a revision document (`@spec.yaml`) on an `artifact` port is stored once and referenced; `timeout` absent means the Workflow's |
 | `persimmon signal <kind>/<name> --payload <file> [--event-id <id>]` | Signal `{source: api}` as the local Actor; id generated when absent |
 | `persimmon resume` | redeliver unacked Events and outstanding calls, drain the Outbox |
@@ -170,6 +170,9 @@ imports into a server unchanged.
   instead of `create` then `run`. Found in UAT.
 - `persimmon tree` prints the run tree that `--follow` reports flat; a Gate inside a repeat body
   makes nine runs for one command, and the flat list hid who owns whom. Found in UAT.
+- `--follow` speaks the tree's language: one line per change, labelled from the root
+  (`rounds-1/implement   TaskRun   codex/v1   Running`), and the full tree when it stops. Found in
+  UAT, three times.
 
 ## Examples
 
