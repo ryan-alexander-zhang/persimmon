@@ -19,7 +19,9 @@ Files:
 
 - [`templates.yaml`](templates.yaml): three `Prompt` resources. **This is the file you edit.**
 - [`sdlc.yaml`](sdlc.yaml): four artifact kinds (`Idea`, `Spec`, `ImplementationReport`,
-  `VerificationReport`), five Executors, seven Tasks, two Validators, the Gate, two Workflows
+  `VerificationReport`), one Skill, five Executors, seven Tasks, two Validators, the Gate, two
+  Workflows
+- [`skills/vitest-style/`](skills/vitest-style/): a skill the coder gets, how tests are written here
 - [`app/`](app/): the agents' workspace, as in example02
 - [`scripts/coverage.mjs`](scripts/coverage.mjs): the coverage Validator's script
 
@@ -36,6 +38,23 @@ persimmon apply templates.yaml             # updated Prompt/spec-template; the n
 
 The kinds change the same way, in `sdlc.yaml`, with one rule: a revisioned kind never changes
 after registration, so rename it or bump its version, or reset the project.
+
+## Skills
+
+A template tells the writer what to produce; a skill tells the coder how to work. `vitest-style`
+is a directory with a `SKILL.md`, the shape claude and codex both read. The `implement` Task lists
+it as context; for the attempt persimmon links it into `app/.agents/skills/vitest-style` (codex)
+or `app/.claude/skills/vitest-style` (claude), where the CLI discovers its own skills, and removes
+the link after. The Skill resource pins the directory by digest, so what the coder read is what
+you reviewed:
+
+```sh
+$EDITOR skills/vitest-style/SKILL.md
+persimmon digest skills/vitest-style       # paste into sdlc.yaml, Skill vitest-style, spec.digest
+persimmon apply sdlc.yaml
+```
+
+A wrong digest fails the attempt with `skill_digest_mismatch`, never silently.
 
 ## Prerequisites
 
@@ -57,7 +76,7 @@ Run every command inside `examples/example04`.
 ```sh
 persimmon init
 persimmon validate templates.yaml sdlc.yaml       # every line ok
-persimmon apply templates.yaml sdlc.yaml          # 24 created
+persimmon apply templates.yaml sdlc.yaml          # 25 created
 ```
 
 ### 2. Run it
@@ -120,6 +139,7 @@ error is rejected and the coder gets the whole verdict as `previous`.
 | a different report | `templates.yaml` `report-template` | apply |
 | more rounds | `--input maxRounds=5` | |
 | other models | `sdlc.yaml` Executors | `persimmon apply sdlc.yaml` |
+| a different test style | `skills/vitest-style/SKILL.md`, then `persimmon digest skills/vitest-style` into `sdlc.yaml` | apply |
 | skip the approval | remove the `approve` step and route `write-idea` to `write-spec` | apply |
 
 ## Reset

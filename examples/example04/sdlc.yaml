@@ -161,6 +161,15 @@ spec:
   configuration: {program: [node, ../scripts/coverage.mjs], resultFile: coverage/result.json}
   security: {networkAccess: deny}
 ---
+# A Skill: a directory with SKILL.md, pinned by digest (`persimmon digest skills/vitest-style`). The coder gets it as a native skill.
+apiVersion: persimmon.ai/v1
+kind: Skill
+metadata: {name: vitest-style}
+spec:
+  source: {provider: file, type: directory, id: vitest-style, locator: {path: skills/vitest-style}, version: "1"}
+  digest: sha256:9affade7a53d25d202e08c2b85a83dc2d772e2253eaf350c75dbb57bbab816f1
+  format: claude-code-skill/v1
+---
 apiVersion: persimmon.ai/v1
 kind: Task
 metadata: {name: write-idea}
@@ -232,9 +241,10 @@ spec:
       whose body sets up the Given, performs the When, asserts the Then. Run `npm run coverage` until every
       test passes and every metric is at least 90%. The `previous` input, when present, is the last Gate
       verdict: fix every finding in it first. Never run git. Publish an ImplementationReport: summary, the
-      files you wrote, which test verifies which AC.
+      files you wrote, which test verifies which AC. Write the tests the way the vitest-style skill says.
     context:
       - {kind: artifact, input: spec}
+      - {kind: skill, ref: {kind: Skill, name: vitest-style}}
     workspace: {path: app}
     parameters: {reasoningEffort: medium}
   timeout: 30m
