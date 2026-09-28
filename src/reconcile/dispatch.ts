@@ -124,7 +124,7 @@ export async function dispatchCalls(engine: Engine): Promise<number> {
       engine.inFlight.add(key)
       const a = c.action as { adapterId: string; op: string; payload: Record<string, unknown>; idempotencyKey: string; deadline?: string }
       const scope = { kind: 'call', uid: c.uid, idempotencyKey: a.idempotencyKey }
-      const finished = (payload: AdapterFinishedPayload) => appendEvent(engine, c.uid, { type: 'AdapterFinished', dedupeKey: `adapter/${a.idempotencyKey}`, payload })
+      const finished = (payload: AdapterFinishedPayload) => appendEvent(engine, c.uid, { type: 'AdapterFinished', dedupeKey: `adapter/${a.idempotencyKey}`, payload: { ...payload, finishedAt: engine.now().toISOString() } }) // answer time; delivery waits for the other calls of this drain
       try {
         const deadline = a.deadline ? new Date(a.deadline) : new Date(engine.now().getTime() + engine.defaultCallDeadlineMs)
         const token = engine.store.tokens.issue(scope, deadline.toISOString())

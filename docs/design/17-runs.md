@@ -133,6 +133,10 @@ CancelRequested → `cancelResource` or `callAdapter(cancel)`; Cancelled.
 - `WorkflowRun.spec.timeout` and `Trigger.spec.run.timeout` are optional: the `workflow` Handler
   reads the Workflow's `spec.timeout` when the run carries none, so every writer (CLI, Trigger,
   API) inherits it the same way. Found in UAT.
+- An attempt's `finishedAt` is the Adapter's answer time (`AdapterFinished.finishedAt`), not the
+  delivery time: local mode dispatches the calls of one drain together and delivers their answers
+  after the slowest, so a two-second script showed the same end as a one-minute agent. Found in
+  UAT.
 
 ## Examples
 

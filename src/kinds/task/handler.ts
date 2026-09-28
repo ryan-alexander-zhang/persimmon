@@ -87,6 +87,7 @@ export function taskHandler(deps: HandlerDeps): HandlerImpl {
       if (terminal.has(status.phase)) return { actions: [] }
       const ev = input.event
       const now = deps.now()
+      const answeredAt = () => (ev.type === 'AdapterFinished' && ev.payload.finishedAt ? rfc3339(new Date(ev.payload.finishedAt)) : rfc3339(now)) // the adapter's answer time, not the delivery time
       const lei = run.spec.address.logicalExecutionId
       const attempts = status.attempts ?? []
       const current = attempts.at(-1)
@@ -168,7 +169,7 @@ export function taskHandler(deps: HandlerDeps): HandlerImpl {
 
       const attemptFailed = (a: Attempt, error: ReconcileError, extra: Action[] = []): ReconcileResult => {
         const { task } = load(run)
-        const done: Attempt = { ...a, state: 'failed', finishedAt: rfc3339(now), error }
+        const done: Attempt = { ...a, state: 'failed', finishedAt: answeredAt(), error }
         const rest = attempts.slice(0, -1)
         const actions: Action[] = [...extra, { type: 'abandonScope', key: a.idempotencyKey }, { type: 'clearTimer', key: 'attempt' }]
         if (shouldRetry(task.spec.retryPolicy, a.index, error, task.spec.sideEffects)) {
@@ -190,7 +191,7 @@ export function taskHandler(deps: HandlerDeps): HandlerImpl {
           if (e instanceof PortError) return attemptFailed(a, err('schema_violation', e.message))
           throw e
         }
-        const done: Attempt = { ...a, state: 'succeeded', finishedAt: rfc3339(now) }
+        const done: Attempt = { ...a, state: 'succeeded', finishedAt: answeredAt() }
         return {
           statusPatch: patch({ phase: 'Succeeded', outputs: result.outputs, attempts: [...attempts.slice(0, -1), done], waitingReason: null, ...extraPatch }),
           actions: [{ type: 'commitScope', key: a.idempotencyKey }, { type: 'clearTimer', key: 'attempt' }, { type: 'clearTimer', key: 'deadline' }],

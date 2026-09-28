@@ -3421,6 +3421,11 @@
      },
      "error": {
       "$ref": "#/$defs/Error"
+     },
+     "finishedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "when the answer arrived; delivery may come later"
      }
     },
     "oneOf": [

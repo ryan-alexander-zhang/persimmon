@@ -80,6 +80,7 @@ $defs:
       state: {enum: [succeeded, failed, unknown]}
       result: {type: object}
       error: {$ref: "#/$defs/Error"}
+      finishedAt: {type: string, format: date-time, description: "when the answer arrived; delivery may come later"}
     oneOf:
       - properties: {state: {const: succeeded}}
         required: [result]

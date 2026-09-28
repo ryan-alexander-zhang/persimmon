@@ -7,10 +7,10 @@ export interface ReconcileError {
   retryable: boolean
 }
 
-export type AdapterFinishedPayload =
+export type AdapterFinishedPayload = { finishedAt?: string } & ( // when the answer arrived; the Event is delivered later (03-reconcile.md)
   | { idempotencyKey: string; state: 'succeeded'; result: Record<string, unknown> }
   | { idempotencyKey: string; state: 'failed'; error: ReconcileError }
-  | { idempotencyKey: string; state: 'unknown' }
+  | { idempotencyKey: string; state: 'unknown' })
 
 interface EventBase {
   sequence: number

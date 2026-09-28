@@ -22,7 +22,7 @@ Event ──append──▶ RunLog(uid) ──▶ dispatcher ──▶ lease(uid
 | TimerFired | a timer this Handler set elapsed | `{key, at}` | `timer/<key>/<at>` |
 | Signal | adapter `complete`, API `signal`, or Outbox subscription match | `{source, eventId, payload?}` | `signal/<eventId>` |
 | CancelRequested | user or owner asked to cancel; once per Resource | `{reason?}` | `cancel` |
-| AdapterFinished | a `callAdapter` returned, failed, or was outstanding at restart | `{idempotencyKey, state, result? \| error?}` | `adapter/<idempotencyKey>` |
+| AdapterFinished | a `callAdapter` returned, failed, or was outstanding at restart | `{idempotencyKey, state, result? \| error?, finishedAt?}`; `finishedAt` is when the answer arrived | `adapter/<idempotencyKey>` |
 
 Delivery: at-least-once, per-Resource order. Duplicate `(uid, dedupeKey)` appends and
 duplicate `(uid, sequence)` applications are no-ops. On start the engine redelivers every

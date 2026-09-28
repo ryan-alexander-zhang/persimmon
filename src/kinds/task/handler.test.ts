@@ -136,7 +136,9 @@ describe('task Handler', () => {
     const result = { protocol: 'persimmon.result/v1', outputs: { report: { kind: 'artifact', ref: reportRef } } }
     const ev = { type: 'AdapterFinished' as const, dedupeKey: 'a', payload: { idempotencyKey: 'prd-create-002//research/1', state: 'succeeded' as const, result } }
     const r = handler.reconcile(input(run, ev, [])) as ReconcileResult
-    expect(clean(r.statusPatch)).toMatchObject({ phase: 'Failed', error: { code: 'schema_violation' }, attempts: [{ state: 'failed' }] })
+    expect(clean(r.statusPatch)).toMatchObject({ phase: 'Failed', error: { code: 'schema_violation' }, attempts: [{ state: 'failed', finishedAt: '2026-09-21T09:00:01Z' }] }) // no answer time: delivery time
+    const answered = handler.reconcile(input(run, { ...ev, payload: { ...ev.payload, finishedAt: '2026-09-21T08:59:30.500Z' } }, [])) as ReconcileResult
+    expect(clean(answered.statusPatch).attempts[0].finishedAt).toBe('2026-09-21T08:59:30Z') // the adapter's answer time, delivered later
     const wrong = handler.reconcile(input(run, { ...ev, payload: { ...ev.payload, result: { protocol: 'persimmon.result/v1', outputs: {} } } }, [])) as ReconcileResult
     expect(clean(wrong.statusPatch).error.message).toMatch(/report: output missing/)
   })
