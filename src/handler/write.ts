@@ -4,6 +4,7 @@ import type { KindRegistry } from '../kind-definition/registry.js'
 import { engineActor, makeEvent } from '../outbox/event.js'
 import { validateEnvelope } from '../resource/envelope.js'
 import type { Actor, AuditRecord, Resource, Snapshot } from '../resource/types.js'
+import { canonicalBytes, digestOf } from '../snapshot/canonical.js'
 import { storeClosure } from '../snapshot/snapshot.js'
 import { type Resolver, resolveClosure } from '../snapshot/walk.js'
 import type { Store } from '../store/store.js'
@@ -80,7 +81,8 @@ export function storeCreate(engine: Engine, prepared: Resource, o: CreateOptions
   const key = { kind: resource.kind, namespace: resource.metadata.namespace, name: resource.metadata.name }
   const existing = store.resources.get(key)
   if (existing) {
-    if (isDeepStrictEqual(existing.spec, resource.spec)) return { resource: existing, created: false }
+    const content = (r: Resource) => (r.spec as { content?: unknown }).content
+    if (kd.spec.revisioned ? isDeepStrictEqual(content(existing), content(resource)) : isDeepStrictEqual(existing.spec, resource.spec)) return { resource: existing, created: false } // a revision is its content; provenance is stamped
     throw new WriteError(`${resource.kind} ${resource.metadata.name} exists with a different spec`)
   }
 
@@ -93,26 +95,33 @@ export function storeCreate(engine: Engine, prepared: Resource, o: CreateOptions
     }
     const snapshot = snapshotFor(engine, resource, kd.spec.snapshotOnCreate ?? false, o)
     if (snapshot) resource.metadata.snapshot = snapshot
+    const identity = kd.spec.revisioned ? stampRevision(engine, resource, o.actor) : undefined
 
     const stored = store.resources.put(resource)
     const time = engine.now().toISOString()
     store.audit.append(audit(stored, o.actor, time, 'create'))
     if (kd.spec.handlerRef) store.runLog.append(stored.metadata.uid as string, { type: 'Created', dedupeKey: 'created', ...(o.causationChain ? { causationChain: o.causationChain } : {}) })
-    if (!kd.spec.revisioned)
-      store.outbox.enqueue(
-        makeEvent({
-          type: 'resource.created',
-          time,
-          subject: { apiVersion: stored.apiVersion, kind: stored.kind, ...(stored.metadata.namespace ? { namespace: stored.metadata.namespace } : {}), name: stored.metadata.name, uid: stored.metadata.uid as string },
-          ...(o.producer ? { producer: o.producer } : {}),
-          ordinal: o.ordinal ?? 0,
-          actor: o.actor,
-          causationChain: o.causationChain ?? [],
-          payload: {},
-        }),
-      )
+    const common = { time, ...(o.producer ? { producer: o.producer } : {}), ordinal: o.ordinal ?? 0, actor: o.actor, causationChain: o.causationChain ?? [] }
+    store.outbox.enqueue(
+      identity
+        ? makeEvent({ ...common, type: 'artifact.published', subject: { apiVersion: stored.apiVersion, kind: stored.kind, namespace: stored.metadata.namespace as string, id: identity.id, revision: identity.revision }, payload: { contentDigest: (stored.status as { contentDigest: string }).contentDigest } })
+        : makeEvent({ ...common, type: 'resource.created', subject: { apiVersion: stored.apiVersion, kind: stored.kind, ...(stored.metadata.namespace ? { namespace: stored.metadata.namespace } : {}), name: stored.metadata.name, uid: stored.metadata.uid as string }, payload: {} }),
+    )
     return { resource: stored, created: true }
   }
+}
+
+/** A revision written by hand (`persimmon create spec.yaml`) gets what a publish gets: the next revision number checked, provenance with the writer as actor, the content digest (05-revisioned-kind.md). */
+function stampRevision(engine: Engine, resource: Resource, actor: Actor): { id: string; revision: number } {
+  const spec = resource.spec as { identity?: { id: string; revision: number }; content: unknown; provenance?: unknown }
+  const identity = spec.identity
+  if (!identity) throw new WriteError(`${resource.kind} ${resource.metadata.name}: spec.identity required`)
+  if (resource.metadata.name !== `${identity.id}.r${identity.revision}`) throw new WriteError(`${resource.kind} ${resource.metadata.name}: name must be ${identity.id}.r${identity.revision}`)
+  const next = engine.store.resources.reserveRevision(resource.kind, resource.metadata.namespace as string, identity.id) // rolled back with the transaction on error
+  if (next !== identity.revision) throw new WriteError(`${resource.kind} ${identity.id}: revision ${identity.revision} is not the next one (${next})`)
+  spec.provenance ??= { producerRef: { apiVersion: resource.apiVersion, kind: resource.kind, namespace: resource.metadata.namespace, name: resource.metadata.name }, inputs: [], actor } // self-authored: the revision is its own producer
+  resource.status = { contentDigest: digestOf(canonicalBytes(spec.content)), representations: [] }
+  return identity
 }
 
 function snapshotFor(engine: Engine, resource: Resource, snapshotOnCreate: boolean, o: CreateOptions): Snapshot | undefined {

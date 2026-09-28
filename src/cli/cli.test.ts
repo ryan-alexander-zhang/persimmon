@@ -190,6 +190,18 @@ describe('persimmon CLI', () => {
     expect(await run('get', 'ProductRequirement/spec-1.r1')).toBe(0)
     expect(parse(out.join('\n')).spec.content.title).toBe('Spec')
     expect(await run('run', 'prd-approval', '--input', `prd=@${file('prd.yaml', [prdDoc])}`)).toBe(0) // a second run reuses the stored revision
+    // a hand-written revision is stamped like a published one and its event fires the pack's Trigger
+    out = []
+    expect(await run('get', 'ProductRequirement/spec-1.r1')).toBe(0)
+    const rev = parse(out.join('\n'))
+    expect(rev.spec.provenance).toEqual({ producerRef: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement', namespace: 'default', name: 'spec-1.r1' }, inputs: [], actor: { kind: 'user', id: 'local' } })
+    expect(rev.status.contentDigest).toMatch(/^sha256:[0-9a-f]{64}$/)
+    out = []
+    expect(await run('get', 'WorkflowRun')).toBe(0)
+    expect(out.some((l) => /^WorkflowRun\/on-prd-published-/.test(l))).toBe(true) // artifact.published reached on-prd-published
+    const wrong = { ...prdDoc, metadata: { name: 'spec-1.r3' }, spec: { ...prdDoc.spec, identity: { id: 'spec-1', revision: 3 } } }
+    expect(await run('create', file('prd3.yaml', [wrong]))).toBe(1)
+    expect(err.at(-1)).toMatch(/revision 3 is not the next one \(2\)/)
     expect(parseInput('n=12')).toEqual(['n', { kind: 'value', value: 12 }])
     expect(parseInput('s=hello world')).toEqual(['s', { kind: 'value', value: 'hello world' }])
     expect(parseInput('a={kind: artifact, ref: {id: x}}')).toEqual(['a', { kind: 'artifact', ref: { id: 'x' } }])
