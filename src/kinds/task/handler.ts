@@ -62,6 +62,8 @@ export function taskHandler(deps: HandlerDeps): HandlerImpl {
           findings.push({ severity: 'warning', code: 'adapter_describe', path: '/spec/action/parameters', message: `${executor!.adapter} describe.parametersSchema is not a valid schema: ${(e as Error).message}` })
         }
       }
+      const ws = spec.action.workspace
+      if (ws && 'input' in ws && spec.inputs?.[ws.input]?.type.kind !== 'externalResource') bad('/spec/action/workspace/input', `${ws.input} is not an externalResource port`)
       for (const [i, e] of (spec.action.context ?? []).entries()) {
         if (describe?.contextKinds && !describe.contextKinds.includes(e.kind)) bad(`/spec/action/context/${i}/kind`, `${executor!.adapter} does not accept ${e.kind} context`)
         if (e.kind === 'file' || e.kind === 'artifact') {
@@ -109,6 +111,15 @@ export function taskHandler(deps: HandlerDeps): HandlerImpl {
           if (e instanceof PortError || e instanceof ContextError) return fail(err(e instanceof ContextError ? e.code : 'invalid_input', e.message))
           throw e
         }
+        const ws = task.spec.action.workspace
+        let workspace: string | undefined
+        if (ws && 'path' in ws) workspace = ws.path // relative to the engine's cwd; the dispatcher makes it absolute
+        else if (ws) {
+          const v = inputs[ws.input]
+          const path = v?.kind === 'externalResource' ? (v.ref.locator as { path?: unknown } | undefined)?.path : undefined
+          if (typeof path !== 'string') return fail(err('invalid_input', `workspace input ${ws.input} has no locator.path`))
+          workspace = path
+        }
         const key = `${lei}/${index}`
         const attemptDeadline = new Date(Math.min(now.getTime() + durationMs(task.spec.timeout), Date.parse(run.spec.deadline)))
         // value ports may name a well-known $ref; the payload carries every schema self-contained (10-ports.md)
@@ -145,6 +156,7 @@ export function taskHandler(deps: HandlerDeps): HandlerImpl {
                 inputs,
                 context,
                 deadline: rfc3339(attemptDeadline),
+                ...(workspace ? { workspace } : {}),
                 // credentials and engine are added by the dispatcher; never in the RunLog (13-executor.md)
               },
             },

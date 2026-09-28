@@ -10,7 +10,7 @@ import type { Closure } from '../../snapshot/walk.js'
 import type { HandlerDeps } from '../deps.js'
 import { taskHandler } from './handler.js'
 import { backoffMs, shouldRetry } from './retry.js'
-import type { RetryPolicy, TaskRun } from './types.js'
+import type { RetryPolicy, TaskRun, TaskSpec } from './types.js'
 
 const example = (n: string) => parse(readFileSync(`docs/design/examples/${n}.yaml`, 'utf8'))
 const closure = example('snapshot-closure') as Closure
@@ -205,7 +205,22 @@ describe('task Handler', () => {
     const task = example('task-write-prd')
     task.spec.retryPolicy.retryOn.push('invalid_input')
     task.spec.action.context.push({ kind: 'file', input: 'research', path: 'x' })
+    task.spec.action.workspace = { input: 'research' }
     const findings = handler.validate(task).findings
-    expect(findings.map((f) => f.message)).toEqual(['invalid_input in both retryOn and abortOn', 'invalid_input is never retried', 'research is not an externalResource port'])
+    expect(findings.map((f) => f.message)).toEqual(['invalid_input in both retryOn and abortOn', 'invalid_input is never retried', 'research is not an externalResource port', 'research is not an externalResource port'])
+  })
+
+  it('action.workspace reaches the execute payload: a path as given, an input through its locator.path', () => {
+    const task = closure.resources.find((r) => r.kind === 'Task' && (r.spec as { action: { instructions: string } }).action.instructions.startsWith('Research'))!.spec as unknown as TaskSpec
+    const call = (run = base()) => handler.reconcile(input(run, { type: 'Created', dedupeKey: 'created' })) as ReconcileResult
+    const payload = (run?: TaskRun) => (call(run).actions[0] as { payload: Record<string, unknown> }).payload
+    task.action.workspace = { path: 'app' }
+    expect(payload().workspace).toBe('app')
+    task.action.workspace = { input: 'repository' } // the fixture's repository is remote: no locator.path
+    expect(clean(call().statusPatch)).toMatchObject({ phase: 'Failed', error: { code: 'invalid_input', message: 'workspace input repository has no locator.path' } })
+    const local = base()
+    ;(local.spec.inputs.repository as { ref: { locator: Record<string, unknown> } }).ref.locator = { path: '/work/demo' }
+    expect(payload(local).workspace).toBe('/work/demo')
+    delete task.action.workspace
   })
 })

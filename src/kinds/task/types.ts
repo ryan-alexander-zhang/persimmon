@@ -28,7 +28,7 @@ export interface TaskSpec {
   inputs?: Record<string, InputSpec>
   outputs?: Record<string, OutputSpec>
   executorRef: LocalDefinitionRef
-  action: { instructions: string; context?: ContextEntry[]; parameters?: Record<string, unknown> }
+  action: { instructions: string; context?: ContextEntry[]; parameters?: Record<string, unknown>; workspace?: { path: string } | { input: string } }
   timeout: string
   retryPolicy?: RetryPolicy
   sideEffects: SideEffects

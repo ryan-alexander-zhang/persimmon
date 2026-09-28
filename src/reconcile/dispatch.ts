@@ -1,5 +1,6 @@
 // Dispatcher: Event ─▶ lease ─▶ Handler.reconcile ─▶ commit; timers, adapter calls, retry, stalled (03-reconcile.md).
 import { randomUUID } from 'node:crypto'
+import { resolve } from 'node:path'
 import type { Context, ReconcileInput, ReconcileResult } from '../handler/types.js'
 import { audit } from '../handler/write.js'
 import { deliverOnce } from '../outbox/deliver.js'
@@ -125,7 +126,8 @@ export async function dispatchCalls(engine: Engine): Promise<number> {
       try {
         const deadline = a.deadline ? new Date(a.deadline) : new Date(engine.now().getTime() + engine.defaultCallDeadlineMs)
         const token = engine.store.tokens.issue(scope, deadline.toISOString())
-        const out = await engine.adapters.call(a.adapterId, a.op, { ...a.payload, ...credentialsFor(engine, a.payload), engine: { endpoint: engine.endpoint, token } }, {
+        const workspace = typeof a.payload.workspace === 'string' ? { workspace: resolve(engine.cwd, a.payload.workspace) } : {} // the Task's path is relative to the project (12-task.md)
+        const out = await engine.adapters.call(a.adapterId, a.op, { ...a.payload, ...workspace, ...credentialsFor(engine, a.payload), engine: { endpoint: engine.endpoint, token } }, {
           timeoutMs: deadline.getTime() - engine.now().getTime(),
           onStream: (l) => {
             if (l.event === 'log') engine.store.runLog.log(c.uid, c.sequence, l.text) // stream log lines land beside the `log` callback (07-adapter.md)
