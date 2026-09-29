@@ -5,7 +5,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { request } from 'node:http'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, relative } from 'node:path'
 import { createInterface } from 'node:readline'
 import { createHash } from 'node:crypto'
 import { skillDigest } from './skills.mjs'
@@ -106,14 +106,15 @@ function checkSkills(context, formats, workspace, skillDir, log) {
   for (const c of declared) {
     if (!formats.includes(c.format)) throw new AdapterError('invalid_input', `skill ${c.name}: format ${c.format} is not supported by this Adapter`, false)
     const at = join(workspace, skillDir, c.name)
-    if (!existsSync(at)) throw new AdapterError('invalid_input', `skill ${c.name}: not installed at ${skillDir}/${c.name}; run persimmon skill install ${c.name} --into <workspace>`, false)
+    const into = relative(process.cwd(), workspace) || '.'
+    if (!existsSync(at)) throw new AdapterError('invalid_input', `skill ${c.name}: not installed at ${skillDir}/${c.name}; run persimmon skill install ${c.name} --into ${into}`, false)
     let actual
     try {
       actual = skillDigest(at)
     } catch (e) {
       throw new AdapterError('invalid_input', `skill ${c.name} at ${skillDir}/${c.name}: ${e.message}`, false)
     }
-    if (actual !== c.digest) throw new AdapterError('skill_digest_mismatch', `skill ${c.name}: installed bundle digest ${actual} differs from ${c.digest}; run persimmon skill install ${c.name} --into <workspace>`, false)
+    if (actual !== c.digest) throw new AdapterError('skill_digest_mismatch', `skill ${c.name}: installed bundle digest ${actual} differs from ${c.digest}; run persimmon skill install ${c.name} --into ${into}`, false)
   }
   let present = []
   try {
