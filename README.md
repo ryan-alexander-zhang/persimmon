@@ -15,12 +15,12 @@ YAML definitions ──▶ persimmon run ──▶ WorkflowRun ──▶ TaskRun
 
 | | |
 |---|---|
-| Form | one binary `persimmon`; local mode on a laptop with SQLite, server mode as a daemon with Postgres; same features in both |
-| Input | YAML definitions: Workflow, Task, Executor, Gate, Validator, Prompt, Skill, Trigger |
+| Form | one binary `persimmon`; local mode with SQLite; server mode (daemon, Postgres) is roadmap |
+| Input | YAML definitions: Workflow, Task, Executor, Gate, Validator, Prompt, Skill, Trigger, KindDefinition, RelationType, Adapter |
 | Output | artifacts: immutable, numbered revisions with provenance |
 | Workers | Adapters, out of process, behind one JSON protocol |
 | Language | TypeScript engine; Adapters in any language |
-| Users | one developer locally; a team with Namespaces and grants on a server |
+| Users | one developer locally; team use on a server is roadmap |
 
 ## Concepts
 
@@ -36,8 +36,8 @@ YAML definitions ──▶ persimmon run ──▶ WorkflowRun ──▶ TaskRun
    running run.
 6. **Artifact**: append-only revisions, staged during an attempt, visible on commit, provenance
    stamped by the engine.
-7. **Outbox**: in-database event bus. Triggers react to `artifact.published` and
-   `resource.finished`.
+7. **Outbox**: in-database event bus. Triggers react to `artifactPublished` and
+   `workflowRunFinished`.
 8. **Adapter**: out-of-process worker with Roles `handler`, `executor`, `evaluator`. The engine
    validates capability, never interprets behaviour.
 
@@ -62,8 +62,8 @@ Layer 1 in one line each:
 
 ## Not in v1
 
-No deployment lifecycle, no web UI, no composition kinds, no cross-Namespace references, no
-external webhooks. See `docs/design/91-roadmap.md`.
+No server mode, no deployment lifecycle, no web UI, no composition kinds, no cross-Namespace
+references, no external webhooks. See `docs/design/91-roadmap.md`.
 
 ## Quickstart
 
@@ -71,15 +71,18 @@ external webhooks. See `docs/design/91-roadmap.md`.
 npm install && npm run build
 alias persimmon="node $PWD/dist/main.js"
 cd <your project> && persimmon init             # .persimmon/, persimmon.yaml, shipped Adapters, the SDLC pack
-persimmon run <Workflow> --input k=v --follow    # a manual WorkflowRun; a path fills a repository port; prints every run's phase
+persimmon run <Workflow> --input k=v --follow    # a manual WorkflowRun; a path fills a repository port; one line per phase change, then the tree; stops when done or parked
 persimmon get WorkflowRun                        # phases, waiting reasons, errors
 persimmon tree WorkflowRun/<name>                # the run, what it produced, every run it owns, nested
 persimmon complete <taskRun>                     # answer a human Task at the terminal; --file result.yaml to script it
 persimmon resume                                 # drive waiting work after a Signal or a timer
 ```
 
-Every verb runs the engine in process and drains before it exits. `PERSIMMON_DEBUG=1` prints
-reconcile errors. Tests: `npm test`; the end-to-end scenario is `test/scenario/prd.test.ts`.
+Write verbs run the engine in process and drain before they exit; read verbs (`get`, `describe`,
+`logs`, `tree`, `validate`) only look. `persimmon --help` lists every verb, including
+`skill install` and `digest`. A Skill is installed once into the workspace with `skill install`
+and verified at every attempt. `PERSIMMON_DEBUG=1` prints reconcile errors. Tests: `npm test`;
+the end-to-end scenario is `test/scenario/prd.test.ts`.
 
 ## Walkthrough: the PRD loop
 
@@ -101,18 +104,18 @@ EOF
 persimmon apply executor.yaml -n default          # init already armed the pack's Trigger in this Namespace
 
 persimmon run prd-create --input repository=. --follow   # a path on a repository port becomes a ref pinned to HEAD
-# research and write-prd run on the agent; a ProductRequirement is published; the Trigger starts prd-approval
-persimmon resume                                 # security-review and product-review run; the Gate waits for you
-persimmon tree WorkflowRun/on-prd-published-<id> # ... approve   TaskRun   cli-human/v1   Waiting human
+# research and write-prd run on the agent; a ProductRequirement is published; the Trigger starts prd-approval,
+# whose security-review and product-review run in the same --follow; the Gate parks on you
+persimmon get WorkflowRun                        # lists on-prd-published-<id>
+persimmon tree WorkflowRun/on-prd-published-<id> # approval/humanreview/task   TaskRun   cli-human/v1   Waiting human
 cat > approve.yaml <<'EOF'
 protocol: persimmon.result/v1
 outputs:
   result: {kind: value, value: {passed: true, findings: [], evidence: []}}
 EOF
-persimmon complete <taskRun> --file approve.yaml
-persimmon resume
-persimmon get WorkflowRun                        # on-prd-published-<id>  Succeeded
-persimmon get ProductRequirement                 # <run>-write-prd-prd.r1
+persimmon complete on-prd-published-<id>-approval-humanreview-task --file approve.yaml   # drains, prints the tree
+persimmon get WorkflowRun                        # WorkflowRun/on-prd-published-<id>  -n default  Succeeded
+persimmon get ProductRequirement                 # ProductRequirement/prd-create-<hex>-write-prd-prd.r1  -n default
 ```
 
 A script Executor runs the same way: `subprocess/v1` feeds the execute payload on stdin and
