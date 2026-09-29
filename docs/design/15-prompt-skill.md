@@ -65,8 +65,15 @@ The engine never fetches or interprets a bundle.
   scp-style address or an absolute path, `version` a commit or ref name, so git never reads an
   option or an `ext::` transport from a Skill. Closes reference open question 3. Found in
   implementation.
-- The cache under `.persimmon/skills/<hash>` is the source of truth; what the agent sees is a
-  per-attempt link in its workspace's native skill directory (`19-adapter-roles.md`). Found in UAT.
+- A Skill is installed into a workspace once and stays: `persimmon skill install <name> --into <dir>`
+  fetches into the cache, verifies the digest and copies the bundle to `<dir>/.agents/skills/<name>`
+  and `<dir>/.claude/skills/<name>`, where codex and claude discover their own skills. A Task still
+  declares the Skills it needs as context; at attempt start the Adapter finds each declared one in
+  the workspace, hashes it and compares to the declared digest: missing or different fails the
+  attempt and names the install command. Other skills present in the workspace are allowed and
+  logged as unmanaged. Declared in YAML, verified before the run, recorded on the TaskRun; the
+  files persist and every agent in the workspace sees them, humans too. A per-attempt link was
+  tried first and dropped: churn for nothing, and skills are conventions, not secrets. Found in UAT.
 - `persimmon digest <dir>` prints the bundle digest, so a Skill can be declared for a local
   directory without computing sha256 by hand; the CLI and the Adapters share the algorithm by
   test. Found in UAT.

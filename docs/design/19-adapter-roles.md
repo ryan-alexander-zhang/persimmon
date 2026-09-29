@@ -135,8 +135,8 @@ Result: a ValidationResult (`10-ports.md`). No `credentials`, no `security` (`14
   answers no JSON; a publish the engine refuses is `schema_violation`, not retryable; a
   callback refusal is `permission_denied`. Found in implementation.
 - Shipped agent Adapters read `claude-code-skill/v1` Skills: a directory with `SKILL.md`,
-  fetched and verified per `15-prompt-skill.md`, linked into the workspace's skill directory and
-  named in the prompt; `file` context is a pointer into the working directory, the agent reads it.
+  installed into the workspace per `15-prompt-skill.md`, verified against the declared digest at
+  attempt start and named in the prompt; `file` context is a pointer into the working directory, the agent reads it.
   `codex/v1` maps `security.networkAccess` to `sandbox_workspace_write.network_access`, closed
   unless `allowlist`, and refuses `deny` with `sandbox: full` since the bypass ignores the switch;
   `allowedHosts` and the claude sandbox network are not enforced by these Adapters. Found in
@@ -167,13 +167,13 @@ Result: a ValidationResult (`10-ports.md`). No `credentials`, no `security` (`14
   lines: the agent's text, `> <tool> <input>`, `< <result>`; init, rate limit and result events
   are dropped; the `result` event is the answer. A driver's `transcript` may be a line mapper. One
   line logger per stream, so a partial stdout line no longer joins a stderr line. Found in UAT.
-- A Skill reaches the agent where its CLI discovers skills: the Adapter links
-  `<workspace>/.claude/skills/<name>` (claude) or `<workspace>/.agents/skills/<name>` (codex) to
-  the verified cache for the attempt and removes the link after. `--add-dir` only granted read
-  access; a native skill can be invoked. An entry under that name that is not a persimmon link is
-  never replaced: `invalid_input`. Found in UAT.
-- The skill directories the Adapter creates for its links (`.agents/skills/`, `.claude/`) go with
-  the links after the attempt, when empty; a directory the user had stays. Found in UAT.
+- A Skill reaches the agent where its CLI discovers skills, `<workspace>/.claude/skills/<name>`
+  (claude) or `<workspace>/.agents/skills/<name>` (codex), installed there by `persimmon skill
+  install` and left in place. The Adapter neither fetches nor writes: it hashes the installed
+  directory of every declared Skill and fails the attempt on a missing one (`invalid_input`, the
+  install command in the message) or a different digest (`skill_digest_mismatch`); it logs the
+  skills present that no context entry declares. `--add-dir` only granted read access; a native
+  skill can be invoked. Found in UAT.
 
 ## Examples
 
