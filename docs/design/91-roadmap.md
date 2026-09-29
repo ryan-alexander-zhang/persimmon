@@ -23,15 +23,16 @@ later     eager joins · retention policy · policy resource · external event s
 | eager `any` / `quorum` joins with cancellation of the rest | `11-workflow.md`, `14-gate.md` | Transitions and Gate policy |
 | cross-Namespace references | `04-snapshot.md` | walk never crosses a Namespace |
 | garbage collection, cascading delete | `00-resource.md` | |
+| `run --follow` lines in commit time order | `08-store.md` | v1: lines committed in one drain print parent before child (`examples/example02`) |
 
 ## Layer 1
 
 | Item | Deferred by | Note |
 |---|---|---|
-| `tool` Executor type in the pack | `20-pack.md` | type exists; no reference Executor |
+| `tool` Executor type in the pack | `20-pack.md` | Adapter exists (`subprocess/v1`); no pack Executor |
 | context inheritance, agent profile bundling Executor + Prompts + Skills | `12-task.md` | compile-time sugar into per-Task context |
 | named Workflow entrypoints compiled to sub-Workflows | `11-workflow.md` | |
-| unified `reasoning.effort` hint translated by Adapters | `13-executor.md` | v1: adapter configuration |
+| unified `reasoning.effort` hint translated by Adapters | `13-executor.md` | v1: each Adapter's `parametersSchema` |
 | Gate-level score aggregation | `14-gate.md` | |
 | user-defined shared value schemas beyond the well-known `$ref`s | `10-ports.md` | |
 | ObjectRef PortType | `16-trigger.md` | dropped `fromEvent: run`; runs read `spec.origin` |
@@ -42,6 +43,12 @@ later     eager joins · retention policy · policy resource · external event s
 | Relations asserted by builtin Handlers | `18-artifact.md` | v1: users and pack kinds |
 | artifact scope, internal versus exported | `18-artifact.md` | cut; Workflow output contracts encapsulate |
 | fork and time travel of runs | reference roadmap | runs are immutable; new run with chosen inputs |
+| Skill digest verified at apply | `15-prompt-skill.md` | v1: `skill install` and every attempt verify; no engine-side check |
+| Executor-level workspace cap | `12-task.md` | v1: the workspace is the Task's |
+| Executor-level Skills | `12-task.md`, `15-prompt-skill.md` | v1: a Task lists its Skills as context |
+| HTML stored as an artifact representation by the agent Adapters, plus an export verb | `18-artifact.md`, `19-adapter-roles.md` | v1: the agent writes the file; the artifact holds its path (`examples/example02`) |
+| scripts reading artifact content through the Engine callback | `19-adapter-roles.md` | v1: `subprocess/v1` passes references; `fromEvent: content.<path>` binds values (`examples/example03`) |
+| per-run `resultFile` | `19-adapter-roles.md` | v1: one path per Executor; runs sharing it stay sequential (`examples/example03`) |
 
 ## Layer 2
 
@@ -52,6 +59,7 @@ later     eager joins · retention policy · policy resource · external event s
 | traceability Validator, entity indexing, `implements-v1` / `verifies-v1`, `PlanTask`, `ImplementationReport` | `18-artifact.md`, `20-pack.md` | `list` callback already present |
 | pack format: manifest, version, dependency resolution, `pack` verb | `20-pack.md` | v1: directory and `apply` |
 | the remaining SDLC artifact kinds | `20-pack.md` | arrive with the Workflows that touch them |
+| tester as its own Task, apart from the coder | `examples/example04` | v1: the coder writes its tests; a Validator reads them |
 
 ## Layer 3
 
@@ -73,4 +81,4 @@ later     eager joins · retention policy · policy resource · external event s
 | implementation language | decided: TypeScript; `ajv` for JSON Schema 2020-12 |
 | CEL library | decided: `@marcbachmann/cel-js`, checker covers static rule 11 (`10-ports.md`) |
 | canonical serialization | decided: JSON, sorted keys, UTF-8, no whitespace (`04-snapshot.md`) |
-| human Adapter for local mode | decided: one `cli-human/v1` Adapter, terminal prompt when a TTY is attached, file drop in `.persimmon/inbox/` otherwise (`20-pack.md`) |
+| human Adapter for local mode | decided: `cli-human/v1` is a file drop in `.persimmon/inbox/`; `persimmon complete` prompts at the terminal, `--file` for scripts (`20-pack.md`) |
