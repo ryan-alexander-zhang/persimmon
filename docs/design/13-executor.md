@@ -22,7 +22,7 @@ Task ── executorRef ──▶ Executor {type, adapter, configuration, securi
 |---|---|
 | `type` | `agent` \| `script` \| `tool` \| `human` |
 | `adapter` | Adapter id (`x-persimmon-adapter: {roles: [executor]}`) |
-| `configuration` | object, default `{}`; opaque to the engine; model, effort, sandbox, approval group, program live here |
+| `configuration` | object, default `{}`; opaque to the engine; model, sandbox, program live here; effort is an `action.parameters` key |
 | `security` | default `{networkAccess: deny}` |
 | `security.networkAccess` | `deny` \| `allowlist` |
 | `security.allowedHosts[]` | hostname with optional `:port`; no scheme, path or wildcard; with `allowlist` only |
@@ -62,7 +62,7 @@ the Adapter process; Executor-level ones are per-attempt secrets for the work.
   overrides it by name.
 - `contextKinds` and `skillFormats` are checked on the Task (`12-task.md`), not here.
 - `formRenderable` and the human completion contract are owned by `19-adapter-roles.md`.
-- No unified effort hint; each Adapter defines its own in `configurationSchema`. A
+- No unified effort hint; each Adapter defines its own in `parametersSchema`. A
   cross-adapter hint is roadmap.
 - A credential that does not resolve at dispatch fails the attempt as AdapterFinished
   `permission_denied`, not retryable; the engine never throws. Found in implementation.

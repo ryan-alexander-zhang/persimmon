@@ -20,6 +20,7 @@ A KindDefinition with `revisioned: true` (`01-kind-definition.md`). Nothing else
 | a Task output port `{kind: artifact, artifactKind}` | the Adapter publishes into the attempt's Publication scope; `task` Handler commits (`17-runs.md`) |
 | a Handler | `publishArtifact` action, staged to the reconcile (`03-reconcile.md`) |
 | a human | the human Adapter sends content in the `signal` body; the `task` Handler publishes it (`19-adapter-roles.md`) |
+| a user | `persimmon create` of a revision, or `persimmon run --input <port>=@file` on an `artifact` port; stamped by the engine (`05-revisioned-kind.md`) |
 
 Storage: canonical content in the ResourceStore, representations in the BlobStore
 (`08-store.md`). Git is an export target, never the source of truth.

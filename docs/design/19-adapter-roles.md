@@ -143,8 +143,8 @@ Result: a ValidationResult (`10-ports.md`). No `credentials`, no `security` (`14
   implementation.
 - `subprocess/v1` ships on the same runner: `configuration.program` plus `parameters.args`, the
   execute payload without `credentials` and `engine` on stdin, credentials as environment, and
-  the answer `{outputs, summary?}` read from `configuration.resultFile` (relative to the engine
-  cwd) and removed; artifact ports carry content, the Adapter publishes. Found in
+  the answer `{outputs, summary?}` read from `configuration.resultFile` (relative to the
+  workspace) and removed; artifact ports carry content, the Adapter publishes. Found in
   implementation.
 - `codex/v1` sends the output schema in OpenAI strict form: closed objects, every kept
   property required, optional properties dropped, `format` removed; the prompt states the
@@ -152,7 +152,7 @@ Result: a ValidationResult (`10-ports.md`). No `credentials`, no `security` (`14
 - Agent output streams to the RunLog as `log` lines while the process runs: every whole line of
   stderr, and of stdout when the driver marks it a transcript (both shipped agent Adapters; `codex/v1`
   streams raw lines, `claude-code/v1` maps stream-json events). Credentials redacted, at most
-  5000 lines per attempt (a coding agent's transcript with tool output runs past 500), the last one
+  5000 lines per stream per attempt (a coding agent's transcript with tool output runs past 500), the last one
   says so. `persimmon logs` shows what the agent did after a
   success too. Found in UAT.
 - The shipped Adapters spawn the agent or program with `cwd: payload.workspace`; `subprocess/v1`

@@ -6,7 +6,7 @@ Every stored Resource has one envelope and three write paths.
 
 ```text
  user ──── apply / createResource ────▶ spec      ┐
- Handler ─ patchStatus ───────────────▶ status    ├─ Resource {apiVersion, kind, metadata, spec, status}
+ Handler ─ statusPatch ───────────────▶ status    ├─ Resource {apiVersion, kind, metadata, spec, status}
  engine ─────────────────────────────▶ metadata  ┘
                                           │
                                           ▼ every write
@@ -48,7 +48,7 @@ resolution.
 ## Actor
 
 `{kind: user | service | handler, id, display?}` from the authenticated channel. Every API
-write and every adapter `complete` carries one. The engine records it in the AuditLog and
+write and every adapter `signal` carries one. The engine records it in the AuditLog and
 hands it to `reconcile` as `context.actor`. Handlers write `status` as their own `handler`
 Actor; `service` is any other non-human channel. No impersonation.
 

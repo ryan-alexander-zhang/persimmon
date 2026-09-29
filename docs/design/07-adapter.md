@@ -100,7 +100,7 @@ Adapters reach the engine only here, at `engine.endpoint`, with a token.
 | Rule | Enforcer |
 |---|---|
 | every field naming an Adapter id resolves to a Ready Adapter with the required Role | write path (`x-persimmon-adapter`) |
-| `describe` at apply and at every snapshot resolution; `roles` ⊆ reported, digest unchanged | engine (`04-snapshot.md`) |
+| `describe` at apply; `roles` ⊆ reported; the walk reads the cached digest | engine (`04-snapshot.md`) |
 | secrets never in `spec`, `status`, snapshots, RunLog, or logs | CredentialStore; Adapter author |
 | a call with an unknown or expired token is refused | engine |
 | `signal` without `actor` is refused | engine |

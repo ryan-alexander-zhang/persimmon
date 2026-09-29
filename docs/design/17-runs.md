@@ -68,9 +68,9 @@ Terminal selection follows `11-workflow.md`; Succeeded evaluates `outputBindings
 | AdapterFinished succeeded, result is HumanAck | `attempts[n].acknowledged`; Waiting `human` |
 | AdapterFinished succeeded, result is a TaskResult | validate: exactly the declared outputs, types equal, every artifact in `context.staged` for this key; `commitScope(key)`; `outputs`; Succeeded. Invalid → as failed `schema_violation` |
 | AdapterFinished failed, or TimerFired(attempt) | `abandonScope(key)`; `clearTimer(attempt)`; another attempt allowed (`12-task.md`; `timeout` is the attempt's code) → `setTimer(backoff)`, Waiting `retryBackoff`; else Failed with the error |
-| AdapterFinished unknown | acknowledged attempt: no-op; else `describe.supports.query` → `callAdapter(query, key: <logicalExecutionId>/<n>/query)`, mapped per `19-adapter-roles.md`; else failed `unknown_result`, retryable unless `sideEffects: nonIdempotent` |
+| AdapterFinished unknown | acknowledged attempt: no-op; else `describe.supports.query` → `callAdapter(query, key: <attempt key>/query/<sequence>)`, mapped per `19-adapter-roles.md`; else failed `unknown_result`, retryable unless `sideEffects: nonIdempotent` |
 | TimerFired(backoff) | attempt n+1 as Created |
-| TimerFired(deadline) | `callAdapter(cancel)` if `supports.cancel`; `abandonScope`; Failed `timeout` |
+| TimerFired(deadline) | `callAdapter(cancel, key: <attempt key>/cancel/<sequence>)` if `supports.cancel`; `abandonScope`; Failed `timeout` |
 | Signal (human completion) | `context.actor` → `status.actor`; body `{taskResult, publish[]}`; `publishArtifact` per `publish[]` into this reconcile, outputs filled from the returned refs; then validate and Succeeded as for a TaskResult |
 | CancelRequested | `callAdapter(cancel)` if `supports.cancel`; `abandonScope`; Cancelled; the cancel answer lands in the RunLog as a later AdapterFinished |
 
@@ -127,7 +127,8 @@ CancelRequested → `cancelResource` or `callAdapter(cancel)`; Cancelled.
   `status.outputs.result`. ValidationRun `gateRunRef` required.
 - Run kind refs other than `workflowRef` are unannotated; they resolve against the inherited
   snapshot.
-- `query` after `unknown` uses key `<logicalExecutionId>/<n>/query`.
+- `query` after `unknown` uses key `<attempt key>/query/<sequence>`; `cancel` uses
+  `<attempt key>/cancel/<sequence>`.
 - Human completion is a Signal through the `signal` callback; no `complete` op.
 - `TaskRun.status.actor` from the completing Signal's `context.actor` (reference decision 22).
 - `WorkflowRun.spec.timeout` and `Trigger.spec.run.timeout` are optional: the `workflow` Handler

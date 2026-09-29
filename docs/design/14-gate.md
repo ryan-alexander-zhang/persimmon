@@ -54,7 +54,7 @@ A `cel` boolean becomes `{passed, findings: [], evidence: []}`. Who approved is 
 `artifacts.<port>.provenance.actor`, never from a value input.
 
 A `task` Validator's TaskRun has invocation address
-`<workflowRunName>/<iterationPath>/<gateStepId>/<validatorName>`.
+`<workflowRunName>/<own iteration>/<gateStepId>/<validatorName>`.
 
 ## Rules
 

@@ -42,16 +42,16 @@ snapshot walk rooted in that Namespace (`04-snapshot.md`). Overrides are ordinar
 
 ## SDLC pack v1 content
 
-| Kind | Backed by an example | Definition owed |
+| Kind | Shipped (`packs/sdlc/`) | Not yet |
 |---|---|---|
-| Executor | `claude-agent`, `lint-script`, `product-reviewers` | `local-reviewer` on `cli-human/v1` |
+| Executor | `claude-agent`, `lint-script`, `local-reviewer` on `cli-human/v1` | `product-reviewers` |
 | Prompt | `write-prd-template` | `code-agent` |
-| Task | `research`, `write-prd`, `approve-prd` | `implement-task`, `security-review`, `product-review` |
-| Validator | `prd-structure`, `prd-human-review`, `prd-security-scan` | |
+| Task | `research`, `write-prd`, `approve-prd`, `security-review`, `product-review` | `implement-task` |
+| Validator | `prd-structure`, `prd-human-review` | `prd-security-scan` |
 | Gate | `prd-approval-gate` | |
-| Workflow | `prd-create`, `prd-with-review`, `prd-approval` | `prd-review-round`, `planning-iteration` |
-| Trigger (namespaced) | `on-prd-published`, `on-prd-approved` | |
-| artifact kinds | `ResearchReport`, `ProductRequirement` | `ReviewReport` |
+| Workflow | `prd-create`, `prd-approval` | `prd-with-review`, `prd-review-round`, `planning-iteration` |
+| Trigger (namespaced) | `on-prd-published` | `on-prd-approved` |
+| artifact kinds | `ResearchReport`, `ProductRequirement`, `ReviewReport` | |
 | RelationType | `derived-from-v1` | |
 
 Credentials the pack Executors bind are Global names resolved at run time.
@@ -72,7 +72,7 @@ Credentials the pack Executors bind are Global names resolved at run time.
 - No reference `tool` Executor in the pack; the type and `subprocess/v1` support stay.
 - Local mode human Executor: `cli-human/v1`, terminal prompt when a TTY is attached, file drop
   in `.persimmon/inbox/<taskRun>.yaml` completed by `persimmon complete <taskRun> --file`
-  otherwise; `review-ui/v1` is server mode.
+  otherwise; `review-ui/v1` is server mode (superseded below).
 - Override port compatibility is checked by the Handler `validate` of Task, Gate, Validator and
   Workflow against the Global definition of the same name: same port names and types, same
   required-ness on inputs; code `override_incompatible`. The check runs when the override is
@@ -87,16 +87,19 @@ Credentials the pack Executors bind are Global names resolved at run time.
 - `persimmon init` also applies `namespaced/` into `defaultNamespace`: a user who ran `init` has a
   working loop without a path into the persimmon checkout. Found in UAT.
 - `cli-human/v1` is the file drop; the terminal prompt is `persimmon complete <taskRun>` without
-  `--file`, which reads the inbox form and asks one YAML answer per output port, validated
-  against the port schema. A per-call Adapter process cannot own the terminal, so the prompt
-  lives in the verb. The pack Gate uses `policy: all` over `prd-structure` and
+  `--file`, which reads the inbox form and, per output port, asks y/n then findings for a
+  ValidationResult port and edits a YAML example for any other, validated against the port
+  schema. A per-call Adapter process cannot own the terminal, so the prompt lives in the verb. The pack Gate uses `policy: all` over `prd-structure` and
   `prd-human-review`; `prd-security-scan` joins when `threat-model/v1` ships. Global pack
   Executors bind Global credential names (`github-token`, `registry-token`). Found in
   implementation.
-- [`examples/pack-task-global.yaml`](examples/pack-task-global.yaml) and
-  [`examples/pack-task-override.yaml`](examples/pack-task-override.yaml): a Global pack Task
-  and its port-compatible Namespace override; both validate against `schemas/task.yaml`
-- pack members: every example named in the content table
 - `examples/<nn>/` are projects, not packs: hand-written definitions plus a `README.md` the user
   follows, `persimmon init` run inside the directory, generated state ignored. A pack is
   installed by `init`; an example is applied by the user, one scenario each. Found in UAT.
+
+## Examples
+
+- [`examples/pack-task-global.yaml`](examples/pack-task-global.yaml) and
+  [`examples/pack-task-override.yaml`](examples/pack-task-override.yaml): a Global pack Task
+  and its port-compatible Namespace override; both validate against `schemas/task.yaml`
+- pack members: the files under `packs/sdlc/`, the Shipped column of the content table

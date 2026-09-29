@@ -66,6 +66,7 @@ CEL, with the environment of the site:
 | `inputs.<port>` | enclosing definition's inputs |
 | `steps.<id>.phase`, `steps.<id>.outputs.<port>` | causal predecessors |
 | `steps.<id>.error.{code, message, retryable}` | only when `phase == "Failed"` |
+| `steps.<id>.iterations` | how many iterations a finished `repeat` step ran (`11-workflow.md`) |
 | `iteration.index` (1-based), `iteration.outputs.<port>` | inside `repeat` |
 | `event` | Trigger only |
 | `artifacts.<port>.{content, provenance}`, `inputs.<port>` | `cel` Validator (`14-gate.md`) |

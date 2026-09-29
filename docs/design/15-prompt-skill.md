@@ -56,7 +56,7 @@ The engine never fetches or interprets a bundle.
 - Skill `format` grammar is `<name>/v<n>`, like Adapter ids.
 - `source.provider` is open. Reference listed `git | oci | https | file`.
 - New Layer 1 code: `skill_digest_mismatch`.
-- Bundle digest for a directory, as the shipped agent Adapters compute it: sha256 over every
+- Bundle digest for a directory, as the shipped agent Adapters compute it (fetch moved to `skill install`): sha256 over every
   regular file in sorted posix-path order, each fed as `<path>\0<bytes>\0`, `.git` excluded.
   `git` sources are fetched once per (remote, version) into `.persimmon/skills/<hash>`; `file`
   sources resolve `locator.path` against the engine cwd and, once verified, are copied into
@@ -78,8 +78,8 @@ The engine never fetches or interprets a bundle.
   directory without computing sha256 by hand; the CLI and the Adapters share the algorithm by
   test. Found in UAT.
 - A `file` Skill is cached by digest like a `git` one: the source directory is verified, then
-  copied; an edit made after the digest was declared fails the next attempt instead of reaching
-  the agent unpinned. Found in UAT.
+  copied; an edit to the source after the digest was declared fails the next `skill install`, an
+  edit to the installed copy fails the next attempt, instead of reaching the agent unpinned. Found in UAT.
 
 ## Examples
 

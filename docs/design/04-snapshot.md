@@ -33,11 +33,11 @@ One store transaction; every hop resolves in the root Resource's Namespace, then
 2. Field `x-persimmon-ref` (LocalDefinitionRef): add the target if its kind has
    `snapshot: Definition`; recurse into its `spec`.
 3. Field `x-persimmon-kind-ref` (`{apiVersion, kind}`): add that KindDefinition.
-4. Field `x-persimmon-adapter` (Adapter id): call `describe`; add `{id, describeDigest}`.
+4. Field `x-persimmon-adapter` (Adapter id): the Adapter must be Ready; add `{id, describeDigest}`
+   with the digest recorded in its status.
 5. Add the KindDefinition of every member and of every member's `stepContract.runKind`.
 6. Unresolved ref: fail the create.
-7. Adapter not Ready, unreachable, or `describe` digest differs from `Adapter.status.describe`:
-   fail the create.
+7. Adapter not Ready: fail the create.
 
 ## Bytes
 

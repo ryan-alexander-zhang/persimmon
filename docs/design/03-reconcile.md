@@ -20,7 +20,7 @@ Event ──append──▶ RunLog(uid) ──▶ dispatcher ──▶ lease(uid
 | SpecUpdated | `spec` changed on a SpecMutable kind | `{generation ≥ 2}` | `spec/<generation>` |
 | ChildFinished | child reached a `terminal.values` value | `{ref (with uid), value}` | `child/<childUid>` |
 | TimerFired | a timer this Handler set elapsed | `{key, at}` | `timer/<key>/<at>` |
-| Signal | adapter `complete`, API `signal`, or Outbox subscription match | `{source, eventId, payload?}` | `signal/<eventId>` |
+| Signal | adapter `signal`, API `signal`, or Outbox subscription match | `{source, eventId, payload?}` | `signal/<eventId>` |
 | CancelRequested | user or owner asked to cancel; once per Resource | `{reason?}` | `cancel` |
 | AdapterFinished | a `callAdapter` returned, failed, or was outstanding at restart | `{idempotencyKey, state, result? \| error?, finishedAt?}`; `finishedAt` is when the answer arrived | `adapter/<idempotencyKey>` |
 

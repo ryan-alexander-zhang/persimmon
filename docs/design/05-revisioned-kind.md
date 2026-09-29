@@ -80,8 +80,8 @@ revisions are retained flagged, excluded from get and list, and leave a gap.
   forbidden on them.
 - A revision written through the API (`persimmon create spec.yaml`) is stamped like a published
   one: `spec.identity.revision` must be the next number for its id (checked with
-  `reserveRevision`, rolled back on error), `provenance` defaults to the revision as its own
-  producer with the writer as actor, `status.contentDigest` is computed, `artifact.published` is
+  `reserveRevision`, rolled back on error), `provenance` is replaced: the revision as its own
+  producer, no inputs, the writer as actor, `status.contentDigest` is computed, `artifact.published` is
   emitted so Triggers fire. Re-creating the same content is idempotent; provenance is not
   compared. Found in UAT.
 
