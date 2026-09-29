@@ -194,75 +194,36 @@ describe('claude-code/v1', () => {
     expect(last(r)).toMatchObject({ ok: false, error: { code: 'schema_violation', retryable: false, message: expect.stringContaining('format "uri"') } })
   })
 
-  it('fetches a git skill at its commit, verifies the digest, and points the agent at it', async () => {
-    const repo = mkdtempSync(join(tmpdir(), 'persimmon-skill-repo-'))
-    mkdirSync(join(repo, 'prd-writer'))
-    writeFileSync(join(repo, 'prd-writer', 'SKILL.md'), '# PRD writer\nOne requirement per line.\n')
-    const git = (...a: string[]) => execFileSync('git', a, { cwd: repo, env: { ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t' } }).toString().trim()
-    git('init', '-q')
-    git('add', '.')
-    git('-c', 'commit.gpgsign=false', 'commit', '-qm', 'skill')
-    const sha = git('rev-parse', 'HEAD')
-    const digest = skillDigest(join(repo, 'prd-writer'))
-    expect(digest).toMatch(/^sha256:[0-9a-f]{64}$/)
-    const skill = { kind: 'skill', name: 'prd-writer', source: { provider: 'git', type: 'repository', id: 'skills', locator: { remote: repo, path: 'prd-writer' }, version: sha }, digest, format: 'claude-code-skill/v1' }
-    const r = await adapter('claude-code', { id: 4, op: 'execute', payload: payload({ context: [skill] }) }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'S' }, count: 1 } }) })
-    expect(last(r).ok).toBe(true)
+  it('a declared Skill must be installed in the workspace with the declared digest; undeclared ones are logged', async () => {
+    const ws = mkdtempSync(join(tmpdir(), 'persimmon-ws-'))
+    const src = join(ws, '.claude', 'skills', 'prd-writer')
+    mkdirSync(src, { recursive: true })
+    writeFileSync(join(src, 'SKILL.md'), '# PRD writer\nOne requirement per line.\n')
+    const skill = { kind: 'skill', name: 'prd-writer', source: { provider: 'file', type: 'directory', id: 'x', locator: { path: 'skills/prd-writer' }, version: '1' }, digest: skillDigest(src), format: 'claude-code-skill/v1' }
+    const ok = await adapter('claude-code', { id: 4, op: 'execute', payload: payload({ workspace: ws, context: [skill] }) }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'S' }, count: 1 } }) })
+    expect(last(ok).ok).toBe(true)
     const seen = JSON.parse(readFileSync(join(stubs, 'claude.json'), 'utf8'))
     expect(seen.args).not.toContain('--add-dir')
-    expect(seen.skill).toBe(true) // linked into .claude/skills/<name> while the agent ran, from the verified cache
-    expect(existsSync(join(cwd, '.claude'))).toBe(false) // link and the directories made for it gone after
-    expect(readdirSync(join(cwd, '.persimmon', 'skills')).some((h) => existsSync(join(cwd, '.persimmon', 'skills', h, 'prd-writer', 'SKILL.md')))).toBe(true) // the cache stays
+    expect(seen.skill).toBe(true) // the CLI finds it where it looks; the Adapter wrote nothing
     expect(seen.prompt).toContain('## Skill prd-writer\n\nThe skill `prd-writer` is installed at `.claude/skills/prd-writer` in the working directory.')
-    // codex gets the same skill under its own directory
-    const cx = await adapter('codex', { id: 45, op: 'execute', payload: payload({ executor: { type: 'agent', configuration: { model: 'gpt-6-sol', sandbox: 'workspace-write' }, security: { networkAccess: 'deny', credentialBindings: [] } }, context: [skill] }) }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'S' }, count: 1 } }) })
+    expect(existsSync(src)).toBe(true) // and it stays
+    // edited after install: the declared digest no longer matches
+    writeFileSync(join(src, 'SKILL.md'), '# edited\n')
+    expect(last(await adapter('claude-code', { id: 41, op: 'execute', payload: payload({ workspace: ws, context: [skill] }) }))).toMatchObject({ ok: false, error: { code: 'skill_digest_mismatch', retryable: false, message: expect.stringContaining('persimmon skill install prd-writer') } })
+    // not installed at all
+    rmSync(src, { recursive: true })
+    expect(last(await adapter('claude-code', { id: 42, op: 'execute', payload: payload({ workspace: ws, context: [skill] }) }))).toMatchObject({ ok: false, error: { code: 'invalid_input', retryable: false, message: expect.stringContaining('not installed at .claude/skills/prd-writer') } })
+    // a format this Adapter does not read
+    expect(last(await adapter('claude-code', { id: 43, op: 'execute', payload: payload({ workspace: ws, context: [{ ...skill, format: 'x/v1' }] }) }))).toMatchObject({ ok: false, error: { code: 'invalid_input', retryable: false } })
+    // codex looks in its own directory; an installed skill nobody declared is logged, not refused
+    mkdirSync(join(ws, '.agents', 'skills', 'prd-writer'), { recursive: true })
+    writeFileSync(join(ws, '.agents', 'skills', 'prd-writer', 'SKILL.md'), '# PRD writer\nOne requirement per line.\n')
+    mkdirSync(join(ws, '.agents', 'skills', 'house-style'), { recursive: true })
+    const cx = await adapter('codex', { id: 45, op: 'execute', payload: payload({ workspace: ws, executor: { type: 'agent', configuration: { model: 'gpt-6-sol', sandbox: 'workspace-write' }, security: { networkAccess: 'deny', credentialBindings: [] } }, context: [skill] }) }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'S' }, count: 1 } }) })
     expect(last(cx).ok).toBe(true)
     expect(JSON.parse(readFileSync(join(stubs, 'codex.json'), 'utf8')).skill).toBe(true)
-    expect(existsSync(join(cwd, '.agents'))).toBe(false)
-    // a directory the user already had stays, with its content
-    mkdirSync(join(cwd, '.claude', 'skills', 'mine'), { recursive: true })
-    await adapter('claude-code', { id: 49, op: 'execute', payload: payload({ context: [skill] }) }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'S' }, count: 1 } }) })
-    expect(existsSync(join(cwd, '.claude', 'skills', 'mine'))).toBe(true)
-    expect(existsSync(join(cwd, '.claude', 'skills', 'prd-writer'))).toBe(false)
-    rmSync(join(cwd, '.claude'), { recursive: true })
-    // a file bundle is verified, then copied into the cache under its digest: the link points at the copy
-    mkdirSync(join(cwd, 'skills', 'prd-writer'), { recursive: true })
-    writeFileSync(join(cwd, 'skills', 'prd-writer', 'SKILL.md'), '# local\n')
-    const local = { ...skill, source: { provider: 'file', type: 'directory', id: 'local', locator: { path: 'skills/prd-writer' }, version: '1' }, digest: skillDigest(join(cwd, 'skills', 'prd-writer')) }
-    const lr = await adapter('claude-code', { id: 47, op: 'execute', payload: payload({ context: [local] }) }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'S' }, count: 1 } }) })
-    expect(last(lr).ok).toBe(true)
-    expect(JSON.parse(readFileSync(join(stubs, 'claude.json'), 'utf8')).skill).toBe(true)
-    const pinned = join(cwd, '.persimmon', 'skills', `file-${local.digest.slice(7, 23)}`)
-    expect(readFileSync(join(pinned, 'SKILL.md'), 'utf8')).toBe('# local\n')
-    writeFileSync(join(cwd, 'skills', 'prd-writer', 'SKILL.md'), '# edited\n') // an edit after review: the declared digest no longer matches the directory
-    expect(last(await adapter('claude-code', { id: 48, op: 'execute', payload: payload({ context: [local] }) }))).toMatchObject({ ok: false, error: { code: 'skill_digest_mismatch' } })
-    expect(readFileSync(join(pinned, 'SKILL.md'), 'utf8')).toBe('# local\n') // the cache keeps the reviewed bytes
-    // a real directory of the user's under the same name is never replaced
-    mkdirSync(join(cwd, '.claude', 'skills', 'prd-writer'), { recursive: true })
-    const clash = await adapter('claude-code', { id: 46, op: 'execute', payload: payload({ context: [skill] }) })
-    expect(last(clash)).toMatchObject({ ok: false, error: { code: 'invalid_input', message: expect.stringContaining('is not a persimmon link') } })
-    rmSync(join(cwd, '.claude'), { recursive: true })
-    // cached checkout, wrong digest: skill_digest_mismatch, never retried
-    const bad = await adapter('claude-code', { id: 41, op: 'execute', payload: payload({ context: [{ ...skill, digest: 'sha256:' + 'c'.repeat(64) }] }) })
-    expect(last(bad)).toMatchObject({ ok: false, error: { code: 'skill_digest_mismatch', retryable: false } })
-    const unknown = await adapter('claude-code', { id: 42, op: 'execute', payload: payload({ context: [{ ...skill, format: 'x/v1' }] }) })
-    expect(last(unknown)).toMatchObject({ ok: false, error: { code: 'invalid_input', retryable: false } })
-    // git never sees a transport or an option smuggled in remote or version
-    for (const bad of [{ remote: "ext::sh -c 'touch /tmp/pwned'" }, { remote: '--upload-pack=touch /tmp/pwned' }, { remote: repo, version: '--upload-pack=x' }, { remote: repo, path: '../..' }]) {
-      const r = await adapter('claude-code', { id: 43, op: 'execute', payload: payload({ context: [{ ...skill, source: { ...skill.source, locator: { ...skill.source.locator, ...bad }, version: bad.version ?? sha } }] }) })
-      expect(last(r), JSON.stringify(bad)).toMatchObject({ ok: false, error: { code: 'invalid_input', retryable: false } })
-    }
-    // a symlink in the bundle is refused, so the digest pins every byte the agent reads
-    symlinkSync('/etc/hosts', join(repo, 'prd-writer', 'hosts'))
-    git('add', '.')
-    git('-c', 'commit.gpgsign=false', 'commit', '-qm', 'link')
-    const linked = await adapter('claude-code', { id: 44, op: 'execute', payload: payload({ context: [{ ...skill, source: { ...skill.source, version: git('rev-parse', 'HEAD') } }] }) })
-    expect(last(linked)).toMatchObject({ ok: false, error: { code: 'invalid_input', message: expect.stringContaining('hosts is not a regular file') } })
-    // an unreachable remote is transient and leaves no half checkout behind
-    const gone = await adapter('claude-code', { id: 45, op: 'execute', payload: payload({ context: [{ ...skill, source: { ...skill.source, locator: { remote: join(repo, 'nope'), path: 'prd-writer' } } }] }) })
-    expect(last(gone)).toMatchObject({ ok: false, error: { code: 'transient_network', retryable: true } })
-    expect(readdirSync(join(cwd, '.persimmon', 'skills')).filter((d) => d.startsWith('fetch-'))).toEqual([])
-    rmSync(repo, { recursive: true, force: true })
+    expect(cx.lines.some((l) => l.event === 'log' && l.text === 'workspace skills not declared by this Task: house-style')).toBe(true)
+    rmSync(ws, { recursive: true, force: true })
   })
 
   it('cancel kills the running agent by the attempt idempotencyKey', async () => {

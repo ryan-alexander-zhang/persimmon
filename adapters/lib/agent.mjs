@@ -2,13 +2,13 @@
 // command line and parses its final answer; this file owns the protocol: prompt assembly from context,
 // structured output schema, artifact publication through the Engine callbacks, cancel by pid file.
 import { spawn } from 'node:child_process'
-import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmdirSync, rmSync, statSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { request } from 'node:http'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { join } from 'node:path'
 import { createInterface } from 'node:readline'
 import { createHash } from 'node:crypto'
-import { fetchSkill } from './skills.mjs'
+import { skillDigest } from './skills.mjs'
 
 export class AdapterError extends Error {
   constructor(code, message, retryable) {
@@ -64,11 +64,9 @@ async function execute(driver, payload, log) {
   if (workspace && !(existsSync(workspace) && statSync(workspace).isDirectory())) throw new AdapterError('invalid_input', `workspace ${workspace} is not a directory`, false)
   const schema = outputSchema(task)
   const dir = mkdtempSync(join(tmpdir(), 'persimmon-agent-'))
-  const links = [] // skill links and the directories made for them in the workspace, this attempt; removed after it
   let answer
   try {
-    const skills = driver.input ? [] : resolveSkills(context, driver.skillFormats ?? ['claude-code-skill/v1'])
-    links.push(...installSkills(skills, cwd, driver.skillDir ?? '.claude/skills'))
+    if (!driver.input) checkSkills(context, driver.skillFormats ?? ['claude-code-skill/v1'], cwd, driver.skillDir ?? '.claude/skills', log)
     const ctx = { configuration, parameters: task.parameters ?? {}, schema, dir, payload, workspace: cwd }
     const [cmd, args] = driver.command(ctx)
     const stdin = driver.input ? driver.input(ctx) : await buildPrompt(task, inputs, context, call, driver.skillDir ?? '.claude/skills')
@@ -82,15 +80,6 @@ async function execute(driver, payload, log) {
     answer = driver.parse({ stdout, dir, configuration, workspace: cwd })
   } finally {
     rmSync(dir, { recursive: true, force: true })
-    for (const l of links) {
-      if (l.endsWith('/')) {
-        try {
-          rmdirSync(l) // only when empty: a directory we made, nothing else moved in
-        } catch {
-          /* not empty or already gone */
-        }
-      } else rmSync(l, { force: true })
-    }
   }
   if (!answer?.outputs || typeof answer.outputs !== 'object') throw new AdapterError('agent_failed', 'agent answer has no outputs object', true)
   const artifactInputs = Object.values(inputs).filter((v) => v.kind === 'artifact').map((v) => v.ref)
@@ -111,36 +100,24 @@ async function execute(driver, payload, log) {
   return result
 }
 
-/** Each verified skill appears where the CLI looks for skills: `<workspace>/<skillDir>/<name>` links to the cache. An entry that is not ours is never replaced. */
-function installSkills(skills, workspace, skillDir) {
-  const made = []
-  for (const { entry, dir } of skills) {
-    const at = join(workspace, skillDir, entry.name)
-    let st
-    try {
-      st = lstatSync(at)
-    } catch {
-      /* absent */
-    }
-    if (st && !st.isSymbolicLink()) throw new AdapterError('invalid_input', `skill ${entry.name}: ${skillDir}/${entry.name} exists in the workspace and is not a persimmon link`, false)
-    if (st) unlinkSync(at) // a stale link of ours from a killed attempt
-    const created = []
-    for (let d = join(workspace, skillDir); d !== workspace && !existsSync(d); d = dirname(d)) created.push(`${d}/`) // deepest first
-    mkdirSync(join(workspace, skillDir), { recursive: true })
-    symlinkSync(dir, at)
-    made.push(at, ...created) // the link goes first, then its directories, deepest first
+/** Every declared Skill is installed in the workspace (`persimmon skill install`) with the declared digest; the Adapter verifies and never writes (15-prompt-skill.md). Skills present but undeclared are logged. */
+function checkSkills(context, formats, workspace, skillDir, log) {
+  const declared = context.filter((c) => c.kind === 'skill')
+  for (const c of declared) {
+    if (!formats.includes(c.format)) throw new AdapterError('invalid_input', `skill ${c.name}: format ${c.format} is not supported by this Adapter`, false)
+    const at = join(workspace, skillDir, c.name)
+    if (!existsSync(at)) throw new AdapterError('invalid_input', `skill ${c.name}: not installed at ${skillDir}/${c.name}; run persimmon skill install ${c.name} --into <workspace>`, false)
+    const actual = skillDigest(at)
+    if (actual !== c.digest) throw new AdapterError('skill_digest_mismatch', `skill ${c.name}: installed bundle digest ${actual} differs from ${c.digest}; run persimmon skill install ${c.name} --into <workspace>`, false)
   }
-  return made
-}
-
-/** Every skill entry fetched and verified before the agent starts (15-prompt-skill.md); the format must be one this Adapter reads. */
-function resolveSkills(context, formats) {
-  return context
-    .filter((c) => c.kind === 'skill')
-    .map((c) => {
-      if (!formats.includes(c.format)) throw new AdapterError('invalid_input', `skill ${c.name}: format ${c.format} is not supported by this Adapter`, false)
-      return { entry: c, dir: fetchSkill(c, join(process.cwd(), '.persimmon', 'skills')) }
-    })
+  let present = []
+  try {
+    present = readdirSync(join(workspace, skillDir))
+  } catch {
+    /* no skill directory */
+  }
+  const extra = present.filter((n) => !declared.some((c) => c.name === n))
+  if (extra.length) log(`workspace skills not declared by this Task: ${extra.join(', ')}`)
 }
 
 /** Context entries in order, then inputs, then instructions (12-task.md). Artifacts are fetched with the call token. */
