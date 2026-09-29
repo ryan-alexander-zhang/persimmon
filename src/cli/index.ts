@@ -24,7 +24,7 @@ const usage = `usage: persimmon <verb> [args]
   describe <kind>/<name> [-n ns]
   logs <kind>/<name> [-n ns | --global]
   tree <kind>/<name> [-n ns]                        a run, what it produced, and every run it owns, nested
-  skill install <name> --into <dir> [--for claude|codex] [-n ns]   copy a verified Skill where the agent CLIs find it
+  skill install <name> --into <dir> [--for claude|codex] [--force] [-n ns | --global]   copy a verified Skill where the agent CLIs find it
   digest <dir>                                      the bundle digest a Skill declares for that directory
   init
   delete <kind>/<name> [-n ns | --global]
@@ -68,6 +68,7 @@ function parseCliArgs(argv: string[]) {
       file: { type: 'string' },
       into: { type: 'string' },
       for: { type: 'string' },
+      force: { type: 'boolean' },
       server: { type: 'string' },
       help: { type: 'boolean', short: 'h' },
     },
@@ -115,7 +116,7 @@ async function dispatchVerb(cli: Cli, verb: string, rest: string[], values: Retu
         need(1, '<dir>')
         return await digest(cli, rest[0]!)
       case 'skill':
-        if (rest[0] === 'install' && rest[1]) return await skillInstall(cli, rest[1], { ...(values.into ? { into: values.into } : {}), ...(values.for ? { for: values.for } : {}), ...(values.namespace ? { namespace: values.namespace } : {}) })
+        if (rest[0] === 'install' && rest[1]) return await skillInstall(cli, rest[1], { ...where, ...(values.into ? { into: values.into } : {}), ...(values.for ? { for: values.for } : {}), ...(values.force ? { force: true } : {}) })
         throw new Error('skill: install <name> --into <dir> [--for claude|codex]')
       case 'init':
         return await init(cli)

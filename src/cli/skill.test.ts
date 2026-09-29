@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { stringify } from 'yaml'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { skillDigest } from '../../adapters/lib/skills.mjs'
+import { fetchSkill, skillDigest } from '../../adapters/lib/skills.mjs'
 import { runCli } from './index.js'
 
 describe('persimmon skill install', () => {
@@ -44,6 +44,7 @@ describe('persimmon skill install', () => {
     expect(await run('skill', 'install', 'prd-writer', '--into', 'app', '--for', 'claude')).toBe(1)
     expect(err.at(-1)).toMatch(/skill_digest_mismatch|differs from/)
     expect(readFileSync(join(dir, 'app', '.claude', 'skills', 'prd-writer', 'SKILL.md'), 'utf8')).toBe('# PRD writer\n')
+    expect(readFileSync(join(dir, '.persimmon', 'skills', `file-${digest.slice(7, 23)}`, 'SKILL.md'), 'utf8')).toBe('# PRD writer\n') // the cache keeps the reviewed bytes
     // new digest applied: reinstall replaces the copy
     expect(await run('apply', file('s.yaml', [skillDoc({ source: { provider: 'file', type: 'directory', id: 'x', locator: { path: 'skills/prd-writer' }, version: '2' }, digest: skillDigest(join(dir, 'skills', 'prd-writer')), format: 'claude-code-skill/v1' })]))).toBe(0)
     expect(await run('skill', 'install', 'prd-writer', '--into', 'app', '--for', 'claude')).toBe(0)
@@ -51,6 +52,16 @@ describe('persimmon skill install', () => {
     expect(readFileSync(join(dir, 'app', '.agents', 'skills', 'prd-writer', 'SKILL.md'), 'utf8')).toBe('# PRD writer\n') // --for claude left codex alone
     expect(await run('skill', 'install', 'nope', '--into', 'app')).toBe(1)
     expect(await run('skill', 'install', 'prd-writer')).toBe(1) // --into required
+    expect(await run('skill', 'install', 'prd-writer', '--into', 'app', '--for', 'toString')).toBe(1)
+    // a hand-made directory under the same name is never replaced silently
+    rmSync(join(dir, 'app', '.claude', 'skills', 'prd-writer'), { recursive: true })
+    mkdirSync(join(dir, 'app', '.claude', 'skills', 'prd-writer'), { recursive: true })
+    writeFileSync(join(dir, 'app', '.claude', 'skills', 'prd-writer', 'SKILL.md'), '# mine\n')
+    expect(await run('skill', 'install', 'prd-writer', '--into', 'app', '--for', 'claude')).toBe(1)
+    expect(err.at(-1)).toMatch(/is not a persimmon install; --force replaces it/)
+    expect(readFileSync(join(dir, 'app', '.claude', 'skills', 'prd-writer', 'SKILL.md'), 'utf8')).toBe('# mine\n')
+    expect(await run('skill', 'install', 'prd-writer', '--into', 'app', '--for', 'claude', '--force')).toBe(0)
+    expect(readFileSync(join(dir, 'app', '.claude', 'skills', 'prd-writer', 'SKILL.md'), 'utf8')).toBe('# edited\n')
   })
 
   it('fetches a git bundle at its commit and never hands git an option or a transport', async () => {
@@ -87,6 +98,7 @@ describe('persimmon skill install', () => {
     // an unreachable remote leaves no half checkout behind
     expect(await install({ source: source({ remote: join(repo, 'nope') }), digest, format: 'claude-code-skill/v1' })).toBe(1)
     expect(readdirSync(join(dir, '.persimmon', 'skills')).filter((d) => d.startsWith('fetch-'))).toEqual([])
+    expect(() => fetchSkill({ name: 'x', source: source({ remote: join(repo, 'nope') }), digest }, join(dir, '.persimmon', 'skills'), dir)).toThrow(expect.objectContaining({ code: 'transient_network', retryable: true })) // the one retryable fetch error
     expect(existsSync(join(dir, 'app', '.claude', 'skills', 'prd-writer', 'hosts'))).toBe(false)
     rmSync(repo, { recursive: true, force: true })
   })
