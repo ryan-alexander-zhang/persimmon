@@ -1,8 +1,14 @@
 # Persimmon
 
-A Kubernetes-style resource engine that runs a software delivery lifecycle with agents,
-humans and scripts as interchangeable workers. Every fact is a versioned Resource; every run
-is replayable and auditable; the engine knows no business concept.
+**Run your software delivery lifecycle with agents, humans and scripts as interchangeable workers.**
+
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+![Node >= 22.5](https://img.shields.io/badge/node-%3E%3D22.5-green.svg)
+![Status: pre-release](https://img.shields.io/badge/status-pre--release-orange.svg)
+
+Persimmon is a Kubernetes-style resource engine. You describe Workflows, Tasks and Gates in
+YAML; Persimmon runs them, hands each Task to an Executor (Claude Code, Codex, a script or a
+person at the terminal), and records every result as a versioned, auditable Artifact.
 
 ```text
 YAML definitions ──▶ persimmon run ──▶ WorkflowRun ──▶ TaskRun ──▶ Adapter (Claude Code, Codex, script, human)
@@ -11,120 +17,189 @@ YAML definitions ──▶ persimmon run ──▶ WorkflowRun ──▶ TaskRun
                                                               Artifact revisions, provenance, audit
 ```
 
-## Shape
+## Table of contents
 
-| | |
-|---|---|
-| Form | one binary `persimmon`; local mode with SQLite; server mode (daemon, Postgres) is roadmap |
-| Input | YAML definitions: Workflow, Task, Executor, Gate, Validator, Prompt, Skill, Trigger, KindDefinition, RelationType, Adapter |
-| Output | artifacts: immutable, numbered revisions with provenance |
-| Workers | Adapters, out of process, behind one JSON protocol |
-| Language | TypeScript engine; Adapters in any language |
-| Users | one developer locally; team use on a server is roadmap |
+- [Why Persimmon](#why-persimmon)
+- [Requirements](#requirements)
+- [Installation](#installation)
+- [Quickstart](#quickstart)
+- [Example: from idea to approved PRD](#example-from-idea-to-approved-prd)
+- [Core concepts](#core-concepts)
+- [Documentation](#documentation)
+- [Project status](#project-status)
+- [Development](#development)
+- [Contributing](#contributing)
+- [License](#license)
 
-## Concepts
+## Why Persimmon
 
-1. **Resource**: `apiVersion, kind, metadata, spec, status`. Users write `spec`, Handlers write
-   `status`, every write is audited with an Actor.
-2. **KindDefinition**: registers a kind with its schema. Shipped kinds and user kinds use the
-   same path. Any kind with a `stepContract` can be a Workflow step.
-3. **Handler**: pure function `reconcile(resource, event) → status patch + actions`. Decides,
-   never does slow work.
-4. **Reconcile loop**: one Event in, one transaction out, per Resource, in order. Crash-safe by
-   construction.
-5. **Snapshot**: a run freezes every definition it depends on by digest. Edits never reach a
-   running run.
-6. **Artifact**: append-only revisions, staged during an attempt, visible on commit, provenance
-   stamped by the engine.
-7. **Outbox**: in-database event bus. Triggers react to `artifactPublished` and
-   `workflowRunFinished`.
-8. **Adapter**: out-of-process worker with Roles `handler`, `executor`, `evaluator`. The engine
-   validates capability, never interprets behaviour.
+- **Swap workers in one line.** Moving a Task from a human to an agent to a script changes one
+  `executorRef`. Nothing else in the Workflow moves.
+- **Replayable runs.** A run freezes every definition it depends on by digest. Editing a
+  Workflow never changes a run already in progress.
+- **Auditable output.** Artifacts are append-only, numbered revisions. The engine stamps
+  provenance on each one, and every write records its Actor.
+- **Honest outcomes.** Failed means "could not complete". A business rejection is Succeeded
+  plus a verdict. Unknown is never success.
+- **Pinned references.** Every reference to produced data points to an exact revision. There
+  is no implicit "latest".
+- **No business concepts in the engine.** Shipped kinds and your own kinds register the same
+  way. Adapters run out of process, in any language, behind one JSON protocol.
 
-Layer 1 in one line each:
+## Requirements
 
-- **Workflow**: DAG of Steps and Transitions, typed ports, loops only via `repeat`.
-- **Task**: `executorRef` says who, `action` says what, `context` says what to look at.
-- **Executor**: agent, script, tool or human behind an Adapter.
-- **Gate / Validator**: a Gate decides over Validators by policy; a Validator asks one question.
-- **Prompt / Skill**: frozen text and a pinned capability bundle for Task context.
-- **Trigger**: creates a run from an Outbox event.
-- **Runs**: WorkflowRun, TaskRun with attempts, GateRun, ValidationRun; phases never revert.
+- Node.js 22.5 or later
+- For agent Executors: the CLI of that agent installed and signed in (Claude Code or Codex)
 
-## Principles
+## Installation
 
-- Swapping human, agent, script touches one `executorRef`.
-- Failed means "could not complete"; a business rejection is Succeeded plus a verdict output.
-- Unknown is never success.
-- Every reference to produced data is pinned to an exact revision. No implicit latest.
-- Framework first: Workflow gets no engine special case.
-- Simplest expression: no manifests, no composition kinds, no policy resource in v1.
+Persimmon is not published to npm yet. Build it from source:
 
-## Not in v1
-
-No server mode, no deployment lifecycle, no web UI, no composition kinds, no cross-Namespace
-references, no external webhooks. See `docs/design/91-roadmap.md`.
+```sh
+git clone https://github.com/ryan-alexander-zhang/persimmon.git
+cd persimmon
+npm install
+npm run build
+alias persimmon="node $PWD/dist/main.js"
+```
 
 ## Quickstart
 
-```sh
-npm install && npm run build
-alias persimmon="node $PWD/dist/main.js"
-cd <your project> && persimmon init             # .persimmon/, persimmon.yaml, shipped Adapters, the SDLC pack
-persimmon run <Workflow> --input k=v --follow    # a manual WorkflowRun; a path fills a repository port; one line per phase change, then the tree; stops when done or parked
-persimmon get WorkflowRun                        # phases, waiting reasons, errors
-persimmon tree WorkflowRun/<name>                # the run, what it produced, every run it owns, nested
-persimmon complete <taskRun>                     # answer a human Task at the terminal; --file result.yaml to script it
-persimmon resume                                 # drive waiting work after a Signal or a timer
-```
-
-Write verbs run the engine in process and drain before they exit; read verbs (`get`, `describe`,
-`logs`, `tree`, `validate`) only look. `persimmon --help` lists every verb, including
-`skill install` and `digest`. A Skill is installed once into the workspace with `skill install`
-and verified at every attempt. `PERSIMMON_DEBUG=1` prints reconcile errors. Tests: `npm test`;
-the end-to-end scenario is `test/scenario/prd.test.ts`.
-
-## Walkthrough: the PRD loop
-
-The SDLC pack binds `claude-agent` to `claude-code/v1`. Pick a model and the sandbox in a
-Namespaced Executor override, then run the pack's two Workflows end to end. `init` installed
-the pack and its Trigger `on-prd-published` in Namespace `default`.
+Initialize a project, then start a run:
 
 ```sh
-cat > executor.yaml <<'EOF'
-apiVersion: persimmon.ai/v1
-kind: Executor
-metadata: {name: claude-agent}
-spec:
-  type: agent
-  adapter: claude-code/v1                        # or codex/v1 with {model: gpt-6-sol}
-  configuration: {model: sonnet, sandbox: read-only}
-  security: {networkAccess: allowlist, allowedHosts: [api.anthropic.com]}
-EOF
-persimmon apply executor.yaml -n default          # init already armed the pack's Trigger in this Namespace
-
-persimmon run prd-create --input repository=. --follow   # a path on a repository port becomes a ref pinned to HEAD
-# research and write-prd run on the agent; a ProductRequirement is published; the Trigger starts prd-approval,
-# whose security-review and product-review run in the same --follow; the Gate parks on you
-persimmon get WorkflowRun                        # lists on-prd-published-<id>
-persimmon tree WorkflowRun/on-prd-published-<id> # approval/humanreview/task   TaskRun   cli-human/v1   Waiting human
-cat > approve.yaml <<'EOF'
-protocol: persimmon.result/v1
-outputs:
-  result: {kind: value, value: {passed: true, findings: [], evidence: []}}
-EOF
-persimmon complete on-prd-published-<id>-approval-humanreview-task --file approve.yaml   # drains, prints the tree
-persimmon get WorkflowRun                        # WorkflowRun/on-prd-published-<id>  -n default  Succeeded
-persimmon get ProductRequirement                 # ProductRequirement/prd-create-<hex>-write-prd-prd.r1  -n default
+cd <your project>
+persimmon init                                  # creates .persimmon/, persimmon.yaml, shipped Adapters and the SDLC pack
+persimmon run <Workflow> --input k=v --follow   # starts a WorkflowRun and prints each phase change until done or parked
 ```
 
-A script Executor runs the same way: `subprocess/v1` feeds the execute payload on stdin and
+Inspect and drive runs:
+
+```sh
+persimmon get WorkflowRun                       # phases, waiting reasons, errors
+persimmon tree WorkflowRun/<name>               # the run, what it produced and every run it owns
+persimmon complete <taskRun>                    # answer a human Task; use --file result.yaml to script it
+persimmon resume                                # drive waiting work after a Signal or a timer
+persimmon --help                                # every verb, including skill install and digest
+```
+
+Write verbs run the engine in process and drain before they exit. Read verbs (`get`,
+`describe`, `logs`, `tree`, `validate`) only look. Set `PERSIMMON_DEBUG=1` to print reconcile
+errors.
+
+## Example: from idea to approved PRD
+
+`persimmon init` installs the SDLC pack and its Trigger `on-prd-published` in Namespace
+`default`. The pack binds `claude-agent` to the `claude-code/v1` Adapter.
+
+1. Choose a model and sandbox with a Namespaced Executor override:
+
+   ```sh
+   cat > executor.yaml <<'EOF'
+   apiVersion: persimmon.ai/v1
+   kind: Executor
+   metadata: {name: claude-agent}
+   spec:
+     type: agent
+     adapter: claude-code/v1                        # or codex/v1 with {model: gpt-6-sol}
+     configuration: {model: sonnet, sandbox: read-only}
+     security: {networkAccess: allowlist, allowedHosts: [api.anthropic.com]}
+   EOF
+   persimmon apply executor.yaml -n default
+   ```
+
+2. Run `prd-create`. The agent researches and writes a PRD. Publishing the
+   ProductRequirement fires the Trigger, which starts `prd-approval`. Security and product
+   reviews run, then the Gate waits for you.
+
+   ```sh
+   persimmon run prd-create --input repository=. --follow   # a path on a repository port becomes a ref pinned to HEAD
+   persimmon get WorkflowRun                                # lists on-prd-published-<id>
+   persimmon tree WorkflowRun/on-prd-published-<id>         # approval/humanreview/task  TaskRun  cli-human/v1  Waiting human
+   ```
+
+3. Approve:
+
+   ```sh
+   cat > approve.yaml <<'EOF'
+   protocol: persimmon.result/v1
+   outputs:
+     result: {kind: value, value: {passed: true, findings: [], evidence: []}}
+   EOF
+   persimmon complete on-prd-published-<id>-approval-humanreview-task --file approve.yaml
+   persimmon get WorkflowRun           # WorkflowRun/on-prd-published-<id>  -n default  Succeeded
+   persimmon get ProductRequirement    # ProductRequirement/prd-create-<hex>-write-prd-prd.r1  -n default
+   ```
+
+A script Executor works the same way: `subprocess/v1` sends the execute payload on stdin and
 reads `{outputs, summary}` from `configuration.resultFile`. Credentials come from
-`PERSIMMON_CRED_<NAME>` in the environment or `.persimmon/credentials.yaml`.
+`PERSIMMON_CRED_<NAME>` in the environment or from `.persimmon/credentials.yaml`.
 
-## Read next
+More scenarios, each with step-by-step instructions, are in [`examples/`](examples/):
 
-- [`examples/`](examples/): one project per scenario with a step-by-step README; start with `example01`, an idea to an approved PRD
+| Example | Scenario |
+|---|---|
+| [`example01`](examples/example01/) | Idea to PRD: agent research, agent review, your approval |
+| [`example02`](examples/example02/) | Spec to tested code, behind a Gate that loops rejected rounds back |
+| [`example03`](examples/example03/) | Event-driven release chain with Triggers, no agents |
+| [`example04`](examples/example04/) | Your own SDLC with templates you edit |
+
+## Core concepts
+
+| Concept | What it is |
+|---|---|
+| Resource | `apiVersion, kind, metadata, spec, status`. You write `spec`; Handlers write `status`. |
+| KindDefinition | Registers a kind and its schema. Any kind with a `stepContract` can be a Workflow step. |
+| Handler | Pure function `reconcile(resource, event) → status patch + actions`. Decides; never does slow work. |
+| Reconcile loop | One Event in, one transaction out, per Resource, in order. Crash-safe by construction. |
+| Snapshot | A run freezes its definitions by digest. |
+| Artifact | Append-only revisions, staged during an attempt and visible on commit. |
+| Outbox | In-database event bus. Triggers react to `artifactPublished` and `workflowRunFinished`. |
+| Adapter | Out-of-process worker with Roles `handler`, `executor`, `evaluator`. |
+
+Built on these, the kinds you write:
+
+- **Workflow**: a DAG of Steps and Transitions with typed ports; loops only through `repeat`.
+- **Task**: `executorRef` says who, `action` says what, `context` says what to look at.
+- **Executor**: an agent, script, tool or human behind an Adapter.
+- **Gate / Validator**: a Gate decides over Validators by policy; a Validator asks one question.
+- **Prompt / Skill**: frozen text and a pinned capability bundle for Task context.
+- **Trigger**: creates a run from an Outbox event.
+- **Runs**: WorkflowRun, TaskRun (with attempts), GateRun, ValidationRun. Phases never revert.
+
+## Documentation
+
+- [`examples/`](examples/): one project per scenario; start with `example01`
 - [`DESIGN.md`](DESIGN.md): map of the design, one file per model with schema and examples
-- [`CONTEXT.md`](CONTEXT.md): glossary; one canonical term per concept
-- [`docs/design/90-decisions.md`](docs/design/90-decisions.md): every decision, by file
+- [`ARCHITECTURE.md`](ARCHITECTURE.md): how `src/` maps to the design
+- [`CONTEXT.md`](CONTEXT.md): glossary, one canonical term per concept
+- [`docs/design/90-decisions.md`](docs/design/90-decisions.md): every design decision, by file
+
+## Project status
+
+Persimmon is pre-release (version 0.0.0). Expect breaking changes.
+
+Today it ships as one `persimmon` binary running in local mode on SQLite, for one developer.
+Not in v1: server mode (daemon, Postgres, team use), deployment lifecycle, web UI,
+composition kinds, cross-Namespace references and external webhooks. See
+[`docs/design/91-roadmap.md`](docs/design/91-roadmap.md).
+
+## Development
+
+```sh
+npm install
+npm run build        # generates schemas, then compiles TypeScript to dist/
+npm run typecheck
+npm test             # vitest; the end-to-end scenario is test/scenario/prd.test.ts
+```
+
+## Contributing
+
+Issues and pull requests are welcome. Before you start, read [`AGENTS.md`](AGENTS.md) for the
+project conventions: small verified commits, [Conventional Commits](https://www.conventionalcommits.org/)
+headers, and one canonical term per concept from [`CONTEXT.md`](CONTEXT.md). Design changes
+start in [`DESIGN.md`](DESIGN.md).
+
+## License
+
+[Apache License 2.0](LICENSE)
