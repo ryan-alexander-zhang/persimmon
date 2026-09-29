@@ -15,7 +15,7 @@ persimmon binary                                  outside the binary
 ```
 
 One binary. Local mode runs the engine inside every CLI verb; exit behavior per `08-store.md`.
-Server mode runs the same engine under `persimmon serve`; the CLI talks https.
+Server mode (roadmap) runs the same engine under `persimmon serve`; the CLI talks https.
 
 ## Layout
 
@@ -41,14 +41,16 @@ file, named after the file; a directory that holds several kinds is named after 
 
 | Directory | Design file | Holds |
 |---|---|---|
+| `src/engine.ts` | `02-handler.md`, `08-store.md` | composition root: config, Store, registries, builtin Handlers, callbacks server, dispatcher |
 | `src/handler/` | `02-handler.md` | write path: schema, static checker, Handler `validate`; `reconcile` dispatch; builtin registry |
-| `src/checker/` | rules tables in `10`–`14`, `20` | static checker; run by the write path and by `persimmon validate` |
+| `src/checker/` | rules tables in `10`–`14`, `20` | throwaway-engine dry run of the write path for `persimmon validate`; rules live in kinds |
 | `src/reconcile/` | `03-reconcile.md` | Event queue, Action apply, lease, atomic commit, retry, stalled |
 | `src/snapshot/` | `04-snapshot.md` | closure walk, canonical bytes, digest |
 | `src/reconcile/apply.ts` (`stageRevision`) | `05-revisioned-kind.md` | revision naming, Publication scope, representations; `src/store/` holds reservation and staging |
+| `src/handler/write.ts` (`stampRevision`) | `05-revisioned-kind.md` | `persimmon create` of a revisioned Resource: identity, revision, provenance |
 | `src/outbox/` | `06-outbox.md` | event shape, subscription match, causation chain, poller: claim, deliver as Signal, ack |
 | `src/adapter/` | `07-adapter.md`, `19-adapter-roles.md` | `persimmon.adapter/v1` client: stdio and http transports, `describe`, Role payloads; Engine callbacks server; token scopes (persistence is TokenStore) |
-| `src/authz.ts` | `08-store.md` Authentication and authorization | roadmap with server mode; local mode: the local Actor is admin |
+| `src/authz.ts` (not created) | `08-store.md` Authentication and authorization | roadmap with server mode; local mode: the local Actor is admin |
 
 ### Kinds
 
@@ -57,6 +59,7 @@ the static checker calls.
 
 | Directory | Design file |
 |---|---|
+| `src/kinds/deps.ts` | `02-handler.md` `HandlerDeps`: what a builtin Handler may touch |
 | `src/kinds/ports/` | `10-ports.md` Port, PortType, Binding, RuntimeValue, well-known `$ref` |
 | `src/kinds/workflow/` | `11-workflow.md` |
 | `src/kinds/task/` | `12-task.md` |
@@ -71,12 +74,13 @@ the static checker calls.
 
 | Path | Design file | Holds |
 |---|---|---|
-| `src/cli/` | `08-store.md` CLI verbs | one file per verb; `tree.ts` also renders the run tree `--follow` ends with; no engine logic |
-| `src/server/` | `08-store.md` server Mode | roadmap: `persimmon serve`, https API, `server.auth.tokens[]` |
-| `packs/sdlc/global/`, `packs/sdlc/namespaced/` | `20-pack.md` | pack files; `persimmon init` applies `global/` |
+| `src/cli/` | `08-store.md` CLI verbs | one file per verb or verb family; `index.ts` dispatches; `tree.ts` also renders the run tree `--follow` ends with; no engine logic |
+| `src/server/` (not created) | `08-store.md` server Mode | roadmap: `persimmon serve`, https API, `server.auth.tokens[]` |
+| `packs/sdlc/global/`, `packs/sdlc/namespaced/` | `20-pack.md` | pack files; `persimmon init` applies `global/` as Global and `namespaced/` into `defaultNamespace` |
 | `adapters/<id>/` | `07-adapter.md`, `19-adapter-roles.md` | Adapters shipped with the binary: `adapter.yaml` manifest and a stdio script; `persimmon init` installs them before the pack |
 | `adapters/lib/` | `19-adapter-roles.md` executor Role | `agent.mjs`: the one process-per-attempt runner behind `claude-code/v1`, `codex/v1` and `subprocess/v1`; a driver supplies the command line, the stdin text and the result parser; `skills.mjs`: the Skill bundle digest and fetch, imported by `src/cli/` too |
 | `examples/<nn>/` | `20-pack.md` | teaching projects, one scenario each: hand-written definitions plus a `README.md` the user follows; `persimmon init` runs inside the directory, so its `.persimmon/` and `persimmon.yaml` are generated and ignored |
+| `src/adapters.d.ts` | `15-prompt-skill.md` | types for the `adapters/lib/skills.mjs` import |
 | `src/generated/` | `docs/design/schemas/` | `schemas.json`, written by `npm run gen`; never edited |
 | `src/main.ts` | | entry point |
 
@@ -88,12 +92,14 @@ cli, server ─▶ engine ─▶ store ─▶ base
 kinds ───────────┘
 ```
 
+`src/engine.ts` is the composition root: it wires the store, registries and kinds together.
+
 | Rule | Design file |
 |---|---|
 | `base` imports nothing else in `src/` | |
-| `store` imports `base` only | `08-store.md` Store interface |
+| `store` imports `base`, plus `config.ts` types | `08-store.md` Store interface |
 | `kinds` reaches state only through Engine callbacks and returned Actions; never `store` | `02-handler.md` |
-| `kinds` imports `handler` for the contract, `expression` and `kinds/ports` for values; never `snapshot` or `outbox` | `04-snapshot.md`, `06-outbox.md` |
+| `kinds` imports `handler` for the contract, `expression` and `kinds/ports` for values; never `snapshot` or `outbox` values; type imports allowed, adapter types too | `04-snapshot.md`, `06-outbox.md` |
 | `cli` and `server` hold no engine logic | `08-store.md` |
 | `cli` imports `adapters/lib/skills.mjs` for the Skill bundle digest and fetch, so the CLI and the Adapters share one implementation; no other `src/` → `adapters/` import | `15-prompt-skill.md` |
 
@@ -127,6 +133,7 @@ Postgres driver, https server framework: chosen with server mode.
 | unit | `src/**/*.test.ts` beside the code | one behavior per file |
 | examples | unit tests beside each module | design examples drive the module tests; `persimmon validate` covers the DSL |
 | scenario | `test/scenario/` | a Workflow runs end to end on SQLite with a fake Adapter |
+| adapters | `test/adapters/` | shipped Adapters' runner, drivers, skills against stub binaries |
 
 ## Reading order
 
