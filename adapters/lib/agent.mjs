@@ -107,12 +107,17 @@ function checkSkills(context, formats, workspace, skillDir, log) {
     if (!formats.includes(c.format)) throw new AdapterError('invalid_input', `skill ${c.name}: format ${c.format} is not supported by this Adapter`, false)
     const at = join(workspace, skillDir, c.name)
     if (!existsSync(at)) throw new AdapterError('invalid_input', `skill ${c.name}: not installed at ${skillDir}/${c.name}; run persimmon skill install ${c.name} --into <workspace>`, false)
-    const actual = skillDigest(at)
+    let actual
+    try {
+      actual = skillDigest(at)
+    } catch (e) {
+      throw new AdapterError('invalid_input', `skill ${c.name} at ${skillDir}/${c.name}: ${e.message}`, false)
+    }
     if (actual !== c.digest) throw new AdapterError('skill_digest_mismatch', `skill ${c.name}: installed bundle digest ${actual} differs from ${c.digest}; run persimmon skill install ${c.name} --into <workspace>`, false)
   }
   let present = []
   try {
-    present = readdirSync(join(workspace, skillDir))
+    present = readdirSync(join(workspace, skillDir), { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name) // a stray file is not a skill
   } catch {
     /* no skill directory */
   }
