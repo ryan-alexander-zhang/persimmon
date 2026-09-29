@@ -42,19 +42,26 @@ after registration, so rename it or bump its version, or reset the project.
 ## Skills
 
 A template tells the writer what to produce; a skill tells the coder how to work. `vitest-style`
-is a directory with a `SKILL.md`, the shape claude and codex both read. The `implement` Task lists
-it as context; for the attempt persimmon links it into `app/.agents/skills/vitest-style` (codex)
-or `app/.claude/skills/vitest-style` (claude), where the CLI discovers its own skills, and removes
-the link after. The Skill resource pins the directory by digest, so what the coder read is what
-you reviewed:
+is a directory with a `SKILL.md`, the shape claude and codex both read. Three parts:
+
+- the Skill resource in `sdlc.yaml` pins the directory by digest: what you reviewed
+- `persimmon skill install vitest-style --into app` copies the verified bundle into
+  `app/.agents/skills/vitest-style` (codex) and `app/.claude/skills/vitest-style` (claude), where
+  each CLI discovers its own skills; the copies stay, agents and you see the same files
+- the `implement` Task lists the Skill as context; at every attempt the Adapter hashes the
+  installed copy against the declared digest and refuses to start on a mismatch
+
+Change it:
 
 ```sh
 $EDITOR skills/vitest-style/SKILL.md
 persimmon digest skills/vitest-style       # paste into sdlc.yaml, Skill vitest-style, spec.digest
 persimmon apply sdlc.yaml
+persimmon skill install vitest-style --into app
 ```
 
-A wrong digest fails the attempt with `skill_digest_mismatch`, never silently.
+Forget the last step and the next `implement` attempt fails with `skill_digest_mismatch` and the
+install command, never silently. Skills in `app/` that no Task declares are allowed and logged.
 
 ## Prerequisites
 
@@ -67,6 +74,8 @@ A wrong digest fails the attempt with `skill_digest_mismatch`, never silently.
 cd examples/example04/app && npm install && git init -q && cd ..
 ```
 
+The Skill is installed in step 1, after the definitions exist.
+
 ## Steps
 
 Run every command inside `examples/example04`.
@@ -77,6 +86,7 @@ Run every command inside `examples/example04`.
 persimmon init
 persimmon validate templates.yaml sdlc.yaml       # every line ok
 persimmon apply templates.yaml sdlc.yaml          # 25 created
+persimmon skill install vitest-style --into app   # installed into app/.agents/skills and app/.claude/skills
 ```
 
 ### 2. Run it
@@ -139,13 +149,13 @@ error is rejected and the coder gets the whole verdict as `previous`.
 | a different report | `templates.yaml` `report-template` | apply |
 | more rounds | `--input maxRounds=5` | |
 | other models | `sdlc.yaml` Executors | `persimmon apply sdlc.yaml` |
-| a different test style | `skills/vitest-style/SKILL.md`, then `persimmon digest skills/vitest-style` into `sdlc.yaml` | apply |
+| a different test style | `skills/vitest-style/SKILL.md`, then `persimmon digest skills/vitest-style` into `sdlc.yaml` | apply, then `persimmon skill install vitest-style --into app` |
 | skip the approval | remove the `approve` step and route `write-idea` to `write-spec` | apply |
 
 ## Reset
 
 ```sh
-rm -rf .persimmon persimmon.yaml app/src app/test app/coverage app/reports
+rm -rf .persimmon persimmon.yaml app/src app/test app/coverage app/reports app/.agents app/.claude
 git checkout app/package.json
 ```
 
