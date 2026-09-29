@@ -9,7 +9,7 @@ freezes them; Adapters interpret them.
 Task.action.context
   ├─ {kind: prompt, ref} ─▶ Prompt {mediaType, content} ─▶ frozen in the snapshot ─▶ resolved {kind, name, mediaType, content, digest}
   └─ {kind: skill,  ref} ─▶ Skill {source, digest, format} ─▶ frozen in the snapshot ─▶ resolved {kind, name, source, digest, format}
-                                                                                            │ Adapter fetches source, verifies digest
+                                                                                            │ skill install fetches source; Adapter verifies digest
 ```
 
 Resolved entries are written to `TaskRun.spec.context` and sent in the execute payload
@@ -31,7 +31,7 @@ computed by the engine at context resolution.
 | Field | Rule |
 |---|---|
 | `source` | ExternalResourceRef with `version` required (`00-resource.md`); `provider` open |
-| `digest` | `sha256:` over the bundle bytes as the Adapter fetches them |
+| `digest` | `sha256:` over the bundle bytes, as `persimmon digest` computes them |
 | `format` | `<name>/v<n>`; must appear in the Adapter's `describe.skillFormats` |
 
 The engine never fetches or interprets a bundle.
@@ -41,7 +41,7 @@ The engine never fetches or interprets a bundle.
 | Rule | Enforcer |
 |---|---|
 | field shapes: `mediaType`, `content`, `source.version`, `digest`, `format` | schema |
-| Adapter fetches `source` at `version` and verifies `digest` before use; mismatch fails the attempt with `skill_digest_mismatch`, not retryable | Adapter (`19-adapter-roles.md`) |
+| `persimmon skill install` fetches `source` at `version`; the Adapter hashes the installed bundle at attempt start and verifies `digest`; mismatch fails the attempt with `skill_digest_mismatch`, not retryable | CLI, Adapter (`19-adapter-roles.md`) |
 | `format` ∈ the referencing Task's adapter `skillFormats` | static checker on the Task (`12-task.md`) |
 | the Executor's `security.allowedHosts` admits the `source` host | operator; not checked |
 | Prompt and Skill are `SpecMutable`, `snapshot: Definition`, `scope: Any`, no `handlerRef` | KindDefinition |
