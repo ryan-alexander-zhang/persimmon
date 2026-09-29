@@ -69,7 +69,7 @@ Per-step phase, recorded in `WorkflowRun.status.steps.<id>` (`17-runs.md`):
 | terminal Failed selected | cancel every activated step (`Cancelled`); run Failed with `error.code = reason` |
 | two terminals selected | the first selection wins; the second is ignored |
 | every activated step finished, no terminal selected | run Failed with the first Failed step's error, its message prefixed `step <id>: `; with no Failed step, `no_progress` |
-| deadline | a step's effective deadline is min(run `timeout`, step `timeout`, enclosing step deadlines); expiry fails the step with `timeout`; run `timeout` expiry cancels activated steps and fails the run with `timeout` |
+| deadline | a step's effective deadline is min(run `timeout`, step `timeout`, enclosing step deadlines), set when the step first starts and recorded in `steps.<id>.deadline`; every `repeat` iteration shares it (a body run gets the remaining time as its `timeout`); expiry fails the step with `timeout`; run `timeout` expiry cancels activated steps and fails the run with `timeout` |
 | run cancelled | activated steps `Cancelled`; run `Cancelled`; no error |
 
 `Cancelled` is never a routable outcome.
@@ -146,6 +146,10 @@ has no `repeat`; the run name already carries the enclosing iterations (`<parent
   (`step implement: skill_digest_mismatch: ...`), not `no_progress`; `no_progress` is reserved for
   the case with no failure, a routing hole. A body run's error then reaches the repeat step and
   the outer run unchanged. Found in UAT.
+- A `repeat` step's `timeout` bounds the loop: the deadline is computed once at the first
+  iteration and kept in `steps.<id>.deadline`; later iterations reuse it, a body WorkflowRun gets
+  the remaining time as `timeout`. The code had given every iteration a fresh `timeout`, so a `6h`
+  step could run three `4h` rounds. Found in UAT.
 
 ## Examples
 

@@ -4786,6 +4786,11 @@
              "type": "integer",
              "minimum": 1
             },
+            "deadline": {
+             "type": "string",
+             "format": "date-time",
+             "description": "effective deadline set at first start; every repeat iteration shares it"
+            },
             "error": {
              "$ref": "reconcile.yaml#/$defs/Error"
             }

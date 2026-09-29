@@ -133,14 +133,15 @@ export function workflowHandler(deps: HandlerDeps): HandlerImpl {
           }
           throw e
         }
-        const deadline = new Date(Math.min(runDeadline.getTime(), now.getTime() + durationMs(step.timeout)))
+        const held = steps[step.id]?.deadline
+        const deadline = held ? new Date(Date.parse(held)) : new Date(Math.min(runDeadline.getTime(), now.getTime() + durationMs(step.timeout))) // step timeout bounds the whole loop, not one iteration
         const name = iteration ? `${run.metadata.name}-${step.id}-${iteration}` : `${run.metadata.name}-${step.id}`
         const runRef: ObjectRef = { apiVersion: `${u.contract.runKind.group}/v1`, kind: u.contract.runKind.kind, namespace: ns, name }
         const { uid: _u, ...workflowRunRef } = refOf(run)
         const address = { workflowRunRef, stepRef: step.id, iterationPath, logicalExecutionId: `${run.metadata.name}/${own}/${step.id}` } // the run name already carries the enclosing iterations
-        const resource: Resource = { apiVersion: runRef.apiVersion, kind: runRef.kind, metadata: { name, namespace: ns }, spec: childSpec(u.contract.runKind.kind, step, inputs, address, deadline, run) }
+        const resource: Resource = { apiVersion: runRef.apiVersion, kind: runRef.kind, metadata: { name, namespace: ns }, spec: childSpec(u.contract.runKind.kind, step, inputs, address, deadline, now, run) }
         actions.push({ type: 'createResource', resource, snapshot: 'inherit', owned: true })
-        steps[step.id] = { phase: 'Pending', runRef, ...(iteration ? { iteration } : {}) } // the child reports its phase through ChildFinished
+        steps[step.id] = { phase: 'Pending', runRef, deadline: rfc3339(deadline), ...(iteration ? { iteration } : {}) } // the child reports its phase through ChildFinished
       }
 
       /** Transition semantics (11-workflow.md), to a fixpoint. Returns the selected terminal, if any. */
@@ -265,7 +266,7 @@ export function workflowHandler(deps: HandlerDeps): HandlerImpl {
 }
 
 /** Spec of the child run per core runKind. Other kinds follow the TaskRun shape with `<kind>Ref`. */
-function childSpec(runKind: string, step: Step, inputs: RuntimeValues, address: Record<string, unknown>, deadline: Date, run: WorkflowRun): Record<string, unknown> {
+function childSpec(runKind: string, step: Step, inputs: RuntimeValues, address: Record<string, unknown>, deadline: Date, now: Date, run: WorkflowRun): Record<string, unknown> {
   const dl = rfc3339(deadline)
   switch (runKind) {
     case 'TaskRun':
@@ -274,7 +275,7 @@ function childSpec(runKind: string, step: Step, inputs: RuntimeValues, address: 
       return { gateRef: step.uses, address, deadline: dl, inputs }
     case 'WorkflowRun': {
       const a = address as { workflowRunRef: ObjectRef; stepRef: string; iterationPath: string }
-      return { workflowRef: step.uses, inputs, timeout: step.timeout, origin: { kind: 'parent' }, parent: { workflowRunRef: a.workflowRunRef, stepRef: a.stepRef, iterationPath: a.iterationPath } }
+      return { workflowRef: step.uses, inputs, timeout: `${Math.max(0, deadline.getTime() - now.getTime())}ms`, origin: { kind: 'parent' }, parent: { workflowRunRef: a.workflowRunRef, stepRef: a.stepRef, iterationPath: a.iterationPath } }
     }
     default: {
       // ponytail: the stepContract names no child spec shape; user kinds get the TaskRun shape until the design adds one

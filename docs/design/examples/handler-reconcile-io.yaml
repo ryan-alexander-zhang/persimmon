@@ -21,7 +21,7 @@ input:
     status:
       phase: Running
       steps:
-        research: {phase: Running, runRef: {apiVersion: persimmon.ai/v1, kind: TaskRun, namespace: demo, name: prd-create-001-research}}
+        research: {phase: Running, runRef: {apiVersion: persimmon.ai/v1, kind: TaskRun, namespace: demo, name: prd-create-001-research}, deadline: "2026-09-21T09:25:00Z"}
   event:
     type: ChildFinished
     sequence: 4
@@ -48,8 +48,8 @@ input:
 output:
   statusPatch:
     steps:
-      research: {phase: Succeeded, runRef: {apiVersion: persimmon.ai/v1, kind: TaskRun, namespace: demo, name: prd-create-001-research}}
-      write-prd: {phase: Pending, runRef: {apiVersion: persimmon.ai/v1, kind: TaskRun, namespace: demo, name: prd-create-001-write-prd}}
+      research: {phase: Succeeded, runRef: {apiVersion: persimmon.ai/v1, kind: TaskRun, namespace: demo, name: prd-create-001-research}, deadline: "2026-09-21T09:25:00Z"}
+      write-prd: {phase: Pending, runRef: {apiVersion: persimmon.ai/v1, kind: TaskRun, namespace: demo, name: prd-create-001-write-prd}, deadline: "2026-09-21T10:35:00Z"}
   actions:
     - type: createResource
       resource:

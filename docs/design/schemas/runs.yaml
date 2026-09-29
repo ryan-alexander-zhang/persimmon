@@ -102,6 +102,7 @@ $defs:
                     phase: {$ref: "#/$defs/StepPhase"}
                     runRef: {$ref: "resource.yaml#/$defs/ObjectRef"}
                     iteration: {type: integer, minimum: 1}
+                    deadline: {type: string, format: date-time, description: "effective deadline set at first start; every repeat iteration shares it"}
                     error: {$ref: "reconcile.yaml#/$defs/Error"}
               outputs: {$ref: "ports.yaml#/$defs/RuntimeValues"}
               reason: {type: string, pattern: "^[a-z][a-z0-9_]*$"}

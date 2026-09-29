@@ -65,6 +65,7 @@ export interface StepStatus {
   phase: StepPhase
   runRef?: ObjectRef
   iteration?: number
+  deadline?: string // the step's effective deadline, set at first start and shared by every repeat iteration (11-workflow.md)
   error?: ReconcileError
 }
 

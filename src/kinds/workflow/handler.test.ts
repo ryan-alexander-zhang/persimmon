@@ -114,15 +114,18 @@ describe('workflow Handler', () => {
     expect(body!.kind).toBe('WorkflowRun')
     expect(body!.metadata.name).toBe('loop-review-1')
     expect(body!.spec).toMatchObject({ workflowRef: { kind: 'Workflow', name: 'prd-review-round' }, inputs: { prd: { kind: 'artifact', ref: prdRef }, research: { kind: 'artifact', ref: reportRef } }, origin: { kind: 'parent' }, parent: { stepRef: 'review', iterationPath: 'review[1]' } })
-    expect(clean(res.statusPatch).steps.review).toMatchObject({ phase: 'Pending', iteration: 1 })
+    expect(clean(res.statusPatch).steps.review).toMatchObject({ phase: 'Pending', iteration: 1, deadline: '2026-09-21T11:00:00Z' }) // min(run 2h, step 6h)
+    expect((body!.spec as { timeout: string }).timeout).toBe('7200000ms')
     r = apply(r, res)
 
+    clock += 3_600_000
     const prd4 = { ...prdRef, revision: 4 }
     res = handler.reconcile(childFinished(r, 'review', 'Succeeded', { phase: 'Succeeded', outputs: { prd: { kind: 'artifact', ref: prd4 }, accepted: { kind: 'value', value: false } } })) as ReconcileResult
     const [second] = created(res)
     expect(second!.metadata.name).toBe('loop-review-2')
     expect((second!.spec as { inputs: { prd: unknown } }).inputs.prd).toEqual({ kind: 'artifact', ref: prd4 })
-    expect(clean(res.statusPatch).steps.review.iteration).toBe(2)
+    expect(clean(res.statusPatch).steps.review).toMatchObject({ iteration: 2, deadline: '2026-09-21T11:00:00Z' }) // the step timeout bounds the loop: the second round gets what is left
+    expect((second!.spec as { timeout: string }).timeout).toBe('3600000ms')
     r = apply(r, res)
 
     const prd5 = { ...prdRef, revision: 5 }

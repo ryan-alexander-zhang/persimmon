@@ -38,7 +38,7 @@ true`; the others inherit the parent's snapshot.
 | `timeout` (WorkflowRun) | optional; overrides the Workflow's `spec.timeout`; clock starts at `creationTimestamp` |
 | `address` | the Invocation address: `{workflowRunRef, stepRef, iterationPath, logicalExecutionId}`; `logicalExecutionId` = `<workflowRunName>/<own iteration>/<stepRef>`, double slash when the step has no `repeat` (`11-workflow.md`); a Validator's TaskRun has `stepRef` `<gateStepId>/<validatorName>` |
 | `deadline` | absolute RFC 3339, written by the creating Handler as min of the enclosing deadlines (`11-workflow.md`, `12-task.md`, `14-gate.md`) |
-| `steps` | `{<stepId>: {phase, runRef?, iteration?, error?}}`; one entry per declared step from Created; outputs are read from `runRef` at the used kind's `stepContract` paths, the latest iteration for `repeat` |
+| `steps` | `{<stepId>: {phase, runRef?, iteration?, deadline?, error?}}`; one entry per declared step from Created; outputs are read from `runRef` at the used kind's `stepContract` paths, the latest iteration for `repeat` |
 | `attempts[]` | `{index ≥ 1, state: running \| succeeded \| failed \| unknown, idempotencyKey, startedAt, finishedAt?, error?, acknowledged?}`; `acknowledged` after a human HumanAck |
 | `context` | resolved Context entries (`12-task.md`, `15-prompt-skill.md`) |
 | `reason` | the selected terminal's `reason` (`11-workflow.md`) |
