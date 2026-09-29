@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 330" width="1000" height="330" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif">
+  <title>Persimmon: definitions become runs, workers produce versioned Artifacts</title>
+  <style>
+    .bg { fill: #ffffff; }
+    .box { fill: #fff7ed; stroke: #ea580c; stroke-width: 2; }
+    .worker { fill: #f0f9ff; stroke: #0284c7; stroke-width: 1.5; }
+    .art { fill: #f0fdf4; stroke: #16a34a; stroke-width: 2; }
+    .h { fill: #1f2937; font-size: 17px; font-weight: 600; }
+    .t { fill: #4b5563; font-size: 13px; }
+    .w { fill: #0c4a6e; font-size: 14px; font-weight: 500; }
+    .line { stroke: #6b7280; stroke-width: 2; fill: none; }
+    .loop { stroke: #ea580c; stroke-width: 2; fill: none; stroke-dasharray: 6 5; }
+    .lbl { fill: #9a3412; font-size: 13px; }
+    .arrow { fill: #6b7280; }
+    .arrowo { fill: #ea580c; }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #0d1117; }
+      .box { fill: #2a1a0e; stroke: #fb923c; }
+      .worker { fill: #0c1f2e; stroke: #38bdf8; }
+      .art { fill: #0d2618; stroke: #4ade80; }
+      .h { fill: #f3f4f6; }
+      .t { fill: #9ca3af; }
+      .w { fill: #bae6fd; }
+      .line { stroke: #9ca3af; }
+      .arrow { fill: #9ca3af; }
+      .loop { stroke: #fb923c; }
+      .arrowo { fill: #fb923c; }
+      .lbl { fill: #fdba74; }
+    }
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="arrow" d="M0,0 L10,5 L0,10 z"/></marker>
+    <marker id="o" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path class="arrowo" d="M0,0 L10,5 L0,10 z"/></marker>
+  </defs>
+  <rect class="bg" width="1000" height="330" rx="12"/>
+
+  <!-- 1 definitions -->
+  <rect class="box" x="20" y="60" width="180" height="170" rx="12"/>
+  <text class="h" x="110" y="92" text-anchor="middle">You write YAML</text>
+  <text class="t" x="110" y="122" text-anchor="middle">Workflow · Task</text>
+  <text class="t" x="110" y="144" text-anchor="middle">Executor · Gate</text>
+  <text class="t" x="110" y="166" text-anchor="middle">Validator · Prompt</text>
+  <text class="t" x="110" y="188" text-anchor="middle">Skill · Trigger</text>
+  <text class="t" x="110" y="214" text-anchor="middle" font-style="italic">persimmon run</text>
+
+  <path class="line" d="M200,145 L238,145" marker-end="url(#a)"/>
+
+  <!-- 2 workflow run -->
+  <rect class="box" x="240" y="60" width="170" height="170" rx="12"/>
+  <text class="h" x="325" y="92" text-anchor="middle">WorkflowRun</text>
+  <text class="t" x="325" y="126" text-anchor="middle">definitions frozen</text>
+  <text class="t" x="325" y="146" text-anchor="middle">by digest</text>
+  <text class="t" x="325" y="180" text-anchor="middle">Steps run as a DAG</text>
+  <text class="t" x="325" y="200" text-anchor="middle">Gates decide</text>
+
+  <path class="line" d="M410,145 L448,145" marker-end="url(#a)"/>
+
+  <!-- 3 task run -->
+  <rect class="box" x="450" y="60" width="150" height="170" rx="12"/>
+  <text class="h" x="525" y="92" text-anchor="middle">TaskRun</text>
+  <text class="t" x="525" y="126" text-anchor="middle">one per Task</text>
+  <text class="t" x="525" y="146" text-anchor="middle">with attempts</text>
+  <text class="t" x="525" y="180" text-anchor="middle">executorRef</text>
+  <text class="t" x="525" y="200" text-anchor="middle">picks the worker</text>
+
+  <path class="line" d="M600,145 L638,145" marker-end="url(#a)"/>
+
+  <!-- 4 workers -->
+  <text class="h" x="715" y="50" text-anchor="middle">Any worker</text>
+  <rect class="worker" x="640" y="62" width="150" height="34" rx="17"/>
+  <text class="w" x="715" y="84" text-anchor="middle">Claude Code</text>
+  <rect class="worker" x="640" y="104" width="150" height="34" rx="17"/>
+  <text class="w" x="715" y="126" text-anchor="middle">Codex</text>
+  <rect class="worker" x="640" y="146" width="150" height="34" rx="17"/>
+  <text class="w" x="715" y="168" text-anchor="middle">Script</text>
+  <rect class="worker" x="640" y="188" width="150" height="34" rx="17"/>
+  <text class="w" x="715" y="210" text-anchor="middle">Human</text>
+
+  <path class="line" d="M790,145 L828,145" marker-end="url(#a)"/>
+
+  <!-- 5 artifacts -->
+  <rect class="art" x="830" y="60" width="150" height="170" rx="12"/>
+  <text class="h" x="905" y="92" text-anchor="middle">Artifacts</text>
+  <text class="t" x="905" y="126" text-anchor="middle">r1 → r2 → r3</text>
+  <text class="t" x="905" y="146" text-anchor="middle">append-only</text>
+  <text class="t" x="905" y="180" text-anchor="middle">provenance</text>
+  <text class="t" x="905" y="200" text-anchor="middle">and audit</text>
+
+  <!-- trigger loop -->
+  <path class="loop" d="M905,230 L905,285 L325,285 L325,234" marker-end="url(#o)"/>
+  <text class="lbl" x="615" y="308" text-anchor="middle">a published Artifact fires a Trigger, which starts the next run</text>
+</svg>

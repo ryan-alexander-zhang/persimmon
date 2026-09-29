@@ -10,12 +10,9 @@ Persimmon is a Kubernetes-style resource engine. You describe Workflows, Tasks a
 YAML; Persimmon runs them, hands each Task to an Executor (Claude Code, Codex, a script or a
 person at the terminal), and records every result as a versioned, auditable Artifact.
 
-```text
-YAML definitions ──▶ persimmon run ──▶ WorkflowRun ──▶ TaskRun ──▶ Adapter (Claude Code, Codex, script, human)
-   Workflow Task Executor            snapshot frozen      attempts       │
-   Gate Validator Prompt Skill                                           ▼
-                                                              Artifact revisions, provenance, audit
-```
+<p align="center">
+  <img src="docs/assets/overview.svg" alt="YAML definitions become a WorkflowRun and TaskRuns; any worker (Claude Code, Codex, a script or a human) produces versioned Artifacts; a published Artifact can fire a Trigger that starts the next run" width="100%">
+</p>
 
 ## Table of contents
 
