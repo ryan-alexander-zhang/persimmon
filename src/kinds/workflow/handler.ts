@@ -270,7 +270,7 @@ function childSpec(runKind: string, step: Step, inputs: RuntimeValues, address: 
   const dl = rfc3339(deadline)
   switch (runKind) {
     case 'TaskRun':
-      return { taskRef: step.uses, address, deadline: dl, inputs, context: [] }
+      return { taskRef: step.uses, address, deadline: dl, inputs }
     case 'GateRun':
       return { gateRef: step.uses, address, deadline: dl, inputs }
     case 'WorkflowRun': {

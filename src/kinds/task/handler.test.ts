@@ -86,6 +86,7 @@ describe('task Handler', () => {
     expect(call).toMatchObject({ op: 'execute', adapterId: 'claude-code/v1', idempotencyKey: 'prd-create-002//research/1', deadline: '2026-09-21T09:20:01Z' })
     expect(call.payload).toMatchObject({ task: { instructions: 'Research the checkout v2 problem space.', sideEffects: 'none' }, executor: { type: 'agent' }, taskRun: { attempt: 1 } })
     expect(call.payload).not.toHaveProperty('credentials')
+    expect(clean(r.statusPatch).context).toEqual(call.payload.context) // the resolved list the Adapter saw is recorded on the TaskRun (12-task.md)
     expect(r.actions[2]).toEqual({ type: 'setTimer', key: 'deadline', at: run.spec.deadline })
     run = apply(run, r)
 

@@ -69,4 +69,3 @@ output:
               kind: artifact
               ref: {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport, namespace: demo, id: research-checkout-v2, revision: 1}
             maxRequirements: {kind: value, value: 12}   # the Task's default, applied at binding (10-ports.md)
-          context: []          # resolved by the task Handler on Created

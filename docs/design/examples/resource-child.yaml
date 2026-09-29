@@ -30,7 +30,6 @@ spec:
   deadline: "2026-09-22T09:25:01Z"
   inputs:
     repository: {kind: externalResource, ref: {provider: git, type: repository, id: github.com/persimmon-ai/demo, locator: {remote: https://github.com/persimmon-ai/demo.git, ref: main}, version: 9fceb02d0ae598e95dc970b74767f19372d61af8}}
-  context: []
 status:
   phase: Running
   attempts:

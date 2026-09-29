@@ -27,7 +27,7 @@ true`; the others inherit the parent's snapshot.
 | Kind | Handler | spec | status |
 |---|---|---|---|
 | WorkflowRun | `workflow` | `workflowRef, inputs, timeout?, origin, parent?` | `phase, steps, outputs?, error?, reason?, waitingReason?` |
-| TaskRun | `task` | `taskRef, address, deadline, inputs, context` | `phase, attempts[], outputs?, error?, actor?, waitingReason?` |
+| TaskRun | `task` | `taskRef, address, deadline, inputs` | `phase, attempts[], context?, outputs?, error?, actor?, waitingReason?` |
 | GateRun | `gate` | `gateRef, address, deadline, inputs` | `phase, outputs?, error?, validationRuns, waitingReason?` |
 | ValidationRun | `validator` | `validatorRef, gateRunRef, name, address, deadline, inputs` | `phase, result?, error?, taskRunRef?, waitingReason?` |
 
@@ -40,7 +40,7 @@ true`; the others inherit the parent's snapshot.
 | `deadline` | absolute RFC 3339, written by the creating Handler as min of the enclosing deadlines (`11-workflow.md`, `12-task.md`, `14-gate.md`) |
 | `steps` | `{<stepId>: {phase, runRef?, iteration?, deadline?, error?}}`; one entry per declared step from Created; outputs are read from `runRef` at the used kind's `stepContract` paths, the latest iteration for `repeat` |
 | `attempts[]` | `{index ≥ 1, state: running \| succeeded \| failed \| unknown, idempotencyKey, startedAt, finishedAt?, error?, acknowledged?}`; `acknowledged` after a human HumanAck |
-| `context` | resolved Context entries (`12-task.md`, `15-prompt-skill.md`) |
+| `context` (status) | resolved Context entries as the Adapter saw them (`12-task.md`, `15-prompt-skill.md`); written at the first attempt, absent when resolution failed |
 | `reason` | the selected terminal's `reason` (`11-workflow.md`) |
 | `waitingReason` | free text while `Waiting`; recommended `human`, `child`, `retryBackoff`, `adapter` |
 
@@ -64,7 +64,7 @@ Terminal selection follows `11-workflow.md`; Succeeded evaluates `outputBindings
 
 | Event | Behaviour |
 |---|---|
-| Created | resolve `context` (absent optional input dropped; absent required or `file` without `version` → Failed `invalid_input`); `attempts[1] running`; `callAdapter(execute, key: <logicalExecutionId>/1, deadline: min(now + timeout, spec.deadline))`; `setTimer(attempt)`, `setTimer(deadline, spec.deadline)`; Running, or Waiting `human` when the Executor is `type: human` |
+| Created | resolve `context` (absent optional input dropped; absent required or `file` without `version` → Failed `invalid_input`), record it in `status.context`; `attempts[1] running`; `callAdapter(execute, key: <logicalExecutionId>/1, deadline: min(now + timeout, spec.deadline))`; `setTimer(attempt)`, `setTimer(deadline, spec.deadline)`; Running, or Waiting `human` when the Executor is `type: human` |
 | AdapterFinished succeeded, result is HumanAck | `attempts[n].acknowledged`; Waiting `human` |
 | AdapterFinished succeeded, result is a TaskResult | validate: exactly the declared outputs, types equal, every artifact in `context.staged` for this key; `commitScope(key)`; `outputs`; Succeeded. Invalid → as failed `schema_violation` |
 | AdapterFinished failed, or TimerFired(attempt) | `abandonScope(key)`; `clearTimer(attempt)`; another attempt allowed (`12-task.md`; `timeout` is the attempt's code) → `setTimer(backoff)`, Waiting `retryBackoff`; else Failed with the error |
@@ -138,6 +138,10 @@ CancelRequested → `cancelResource` or `callAdapter(cancel)`; Cancelled.
   delivery time: local mode dispatches the calls of one drain together and delivers their answers
   after the slowest, so a two-second script showed the same end as a one-minute agent. Found in
   UAT.
+- The resolved Context lives in `TaskRun.status.context`, not `spec.context`: only the `task`
+  Handler can resolve it (it needs the Task, its inputs and the snapshot), and a Handler writes
+  `status` only; the creating Handlers had written `context: []` and the record was never made.
+  `spec.context` is dropped. Found in UAT.
 
 ## Examples
 

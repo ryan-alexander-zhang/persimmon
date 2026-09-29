@@ -25,6 +25,8 @@ spec:
   inputs:
     research: {kind: artifact, ref: {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport, namespace: demo, id: research-checkout-v2, revision: 1}}
     maxRequirements: {kind: value, value: 12}
+status:
+  phase: Succeeded
   context:
     - kind: artifact
       ref: {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport, namespace: demo, id: research-checkout-v2, revision: 1}
@@ -41,8 +43,6 @@ spec:
       source: {provider: git, type: repository, id: github.com/persimmon-ai/skills, locator: {remote: https://github.com/persimmon-ai/skills.git, path: prd-writer}, version: 2f9a1c0e7b3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f}
       digest: sha256:9c8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d9c8b
       format: claude-code-skill/v1
-status:
-  phase: Succeeded
   attempts:
     - {index: 1, state: failed, idempotencyKey: prd-create-001//write-prd/1, startedAt: "2026-09-21T10:00:01Z", finishedAt: "2026-09-21T10:05:00Z", error: {code: rate_limit, message: "429 from provider", retryable: true}}
     - {index: 2, state: succeeded, idempotencyKey: prd-create-001//write-prd/2, startedAt: "2026-09-21T10:05:31Z", finishedAt: "2026-09-21T10:30:00Z"}

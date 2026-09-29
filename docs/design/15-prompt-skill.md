@@ -12,7 +12,7 @@ Task.action.context
                                                                                             │ skill install fetches source; Adapter verifies digest
 ```
 
-Resolved entries are written to `TaskRun.spec.context` and sent in the execute payload
+Resolved entries are written to `TaskRun.status.context` and sent in the execute payload
 (`17-runs.md`, `19-adapter-roles.md`). After resolution `name` is a label; the snapshot
 already picked the Namespaced or Global Resource.
 

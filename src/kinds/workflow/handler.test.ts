@@ -65,7 +65,7 @@ describe('workflow Handler', () => {
     expect(clean(res.statusPatch)).toMatchObject({ phase: 'Running', steps: { research: { phase: 'Pending', runRef: { kind: 'TaskRun', name: 'prd-create-001-research' } }, 'write-prd': { phase: 'Pending' } } })
     expect(clean(res.statusPatch).steps['write-prd'].runRef).toBeUndefined()
     const [research] = created(res)
-    expect(research!.spec).toEqual({ taskRef: { kind: 'Task', name: 'research' }, address: { workflowRunRef: { apiVersion: 'persimmon.ai/v1', kind: 'WorkflowRun', namespace: 'demo', name: 'prd-create-001' }, stepRef: 'research', iterationPath: '', logicalExecutionId: 'prd-create-001//research' }, deadline: '2026-09-21T09:25:00Z', inputs: { repository: { kind: 'externalResource', ref: repo } }, context: [] })
+    expect(research!.spec).toEqual({ taskRef: { kind: 'Task', name: 'research' }, address: { workflowRunRef: { apiVersion: 'persimmon.ai/v1', kind: 'WorkflowRun', namespace: 'demo', name: 'prd-create-001' }, stepRef: 'research', iterationPath: '', logicalExecutionId: 'prd-create-001//research' }, deadline: '2026-09-21T09:25:00Z', inputs: { repository: { kind: 'externalResource', ref: repo } } })
     expect(res.actions.at(-1)).toEqual({ type: 'setTimer', key: 'deadline', at: '2026-09-21T11:00:00Z' })
     // no run timeout: the Workflow's own (prd-create: 2h) sets the deadline
     const noTimeout = run('prd-create', { repository: { kind: 'externalResource', ref: repo } }, 'r2')

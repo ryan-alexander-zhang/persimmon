@@ -73,12 +73,12 @@ export interface TaskRunSpec {
   address: Address
   deadline: string
   inputs: RuntimeValues
-  context: ResolvedContextEntry[]
 }
 
 export interface TaskRunStatus {
   phase: Phase
   attempts: Attempt[]
+  context?: ResolvedContextEntry[] // what the Adapter saw, recorded at the first attempt (12-task.md)
   outputs?: RuntimeValues
   error?: ReconcileError
   actor?: Actor

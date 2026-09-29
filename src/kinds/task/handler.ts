@@ -142,6 +142,7 @@ export function taskHandler(deps: HandlerDeps): HandlerImpl {
             phase: human ? 'Waiting' : 'Running',
             ...(human ? { waitingReason: 'human' } : { waitingReason: null }),
             attempts: [...attempts, attempt],
+            context,
           }),
           actions: [
             {

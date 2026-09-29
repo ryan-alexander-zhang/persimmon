@@ -152,7 +152,7 @@ $defs:
       metadata: {$ref: "#/$defs/RunMetadata"}
       spec:
         type: object
-        required: [taskRef, address, deadline, inputs, context]
+        required: [taskRef, address, deadline, inputs]
         additionalProperties: false
         properties:
           taskRef:
@@ -160,7 +160,6 @@ $defs:
           address: {$ref: "#/$defs/Address"}
           deadline: {$ref: "#/$defs/Deadline"}
           inputs: {$ref: "ports.yaml#/$defs/RuntimeValues"}
-          context: {$ref: "#/$defs/ResolvedContext"}
       status:
         allOf:
           - {$ref: "#/$defs/StatusCommon"}
@@ -172,6 +171,7 @@ $defs:
               error: true
               waitingReason: true
               attempts: {type: array, items: {$ref: "#/$defs/Attempt"}}
+              context: {$ref: "#/$defs/ResolvedContext", description: "what the Adapter saw; recorded at the first attempt"}
               outputs: {$ref: "ports.yaml#/$defs/RuntimeValues"}
               actor: {$ref: "resource.yaml#/$defs/Actor"}
             if: {properties: {phase: {const: Succeeded}}}

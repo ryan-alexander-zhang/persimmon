@@ -11,7 +11,6 @@
       deadline: "2026-09-21T09:25:00Z"
       inputs:
         repository: {kind: externalResource, ref: {provider: git, type: repository, id: github.com/persimmon-ai/demo, locator: {remote: https://github.com/persimmon-ai/demo.git, ref: main}, version: 9fceb02d0ae598e95dc970b74767f19372d61af8}}
-      context: []
 
 - type: cancelResource
   ref: {apiVersion: persimmon.ai/v1, kind: TaskRun, namespace: demo, name: prd-create-001-research}

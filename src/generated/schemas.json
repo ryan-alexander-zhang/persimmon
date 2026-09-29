@@ -4990,8 +4990,7 @@
        "taskRef",
        "address",
        "deadline",
-       "inputs",
-       "context"
+       "inputs"
       ],
       "additionalProperties": false,
       "properties": {
@@ -5017,9 +5016,6 @@
        },
        "inputs": {
         "$ref": "ports.yaml#/$defs/RuntimeValues"
-       },
-       "context": {
-        "$ref": "#/$defs/ResolvedContext"
        }
       }
      },
@@ -5044,6 +5040,10 @@
           "items": {
            "$ref": "#/$defs/Attempt"
           }
+         },
+         "context": {
+          "$ref": "#/$defs/ResolvedContext",
+          "description": "what the Adapter saw; recorded at the first attempt"
          },
          "outputs": {
           "$ref": "ports.yaml#/$defs/RuntimeValues"

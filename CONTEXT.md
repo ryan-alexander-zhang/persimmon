@@ -189,7 +189,7 @@ _Avoid_: runner, worker, agent (as the kind), backend
 **Context**:
 `Task.action.context`: ordered entries of kind `file`, `artifact`, `prompt`, `skill`. Prompts and
 artifacts go into the prompt; files are paths into the **Workspace**; Skills are installed in the
-Workspace and verified. Resolved list recorded on the TaskRun.
+Workspace and verified. Resolved list recorded in `TaskRun.status.context`.
 _Avoid_: inputs, attachments, references, prompt
 
 **Prompt**:

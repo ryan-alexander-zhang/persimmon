@@ -35,7 +35,7 @@ Step contract: `inputsPath: spec.inputs`, `outputsPath: spec.outputs`, `runKind:
 
 ## Context
 
-| kind | Fields | Resolved to (`TaskRun.spec.context`, execute payload) | Rule |
+| kind | Fields | Resolved to (`TaskRun.status.context`, execute payload) | Rule |
 |---|---|---|---|
 | `file` | `input`, `path` | `{kind, ref: ExternalResourceRef, path}` | `input` is an `externalResource` port; ref carries `version` at run time |
 | `artifact` | `input` | `{kind, ref: RevisionRef}` | `input` is an `artifact` port |

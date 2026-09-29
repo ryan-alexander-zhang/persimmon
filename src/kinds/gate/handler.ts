@@ -231,7 +231,7 @@ export function validatorHandler(deps: HandlerDeps): HandlerImpl {
           }
           if (evaluator.type === 'task') {
             const name = `${run.metadata.name}-task`
-            const resource: Resource = { apiVersion: 'persimmon.ai/v1', kind: 'TaskRun', metadata: { name, namespace: ns }, spec: { taskRef: evaluator.taskRef, address: run.spec.address, deadline: run.spec.deadline, inputs, context: [] } }
+            const resource: Resource = { apiVersion: 'persimmon.ai/v1', kind: 'TaskRun', metadata: { name, namespace: ns }, spec: { taskRef: evaluator.taskRef, address: run.spec.address, deadline: run.spec.deadline, inputs } }
             return { statusPatch: { phase: 'Running', taskRunRef: refOf(resource) }, actions: [{ type: 'createResource', resource, snapshot: 'inherit', owned: true }, { type: 'setTimer', key: 'deadline', at: run.spec.deadline }] }
           }
           const key = `${lei}/1`
