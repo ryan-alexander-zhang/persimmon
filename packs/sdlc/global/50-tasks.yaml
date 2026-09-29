@@ -12,11 +12,12 @@ spec:
     instructions: "Research the problem space of the repository. Publish a ResearchReport with titled findings."
     context:
       - {kind: file, input: repository, path: README.md}
+    workspace: {input: repository}   # README.md is the repository's, and the agent works there
   timeout: 20m
   retryPolicy:
     maxAttempts: 3
     backoff: {strategy: exponential, initial: 30s, max: 5m, jitter: none}
-    retryOn: [timeout, rate_limit, transient_network]
+    retryOn: [timeout, agent_failed, transient_network]
   sideEffects: none
 ---
 apiVersion: persimmon.ai/v1
@@ -41,7 +42,7 @@ spec:
   retryPolicy:
     maxAttempts: 3
     backoff: {strategy: exponential, initial: 30s, max: 5m, jitter: full}
-    retryOn: [timeout, rate_limit, transient_network]
+    retryOn: [timeout, agent_failed, transient_network]
     abortOn: [permission_denied, invalid_input, schema_violation]
   sideEffects: none
 ---

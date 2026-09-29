@@ -44,7 +44,7 @@ snapshot walk rooted in that Namespace (`04-snapshot.md`). Overrides are ordinar
 
 | Kind | Shipped (`packs/sdlc/`) | Not yet |
 |---|---|---|
-| Executor | `claude-agent`, `lint-script`, `local-reviewer` on `cli-human/v1` | `product-reviewers` |
+| Executor | `claude-agent`, `local-reviewer` on `cli-human/v1` | `product-reviewers` |
 | Prompt | `write-prd-template` | `code-agent` |
 | Task | `research`, `write-prd`, `approve-prd`, `security-review`, `product-review` | `implement-task` |
 | Validator | `prd-structure`, `prd-human-review` | `prd-security-scan` |
@@ -96,6 +96,10 @@ Credentials the pack Executors bind are Global names resolved at run time.
 - `examples/<nn>/` are projects, not packs: hand-written definitions plus a `README.md` the user
   follows, `persimmon init` run inside the directory, generated state ignored. A pack is
   installed by `init`; an example is applied by the user, one scenario each. Found in UAT.
+- Pack content matches the shipped Adapters: `retryOn` names `timeout`, `agent_failed`,
+  `transient_network` (no Adapter emits `rate_limit`); `lint-script` is dropped, its
+  `./scripts/lint.sh` never shipped; `research` declares `workspace: {input: repository}`, else its
+  `file` context read the project's README instead of the repository's. Found in UAT.
 
 ## Examples
 

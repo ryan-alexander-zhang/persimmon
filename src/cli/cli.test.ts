@@ -67,9 +67,10 @@ describe('persimmon CLI', () => {
     const errors = out.filter((l) => l.startsWith('error Task/t1'))
     expect(errors.some((l) => l.includes('parameters do not match codex/v1 describe.parametersSchema'))).toBe(true)
     expect(errors.some((l) => l.includes('Skill odd format other/v1 is not in codex/v1 describe.skillFormats'))).toBe(true)
+    const scriptExecutor = { apiVersion: 'persimmon.ai/v1', kind: 'Executor', metadata: { name: 'lint-script' }, spec: { type: 'script', adapter: 'subprocess/v1', configuration: { program: ['./lint.sh'], resultFile: 'result.json' }, security: { networkAccess: 'deny' } } }
     const t2 = { ...t1, metadata: { name: 't2' }, spec: { ...t1.spec, executorRef: { kind: 'Executor', name: 'lint-script' }, action: { instructions: 'x', context: [{ kind: 'prompt', ref: { kind: 'Prompt', name: 'write-prd-template' } }] } } }
     out = []
-    expect(await run('validate', file('rules2.yaml', [t2]))).toBe(1)
+    expect(await run('validate', file('rules2.yaml', [scriptExecutor, t2]))).toBe(1)
     expect(out.some((l) => l.startsWith('error Task/t2') && l.includes('subprocess/v1 does not accept prompt context'))).toBe(true)
 
     out = []
@@ -131,7 +132,8 @@ describe('persimmon CLI', () => {
     await run('init')
     await run('adapter', 'install', file('a.yaml', [fakeAdapter('claude-code/v1')]))
     const wr = example('run-workflowrun')
-    const runDoc = { apiVersion: wr.apiVersion, kind: wr.kind, metadata: { name: 'demo-001' }, spec: { ...wr.spec, timeout: '1h' } }
+    const repoRef = wr.spec.inputs.repository.ref
+    const runDoc = { apiVersion: wr.apiVersion, kind: wr.kind, metadata: { name: 'demo-001' }, spec: { ...wr.spec, inputs: { ...wr.spec.inputs, repository: { kind: 'externalResource', ref: { ...repoRef, locator: { ...repoRef.locator, path: dir } } } }, timeout: '1h' } } // research works in the repository: its locator needs a path
     out = []
     const code = await runCli(['create', file('run.yaml', [runDoc]), '--follow'], { cwd: dir, out: (l) => out.push(l), err: (l) => err.push(l) })
     expect(code).toBe(1) // the fake adapter's execute answer is not a TaskResult

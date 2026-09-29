@@ -46,7 +46,7 @@ describe('scenario: PRD lifecycle', () => {
     expect(await run('init')).toBe(0)
     expect(await run('adapter', 'install', file('agent.yaml', fakeAgent))).toBe(0)
 
-    const wr = { apiVersion: 'persimmon.ai/v1', kind: 'WorkflowRun', metadata: { name: 'prd-001' }, spec: { workflowRef: { kind: 'Workflow', name: 'prd-create' }, inputs: { repository: { kind: 'externalResource', ref: repo } }, timeout: '1h', origin: { kind: 'manual' } } }
+    const wr = { apiVersion: 'persimmon.ai/v1', kind: 'WorkflowRun', metadata: { name: 'prd-001' }, spec: { workflowRef: { kind: 'Workflow', name: 'prd-create' }, inputs: { repository: { kind: 'externalResource', ref: { ...repo, locator: { ...repo.locator, path: dir } } } }, timeout: '1h', origin: { kind: 'manual' } } }
     out = []
     expect(await runCli(['create', file('run.yaml', wr), '--follow'], cli())).toBe(0)
     expect(out).toContain('WorkflowRun   prd-001   Succeeded')

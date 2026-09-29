@@ -15,19 +15,6 @@ spec:
 ---
 apiVersion: persimmon.ai/v1
 kind: Executor
-metadata: {name: lint-script}
-spec:
-  type: script
-  adapter: subprocess/v1
-  configuration:
-    program: [./scripts/lint.sh]
-    resultFile: .persimmon/result.json
-  security:
-    networkAccess: deny
-    credentialBindings: [registry-token]
----
-apiVersion: persimmon.ai/v1
-kind: Executor
 metadata: {name: local-reviewer}
 spec:
   type: human
