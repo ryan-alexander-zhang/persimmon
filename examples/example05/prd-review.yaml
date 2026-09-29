@@ -1,0 +1,300 @@
+# prd-review: idea -> PRD (claude) -> claude and codex review in parallel -> claude judges each finding, fixes the true ones -> repeat until clean or maxRounds.
+# Install: persimmon apply prd-review.yaml    Run: persimmon run idea-to-reviewed-prd --input idea="..." --follow
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata: {name: earsprds.engineering.persimmon.ai}
+spec:
+  group: engineering.persimmon.ai
+  names: {kind: EarsPrd, plural: earsprds}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [title, summary, features]
+        properties:
+          title: {type: string}
+          summary: {type: string, description: "Section 1: the problem, the users, the outcome, in prose"}
+          features:
+            type: array
+            minItems: 1
+            description: "Section 2: one entry per feature"
+            items:
+              type: object
+              required: [id, name, requirements]
+              properties:
+                id: {type: string}
+                name: {type: string}
+                requirements:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [id, pattern, statement]
+                    properties:
+                      id: {type: string}
+                      pattern: {enum: [ubiquitous, event-driven, state-driven, unwanted-behaviour, optional, complex]}
+                      statement: {type: string, description: "EARS sentence, e.g. 'When <trigger>, the <system> shall <response>'"}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"
+---
+# What the judge decided about every finding of one round. The record of "is this finding true?".
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata: {name: judgements.engineering.persimmon.ai}
+spec:
+  group: engineering.persimmon.ai
+  names: {kind: Judgement, plural: judgements}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [subject, verdicts, accepted, rejected]
+        properties:
+          subject: {type: string, description: "the PRD revision judged"}
+          verdicts:
+            type: array
+            items:
+              type: object
+              required: [reviewer, finding, holds, reason]
+              properties:
+                reviewer: {enum: [claude, codex]}
+                finding: {type: string, description: "the finding message, verbatim"}
+                holds: {type: boolean, description: "the judge agrees the finding holds against the PRD"}
+                reason: {type: string}
+          accepted: {type: integer, minimum: 0, description: "findings judged true and fixed"}
+          rejected: {type: integer, minimum: 0, description: "findings judged false"}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"
+---
+apiVersion: persimmon.ai/v1
+kind: Prompt
+metadata: {name: ears-prd-template}
+spec:
+  mediaType: text/markdown
+  content: |
+    PRD template. Two sections, nothing else.
+    Section 1 "summary": problem, target users, expected outcome. Prose, at most 200 words.
+    Section 2 "features": each feature has an id (F1, F2, ...), a name and its requirements.
+    Every requirement is one EARS sentence and names its pattern:
+    - ubiquitous:          The <system> shall <response>.
+    - event-driven:        When <trigger>, the <system> shall <response>.
+    - state-driven:        While <state>, the <system> shall <response>.
+    - unwanted-behaviour:  If <condition>, then the <system> shall <response>.
+    - optional:            Where <feature is included>, the <system> shall <response>.
+    - complex:             a combination of the above.
+    Requirement ids are F1-R1, F1-R2, ... Every statement is testable.
+---
+apiVersion: persimmon.ai/v1
+kind: Prompt
+metadata: {name: prd-review-rules}
+spec:
+  mediaType: text/markdown
+  content: |
+    Review rules. Report a finding only when you can point at the requirement id or the summary sentence.
+    Check: the summary states problem, users and outcome; every requirement is a valid EARS sentence of its
+    declared pattern; every statement is testable (a measurable response, no "fast", "easy", "robust");
+    no feature lacks requirements; no two requirements contradict; no requirement names a solution the
+    summary never asked for. severity error = must fix, warning = should fix, info = note.
+    Message format: "<id>: <what is wrong>: <what would fix it>".
+---
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: claude-writer}
+spec:
+  type: agent
+  adapter: claude-code/v1
+  configuration: {model: claude-sonnet-5, sandbox: read-only}
+  security:
+    networkAccess: allowlist
+    allowedHosts: [api.anthropic.com]
+---
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: claude-reviewer}
+spec:
+  type: agent
+  adapter: claude-code/v1
+  configuration: {model: claude-sonnet-5, sandbox: read-only}
+  security:
+    networkAccess: allowlist
+    allowedHosts: [api.anthropic.com]
+---
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: codex-reviewer}
+spec:
+  type: agent
+  adapter: codex/v1
+  configuration: {model: gpt-6-sol, sandbox: read-only}
+  security: {networkAccess: deny}
+---
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: draft-prd}
+spec:
+  inputs:
+    idea: {type: {kind: value, schema: {type: string, minLength: 1}}}
+  outputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: EarsPrd}}}
+  executorRef: {kind: Executor, name: claude-writer}
+  action:
+    instructions: "Write the PRD for the idea in the inputs. Follow the template exactly. Three to six features."
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: ears-prd-template}}
+    parameters: {effort: high}
+  timeout: 20m
+  sideEffects: none
+---
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: review-prd-claude}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: EarsPrd}}}
+  outputs:
+    report: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ReviewReport}}}
+  executorRef: {kind: Executor, name: claude-reviewer}
+  action:
+    instructions: "Review the PRD by the review rules. Publish a ReviewReport; verdict approve when there is no error finding, else revise."
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: prd-review-rules}}
+      - {kind: artifact, input: prd}
+    parameters: {effort: high}
+  timeout: 15m
+  sideEffects: none
+---
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: review-prd-codex}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: EarsPrd}}}
+  outputs:
+    report: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ReviewReport}}}
+  executorRef: {kind: Executor, name: codex-reviewer}
+  action:
+    instructions: "Review the PRD by the review rules. Publish a ReviewReport; verdict approve when there is no error finding, else revise."
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: prd-review-rules}}
+      - {kind: artifact, input: prd}
+    parameters: {reasoningEffort: high}
+  timeout: 15m
+  sideEffects: none
+---
+# The main agent: judges every finding of both reviewers against the PRD, fixes the true ones, publishes the next PRD.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: judge-and-fix}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: EarsPrd}}}
+    claude: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ReviewReport}}}
+    codex: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ReviewReport}}}
+  outputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: EarsPrd}}}
+    judgement: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: Judgement}}}
+    clean: {type: {kind: value, schema: {type: boolean}}}
+  executorRef: {kind: Executor, name: claude-writer}
+  action:
+    instructions: |
+      You wrote the PRD. Two reviewers read it: input claude and input codex. Judge every finding of severity
+      error or warning on its own, against the PRD text and the template: is it true? A finding is true when
+      the PRD really has the defect it names. A finding that is a matter of taste, that asks for scope the idea
+      never had, or that misreads the PRD is false. Both reviewers can be wrong; both can be right.
+      Publish a Judgement with one verdict per finding (reviewer, finding verbatim, holds, reason), and the
+      counts accepted (holds) and rejected (does not hold).
+      Publish the revised PRD: every true finding fixed, nothing else changed, every id kept, the template kept.
+      When no finding is true, publish the PRD unchanged.
+      clean = true when no finding of severity error was judged true.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: ears-prd-template}}
+      - {kind: artifact, input: prd}
+      - {kind: artifact, input: claude}
+      - {kind: artifact, input: codex}
+    parameters: {effort: high}
+  timeout: 20m
+  sideEffects: none
+---
+# One round: both reviewers read the same PRD in parallel; the judge starts when both finished.
+apiVersion: persimmon.ai/v1
+kind: Workflow
+metadata: {name: review-round}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: EarsPrd}}}
+  outputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: EarsPrd}}}
+    judgement: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: Judgement}}}
+    clean: {type: {kind: value, schema: {type: boolean}}}
+  outputBindings:
+    prd: {fromStep: {stepRef: judge, output: prd}}
+    judgement: {fromStep: {stepRef: judge, output: judgement}}
+    clean: {fromStep: {stepRef: judge, output: clean}}
+  entry: [review-claude, review-codex]
+  steps:
+    - id: review-claude
+      uses: {kind: Task, name: review-prd-claude}
+      inputs: {prd: {fromInput: prd}}
+      timeout: 20m
+    - id: review-codex
+      uses: {kind: Task, name: review-prd-codex}
+      inputs: {prd: {fromInput: prd}}
+      timeout: 20m
+    - id: judge
+      uses: {kind: Task, name: judge-and-fix}
+      inputs:
+        prd: {fromInput: prd}
+        claude: {fromStep: {stepRef: review-claude, output: report}}
+        codex: {fromStep: {stepRef: review-codex, output: report}}
+      timeout: 25m
+  transitions:
+    - id: reviews-in                      # join all (the default): both reviewers must succeed
+      from:
+        - {stepRef: review-claude, outcomes: [Succeeded]}
+        - {stepRef: review-codex, outcomes: [Succeeded]}
+      to: [{stepRef: judge}]
+    - {id: done, from: [{stepRef: judge, outcomes: [Succeeded]}], to: [{terminal: Succeeded}]}
+  timeout: 1h
+---
+apiVersion: persimmon.ai/v1
+kind: Workflow
+metadata: {name: idea-to-reviewed-prd}
+spec:
+  inputs:
+    idea: {type: {kind: value, schema: {type: string, minLength: 1}}}
+    maxRounds: {type: {kind: value, schema: {type: integer, minimum: 1}}, required: false, default: {kind: value, value: 3}}
+  outputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: EarsPrd}}}
+    clean: {type: {kind: value, schema: {type: boolean}}}
+    rounds: {type: {kind: value, schema: {type: integer}}}
+  outputBindings:
+    prd: {fromStep: {stepRef: rounds, output: prd}}
+    clean: {fromStep: {stepRef: rounds, output: clean}}
+    rounds: {expression: 'steps.rounds.iterations'}
+  entry: [write]
+  steps:
+    - id: write
+      uses: {kind: Task, name: draft-prd}
+      inputs: {idea: {fromInput: idea}}
+      timeout: 25m
+    - id: rounds
+      uses: {kind: Workflow, name: review-round}
+      inputs: {prd: {fromState: prd}}
+      timeout: 3h                          # bounds every round together
+      repeat:
+        state:
+          prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: EarsPrd}}}
+        initial:
+          prd: {fromStep: {stepRef: write, output: prd}}
+        next:
+          prd: {fromIterationOutput: prd}
+        until: 'iteration.outputs.clean || iteration.index >= inputs.maxRounds'
+        maxIterations: 10
+  transitions:
+    - {id: to-rounds, from: [{stepRef: write, outcomes: [Succeeded]}], to: [{stepRef: rounds}]}
+    - {id: done, from: [{stepRef: rounds, outcomes: [Succeeded]}], to: [{terminal: Succeeded}]}
+  timeout: 4h
