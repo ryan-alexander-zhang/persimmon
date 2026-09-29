@@ -4,6 +4,7 @@ import { apply } from './apply.js'
 import type { Cli } from './context.js'
 import { create, run } from './create.js'
 import { digest } from './digest.js'
+import { skillInstall } from './skill.js'
 import { get, logs } from './get.js'
 import { tree } from './tree.js'
 import { init } from './init.js'
@@ -23,6 +24,7 @@ const usage = `usage: persimmon <verb> [args]
   describe <kind>/<name> [-n ns]
   logs <kind>/<name> [-n ns | --global]
   tree <kind>/<name> [-n ns]                        a run, what it produced, and every run it owns, nested
+  skill install <name> --into <dir> [--for claude|codex] [-n ns]   copy a verified Skill where the agent CLIs find it
   digest <dir>                                      the bundle digest a Skill declares for that directory
   init
   delete <kind>/<name> [-n ns | --global]
@@ -64,6 +66,8 @@ function parseCliArgs(argv: string[]) {
       payload: { type: 'string' },
       'event-id': { type: 'string' },
       file: { type: 'string' },
+      into: { type: 'string' },
+      for: { type: 'string' },
       server: { type: 'string' },
       help: { type: 'boolean', short: 'h' },
     },
@@ -110,6 +114,9 @@ async function dispatchVerb(cli: Cli, verb: string, rest: string[], values: Retu
       case 'digest':
         need(1, '<dir>')
         return await digest(cli, rest[0]!)
+      case 'skill':
+        if (rest[0] === 'install' && rest[1]) return await skillInstall(cli, rest[1], { ...(values.into ? { into: values.into } : {}), ...(values.for ? { for: values.for } : {}), ...(values.namespace ? { namespace: values.namespace } : {}) })
+        throw new Error('skill: install <name> --into <dir> [--for claude|codex]')
       case 'init':
         return await init(cli)
       case 'delete':

@@ -31,8 +31,8 @@ const remoteOk = (r) => typeof r === 'string' && (/^(https?|ssh|git|file):\/\/[^
 const versionOk = (v) => typeof v === 'string' && /^[A-Za-z0-9][A-Za-z0-9._\/-]{0,127}$/.test(v)
 const publicRemote = (r) => r.replace(/\/\/[^@\/]+@/, '//')
 
-/** Resolved skill context entry → local directory; cached under `<cacheRoot>/<hash>` by (remote, version), written atomically. */
-export function fetchSkill(entry, cacheRoot) {
+/** Skill (name, source, digest) → verified cached directory under `<cacheRoot>`: git by (remote, version), file by digest; written atomically. A `file` path resolves against `cwd`. */
+export function fetchSkill(entry, cacheRoot, cwd = process.cwd()) {
   const { source, digest, name } = entry
   let dir, base
   if (source.provider === 'git') {
@@ -58,7 +58,7 @@ export function fetchSkill(entry, cacheRoot) {
     }
     dir = path ? resolve(base, path) : base
   } else if (source.provider === 'file') {
-    base = process.cwd()
+    base = cwd
     dir = resolve(base, source.locator?.path ?? '')
   } else {
     throw new AdapterError('invalid_input', `skill ${name}: provider ${source.provider} is not supported`, false)
