@@ -6,7 +6,7 @@ kind registered on top.
 
 ```text
 Layer 3  User kinds        same registration path as Layer 1
-Layer 2  SDLC pack         pre-installed Layer 1 instances
+Layer 2  SDLC pack         Layer 1 instances installed by `init`
 Layer 1  Core kinds        Workflow Task Gate Validator Executor Prompt Skill Trigger, artifact kinds
 Layer 0  Framework         kind-agnostic resource runtime
 ```
@@ -122,7 +122,7 @@ _Avoid_: pointer, link, handle
 
 **Namespace**:
 Scope unit for Namespaced kinds. A same-name definition in a namespace shadows the global one.
-_Avoid_: project, tenant, workspace
+_Avoid_: project, tenant
 
 **Global**:
 Kind scope with no namespace: KindDefinition, Handler, Adapter, pack definitions.
@@ -130,18 +130,23 @@ _Avoid_: cluster-scoped, system, shared
 
 **Mode**:
 How the one engine library runs: **local** (CLI, in-process, SQLite) or **server** (daemon,
-Postgres, HTTP clients). Same semantics.
+Postgres, HTTP clients). Same semantics. Server mode is roadmap.
 _Avoid_: cloud mode, CLI mode, deployment, environment
 
 **Store**:
-One storage interface, two implementations: ResourceStore, RunLog, SnapshotStore, BlobStore,
-Outbox, TimerStore, CredentialStore, AuditLog, LeaseStore.
+One storage interface, one implementation per **Mode**, SQLite now: ResourceStore, RunLog,
+SnapshotStore, BlobStore, Outbox, TimerStore, CredentialStore, AuditLog, LeaseStore, TokenStore.
 _Avoid_: database, backend, repository
 
 **RunLog**:
 Append-only per-resource event log; the only log. Resume = redeliver undelivered events and
 outstanding adapter calls.
 _Avoid_: journal, history, WAL
+
+**Transcript**:
+An agent's output lines in the **RunLog**, at most 5000 per stream per **Attempt**, credentials
+redacted; read with `persimmon logs`.
+_Avoid_: log (unqualified), trace, output
 
 ### Layer 1: definition kinds
 
@@ -162,13 +167,19 @@ _Avoid_: edge, dependency, link, arrow
 
 **Repeat**:
 `Step.repeat`: typed loop state, `initial`, `next`, `until`, `maxIterations`. Each iteration is
-a new `runKind` instance. Step `timeout` bounds the whole loop.
+a new `runKind` instance. Step `timeout` bounds the whole loop. `steps.<id>.iterations` reads
+how many iterations a finished repeat step ran.
 _Avoid_: loop, retry, iteration (for the policy)
 
 **Task**:
-A **Definition** kind: one unit of work with `action` (instructions, **Context**, parameters),
-`executorRef`, `timeout`, `retryPolicy`, `sideEffects`. Executor-agnostic.
+A **Definition** kind: one unit of work with `action` (instructions, **Context**, parameters,
+**Workspace**), `executorRef`, `timeout`, `retryPolicy`, `sideEffects`. Executor-agnostic.
 _Avoid_: job, action, activity, function
+
+**Workspace**:
+`Task.action.workspace`: the directory an **Attempt** runs in; the agent's cwd, a script's cwd,
+the root of `file` context paths. Absent: the project directory.
+_Avoid_: working directory, cwd, sandbox root
 
 **Executor**:
 A **Definition** kind naming who does a **Task**: `type` (agent, script, tool, human),
@@ -176,8 +187,9 @@ A **Definition** kind naming who does a **Task**: `type` (agent, script, tool, h
 _Avoid_: runner, worker, agent (as the kind), backend
 
 **Context**:
-`Task.action.context`: ordered entries of kind `file`, `artifact`, `prompt`, `skill` injected
-into the executor's working context. Resolved list recorded on the TaskRun.
+`Task.action.context`: ordered entries of kind `file`, `artifact`, `prompt`, `skill`. Prompts and
+artifacts go into the prompt; files are paths into the **Workspace**; Skills are installed in the
+Workspace and verified. Resolved list recorded on the TaskRun.
 _Avoid_: inputs, attachments, references, prompt
 
 **Prompt**:
@@ -185,14 +197,15 @@ A **Definition** kind: instruction text, opaque to the engine, frozen in snapsho
 _Avoid_: template, instructions, system prompt
 
 **Reading**:
-What a human executor reads before answering: the resolved **Context** entries with their
-content, in order, as the `cli-human/v1` form's `reading[]`. The **Executor** answers; the
-reading is what it answers about.
+What a human executor reads before answering: the resolved `prompt` and `artifact` **Context**
+entries with their content, in order, as the `cli-human/v1` form's `reading[]`. The
+**Executor** answers; the reading is what it answers about.
 _Avoid_: review, attachments, materials, evidence (that is the ValidationResult field)
 
 **Skill**:
 A **Definition** kind: reference to an opaque capability bundle by **ExternalResourceRef**,
-`digest`, `format`.
+`digest`, `format`. Installed once into the **Workspace** by `persimmon skill install`; the
+digest is verified at every **Attempt**.
 _Avoid_: plugin, tool, extension, package
 
 **Gate**:
@@ -248,7 +261,8 @@ _Avoid_: execution, instance, job, invocation (for the resource)
 
 **WorkflowRun**:
 One invocation of a **Workflow**; `snapshotOnCreate: true`; `origin` manual, trigger or
-parent. Root of all child runs.
+parent. The top run is the root; a body run has `origin: parent`. `timeout`
+defaults to the Workflow's.
 _Avoid_: pipeline run, execution, job
 
 **TaskRun**:
@@ -271,9 +285,15 @@ _Avoid_: path, key, id (unqualified)
 never change. `waitingReason` is free text.
 _Avoid_: state, status (for the enum), stage
 
+**Tree**:
+A run, what it produced, and every run it owns, nested, as `persimmon tree` prints it; `run
+--follow` and `complete` end with it.
+_Avoid_: graph, hierarchy, status view
+
 **Unknown**:
-Attempt or adapter-call state when the result is not recorded. Never success. Handler decides:
-query, fail, or retry.
+Attempt or adapter-call state when the result is not recorded. Never success. The Handler
+queries if the Adapter supports it, else fails the attempt `unknown_result`, retried unless
+`nonIdempotent`.
 _Avoid_: pending, lost, timeout
 
 **Signal**:
@@ -297,8 +317,8 @@ stored, unreadable by **RevisionRef**.
 _Avoid_: version, generation, edition
 
 **Provenance**:
-`spec.provenance {producerRef?, inputs[], actor?}`; `actor` is the committing reconcile's
-**Actor**, never supplied by the publisher.
+`spec.provenance {producerRef, inputs[], actor}`: all three required and stamped by the engine,
+never kept from the writer; `actor` is the committing reconcile's **Actor**.
 _Avoid_: lineage, metadata, source
 
 **Representation**:
@@ -320,7 +340,7 @@ _Avoid_: save, write, upload
 
 **Executor role**:
 Adapter **Role** bound from `Executor.spec.adapter`: `describe`, `execute`, `query`, `cancel`;
-completion arrives through the `signal` callback.
+a result returns from `execute`; human completion arrives through the `signal` callback.
 _Avoid_: executor adapter, runner, driver
 
 **Evaluator role**:
@@ -339,7 +359,8 @@ _Avoid_: API, engine API, SDK
 ### Layer 2
 
 **Pack**:
-A directory of Global definitions applied together, overridable by name in a **Namespace**.
+A directory of definitions applied together: `global/` as **Global**, `namespaced/` into
+`defaultNamespace` (the Trigger). Overridable by name in a **Namespace**.
 The SDLC pack ships Workflows, Tasks, Gates, Validators, Executors, Prompts, Triggers,
 artifact kinds and RelationTypes; no kinds of its own.
 _Avoid_: bundle, library, preset, plugin
@@ -353,7 +374,8 @@ _Avoid_: bundle, library, preset, plugin
   Resolution: **Event** = reconcile event; **Outbox event** always qualified.
 - **Scope.** `KindDefinition.scope` (Namespaced | Global) and `commitScope` staging.
   Resolution: **scope** alone = kind scope; staging is **Publication scope**.
-- **Plugin.** `40-plugin-protocol.md` title only. Resolution: **Adapter**; "plugin" is dead.
+- **Plugin.** An old protocol file title; the protocol is `07-adapter.md`.
+  Resolution: **Adapter**; "plugin" is dead.
 - **Execution.** Appears in `logicalExecutionId` and "step execution". Resolution:
   **Invocation address** for the identity, **TaskRun** for the resource, **Attempt** for one
   try. `logicalExecutionId` stays as a field name.
