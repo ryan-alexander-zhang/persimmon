@@ -83,7 +83,7 @@ Run every command inside `examples/example04`.
 ### 1. Install
 
 ```sh
-persimmon init
+persimmon init                                    # wrote persimmon.yaml, then the shipped Adapters and the built-in SDLC pack (unused here)
 persimmon validate templates.yaml sdlc.yaml       # every line ok
 persimmon apply templates.yaml sdlc.yaml          # 25 created
 persimmon skill install vitest-style --into app   # installed into app/.agents/skills and app/.claude/skills
@@ -95,7 +95,7 @@ persimmon skill install vitest-style --into app   # installed into app/.agents/s
 persimmon run idea-to-verified --input idea="A CLI that counts words, lines and characters in a text file" --follow
 ```
 
-About a minute later the run parks on you:
+About fifteen seconds later the run parks on you:
 
 ```text
 created WorkflowRun/idea-to-verified-<hex>
@@ -104,8 +104,8 @@ write-idea   TaskRun   claude-code/v1   Running
 write-idea   TaskRun   claude-code/v1   Succeeded
 approve   TaskRun   cli-human/v1   Waiting human
 
-WorkflowRun   idea-to-verified-<hex>                Running   1m02s
-├─ write-idea   TaskRun   claude-code/v1            Succeeded   58s
+WorkflowRun   idea-to-verified-<hex>                Running     15s
+├─ write-idea   TaskRun   claude-code/v1            Succeeded   15s
 │     Idea/idea-to-verified-<hex>-write-idea-idea.r1
 └─ approve   TaskRun   cli-human/v1                 Waiting human
       persimmon complete idea-to-verified-<hex>-approve
@@ -119,8 +119,8 @@ persimmon complete idea-to-verified-<hex>-approve
 ```
 
 The terminal shows the Idea (title, problem, proposal, out of scope, success signal), then asks
-`approve? [y/n]`. On `y` the run continues in the same command: spec, code, Gate, report. Around
-ten minutes; the tree prints when it ends. On `n` it asks for your findings, one per line, and
+`approve? [y/n]`. On `y` the run continues in the same command: spec, code, Gate, report. Five to
+nine minutes, one or two rounds; the tree prints when it ends. On `n` it asks for your findings, one per line, and
 the run ends `Failed idea_rejected`.
 
 Scripted (no terminal): `--file` with `{passed: true, findings: [], evidence: []}` as in
@@ -134,7 +134,7 @@ open app/reports/verification.html                       # the report from your 
 persimmon get Spec/idea-to-verified-<hex>-write-spec-spec.r1               # EARS requirements, GWT ACs
 persimmon get GateRun/idea-to-verified-<hex>-rounds-1-gate                 # results.acceptance.findings: one per AC, info verified, error missing
 persimmon logs TaskRun/idea-to-verified-<hex>-rounds-1-gate-acceptance-task   # what codex read and concluded
-persimmon get VerificationReport                          # passed, verified/total, coverage, rounds
+persimmon get VerificationReport/idea-to-verified-<hex>-report-verification.r1   # passed, verified/total, coverage, rounds
 ```
 
 The acceptance Validator's findings are the heart of it: `info` with `<file>: <test name>` for a

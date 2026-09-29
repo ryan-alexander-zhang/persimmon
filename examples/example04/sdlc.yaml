@@ -215,8 +215,9 @@ spec:
   action:
     instructions: |
       Write the Spec for the approved idea. Follow the template: EARS requirements, GWT acceptance criteria.
-      The system is a Node ESM command-line program with no dependencies; every AC must be checkable by a
-      vitest test that runs the command or calls the module.
+      The system is a Node ESM command-line program with no dependencies, entry point src/cli.mjs, run as
+      `node src/cli.mjs <args>`. Every When that runs the program names that exact command. Every AC must be
+      checkable by a vitest test that runs the command.
     context:
       - {kind: artifact, input: idea}
       - {kind: prompt, ref: {kind: Prompt, name: spec-template}}
