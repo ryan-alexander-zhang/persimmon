@@ -90,7 +90,7 @@ describe('workflow Handler', () => {
     let r = run('prd-create', { repository: { kind: 'externalResource', ref: repo } })
     r = apply(r, handler.reconcile(input(r, { type: 'Created', dedupeKey: 'created' })) as ReconcileResult)
     const res = handler.reconcile(childFinished(r, 'research', 'Failed', { phase: 'Failed', error: { code: 'timeout', message: 't', retryable: true } })) as ReconcileResult
-    expect(clean(res.statusPatch)).toMatchObject({ phase: 'Failed', error: { code: 'no_progress' }, steps: { research: { phase: 'Failed', error: { code: 'timeout' } }, 'write-prd': { phase: 'Skipped' } } })
+    expect(clean(res.statusPatch)).toMatchObject({ phase: 'Failed', error: { code: 'timeout', message: 'step research: t' }, steps: { research: { phase: 'Failed', error: { code: 'timeout' } }, 'write-prd': { phase: 'Skipped' } } }) // the unrouted failure, not no_progress
 
     let loop = run('prd-with-review', { research: { kind: 'artifact', ref: reportRef } })
     loop = apply(loop, handler.reconcile(input(loop, { type: 'Created', dedupeKey: 'created' })) as ReconcileResult)

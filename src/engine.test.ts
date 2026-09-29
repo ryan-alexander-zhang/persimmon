@@ -88,7 +88,7 @@ describe('Engine', () => {
     expect(research.status?.phase).toBe('Failed') // the fake answers execute with an echo, not a TaskResult
     expect((research.status as { error: { code: string } }).error.code).toBe('schema_violation')
     const wr = engine.store.resources.getByUid(run.metadata.uid!)!
-    expect(wr.status).toMatchObject({ phase: 'Failed', error: { code: 'no_progress' }, steps: { research: { phase: 'Failed' }, 'write-prd': { phase: 'Skipped' } } })
+    expect(wr.status).toMatchObject({ phase: 'Failed', error: { code: 'schema_violation' }, steps: { research: { phase: 'Failed' }, 'write-prd': { phase: 'Skipped' } } })
     expect(engine.store.runLog.listOpen()).toEqual([])
     expect(engine.store.timers.due('2099-01-01T00:00:00Z')).toEqual([])
   })

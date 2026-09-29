@@ -68,7 +68,7 @@ Per-step phase, recorded in `WorkflowRun.status.steps.<id>` (`17-runs.md`):
 | terminal Succeeded selected | wait for every activated step; then a step ended `Failed` whose Transition does not list `Failed` fails the run with `unconsumed_failure`; else evaluate `outputBindings`, a source absent fails with `output_unbound`; else Succeeded |
 | terminal Failed selected | cancel every activated step (`Cancelled`); run Failed with `error.code = reason` |
 | two terminals selected | the first selection wins; the second is ignored |
-| every activated step finished, no terminal selected | run Failed with `no_progress` |
+| every activated step finished, no terminal selected | run Failed with the first Failed step's error, its message prefixed `step <id>: `; with no Failed step, `no_progress` |
 | deadline | a step's effective deadline is min(run `timeout`, step `timeout`, enclosing step deadlines); expiry fails the step with `timeout`; run `timeout` expiry cancels activated steps and fails the run with `timeout` |
 | run cancelled | activated steps `Cancelled`; run `Cancelled`; no error |
 
@@ -142,6 +142,10 @@ has no `repeat`; the run name already carries the enclosing iterations (`<parent
   Found in UAT.
 - `steps.<id>.iterations` is readable in `when` and in later steps' bindings once a `repeat` step
   finished: a report step wanted the round count. Found in UAT.
+- A run whose steps all finished without a terminal fails with the first Failed step's own error
+  (`step implement: skill_digest_mismatch: ...`), not `no_progress`; `no_progress` is reserved for
+  the case with no failure, a routing hole. A body run's error then reaches the repeat step and
+  the outer run unchanged. Found in UAT.
 
 ## Examples
 

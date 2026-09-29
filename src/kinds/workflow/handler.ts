@@ -205,7 +205,11 @@ export function workflowHandler(deps: HandlerDeps): HandlerImpl {
             throw e
           }
         }
-        if (!stillActive) return fail(err('no_progress', 'every activated step finished and no terminal was selected'))
+        if (!stillActive) {
+          const failed = spec.steps.map((s) => [s.id, steps[s.id]!] as const).find(([, st]) => st.phase === 'Failed' && st.error)
+          if (failed) return fail({ ...failed[1].error!, message: `step ${failed[0]}: ${failed[1].error!.message}` }) // the unrouted failure is the cause; no_progress would hide it
+          return fail(err('no_progress', 'every activated step finished and no terminal was selected'))
+        }
         return { statusPatch: { steps, phase: 'Running', waitingReason: null }, actions }
       }
 

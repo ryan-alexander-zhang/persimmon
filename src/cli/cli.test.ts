@@ -136,13 +136,13 @@ describe('persimmon CLI', () => {
     const code = await runCli(['create', file('run.yaml', [runDoc]), '--follow'], { cwd: dir, out: (l) => out.push(l), err: (l) => err.push(l) })
     expect(code).toBe(1) // the fake adapter's execute answer is not a TaskResult
     expect(out[0]).toBe('created WorkflowRun/demo-001')
-    expect(out).toContain('WorkflowRun   demo-001   Failed  no_progress: every activated step finished and no terminal was selected')
+    expect(out.some((l) => /^WorkflowRun   demo-001   Failed  schema_violation: step research: /.test(l))).toBe(true) // the step's failure, not no_progress
     expect(out.some((l) => /^research   TaskRun   claude-code\/v1   Failed  schema_violation/.test(l))).toBe(true) // owned runs report as they change
     expect(out.at(-1)).toMatch(/^      schema_violation: /) // then the tree
     out = []
     expect(await run('get', 'WorkflowRun/demo-001')).toBe(0)
     const shown = parse(out.join('\n'))
-    expect(shown.status).toMatchObject({ phase: 'Failed', error: { code: 'no_progress' } })
+    expect(shown.status).toMatchObject({ phase: 'Failed', error: { code: 'schema_violation' } })
     out = []
     expect(await run('logs', 'TaskRun/demo-001-research')).toBe(0)
     expect(out.join('\n')).toMatch(/type: Created/)
@@ -150,7 +150,7 @@ describe('persimmon CLI', () => {
     out = []
     expect(await run('tree', 'WorkflowRun/demo-001')).toBe(0)
     expect(out[0]).toMatch(/^WorkflowRun   demo-001\s+Failed\s+\d+s$/)
-    expect(out[1]).toBe('   no_progress: every activated step finished and no terminal was selected') // the error under the run
+    expect(out[1]).toMatch(/^   schema_violation: step research: /) // the error under the run
     expect(out[2]).toMatch(/^└─ research   TaskRun   claude-code\/v1\s+Failed\s+\d+s$/) // owned runs branch under their owner
     expect(out[3]).toMatch(/^      schema_violation: /)
     expect(out).toHaveLength(4)
