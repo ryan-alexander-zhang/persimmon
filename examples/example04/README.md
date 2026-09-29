@@ -19,8 +19,8 @@ Files:
 
 - [`templates.yaml`](templates.yaml): three `Prompt` resources. **This is the file you edit.**
 - [`sdlc.yaml`](sdlc.yaml): four artifact kinds (`Idea`, `Spec`, `ImplementationReport`,
-  `VerificationReport`), one Skill, five Executors, seven Tasks, two Validators, the Gate, two
-  Workflows
+  `VerificationReport`), one Skill, five Executors (plus the pack's `local-reviewer`), seven
+  Tasks, two Validators, the Gate, two Workflows
 - [`skills/vitest-style/`](skills/vitest-style/): a skill the coder gets, how tests are written here
 - [`app/`](app/): the agents' workspace, as in example02
 - [`scripts/coverage.mjs`](scripts/coverage.mjs): the coverage Validator's script
@@ -83,7 +83,7 @@ Run every command inside `examples/example04`.
 ### 1. Install
 
 ```sh
-persimmon init                                    # wrote persimmon.yaml, then the shipped Adapters and the built-in SDLC pack (unused here)
+persimmon init                                    # wrote persimmon.yaml, then the shipped Adapters and the built-in SDLC pack (its `local-reviewer` is the approve step)
 persimmon validate templates.yaml sdlc.yaml       # every line ok
 persimmon apply templates.yaml sdlc.yaml          # 25 created
 persimmon skill install vitest-style --into app   # installed into app/.agents/skills and app/.claude/skills
@@ -162,4 +162,4 @@ git checkout app/package.json
 ## Known limits
 
 - The idea is not revised on rejection; the run ends. Rerun with a better line.
-- Same as example02: the HTML report is a file, scripts get artifact references, one `resultFile`.
+- Same as example02: the HTML report is a file. Same as example03: scripts get artifact references.

@@ -145,7 +145,6 @@ git checkout app/package.json              # a coder may add a bin entry despite
 
 - The HTML report is a file the agent writes; the `TestReport` artifact holds its path and summary.
   Storing the HTML as an artifact representation is designed but not wired into the agent Adapter.
-- `persimmon create` of a revision stamps no provenance or content digest; the Workflow reads it fine.
 - The coder's sandbox has no network, so `npm install` runs before the workflow.
 - Without the workspace, the coder once found the persimmon checkout's `.git` and `AGENTS.md` above
   this directory and committed to it. `workspace: {path: app}`, the app's own git repository and its
