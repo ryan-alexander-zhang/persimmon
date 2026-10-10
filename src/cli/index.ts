@@ -8,7 +8,7 @@ import { skillInstall } from './skill.js'
 import { get, logs } from './get.js'
 import { tree } from './tree.js'
 import { init } from './init.js'
-import { adapterList, del, resume } from './misc.js'
+import { adapterList, adapterTest, del, resume } from './misc.js'
 import { complete, signal } from './signal.js'
 import { validate } from './validate.js'
 
@@ -28,7 +28,7 @@ const usage = `usage: persimmon <verb> [args]
   digest <dir>                                      the bundle digest a Skill declares for that directory
   init
   delete <kind>/<name> [-n ns | --global]
-  adapter install <manifest> | adapter list`
+  adapter install <manifest> | adapter list | adapter test <id> [--config <file>] [--live]   conformance suite, one line per rule`
 
 export async function runCli(argv: string[], cli: Cli): Promise<number> {
   let parsed: ReturnType<typeof parseCliArgs>
@@ -63,6 +63,8 @@ function parseCliArgs(argv: string[]) {
       timeout: { type: 'string' },
       global: { type: 'boolean' },
       'skip-adapter-validation': { type: 'boolean' },
+      config: { type: 'string' },
+      live: { type: 'boolean' },
       payload: { type: 'string' },
       'event-id': { type: 'string' },
       file: { type: 'string' },
@@ -126,7 +128,8 @@ async function dispatchVerb(cli: Cli, verb: string, rest: string[], values: Retu
       case 'adapter':
         if (rest[0] === 'list') return await adapterList(cli)
         if (rest[0] === 'install' && rest[1]) return await apply(cli, [rest[1]])
-        throw new Error('adapter: install <manifest> | list')
+        if (rest[0] === 'test' && rest[1]) return await adapterTest(cli, rest[1], { ...(values.config ? { config: values.config } : {}), ...(values.live ? { live: true } : {}) })
+        throw new Error('adapter: install <manifest> | list | test <id>')
       default:
         cli.err(`unknown verb ${verb}\n${usage}`)
         return 2

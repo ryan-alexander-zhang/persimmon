@@ -302,6 +302,20 @@ describe('persimmon CLI', () => {
     expect((c.taskResult as { outputs: { result: { value: { evidence: unknown[] } } } }).outputs.result.value.evidence).toEqual([prd[0]!.ref])
   })
 
+  it('adapter test runs the conformance suite over an installed Adapter', async () => {
+    await run('init')
+    out = []
+    expect(await run('adapter', 'test', 'subprocess/v1')).toBe(0)
+    expect(out[0]).toMatch(/^E1  pass  describe/)
+    expect(out.filter((l) => / FAIL /.test(l))).toEqual([])
+    expect(out.some((l) => l.startsWith('E11 skip  the prompt'))).toBe(true) // script and tool types have no prompt
+    out = []
+    expect(await run('adapter', 'test', 'nope/v1')).toBe(1)
+    expect(err.at(-1)).toBe('adapter nope/v1 not installed')
+    expect(await run('adapter', 'test', 'subprocess/v1', '--config', file('c.yaml', [{ program: 7 }]))).toBe(1)
+    expect(err.at(-1)).toMatch(/c\.yaml: .*\/program must be array/)
+  }, 60_000)
+
   it('complete on an unknown TaskRun is not found', async () => {
     await run('init')
     expect(await run('complete', 'nope')).toBe(1)
