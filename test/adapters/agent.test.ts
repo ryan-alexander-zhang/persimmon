@@ -152,6 +152,8 @@ describe('claude-code/v1', () => {
     const seen = JSON.parse(readFileSync(record, 'utf8'))
     expect(seen.argv).toContain('--json-schema') // the stub gets the CLI's own arguments
     expect(seen.stdin).toContain('Write the PRD.')
+    const empty = last(await adapter('claude-code', { id: 18, op: 'execute', payload: payload({ executor: { ...stubbed, configuration: { command: [] } }, credentials: {} }) }, { PERSIMMON_ADAPTER_CONFORMANCE: '1' }))
+    expect(empty).toMatchObject({ ok: false, error: { code: 'invalid_input', message: 'configuration.command must be a non-empty array of strings' } })
     const d = last(await adapter('claude-code', { id: 17, op: 'describe', payload: {} }))
     expect(d.result.conformance.configuration.command[1]).toBe(join(root, 'adapters', 'claude-code', 'conformance.mjs'))
   })

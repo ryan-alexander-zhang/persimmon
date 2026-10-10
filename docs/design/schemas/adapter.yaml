@@ -29,7 +29,10 @@ $defs:
       transport: {enum: [stdio, http]}
       command: {type: array, minItems: 1, items: {type: string}}
       url: {type: string, pattern: "^https://"}
-      env: {$ref: "resource.yaml#/$defs/StringMap"}
+      env:
+        allOf:
+          - {$ref: "resource.yaml#/$defs/StringMap"}
+          - {propertyNames: {pattern: "^(?!PERSIMMON_)"}}
       credentialBindings: {type: array, uniqueItems: true, items: {$ref: "#/$defs/CredentialName"}}
     oneOf:
       - properties: {transport: {const: stdio}}

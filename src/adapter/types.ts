@@ -57,4 +57,6 @@ export interface CallOptions {
   /** Bearer token the Adapter presents at `engine.endpoint`; stdio gets it as `PERSIMMON_ADAPTER_TOKEN`. */
   adapterToken?: string
   onStream?: (line: StreamLine) => void
+  /** Environment the caller adds to a stdio process: the conformance suite's flag and cues (22-conformance.md). */
+  env?: Record<string, string>
 }

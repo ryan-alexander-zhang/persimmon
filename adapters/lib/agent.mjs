@@ -73,6 +73,7 @@ async function execute(driver, payload, log) {
     if (configuration.command) {
       // the conformance suite's stand-in for the CLI; never honoured for an applied Executor (22-conformance.md)
       if (process.env.PERSIMMON_ADAPTER_CONFORMANCE !== '1') throw new AdapterError('invalid_input', 'configuration.command is honoured only by the conformance suite', false)
+      if (!Array.isArray(configuration.command) || !configuration.command.length || !configuration.command.every((s) => typeof s === 'string' && s)) throw new AdapterError('invalid_input', 'configuration.command must be a non-empty array of strings', false)
       const [program, ...pre] = configuration.command
       ;[cmd, args] = [program, [...pre, ...args]]
     }

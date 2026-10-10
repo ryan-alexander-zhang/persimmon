@@ -32,6 +32,7 @@ function stdio(spec: AdapterSpec, request: Request, credentials: CredentialStore
     env[envName('', name)] = v
   }
   if (o.adapterToken) env.PERSIMMON_ADAPTER_TOKEN = o.adapterToken
+  Object.assign(env, o.env)
 
   return new Promise((resolve) => {
     const child = spawn(cmd, args, { env, stdio: ['pipe', 'pipe', 'inherit'], ...(o.cwd ? { cwd: o.cwd } : {}) })

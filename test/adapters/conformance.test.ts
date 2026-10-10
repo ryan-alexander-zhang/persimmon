@@ -27,8 +27,13 @@ describe('conformance suite', () => {
   }, 60_000)
 
   it('a non-conforming Adapter fails E3 and skips what depends on it', async () => {
-    const v = await conformance({ id: 'fake/v1', roles: ['executor'], transport: 'stdio', command: [process.execPath, join(root, 'test/fixtures/fake-adapter.mjs')], env: { FAKE_TYPES: 'agent' } })
+    const fake = (env: Record<string, string>) => ({ id: 'fake/v1', roles: ['executor'], transport: 'stdio' as const, command: [process.execPath, join(root, 'test/fixtures/fake-adapter.mjs')], env })
+    const v = await conformance(fake({ FAKE_TYPES: 'agent' }))
     expect(v.find((x) => x.id === 'E3')).toMatchObject({ status: 'FAIL', reason: expect.stringContaining('result:') })
     expect(v.find((x) => x.id === 'E4')).toMatchObject({ status: 'skip', reason: 'E3 did not publish' })
-  }, 30_000)
+    // publishes the right thing but ignores the stub contract: no record, so the credential rules cannot pass
+    const w = await conformance(fake({ FAKE_TYPES: 'agent', FAKE_MODE: 'publish', FAKE_TITLE: 'Fixture note', FAKE_VALUES: '{"count":1}' }))
+    expect(w.find((x) => x.id === 'E3')).toMatchObject({ status: 'FAIL', reason: expect.stringContaining('wrote no record') })
+    expect(w.filter((x) => ['E5', 'E6', 'E11'].includes(x.id)).map((x) => x.reason)).toEqual(['E3 left no record', 'E3 left no record', 'E3 left no record'])
+  }, 60_000)
 })

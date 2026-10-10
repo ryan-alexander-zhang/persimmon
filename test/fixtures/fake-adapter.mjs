@@ -49,7 +49,10 @@ async function publish(req) {
   const outputs = {}
   try {
     for (const [port, spec] of Object.entries(task.outputs)) {
-      if (spec.type.kind !== 'artifact') continue
+      if (spec.type.kind !== 'artifact') {
+        outputs[port] = { kind: 'value', value: JSON.parse(process.env.FAKE_VALUES ?? '{}')[port] ?? null }
+        continue
+      }
       const kind = spec.type.artifactKind
       const content = contentFor(kind.kind, taskRun)
       const blob = await call('putBlob', { bytes: Buffer.from(JSON.stringify(content)).toString('base64'), mediaType: 'application/json' })
@@ -72,6 +75,6 @@ function contentFor(kind, taskRun) {
     case 'ReviewReport':
       return { subject: 'Checkout v2', verdict: 'approve', findings: [] }
     default:
-      return { title: kind }
+      return { title: process.env.FAKE_TITLE ?? kind }
   }
 }

@@ -23,7 +23,7 @@ engine ◀── getResource | list | getArtifact | getBlob | putBlob | publishA
 | `transport` | `stdio` \| `http` |
 | `command[]` | stdio: executable and args; one process per call, killed at the call deadline |
 | `url` | http: `https://` endpoint the engine POSTs to |
-| `env` | stdio: non-secret environment |
+| `env` | stdio: non-secret environment; a name starting `PERSIMMON_` is the engine's and refused |
 | `credentialBindings[]` | Global CredentialStore names (`08-store.md`); stdio: injected as environment; http: first one is the bearer token |
 
 ## Status

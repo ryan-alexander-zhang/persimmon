@@ -599,7 +599,16 @@
       "pattern": "^https://"
      },
      "env": {
-      "$ref": "resource.yaml#/$defs/StringMap"
+      "allOf": [
+       {
+        "$ref": "resource.yaml#/$defs/StringMap"
+       },
+       {
+        "propertyNames": {
+         "pattern": "^(?!PERSIMMON_)"
+        }
+       }
+      ]
      },
      "credentialBindings": {
       "type": "array",

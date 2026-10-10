@@ -22,6 +22,9 @@ suite('Adapter resource', () => {
     const a = example('adapter-claude-code')
     a.spec.url = 'https://x'
     expect(() => validateAdapter(a)).toThrow(AdapterError)
+    const b = example('adapter-claude-code')
+    b.spec.env = { PERSIMMON_ADAPTER_CONFORMANCE: '1' } // the engine's names are not a manifest's to set (22-conformance.md)
+    expect(() => validateAdapter(b)).toThrow(/PERSIMMON_/)
   })
 
   it('the design message examples match the protocol schemas', () => {

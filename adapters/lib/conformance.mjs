@@ -10,7 +10,7 @@ export function fakeAgent(emit) {
   process.stdin.on('end', () => {
     const env = process.env
     const argv = process.argv.slice(2)
-    if (env.PERSIMMON_CONFORMANCE_RECORD) writeFileSync(env.PERSIMMON_CONFORMANCE_RECORD, JSON.stringify({ argv, stdin, env, cwd: process.cwd() }))
+    if (env.PERSIMMON_CONFORMANCE_RECORD) writeFileSync(env.PERSIMMON_CONFORMANCE_RECORD, JSON.stringify({ argv, stdin, env, cwd: process.cwd(), pid: process.pid }))
     switch (env.PERSIMMON_CONFORMANCE_AGENT ?? 'answer') {
       case 'sleep':
         return setTimeout(() => {}, 600_000)
