@@ -67,6 +67,7 @@ the static checker calls.
 | `src/kinds/gate/` | `14-gate.md` Gate, Validator |
 | `src/kinds/task/context.ts` | `15-prompt-skill.md` resolution; Prompt and Skill have no Handler |
 | `src/kinds/trigger/` | `16-trigger.md` |
+| `src/kinds/composition/` | `21-composition.md` Pipeline, Approval, ReviewLoop: `expand` and `validate` of the sugar kinds |
 | `src/kinds/{workflow,task,gate}/handler.ts` | `17-runs.md` WorkflowRun, TaskRun, GateRun, ValidationRun Handlers |
 | `src/kinds/core.ts` | `18-artifact.md` Relation and RelationType KindDefinitions; artifact kinds are pack content |
 

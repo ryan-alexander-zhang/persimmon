@@ -1262,6 +1262,186 @@
    }
   }
  },
+ "composition.yaml": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Composition kinds",
+  "description": "Pipeline, Approval and ReviewLoop specs (21-composition.md). Each expands to Workflow or Gate Resources.",
+  "$defs": {
+   "Phase": {
+    "$ref": "workflow.yaml#/$defs/Step"
+   },
+   "Pipeline": {
+    "type": "object",
+    "required": [
+     "phases",
+     "timeout"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "inputs": {
+      "$ref": "ports.yaml#/$defs/Ports/properties/inputs"
+     },
+     "outputs": {
+      "$ref": "ports.yaml#/$defs/Ports/properties/outputs"
+     },
+     "outputBindings": {
+      "$ref": "ports.yaml#/$defs/Bindings"
+     },
+     "phases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+       "$ref": "#/$defs/Phase"
+      }
+     },
+     "timeout": {
+      "$ref": "ports.yaml#/$defs/Duration"
+     }
+    }
+   },
+   "Approver": {
+    "type": "object",
+    "required": [
+     "name",
+     "uses"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "name": {
+      "$ref": "ports.yaml#/$defs/StepId"
+     },
+     "uses": {
+      "allOf": [
+       {
+        "$ref": "resource.yaml#/$defs/LocalDefinitionRef"
+       },
+       {
+        "properties": {
+         "kind": {
+          "const": "Task"
+         }
+        }
+       }
+      ],
+      "x-persimmon-ref": {
+       "kinds": [
+        "Task"
+       ]
+      }
+     },
+     "inputs": {
+      "$ref": "ports.yaml#/$defs/Bindings"
+     },
+     "resultOutput": {
+      "$ref": "ports.yaml#/$defs/PortName",
+      "default": "result"
+     }
+    }
+   },
+   "Approval": {
+    "type": "object",
+    "required": [
+     "inputs",
+     "approvers",
+     "timeout"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "inputs": {
+      "$ref": "gate.yaml#/$defs/ValueOrArtifactPorts"
+     },
+     "approvers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+       "$ref": "#/$defs/Approver"
+      }
+     },
+     "policy": {
+      "type": "object",
+      "required": [
+       "strategy"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "strategy": {
+        "enum": [
+         "all",
+         "any",
+         "quorum"
+        ]
+       },
+       "count": {
+        "type": "integer",
+        "minimum": 1
+       }
+      }
+     },
+     "timeout": {
+      "$ref": "ports.yaml#/$defs/Duration"
+     }
+    }
+   },
+   "LoopStep": {
+    "type": "object",
+    "required": [
+     "uses",
+     "timeout"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "uses": {
+      "$ref": "resource.yaml#/$defs/LocalDefinitionRef",
+      "x-persimmon-ref": {}
+     },
+     "inputs": {
+      "$ref": "ports.yaml#/$defs/Bindings"
+     },
+     "timeout": {
+      "$ref": "ports.yaml#/$defs/Duration"
+     }
+    }
+   },
+   "ReviewLoop": {
+    "type": "object",
+    "required": [
+     "produce",
+     "review",
+     "subject",
+     "timeout"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "inputs": {
+      "$ref": "ports.yaml#/$defs/Ports/properties/inputs"
+     },
+     "produce": {
+      "$ref": "#/$defs/LoopStep"
+     },
+     "review": {
+      "$ref": "#/$defs/LoopStep"
+     },
+     "subject": {
+      "$ref": "ports.yaml#/$defs/PortName"
+     },
+     "previous": {
+      "$ref": "ports.yaml#/$defs/PortName"
+     },
+     "feedback": {
+      "$ref": "ports.yaml#/$defs/PortName"
+     },
+     "maxRounds": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 3
+     },
+     "timeout": {
+      "$ref": "ports.yaml#/$defs/Duration"
+     }
+    }
+   }
+  }
+ },
  "executor.yaml": {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Executor",
@@ -2159,10 +2339,26 @@
       "items": {
        "$ref": "outbox.yaml#/$defs/Subscription"
       }
+     },
+     "expansion": {
+      "type": "object",
+      "required": [
+       "kind"
+      ],
+      "additionalProperties": false,
+      "description": "this kind is sugar for `kind`; its Handler's expand produces the Resources that run (21-composition.md)",
+      "properties": {
+       "kind": {
+        "$ref": "resource.yaml#/$defs/Kind"
+       }
+      }
      }
     },
     "dependentRequired": {
      "subscriptions": [
+      "handlerRef"
+     ],
+     "expansion": [
       "handlerRef"
      ]
     },
@@ -4675,18 +4871,7 @@
       "additionalProperties": false,
       "properties": {
        "workflowRef": {
-        "allOf": [
-         {
-          "$ref": "resource.yaml#/$defs/LocalDefinitionRef"
-         },
-         {
-          "properties": {
-           "kind": {
-            "const": "Workflow"
-           }
-          }
-         }
-        ],
+        "$ref": "resource.yaml#/$defs/LocalDefinitionRef",
         "x-persimmon-ref": {
          "kinds": [
           "Workflow"

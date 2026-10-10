@@ -112,6 +112,12 @@ Expansion:
 - Pipeline has no `onFailure` routing; the Workflow default (unrouted failure fails the run with
   the step's error) is the pipeline semantic. Reference listed per-phase failure routing.
 - `Rollout` stays roadmap (`20-pack.md`).
+- A composition's KindDefinition may register before its `expansion.kind`; the target is checked
+  at expand time, so shipped and example KindDefinitions load in any order. `stepContract`
+  equality with the target is checked when both are registered. Found in implementation.
+- The composition Handler validates an expansion with the target kind's schema, a name-taken
+  check against the live store in the same scope, then the target Handler's `validate`; findings
+  are prefixed `<Kind>/<name>: `. `reconcile` is a no-op. Found in implementation.
 
 ## Examples
 

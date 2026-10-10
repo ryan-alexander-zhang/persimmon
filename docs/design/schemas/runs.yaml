@@ -65,8 +65,8 @@ $defs:
         additionalProperties: false
         properties:
           workflowRef:
-            allOf: [{$ref: "resource.yaml#/$defs/LocalDefinitionRef"}, {properties: {kind: {const: Workflow}}}]
-            x-persimmon-ref: {kinds: [Workflow]}
+            $ref: "resource.yaml#/$defs/LocalDefinitionRef"
+            x-persimmon-ref: {kinds: [Workflow]}   # or a kind expanding to Workflow (21-composition.md)
           inputs: {$ref: "ports.yaml#/$defs/RuntimeValues"}
           timeout: {$ref: "ports.yaml#/$defs/Duration", description: "absent: the Workflow's spec.timeout"}
           origin: {$ref: "#/$defs/Origin"}

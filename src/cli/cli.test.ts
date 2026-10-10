@@ -180,6 +180,18 @@ describe('persimmon CLI', () => {
     const shown = parse(out.join('\n'))
     expect(shown.spec).toMatchObject({ workflowRef: { kind: 'Workflow', name: 'prd-create' }, inputs: { repository: { kind: 'externalResource', ref: repo } }, timeout: '2h', origin: { kind: 'manual' } })
     expect(shown.metadata.namespace).toBe('default')
+
+    // a Pipeline runs by name too; the run records the kind it named (21-composition.md)
+    const prdCreate = parse(readFileSync('packs/sdlc/global/80-workflows.yaml', 'utf8').split('---').find((d) => d.includes('name: prd-create'))!).spec
+    const pipeline = { apiVersion: 'persimmon.ai/v1', kind: 'Pipeline', metadata: { name: 'prd-pipe' }, spec: { inputs: prdCreate.inputs, outputs: prdCreate.outputs, outputBindings: prdCreate.outputBindings, phases: prdCreate.steps, timeout: '3h' } }
+    expect(await run('apply', file('pipe.yaml', [pipeline]))).toBe(0)
+    out = []
+    expect(await run('run', 'prd-pipe', '--input', `repository=@${join(dir, 'repo.yaml')}`)).toBe(0)
+    expect(out[0]).toMatch(/^created WorkflowRun\/prd-pipe-[0-9a-f]{6}$/)
+    const pname = out[0]!.split('/')[1]!
+    out = []
+    expect(await run('get', `WorkflowRun/${pname}`)).toBe(0)
+    expect(parse(out.join('\n')).spec.workflowRef).toEqual({ kind: 'Pipeline', name: 'prd-pipe' })
     // a bare path on an externalResource port becomes a repository ref pinned to HEAD
     out = []
     expect(await run('run', 'prd-create', '--input', `repository=${process.cwd()}`)).toBe(0)

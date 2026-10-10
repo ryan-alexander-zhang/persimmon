@@ -37,6 +37,7 @@ export const coreKinds: KindDefinition[] = [
   definition('Executor', 'executors', 'executor.yaml#/$defs/Spec', { handlerRef: { name: 'executor' } }),
   definition('Gate', 'gates', 'gate.yaml#/$defs/Gate/properties/spec', { handlerRef: { name: 'gate' }, stepContract: contract('GateRun') }),
   definition('Validator', 'validators', 'gate.yaml#/$defs/Validator/properties/spec', { handlerRef: { name: 'validator' } }),
+  definition('Pipeline', 'pipelines', 'composition.yaml#/$defs/Pipeline', { handlerRef: { name: 'composition' }, stepContract: contract('WorkflowRun'), expansion: { kind: 'Workflow' } }),
   definition('Prompt', 'prompts', 'prompt-skill.yaml#/$defs/Prompt/properties/spec'),
   definition('Skill', 'skills', 'prompt-skill.yaml#/$defs/Skill/properties/spec'),
   definition('RelationType', 'relationtypes', 'relation.yaml#/$defs/RelationType/properties/spec', { mutability: 'Immutable' }),
@@ -69,4 +70,5 @@ export const coreHandlers: Handler[] = [
   handler('gate', ['Gate', 'GateRun']),
   handler('validator', ['Validator', 'ValidationRun']),
   handler('trigger', ['Trigger']),
+  handler('composition', ['Pipeline']),
 ]

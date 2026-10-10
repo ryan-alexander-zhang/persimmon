@@ -26,6 +26,8 @@ export interface Resolver {
   definition(kind: string, namespace: string | undefined, name: string): Resource | undefined
   /** Fails when the Adapter is not Ready, unreachable, or its digest moved. */
   adapterDigest(id: string): string
+  /** The expansion of a composition Resource (01-kind-definition.md `expansion`). */
+  expand(resource: Resource): Resource[]
 }
 
 const keyOf = (r: { apiVersion: string; kind: string; metadata: { name: string; namespace?: string | undefined } }) =>
@@ -59,12 +61,27 @@ export function resolveClosure(root: Resource, resolver: Resolver): Closure {
         case 'x-persimmon-ref': {
           const ref = hit.value as LocalDefinitionRef
           const allowed = hit.config.kinds as string[] | undefined
-          if (allowed && !allowed.includes(ref.kind)) throw new SnapshotError(`${where}: kind ${ref.kind} not in ${allowed.join(', ')}`)
+          const expandsTo = resolver.kindByName(ref.kind)?.spec.expansion?.kind
+          if (allowed && !allowed.includes(ref.kind) && !(expandsTo && allowed.includes(expandsTo))) throw new SnapshotError(`${where}: kind ${ref.kind} not in ${allowed.join(', ')}`)
           const targetKind = resolver.kindByName(ref.kind)
           if (!targetKind) throw new SnapshotError(`${where}: unregistered kind ${ref.kind}`)
           if (targetKind.spec.snapshot !== 'Definition') continue
           const target = resolver.definition(ref.kind, rootNs, ref.name)
           if (!target) throw new SnapshotError(`${where}: ${ref.kind} ${ref.name} not found`)
+          if (targetKind.spec.expansion) {
+            // the closure holds the expansion, not the sugar; the composition's KindDefinition rides along so lookups can map the kind (04-snapshot.md step 8)
+            addKind(targetKind)
+            for (const r of resolver.expand(target)) {
+              const k = keyOf(r)
+              if (members.has(k)) continue
+              const rk = resolver.kindByName(r.kind)
+              if (!rk) throw new SnapshotError(`${where}: expansion kind ${r.kind} is not registered`)
+              members.set(k, r)
+              addKind(rk)
+              visit(r)
+            }
+            break
+          }
           const k = keyOf(target)
           if (members.has(k)) continue
           members.set(k, target)

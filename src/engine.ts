@@ -20,6 +20,7 @@ import { gateHandler, validatorHandler } from './kinds/gate/handler.js'
 import { taskHandler } from './kinds/task/handler.js'
 import { triggerHandler } from './kinds/trigger/handler.js'
 import { workflowHandler } from './kinds/workflow/handler.js'
+import { compositionHandler } from './kinds/composition/handler.js'
 import { appendEvent, drain, type Engine as DispatchEngine, recoverCalls } from './reconcile/dispatch.js'
 import type { Actor, Resource } from './resource/types.js'
 import { readClosure } from './snapshot/snapshot.js'
@@ -82,6 +83,7 @@ export class Engine {
       ['gate', gateHandler(deps)],
       ['validator', validatorHandler(deps)],
       ['trigger', triggerHandler(deps)],
+      ['composition', compositionHandler(deps)],
     ])
     this.handlers = new HandlerRegistry(builtins)
     for (const kd of [...frameworkKinds, ...coreKinds]) this.kinds.register(kd)
@@ -94,7 +96,7 @@ export class Engine {
       adapters: this.adapters,
       credentials: this.credentials,
       cwd,
-      resolver: liveResolver(this.kinds, this.store, this.adapters),
+      resolver: liveResolver(this.kinds, this.store, this.adapters, this.handlers),
       defaultNamespace: o.config.defaultNamespace,
       now,
       maxCausationDepth: o.config.maxCausationDepth,

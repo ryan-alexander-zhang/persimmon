@@ -5,6 +5,7 @@ import { parse } from 'yaml'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { parseConfig } from './config.js'
 import { Engine } from './engine.js'
+import { readClosure } from './snapshot/snapshot.js'
 import type { Resource } from './resource/types.js'
 import type { Closure } from './snapshot/walk.js'
 import { memoryBlobs } from './store/test-util.js'
@@ -69,6 +70,34 @@ describe('Engine', () => {
     await engine.drain()
     const research = engine.store.resources.get({ kind: 'TaskRun', namespace: 'demo', name: 'prd-create-001-research' })!
     expect(research.status).toMatchObject({ phase: 'Failed', error: { code: 'permission_denied', message: 'credential demo/github-token not found' } })
+  })
+
+  it('a Pipeline validates and runs through its expansion; the snapshot holds the Workflow, not the sugar', async () => {
+    await engine.start()
+    await engine.apply(fakeAdapter('claude-code/v1'))
+    for (const n of ['kind-definition-productrequirement', 'kind-definition-researchreport']) await engine.apply(example(n))
+    for (const r of closure.resources.filter((r) => r.kind !== 'KindDefinition')) await engine.apply(fresh(r as Resource))
+    const prdCreate = closure.resources.find((r) => r.kind === 'Workflow')!.spec as { inputs: unknown; outputs: unknown; outputBindings: unknown; steps: unknown[] }
+    const pipeline = { apiVersion: 'persimmon.ai/v1', kind: 'Pipeline', metadata: { name: 'prd-pipeline', namespace: 'demo' }, spec: { inputs: prdCreate.inputs, outputs: prdCreate.outputs, outputBindings: prdCreate.outputBindings, phases: prdCreate.steps, timeout: '3h' } } as Resource
+    // a broken phase is reported through the expansion
+    const bad = { ...pipeline, spec: { ...pipeline.spec, phases: [{ ...(prdCreate.steps[0] as object), inputs: { nope: { fromInput: 'repository' } } }] } } as Resource
+    await expect(engine.apply(bad)).rejects.toThrow(/Workflow\/prd-pipeline: .*nope/)
+    await engine.apply(pipeline)
+    expect(engine.store.resources.get({ kind: 'Workflow', namespace: 'demo', name: 'prd-pipeline' })).toBeUndefined() // nothing derived is stored live
+
+    const errors: string[] = []
+    engine.dispatch.onError = (_u, ev, e) => errors.push(`${ev.type}: ${e.message}`)
+    const base = example('run-workflowrun') as Resource
+    const { resource: run } = await engine.create(fresh({ ...base, metadata: { ...base.metadata, name: 'prd-pipeline-001' }, spec: { ...(base.spec as object), workflowRef: { kind: 'Pipeline', name: 'prd-pipeline' } } } as Resource))
+    const members = readClosure(run.metadata.snapshot!, engine.store.snapshots).resources
+    const names = members.map((r) => `${r.kind}/${r.metadata.name}`)
+    expect(names).toContain('Workflow/prd-pipeline')
+    expect(names).toContain('KindDefinition/pipelines.persimmon.ai')
+    expect(names.some((n) => n.startsWith('Pipeline/'))).toBe(false)
+    expect((members.find((r) => r.kind === 'Workflow' && r.metadata.name === 'prd-pipeline')!.spec as { transitions: unknown[] }).transitions).toHaveLength(2)
+    await engine.drain()
+    expect(errors).toEqual([])
+    expect(engine.store.resources.get({ kind: 'TaskRun', namespace: 'demo', name: 'prd-pipeline-001-research' })?.metadata.ownerReferences?.[0]?.uid).toBe(run.metadata.uid)
   })
 
   it('runs prd-create end to end against the fake Adapter until the task fails validation', async () => {

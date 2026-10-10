@@ -187,11 +187,19 @@ async function artifactInputs(engine: Engine, wf: Resource | undefined, doc: Res
   }
 }
 
-/** The run's Workflow: its Namespace first, then Global. */
+/** The run's Workflow, or a composition expanding to one (21-composition.md): its Namespace first, then Global. `workflowRef.kind` is set to what was found. */
 function workflowOf(engine: Engine, doc: Resource): Resource | undefined {
-  const { workflowRef } = doc.spec as { workflowRef: { name: string } }
+  const { workflowRef } = doc.spec as { workflowRef: { kind: string; name: string } }
   const ns = doc.metadata.namespace
-  return (ns ? engine.store.resources.get({ kind: 'Workflow', namespace: ns, name: workflowRef.name }) : undefined) ?? engine.store.resources.get({ kind: 'Workflow', name: workflowRef.name })
+  const kinds = ['Workflow', ...engine.kinds.definitions().filter((kd) => kd.spec.expansion?.kind === 'Workflow').map((kd) => kd.spec.names.kind)]
+  for (const kind of kinds) {
+    const hit = (ns ? engine.store.resources.get({ kind, namespace: ns, name: workflowRef.name }) : undefined) ?? engine.store.resources.get({ kind, name: workflowRef.name })
+    if (hit) {
+      workflowRef.kind = kind
+      return hit
+    }
+  }
+  return undefined
 }
 
 /** `--input repository=.`: a plain path on an externalResource port becomes a git repository ref, pinned to HEAD when it is a checkout. */

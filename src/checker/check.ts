@@ -57,7 +57,7 @@ function copy(engine: Engine, r: Resource): void {
   if (r.kind === 'Adapter') engine.adapters.register(stored as never)
 }
 
-const order = ['KindDefinition', 'Handler', 'Adapter', 'RelationType', 'Prompt', 'Skill', 'Executor', 'Task', 'Validator', 'Gate', 'Workflow', 'Trigger']
+const order = ['KindDefinition', 'Handler', 'Adapter', 'RelationType', 'Prompt', 'Skill', 'Executor', 'Task', 'Validator', 'Approval', 'Gate', 'Workflow', 'ReviewLoop', 'Pipeline', 'Trigger']
 const rank = (doc: unknown): number => {
   const i = order.indexOf((doc as { kind?: string })?.kind ?? '')
   return i === -1 ? order.length : i

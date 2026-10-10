@@ -73,8 +73,16 @@ $defs:
       subscriptions:
         type: array
         items: {$ref: "outbox.yaml#/$defs/Subscription"}
+      expansion:
+        type: object
+        required: [kind]
+        additionalProperties: false
+        description: "this kind is sugar for `kind`; its Handler's expand produces the Resources that run (21-composition.md)"
+        properties:
+          kind: {$ref: "resource.yaml#/$defs/Kind"}
     dependentRequired:
       subscriptions: [handlerRef]
+      expansion: [handlerRef]
     if: {properties: {revisioned: {const: true}}, required: [revisioned]}
     then:
       properties:

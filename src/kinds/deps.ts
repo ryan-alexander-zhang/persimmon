@@ -22,5 +22,10 @@ export interface HandlerDeps {
 /** Definition lookup inside a closure: the run's Namespace first, then Global (04-snapshot.md). */
 export function fromClosure(closure: Closure, kind: string, namespace: string | undefined, name: string): Entry | undefined {
   const hits = closure.resources.filter((r) => r.kind === kind && r.metadata.name === name)
-  return hits.find((r) => r.metadata.namespace === namespace) ?? hits.find((r) => !r.metadata.namespace)
+  const hit = hits.find((r) => r.metadata.namespace === namespace) ?? hits.find((r) => !r.metadata.namespace)
+  if (hit) return hit
+  // a composition kind is not a member; its expansion of the same name is (04-snapshot.md step 8)
+  const kd = closure.resources.find((r) => r.kind === 'KindDefinition' && (r.spec as { names: { kind: string } }).names.kind === kind)
+  const target = (kd?.spec as { expansion?: { kind: string } } | undefined)?.expansion?.kind
+  return target ? fromClosure(closure, target, namespace, name) : undefined
 }

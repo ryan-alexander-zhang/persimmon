@@ -46,4 +46,6 @@ export interface ReconcileResult {
 export interface HandlerImpl {
   validate(resource: Resource): ValidateResult
   reconcile(input: ReconcileInput): ReconcileResult | Promise<ReconcileResult>
+  /** Kinds with `expansion` only: the target-kind Resource of the same name first, then helpers (02-handler.md). Pure. */
+  expand?(resource: Resource): { resources: Resource[] }
 }

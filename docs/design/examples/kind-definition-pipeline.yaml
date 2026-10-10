@@ -1,0 +1,34 @@
+# Composition kind: sugar for Workflow; its Handler expands it, the snapshot holds the expansion (21-composition.md).
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata:
+  name: pipelines.persimmon.ai
+spec:
+  group: persimmon.ai
+  names: {kind: Pipeline, plural: pipelines}
+  scope: Any
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [phases, timeout]
+        properties:
+          phases:
+            type: array
+            items:
+              type: object
+              properties:
+                uses:
+                  type: object
+                  x-persimmon-ref: {}
+  mutability: SpecMutable
+  snapshot: Definition
+  handlerRef: {name: composition}
+  expansion: {kind: Workflow}
+  stepContract:
+    inputsPath: spec.inputs
+    outputsPath: spec.outputs
+    runKind: {group: persimmon.ai, kind: WorkflowRun}
+    phasePath: status.phase
+    outputsValuePath: status.outputs
+    errorPath: status.error

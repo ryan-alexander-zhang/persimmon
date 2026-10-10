@@ -36,6 +36,8 @@ export interface KindDefinitionSpec {
   terminal?: { path: string; values: string[] }
   stepContract?: StepContract
   subscriptions?: Subscription[]
+  /** This kind is sugar for `kind`; the Handler's `expand` produces what runs (21-composition.md). */
+  expansion?: { kind: string }
 }
 
 export type KindDefinition = Resource<KindDefinitionSpec>
