@@ -50,6 +50,9 @@ export function resolveClosure(root: Resource, resolver: Resolver): Closure {
     }
   }
 
+  /** A member of that kind and name in the root Namespace, else Global (same order as the store lookup). */
+  const inMembers = (kind: string, name: string): boolean => [...members.values()].some((m) => m.kind === kind && m.metadata.name === name && (m.metadata.namespace === rootNs || !m.metadata.namespace))
+
   const visit = (resource: Resource): void => {
     const kd = resolver.kind(resource.apiVersion, resource.kind)
     if (!kd) throw new SnapshotError(`unregistered kind ${resource.apiVersion} ${resource.kind}`)
@@ -66,20 +69,20 @@ export function resolveClosure(root: Resource, resolver: Resolver): Closure {
           const targetKind = resolver.kindByName(ref.kind)
           if (!targetKind) throw new SnapshotError(`${where}: unregistered kind ${ref.kind}`)
           if (targetKind.spec.snapshot !== 'Definition') continue
+          if (inMembers(ref.kind, ref.name)) continue // an expansion helper (Validator of an Approval) is a member before anything references it
           const target = resolver.definition(ref.kind, rootNs, ref.name)
           if (!target) throw new SnapshotError(`${where}: ${ref.kind} ${ref.name} not found`)
           if (targetKind.spec.expansion) {
             // the closure holds the expansion, not the sugar; the composition's KindDefinition rides along so lookups can map the kind (04-snapshot.md step 8)
             addKind(targetKind)
-            for (const r of resolver.expand(target)) {
-              const k = keyOf(r)
-              if (members.has(k)) continue
+            const fresh = resolver.expand(target).filter((r) => !members.has(keyOf(r)))
+            for (const r of fresh) {
               const rk = resolver.kindByName(r.kind)
               if (!rk) throw new SnapshotError(`${where}: expansion kind ${r.kind} is not registered`)
-              members.set(k, r)
+              members.set(keyOf(r), r)
               addKind(rk)
-              visit(r)
             }
+            for (const r of fresh) visit(r) // members first, then their refs: a sibling resolves without the store
             break
           }
           const k = keyOf(target)

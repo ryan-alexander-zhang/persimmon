@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { expandPipeline } from './expand.js'
-import type { Pipeline } from './types.js'
+import { expandApproval, expandPipeline } from './expand.js'
+import type { Approval, Pipeline } from './types.js'
 
 const pipeline: Pipeline = {
   apiVersion: 'persimmon.ai/v1',
@@ -42,5 +42,42 @@ describe('expandPipeline', () => {
     const wf = expandPipeline(p, (ref) => ref.kind === 'Gate')
     expect(wf.spec.transitions[0]).toEqual({ id: 'after-approve', from: [{ stepRef: 'approve', outcomes: ['Succeeded'] }], to: [{ stepRef: 'research', when: 'steps.approve.outputs.result.passed' }, { terminal: 'Failed', reason: 'approve_rejected' }], dispatch: 'first' })
     expect(wf.spec.transitions[1]).toEqual({ id: 'after-research', from: [{ stepRef: 'research', outcomes: ['Succeeded'] }], to: [{ terminal: 'Succeeded' }] })
+  })
+})
+
+describe('expandApproval', () => {
+  const prd = { type: { kind: 'artifact' as const, artifactKind: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement' } } }
+  const approval: Approval = {
+    apiVersion: 'persimmon.ai/v1',
+    kind: 'Approval',
+    metadata: { name: 'prd-approval', namespace: 'demo' },
+    spec: {
+      inputs: { prd },
+      approvers: [
+        { name: 'human', uses: { kind: 'Task', name: 'approve-prd' } },
+        { name: 'security', uses: { kind: 'Task', name: 'security-review' }, inputs: { document: 'prd' }, resultOutput: 'verdict' },
+      ],
+      policy: { strategy: 'quorum', count: 1 },
+      timeout: '72h',
+    },
+  }
+
+  it('one Gate of the same name, one task Validator per approver, ports mapped', () => {
+    const [gate, ...validators] = expandApproval(approval)
+    expect(gate.kind).toBe('Gate')
+    expect(gate.metadata).toEqual({ name: 'prd-approval', namespace: 'demo' })
+    expect(gate.spec).toEqual({
+      inputs: { prd },
+      outputs: { result: { type: { kind: 'value', schema: { $ref: 'persimmon.ai/v1#/GateResult' } } } },
+      validators: [
+        { name: 'human', ref: { kind: 'Validator', name: 'prd-approval-human' }, inputs: { prd: { fromInput: 'prd' } } },
+        { name: 'security', ref: { kind: 'Validator', name: 'prd-approval-security' }, inputs: { document: { fromInput: 'prd' } } },
+      ],
+      policy: { strategy: 'quorum', count: 1 },
+      timeout: '72h',
+    })
+    expect(validators.map((v) => [v.kind, v.metadata.name])).toEqual([['Validator', 'prd-approval-human'], ['Validator', 'prd-approval-security']])
+    expect(validators[0]!.spec).toEqual({ inputs: { prd }, evaluator: { type: 'task', taskRef: { kind: 'Task', name: 'approve-prd' }, resultOutput: 'result' }, timeout: '72h' })
+    expect(validators[1]!.spec).toEqual({ inputs: { document: prd }, evaluator: { type: 'task', taskRef: { kind: 'Task', name: 'security-review' }, resultOutput: 'verdict' }, timeout: '72h' })
   })
 })

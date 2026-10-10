@@ -40,8 +40,10 @@ One store transaction; every hop resolves in the root Resource's Namespace, then
 7. Adapter not Ready: fail the create.
 8. Target of a kind with `expansion` (`01-kind-definition.md`): call its Handler's `expand`; add the
    expanded Resources as members under their own kinds and names, and the composition's
-   KindDefinition; the composition itself is not a member; recurse into each expansion. A
-   reference to the composition kind resolves in the closure to the expansion of the same name.
+   KindDefinition; the composition itself is not a member; recurse into each expansion after all
+   of them are members, so a helper (an Approval's Validator) resolves among members before the
+   store. A reference to the composition kind resolves in the closure to the expansion of the same
+   name.
 
 ## Bytes
 

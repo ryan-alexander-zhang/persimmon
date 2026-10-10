@@ -24,7 +24,7 @@ $defs:
           - {$ref: "resource.yaml#/$defs/LocalDefinitionRef"}
           - {properties: {kind: {const: Task}}}
         x-persimmon-ref: {kinds: [Task]}
-      inputs: {$ref: "ports.yaml#/$defs/Bindings"}
+      inputs: {type: object, propertyNames: {$ref: "ports.yaml#/$defs/PortName"}, additionalProperties: {$ref: "ports.yaml#/$defs/PortName"}, description: "{<task port>: <approval port>}; default: same names"}
       resultOutput: {$ref: "ports.yaml#/$defs/PortName", default: result}
   Approval:
     type: object

@@ -75,6 +75,7 @@ export class Engine {
       getResource: (kind, ns, name) => (ns ? this.store.resources.get({ kind, namespace: ns, name }) : undefined) ?? this.store.resources.get({ kind, name }),
       getByUid: (uid) => this.store.resources.getByUid(uid),
       random: Math.random,
+      expand: (r) => this.handlers.get(r.apiVersion, r.kind).impl?.expand?.(r).resources ?? [],
     }
     const builtins = new Map<string, HandlerImpl>([
       ['workflow', workflowHandler(deps)],

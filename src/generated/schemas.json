@@ -1330,7 +1330,14 @@
       }
      },
      "inputs": {
-      "$ref": "ports.yaml#/$defs/Bindings"
+      "type": "object",
+      "propertyNames": {
+       "$ref": "ports.yaml#/$defs/PortName"
+      },
+      "additionalProperties": {
+       "$ref": "ports.yaml#/$defs/PortName"
+      },
+      "description": "{<task port>: <approval port>}; default: same names"
      },
      "resultOutput": {
       "$ref": "ports.yaml#/$defs/PortName",

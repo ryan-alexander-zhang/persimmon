@@ -100,6 +100,33 @@ describe('Engine', () => {
     expect(engine.store.resources.get({ kind: 'TaskRun', namespace: 'demo', name: 'prd-pipeline-001-research' })?.metadata.ownerReferences?.[0]?.uid).toBe(run.metadata.uid)
   })
 
+  it('an Approval expands to a Gate and Validators; a Pipeline phase uses it and routes on passed', async () => {
+    await engine.start()
+    await engine.apply(fakeAdapter('claude-code/v1'))
+    for (const n of ['kind-definition-productrequirement', 'kind-definition-researchreport']) await engine.apply(example(n))
+    for (const r of closure.resources.filter((r) => r.kind !== 'KindDefinition')) await engine.apply(fresh(r as Resource))
+    await engine.apply({ ...fakeAdapter('review-ui/v1'), spec: { ...(fakeAdapter('review-ui/v1').spec as object), env: { FAKE_ID: 'review-ui/v1', FAKE_ROLES: 'executor', FAKE_TYPES: 'human' } } } as Resource)
+    for (const n of ['executor-product-reviewers', 'task-approve-prd']) await engine.apply(example(n))
+    const approval = { apiVersion: 'persimmon.ai/v1', kind: 'Approval', metadata: { name: 'prd-approval', namespace: 'demo' }, spec: { inputs: { prd: { type: { kind: 'artifact', artifactKind: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement' } } } }, approvers: [{ name: 'human', uses: { kind: 'Task', name: 'approve-prd' } }], timeout: '72h' } } as Resource
+    const bad = { ...approval, spec: { ...approval.spec, approvers: [{ name: 'human', uses: { kind: 'Task', name: 'approve-prd' }, resultOutput: 'nope' }] } } as Resource
+    await expect(engine.apply(bad)).rejects.toThrow(/Validator\/prd-approval-human: .*nope/)
+    await engine.apply(approval)
+    expect(engine.store.resources.get({ kind: 'Gate', namespace: 'demo', name: 'prd-approval' })).toBeUndefined()
+
+    const prdCreate = closure.resources.find((r) => r.kind === 'Workflow')!.spec as { inputs: unknown; outputs: unknown; outputBindings: unknown; steps: unknown[] }
+    const approve = { id: 'approve', uses: { kind: 'Approval', name: 'prd-approval' }, inputs: { prd: { fromStep: { stepRef: 'write-prd', output: 'prd' } } }, timeout: '72h' }
+    const pipeline = { apiVersion: 'persimmon.ai/v1', kind: 'Pipeline', metadata: { name: 'prd-pipeline', namespace: 'demo' }, spec: { inputs: prdCreate.inputs, outputs: prdCreate.outputs, outputBindings: prdCreate.outputBindings, phases: [...prdCreate.steps, approve], timeout: '80h' } } as Resource
+    await engine.apply(pipeline) // the live Approval is read through its expansion: steps.approve.outputs.result exists
+
+    const base = example('run-workflowrun') as Resource
+    const { resource: run } = await engine.create(fresh({ ...base, metadata: { ...base.metadata, name: 'prd-pipeline-002' }, spec: { ...(base.spec as object), workflowRef: { kind: 'Pipeline', name: 'prd-pipeline' } } } as Resource))
+    const names = readClosure(run.metadata.snapshot!, engine.store.snapshots).resources.map((r) => `${r.kind}/${r.metadata.name}`)
+    for (const n of ['Workflow/prd-pipeline', 'Gate/prd-approval', 'Validator/prd-approval-human', 'Task/approve-prd', 'KindDefinition/approvals.persimmon.ai']) expect(names).toContain(n)
+    expect(names.some((n) => n.startsWith('Approval/') || n.startsWith('Pipeline/'))).toBe(false)
+    const wf = readClosure(run.metadata.snapshot!, engine.store.snapshots).resources.find((r) => r.kind === 'Workflow' && r.metadata.name === 'prd-pipeline')!.spec as { transitions: { id: string; dispatch?: string; to: unknown[] }[] }
+    expect(wf.transitions.find((t) => t.id === 'after-approve')).toMatchObject({ dispatch: 'first', to: [{ terminal: 'Succeeded', when: 'steps.approve.outputs.result.passed' }, { terminal: 'Failed', reason: 'approve_rejected' }] })
+  })
+
   it('runs prd-create end to end against the fake Adapter until the task fails validation', async () => {
     process.env.PERSIMMON_CRED_DEMO__GITHUB_TOKEN = 'ghp-test'
     await engine.start()

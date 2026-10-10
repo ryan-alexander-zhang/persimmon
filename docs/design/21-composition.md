@@ -53,7 +53,7 @@ A Gate whose Validators are Tasks: a human at the terminal, an agent, a script.
 | Field | Rule |
 |---|---|
 | `inputs` | Ports; `artifact` and `value` only (`14-gate.md`) |
-| `approvers[]` | `{name, uses: {kind: Task}, inputs?, resultOutput?}`; `name` unique; `uses` a Task with a `value` output `resultOutput` (default `result`) of the ValidationResult `$ref`; `inputs` are Bindings over the Approval's inputs, default: every Task input bound `fromInput` by the same name |
+| `approvers[]` | `{name, uses: {kind: Task}, inputs?, resultOutput?}`; `name` unique; `uses` a Task with a `value` output `resultOutput` (default `result`) of the ValidationResult `$ref`; `inputs` maps `{<task port>: <approval port>}`, default: every Approval input to the Task port of the same name |
 | `policy` | `{strategy: all \| any \| quorum, count?}`; default `all` |
 | `timeout` | Duration for the GateRun and each ValidationRun |
 
@@ -61,8 +61,8 @@ Expansion:
 
 | Resource | Content |
 |---|---|
-| Validator `<name>-<approver>` | `inputs` = the Task's inputs; `evaluator: {type: task, taskRef: uses, resultOutput}`; `timeout` |
-| Gate `<name>` | `inputs`; `outputs` fixed; `validators: [{name: approver, ref: Validator <name>-<approver>, inputs}]`; `policy`; `timeout` |
+| Gate `<name>` | `inputs`; `outputs` fixed; `validators: [{name: approver, ref: Validator <name>-<approver>, inputs: {<task port>: {fromInput: <approval port>}}}]`; `policy`; `timeout` |
+| Validator `<name>-<approver>` | `inputs`: one per mapped Task port, the Approval port's type; `evaluator: {type: task, taskRef: uses, resultOutput}`; `timeout` |
 
 Approval carries Gate's step contract (runKind GateRun). As a Pipeline phase it routes on
 `passed`; in a raw Workflow the Transition reads `steps.<id>.outputs.result.passed`.
@@ -118,6 +118,9 @@ Expansion:
 - The composition Handler validates an expansion with the target kind's schema, a name-taken
   check against the live store in the same scope, then the target Handler's `validate`; findings
   are prefixed `<Kind>/<name>: `. `reconcile` is a no-op. Found in implementation.
+- A live composition used as a step (a Pipeline phase using an Approval) is read through its
+  expansion for the static checker, so `steps.<id>.outputs.result` exists; `HandlerDeps.expand`
+  supplies it. Found in implementation.
 
 ## Examples
 

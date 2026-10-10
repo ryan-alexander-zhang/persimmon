@@ -30,7 +30,8 @@ export function workflowHandler(deps: HandlerDeps): HandlerImpl {
     const kd = deps.kinds.byKind(ref.kind)?.definition
     const contract = kd?.spec.stepContract as StepContract | undefined
     if (!contract) return undefined
-    const def = closure ? fromClosure(closure, ref.kind, ns, ref.name) : (deps.getResource(ref.kind, ns, ref.name) as Entry | undefined)
+    const live = closure ? undefined : deps.getResource(ref.kind, ns, ref.name)
+    const def = closure ? fromClosure(closure, ref.kind, ns, ref.name) : ((live && kd?.spec.expansion && deps.expand ? deps.expand(live)[0] : live) as Entry | undefined) // a live composition is read through its expansion
     if (!def) return undefined
     const spec = def.spec as Record<string, unknown>
     return { contract, definition: def, inputs: contractPorts(spec, contract.inputsPath.replace(/^spec\./, '')) as Record<string, InputSpec>, outputs: contractPorts(spec, contract.outputsPath.replace(/^spec\./, '')) as Record<string, OutputSpec> }
