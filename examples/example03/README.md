@@ -24,8 +24,7 @@ Files:
 
 ## Prerequisites
 
-- persimmon built: `npm install && npm run build` in the repository root
-- the alias from [example01](../example01/README.md#prerequisites)
+- `persimmon` on your PATH: `npm install && npm install -g .` in the repository root ([Installation](../../README.md#installation))
 
 ## Steps
 

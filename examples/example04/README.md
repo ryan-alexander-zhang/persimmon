@@ -65,9 +65,8 @@ install command, never silently. Skills in `app/` that no Task declares are allo
 
 ## Prerequisites
 
-- persimmon built: `npm install && npm run build` in the repository root
+- `persimmon` on your PATH: `npm install && npm install -g .` in the repository root ([Installation](../../README.md#installation))
 - `codex` and `claude` CLIs installed and logged in
-- the alias from [example01](../example01/README.md#prerequisites)
 - the app's tooling and its own git repository, once:
 
 ```sh

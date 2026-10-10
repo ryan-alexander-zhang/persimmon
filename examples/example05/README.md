@@ -20,14 +20,9 @@ the built-in pack.
 
 ## Prerequisites
 
-- persimmon built: `npm install && npm run build` in the repository root
+- `persimmon` on your PATH: `npm install && npm install -g .` in the repository root
+  ([Installation](../../README.md#installation))
 - `codex` and `claude` CLIs installed and logged in (`codex login`, `claude`)
-- an alias to the binary, run from anywhere inside the repository:
-
-```sh
-alias persimmon="node $(git rev-parse --show-toplevel)/dist/main.js"    # bash, zsh
-alias persimmon "node (git rev-parse --show-toplevel)/dist/main.js"     # fish
-```
 
 ## Steps
 

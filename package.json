@@ -12,6 +12,7 @@
     "persimmon": "dist/main.js"
   },
   "scripts": {
+    "prepare": "npm run build",
     "gen": "node scripts/gen-schemas.mjs",
     "prebuild": "npm run gen",
     "pretest": "npm run gen",
@@ -30,5 +31,12 @@
     "@types/node": "26.6.2",
     "typescript": "7.0.2",
     "vitest": "5.0.1"
-  }
+  },
+  "files": [
+    "dist",
+    "adapters",
+    "packs",
+    "README.md",
+    "LICENSE"
+  ]
 }

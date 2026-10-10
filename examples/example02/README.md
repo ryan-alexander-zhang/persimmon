@@ -25,9 +25,8 @@ Files:
 
 ## Prerequisites
 
-- persimmon built: `npm install && npm run build` in the repository root
+- `persimmon` on your PATH: `npm install && npm install -g .` in the repository root ([Installation](../../README.md#installation))
 - `codex` and `claude` CLIs installed and logged in
-- the alias from [example01](../example01/README.md#prerequisites)
 - the app's test tooling, once (the coder runs with the network off), and its own git repository,
   so the agents' `git` and `AGENTS.md` lookups stop at the workspace instead of climbing into the
   persimmon checkout:

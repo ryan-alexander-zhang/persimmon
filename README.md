@@ -50,15 +50,17 @@ person at the terminal), and records every result as a versioned, auditable Arti
 
 ## Installation
 
-Persimmon is not published to npm yet. Build it from source:
+Persimmon is not published to npm yet. Install it from a clone; `npm` builds it on the way:
 
 ```sh
 git clone https://github.com/ryan-alexander-zhang/persimmon.git
 cd persimmon
 npm install
-npm run build
-alias persimmon="node $PWD/dist/main.js"
+npm install -g .        # builds dist/, puts `persimmon` on your PATH
+persimmon --help
 ```
+
+Developing on it: `npm link` instead of `npm install -g .`, then `npm run build` after each change.
 
 ## Quickstart
 
