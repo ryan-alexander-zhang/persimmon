@@ -26,11 +26,11 @@ suite ── `E3 pass  execute answers exactly the declared outputs` ─▶ term
 
 ## Fixture
 
-One Task, the same for every Adapter: context an artifact and a Prompt, one value input,
+One Task, the same for every Adapter: context an artifact and a Prompt, one artifact input,
 outputs `doc` (artifact `conformance.persimmon.ai/v1 Note`, content `{title}`) and `count`
-(integer), credential binding `demo/github-token`, `sideEffects: idempotent`. The instructions
-say "Answer exactly with this JSON" and carry the answer, so a live agent gives the same answer
-the stub gives.
+(integer), credential binding `demo/github-token`, `sideEffects: idempotent`. The answer is what a careful
+agent derives from the context anyway, the note's title and the number of notes, so a live agent
+gives the same answer the stub gives.
 
 ## Rules
 
@@ -101,3 +101,6 @@ none.
   ValidationResult) stay on the roadmap until an Adapter needs them.
 - The fixture answer reaches the stub by environment and a live model by the instructions;
   the live run is one real `execute`, the cheapest proof that the argument mapping works.
+- The fixture answer agrees with its context. An answer the context contradicted read as a
+  prompt injection to claude, which answered from the context instead; a value input beside the
+  instructions was copied as `count`. Found in UAT.

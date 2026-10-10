@@ -55,12 +55,12 @@ const humanAck = validator('adapter-roles.yaml', '/$defs/HumanAck')
 const cancelResult = validator('adapter-roles.yaml', '/$defs/CancelResult')
 const errorShape = validator('reconcile.yaml', '/$defs/Error')
 
-const answer = { doc: { title: 'Conformance note' }, count: 7 }
+const answer = { doc: { title: 'Fixture note' }, count: 1 } // what a careful agent derives from the context: the note's title, the number of notes
 const noteKind = { apiVersion: 'conformance.persimmon.ai/v1', kind: 'Note' }
 const noteRef = { ...noteKind, namespace: 'conformance', id: 'fixture-note', revision: 1 }
 const fixtureArtifact = { ...noteKind, metadata: { namespace: 'conformance', name: 'fixture-note.r1' }, spec: { identity: { id: 'fixture-note', revision: 1 }, content: { title: 'Fixture note' } } }
 const promptText = 'Conformance prompt: keep the title exact.\n'
-const instructions = `Answer exactly with this JSON and nothing else: ${JSON.stringify(answer)}`
+const instructions = 'You were given one note. Answer with doc = {title: <the title of that note, unchanged>} and count = 1, the number of notes you were given.'
 const credentialName = 'demo/github-token'
 const lei = 'conformance-001//fixture'
 const skillSource = { provider: 'git', type: 'repository', id: 'conformance-skill', locator: { url: 'https://example.invalid/conformance-skill.git' }, version: 'v1' }
@@ -167,7 +167,7 @@ export async function conformance(spec: AdapterSpec, o: SuiteOptions = {}): Prom
         outputSchemas: { doc: { type: 'object', required: ['title'], additionalProperties: false, properties: { title: { type: 'string' } } } },
       },
       executor: { type: isProcess ? processType : 'human', configuration, security: { networkAccess: 'deny', credentialBindings: [credentialName] } },
-      inputs: { note: { kind: 'artifact', ref: noteRef }, n: { kind: 'value', value: 2 } },
+      inputs: { note: { kind: 'artifact', ref: noteRef } },
       context,
       deadline: new Date(Date.now() + (live ? 600_000 : 60_000)).toISOString(),
       workspace,
