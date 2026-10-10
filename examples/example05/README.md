@@ -48,43 +48,56 @@ persimmon apply prd-review.yaml
 persimmon run idea-to-reviewed-prd --input idea="A CLI that turns a meeting transcript into tracked action items" --follow
 ```
 
-`--input maxRounds=2` changes the cap (default 3). Expected output, one round shown:
+`--input maxRounds=2` changes the cap (default 3). Expected output, three rounds (the usual case:
+Codex keeps finding errors and the cap ends the loop), names shortened:
 
 ```text
 created WorkflowRun/idea-to-reviewed-prd-<hex>
-WorkflowRun   idea-to-reviewed-prd-<hex>   Running
 write   TaskRun   claude-code/v1   Running
+WorkflowRun   idea-to-reviewed-prd-<hex>   Running
 write   TaskRun   claude-code/v1   Succeeded
-rounds   WorkflowRun   Running
-review-claude   TaskRun   claude-code/v1   Running
-review-codex   TaskRun   codex/v1   Running
-review-codex   TaskRun   codex/v1   Succeeded
-review-claude   TaskRun   claude-code/v1   Succeeded
-judge   TaskRun   claude-code/v1   Running
-judge   TaskRun   claude-code/v1   Succeeded
-rounds   WorkflowRun   Succeeded
+rounds-1   WorkflowRun   Running
+rounds-1/review-claude   TaskRun   claude-code/v1   Running
+rounds-1/review-codex   TaskRun   codex/v1   Running
+rounds-1/review-claude   TaskRun   claude-code/v1   Succeeded
+rounds-1/review-codex   TaskRun   codex/v1   Succeeded
+rounds-1/judge   TaskRun   claude-code/v1   Running
+rounds-1   WorkflowRun   Succeeded
+rounds-1/judge   TaskRun   claude-code/v1   Succeeded
+rounds-2   WorkflowRun   Running
+...
+rounds-3/judge   TaskRun   claude-code/v1   Succeeded
 WorkflowRun   idea-to-reviewed-prd-<hex>   Succeeded
 
-WorkflowRun   idea-to-reviewed-prd-<hex>                       Succeeded  8m10s
-├─ write   TaskRun   claude-code/v1                            Succeeded  1m20s
+WorkflowRun   idea-to-reviewed-prd-<hex>        Succeeded 12m28s
+├─ write   TaskRun   claude-code/v1              Succeeded  1m07s
 │     EarsPrd/idea-to-reviewed-prd-<hex>-write-prd.r1
-└─ rounds-1   WorkflowRun                                      Succeeded  6m50s
-   ├─ review-claude   TaskRun   claude-code/v1                 Succeeded  1m05s
-   │     ReviewReport/idea-to-reviewed-prd-<hex>-rounds-1-review-claude-report.r1
-   ├─ review-codex   TaskRun   codex/v1                        Succeeded  2m40s
-   │     ReviewReport/idea-to-reviewed-prd-<hex>-rounds-1-review-codex-report.r1
-   └─ judge   TaskRun   claude-code/v1                         Succeeded  3m00s
-         Judgement/idea-to-reviewed-prd-<hex>-rounds-1-judge-judgement.r1
-         EarsPrd/idea-to-reviewed-prd-<hex>-rounds-1-judge-prd.r1
-  prd      EarsPrd/idea-to-reviewed-prd-<hex>-rounds-1-judge-prd.r1
-  clean    true
-  rounds   1
+├─ rounds-1   WorkflowRun                        Succeeded  3m33s
+│  ├─ review-claude   TaskRun   claude-code/v1   Succeeded  1m08s
+│  │     ReviewReport/idea-to-reviewed-prd-<hex>-rounds-1-review-claude-report.r1
+│  ├─ review-codex   TaskRun   codex/v1          Succeeded  1m00s
+│  │     ReviewReport/idea-to-reviewed-prd-<hex>-rounds-1-review-codex-report.r1
+│  └─ judge   TaskRun   claude-code/v1           Succeeded  2m24s
+│        Judgement/idea-to-reviewed-prd-<hex>-rounds-1-judge-judgement.r1
+│        EarsPrd/idea-to-reviewed-prd-<hex>-rounds-1-judge-prd.r1
+├─ rounds-2   WorkflowRun                        Succeeded  3m56s
+│  ...
+└─ rounds-3   WorkflowRun                        Succeeded  3m51s
+   ...
+         EarsPrd/idea-to-reviewed-prd-<hex>-rounds-3-judge-prd.r1
+
+outputs
+  clean   false
+  prd     EarsPrd/idea-to-reviewed-prd-<hex>-rounds-3-judge-prd.r1
+  rounds  3
 ```
 
-The two reviewers start in the same tick and run at the same time; whichever finishes first
-reports first. The judge starts when both are done (the transition joins `all`, the default).
-A second round appears as `rounds-2` with its own three runs. Ctrl-C is safe; `persimmon resume`
-continues.
+The two reviewers start in the same tick and run at the same time. Local mode delivers the
+answers of one tick together, so both `Succeeded` lines print at once, in step order, whoever
+answered first; the tree shows each one's real duration. The judge starts when both are done
+(the transition joins `all`, the default). A round's `WorkflowRun Succeeded` line prints just
+before its judge's, the same tick. `clean true` ends the loop early. Ctrl-C is safe;
+`persimmon resume` continues.
 
 ### 3. Read what the judge decided
 
@@ -95,11 +108,14 @@ persimmon get Judgement/idea-to-reviewed-prd-<hex>-rounds-1-judge-judgement.r1
 persimmon get ReviewReport                                                 # two per round: what each reviewer said
 persimmon get EarsPrd                                                      # the draft and one revision per round
 persimmon tree WorkflowRun/idea-to-reviewed-prd-<hex>
-persimmon logs TaskRun/idea-to-reviewed-prd-<hex>-rounds-1-judge           # how the judge reasoned
+persimmon logs TaskRun/idea-to-reviewed-prd-<hex>-rounds-1-judge           # the judge's answer calls; its reasons are in the Judgement
 ```
 
 A `Judgement` has one verdict per finding: which reviewer, the finding verbatim, `holds`, and the
-reason. `accepted` and `rejected` count them. Compare the two `ReviewReport`s of a round to see
+reason. `accepted` and `rejected` count them. In one run, round 1 had 11 verdicts (3 from Claude,
+8 from Codex), 8 accepted and 3 rejected; the judge sided with the PRD on matters of taste and
+scope and fixed the rest. The reasons live in the artifact, not in `logs`: headless `claude`
+prints no thinking, only its tool calls. Compare the two `ReviewReport`s of a round to see
 where Claude and Codex disagreed and whom the judge sided with.
 
 ## Change it
