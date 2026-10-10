@@ -60,9 +60,9 @@ Credentials the pack Executors bind are Global names resolved at run time.
 
 - No pack manifest, version, dependency resolution or `pack` verb: reference roadmap excluded
   a pack format from v1. A Pack is a directory and `apply`.
-- No composition kinds. Reference planned `Pipeline`, `ReviewLoop`, `Approval` expanding to
-  Workflows at snapshot time; `repeat` plus a Gate express both, and expansion would need a
-  Layer 0 compile hook. Roadmap.
+- Composition kinds `Pipeline`, `ReviewLoop`, `Approval` ship with the engine, not the pack
+  (`21-composition.md`): a pack ships YAML and cannot ship a Handler. The pack's Workflows stay
+  raw Workflows; a Pipeline version is an example, not pack content.
 - Deployment out of the v1 lifecycle: no `Rollout`, no `sdlc`, `research`,
   `engineering-iteration` Workflows yet. Roadmap.
 - Traceability Validator and entity indexing deferred; the `list` Engine callback stays for

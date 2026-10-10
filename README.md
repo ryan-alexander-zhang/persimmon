@@ -180,7 +180,7 @@ Persimmon is pre-release (version 0.0.0). Expect breaking changes.
 
 Today it ships as one `persimmon` binary running in local mode on SQLite, for one developer.
 Not in v1: server mode (daemon, Postgres, team use), deployment lifecycle, web UI,
-composition kinds, cross-Namespace references and external webhooks. See
+cross-Namespace references and external webhooks. See
 [`docs/design/91-roadmap.md`](docs/design/91-roadmap.md).
 
 ## Development

@@ -127,6 +127,36 @@ describe('Engine', () => {
     expect(wf.transitions.find((t) => t.id === 'after-approve')).toMatchObject({ dispatch: 'first', to: [{ terminal: 'Succeeded', when: 'steps.approve.outputs.result.passed' }, { terminal: 'Failed', reason: 'approve_rejected' }] })
   })
 
+  it('a ReviewLoop expands to an outer Workflow and its round body; the run starts the first round', async () => {
+    await engine.start()
+    await engine.apply(fakeAdapter('claude-code/v1'))
+    await engine.apply({ ...fakeAdapter('review-ui/v1'), spec: { ...(fakeAdapter('review-ui/v1').spec as object), env: { FAKE_ID: 'review-ui/v1', FAKE_ROLES: 'executor', FAKE_TYPES: 'human' } } } as Resource)
+    for (const n of ['kind-definition-productrequirement', 'kind-definition-researchreport']) await engine.apply(example(n))
+    for (const r of closure.resources.filter((r) => r.kind !== 'KindDefinition')) await engine.apply(fresh(r as Resource))
+    for (const n of ['executor-product-reviewers', 'task-approve-prd']) await engine.apply(example(n))
+    const prd = { type: { kind: 'artifact', artifactKind: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement' } } }
+    const writePrd = closure.resources.find((r) => r.kind === 'Task' && r.metadata.name === 'write-prd')!
+    const revise = { ...writePrd, metadata: { name: 'revise-prd', namespace: 'demo' }, spec: { ...(writePrd.spec as object), inputs: { ...(writePrd.spec as { inputs: object }).inputs, last: { ...prd, required: false }, verdict: { type: { kind: 'value', schema: { $ref: 'persimmon.ai/v1#/GateResult' } }, required: false } } } } as Resource
+    await engine.apply(revise)
+    await engine.apply({ apiVersion: 'persimmon.ai/v1', kind: 'Approval', metadata: { name: 'prd-approval', namespace: 'demo' }, spec: { inputs: { prd }, approvers: [{ name: 'human', uses: { kind: 'Task', name: 'approve-prd' } }], timeout: '72h' } } as Resource)
+    const loop = { apiVersion: 'persimmon.ai/v1', kind: 'ReviewLoop', metadata: { name: 'prd-loop', namespace: 'demo' }, spec: { inputs: { research: { type: { kind: 'artifact', artifactKind: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ResearchReport' } } } }, produce: { uses: { kind: 'Task', name: 'revise-prd' }, inputs: { research: { fromInput: 'research' } }, timeout: '35m' }, review: { uses: { kind: 'Approval', name: 'prd-approval' }, inputs: { prd: { fromStep: { stepRef: 'produce', output: 'prd' } } }, timeout: '72h' }, subject: 'prd', previous: 'last', feedback: 'verdict', maxRounds: 2, timeout: '24h' } } as Resource
+    await expect(engine.apply({ ...loop, spec: { ...loop.spec, feedback: 'research' } } as Resource)).rejects.toThrow(/research must be an optional input/)
+    await expect(engine.apply({ ...loop, spec: { ...loop.spec, review: { ...(loop.spec as { review: object }).review, uses: { kind: 'Task', name: 'approve-prd' } } } } as Resource)).rejects.toThrow(/does not run as a GateRun/)
+    await engine.apply(loop)
+
+    const errors: string[] = []
+    engine.dispatch.onError = (_u, ev, e) => errors.push(`${ev.type}: ${e.message}`)
+    const research = { kind: 'artifact', ref: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ResearchReport', namespace: 'demo', id: 'research-checkout-v2', revision: 1 } }
+    const { resource: run } = await engine.create({ apiVersion: 'persimmon.ai/v1', kind: 'WorkflowRun', metadata: { name: 'prd-loop-001', namespace: 'demo' }, spec: { workflowRef: { kind: 'ReviewLoop', name: 'prd-loop' }, inputs: { research }, origin: { kind: 'manual' } } } as Resource)
+    const names = readClosure(run.metadata.snapshot!, engine.store.snapshots).resources.map((r) => `${r.kind}/${r.metadata.name}`)
+    for (const n of ['Workflow/prd-loop', 'Workflow/prd-loop-round', 'Gate/prd-approval', 'Validator/prd-approval-human', 'Task/revise-prd', 'Task/approve-prd']) expect(names).toContain(n)
+    await engine.drain()
+    expect(errors).toEqual([])
+    const round = engine.store.resources.get({ kind: 'WorkflowRun', namespace: 'demo', name: 'prd-loop-001-rounds-1' })!
+    expect(round.metadata.ownerReferences?.[0]?.uid).toBe(run.metadata.uid)
+    expect(engine.store.resources.get({ kind: 'TaskRun', namespace: 'demo', name: 'prd-loop-001-rounds-1-produce' })?.metadata.ownerReferences?.[0]?.uid).toBe(round.metadata.uid)
+  })
+
   it('runs prd-create end to end against the fake Adapter until the task fails validation', async () => {
     process.env.PERSIMMON_CRED_DEMO__GITHUB_TOKEN = 'ghp-test'
     await engine.start()

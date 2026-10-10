@@ -1,6 +1,6 @@
 # Composition kinds: Pipeline, Approval, ReviewLoop
 
-status: draft · layer: 2 · schema: [`schemas/composition.yaml`](schemas/composition.yaml)
+status: active · layer: 2 · schema: [`schemas/composition.yaml`](schemas/composition.yaml)
 
 Three Definition kinds that are sugar for the Layer 1 graph kinds. Each expands to Workflow or
 Gate Resources through the expansion hook (`01-kind-definition.md`, `02-handler.md`,
@@ -121,6 +121,11 @@ Expansion:
 - A live composition used as a step (a Pipeline phase using an Approval) is read through its
   expansion for the static checker, so `steps.<id>.outputs.result` exists; `HandlerDeps.expand`
   supplies it. Found in implementation.
+- A ReviewLoop's expansion reads the `subject` type from `produce`'s definition, live at write
+  and at snapshot: the loop names the port, the definition owns the type. The loop rules
+  (`subject` an output, `previous` and `feedback` optional inputs, `review` a GateRun kind) are
+  checked before expansion, so the finding names the loop field, not a derived Workflow. Found
+  in implementation.
 
 ## Examples
 

@@ -52,7 +52,7 @@ Read top to bottom within a layer; a file depends only on files above it.
 | File | Content | Status |
 |---|---|---|
 | `docs/design/20-pack.md` | Pack as a directory, lifecycle, override by name, SDLC pack content | active |
-| `docs/design/21-composition.md` | Pipeline, Approval, ReviewLoop: sugar kinds expanding to Workflow and Gate | draft |
+| `docs/design/21-composition.md` | Pipeline, Approval, ReviewLoop: sugar kinds expanding to Workflow and Gate | active |
 
 ## Cross-cutting
 

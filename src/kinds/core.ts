@@ -38,6 +38,7 @@ export const coreKinds: KindDefinition[] = [
   definition('Gate', 'gates', 'gate.yaml#/$defs/Gate/properties/spec', { handlerRef: { name: 'gate' }, stepContract: contract('GateRun') }),
   definition('Validator', 'validators', 'gate.yaml#/$defs/Validator/properties/spec', { handlerRef: { name: 'validator' } }),
   definition('Pipeline', 'pipelines', 'composition.yaml#/$defs/Pipeline', { handlerRef: { name: 'composition' }, stepContract: contract('WorkflowRun'), expansion: { kind: 'Workflow' } }),
+  definition('ReviewLoop', 'reviewloops', 'composition.yaml#/$defs/ReviewLoop', { handlerRef: { name: 'composition' }, stepContract: contract('WorkflowRun'), expansion: { kind: 'Workflow' } }),
   definition('Approval', 'approvals', 'composition.yaml#/$defs/Approval', { handlerRef: { name: 'composition' }, stepContract: contract('GateRun'), expansion: { kind: 'Gate' } }),
   definition('Prompt', 'prompts', 'prompt-skill.yaml#/$defs/Prompt/properties/spec'),
   definition('Skill', 'skills', 'prompt-skill.yaml#/$defs/Skill/properties/spec'),
@@ -71,5 +72,5 @@ export const coreHandlers: Handler[] = [
   handler('gate', ['Gate', 'GateRun']),
   handler('validator', ['Validator', 'ValidationRun']),
   handler('trigger', ['Trigger']),
-  handler('composition', ['Pipeline', 'Approval']),
+  handler('composition', ['Pipeline', 'Approval', 'ReviewLoop']),
 ]

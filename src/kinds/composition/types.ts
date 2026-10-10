@@ -21,3 +21,22 @@ export interface ApprovalSpec {
 }
 
 export type Approval = Resource<ApprovalSpec>
+
+export interface LoopStep {
+  uses: LocalDefinitionRef
+  inputs?: Bindings
+  timeout: string
+}
+
+export interface ReviewLoopSpec {
+  inputs?: Record<string, InputSpec>
+  produce: LoopStep
+  review: LoopStep
+  subject: string
+  previous?: string
+  feedback?: string
+  maxRounds?: number
+  timeout: string
+}
+
+export type ReviewLoop = Resource<ReviewLoopSpec>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { expandApproval, expandPipeline } from './expand.js'
-import type { Approval, Pipeline } from './types.js'
+import { expandApproval, expandPipeline, expandReviewLoop } from './expand.js'
+import type { Approval, Pipeline, ReviewLoop } from './types.js'
 
 const pipeline: Pipeline = {
   apiVersion: 'persimmon.ai/v1',
@@ -79,5 +79,75 @@ describe('expandApproval', () => {
     expect(validators.map((v) => [v.kind, v.metadata.name])).toEqual([['Validator', 'prd-approval-human'], ['Validator', 'prd-approval-security']])
     expect(validators[0]!.spec).toEqual({ inputs: { prd }, evaluator: { type: 'task', taskRef: { kind: 'Task', name: 'approve-prd' }, resultOutput: 'result' }, timeout: '72h' })
     expect(validators[1]!.spec).toEqual({ inputs: { document: prd }, evaluator: { type: 'task', taskRef: { kind: 'Task', name: 'security-review' }, resultOutput: 'verdict' }, timeout: '72h' })
+  })
+})
+
+describe('expandReviewLoop', () => {
+  const prd = { type: { kind: 'artifact' as const, artifactKind: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement' } } }
+  const report = { type: { kind: 'artifact' as const, artifactKind: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ResearchReport' } } }
+  const gateResult = { kind: 'value' as const, schema: { $ref: 'persimmon.ai/v1#/GateResult' } }
+  const loop: ReviewLoop = {
+    apiVersion: 'persimmon.ai/v1',
+    kind: 'ReviewLoop',
+    metadata: { name: 'prd-with-review', namespace: 'demo' },
+    spec: {
+      inputs: { research: report },
+      produce: { uses: { kind: 'Task', name: 'write-prd' }, inputs: { research: { fromInput: 'research' } }, timeout: '35m' },
+      review: { uses: { kind: 'Gate', name: 'prd-approval-gate' }, inputs: { prd: { fromStep: { stepRef: 'produce', output: 'prd' } } }, timeout: '72h' },
+      subject: 'prd',
+      previous: 'last',
+      feedback: 'verdict',
+      maxRounds: 3,
+      timeout: '24h',
+    },
+  }
+  const ports = () => ({ inputs: { research: report, last: { ...prd, required: false }, verdict: { type: gateResult, required: false } }, outputs: { prd } })
+
+  it('an outer Workflow with one repeat step over the round body; previous and feedback carried as state', () => {
+    const [outer, body] = expandReviewLoop(loop, ports)
+    expect([outer.metadata.name, body.metadata.name]).toEqual(['prd-with-review', 'prd-with-review-round'])
+    expect(body.spec).toEqual({
+      inputs: { research: report, previous: { ...prd, required: false }, feedback: { type: gateResult, required: false } },
+      outputs: { prd, verdict: { type: gateResult }, passed: { type: { kind: 'value', schema: { type: 'boolean' } } } },
+      outputBindings: { prd: { fromStep: { stepRef: 'produce', output: 'prd' } }, verdict: { fromStep: { stepRef: 'review', output: 'result' } }, passed: { expression: 'steps.review.outputs.result.passed' } },
+      entry: ['produce'],
+      steps: [
+        { id: 'produce', uses: { kind: 'Task', name: 'write-prd' }, inputs: { research: { fromInput: 'research' }, last: { fromInput: 'previous', onMissing: 'omit' }, verdict: { fromInput: 'feedback', onMissing: 'omit' } }, timeout: '35m' },
+        { id: 'review', uses: { kind: 'Gate', name: 'prd-approval-gate' }, inputs: { prd: { fromStep: { stepRef: 'produce', output: 'prd' } } }, timeout: '72h' },
+      ],
+      transitions: [
+        { id: 'after-produce', from: [{ stepRef: 'produce', outcomes: ['Succeeded'] }], to: [{ stepRef: 'review' }] },
+        { id: 'after-review', from: [{ stepRef: 'review', outcomes: ['Succeeded'] }], to: [{ terminal: 'Succeeded' }] },
+      ],
+      timeout: '24h',
+    })
+    expect(outer.spec).toEqual({
+      inputs: { research: report },
+      outputs: { prd, passed: { type: { kind: 'value', schema: { type: 'boolean' } } }, rounds: { type: { kind: 'value', schema: { type: 'integer' } } } },
+      outputBindings: { prd: { fromStep: { stepRef: 'rounds', output: 'prd' } }, passed: { fromStep: { stepRef: 'rounds', output: 'passed' } }, rounds: { expression: 'steps.rounds.iterations' } },
+      entry: ['rounds'],
+      steps: [{
+        id: 'rounds',
+        uses: { kind: 'Workflow', name: 'prd-with-review-round' },
+        inputs: { research: { fromInput: 'research' }, previous: { fromState: 'previous', onMissing: 'omit' }, feedback: { fromState: 'feedback', onMissing: 'omit' } },
+        timeout: '24h',
+        repeat: { state: { previous: { ...prd, required: false }, feedback: { type: gateResult, required: false } }, initial: {}, next: { previous: { fromIterationOutput: 'prd' }, feedback: { fromIterationOutput: 'verdict' } }, until: 'iteration.outputs.passed || iteration.index >= 3', maxIterations: 3 },
+      }],
+      transitions: [{ id: 'after-rounds', from: [{ stepRef: 'rounds', outcomes: ['Succeeded'] }], to: [{ terminal: 'Succeeded' }] }],
+      timeout: '24h',
+    })
+  })
+
+  it('without previous and feedback the loop carries no state; maxRounds defaults to 3', () => {
+    const { previous: _p, feedback: _f, maxRounds: _m, ...rest } = loop.spec
+    const [outer, body] = expandReviewLoop({ ...loop, spec: rest }, ports)
+    expect(body.spec.inputs).toEqual({ research: report })
+    expect(outer.spec.steps[0]!.repeat).toEqual({ state: {}, initial: {}, next: {}, until: 'iteration.outputs.passed || iteration.index >= 3', maxIterations: 3 })
+    expect(outer.spec.steps[0]!.inputs).toEqual({ research: { fromInput: 'research' } })
+  })
+
+  it('names the missing produce or subject', () => {
+    expect(() => expandReviewLoop(loop, () => undefined)).toThrow(/produce: Task write-prd not found/)
+    expect(() => expandReviewLoop({ ...loop, spec: { ...loop.spec, subject: 'nope' } }, ports)).toThrow(/subject nope is not an output/)
   })
 })
