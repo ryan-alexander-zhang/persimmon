@@ -70,24 +70,28 @@ debate/rounds-1/review/claude   ValidationRun   Running
 debate/rounds-1/review/codex   ValidationRun   Running
 ...
 debate/rounds-1/review   GateRun   rejected
+debate/rounds-1   WorkflowRun   Succeeded
 debate/rounds-2   WorkflowRun   Running
 ...
 debate   WorkflowRun   Succeeded
 signoff   GateRun   Running
-signoff/you   ValidationRun   Waiting human
-parked on you: persimmon complete idea-to-approved-prd-<hex>-signoff-you
+signoff/you   ValidationRun   Running
+signoff/you/task   TaskRun   cli-human/v1   Waiting human
+parked on you: persimmon complete idea-to-approved-prd-<hex>-signoff-you-task
 ```
 
 Each round is one WorkflowRun of the expanded round body: `produce` (the author), then `review`
-(the Approval's Gate with its two ValidationRuns, each running a reviewer Task). `rejected` on
-the Gate is a verdict, not a failure: the next round starts with `previous` and `feedback` bound.
-After three rejected rounds the loop still Succeeds with `passed false`, and the Pipeline moves on
-to your sign-off.
+(the Approval's Gate with its two ValidationRuns, each running a reviewer Task; whichever reviewer
+answers first prints first). `rejected` on the Gate is a verdict, not a failure: the next round
+starts with `previous` and `feedback` bound. After three rejected rounds the loop still Succeeds
+with `passed false`, and the Pipeline moves on to your sign-off. One run took seven minutes for
+three rounds; the reviewers rarely agree the PRD is clean, so `agreed false` with `rounds 3` is
+the usual outcome.
 
 ### 3. Sign off
 
 ```sh
-persimmon complete idea-to-approved-prd-<hex>-signoff-you
+persimmon complete idea-to-approved-prd-<hex>-signoff-you-task
 ```
 
 The terminal shows the PRD and asks `approve? [y/n]`. `y` ends the run `Succeeded`; `n` ends it
@@ -99,7 +103,7 @@ protocol: persimmon.result/v1
 outputs:
   result: {kind: value, value: {passed: true, findings: [], evidence: []}}
 YAML
-persimmon complete idea-to-approved-prd-<hex>-signoff-you --file .persimmon/approve.yaml
+persimmon complete idea-to-approved-prd-<hex>-signoff-you-task --file .persimmon/approve.yaml
 ```
 
 ### 4. Read the results

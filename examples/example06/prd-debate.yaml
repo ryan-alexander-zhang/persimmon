@@ -99,7 +99,7 @@ spec:
     declared pattern; every statement is testable (a measurable response, no "fast", "easy", "robust");
     no feature lacks requirements; no two requirements contradict; no requirement names a solution the
     summary never asked for. severity error = must fix, warning = should fix, info = note.
-    Message format: "<id>: <what is wrong>: <what would fix it>".
+    Message format: "<what is wrong>: <what would fix it>"; the requirement id goes in the finding's code.
 ---
 apiVersion: persimmon.ai/v1
 kind: Executor
