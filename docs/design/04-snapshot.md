@@ -38,6 +38,10 @@ One store transaction; every hop resolves in the root Resource's Namespace, then
 5. Add the KindDefinition of every member and of every member's `stepContract.runKind`.
 6. Unresolved ref: fail the create.
 7. Adapter not Ready: fail the create.
+8. Target of a kind with `expansion` (`01-kind-definition.md`): call its Handler's `expand`; add the
+   expanded Resources as members under their own kinds and names, and the composition's
+   KindDefinition; the composition itself is not a member; recurse into each expansion. A
+   reference to the composition kind resolves in the closure to the expansion of the same name.
 
 ## Bytes
 

@@ -153,7 +153,42 @@ _Avoid_: log (unqualified), trace, output
 **Workflow**:
 A **Definition** kind: a strict DAG of **Steps** joined by **Transitions**, with typed inputs
 and outputs. Loops only through `repeat`.
-_Avoid_: pipeline, flow, process, DAG
+_Avoid_: flow, process, DAG
+
+**Composition kind**:
+A **Definition** kind with `expansion`: sugar that a Handler's `expand` turns into Workflow or
+Gate Resources at write and at snapshot. Shipped: **Pipeline**, **Approval**, **ReviewLoop**.
+_Avoid_: macro, template, sugar kind
+
+**Expansion**:
+The Resources `expand` produces for a **Composition kind**: the first of the target kind with
+the composition's name, then helpers named `<name>-<suffix>`. A run pins the expansion in its
+snapshot.
+_Avoid_: compilation, lowering, generated workflow
+
+**Pipeline**:
+A **Composition kind**: **Phases** in order, expanding to a Workflow with implied Transitions.
+Fail-fast; a gate phase rejects with `<id>_rejected`.
+_Avoid_: linear workflow, chain
+
+**Phase**:
+One entry of `Pipeline.spec.phases`, a **Step** whose position is its routing.
+_Avoid_: stage, step (inside a Pipeline)
+
+**Approval**:
+A **Composition kind**: **Approvers** under a `policy`, expanding to a **Gate** and one
+**Validator** per approver.
+_Avoid_: sign-off, review gate
+
+**Approver**:
+One entry of `Approval.spec.approvers`: a Task, human or agent, whose `resultOutput` is a
+ValidationResult.
+_Avoid_: reviewer (for the Resource), voter
+
+**ReviewLoop**:
+A **Composition kind**: `produce` then `review`, repeated with `previous` and `feedback` until
+`passed` or `maxRounds`; expands to a Workflow and its `<name>-round` body.
+_Avoid_: revision loop, feedback loop
 
 **Step**:
 One entry in `Workflow.spec.steps`: `id`, `uses` (any kind with a **Step contract**), input
@@ -211,7 +246,7 @@ _Avoid_: plugin, tool, extension, package
 **Gate**:
 A **Definition** kind and step kind that decides: runs **Validators** under a `policy`, emits
 fixed output `result: GateResult`. A Gate decides; a Validator asks; the Executor answers.
-_Avoid_: approval, check, checkpoint, review
+_Avoid_: check, checkpoint, review
 
 **Validator**:
 A **Definition** kind: one question asked by a **Gate**, answered by `cel`, a `task`, or an

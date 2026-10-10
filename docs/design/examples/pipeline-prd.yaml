@@ -1,0 +1,25 @@
+# prd-create as a Pipeline: three phases in order; approve is a gate phase, so a rejection ends the run with approve_rejected.
+apiVersion: persimmon.ai/v1
+kind: Pipeline
+metadata: {name: prd-pipeline, namespace: demo}
+spec:
+  inputs:
+    repository: {type: {kind: externalResource, provider: git, type: repository}}
+  outputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement}}}
+  outputBindings:
+    prd: {fromStep: {stepRef: write-prd, output: prd}}
+  phases:
+    - id: research
+      uses: {kind: Task, name: research}
+      inputs: {repository: {fromInput: repository}}
+      timeout: 25m
+    - id: write-prd
+      uses: {kind: Task, name: write-prd}
+      inputs: {research: {fromStep: {stepRef: research, output: report}}}
+      timeout: 35m
+    - id: approve
+      uses: {kind: Approval, name: prd-approval}
+      inputs: {prd: {fromStep: {stepRef: write-prd, output: prd}}}
+      timeout: 72h
+  timeout: 80h

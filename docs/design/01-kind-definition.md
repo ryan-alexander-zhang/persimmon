@@ -31,6 +31,7 @@ KindDefinition workflows.persimmon.ai
 | `handlerRef` | `{name}` of a Handler; absent for pure-data kinds |
 | `terminal` | `{path, values[]}`; `path` rooted at `status`; reaching a value emits ChildFinished; absent means never finishes |
 | `stepContract` | optional; see below |
+| `expansion` | optional `{kind}`: this kind is sugar for `kind`, a registered Definition kind; needs `handlerRef`; `snapshot: Definition`; `stepContract`, when present, equals the target's (`21-composition.md`) |
 | `subscriptions[]` | `{eventType, filter?}`; `eventType` open string (`06-outbox.md`); `filter` CEL over the event; needs `handlerRef` |
 
 A matching Outbox event reaches every Resource of the kind in the subject's Namespace as a
@@ -65,6 +66,13 @@ composing Handler                          step kind
 | `errorPath` | rooted at `status`; `{code, message, retryable}` on Failed |
 
 No closed list of step kinds exists anywhere in the engine.
+
+## Expansion
+
+A kind with `expansion` never runs itself. Its Handler's `expand` (`02-handler.md`) turns one
+Resource into Resources of the target kind and its helpers; `validate` checks the expansion with
+the target's rules, and the snapshot walk stores the expansion in place of the Resource
+(`04-snapshot.md`). The composition kinds of `21-composition.md` are the shipped users.
 
 ## Rules outside the schema
 

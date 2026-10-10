@@ -24,7 +24,13 @@ KindDefinition ── handlerRef ──▶ Handler ── implementation ──�
 ```text
 validate(resource)                          -> {findings[]}
 reconcile(resource, event, context, engine) -> {statusPatch?, actions[]}    applied atomically (03-reconcile.md)
+expand(resource)                            -> {resources[]}               kinds with `expansion` only (01-kind-definition.md)
 ```
+
+`expand` is pure: the same `spec` gives the same Resources, in order, the first of the
+`expansion.kind` with the composition's `metadata.name` and Namespace, the rest helpers named
+`<name>-<suffix>`. The write path calls it inside `validate`; the snapshot walk calls it to
+build the closure. It never runs during reconcile.
 
 | Finding field | Rule |
 |---|---|

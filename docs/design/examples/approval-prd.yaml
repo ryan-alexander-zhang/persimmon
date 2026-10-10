@@ -1,0 +1,15 @@
+# Two approvers, one is enough: a human at the terminal and an agent security review. Expands to Gate prd-approval and Validators prd-approval-human, prd-approval-security.
+apiVersion: persimmon.ai/v1
+kind: Approval
+metadata: {name: prd-approval, namespace: demo}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement}}}
+  approvers:
+    - name: human
+      uses: {kind: Task, name: approve-prd}        # Executor local-reviewer; output result: ValidationResult
+    - name: security
+      uses: {kind: Task, name: security-review}
+      resultOutput: verdict
+  policy: {strategy: quorum, count: 1}
+  timeout: 72h
