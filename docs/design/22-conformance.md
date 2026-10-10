@@ -19,7 +19,7 @@ suite ── `E3 pass  execute answers exactly the declared outputs` ─▶ term
 |---|---|
 | Adapter | from the store by `id`; its manifest `command`; the suite runs it in a temp cwd with the engine's env allowlist (`07-adapter.md`) |
 | configuration | `--config` (YAML, validated against `describe.configurationSchema`), else `describe.conformance.configuration`, else `{}` |
-| credentials | the suite's own fake values; the project's CredentialStore is never read |
+| credentials | the fixture's Task credential is the suite's own random value; the Adapter's `credentialBindings` resolve as at apply |
 | callbacks | served by the suite: `getArtifact` answers the fixture artifact, `putBlob` hashes, `publishArtifact` answers a RevisionRef in Namespace `conformance`, `log` records; a wrong token is `unauthorized` |
 | `--live` | no `PERSIMMON_ADAPTER_CONFORMANCE`, no cues, no record: the real CLI answers once; only the rules marked live run |
 | report | one line per rule: `<id> pass \| FAIL \| skip  <rule>`, the reason after a FAIL or skip; exit 1 on any FAIL |
@@ -47,12 +47,12 @@ include `agent`, `script` or `tool`; `human` one that includes `human`.
 | E6 | `engine.token` and `PERSIMMON_ADAPTER_TOKEN` reach the program nowhere: not environment, arguments or stdin | `19` | process | no |
 | E7 | the program runs with cwd `payload.workspace`; a workspace that is not a directory is `invalid_input`, not retryable | `19` | process | yes (the refusal) |
 | E8 | a deadline already passed is `timeout`; a program that outlives the deadline is killed and the error is `timeout`, retryable | `19` | process | yes (the passed deadline) |
-| E9 | `cancel` of a running attempt by its `idempotencyKey` answers a CancelResult; a process attempt then answers `cancelled` | `19` | `supports.cancel` | no |
+| E9 | `cancel` of a running attempt by its `idempotencyKey` answers a CancelResult; a process attempt then answers `cancelled`; a human attempt is cancelled after its ack | `19` | `supports.cancel` | no |
 | E10 | a program that exits non-zero is `agent_failed`, retryable; credential values are redacted from stream `log` lines | `19` | process | no |
 | E11 | the prompt presents context entries before `instructions`, in order, and `instructions` verbatim | `19` | agent | no |
-| E12 | a declared Skill not installed in the workspace is `invalid_input`; installed with another digest is `skill_digest_mismatch`, not retryable; installed and equal passes | `15`, `19` | `skillFormats` non-empty | yes (missing) |
+| E12 | a declared Skill not installed in the workspace is `invalid_input`; installed with another digest is `skill_digest_mismatch`, not retryable; installed and equal passes (the two installed cases need `describe.conformance.skillDir`) | `15`, `19` | `skillFormats` non-empty | yes (missing) |
 | E13 | an unknown op is `invalid_input` | `07` | all | yes |
-| E14 | `execute` answers HumanAck after a `waiting` stream line with reason `human`; `cancel` answers a CancelResult | `19` | human | yes |
+| E14 | `execute` answers HumanAck after a `waiting` stream line with reason `human` | `19` | human | yes |
 | E15 | every error seen is `{code, message, retryable}` with a lower snake `code` | `03`, `07` | all | yes |
 
 A rule whose `Applies` does not hold is `skip`. E15 is checked on every failure the other
@@ -61,7 +61,8 @@ rules provoke.
 ## Stub contract
 
 An Adapter that drives a CLI answers `describe.conformance.configuration`, the Executor
-configuration under which `execute` completes the fixture offline. For the shipped agent
+configuration under which `execute` completes the fixture offline, and `describe.conformance.skillDir`,
+where it discovers Skills under the workspace. For the shipped agent
 Adapters that is `configuration.command`: a program array run in place of `claude` or `codex`
 with the CLI's own arguments and stdin.
 

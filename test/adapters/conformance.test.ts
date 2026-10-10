@@ -1,0 +1,34 @@
+// The conformance suite over every shipped Adapter (22-conformance.md), and once over a non-conforming one.
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { parse } from 'yaml'
+import { describe, expect, it } from 'vitest'
+import type { AdapterSpec } from '../../src/adapter/types.js'
+import { conformance, rules } from '../../src/conformance/suite.js'
+
+const root = join(import.meta.dirname, '..', '..')
+const shipped = ['claude-code', 'codex', 'subprocess', 'cli-human']
+const spec = (id: string): AdapterSpec => {
+  const s = (parse(readFileSync(join(root, 'adapters', id, 'adapter.yaml'), 'utf8')) as { spec: AdapterSpec }).spec
+  return { ...s, command: [process.execPath, join(root, s.command![1]!)] }
+}
+const failures = (v: Awaited<ReturnType<typeof conformance>>) => v.filter((x) => x.status === 'FAIL').map((x) => `${x.id} ${x.reason}`)
+
+describe('conformance suite', () => {
+  it('lists the rules the design lists, in order', () => {
+    const doc = readFileSync(join(root, 'docs/design/22-conformance.md'), 'utf8')
+    expect(Object.keys(rules)).toEqual([...doc.matchAll(/^\| (E\d+) \|/gm)].map((m) => m[1]))
+  })
+
+  it.each(shipped)('%s passes', async (id) => {
+    const v = await conformance(spec(id))
+    expect(failures(v)).toEqual([])
+    expect(v.map((x) => x.id)).toEqual(Object.keys(rules))
+  }, 60_000)
+
+  it('a non-conforming Adapter fails E3 and skips what depends on it', async () => {
+    const v = await conformance({ id: 'fake/v1', roles: ['executor'], transport: 'stdio', command: [process.execPath, join(root, 'test/fixtures/fake-adapter.mjs')], env: { FAKE_TYPES: 'agent' } })
+    expect(v.find((x) => x.id === 'E3')).toMatchObject({ status: 'FAIL', reason: expect.stringContaining('result:') })
+    expect(v.find((x) => x.id === 'E4')).toMatchObject({ status: 'skip', reason: 'E3 did not publish' })
+  }, 30_000)
+})

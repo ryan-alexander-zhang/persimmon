@@ -39,7 +39,7 @@ export function serve(driver) {
               adapterId: driver.adapterId, protocol: 'persimmon.adapter/v1', roles: ['executor'], executorTypes: driver.executorTypes ?? ['agent'],
               configurationSchema: driver.configurationSchema, parametersSchema: driver.parametersSchema,
               contextKinds: driver.contextKinds ?? ['file', 'artifact', 'prompt', 'skill'], skillFormats: driver.skillFormats ?? ['claude-code-skill/v1'], supports: { query: false, cancel: true, complete: false }, formRenderable: false,
-              ...(driver.conformance ? { conformance: driver.conformance } : {}),
+              ...(driver.conformance ? { conformance: { ...driver.conformance, ...(driver.skillDir ? { skillDir: driver.skillDir } : {}) } } : {}),
             },
           })
         case 'execute':

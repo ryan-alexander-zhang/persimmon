@@ -104,7 +104,7 @@ kinds ───────────┘
 | `kinds` reaches state only through Engine callbacks and returned Actions; never `store` | `02-handler.md` |
 | `kinds` imports `handler` for the contract, `expression` and `kinds/ports` for values; never `snapshot` or `outbox` values; type imports allowed, adapter types too | `04-snapshot.md`, `06-outbox.md` |
 | `cli` and `server` hold no engine logic | `08-store.md` |
-| `cli` imports `adapters/lib/skills.mjs` for the Skill bundle digest and fetch, so the CLI and the Adapters share one implementation; no other `src/` → `adapters/` import | `15-prompt-skill.md` |
+| `cli` and `conformance` import `adapters/lib/skills.mjs` for the Skill bundle digest and fetch, so the CLI, the suite and the Adapters share one implementation; no other `src/` → `adapters/` import | `15-prompt-skill.md`, `22-conformance.md` |
 
 ## Schemas
 
