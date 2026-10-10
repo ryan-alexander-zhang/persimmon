@@ -103,7 +103,7 @@ A Namespaced Resource may bind only its own Namespace's names and Global names.
 | `persimmon get` · `describe` · `logs` | read Resources, status, RunLog |
 | `persimmon skill install <name> --into <dir> [--for claude \| codex]` | fetch and verify a Skill, copy its bundle into the workspace's native skill directories (`15-prompt-skill.md`); replaces an earlier install, refuses a hand-made directory under that name unless `--force` |
 | `persimmon digest <dir>` | the Skill bundle digest of a directory (`15-prompt-skill.md`), to paste into `spec.digest` |
-| `persimmon tree <kind>/<name>` | a run and every run it owns, nested by `ownerReferences`, oldest first; a child is labelled by its name minus its owner's, then its kind, then a TaskRun's Adapter; right column: phase (`passed` \| `rejected` for a Gate or Validator verdict) and elapsed time; under a run: its error, the `complete` command it waits for, a rejected Validator's findings, the artifacts a TaskRun published as `<Kind>/<id>.r<n>`; a footer lists the root's outputs |
+| `persimmon tree <kind>/<name>` | a run and every run it owns, nested by `ownerReferences`, oldest first; a child is labelled by its name minus its owner's, then its kind, then a TaskRun's Adapter; right column: phase (`passed` \| `rejected` for a Gate or Validator verdict) and elapsed time (creation to the last attempt's `finishedAt` for a TaskRun, else to the last RunLog entry; to now while live); under a run: its error, the `complete` command it waits for, a rejected Validator's findings, the artifacts a TaskRun published as `<Kind>/<id>.r<n>`; a footer lists the root's outputs |
 | `persimmon init` | local mode: create `.persimmon/`, write `persimmon.yaml`, install the shipped Adapters, apply the SDLC pack's `global/` and `namespaced/` (`20-pack.md`) |
 | `persimmon complete <taskRun> [--file <result.yaml>]` | local mode: `signal` for a `cli-human/v1` attempt as the local Actor; drains, then prints the `tree` of the run the Task belongs to, in both modes |
 | `persimmon delete <kind>/<name>` | refused while referenced (`00-resource.md`) |
@@ -180,6 +180,9 @@ imports into a server unchanged.
   Adapter still re-registers or re-describes. Found in UAT.
 - `complete` drains and ends with the `tree` of the run its Task belongs to, whichever mode: the
   scripted path printed one line and the caller had to go looking. Found in UAT.
+- `tree` measures a finished TaskRun to its last attempt's `finishedAt`, not to the RunLog entry
+  that applied the answer: local mode delivers the answers of one drain together, so two parallel
+  reviewers showed the same duration. Found in UAT.
 
 ## Examples
 

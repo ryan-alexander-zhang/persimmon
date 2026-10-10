@@ -116,15 +116,17 @@ function short(v: Output): string {
   return json.length > 60 ? `${json.slice(0, 57)}...` : json
 }
 
-/** Creation to the last RunLog entry for a finished run, to now for a live one. */
+/** Creation to the last attempt's answer (a TaskRun) or the last RunLog entry for a finished run, to now for a live one. */
 function elapsed(engine: Engine, node: Resource, now: number): string {
   const from = Date.parse(node.metadata.creationTimestamp ?? '')
   if (Number.isNaN(from)) return ''
   const s = (node.status ?? {}) as Status
   let to = now
   if (done.has(s.phase ?? '')) {
+    const answered = Date.parse(s.attempts?.at(-1)?.finishedAt ?? '') // local mode delivers the answers of one drain together; the attempt knows when it really ended
     const applied = engine.store.runLog.read(node.metadata.uid as string).map((e) => Date.parse(e.appliedAt ?? '')).filter((t) => !Number.isNaN(t))
-    if (applied.length) to = Math.max(...applied)
+    if (!Number.isNaN(answered)) to = answered
+    else if (applied.length) to = Math.max(...applied)
   }
   const sec = Math.max(0, Math.round((to - from) / 1000))
   const [h, m, ss] = [Math.floor(sec / 3600), Math.floor((sec % 3600) / 60), sec % 60]
