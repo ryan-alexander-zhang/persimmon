@@ -29,7 +29,7 @@ describe('resolveClosure', () => {
   beforeEach(() => {
     store = new SqliteStore(':memory:', { blobs: memoryBlobs() })
     reg = new KindRegistry()
-    const fullKinds = ['workflow', 'task', 'prompt', 'workflowrun', 'productrequirement', 'researchreport'].map((n) =>
+    const fullKinds = ['workflow', 'task', 'prompt', 'workflowrun', 'productrequirement', 'researchreport', 'pipeline'].map((n) =>
       example(`kind-definition-${n}`),
     )
     const fromClosure = closure.resources.filter((r) => r.kind === 'KindDefinition' && /^(executors|skills|taskruns)\./.test(r.metadata.name))
@@ -44,7 +44,32 @@ describe('resolveClosure', () => {
         if (!a) throw new SnapshotError(`adapter ${id} not Ready`)
         return a.describeDigest
       },
+      // a stand-in for the composition Handler: a Pipeline expands to the Workflow its spec names under `expandsTo`
+      expand: (r) => [{ apiVersion: 'persimmon.ai/v1', kind: 'Workflow', metadata: { name: r.metadata.name, namespace: r.metadata.namespace }, spec: (r.spec as { expandsTo: Record<string, unknown> }).expandsTo } as Resource],
     }
+  })
+
+  const prdCreate = () => closure.resources.find((r) => r.kind === 'Workflow')!.spec as Record<string, unknown>
+
+  it('a composition is replaced by its expansion; its KindDefinition rides along (04-snapshot.md step 8)', () => {
+    store.resources.put({ apiVersion: 'persimmon.ai/v1', kind: 'Pipeline', metadata: { name: 'pipe', namespace: 'demo' }, spec: { expandsTo: prdCreate() } })
+    const r = root()
+    ;(r.spec as { workflowRef: { kind: string; name: string } }).workflowRef = { kind: 'Pipeline', name: 'pipe' } // allowed: Pipeline expands to Workflow
+    const c = resolveClosure(r, resolver)
+    const names = c.resources.map((x) => `${x.kind} ${x.metadata.name}`)
+    expect(names).toContain('Workflow pipe')
+    expect(names).toContain('KindDefinition pipelines.persimmon.ai')
+    expect(names).toContain('Task research') // the expansion was walked
+    expect(names.some((n) => n.startsWith('Pipeline '))).toBe(false)
+  })
+
+  it('an expansion that collides with a member of a different spec fails the create', () => {
+    const outer = { apiVersion: 'persimmon.ai/v1', kind: 'Workflow', metadata: { name: 'outer', namespace: 'demo' }, spec: { ...prdCreate(), steps: [{ id: 'a', uses: { kind: 'Workflow', name: 'prd-create' }, inputs: {}, timeout: '1h' }, { id: 'b', uses: { kind: 'Pipeline', name: 'prd-create' }, inputs: {}, timeout: '1h' }] } }
+    store.resources.put(outer)
+    store.resources.put({ apiVersion: 'persimmon.ai/v1', kind: 'Pipeline', metadata: { name: 'prd-create', namespace: 'demo' }, spec: { expandsTo: { ...prdCreate(), timeout: '9h' } } })
+    const r = root()
+    ;(r.spec as { workflowRef: { name: string } }).workflowRef.name = 'outer'
+    expect(() => resolveClosure(r, resolver)).toThrow(/Workflow prd-create is already in the closure with a different spec/)
   })
   afterEach(() => store.close())
 

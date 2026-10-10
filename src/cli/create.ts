@@ -192,13 +192,15 @@ function workflowOf(engine: Engine, doc: Resource): Resource | undefined {
   const { workflowRef } = doc.spec as { workflowRef: { kind: string; name: string } }
   const ns = doc.metadata.namespace
   const kinds = ['Workflow', ...engine.kinds.definitions().filter((kd) => kd.spec.expansion?.kind === 'Workflow').map((kd) => kd.spec.names.kind)]
-  for (const kind of kinds) {
-    const hit = (ns ? engine.store.resources.get({ kind, namespace: ns, name: workflowRef.name }) : undefined) ?? engine.store.resources.get({ kind, name: workflowRef.name })
-    if (hit) {
-      workflowRef.kind = kind
-      return hit
+  const scopes: (string | undefined)[] = ns ? [ns, undefined] : [undefined] // Namespace across every kind first, then Global, the closure's own order (04-snapshot.md)
+  for (const scope of scopes)
+    for (const kind of kinds) {
+      const hit = engine.store.resources.get(scope ? { kind, namespace: scope, name: workflowRef.name } : { kind, name: workflowRef.name })
+      if (hit) {
+        workflowRef.kind = kind
+        return hit
+      }
     }
-  }
   return undefined
 }
 

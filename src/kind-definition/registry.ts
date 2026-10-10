@@ -37,6 +37,7 @@ export class KindRegistry {
   register(value: unknown, o: { replace?: boolean; dryRun?: boolean } = {}): KindDefinition {
     const definition = validateKindDefinition(value)
     const target = definition.spec.expansion && this.byKind(definition.spec.expansion.kind)?.definition // registration order is free; an unregistered target fails at expand time
+    if (target?.spec.expansion) throw new KindError(`${definition.metadata.name}: expansion kind ${target.spec.names.kind} is itself a composition`)
     if (target && definition.spec.stepContract && !isDeepStrictEqual(definition.spec.stepContract, target.spec.stepContract)) throw new KindError(`${definition.metadata.name}: stepContract differs from ${target.spec.names.kind}'s`)
     const staged = new Map<string, Compiled>()
     for (const version of definition.spec.versions) {

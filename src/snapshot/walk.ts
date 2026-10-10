@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from 'node:util'
 import type { KindDefinition } from '../kind-definition/types.js'
 import type { LocalDefinitionRef, Resource } from '../resource/types.js'
 import { findAnnotated } from './annotations.js'
@@ -75,7 +76,17 @@ export function resolveClosure(root: Resource, resolver: Resolver): Closure {
           if (targetKind.spec.expansion) {
             // the closure holds the expansion, not the sugar; the composition's KindDefinition rides along so lookups can map the kind (04-snapshot.md step 8)
             addKind(targetKind)
-            const fresh = resolver.expand(target).filter((r) => !members.has(keyOf(r)))
+            let expansion: Resource[]
+            try {
+              expansion = resolver.expand(target)
+            } catch (e) {
+              throw new SnapshotError(`${where}: expansion of ${ref.kind} ${ref.name} failed: ${(e as Error).message}`)
+            }
+            for (const r of expansion) {
+              const present = members.get(keyOf(r))
+              if (present && !isDeepStrictEqual(present.spec, r.spec)) throw new SnapshotError(`${where}: ${r.kind} ${r.metadata.name} is already in the closure with a different spec`)
+            }
+            const fresh = expansion.filter((r) => !members.has(keyOf(r)))
             for (const r of fresh) {
               const rk = resolver.kindByName(r.kind)
               if (!rk) throw new SnapshotError(`${where}: expansion kind ${r.kind} is not registered`)

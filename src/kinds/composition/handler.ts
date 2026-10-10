@@ -34,7 +34,7 @@ export function compositionHandler(deps: HandlerDeps): HandlerImpl {
       } catch (e) {
         return [{ severity: 'error' as const, code: 'expansion', message: `${label}: ${(e as Error).message}` }]
       }
-      return (impls[r.kind]?.validate(r).findings ?? []).map((f) => ({ ...f, message: `${label}: ${f.message}` }))
+      return (impls[r.kind]?.validate(r).findings ?? []).map((f) => ({ ...f, message: `${label}: ${f.message}`, ...(f.path && composition.kind === 'Pipeline' ? { path: f.path.replace(/^\/spec\/steps\//, '/spec/phases/') } : {}) })) // a phase is a step: the path points at what the user wrote
     })
   }
 

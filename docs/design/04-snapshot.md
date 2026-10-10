@@ -73,6 +73,10 @@ fail the read. No fallback to live definitions.
 
 ## Decisions
 
+- An expansion member that collides with a member of the same kind and name but a different
+  spec fails the create; an equal one is shared. `expand` errors surface as snapshot errors with
+  the referencing path. Found in implementation.
+
 - Bytes carry no run identity and no engine metadata: content-addressed, deduplicated.
   Reference serialized whole Resources.
 - `uri` is `snapshot://<digest hex>`. Reference left it opaque. Sibling examples updated.

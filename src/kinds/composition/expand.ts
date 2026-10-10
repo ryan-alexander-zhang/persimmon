@@ -9,7 +9,7 @@ export type IsGate = (ref: { kind: string; name: string }) => boolean
 
 /** Pipeline → Workflow of the same name: phases as steps, transitions implied by order, gate phases reject with `<id>_rejected`. */
 export function expandPipeline(p: Pipeline, isGate: IsGate): Workflow {
-  const { phases, ...rest } = p.spec
+  const { phases, inputs, outputs, outputBindings, timeout } = p.spec
   const transitions: Transition[] = phases.map((phase, i) => {
     const next: Target = i + 1 < phases.length ? { stepRef: phases[i + 1]!.id } : { terminal: 'Succeeded' }
     const t: Transition = { id: `after-${phase.id}`, from: [{ stepRef: phase.id, outcomes: ['Succeeded'] }], to: [next] }
@@ -19,7 +19,7 @@ export function expandPipeline(p: Pipeline, isGate: IsGate): Workflow {
     }
     return t
   })
-  return { apiVersion: p.apiVersion, kind: 'Workflow', metadata: meta(p as unknown as Resource), spec: { ...rest, entry: [phases[0]!.id], steps: phases, transitions } }
+  return { apiVersion: p.apiVersion, kind: 'Workflow', metadata: meta(p as unknown as Resource), spec: { ...(inputs ? { inputs } : {}), ...(outputs ? { outputs } : {}), ...(outputBindings ? { outputBindings } : {}), entry: [phases[0]!.id], steps: phases, transitions, timeout } }
 }
 
 /** Approval → Gate of the same name plus one Validator `<name>-<approver>` per approver, each a `task` evaluator over the approver's Task. */
