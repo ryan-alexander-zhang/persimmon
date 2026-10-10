@@ -50,6 +50,7 @@ file, named after the file; a directory that holds several kinds is named after 
 | `src/handler/write.ts` (`stampRevision`) | `05-revisioned-kind.md` | `persimmon create` of a revisioned Resource: identity, revision, provenance |
 | `src/outbox/` | `06-outbox.md` | event shape, subscription match, causation chain, poller: claim, deliver as Signal, ack |
 | `src/adapter/` | `07-adapter.md`, `19-adapter-roles.md` | `persimmon.adapter/v1` client: stdio and http transports, `describe`, Role payloads; Engine callbacks server; token scopes (persistence is TokenStore) |
+| `src/conformance/` | `22-conformance.md` | the suite: fixture Task, rules E1–E15, the fake Engine callbacks server; `persimmon adapter test` and `test/adapters/conformance.test.ts` both call it |
 | `src/authz.ts` (not created) | `08-store.md` Authentication and authorization | roadmap with server mode; local mode: the local Actor is admin |
 
 ### Kinds
@@ -79,6 +80,7 @@ the static checker calls.
 | `src/server/` (not created) | `08-store.md` server Mode | roadmap: `persimmon serve`, https API, `server.auth.tokens[]` |
 | `packs/sdlc/global/`, `packs/sdlc/namespaced/` | `20-pack.md` | pack files; `persimmon init` applies `global/` as Global and `namespaced/` into `defaultNamespace` |
 | `adapters/<id>/` | `07-adapter.md`, `19-adapter-roles.md` | Adapters shipped with the binary: `adapter.yaml` manifest and a stdio script; `persimmon init` installs them before the pack |
+| `adapters/<id>/conformance.mjs`, `adapters/lib/conformance.mjs` | `22-conformance.md` | the stub each shipped Adapter runs in place of its CLI under the suite |
 | `adapters/lib/` | `19-adapter-roles.md` executor Role | `agent.mjs`: the one process-per-attempt runner behind `claude-code/v1`, `codex/v1` and `subprocess/v1`; a driver supplies the command line, the stdin text and the result parser; `skills.mjs`: the Skill bundle digest and fetch, imported by `src/cli/` too |
 | `examples/<nn>/` | `20-pack.md` | teaching projects, one scenario each: hand-written definitions plus a `README.md` the user follows; `persimmon init` runs inside the directory, so its `.persimmon/` and `persimmon.yaml` are generated and ignored |
 | `src/adapters.d.ts` | `15-prompt-skill.md` | types for the `adapters/lib/skills.mjs` import |
@@ -134,7 +136,7 @@ Postgres driver, https server framework: chosen with server mode.
 | unit | `src/**/*.test.ts` beside the code | one behavior per file |
 | examples | unit tests beside each module | design examples drive the module tests; `persimmon validate` covers the DSL |
 | scenario | `test/scenario/` | a Workflow runs end to end on SQLite with a fake Adapter |
-| adapters | `test/adapters/` | shipped Adapters' runner, drivers, skills against stub binaries |
+| adapters | `test/adapters/` | shipped Adapters' runner, drivers, skills against stub binaries; `conformance.test.ts` runs the suite over every shipped Adapter |
 
 ## Reading order
 

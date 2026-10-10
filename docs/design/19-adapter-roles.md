@@ -87,7 +87,7 @@ Result: a ValidationResult (`10-ports.md`). No `credentials`, no `security` (`14
 | Adapter must | Checked by |
 |---|---|
 | return exactly the declared outputs with equal types | `task` Handler: `schema_violation` |
-| honour `security.networkAccess`, `allowedHosts`, and the `deadline` | Adapter author; conformance suite |
+| honour `security.networkAccess`, `allowedHosts`, and the `deadline` | Adapter author; conformance suite (`22-conformance.md`, the deadline) |
 | be idempotent per `idempotencyKey` when `sideEffects: idempotent` | Adapter author |
 | verify Skill digests before use; mismatch → `skill_digest_mismatch`, not retryable (`15-prompt-skill.md`) | Adapter author |
 | never persist or log `credentials` | Adapter author |

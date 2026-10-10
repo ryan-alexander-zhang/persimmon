@@ -58,5 +58,6 @@ Read top to bottom within a layer; a file depends only on files above it.
 
 | File | Content | Status |
 |---|---|---|
+| `docs/design/22-conformance.md` | `persimmon adapter test`: rules by id for the executor Role, stub contract | active |
 | `docs/design/90-decisions.md` | Decision log | active |
 | `docs/design/91-roadmap.md` | Deferred items, open questions | active |

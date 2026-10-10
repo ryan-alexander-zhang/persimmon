@@ -4,7 +4,7 @@ status: active · What v1 leaves out, by layer, with the design file that defers
 
 ```text
 v1        Layer 0 framework · Layer 1 core kinds · Layer 2 SDLC pack as a directory
-next      deployment lifecycle · conformance suite · Layer 3 packaging
+next      deployment lifecycle · Layer 3 packaging
 later     eager joins · retention policy · policy resource · external event sources
 ```
 
@@ -12,7 +12,7 @@ later     eager joins · retention policy · policy resource · external event s
 
 | Item | Deferred by | Note |
 |---|---|---|
-| conformance suite for Handlers and Adapters | `02-handler.md`, `07-adapter.md` | statelessness, idempotency, security, secret hygiene |
+| conformance rules for the handler and evaluator Roles | `02-handler.md`, `22-conformance.md` | executor Role covered by `persimmon adapter test`; statelessness, idempotency, `evaluate` shape wait for an Adapter with those Roles |
 | server HTTP API specification | `08-store.md` | v1: the CLI verb set over https |
 | OIDC or other authentication beyond bearer tokens | `08-store.md` | |
 | authorization policy as a Resource | `08-store.md` | v1: grant table in `persimmon.yaml` |

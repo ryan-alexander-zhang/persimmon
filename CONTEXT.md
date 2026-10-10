@@ -114,6 +114,12 @@ The `describe` operation result, cached in `Adapter.status.describe`; its digest
 in snapshots.
 _Avoid_: manifest, capabilities, metadata
 
+**Conformance suite**:
+`persimmon adapter test <id>`: the engine's side of `persimmon.adapter/v1` played against one
+**Adapter**, one verdict per numbered rule (`E1`…). Runs offline through a stub the Adapter names,
+or live once.
+_Avoid_: compliance test, certification, contract test, smoke test
+
 **Reference**:
 One of four validated shapes: **ObjectRef** (existing resource), **LocalDefinitionRef**
 (kind + name, writer's namespace then global), **RevisionRef** (revisioned kind + id +

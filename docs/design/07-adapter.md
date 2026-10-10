@@ -124,7 +124,7 @@ Adapters reach the engine only here, at `engine.endpoint`, with a token.
   `Ready` lives in `status.conditions[]`; the reference kept conditions out of `status` for
   handled kinds (decision 32), an Adapter has no Handler.
 - One process per call, so a resident process with liveness handling is roadmap.
-- Conformance suite for Adapters and Handlers is roadmap (`91-roadmap.md`).
+- Conformance suite: the executor Role is `22-conformance.md`; the handler Role is roadmap (`91-roadmap.md`).
 - stdio environment is an allowlist: `PATH`, `HOME`, `USER`, `LOGNAME`, `TMPDIR`, `LANG`,
   `NODE_PATH`, `NODE_OPTIONS`, then `spec.env`, bound credentials and the adapter token.
   `USER` is needed for macOS keychain logins. Found in implementation.

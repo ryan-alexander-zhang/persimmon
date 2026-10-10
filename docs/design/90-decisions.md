@@ -7,7 +7,7 @@ file is the source.
 ```text
 docs/design/00–08  Layer 0   ─┐
 docs/design/10–19  Layer 1   ─┼─▶ ## Decisions bullets ─▶ this table, in file order
-docs/design/20     Layer 2   ─┘
+docs/design/20–22  Layer 2   ─┘
 ```
 
 Reference decisions (`docs/reference/60-decisions.md`) 5, 10, 21, 31 were superseded by the
@@ -82,7 +82,7 @@ appears twice; the earlier file owns it.
 | 63 | `07-adapter.md` | `credentialBindings[0]` is the http bearer token. |
 | 64 | `07-adapter.md` | `status.describeDigest` stored beside `describe`. Adapter `status` is engine-written, and `Ready` lives in `status.conditions[]`; the reference kept conditions out of `status` for handled kinds (decision 32), an Adapter has no Handler. |
 | 65 | `07-adapter.md` | One process per call, so a resident process with liveness handling is roadmap. |
-| 66 | `07-adapter.md` | Conformance suite for Adapters and Handlers is roadmap (`91-roadmap.md`). |
+| 66 | `07-adapter.md` | Conformance suite: the executor Role is `22-conformance.md`; the handler Role is roadmap (`91-roadmap.md`). |
 | 67 | `07-adapter.md` | stdio environment is an allowlist: `PATH`, `HOME`, `USER`, `LOGNAME`, `TMPDIR`, `LANG`, `NODE_PATH`, `NODE_OPTIONS`, then `spec.env`, bound credentials and the adapter token. `USER` is needed for macOS keychain logins. Found in implementation. |
 | 68 | `07-adapter.md` | Stream `log` lines are appended to the RunLog entry that issued the call, beside the `log` callback; `waiting` lines are not stored, the Handler owns `waitingReason`. Found in implementation. |
 | 69 | `07-adapter.md` | A `publishArtifact` the engine refuses (content, blob, shape) answers `400 invalid_input`, not `500`. Found in implementation. |
@@ -255,3 +255,8 @@ appears twice; the earlier file owns it.
 | 236 | `21-composition.md` | A ReviewLoop's expansion reads the `subject` type from `produce`'s definition, live at write and at snapshot: the loop names the port, the definition owns the type. The loop rules (`subject` an output, `previous` and `feedback` optional inputs, `review` a GateRun kind) are checked before expansion, so the finding names the loop field, not a derived Workflow. Found in implementation. |
 | 237 | `21-composition.md` | Expansion resolves references in the run's Namespace at snapshot (`expand(resource, namespace)`), the composition's own at write, the same order the walk uses for every hop. A composition that expands through itself is refused by an in-progress guard. Found in UAT (audit). |
 | 238 | `21-composition.md` | `GateRun.spec.gateRef` accepts a kind expanding to Gate, as `workflowRef` does: a round whose review was an Approval stalled on `/gateRef/kind must be equal to constant`. The Gate Handler reads the closure by name, so the expansion is found either way. Found in UAT. |
+| 239 | `22-conformance.md` | The stub replaces the CLI through `configuration.command` under `PERSIMMON_ADAPTER_CONFORMANCE=1`, never by shadowing binaries on `PATH`: a `PATH` the suite writes is a door every process behind it walks through. Found in UAT. |
+| 240 | `22-conformance.md` | The suite serves its own callbacks instead of the engine's: a real `publishArtifact` needs a registered artifact kind and a Publication scope owned by a run, and the suite checks the Adapter, not the engine. `putBlob` hashes for real so a digest mismatch would show. |
+| 241 | `22-conformance.md` | `command` is absent from every shipped `configurationSchema` on purpose: the engine refuses an Executor that names it at apply, and the runner refuses it without the flag. |
+| 242 | `22-conformance.md` | Handler and evaluator Roles are not covered: no shipped Adapter has them. Their rules (validate pure, declared Actions only, no-op after terminal; `evaluate` answers a ValidationResult) stay on the roadmap until an Adapter needs them. |
+| 243 | `22-conformance.md` | The fixture answer reaches the stub by environment and a live model by the instructions; the live run is one real `execute`, the cheapest proof that the argument mapping works. |
