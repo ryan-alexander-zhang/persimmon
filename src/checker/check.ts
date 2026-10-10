@@ -7,7 +7,7 @@ import { Engine } from '../engine.js'
 import { validateEnvelope } from '../resource/envelope.js'
 import type { Finding } from '../handler/types.js'
 import type { Resource } from '../resource/types.js'
-import { memoryBlobs } from '../store/test-util.js'
+import { memoryBlobs } from '../store/memory-blobs.js'
 
 export interface Checked {
   resource: Resource
