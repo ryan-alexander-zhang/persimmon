@@ -201,6 +201,8 @@ spec:
   executorRef: {kind: Executor, name: claude-writer}
   action:
     instructions: |
+      First, as plain text in your reply, one line per finding: "<reviewer> <id>: true|false, <why>". This text
+      is logged. Only after that, answer.
       You wrote the PRD. Two reviewers read it: input claude and input codex. Judge every finding of severity
       error or warning on its own, against the PRD text and the template: is it true? A finding is true when
       the PRD really has the defect it names. A finding that is a matter of taste, that asks for scope the idea

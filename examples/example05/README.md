@@ -108,14 +108,15 @@ persimmon get Judgement/idea-to-reviewed-prd-<hex>-rounds-1-judge-judgement.r1
 persimmon get ReviewReport                                                 # two per round: what each reviewer said
 persimmon get EarsPrd                                                      # the draft and one revision per round
 persimmon tree WorkflowRun/idea-to-reviewed-prd-<hex>
-persimmon logs TaskRun/idea-to-reviewed-prd-<hex>-rounds-1-judge           # the judge's answer calls; its reasons are in the Judgement
+persimmon logs TaskRun/idea-to-reviewed-prd-<hex>-rounds-1-judge           # the judge's reasoning, one line per finding, then its answer calls
 ```
 
 A `Judgement` has one verdict per finding: which reviewer, the finding verbatim, `holds`, and the
 reason. `accepted` and `rejected` count them. In one run, round 1 had 11 verdicts (3 from Claude,
 8 from Codex), 8 accepted and 3 rejected; the judge sided with the PRD on matters of taste and
-scope and fixed the rest. The reasons live in the artifact, not in `logs`: headless `claude`
-prints no thinking, only its tool calls. Compare the two `ReviewReport`s of a round to see
+scope and fixed the rest. The judge is told to write its reasoning as text before it answers,
+so `logs` shows one line per finding; headless `claude` prints no thinking on its own, only
+what the agent says and the tools it calls. Compare the two `ReviewReport`s of a round to see
 where Claude and Codex disagreed and whom the judge sided with.
 
 ## Change it
