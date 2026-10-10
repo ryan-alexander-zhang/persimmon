@@ -41,7 +41,10 @@ export function serveCallbacks(socketPath: string, tokens: { call: string; adapt
   })
   return new Promise((resolve, reject) => {
     server.once('error', reject)
-    server.listen(socketPath, () => resolve({ calls, close: () => new Promise((r) => server.close(() => r())) }))
+    server.listen(socketPath, () => {
+      server.removeListener('error', reject)
+      resolve({ calls, close: () => new Promise((r) => server.close(() => r())) })
+    })
   })
 }
 

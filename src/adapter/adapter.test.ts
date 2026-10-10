@@ -71,6 +71,15 @@ suite('stdio calls', () => {
     const out = await reg.call('fake/v1', 'execute', { attempt: 1 }, { adapterToken: 'at-1', onStream: (l) => lines.push(l) })
     expect(lines.map((l) => l.event)).toEqual(['log', 'waiting'])
     expect(out).toEqual({ state: 'succeeded', result: { echo: { attempt: 1 }, env: { token: 'at-1', cred: 'sk-test', leaked: null } } })
+    // a credential or env named like the engine's own variables never reaches the process (22-conformance.md)
+    const named = fake()
+    named.spec.credentialBindings = ['persimmon-adapter-conformance']
+    named.spec.env = { ...named.spec.env, FAKE_ECHO_FLAG: '1' }
+    const lines2: StreamLine[] = []
+    const reg2 = new AdapterRegistry({ resolve: () => '1' })
+    reg2.register(await describe(named, { resolve: () => '1' }, now))
+    const out2 = await reg2.call('fake/v1', 'execute', {}, { adapterToken: 'at-1', onStream: (l) => lines2.push(l) })
+    expect(out2.state === 'succeeded' && (out2.result as { env: { flag: unknown } }).env.flag).toBe(null)
   })
 
   it('maps ok:false to failed, a deadline to unknown, and bad output to unknown', async () => {

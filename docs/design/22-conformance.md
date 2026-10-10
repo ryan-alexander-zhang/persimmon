@@ -50,7 +50,7 @@ include `agent`, `script` or `tool`; `human` one that includes `human`.
 | E9 | `cancel` of a running attempt by its `idempotencyKey` answers a CancelResult; a process attempt then answers `cancelled`; a human attempt is cancelled after its ack, any state | `19` | `supports.cancel` | no |
 | E10 | a program that exits non-zero is `agent_failed`, retryable; credential values are redacted from stream `log` lines | `19` | process | no |
 | E11 | the prompt presents context entries (an artifact by content or by id) before `instructions`, in order, and `instructions` verbatim | `19` | agent | no |
-| E12 | a declared Skill not installed in the workspace is `invalid_input`; installed with another digest is `skill_digest_mismatch`, not retryable; installed and equal passes (the two installed cases need `describe.conformance.skillDir`) | `15`, `19` | `skillFormats` non-empty | yes (missing) |
+| E12 | a declared Skill not installed in the workspace is `invalid_input`; installed with another digest is `skill_digest_mismatch`, not retryable; installed and equal passes (the two installed cases need `describe.conformance.skillDir`) | `15`, `19` | `skillFormats` non-empty and `contextKinds` has `skill` | yes (missing) |
 | E13 | an unknown op is `invalid_input` | `07` | all | yes |
 | E14 | `execute` answers HumanAck after a `waiting` stream line with reason `human` | `19` | human | yes |
 | E15 | every error seen is `{code, message, retryable}` with a lower snake `code` | `03`, `07` | all | yes |
@@ -71,7 +71,7 @@ non-empty program array run in place of `claude` or `codex` with the CLI's own a
 | Guard | Rule |
 |---|---|
 | `configuration.command` | honoured only when the Adapter process has `PERSIMMON_ADAPTER_CONFORMANCE=1`; otherwise `invalid_input`, not retryable |
-| the engine | its stdio env allowlist never passes that variable and `Adapter.spec.env` may not name `PERSIMMON_*`; no shipped `configurationSchema` lists `command`, so an applied Executor cannot name it |
+| the engine | its stdio env allowlist never passes that variable, `Adapter.spec.env` may not name `PERSIMMON_*`, and the stdio transport drops any such name from `spec.env` or a credential binding before it adds the token; no shipped `configurationSchema` lists `command`, so an applied Executor cannot name it |
 | the operator | not kept out: whoever runs the engine owns its environment (`NODE_OPTIONS` included) and its Adapters |
 | `PATH` | never changed |
 

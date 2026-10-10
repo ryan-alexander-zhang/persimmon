@@ -35,13 +35,13 @@ export const rules = {
   E2: 'a second describe is equal to the first',
   E3: 'execute answers exactly the declared outputs; artifacts go through putBlob then publishArtifact under the call token',
   E4: 'a second execute with the same idempotencyKey publishes the same identity, or nothing and the same outputs',
-  E5: 'credentials reach the program only as <NS>__<NAME> environment',
+  E5: 'credentials reach the program only as <NS>__<NAME> environment; the secret appears in no argument, stdin, stream line or result',
   E6: 'engine.token and the adapter token never reach the program',
-  E7: 'the program runs in payload.workspace; a workspace that is not a directory is invalid_input',
-  E8: 'a passed deadline is timeout; a program outliving the deadline is killed, timeout',
-  E9: 'cancel by idempotencyKey answers a CancelResult; a process attempt then answers cancelled; a human attempt after its ack',
+  E7: 'the program runs in payload.workspace; a workspace that is not a directory is invalid_input, not retryable',
+  E8: 'a passed deadline is timeout; a program outliving the deadline is killed and the error is timeout, retryable',
+  E9: 'cancel by idempotencyKey answers a CancelResult; a process attempt then answers cancelled; a human attempt is cancelled after its ack, any state',
   E10: 'a non-zero exit is agent_failed, retryable; credential values are redacted from log lines',
-  E11: 'the prompt presents context entries before instructions, in order, instructions verbatim',
+  E11: 'the prompt presents context entries (an artifact by content or by id) before instructions, in order, instructions verbatim',
   E12: 'a declared Skill: missing is invalid_input, another digest is skill_digest_mismatch, equal passes',
   E13: 'an unknown op is invalid_input',
   E14: 'human: execute answers HumanAck after a waiting stream line with reason human',
@@ -89,8 +89,8 @@ const alive = (pid: number): boolean => {
   try {
     process.kill(pid, 0)
     return true
-  } catch {
-    return false
+  } catch (e) {
+    return (e as NodeJS.ErrnoException).code !== 'ESRCH' // EPERM is a live process of another user
   }
 }
 
@@ -245,9 +245,10 @@ export async function conformance(spec: AdapterSpec, o: SuiteOptions = {}): Prom
         check(!('PERSIMMON_ADAPTER_TOKEN' in seen!.env), 'PERSIMMON_ADAPTER_TOKEN is in the program environment')
       })
       await rule('E7', isProcess || 'no agent, script or tool type', async () => {
-        if (seen) check(realpathSync(seen.cwd) === realpathSync(workspace), `the program ran in ${seen.cwd}, not the workspace`)
+        if (!live) check(realpathSync(needRecord().cwd) === realpathSync(workspace), `the program ran in ${seen?.cwd}, not the workspace`)
         const { out } = await execute(2, {}, { workspace: join(dir, 'not-a-directory') })
         failedWith(out, 'invalid_input', false)
+        if (live) return 'cwd not checked: live'
       })
       await rule('E8', isProcess || 'no agent, script or tool type', async () => {
         const passed = await execute(3, {}, { deadline: new Date(Date.now() - 1000).toISOString() })

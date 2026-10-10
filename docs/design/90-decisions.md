@@ -83,7 +83,7 @@ appears twice; the earlier file owns it.
 | 64 | `07-adapter.md` | `status.describeDigest` stored beside `describe`. Adapter `status` is engine-written, and `Ready` lives in `status.conditions[]`; the reference kept conditions out of `status` for handled kinds (decision 32), an Adapter has no Handler. |
 | 65 | `07-adapter.md` | One process per call, so a resident process with liveness handling is roadmap. |
 | 66 | `07-adapter.md` | Conformance suite: the executor Role is `22-conformance.md`; the handler Role is roadmap (`91-roadmap.md`). |
-| 67 | `07-adapter.md` | stdio environment is an allowlist: `PATH`, `HOME`, `USER`, `LOGNAME`, `TMPDIR`, `LANG`, `NODE_PATH`, `NODE_OPTIONS`, then `spec.env`, bound credentials and the adapter token. `USER` is needed for macOS keychain logins. Found in implementation. |
+| 67 | `07-adapter.md` | stdio environment is an allowlist: `PATH`, `HOME`, `USER`, `LOGNAME`, `TMPDIR`, `LANG`, `NODE_PATH`, `NODE_OPTIONS`, then `spec.env`, bound credentials, minus any `PERSIMMON_*` name they carry, then the adapter token. `USER` is needed for macOS keychain logins. Found in implementation. |
 | 68 | `07-adapter.md` | Stream `log` lines are appended to the RunLog entry that issued the call, beside the `log` callback; `waiting` lines are not stored, the Handler owns `waitingReason`. Found in implementation. |
 | 69 | `07-adapter.md` | A `publishArtifact` the engine refuses (content, blob, shape) answers `400 invalid_input`, not `500`. Found in implementation. |
 | 70 | `07-adapter.md` | The callbacks socket moves to the temp directory, keyed by cwd, when the project path is too long for `sun_path`. Found in implementation. |

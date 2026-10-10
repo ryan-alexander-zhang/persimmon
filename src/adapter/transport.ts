@@ -31,6 +31,7 @@ function stdio(spec: AdapterSpec, request: Request, credentials: CredentialStore
     if (v === undefined) throw new TransportError(`${spec.id}: credential ${name} not found`)
     env[envName('', name)] = v
   }
+  for (const k of Object.keys(env)) if (k.startsWith('PERSIMMON_')) delete env[k] // the engine's names, whatever spec.env or a credential name says (22-conformance.md)
   if (o.adapterToken) env.PERSIMMON_ADAPTER_TOKEN = o.adapterToken
   Object.assign(env, o.env)
 
