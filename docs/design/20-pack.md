@@ -64,7 +64,9 @@ Credentials the pack Executors bind are Global names resolved at run time.
   (`21-composition.md`): a pack ships YAML and cannot ship a Handler. The pack's Workflows stay
   raw Workflows; a Pipeline version is an example, not pack content.
 - Deployment out of the v1 lifecycle: no `Rollout`, no `sdlc`, `research`,
-  `engineering-iteration` Workflows yet. Roadmap.
+  `engineering-iteration` Workflows. Not planned: the shipped pack is the engine's demo and
+  teaching vocabulary; delivery processes (waterfall, spec-driven) are designed as packs of
+  their own. Found in UAT.
 - Traceability Validator and entity indexing deferred; the `list` Engine callback stays for
   Relation queries by any Handler or Adapter.
 - Artifact kinds cut from 14 to the 3 the shipped Workflows touch; `PlanTask`,

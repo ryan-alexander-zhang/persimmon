@@ -4,7 +4,7 @@ status: active · What v1 leaves out, by layer, with the design file that defers
 
 ```text
 v1        Layer 0 framework · Layer 1 core kinds · Layer 2 SDLC pack as a directory
-next      deployment lifecycle · Layer 3 packaging
+next      Layer 3 packaging · process packs (waterfall, spec-driven) designed on their own
 later     eager joins · retention policy · policy resource · external event sources
 ```
 
@@ -53,10 +53,7 @@ later     eager joins · retention policy · policy resource · external event s
 
 | Item | Deferred by | Note |
 |---|---|---|
-| deployment lifecycle: `Rollout`, `sdlc`, `research`, `engineering-iteration` Workflows | `20-pack.md` | Rollout semantics: DeploymentPlan, operationKey, fencingToken, rollback branches |
-| traceability Validator, entity indexing, `implements-v1` / `verifies-v1`, `PlanTask`, `ImplementationReport` | `18-artifact.md`, `20-pack.md` | `list` callback already present |
 | pack format: manifest, version, dependency resolution, `pack` verb | `20-pack.md` | v1: directory and `apply` |
-| the remaining SDLC artifact kinds | `20-pack.md` | arrive with the Workflows that touch them |
 | tester as its own Task, apart from the coder | `examples/example04` | v1: the coder writes its tests; a Validator reads them |
 
 ## Layer 3
