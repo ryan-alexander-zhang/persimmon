@@ -79,6 +79,7 @@ persimmon get WorkflowRun                       # phases, waiting reasons, error
 persimmon tree WorkflowRun/<name>               # the run, what it produced and every run it owns
 persimmon complete <taskRun>                    # answer a human Task; use --file result.yaml to script it
 persimmon resume                                # drive waiting work after a Signal or a timer
+persimmon adapter test claude-code/v1           # conformance suite over an installed Adapter; --live makes one real call
 persimmon --help                                # every verb, including skill install and digest
 ```
 
