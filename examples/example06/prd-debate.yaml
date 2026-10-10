@@ -1,0 +1,294 @@
+# prd-debate: the example05 loop written with composition kinds. ReviewLoop (write or revise -> Approval of two agent reviewers) inside a
+# Pipeline that ends with your sign-off. Install: persimmon apply prd-debate.yaml    Run: persimmon run idea-to-approved-prd --input idea="..." --follow
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata: {name: earsprds.engineering.persimmon.ai}
+spec:
+  group: engineering.persimmon.ai
+  names: {kind: EarsPrd, plural: earsprds}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [title, summary, features]
+        properties:
+          title: {type: string}
+          summary: {type: string, description: "Section 1: the problem, the users, the outcome, in prose"}
+          features:
+            type: array
+            minItems: 1
+            description: "Section 2: one entry per feature"
+            items:
+              type: object
+              required: [id, name, requirements]
+              properties:
+                id: {type: string}
+                name: {type: string}
+                requirements:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [id, pattern, statement]
+                    properties:
+                      id: {type: string}
+                      pattern: {enum: [ubiquitous, event-driven, state-driven, unwanted-behaviour, optional, complex]}
+                      statement: {type: string, description: "EARS sentence, e.g. 'When <trigger>, the <system> shall <response>'"}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"
+---
+# What the judge decided about every finding of one round. The record of "is this finding true?".
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata: {name: judgements.engineering.persimmon.ai}
+spec:
+  group: engineering.persimmon.ai
+  names: {kind: Judgement, plural: judgements}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [subject, verdicts, accepted, rejected]
+        properties:
+          subject: {type: string, description: "the PRD revision judged"}
+          verdicts:
+            type: array
+            items:
+              type: object
+              required: [reviewer, finding, holds, reason]
+              properties:
+                reviewer: {enum: [claude, codex]}
+                finding: {type: string, description: "the finding message, verbatim"}
+                holds: {type: boolean, description: "the judge agrees the finding holds against the PRD"}
+                reason: {type: string}
+          accepted: {type: integer, minimum: 0, description: "findings judged true and fixed"}
+          rejected: {type: integer, minimum: 0, description: "findings judged false"}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"
+---
+apiVersion: persimmon.ai/v1
+kind: Prompt
+metadata: {name: ears-prd-template}
+spec:
+  mediaType: text/markdown
+  content: |
+    PRD template. Two sections, nothing else.
+    Section 1 "summary": problem, target users, expected outcome. Prose, at most 200 words.
+    Section 2 "features": each feature has an id (F1, F2, ...), a name and its requirements.
+    Every requirement is one EARS sentence and names its pattern:
+    - ubiquitous:          The <system> shall <response>.
+    - event-driven:        When <trigger>, the <system> shall <response>.
+    - state-driven:        While <state>, the <system> shall <response>.
+    - unwanted-behaviour:  If <condition>, then the <system> shall <response>.
+    - optional:            Where <feature is included>, the <system> shall <response>.
+    - complex:             a combination of the above.
+    Requirement ids are F1-R1, F1-R2, ... Every statement is testable.
+---
+apiVersion: persimmon.ai/v1
+kind: Prompt
+metadata: {name: prd-review-rules}
+spec:
+  mediaType: text/markdown
+  content: |
+    Review rules. Report a finding only when you can point at the requirement id or the summary sentence.
+    Check: the summary states problem, users and outcome; every requirement is a valid EARS sentence of its
+    declared pattern; every statement is testable (a measurable response, no "fast", "easy", "robust");
+    no feature lacks requirements; no two requirements contradict; no requirement names a solution the
+    summary never asked for. severity error = must fix, warning = should fix, info = note.
+    Message format: "<id>: <what is wrong>: <what would fix it>".
+---
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: claude-writer}
+spec:
+  type: agent
+  adapter: claude-code/v1
+  configuration: {model: claude-sonnet-5, sandbox: read-only}
+  security:
+    networkAccess: allowlist
+    allowedHosts: [api.anthropic.com]
+---
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: claude-reviewer}
+spec:
+  type: agent
+  adapter: claude-code/v1
+  configuration: {model: claude-sonnet-5, sandbox: read-only}
+  security:
+    networkAccess: allowlist
+    allowedHosts: [api.anthropic.com]
+---
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: codex-reviewer}
+spec:
+  type: agent
+  adapter: codex/v1
+  configuration: {model: gpt-6-sol, sandbox: read-only}
+  security: {networkAccess: deny}
+---
+# The author. Round 1: writes the PRD from the idea. Later rounds: judges every finding in the feedback, fixes the true ones.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: write-or-revise-prd}
+spec:
+  inputs:
+    idea: {type: {kind: value, schema: {type: string, minLength: 1}}}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: EarsPrd}}, required: false}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+  outputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: EarsPrd}}}
+    judgement: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: Judgement}}}
+  executorRef: {kind: Executor, name: claude-writer}
+  action:
+    instructions: |
+      Without a previous PRD: write the PRD for the idea in the inputs, following the template exactly, three to six
+      features. Publish a Judgement with no verdicts (accepted 0, rejected 0, subject "first draft").
+      With a previous PRD and feedback: feedback.results.claude and feedback.results.codex hold each reviewer's
+      findings on the previous PRD. First, as plain text in your reply, one line per finding of severity error or
+      warning: "<reviewer> <code>: true|false, <why>". This text is logged. Then judge: a finding is true when the
+      PRD really has the defect it names; a matter of taste, scope the idea never had, or a misreading is false.
+      Publish a Judgement with one verdict per finding (reviewer, finding verbatim, holds, reason) and the counts.
+      Publish the revised PRD: every true finding fixed, nothing else changed, every id kept, the template kept.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: ears-prd-template}}
+      - {kind: artifact, input: previous}
+    parameters: {effort: high}
+  timeout: 20m
+  sideEffects: none
+---
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: review-prd-claude}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: EarsPrd}}}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
+  executorRef: {kind: Executor, name: claude-reviewer}
+  action:
+    instructions: |
+      Review the PRD by the review rules. Answer a ValidationResult: one finding per defect, code = the requirement
+      id or "summary", severity error (must fix), warning (should fix) or info; passed = true only when there is no
+      error finding; evidence empty.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: prd-review-rules}}
+      - {kind: artifact, input: prd}
+    parameters: {effort: high}
+  timeout: 15m
+  sideEffects: none
+---
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: review-prd-codex}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: EarsPrd}}}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
+  executorRef: {kind: Executor, name: codex-reviewer}
+  action:
+    instructions: |
+      Review the PRD by the review rules. Answer a ValidationResult: one finding per defect, code = the requirement
+      id or "summary", severity error (must fix), warning (should fix) or info; passed = true only when there is no
+      error finding; evidence empty.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: prd-review-rules}}
+      - {kind: artifact, input: prd}
+    parameters: {reasoningEffort: high}
+  timeout: 15m
+  sideEffects: none
+---
+# Your sign-off at the terminal, after the agents agree.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: signoff-prd}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: EarsPrd}}}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
+  executorRef: {kind: Executor, name: local-reviewer}
+  action:
+    instructions: "Approve or reject the PRD both agent reviewers accepted."
+    context:
+      - {kind: artifact, input: prd}
+  timeout: 48h
+  sideEffects: none
+---
+# Two agent reviewers; both must pass. Expands to a Gate and two Validators.
+apiVersion: persimmon.ai/v1
+kind: Approval
+metadata: {name: prd-review}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: EarsPrd}}}
+  approvers:
+    - {name: claude, uses: {kind: Task, name: review-prd-claude}}
+    - {name: codex, uses: {kind: Task, name: review-prd-codex}}
+  policy: {strategy: all}
+  timeout: 40m
+---
+# You at the terminal. Expands to a Gate and one Validator.
+apiVersion: persimmon.ai/v1
+kind: Approval
+metadata: {name: prd-signoff}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: EarsPrd}}}
+  approvers:
+    - {name: you, uses: {kind: Task, name: signoff-prd}}
+  timeout: 48h
+---
+# Write, review, feed the verdict and the last PRD back, until both reviewers pass or three rounds.
+# Expands to a Workflow with one repeat step and the round body Workflow idea-to-reviewed-prd-round.
+apiVersion: persimmon.ai/v1
+kind: ReviewLoop
+metadata: {name: idea-to-reviewed-prd}
+spec:
+  inputs:
+    idea: {type: {kind: value, schema: {type: string, minLength: 1}}}
+  produce:
+    uses: {kind: Task, name: write-or-revise-prd}
+    inputs: {idea: {fromInput: idea}}
+    timeout: 25m
+  review:
+    uses: {kind: Approval, name: prd-review}
+    inputs: {prd: {fromStep: {stepRef: produce, output: prd}}}
+    timeout: 40m
+  subject: prd
+  previous: previous
+  feedback: feedback
+  maxRounds: 3
+  timeout: 4h
+---
+# The loop, then your sign-off. Expands to a Workflow; a rejection at signoff ends the run with signoff_rejected.
+apiVersion: persimmon.ai/v1
+kind: Pipeline
+metadata: {name: idea-to-approved-prd}
+spec:
+  inputs:
+    idea: {type: {kind: value, schema: {type: string, minLength: 1}}}
+  outputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: EarsPrd}}}
+    agreed: {type: {kind: value, schema: {type: boolean}}}
+    rounds: {type: {kind: value, schema: {type: integer}}}
+  outputBindings:
+    prd: {fromStep: {stepRef: debate, output: prd}}
+    agreed: {fromStep: {stepRef: debate, output: passed}}
+    rounds: {fromStep: {stepRef: debate, output: rounds}}
+  phases:
+    - id: debate
+      uses: {kind: ReviewLoop, name: idea-to-reviewed-prd}
+      inputs: {idea: {fromInput: idea}}
+      timeout: 4h
+    - id: signoff
+      uses: {kind: Approval, name: prd-signoff}
+      inputs: {prd: {fromStep: {stepRef: debate, output: prd}}}
+      timeout: 48h
+  timeout: 52h
