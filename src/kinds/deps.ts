@@ -18,7 +18,7 @@ export interface HandlerDeps {
   /** Random in [0, 1); injectable for jitter tests. */
   random(): number
   /** The expansion of a live composition Resource (21-composition.md); absent in handler unit tests. */
-  expand?(resource: Resource): Resource[]
+  expand?(resource: Resource, namespace?: string): Resource[]
 }
 
 /** Definition lookup inside a closure: the run's Namespace first, then Global (04-snapshot.md). */

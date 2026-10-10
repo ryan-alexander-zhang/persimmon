@@ -42,8 +42,8 @@ One store transaction; every hop resolves in the root Resource's Namespace, then
    expanded Resources as members under their own kinds and names, and the composition's
    KindDefinition; the composition itself is not a member; recurse into each expansion after all
    of them are members, so a helper (an Approval's Validator) resolves among members before the
-   store. A reference to the composition kind resolves in the closure to the expansion of the same
-   name.
+   store, a Global member yielding to a root-Namespace definition as the store would. A reference to
+   the composition kind resolves in the closure to the expansion of the same name.
 
 ## Bytes
 

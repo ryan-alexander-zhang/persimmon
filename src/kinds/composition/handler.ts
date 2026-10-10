@@ -14,40 +14,77 @@ export function compositionHandler(deps: HandlerDeps): HandlerImpl {
   const ports = (ns: string | undefined): Ports => (ref) => {
     const kd = deps.kinds.byKind(ref.kind)?.definition
     const live = deps.getResource(ref.kind, ns, ref.name)
-    const def = live && kd?.spec.expansion && deps.expand ? deps.expand(live)[0] : live
+    const def = live && kd?.spec.expansion && deps.expand ? deps.expand(live, ns)[0] : live
     const spec = def?.spec as { inputs?: Record<string, InputSpec>; outputs?: Record<string, OutputSpec> } | undefined
     return spec ? { inputs: spec.inputs ?? {}, outputs: spec.outputs ?? {} } : undefined
   }
 
-  /** ReviewLoop rules the expansion cannot express (21-composition.md). */
-  const loopFindings = (r: ReviewLoop): Finding[] => {
+  /** Approval rules the expansion cannot express (21-composition.md): every mapped port exists on both sides, every required Task input is mapped. */
+  const approvalFindings = (a: Approval, ns: string | undefined): Finding[] => {
     const f: Finding[] = []
-    const bad = (path: string, message: string) => f.push({ severity: 'error', code: 'invalid_loop', path, message })
-    const p = ports(r.metadata.namespace)(r.spec.produce.uses)
-    if (!p) bad('/spec/produce/uses', `${r.spec.produce.uses.kind} ${r.spec.produce.uses.name} not found`)
-    else {
-      if (!p.outputs[r.spec.subject]) bad('/spec/subject', `${r.spec.subject} is not an output of ${r.spec.produce.uses.name}`)
-      for (const [field, port] of [['previous', r.spec.previous], ['feedback', r.spec.feedback]] as const) {
-        if (!port) continue
-        const i = p.inputs[port]
-        if (!i) bad(`/spec/${field}`, `${port} is not an input of ${r.spec.produce.uses.name}`)
-        else if (i.required !== false) bad(`/spec/${field}`, `${port} must be an optional input (required: false): round 1 has nothing to feed back`)
+    const bad = (path: string, message: string) => f.push({ severity: 'error', code: 'invalid_approval', path, message })
+    const seen = new Set<string>()
+    for (const [i, ap] of a.spec.approvers.entries()) {
+      if (seen.has(ap.name)) bad(`/spec/approvers/${i}/name`, `duplicate approver ${ap.name}`)
+      seen.add(ap.name)
+      const task = ports(ns)(ap.uses)
+      if (!task) {
+        bad(`/spec/approvers/${i}/uses`, `Task ${ap.uses.name} not found`)
+        continue
       }
+      const mapping = ap.inputs ?? Object.fromEntries(Object.keys(a.spec.inputs).map((p) => [p, p]))
+      for (const [taskPort, port] of Object.entries(mapping)) {
+        if (!task.inputs[taskPort]) bad(`/spec/approvers/${i}/inputs/${taskPort}`, `${taskPort} is not an input of Task ${ap.uses.name}`)
+        if (!a.spec.inputs[port]) bad(`/spec/approvers/${i}/inputs/${taskPort}`, `${port} is not an input of this Approval`)
+      }
+      for (const [taskPort, spec] of Object.entries(task.inputs)) if (spec.required !== false && !(taskPort in mapping)) bad(`/spec/approvers/${i}/inputs`, `required input ${taskPort} of Task ${ap.uses.name} is not mapped`)
     }
-    if (!isGate(r.spec.review.uses)) bad('/spec/review/uses', `${r.spec.review.uses.kind} ${r.spec.review.uses.name} does not run as a GateRun`)
     return f
   }
 
-  const expand = (resource: Resource): Resource[] => {
-    switch (resource.kind) {
-      case 'Pipeline':
-        return [expandPipeline(resource as unknown as Pipeline, isGate) as unknown as Resource]
-      case 'Approval':
-        return expandApproval(resource as unknown as Approval) as unknown as Resource[]
-      case 'ReviewLoop':
-        return expandReviewLoop(resource as unknown as ReviewLoop, ports(resource.metadata.namespace)) as unknown as Resource[]
-      default:
-        throw new Error(`${resource.kind} has no expansion`)
+  /** ReviewLoop rules the expansion cannot express (21-composition.md). */
+  const loopFindings = (r: ReviewLoop, ns: string | undefined): Finding[] => {
+    const f: Finding[] = []
+    const bad = (path: string, message: string) => f.push({ severity: 'error', code: 'invalid_loop', path, message })
+    const { produce, review, subject, previous, feedback, inputs = {} } = r.spec
+    const p = ports(ns)(produce.uses)
+    if (!p) bad('/spec/produce/uses', `${produce.uses.kind} ${produce.uses.name} not found`)
+    else {
+      if (!p.outputs[subject]) bad('/spec/subject', `${subject} is not an output of ${produce.uses.kind} ${produce.uses.name}`)
+      for (const [field, port] of [['previous', previous], ['feedback', feedback]] as const) {
+        if (!port) continue
+        const i = p.inputs[port]
+        if (!i) bad(`/spec/${field}`, `${port} is not an input of ${produce.uses.kind} ${produce.uses.name}`)
+        else if (i.required !== false) bad(`/spec/${field}`, `${port} must be an optional input (required: false): round 1 has nothing to feed back`)
+        if (produce.inputs?.[port]) bad(`/spec/produce/inputs/${port}`, `${port} is fed by the loop (${field}); do not bind it`)
+        if (field in inputs) bad(`/spec/inputs/${field}`, `${field} is a name the loop reserves for its state`)
+      }
+    }
+    if (['passed', 'rounds', 'verdict'].includes(subject)) bad('/spec/subject', `${subject} is a name the loop reserves for its own outputs`)
+    if (!deps.kinds.byKind(review.uses.kind)) bad('/spec/review/uses', `unregistered kind ${review.uses.kind}`)
+    else if (!isGate(review.uses)) bad('/spec/review/uses', `${review.uses.kind} ${review.uses.name} does not run as a GateRun`)
+    return f
+  }
+
+  const expanding = new Set<string>() // compositions mid-expansion: a loop whose produce leads back to itself is a cycle, not a stack overflow
+
+  const expand = (resource: Resource, ns = resource.metadata.namespace): Resource[] => {
+    const key = `${resource.kind}/${resource.metadata.namespace ?? ''}/${resource.metadata.name}`
+    if (expanding.has(key)) throw new Error(`${resource.kind} ${resource.metadata.name} expands through itself`)
+    expanding.add(key)
+    try {
+      switch (resource.kind) {
+        case 'Pipeline':
+          return [expandPipeline(resource as unknown as Pipeline, isGate) as unknown as Resource]
+        case 'Approval':
+          return expandApproval(resource as unknown as Approval) as unknown as Resource[]
+        case 'ReviewLoop':
+          return expandReviewLoop(resource as unknown as ReviewLoop, ports(ns)) as unknown as Resource[]
+        default:
+          throw new Error(`${resource.kind} has no expansion`)
+      }
+    } finally {
+      expanding.delete(key)
     }
   }
 
@@ -71,16 +108,14 @@ export function compositionHandler(deps: HandlerDeps): HandlerImpl {
   return {
     validate(resource: Resource): ValidateResult {
       try {
-        if (resource.kind === 'ReviewLoop') {
-          const own = loopFindings(resource as unknown as ReviewLoop)
-          if (own.length) return { findings: own } // the expansion would only repeat them in other words
-        }
+        const own = resource.kind === 'ReviewLoop' ? loopFindings(resource as unknown as ReviewLoop, resource.metadata.namespace) : resource.kind === 'Approval' ? approvalFindings(resource as unknown as Approval, resource.metadata.namespace) : []
+        if (own.length) return { findings: own } // the expansion would only repeat them in other words
         return { findings: check(resource, expand(resource)) }
       } catch (e) {
         return { findings: [{ severity: 'error', code: 'expansion', message: (e as Error).message }] }
       }
     },
-    expand: (resource: Resource) => ({ resources: expand(resource) }),
+    expand: (resource: Resource, namespace?: string) => ({ resources: expand(resource, namespace) }),
     reconcile(): ReconcileResult {
       return { actions: [] } // a composition never runs; its expansion does
     },

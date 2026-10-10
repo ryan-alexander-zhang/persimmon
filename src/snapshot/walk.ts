@@ -28,7 +28,7 @@ export interface Resolver {
   /** Fails when the Adapter is not Ready, unreachable, or its digest moved. */
   adapterDigest(id: string): string
   /** The expansion of a composition Resource (01-kind-definition.md `expansion`). */
-  expand(resource: Resource): Resource[]
+  expand(resource: Resource, namespace: string | undefined): Resource[]
 }
 
 const keyOf = (r: { apiVersion: string; kind: string; metadata: { name: string; namespace?: string | undefined } }) =>
@@ -52,7 +52,13 @@ export function resolveClosure(root: Resource, resolver: Resolver): Closure {
   }
 
   /** A member of that kind and name in the root Namespace, else Global (same order as the store lookup). */
-  const inMembers = (kind: string, name: string): boolean => [...members.values()].some((m) => m.kind === kind && m.metadata.name === name && (m.metadata.namespace === rootNs || !m.metadata.namespace))
+  const inMembers = (kind: string, name: string): boolean => {
+    const hits = [...members.values()].filter((m) => m.kind === kind && m.metadata.name === name)
+    if (hits.some((m) => m.metadata.namespace === rootNs)) return true
+    if (!hits.some((m) => !m.metadata.namespace)) return false
+    const live = resolver.definition(kind, rootNs, name) // a Global member yields to a root-Namespace definition in the store
+    return !(live && rootNs && live.metadata.namespace === rootNs)
+  }
 
   const visit = (resource: Resource): void => {
     const kd = resolver.kind(resource.apiVersion, resource.kind)
@@ -78,7 +84,7 @@ export function resolveClosure(root: Resource, resolver: Resolver): Closure {
             addKind(targetKind)
             let expansion: Resource[]
             try {
-              expansion = resolver.expand(target)
+              expansion = resolver.expand(target, rootNs)
             } catch (e) {
               throw new SnapshotError(`${where}: expansion of ${ref.kind} ${ref.name} failed: ${(e as Error).message}`)
             }

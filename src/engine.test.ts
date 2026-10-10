@@ -110,6 +110,8 @@ describe('Engine', () => {
     const approval = { apiVersion: 'persimmon.ai/v1', kind: 'Approval', metadata: { name: 'prd-approval', namespace: 'demo' }, spec: { inputs: { prd: { type: { kind: 'artifact', artifactKind: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement' } } } }, approvers: [{ name: 'human', uses: { kind: 'Task', name: 'approve-prd' } }], timeout: '72h' } } as Resource
     const bad = { ...approval, spec: { ...approval.spec, approvers: [{ name: 'human', uses: { kind: 'Task', name: 'approve-prd' }, resultOutput: 'nope' }] } } as Resource
     await expect(engine.apply(bad)).rejects.toThrow(/Validator\/prd-approval-human: .*nope/)
+    const unmapped = { ...approval, spec: { ...approval.spec, approvers: [{ name: 'human', uses: { kind: 'Task', name: 'approve-prd' }, inputs: { doc: 'prd' } }] } } as Resource
+    await expect(engine.apply(unmapped)).rejects.toThrow(/doc is not an input of Task approve-prd.*required input prd of Task approve-prd is not mapped/s)
     await engine.apply(approval)
     expect(engine.store.resources.get({ kind: 'Gate', namespace: 'demo', name: 'prd-approval' })).toBeUndefined()
 
@@ -142,6 +144,8 @@ describe('Engine', () => {
     const loop = { apiVersion: 'persimmon.ai/v1', kind: 'ReviewLoop', metadata: { name: 'prd-loop', namespace: 'demo' }, spec: { inputs: { research: { type: { kind: 'artifact', artifactKind: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ResearchReport' } } } }, produce: { uses: { kind: 'Task', name: 'revise-prd' }, inputs: { research: { fromInput: 'research' } }, timeout: '35m' }, review: { uses: { kind: 'Approval', name: 'prd-approval' }, inputs: { prd: { fromStep: { stepRef: 'produce', output: 'prd' } } }, timeout: '72h' }, subject: 'prd', previous: 'last', feedback: 'verdict', maxRounds: 2, timeout: '24h' } } as Resource
     await expect(engine.apply({ ...loop, spec: { ...loop.spec, feedback: 'research' } } as Resource)).rejects.toThrow(/research must be an optional input/)
     await expect(engine.apply({ ...loop, spec: { ...loop.spec, review: { ...(loop.spec as { review: object }).review, uses: { kind: 'Task', name: 'approve-prd' } } } } as Resource)).rejects.toThrow(/does not run as a GateRun/)
+    await expect(engine.apply({ ...loop, spec: { ...loop.spec, subject: 'passed' } } as Resource)).rejects.toThrow(/passed is a name the loop reserves/)
+    await expect(engine.apply({ ...loop, spec: { ...loop.spec, produce: { ...(loop.spec as { produce: { inputs: object } }).produce, inputs: { research: { fromInput: 'research' }, last: { fromInput: 'research' } } } } } as Resource)).rejects.toThrow(/last is fed by the loop/)
     await engine.apply(loop)
 
     const errors: string[] = []
@@ -155,6 +159,12 @@ describe('Engine', () => {
     const round = engine.store.resources.get({ kind: 'WorkflowRun', namespace: 'demo', name: 'prd-loop-001-rounds-1' })!
     expect(round.metadata.ownerReferences?.[0]?.uid).toBe(run.metadata.uid)
     expect(engine.store.resources.get({ kind: 'TaskRun', namespace: 'demo', name: 'prd-loop-001-rounds-1-produce' })?.metadata.ownerReferences?.[0]?.uid).toBe(round.metadata.uid)
+
+    // a cycle through produce (A produces with B, B with A) is refused at snapshot, not a stack overflow
+    const loopB = { ...loop, metadata: { name: 'prd-loop-b', namespace: 'demo' }, spec: { ...loop.spec, previous: undefined, feedback: undefined, produce: { uses: { kind: 'ReviewLoop', name: 'prd-loop' }, inputs: { research: { fromInput: 'research' } }, timeout: '1h' } } } as Resource
+    await engine.apply(loopB)
+    await engine.apply({ ...loop, spec: { ...loop.spec, previous: undefined, feedback: undefined, produce: { uses: { kind: 'ReviewLoop', name: 'prd-loop-b' }, inputs: { research: { fromInput: 'research' } }, timeout: '1h' } } } as Resource)
+    await expect(engine.create({ apiVersion: 'persimmon.ai/v1', kind: 'WorkflowRun', metadata: { name: 'prd-loop-002', namespace: 'demo' }, spec: { workflowRef: { kind: 'ReviewLoop', name: 'prd-loop' }, inputs: { research }, origin: { kind: 'manual' } } } as Resource)).rejects.toThrow(/expands through itself/)
   })
 
   it('runs prd-create end to end against the fake Adapter until the task fails validation', async () => {

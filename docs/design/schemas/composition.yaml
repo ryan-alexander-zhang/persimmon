@@ -40,6 +40,9 @@ $defs:
         properties:
           strategy: {enum: [all, any, quorum]}
           count: {type: integer, minimum: 1}
+        if: {properties: {strategy: {const: quorum}}}
+        then: {required: [count]}
+        else: {not: {required: [count]}}
       timeout: {$ref: "ports.yaml#/$defs/Duration"}
   LoopStep:
     type: object

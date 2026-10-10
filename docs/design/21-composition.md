@@ -98,8 +98,9 @@ Expansion:
 | Rule | Checked by |
 |---|---|
 | every Pipeline phase id unique; `outputBindings` keys equal `outputs` | expansion + Workflow checker |
-| Approval: `uses` Task has output `resultOutput` of `value` type with the ValidationResult `$ref`; approver `inputs` bind every required Task input | static checker |
-| ReviewLoop: `subject` ∈ produce outputs; `previous`, `feedback` ∈ produce inputs, optional, of the stated types; `review.uses` runKind is GateRun | static checker |
+| Approval: approver names unique; every mapped Task port and Approval port exists; every required Task input is mapped; `uses` Task has output `resultOutput` of `value` type with the ValidationResult `$ref` | composition Handler, then the Validator rules on the expansion |
+| ReviewLoop: `subject` ∈ produce outputs and not `passed`, `rounds`, `verdict`; `previous`, `feedback` ∈ produce inputs, optional, of the stated types, not bound by `produce.inputs`, and no loop input named `previous` or `feedback`; `review.uses` runKind is GateRun | composition Handler |
+| no composition expands through itself (a ReviewLoop producing with a ReviewLoop that produces with it) | expansion; refused at write when visible, at snapshot otherwise |
 | everything else | the Workflow and Gate rules on the expansion |
 
 ## Decisions
@@ -126,6 +127,9 @@ Expansion:
   (`subject` an output, `previous` and `feedback` optional inputs, `review` a GateRun kind) are
   checked before expansion, so the finding names the loop field, not a derived Workflow. Found
   in implementation.
+- Expansion resolves references in the run's Namespace at snapshot (`expand(resource, namespace)`),
+  the composition's own at write, the same order the walk uses for every hop. A composition that
+  expands through itself is refused by an in-progress guard. Found in UAT (audit).
 
 ## Examples
 

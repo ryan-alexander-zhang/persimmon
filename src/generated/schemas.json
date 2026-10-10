@@ -1382,6 +1382,25 @@
         "type": "integer",
         "minimum": 1
        }
+      },
+      "if": {
+       "properties": {
+        "strategy": {
+         "const": "quorum"
+        }
+       }
+      },
+      "then": {
+       "required": [
+        "count"
+       ]
+      },
+      "else": {
+       "not": {
+        "required": [
+         "count"
+        ]
+       }
       }
      },
      "timeout": {

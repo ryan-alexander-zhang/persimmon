@@ -14,10 +14,10 @@ export function liveResolver(kinds: KindRegistry, store: Store, adapters: Adapte
       const a = adapters.require(id)
       return a.status?.describeDigest as string
     },
-    expand: (r) => {
+    expand: (r, ns) => {
       const impl = handlers.get(r.apiVersion, r.kind).impl
       if (!impl?.expand) throw new Error(`${r.kind} ${r.metadata.name}: its Handler has no expand`)
-      return impl.expand(r).resources
+      return impl.expand(r, ns).resources
     },
   }
 }
