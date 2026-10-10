@@ -2,11 +2,12 @@
 // stdin: the execute payload without `credentials` and `engine`; credentials arrive as `<NS>__<NAME>` environment.
 // The program writes `{outputs: {<port>: value | artifact content}, summary?}` to `configuration.resultFile`; the Adapter publishes.
 import { readFileSync, rmSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import { AdapterError, serve } from '../lib/agent.mjs'
 
 serve({
   adapterId: 'subprocess/v1',
+  conformance: { configuration: { program: [process.execPath, join(import.meta.dirname, 'conformance.mjs')], resultFile: 'conformance-result.json' } },
   transcript: true, // the answer is the result file; stdout is the program's own output
   executorTypes: ['script', 'tool'],
   contextKinds: ['file'],

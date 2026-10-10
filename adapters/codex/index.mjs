@@ -32,6 +32,7 @@ function stripNulls(v) {
 
 serve({
   adapterId: 'codex/v1',
+  conformance: { configuration: { command: [process.execPath, join(import.meta.dirname, 'conformance.mjs')] } },
   transcript: true, // the answer is in answer.json; stdout is what the agent did
   skillDir: '.agents/skills', // where codex discovers repository skills
   configurationSchema: {

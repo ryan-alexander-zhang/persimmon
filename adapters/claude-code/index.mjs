@@ -1,5 +1,6 @@
 // claude-code/v1: runs `claude -p` once per attempt with structured output (19-adapter-roles.md).
 // Authentication is the CLI's own login; bind an anthropic-api-key credential on the Adapter to override it.
+import { join } from 'node:path'
 import { AdapterError, serve } from '../lib/agent.mjs'
 
 const sandbox = {
@@ -58,6 +59,7 @@ function transcript(line) {
 
 serve({
   adapterId: 'claude-code/v1',
+  conformance: { configuration: { command: [process.execPath, join(import.meta.dirname, 'conformance.mjs')] } },
   transcript,
   skillDir: '.claude/skills', // where claude discovers repository skills
   configurationSchema: {

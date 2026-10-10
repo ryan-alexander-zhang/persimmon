@@ -23,7 +23,7 @@ const pidFile = (idempotencyKey) => join(pidDir(), encodeURIComponent(idempotenc
 /** `<NS>__<NAME>` upper case, `-` becomes `_`: the same grammar the engine uses for its own credential env. */
 const envName = (name) => name.toUpperCase().replaceAll('-', '_').replace('/', '__')
 
-/** driver: {adapterId, executorTypes?, contextKinds?, skillFormats?, configurationSchema, parametersSchema, command(ctx) -> [cmd, args], input?(ctx) -> stdin text, skillDir?: where the CLI discovers skills, relative to the workspace (`.claude/skills`), parse({stdout, dir, configuration, workspace}) -> {outputs, summary?}, transcript?: true when stdout is the agent's transcript, or (line) -> text | undefined to turn a structured stdout line into a log line} */
+/** driver: {adapterId, executorTypes?, contextKinds?, skillFormats?, configurationSchema, parametersSchema, conformance?: {configuration} the suite sends when the user passes none (22-conformance.md), command(ctx) -> [cmd, args], input?(ctx) -> stdin text, skillDir?: where the CLI discovers skills, relative to the workspace (`.claude/skills`), parse({stdout, dir, configuration, workspace}) -> {outputs, summary?}, transcript?: true when stdout is the agent's transcript, or (line) -> text | undefined to turn a structured stdout line into a log line} */
 export function serve(driver) {
   const out = (o) => process.stdout.write(JSON.stringify(o) + '\n')
   createInterface({ input: process.stdin }).once('line', async (line) => {
@@ -39,6 +39,7 @@ export function serve(driver) {
               adapterId: driver.adapterId, protocol: 'persimmon.adapter/v1', roles: ['executor'], executorTypes: driver.executorTypes ?? ['agent'],
               configurationSchema: driver.configurationSchema, parametersSchema: driver.parametersSchema,
               contextKinds: driver.contextKinds ?? ['file', 'artifact', 'prompt', 'skill'], skillFormats: driver.skillFormats ?? ['claude-code-skill/v1'], supports: { query: false, cancel: true, complete: false }, formRenderable: false,
+              ...(driver.conformance ? { conformance: driver.conformance } : {}),
             },
           })
         case 'execute':
@@ -68,7 +69,13 @@ async function execute(driver, payload, log) {
   try {
     if (!driver.input) checkSkills(context, driver.skillFormats ?? ['claude-code-skill/v1'], cwd, driver.skillDir ?? '.claude/skills', log)
     const ctx = { configuration, parameters: task.parameters ?? {}, schema, dir, payload, workspace: cwd }
-    const [cmd, args] = driver.command(ctx)
+    let [cmd, args] = driver.command(ctx)
+    if (configuration.command) {
+      // the conformance suite's stand-in for the CLI; never honoured for an applied Executor (22-conformance.md)
+      if (process.env.PERSIMMON_ADAPTER_CONFORMANCE !== '1') throw new AdapterError('invalid_input', 'configuration.command is honoured only by the conformance suite', false)
+      const [program, ...pre] = configuration.command
+      ;[cmd, args] = [program, [...pre, ...args]]
+    }
     const stdin = driver.input ? driver.input(ctx) : await buildPrompt(task, inputs, context, call, driver.skillDir ?? '.claude/skills')
     let stdout
     try {

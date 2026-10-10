@@ -142,6 +142,20 @@ describe('claude-code/v1', () => {
     expect(logs.some((t) => t.includes('structured_output'))).toBe(false)
   })
 
+  it('configuration.command stands in for claude only under PERSIMMON_ADAPTER_CONFORMANCE=1', async () => {
+    const stubbed = { type: 'agent', configuration: { command: [process.execPath, join(root, 'adapters', 'claude-code', 'conformance.mjs')] }, security: { networkAccess: 'deny', credentialBindings: [] } }
+    const refused = last(await adapter('claude-code', { id: 15, op: 'execute', payload: payload({ executor: stubbed, credentials: {} }) }))
+    expect(refused).toMatchObject({ ok: false, error: { code: 'invalid_input', retryable: false } })
+    const record = join(stubs, 'record.json')
+    const r = last(await adapter('claude-code', { id: 16, op: 'execute', payload: payload({ executor: stubbed, credentials: {} }) }, { PERSIMMON_ADAPTER_CONFORMANCE: '1', PERSIMMON_CONFORMANCE_ANSWER: JSON.stringify({ prd: { title: 'Stub' }, count: 3 }), PERSIMMON_CONFORMANCE_RECORD: record }))
+    expect(r.result.outputs.count).toEqual({ kind: 'value', value: 3 })
+    const seen = JSON.parse(readFileSync(record, 'utf8'))
+    expect(seen.argv).toContain('--json-schema') // the stub gets the CLI's own arguments
+    expect(seen.stdin).toContain('Write the PRD.')
+    const d = last(await adapter('claude-code', { id: 17, op: 'describe', payload: {} }))
+    expect(d.result.conformance.configuration.command[1]).toBe(join(root, 'adapters', 'claude-code', 'conformance.mjs'))
+  })
+
   it('configuration.allowedTools reaches claude as --allowedTools', async () => {
     const r = await adapter('claude-code', { id: 14, op: 'execute', payload: payload({ executor: { type: 'agent', configuration: { sandbox: 'workspace-write', allowedTools: ['Bash(npm test:*)', 'Bash(npm run coverage:*)'] }, security: { networkAccess: 'deny', credentialBindings: [] } } }) }, { STUB_RESULT: JSON.stringify({ prd: { title: 'PRD' }, count: 1 }) })
     expect(last(r).ok).toBe(true)
