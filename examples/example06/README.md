@@ -127,7 +127,8 @@ own.
 |---|---|---|
 | one reviewer is enough | `policy: {strategy: quorum, count: 1}` on `prd-review` | `persimmon apply prd-debate.yaml` |
 | a third reviewer | one more Task and one more approver line | apply |
-| more rounds | `maxRounds` on the ReviewLoop | apply |
+| a higher round ceiling | `maxRounds` on the ReviewLoop | apply |
+| fewer rounds for one run | nothing: the loop takes `maxRounds` as an input, never above the ceiling | `persimmon run idea-to-reviewed-prd --input idea=... --input maxRounds=1` |
 | no sign-off | drop the `signoff` phase and its Approval | apply |
 | see the expansion | `persimmon get WorkflowRun/<run>-debate-rounds-1` and its snapshot | |
 
@@ -139,6 +140,7 @@ rm -rf .persimmon persimmon.yaml
 
 ## Known limits
 
-- `maxRounds` is fixed in the ReviewLoop; a Workflow could take it as an input, a ReviewLoop cannot.
+- `maxRounds` on the ReviewLoop is a ceiling; a run lowers it with `--input maxRounds=N` and cannot
+  raise it. The Pipeline does not forward that input to its `debate` phase.
 - The round body's `produce` runs every round, so round 1 writes from the idea and later rounds
   revise; one Task, two jobs, told apart by whether `previous` is bound.

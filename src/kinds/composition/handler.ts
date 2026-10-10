@@ -109,7 +109,14 @@ export function compositionHandler(deps: HandlerDeps): HandlerImpl {
   /** A finding on the expansion points at what the user wrote: a Pipeline phase is a step; a ReviewLoop body's steps are `produce` and `review`. */
   const rebase = (composition: Resource, expanded: Resource, path: string): string => {
     if (composition.kind === 'Pipeline') return path.replace(/^\/spec\/steps\//, '/spec/phases/')
-    if (composition.kind === 'ReviewLoop' && expanded.metadata.name === `${composition.metadata.name}-round`) return path.replace(/^\/spec\/steps\/0(?=\/|$)/, '/spec/produce').replace(/^\/spec\/steps\/1(?=\/|$)/, '/spec/review')
+    if (composition.kind === 'ReviewLoop') {
+      const body = expanded.metadata.name === `${composition.metadata.name}-round`
+      if (body && /^\/spec\/steps\/0(\/|$)/.test(path)) return path.replace(/^\/spec\/steps\/0/, '/spec/produce')
+      if (body && /^\/spec\/steps\/1(\/|$)/.test(path)) return path.replace(/^\/spec\/steps\/1/, '/spec/review')
+      if (!body && /^\/spec\/steps\/0\/repeat(\/|$)/.test(path)) return '/spec/maxRounds'
+      if (/^\/spec\/inputs(\/|$)/.test(path)) return path
+      return '/spec' // transitions, outputs, bindings: the loop's own, nothing the user wrote by that name
+    }
     return path
   }
 

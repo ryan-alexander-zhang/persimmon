@@ -193,7 +193,8 @@ _Avoid_: reviewer (for the Resource), voter
 
 **ReviewLoop**:
 A **Composition kind**: `produce` then `review`, repeated with `previous` and `feedback` until
-`passed` or `maxRounds`; expands to a Workflow and its `<name>-round` body.
+`passed` or `maxRounds`; expands to a Workflow and its `<name>-round` body. `maxRounds` names
+both the ceiling on the loop and the optional run input that lowers it.
 _Avoid_: revision loop, feedback loop
 
 **Step**:

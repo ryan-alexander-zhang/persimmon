@@ -101,7 +101,7 @@ Expansion:
 | Approval: approver names unique; every mapped Task port and Approval port exists; every required Task input is mapped; `uses` Task has output `resultOutput` of `value` type with the ValidationResult `$ref` | composition Handler, then the Validator rules on the expansion |
 | ReviewLoop: `subject` ∈ produce outputs and not `passed`, `rounds`, `verdict`; `previous`, `feedback` ∈ produce inputs, optional, of the stated types, not bound by `produce.inputs`, and no loop input named `previous`, `feedback` or `maxRounds`; `review.uses` runKind is GateRun | composition Handler |
 | no composition expands through itself (a ReviewLoop producing with a ReviewLoop that produces with it) | expansion; refused at write when visible, at snapshot otherwise |
-| everything else | the Workflow and Gate rules on the expansion; a finding's path is rebased onto what the user wrote (a Pipeline phase, a ReviewLoop's `produce` or `review`), its message names the expanded Resource |
+| everything else | the Workflow and Gate rules on the expansion; a finding's path is rebased onto what the user wrote (a Pipeline phase; a ReviewLoop's `produce`, `review`, `inputs` or `maxRounds`, else `/spec`), its message names the expanded Resource |
 
 ## Decisions
 
@@ -136,8 +136,9 @@ Expansion:
 - `maxRounds` is both the ceiling and an optional loop input the expansion adds: a run that wants
   one round of a three-round loop asks `maxRounds: 1`; `maxIterations` keeps the ceiling, so a
   larger value is clamped in `until`, never `iteration_limit`. Found in implementation.
-- A finding on a ReviewLoop's body is rebased onto `/spec/produce` or `/spec/review`; the outer
-  Workflow's own paths are left as they are and the message names it. Found in implementation.
+- A finding on a ReviewLoop's expansion is rebased onto `/spec/produce`, `/spec/review`,
+  `/spec/inputs/...` or `/spec/maxRounds`, else `/spec`: never a path the loop does not have. The
+  message names the expanded Resource. Found in implementation (audit).
 
 ## Examples
 
