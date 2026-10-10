@@ -57,6 +57,14 @@ describe('persimmon CLI', () => {
     bad.spec.entry = ['write-prd']
     expect(await run('validate', file('bad.yaml', [bad]))).toBe(1)
     expect(out.some((l) => l.startsWith('error Workflow/prd-create') && l.includes('entry must equal'))).toBe(true)
+    // a Workflow in a file sees the project's Namespaced Tasks, as apply would place it (checker stamps the default Namespace)
+    const nsTask = { ...parse(readFileSync('packs/sdlc/global/50-tasks.yaml', 'utf8').split('---')[0]!), metadata: { name: 'research-local' } }
+    expect(await run('apply', file('ns-task.yaml', [nsTask]))).toBe(0)
+    const local = { ...example('workflow-prd-create'), metadata: { name: 'local-create' } }
+    local.spec.steps[0].uses = { kind: 'Task', name: 'research-local' }
+    out = []
+    expect([await run('validate', file('local.yaml', [local])), out.filter((l) => l.startsWith('error'))]).toEqual([0, []])
+    expect(await run('delete', 'Task/research-local')).toBe(0) // validate stored nothing; the counts below see the pack only
 
     // describe-driven Task rules: parameters, context kinds, Skill formats (12-task.md)
     const codexExecutor = { apiVersion: 'persimmon.ai/v1', kind: 'Executor', metadata: { name: 'codex-agent' }, spec: { type: 'agent', adapter: 'codex/v1', configuration: { model: 'gpt-6-sol' }, security: { networkAccess: 'deny' } } }

@@ -16,7 +16,7 @@ export interface Checked {
 
 /** Checks a batch together: every document is applied to a throwaway in-memory Engine, so files may reference each other. */
 export async function checkBatch(docs: unknown[], base?: Engine): Promise<Checked[]> {
-  const engine = new Engine({ config: parseConfig({}), storePath: ':memory:', blobs: memoryBlobs(), cwd: mkdtempSync(join(tmpdir(), 'persimmon-check-')) })
+  const engine = new Engine({ config: parseConfig(base ? { defaultNamespace: base.dispatch.defaultNamespace } : {}), storePath: ':memory:', blobs: memoryBlobs(), cwd: mkdtempSync(join(tmpdir(), 'persimmon-check-')) })
   try {
     await engine.start()
     if (base) for (const kind of ['KindDefinition', 'Handler', 'Adapter']) for (const r of base.store.resources.list(kind)) copy(engine, r)
@@ -34,10 +34,12 @@ export async function checkBatch(docs: unknown[], base?: Engine): Promise<Checke
       }
       const findings: Finding[] = []
       try {
+        // the Namespace apply would stamp (cli/apply.ts placeDoc), so a Workflow in the file sees the project's Namespaced Tasks
+        if (!resource.metadata.namespace && engine.kinds.lookup(resource.apiVersion, resource.kind)?.definition.spec.scope !== 'Global') resource.metadata.namespace = engine.dispatch.defaultNamespace
         if (resource.kind === 'Adapter') copy(engine, resource) // no describe here; Executors get adapter_unavailable warnings
         else await engine.apply(resource)
         const impl = engine.handlers.lookup(resource.apiVersion, resource.kind)?.impl
-        if (impl) findings.push(...impl.validate(engine.store.resources.get({ kind: resource.kind, namespace: resource.metadata.namespace ?? (engine.kinds.get(resource.apiVersion, resource.kind).definition.spec.scope === 'Global' ? undefined : 'default'), name: resource.metadata.name }) ?? resource).findings)
+        if (impl) findings.push(...impl.validate(engine.store.resources.get({ kind: resource.kind, namespace: resource.metadata.namespace, name: resource.metadata.name }) ?? resource).findings)
       } catch (e) {
         const f = (e as { findings?: Finding[] }).findings
         findings.push(...(f?.length ? f : [{ severity: 'error' as const, code: 'invalid', message: (e as Error).message }]))
