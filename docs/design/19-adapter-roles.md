@@ -155,6 +155,10 @@ Result: a ValidationResult (`10-ports.md`). No `credentials`, no `security` (`14
   5000 lines per stream per attempt (a coding agent's transcript with tool output runs past 500), the last one
   says so. `persimmon logs` shows what the agent did after a
   success too. Found in UAT.
+- The answer prompt says `summary` sits next to `outputs`, not inside it: "outputs per port plus a
+  short summary" made claude put `summary` under `outputs`, and every step paid one rejected
+  structured-output call. Headless `claude -p` emits no `thinking` events, so an agent's reasoning
+  reaches the log only as text it writes before answering. Found in UAT.
 - The shipped Adapters spawn the agent or program with `cwd: payload.workspace`; `subprocess/v1`
   resolves `resultFile` against it. `.persimmon/` state (pid files, inbox, the skills cache `skill install` writes) stays under
   the engine's cwd. Found in UAT.

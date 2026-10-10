@@ -154,7 +154,7 @@ async function buildPrompt(task, inputs, context, call, skillDir = '.claude/skil
   if (values.length) parts.push(`## Inputs\n\n\`\`\`json\n${JSON.stringify(Object.fromEntries(values.map(([k, v]) => [k, v.kind === 'value' ? v.value : v.ref])), null, 2)}\n\`\`\``)
   parts.push(`## Instructions\n\n${task.instructions}`)
   const schemas = Object.entries(outputSchema(task).properties.outputs.properties).map(([port, s]) => `\`outputs.${port}\`:\n\n\`\`\`json\n${JSON.stringify(s, null, 2)}\n\`\`\``)
-  parts.push(`## Answer\n\nAnswer with one JSON object: \`outputs.<port>\` for every output port (${Object.keys(task.outputs).join(', ')}), plus a short \`summary\`. No prose outside the JSON. Each output must validate against its JSON Schema, string formats included (a \`format: uri\` string is an absolute URL).\n\n${schemas.join('\n\n')}`)
+  parts.push(`## Answer\n\nAnswer with one JSON object of two top-level keys: \`outputs\`, an object with one key per output port (${Object.keys(task.outputs).join(', ')}) and nothing else, and \`summary\`, a short string next to \`outputs\`, not inside it. No prose outside the JSON. Each output must validate against its JSON Schema, string formats included (a \`format: uri\` string is an absolute URL).\n\n${schemas.join('\n\n')}`)
   return parts.join('\n\n') + '\n'
 }
 
