@@ -16,6 +16,10 @@ createInterface({ input: process.stdin }).once('line', (line) => {
       return out({ id: req.id, ok: true, result: { adapterId: process.env.FAKE_ID ?? 'fake/v1', protocol: 'persimmon.adapter/v1', roles, ...executor } })
     case 'execute':
       if (process.env.FAKE_MODE === 'publish') return publish(req)
+      if (executorTypes.includes('human')) {
+        out({ id: req.id, event: 'waiting', reason: 'human' })
+        return out({ id: req.id, ok: true, result: { accepted: true } }) // HumanAck: the test answers through signal
+      }
       out({ id: req.id, event: 'log', text: 'working' })
       out({ id: req.id, event: 'waiting', reason: 'thinking' })
       return out({ id: req.id, ok: true, result: { echo: req.payload, env: { token: process.env.PERSIMMON_ADAPTER_TOKEN ?? null, cred: process.env.ANTHROPIC_API_KEY ?? null, leaked: process.env.PERSIMMON_CRED_LEAK_TEST ?? null, ...(process.env.FAKE_ECHO_FLAG ? { flag: process.env.PERSIMMON_ADAPTER_CONFORMANCE ?? null } : {}) } } })

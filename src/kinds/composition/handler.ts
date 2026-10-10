@@ -61,6 +61,7 @@ export function compositionHandler(deps: HandlerDeps): HandlerImpl {
       }
     }
     if (['passed', 'rounds', 'verdict'].includes(subject)) bad('/spec/subject', `${subject} is a name the loop reserves for its own outputs`)
+    if ('maxRounds' in inputs) bad('/spec/inputs/maxRounds', 'maxRounds is the input the loop adds itself; set spec.maxRounds for the ceiling')
     if (!deps.kinds.byKind(review.uses.kind)) bad('/spec/review/uses', `unregistered kind ${review.uses.kind}`)
     else if (!isGate(review.uses)) bad('/spec/review/uses', `${review.uses.kind} ${review.uses.name} does not run as a GateRun`)
     return f
@@ -101,8 +102,15 @@ export function compositionHandler(deps: HandlerDeps): HandlerImpl {
       } catch (e) {
         return [{ severity: 'error' as const, code: 'expansion', message: `${label}: ${(e as Error).message}` }]
       }
-      return (impls[r.kind]?.validate(r).findings ?? []).map((f) => ({ ...f, message: `${label}: ${f.message}`, ...(f.path && composition.kind === 'Pipeline' ? { path: f.path.replace(/^\/spec\/steps\//, '/spec/phases/') } : {}) })) // a phase is a step: the path points at what the user wrote
+      return (impls[r.kind]?.validate(r).findings ?? []).map((f) => ({ ...f, message: `${label}: ${f.message}`, ...(f.path ? { path: rebase(composition, r, f.path) } : {}) }))
     })
+  }
+
+  /** A finding on the expansion points at what the user wrote: a Pipeline phase is a step; a ReviewLoop body's steps are `produce` and `review`. */
+  const rebase = (composition: Resource, expanded: Resource, path: string): string => {
+    if (composition.kind === 'Pipeline') return path.replace(/^\/spec\/steps\//, '/spec/phases/')
+    if (composition.kind === 'ReviewLoop' && expanded.metadata.name === `${composition.metadata.name}-round`) return path.replace(/^\/spec\/steps\/0(?=\/|$)/, '/spec/produce').replace(/^\/spec\/steps\/1(?=\/|$)/, '/spec/review')
+    return path
   }
 
   return {

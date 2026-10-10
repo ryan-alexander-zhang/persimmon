@@ -96,7 +96,8 @@ export function expandReviewLoop(r: ReviewLoop, ports: Ports): [Workflow, Workfl
     kind: 'Workflow',
     metadata: meta(r as unknown as Resource),
     spec: {
-      inputs,
+      // a run may ask for fewer rounds than the ceiling, never more
+      inputs: { ...inputs, maxRounds: { type: { kind: 'value', schema: { type: 'integer', minimum: 1 } }, required: false, default: { kind: 'value', value: maxRounds } } },
       outputs: { [subject]: { type: subjectType }, passed: { type: { kind: 'value', schema: { type: 'boolean' } } }, rounds: { type: { kind: 'value', schema: { type: 'integer' } } } },
       outputBindings: { [subject]: { fromStep: { stepRef: 'rounds', output: subject } }, passed: { fromStep: { stepRef: 'rounds', output: 'passed' } }, rounds: { expression: 'steps.rounds.iterations' } },
       entry: ['rounds'],
@@ -110,7 +111,7 @@ export function expandReviewLoop(r: ReviewLoop, ports: Ports): [Workflow, Workfl
             state: carried,
             initial: {},
             next: { ...(previous ? { previous: { fromIterationOutput: subject } } : {}), ...(feedback ? { feedback: { fromIterationOutput: 'verdict' } } : {}) },
-            until: `iteration.outputs.passed || iteration.index >= ${maxRounds}`,
+            until: `iteration.outputs.passed || iteration.index >= (inputs.maxRounds < ${maxRounds} ? inputs.maxRounds : ${maxRounds})`,
             maxIterations: maxRounds,
           },
         },

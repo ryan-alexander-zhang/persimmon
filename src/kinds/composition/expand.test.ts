@@ -121,8 +121,9 @@ describe('expandReviewLoop', () => {
       ],
       timeout: '24h',
     })
+    const maxRounds = { type: { kind: 'value', schema: { type: 'integer', minimum: 1 } }, required: false, default: { kind: 'value', value: 3 } } // a run may ask for fewer rounds
     expect(outer.spec).toEqual({
-      inputs: { research: report },
+      inputs: { research: report, maxRounds },
       outputs: { prd, passed: { type: { kind: 'value', schema: { type: 'boolean' } } }, rounds: { type: { kind: 'value', schema: { type: 'integer' } } } },
       outputBindings: { prd: { fromStep: { stepRef: 'rounds', output: 'prd' } }, passed: { fromStep: { stepRef: 'rounds', output: 'passed' } }, rounds: { expression: 'steps.rounds.iterations' } },
       entry: ['rounds'],
@@ -131,7 +132,7 @@ describe('expandReviewLoop', () => {
         uses: { kind: 'Workflow', name: 'prd-with-review-round' },
         inputs: { research: { fromInput: 'research' }, previous: { fromState: 'previous', onMissing: 'omit' }, feedback: { fromState: 'feedback', onMissing: 'omit' } },
         timeout: '24h',
-        repeat: { state: { previous: { ...prd, required: false }, feedback: { type: gateResult, required: false } }, initial: {}, next: { previous: { fromIterationOutput: 'prd' }, feedback: { fromIterationOutput: 'verdict' } }, until: 'iteration.outputs.passed || iteration.index >= 3', maxIterations: 3 },
+        repeat: { state: { previous: { ...prd, required: false }, feedback: { type: gateResult, required: false } }, initial: {}, next: { previous: { fromIterationOutput: 'prd' }, feedback: { fromIterationOutput: 'verdict' } }, until: 'iteration.outputs.passed || iteration.index >= (inputs.maxRounds < 3 ? inputs.maxRounds : 3)', maxIterations: 3 },
       }],
       transitions: [{ id: 'after-rounds', from: [{ stepRef: 'rounds', outcomes: ['Succeeded'] }], to: [{ terminal: 'Succeeded' }] }],
       timeout: '24h',
@@ -142,7 +143,7 @@ describe('expandReviewLoop', () => {
     const { previous: _p, feedback: _f, maxRounds: _m, ...rest } = loop.spec
     const [outer, body] = expandReviewLoop({ ...loop, spec: rest }, ports)
     expect(body.spec.inputs).toEqual({ research: report })
-    expect(outer.spec.steps[0]!.repeat).toEqual({ state: {}, initial: {}, next: {}, until: 'iteration.outputs.passed || iteration.index >= 3', maxIterations: 3 })
+    expect(outer.spec.steps[0]!.repeat).toEqual({ state: {}, initial: {}, next: {}, until: 'iteration.outputs.passed || iteration.index >= (inputs.maxRounds < 3 ? inputs.maxRounds : 3)', maxIterations: 3 })
     expect(outer.spec.steps[0]!.inputs).toEqual({ research: { fromInput: 'research' } })
   })
 

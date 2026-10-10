@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { parse } from 'yaml'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { parseConfig } from './config.js'
-import { Engine } from './engine.js'
+import { Engine, localActor } from './engine.js'
 import { readClosure } from './snapshot/snapshot.js'
 import type { Resource } from './resource/types.js'
 import type { Closure } from './snapshot/walk.js'
@@ -131,9 +131,11 @@ describe('Engine', () => {
     expect(() => engine.kinds.validateResource({ apiVersion: 'persimmon.ai/v1', kind: 'GateRun', metadata: { name: 'g', namespace: 'demo' }, spec: { gateRef: { kind: 'Approval', name: 'prd-approval' }, address: { workflowRunRef: { apiVersion: 'persimmon.ai/v1', kind: 'WorkflowRun', namespace: 'demo', name: 'x' }, stepRef: 'approve', iterationPath: '', logicalExecutionId: 'x//approve' }, deadline: '2026-09-21T10:00:00Z', inputs: {} } } as Resource)).not.toThrow()
   })
 
-  it('a ReviewLoop expands to an outer Workflow and its round body; the run starts the first round', async () => {
+  it('a ReviewLoop expands to an outer Workflow and its round body; a rejected round feeds the next; maxRounds is an input', { timeout: 60_000 }, async () => {
+    process.env.PERSIMMON_CRED_DEMO__GITHUB_TOKEN = 'ghp-test' // the produce Task's Executor binds demo/github-token
     await engine.start()
-    await engine.apply(fakeAdapter('claude-code/v1'))
+    await engine.listen() // the fake agent publishes through the Engine callbacks
+    await engine.apply({ ...fakeAdapter('claude-code/v1'), spec: { ...(fakeAdapter('claude-code/v1').spec as object), env: { FAKE_ID: 'claude-code/v1', FAKE_MODE: 'publish' } } } as Resource)
     await engine.apply({ ...fakeAdapter('review-ui/v1'), spec: { ...(fakeAdapter('review-ui/v1').spec as object), env: { FAKE_ID: 'review-ui/v1', FAKE_ROLES: 'executor', FAKE_TYPES: 'human' } } } as Resource)
     for (const n of ['kind-definition-productrequirement', 'kind-definition-researchreport']) await engine.apply(example(n))
     for (const r of closure.resources.filter((r) => r.kind !== 'KindDefinition')) await engine.apply(fresh(r as Resource))
@@ -148,6 +150,11 @@ describe('Engine', () => {
     await expect(engine.apply({ ...loop, spec: { ...loop.spec, review: { ...(loop.spec as { review: object }).review, uses: { kind: 'Task', name: 'approve-prd' } } } } as Resource)).rejects.toThrow(/does not run as a GateRun/)
     await expect(engine.apply({ ...loop, spec: { ...loop.spec, subject: 'passed' } } as Resource)).rejects.toThrow(/passed is a name the loop reserves/)
     await expect(engine.apply({ ...loop, spec: { ...loop.spec, produce: { ...(loop.spec as { produce: { inputs: object } }).produce, inputs: { research: { fromInput: 'research' }, last: { fromInput: 'research' } } } } } as Resource)).rejects.toThrow(/last is fed by the loop/)
+    await expect(engine.apply({ ...loop, spec: { ...loop.spec, inputs: { ...(loop.spec as { inputs: object }).inputs, maxRounds: { type: { kind: 'value', schema: { type: 'integer' } } } } } } as Resource)).rejects.toThrow(/maxRounds is the input the loop adds itself/)
+    // a finding on the body points at what the user wrote, its message names the expansion
+    const badReview = await engine.apply({ ...loop, spec: { ...loop.spec, review: { ...(loop.spec as { review: object }).review, inputs: { prd: { fromStep: { stepRef: 'produce', output: 'nope' } } } } } } as Resource).catch((e: Error & { findings: { path?: string; message: string }[] }) => e)
+    expect(badReview).toBeInstanceOf(Error)
+    expect((badReview as unknown as { findings: { path?: string; message: string }[] }).findings[0]).toMatchObject({ path: '/spec/review/inputs/prd', message: expect.stringMatching(/^Workflow\/prd-loop-round: /) })
     await engine.apply(loop)
 
     const errors: string[] = []
@@ -161,6 +168,30 @@ describe('Engine', () => {
     const round = engine.store.resources.get({ kind: 'WorkflowRun', namespace: 'demo', name: 'prd-loop-001-rounds-1' })!
     expect(round.metadata.ownerReferences?.[0]?.uid).toBe(run.metadata.uid)
     expect(engine.store.resources.get({ kind: 'TaskRun', namespace: 'demo', name: 'prd-loop-001-rounds-1-produce' })?.metadata.ownerReferences?.[0]?.uid).toBe(round.metadata.uid)
+
+    // the fake agent published the PRD; the human approver is asked; a rejection carries the PRD and the verdict into round 2
+    const verdict = (passed: boolean) => ({ taskResult: { protocol: 'persimmon.result/v1', outputs: { result: { kind: 'value', value: { passed, findings: passed ? [] : [{ severity: 'error', code: 'scope', message: 'too broad' }], evidence: [] } } } }, publish: [] })
+    const answer = async (runName: string, n: number, passed: boolean) => {
+      const tr = engine.store.resources.get({ kind: 'TaskRun', namespace: 'demo', name: `${runName}-rounds-${n}-review-human-task` })
+      expect(tr?.status).toMatchObject({ phase: 'Waiting' })
+      engine.signal(tr!.metadata.uid as string, `v-${runName}-${n}`, localActor, verdict(passed), 'api')
+      await engine.drain()
+    }
+    await answer('prd-loop-001', 1, false)
+    const produce2 = engine.store.resources.get({ kind: 'TaskRun', namespace: 'demo', name: 'prd-loop-001-rounds-2-produce' })
+    expect(produce2).toBeDefined()
+    const inputs2 = (produce2!.spec as { inputs: Record<string, { kind: string; ref?: { id: string }; value?: { passed: boolean } }> }).inputs
+    expect(inputs2.last).toMatchObject({ kind: 'artifact', ref: { kind: 'ProductRequirement' } })
+    expect(inputs2.verdict).toMatchObject({ kind: 'value', value: { passed: false } })
+    await answer('prd-loop-001', 2, true)
+    expect(engine.store.resources.getByUid(run.metadata.uid as string)?.status).toMatchObject({ phase: 'Succeeded', outputs: { passed: { value: true }, rounds: { value: 2 }, prd: { kind: 'artifact' } } })
+
+    // a run may ask for fewer rounds than the ceiling: one round, rejected, is a verdict, not iteration_limit
+    const { resource: short } = await engine.create({ apiVersion: 'persimmon.ai/v1', kind: 'WorkflowRun', metadata: { name: 'prd-loop-003', namespace: 'demo' }, spec: { workflowRef: { kind: 'ReviewLoop', name: 'prd-loop' }, inputs: { research, maxRounds: { kind: 'value', value: 1 } }, origin: { kind: 'manual' } } } as Resource)
+    await engine.drain()
+    await answer('prd-loop-003', 1, false)
+    expect(engine.store.resources.getByUid(short.metadata.uid as string)?.status).toMatchObject({ phase: 'Succeeded', outputs: { passed: { value: false }, rounds: { value: 1 } } })
+    expect(errors).toEqual([])
 
     // a cycle through produce (A produces with B, B with A) is refused at snapshot, not a stack overflow
     const loopB = { ...loop, metadata: { name: 'prd-loop-b', namespace: 'demo' }, spec: { ...loop.spec, previous: undefined, feedback: undefined, produce: { uses: { kind: 'ReviewLoop', name: 'prd-loop' }, inputs: { research: { fromInput: 'research' } }, timeout: '1h' } } } as Resource
