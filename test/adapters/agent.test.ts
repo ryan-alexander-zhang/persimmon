@@ -120,9 +120,9 @@ describe('claude-code/v1', () => {
 
   it('builds the prompt in context order, publishes artifact outputs, passes credentials as env', async () => {
     calls.length = 0
-    const r = await adapter('claude-code', { id: 2, op: 'execute', payload: payload() }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'Checkout v2' }, count: 2 }, summary: 'done' }) })
+    const r = await adapter('claude-code', { id: 2, op: 'execute', payload: payload() }, { STUB_RESULT: JSON.stringify({ prd: { title: 'Checkout v2' }, count: 2 }) })
     expect(r.lines[0]).toEqual({ id: 2, event: 'waiting', reason: 'agent' })
-    expect(last(r)).toEqual({ id: 2, ok: true, result: { protocol: 'persimmon.result/v1', summary: 'done', outputs: { prd: { kind: 'artifact', ref: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement', namespace: 'demo', id: 'prd-create-001-write-prd-prd', revision: 1 } }, count: { kind: 'value', value: 2 } } } })
+    expect(last(r)).toEqual({ id: 2, ok: true, result: { protocol: 'persimmon.result/v1', outputs: { prd: { kind: 'artifact', ref: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement', namespace: 'demo', id: 'prd-create-001-write-prd-prd', revision: 1 } }, count: { kind: 'value', value: 2 } } } })
     const seen = JSON.parse(readFileSync(join(stubs, 'claude.json'), 'utf8'))
     const p: string = seen.prompt
     const order = ['ResearchReport research-checkout-v2 revision 1', 'Preserve ids.', 'File AGENTS.md', '"maxRequirements": 12', 'Write the PRD.', '## Answer'].map((s) => p.indexOf(s))
@@ -131,7 +131,7 @@ describe('claude-code/v1', () => {
     expect(p.slice(p.indexOf('## Answer'))).toContain('"required": [\n    "title"')
     expect(seen.args).toEqual(expect.arrayContaining(['-p', '--output-format', 'stream-json', '--verbose', '--model', 'sonnet', '--effort', 'low', '--restricted']))
     const schema = JSON.parse(seen.args[seen.args.indexOf('--json-schema') + 1])
-    expect(schema.properties.outputs).toEqual({ type: 'object', required: ['prd', 'count'], additionalProperties: false, properties: { prd: { type: 'object', required: ['title'], properties: { title: { type: 'string' } } }, count: { type: 'integer' } } })
+    expect(schema).toEqual({ type: 'object', required: ['prd', 'count'], additionalProperties: false, properties: { prd: { type: 'object', required: ['title'], properties: { title: { type: 'string' } } }, count: { type: 'integer' } } })
     expect(seen.env).toEqual({ GITHUB_TOKEN: 'ghp-secret', token: null })
     expect(calls.map((c) => c.name)).toEqual(['getArtifact', 'putBlob', 'publishArtifact'])
     expect(calls[2]!.args).toMatchObject({ kind: { kind: 'ProductRequirement' }, id: 'prd-create-001-write-prd-prd', content: { title: 'Checkout v2' }, inputs: [research], representations: [{ name: 'json', mediaType: 'application/json' }] })
@@ -143,7 +143,7 @@ describe('claude-code/v1', () => {
   })
 
   it('configuration.allowedTools reaches claude as --allowedTools', async () => {
-    const r = await adapter('claude-code', { id: 14, op: 'execute', payload: payload({ executor: { type: 'agent', configuration: { sandbox: 'workspace-write', allowedTools: ['Bash(npm test:*)', 'Bash(npm run coverage:*)'] }, security: { networkAccess: 'deny', credentialBindings: [] } } }) }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'PRD' }, count: 1 } }) })
+    const r = await adapter('claude-code', { id: 14, op: 'execute', payload: payload({ executor: { type: 'agent', configuration: { sandbox: 'workspace-write', allowedTools: ['Bash(npm test:*)', 'Bash(npm run coverage:*)'] }, security: { networkAccess: 'deny', credentialBindings: [] } } }) }, { STUB_RESULT: JSON.stringify({ prd: { title: 'PRD' }, count: 1 }) })
     expect(last(r).ok).toBe(true)
     const args = JSON.parse(readFileSync(join(stubs, 'claude.json'), 'utf8')).args as string[]
     expect(args.slice(args.indexOf('--allowedTools'), args.indexOf('--allowedTools') + 3)).toEqual(['--allowedTools', 'Bash(npm test:*)', 'Bash(npm run coverage:*)'])
@@ -154,7 +154,7 @@ describe('claude-code/v1', () => {
     const ws = mkdtempSync(join(tmpdir(), 'persimmon-ws-'))
     writeFileSync(join(ws, 'NOTE.md'), 'read me')
     const fileCtx = { kind: 'file', ref: { provider: 'git', type: 'repository', id: 'r', locator: { path: ws }, version: 'v' }, path: 'NOTE.md' }
-    const r = await adapter('claude-code', { id: 12, op: 'execute', payload: payload({ workspace: ws, context: [fileCtx] }) }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'PRD' }, count: 1 } }) })
+    const r = await adapter('claude-code', { id: 12, op: 'execute', payload: payload({ workspace: ws, context: [fileCtx] }) }, { STUB_RESULT: JSON.stringify({ prd: { title: 'PRD' }, count: 1 }) })
     expect(last(r).ok).toBe(true)
     const seen = JSON.parse(readFileSync(join(stubs, 'claude.json'), 'utf8'))
     expect(seen.cwd).toBe(realpathSync(ws))
@@ -190,7 +190,7 @@ describe('claude-code/v1', () => {
   })
 
   it('a publish the engine refuses is schema_violation, not retryable', async () => {
-    const r = await adapter('claude-code', { id: 10, op: 'execute', payload: payload() }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'BAD' }, count: 1 } }) })
+    const r = await adapter('claude-code', { id: 10, op: 'execute', payload: payload() }, { STUB_RESULT: JSON.stringify({ prd: { title: 'BAD' }, count: 1 }) })
     expect(last(r)).toMatchObject({ ok: false, error: { code: 'schema_violation', retryable: false, message: expect.stringContaining('format "uri"') } })
   })
 
@@ -200,7 +200,7 @@ describe('claude-code/v1', () => {
     mkdirSync(src, { recursive: true })
     writeFileSync(join(src, 'SKILL.md'), '# PRD writer\nOne requirement per line.\n')
     const skill = { kind: 'skill', name: 'prd-writer', source: { provider: 'file', type: 'directory', id: 'x', locator: { path: 'skills/prd-writer' }, version: '1' }, digest: skillDigest(src), format: 'claude-code-skill/v1' }
-    const ok = await adapter('claude-code', { id: 4, op: 'execute', payload: payload({ workspace: ws, context: [skill] }) }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'S' }, count: 1 } }) })
+    const ok = await adapter('claude-code', { id: 4, op: 'execute', payload: payload({ workspace: ws, context: [skill] }) }, { STUB_RESULT: JSON.stringify({ prd: { title: 'S' }, count: 1 }) })
     expect(last(ok).ok).toBe(true)
     const seen = JSON.parse(readFileSync(join(stubs, 'claude.json'), 'utf8'))
     expect(seen.args).not.toContain('--add-dir')
@@ -219,7 +219,7 @@ describe('claude-code/v1', () => {
     mkdirSync(join(ws, '.agents', 'skills', 'prd-writer'), { recursive: true })
     writeFileSync(join(ws, '.agents', 'skills', 'prd-writer', 'SKILL.md'), '# PRD writer\nOne requirement per line.\n')
     mkdirSync(join(ws, '.agents', 'skills', 'house-style'), { recursive: true })
-    const cx = await adapter('codex', { id: 45, op: 'execute', payload: payload({ workspace: ws, executor: { type: 'agent', configuration: { model: 'gpt-6-sol', sandbox: 'workspace-write' }, security: { networkAccess: 'deny', credentialBindings: [] } }, context: [skill] }) }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'S' }, count: 1 } }) })
+    const cx = await adapter('codex', { id: 45, op: 'execute', payload: payload({ workspace: ws, executor: { type: 'agent', configuration: { model: 'gpt-6-sol', sandbox: 'workspace-write' }, security: { networkAccess: 'deny', credentialBindings: [] } }, context: [skill] }) }, { STUB_RESULT: JSON.stringify({ prd: { title: 'S' }, count: 1 }) })
     expect(last(cx).ok).toBe(true)
     expect(JSON.parse(readFileSync(join(stubs, 'codex.json'), 'utf8')).skill).toBe(true)
     expect(cx.lines.some((l) => l.event === 'log' && l.text === 'workspace skills not declared by this Task: house-style')).toBe(true)
@@ -241,21 +241,21 @@ describe('claude-code/v1', () => {
 describe('codex/v1', () => {
   it('writes the schema file, reads the answer file, maps sandbox and model', async () => {
     calls.length = 0
-    const r = await adapter('codex', { id: 8, op: 'execute', payload: payload({ executor: { type: 'agent', configuration: { model: 'gpt-6-sol', sandbox: 'workspace-write' }, security: { networkAccess: 'deny', credentialBindings: [] } } }) }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'PRD' }, count: 1 } }) })
+    const r = await adapter('codex', { id: 8, op: 'execute', payload: payload({ executor: { type: 'agent', configuration: { model: 'gpt-6-sol', sandbox: 'workspace-write' }, security: { networkAccess: 'deny', credentialBindings: [] } } }) }, { STUB_RESULT: JSON.stringify({ prd: { title: 'PRD' }, count: 1 }) })
     expect(last(r).result.outputs.prd.ref.id).toBe('prd-create-001-write-prd-prd')
     expect(r.lines.filter((l) => l.event === 'log').map((l) => l.text)).toEqual(['codex: reading the brief']) // stdout is the transcript: it streams as log lines
     const seen = JSON.parse(readFileSync(join(stubs, 'codex.json'), 'utf8'))
     expect(seen.args).toEqual(expect.arrayContaining(['exec', '--ephemeral', '-s', 'workspace-write', '-m', 'gpt-6-sol', '-c', 'sandbox_workspace_write.network_access=false', '-']))
-    expect(seen.schema.properties.outputs.required).toEqual(['prd', 'count'])
+    expect(seen.schema.required).toEqual(['prd', 'count'])
     // strict form: closed objects, every property required, optional ones widened with null, no format
-    expect(seen.schema).toEqual({ type: 'object', required: ['outputs', 'summary'], additionalProperties: false, properties: { outputs: { type: 'object', required: ['prd', 'count'], additionalProperties: false, properties: { prd: { type: 'object', required: ['title'], additionalProperties: false, properties: { title: { type: 'string' } } }, count: { type: 'integer' } } }, summary: { anyOf: [{ type: 'string' }, { type: 'null' }] } } })
+    expect(seen.schema).toEqual({ type: 'object', required: ['prd', 'count'], additionalProperties: false, properties: { prd: { type: 'object', required: ['title'], additionalProperties: false, properties: { title: { type: 'string' } } }, count: { type: 'integer' } } }) // flat: no outputs wrapper, no summary
   })
 
   it('network is closed unless security.networkAccess is allowlist; deny cannot pair with the full sandbox', async () => {
     const exec = (security: Record<string, unknown>, sandbox = 'workspace-write') => ({ type: 'agent', configuration: { model: 'gpt-6-sol', sandbox }, security })
-    await adapter('codex', { id: 30, op: 'execute', payload: payload({ executor: exec({ credentialBindings: [] }) }) }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'P' }, count: 1 } }) })
+    await adapter('codex', { id: 30, op: 'execute', payload: payload({ executor: exec({ credentialBindings: [] }) }) }, { STUB_RESULT: JSON.stringify({ prd: { title: 'P' }, count: 1 }) })
     expect(JSON.parse(readFileSync(join(stubs, 'codex.json'), 'utf8')).args).toContain('sandbox_workspace_write.network_access=false')
-    await adapter('codex', { id: 31, op: 'execute', payload: payload({ executor: exec({ networkAccess: 'allowlist', allowedHosts: ['api.openai.com'] }) }) }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'P' }, count: 1 } }) })
+    await adapter('codex', { id: 31, op: 'execute', payload: payload({ executor: exec({ networkAccess: 'allowlist', allowedHosts: ['api.openai.com'] }) }) }, { STUB_RESULT: JSON.stringify({ prd: { title: 'P' }, count: 1 }) })
     expect(JSON.parse(readFileSync(join(stubs, 'codex.json'), 'utf8')).args).toContain('sandbox_workspace_write.network_access=true')
     const r = await adapter('codex', { id: 32, op: 'execute', payload: payload({ executor: exec({ networkAccess: 'deny' }, 'full') }) })
     expect(last(r)).toMatchObject({ ok: false, error: { code: 'invalid_input', retryable: false } })
@@ -265,11 +265,11 @@ describe('codex/v1', () => {
     const outputSchemas = { prd: { type: 'object', required: ['title', 'items'], properties: { title: { type: 'string' }, note: { type: 'string', format: 'uri' }, items: { type: 'array', items: { oneOf: [{ type: 'object', required: ['id'], properties: { id: { type: 'string' }, level: { enum: ['a', 'b'] } } }, { $ref: '#/$defs/x' }] } } }, $defs: { x: { type: 'object', properties: { y: { type: 'integer' } } } } } }
     calls.length = 0
     const task = { ...payload().task, outputs: { prd: payload().task.outputs.prd }, outputSchemas }
-    const r = await adapter('codex', { id: 13, op: 'execute', payload: payload({ task }) }, { STUB_RESULT: JSON.stringify({ outputs: { prd: { title: 'P', note: null, items: [{ id: 'i', level: null }] } }, summary: null }) })
+    const r = await adapter('codex', { id: 13, op: 'execute', payload: payload({ task }) }, { STUB_RESULT: JSON.stringify({ prd: { title: 'P', note: null, items: [{ id: 'i', level: null }] } }) })
     expect(calls.find((c) => c.name === 'publishArtifact')!.args).toMatchObject({ content: { title: 'P', items: [{ id: 'i' }] } })
     expect(last(r).result).not.toHaveProperty('summary')
     const seen = JSON.parse(readFileSync(join(stubs, 'codex.json'), 'utf8'))
-    expect(seen.schema.properties.outputs.properties.prd).toEqual({
+    expect(seen.schema.properties.prd).toEqual({
       type: 'object', required: ['title', 'note', 'items'], additionalProperties: false,
       properties: {
         title: { type: 'string' },

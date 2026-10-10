@@ -153,8 +153,8 @@ async function buildPrompt(task, inputs, context, call, skillDir = '.claude/skil
   const values = Object.entries(inputs).filter(([, v]) => v.kind !== 'artifact')
   if (values.length) parts.push(`## Inputs\n\n\`\`\`json\n${JSON.stringify(Object.fromEntries(values.map(([k, v]) => [k, v.kind === 'value' ? v.value : v.ref])), null, 2)}\n\`\`\``)
   parts.push(`## Instructions\n\n${task.instructions}`)
-  const schemas = Object.entries(outputSchema(task).properties.outputs.properties).map(([port, s]) => `\`outputs.${port}\`:\n\n\`\`\`json\n${JSON.stringify(s, null, 2)}\n\`\`\``)
-  parts.push(`## Answer\n\nAnswer with one JSON object of two top-level keys: \`outputs\`, an object with one key per output port (${Object.keys(task.outputs).join(', ')}) and nothing else, and \`summary\`, a short string next to \`outputs\`, not inside it. No prose outside the JSON. Each output must validate against its JSON Schema, string formats included (a \`format: uri\` string is an absolute URL).\n\n${schemas.join('\n\n')}`)
+  const schemas = Object.entries(outputSchema(task).properties).map(([port, s]) => `\`${port}\`:\n\n\`\`\`json\n${JSON.stringify(s, null, 2)}\n\`\`\``)
+  parts.push(`## Answer\n\nAnswer with one JSON object: one key per output port (${Object.keys(task.outputs).join(', ')}), nothing else, no wrapper key. No prose outside the JSON. Each output must validate against its JSON Schema, string formats included (a \`format: uri\` string is an absolute URL).\n\n${schemas.join('\n\n')}`)
   return parts.join('\n\n') + '\n'
 }
 
@@ -176,10 +176,8 @@ function outputSchema(task) {
   const properties = {}
   for (const [port, spec] of Object.entries(task.outputs))
     properties[port] = spec.type.kind === 'artifact' ? task.outputSchemas[port] ?? { type: 'object' } : spec.type.schema ?? {}
-  return {
-    type: 'object', required: ['outputs'], additionalProperties: false,
-    properties: { outputs: { type: 'object', required: Object.keys(properties), additionalProperties: false, properties }, summary: { type: 'string' } },
-  }
+  // flat: one top-level key per port, no wrapper and no summary; a nested `outputs` and a second `summary` made claude misplace keys (19-adapter-roles.md)
+  return { type: 'object', required: Object.keys(properties), additionalProperties: false, properties }
 }
 
 /** Whole lines of the agent's own output become `log` stream lines, ANSI escapes stripped, at most `maxLogLines` per stream per attempt; `map` turns a line into log text or drops it (undefined). The store keeps them beside the call (07-adapter.md). */

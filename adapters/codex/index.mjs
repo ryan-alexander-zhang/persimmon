@@ -56,7 +56,7 @@ serve({
   },
   parse({ dir }) {
     try {
-      return stripNulls(JSON.parse(readFileSync(join(dir, 'answer.json'), 'utf8')))
+      return { outputs: stripNulls(JSON.parse(readFileSync(join(dir, 'answer.json'), 'utf8'))) } // flat schema, one key per port
     } catch (e) {
       throw new AdapterError('agent_failed', `codex wrote no JSON answer: ${e.message}`, true)
     }

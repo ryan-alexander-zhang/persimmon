@@ -126,8 +126,8 @@ Result: a ValidationResult (`10-ports.md`). No `credentials`, no `security` (`14
   definition as-is; portable definitions use Prompt and Skill instead.
 - Shipped agent Adapters `claude-code/v1` and `codex/v1` share one runner
   (`adapters/lib/agent.mjs`). One agent process per attempt, prompt is context entries in
-  order, value inputs, `instructions`, then the output schemas; the agent answers one JSON
-  object `{outputs, summary}` through the CLI's structured output; the Adapter publishes the
+  order, value inputs, `instructions`, then the output schemas; the agent answers one flat JSON
+  object, one key per output port, through the CLI's structured output; the Adapter publishes the
   artifact outputs itself under identity `<logicalExecutionId>-<port>` as a DNS label, one
   per logical execution. The agent never sees `engine.token` or the adapter token; task
   credentials reach it as `<NS>__<NAME>` environment. Found in implementation.
@@ -155,10 +155,16 @@ Result: a ValidationResult (`10-ports.md`). No `credentials`, no `security` (`14
   5000 lines per stream per attempt (a coding agent's transcript with tool output runs past 500), the last one
   says so. `persimmon logs` shows what the agent did after a
   success too. Found in UAT.
-- The answer prompt says `summary` sits next to `outputs`, not inside it: "outputs per port plus a
-  short summary" made claude put `summary` under `outputs`, and every step paid one rejected
-  structured-output call. Headless `claude -p` emits no `thinking` events, so an agent's reasoning
-  reaches the log only as text it writes before answering. Found in UAT.
+- The agent's answer schema is flat: one top-level key per output port, no `outputs` wrapper, no
+  `summary`; the driver wraps it into `{outputs}`. `claude -p --json-schema` is a tool the model
+  fills by hand, validated and re-prompted by the CLI, not constrained decoding (that exists only in
+  the Messages API, which the CLI does not expose). With `{outputs: {prd: {..., summary}}, summary}`
+  claude wrapped `outputs` twice or moved `summary` inside it, one to three rejected answers per
+  step, whatever the prompt said; a small schema never failed. Flat, the reviewer and judge steps
+  answered first time; the large `EarsPrd` answer still got wrapped once (`{"prd":{"prd":...}}`), the
+  known open upstream bug (claude-agent-sdk-python #502), absorbed by the CLI's own retry at the cost
+  of tokens, never an attempt. Headless `claude -p` emits no `thinking` events, so an agent's
+  reasoning reaches the log only as text it writes before answering. Found in UAT.
 - The shipped Adapters spawn the agent or program with `cwd: payload.workspace`; `subprocess/v1`
   resolves `resultFile` against it. `.persimmon/` state (pid files, inbox, the skills cache `skill install` writes) stays under
   the engine's cwd. Found in UAT.

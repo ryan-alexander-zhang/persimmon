@@ -80,9 +80,9 @@ serve({
   },
   parse({ stdout }) {
     const r = result(stdout)
-    if (r.structured_output) return r.structured_output
+    if (r.structured_output) return { outputs: r.structured_output } // the schema is flat: one key per port (19-adapter-roles.md)
     try {
-      return JSON.parse(r.result)
+      return { outputs: JSON.parse(r.result) }
     } catch {
       throw new AdapterError('agent_failed', 'claude answered no structured output', true)
     }
