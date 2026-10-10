@@ -41,10 +41,10 @@ cd examples/example06
 persimmon init
 persimmon validate prd-debate.yaml     # 15 lines, every one `ok`
 persimmon apply prd-debate.yaml
-persimmon get Pipeline                 # Pipeline/idea-to-approved-prd
-persimmon get ReviewLoop               # ReviewLoop/idea-to-reviewed-prd
-persimmon get Approval                 # Approval/prd-review, Approval/prd-signoff
-persimmon get Workflow                 # the pack's two only: nothing derived is stored
+persimmon get Pipeline                 # Pipeline/idea-to-approved-prd  -n default
+persimmon get ReviewLoop               # ReviewLoop/idea-to-reviewed-prd  -n default
+persimmon get Approval                 # Approval/prd-review  -n default, Approval/prd-signoff  -n default
+persimmon get Workflow                 # the pack's two Global ones only: nothing derived is stored
 ```
 
 `validate` expands each composition and checks the result with the Workflow and Gate rules, so a
@@ -60,6 +60,7 @@ persimmon run idea-to-approved-prd --input idea="A CLI that turns a meeting tran
 
 ```text
 created WorkflowRun/idea-to-approved-prd-<hex>
+WorkflowRun   idea-to-approved-prd-<hex>   Running
 debate   WorkflowRun   Running
 debate/rounds-1   WorkflowRun   Running
 debate/rounds-1/produce   TaskRun   claude-code/v1   Running

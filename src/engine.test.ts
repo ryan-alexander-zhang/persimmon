@@ -127,6 +127,8 @@ describe('Engine', () => {
     expect(names.some((n) => n.startsWith('Approval/') || n.startsWith('Pipeline/'))).toBe(false)
     const wf = readClosure(run.metadata.snapshot!, engine.store.snapshots).resources.find((r) => r.kind === 'Workflow' && r.metadata.name === 'prd-pipeline')!.spec as { transitions: { id: string; dispatch?: string; to: unknown[] }[] }
     expect(wf.transitions.find((t) => t.id === 'after-approve')).toMatchObject({ dispatch: 'first', to: [{ terminal: 'Succeeded', when: 'steps.approve.outputs.result.passed' }, { terminal: 'Failed', reason: 'approve_rejected' }] })
+    // the step's child run names the composition, as the Workflow step does (found in UAT: GateRun.gateRef pinned kind Gate and the round stalled)
+    expect(() => engine.kinds.validateResource({ apiVersion: 'persimmon.ai/v1', kind: 'GateRun', metadata: { name: 'g', namespace: 'demo' }, spec: { gateRef: { kind: 'Approval', name: 'prd-approval' }, address: { workflowRunRef: { apiVersion: 'persimmon.ai/v1', kind: 'WorkflowRun', namespace: 'demo', name: 'x' }, stepRef: 'approve', iterationPath: '', logicalExecutionId: 'x//approve' }, deadline: '2026-09-21T10:00:00Z', inputs: {} } } as Resource)).not.toThrow()
   })
 
   it('a ReviewLoop expands to an outer Workflow and its round body; the run starts the first round', async () => {

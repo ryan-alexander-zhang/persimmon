@@ -192,7 +192,7 @@ $defs:
         additionalProperties: false
         properties:
           gateRef:
-            allOf: [{$ref: "resource.yaml#/$defs/LocalDefinitionRef"}, {properties: {kind: {const: Gate}}}]
+            $ref: "resource.yaml#/$defs/LocalDefinitionRef"   # Gate, or a kind expanding to Gate (21-composition.md)
           address: {$ref: "#/$defs/Address"}
           deadline: {$ref: "#/$defs/Deadline"}
           inputs: {$ref: "ports.yaml#/$defs/RuntimeValues"}

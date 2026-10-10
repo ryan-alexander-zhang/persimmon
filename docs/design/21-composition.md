@@ -21,7 +21,7 @@ ReviewLoop ──expand──▶ Workflow + Workflow      produce ─▶ review,
 | a composition's `metadata.name` is free in its scope for the expansion kind and every helper name (`<name>-round`) | Handler `validate` |
 | `validate` expands, then runs the schema, the static checker and the target Handler's `validate` on every expanded Resource; findings carry the path into the composition where one exists, else the expanded Resource's name | Handler `validate` |
 | the expansion is a pure function of `spec`; the same spec expands to the same bytes | Handler author |
-| a run names the composition (`workflowRef: {kind: Pipeline, name}`); the closure holds the expansion under the target kind and the composition's name, plus the composition's KindDefinition | snapshot walk |
+| a run names the composition (`workflowRef: {kind: Pipeline, name}`, `gateRef: {kind: Approval, name}`); the closure holds the expansion under the target kind and the composition's name, plus the composition's KindDefinition | snapshot walk, run schemas |
 | `persimmon run <name>` accepts a Workflow or any kind expanding to Workflow; `tree`, `describe` and `get` of a run show the expanded step ids | CLI |
 
 ## Pipeline
@@ -130,6 +130,9 @@ Expansion:
 - Expansion resolves references in the run's Namespace at snapshot (`expand(resource, namespace)`),
   the composition's own at write, the same order the walk uses for every hop. A composition that
   expands through itself is refused by an in-progress guard. Found in UAT (audit).
+- `GateRun.spec.gateRef` accepts a kind expanding to Gate, as `workflowRef` does: a round whose
+  review was an Approval stalled on `/gateRef/kind must be equal to constant`. The Gate Handler
+  reads the closure by name, so the expansion is found either way. Found in UAT.
 
 ## Examples
 
