@@ -23,7 +23,6 @@ later     eager joins · retention policy · policy resource · external event s
 | eager `any` / `quorum` joins with cancellation of the rest | `11-workflow.md`, `14-gate.md` | Transitions and Gate policy |
 | cross-Namespace references | `04-snapshot.md` | walk never crosses a Namespace |
 | garbage collection, cascading delete | `00-resource.md` | |
-| `run --follow` lines in commit time order | `08-store.md` | v1: lines committed in one drain print parent before child (`examples/example02`) |
 
 ## Layer 1
 

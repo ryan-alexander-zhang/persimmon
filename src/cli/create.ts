@@ -76,12 +76,14 @@ async function follow(cli: Cli, engine: Engine, resource: Resource, pollMs: numb
   const seen = new Map<string, string>()
   const report = () => {
     const self = engine.store.resources.getByUid(uid)
+    const changed: { line: string; at: number }[] = []
     for (const r of [...children(engine, resource, new Set()), ...(self ? [self] : [])]) {
       const line = followLine(engine, r, resource)
       if (seen.get(r.metadata.uid as string) === line) continue
       seen.set(r.metadata.uid as string, line)
-      if (r.metadata.uid !== uid || phaseOf(r)) cli.out(line)
+      if (r.metadata.uid !== uid || phaseOf(r)) changed.push({ line, at: committedAt(engine, r) })
     }
+    for (const c of changed.sort((a, b) => a.at - b.at)) cli.out(c.line) // one drain commits parent and child together; print in commit order, not walk order
   }
   const summary = () => {
     const self = engine.store.resources.getByUid(uid)
@@ -120,6 +122,12 @@ async function follow(cli: Cli, engine: Engine, resource: Resource, pollMs: numb
   } finally {
     clearInterval(ticker)
   }
+}
+
+/** When the run last changed: its latest applied RunLog entry, else its creation. */
+function committedAt(engine: Engine, r: Resource): number {
+  const applied = engine.store.runLog.read(r.metadata.uid as string).map((e) => Date.parse(e.appliedAt ?? '')).filter((t) => !Number.isNaN(t))
+  return applied.length ? Math.max(...applied) : Date.parse(r.metadata.creationTimestamp ?? '') || 0
 }
 
 /** `rounds-1/implement   TaskRun   codex/v1   Running`: the same words the tree uses, one line per change. */

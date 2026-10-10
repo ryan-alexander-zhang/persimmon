@@ -183,6 +183,9 @@ imports into a server unchanged.
 - `tree` measures a finished TaskRun to its last attempt's `finishedAt`, not to the RunLog entry
   that applied the answer: local mode delivers the answers of one drain together, so two parallel
   reviewers showed the same duration. Found in UAT.
+- `--follow` prints the lines of one tick in commit order, the latest applied RunLog entry of each
+  run: one drain commits a child's finish and its parent's reaction together, and the walk order
+  printed the parent first. Found in UAT.
 
 ## Examples
 

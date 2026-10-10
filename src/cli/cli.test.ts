@@ -140,6 +140,7 @@ describe('persimmon CLI', () => {
     expect(out[0]).toBe('created WorkflowRun/demo-001')
     expect(out.some((l) => /^WorkflowRun   demo-001   Failed  schema_violation: step research: /.test(l))).toBe(true) // the step's failure, not no_progress
     expect(out.some((l) => /^research   TaskRun   claude-code\/v1   Failed  schema_violation/.test(l))).toBe(true) // owned runs report as they change
+    expect(out.findIndex((l) => /^WorkflowRun   demo-001   Failed/.test(l))).toBeGreaterThan(out.findIndex((l) => /^research   TaskRun .* Failed/.test(l))) // commit order: the child's failure before the parent's
     expect(out.at(-1)).toMatch(/^      schema_violation: /) // then the tree
     out = []
     expect(await run('get', 'WorkflowRun/demo-001')).toBe(0)
