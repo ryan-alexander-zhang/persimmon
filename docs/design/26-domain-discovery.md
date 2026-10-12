@@ -91,6 +91,18 @@ when `artifacts.domainModel` is present; `passed` iff no error. Labels compare e
 - `confirm-storming` is its own Task rather than an Approval, because the phase Gate also needs
   the grammar Validator with a bound level, and an Approval's approvers are Tasks only.
 
+- Proven live on `claude-sonnet-5`: `domain-discovery` ran big-picture, process and design in one
+  round each (79 s, 102 s, 159 s), every grammar check clean, each human gate completed from the
+  terminal; `derive-all` then produced the three artifacts for the one context and `domain-consistency`
+  passed first time (158 s). The first derivation died in zero seconds because the `DomainModel` kind
+  is the first with `$defs` and the CLI resolves `$ref` from the schema root; the runner now hoists
+  every port's `$defs`. Found in UAT.
+- What the human gate is for, seen in the run: event labels that read as states ("Claim routed to
+  approver"), the Prd's three contexts collapsed into one, that one classified `supporting` where the
+  Prd calls it core, and the routing policy carrying the 5000 EUR threshold in prose rather than as a
+  parameter. A reject with findings sends each back; the Prompts stay as written, the gate decides.
+  Found in UAT.
+
 ## Examples
 
 - [`examples/ai-native-domain.yaml`](examples/ai-native-domain.yaml): `expense-claims-storming.r2`,
