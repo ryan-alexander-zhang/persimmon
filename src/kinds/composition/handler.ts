@@ -60,7 +60,7 @@ export function compositionHandler(deps: HandlerDeps): HandlerImpl {
         if (field in inputs) bad(`/spec/inputs/${field}`, `${field} is a name the loop reserves for its state`)
       }
     }
-    if (['passed', 'rounds', 'verdict'].includes(subject)) bad('/spec/subject', `${subject} is a name the loop reserves for its own outputs`)
+    if (['passed', 'rounds', 'verdict'].includes(subject)) bad('/spec/subject', `${subject} is a name the loop reserves for its own outputs`) // shadowed, so it could never carry the subject
     if ('maxRounds' in inputs) bad('/spec/inputs/maxRounds', 'maxRounds is the input the loop adds itself; set spec.maxRounds for the ceiling')
     if (!deps.kinds.byKind(review.uses.kind)) bad('/spec/review/uses', `unregistered kind ${review.uses.kind}`)
     else if (!isGate(review.uses)) bad('/spec/review/uses', `${review.uses.kind} ${review.uses.name} does not run as a GateRun`)

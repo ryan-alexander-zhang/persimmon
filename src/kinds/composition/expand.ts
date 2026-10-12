@@ -56,6 +56,9 @@ export type Ports = (ref: { kind: string; name: string }) => { inputs: Record<st
 
 const gateResult: PortType = { kind: 'value', schema: { $ref: 'persimmon.ai/v1#/GateResult' } }
 
+/** Output names a ReviewLoop's expansion keeps for itself: a produce output of that name is shadowed, not surfaced. */
+const loopOutputs = ['verdict', 'passed', 'rounds']
+
 /**
  * ReviewLoop → Workflow of the same name (one `rounds` repeat step) plus the body Workflow `<name>-round` (produce → review).
  * The subject's type is read from `produce`'s definition: the loop names the port, the definition owns the type.
@@ -66,6 +69,8 @@ export function expandReviewLoop(r: ReviewLoop, ports: Ports): [Workflow, Workfl
   if (!produced) throw new Error(`produce: ${produce.uses.kind} ${produce.uses.name} not found`)
   const subjectType = produced.outputs[subject]?.type
   if (!subjectType) throw new Error(`subject ${subject} is not an output of ${produce.uses.kind} ${produce.uses.name}`)
+  // the loop surfaces every produce output, so a Pipeline phase can read any of them; one named like an output of the loop's own is shadowed
+  const surfaced = Object.fromEntries(Object.keys(produced.outputs).filter((p) => !loopOutputs.includes(p)).map((p) => [p, { type: produced.outputs[p]!.type }]))
   const carried: Record<string, InputSpec> = { ...(previous ? { previous: { type: subjectType, required: false } } : {}), ...(feedback ? { feedback: { type: gateResult, required: false } } : {}) }
   const produceStep: Step = {
     id: 'produce',
@@ -80,8 +85,8 @@ export function expandReviewLoop(r: ReviewLoop, ports: Ports): [Workflow, Workfl
     metadata: meta(r as unknown as Resource, '-round'),
     spec: {
       inputs: { ...inputs, ...carried },
-      outputs: { [subject]: { type: subjectType }, verdict: { type: gateResult }, passed: { type: { kind: 'value', schema: { type: 'boolean' } } } },
-      outputBindings: { [subject]: { fromStep: { stepRef: 'produce', output: subject } }, verdict: { fromStep: { stepRef: 'review', output: 'result' } }, passed: { expression: 'steps.review.outputs.result.passed' } },
+      outputs: { ...surfaced, verdict: { type: gateResult }, passed: { type: { kind: 'value', schema: { type: 'boolean' } } } },
+      outputBindings: { ...Object.fromEntries(Object.keys(surfaced).map((p) => [p, { fromStep: { stepRef: 'produce', output: p } }])), verdict: { fromStep: { stepRef: 'review', output: 'result' } }, passed: { expression: 'steps.review.outputs.result.passed' } },
       entry: ['produce'],
       steps: [produceStep, reviewStep],
       transitions: [
@@ -98,8 +103,8 @@ export function expandReviewLoop(r: ReviewLoop, ports: Ports): [Workflow, Workfl
     spec: {
       // a run may ask for fewer rounds than the ceiling, never more
       inputs: { ...inputs, maxRounds: { type: { kind: 'value', schema: { type: 'integer', minimum: 1 } }, required: false, default: { kind: 'value', value: maxRounds } } },
-      outputs: { [subject]: { type: subjectType }, passed: { type: { kind: 'value', schema: { type: 'boolean' } } }, rounds: { type: { kind: 'value', schema: { type: 'integer' } } } },
-      outputBindings: { [subject]: { fromStep: { stepRef: 'rounds', output: subject } }, passed: { fromStep: { stepRef: 'rounds', output: 'passed' } }, rounds: { expression: 'steps.rounds.iterations' } },
+      outputs: { ...surfaced, passed: { type: { kind: 'value', schema: { type: 'boolean' } } }, rounds: { type: { kind: 'value', schema: { type: 'integer' } } } },
+      outputBindings: { ...Object.fromEntries(Object.keys(surfaced).map((p) => [p, { fromStep: { stepRef: 'rounds', output: p } }])), passed: { fromStep: { stepRef: 'rounds', output: 'passed' } }, rounds: { expression: 'steps.rounds.iterations' } },
       entry: ['rounds'],
       steps: [
         {

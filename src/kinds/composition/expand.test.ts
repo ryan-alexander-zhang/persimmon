@@ -101,15 +101,16 @@ describe('expandReviewLoop', () => {
       timeout: '24h',
     },
   }
-  const ports = () => ({ inputs: { research: report, last: { ...prd, required: false }, verdict: { type: gateResult, required: false } }, outputs: { prd } })
+  const notes = { type: { kind: 'value' as const, schema: { type: 'array' } } }
+  const ports = () => ({ inputs: { research: report, last: { ...prd, required: false }, verdict: { type: gateResult, required: false } }, outputs: { prd, notes } })
 
-  it('an outer Workflow with one repeat step over the round body; previous and feedback carried as state', () => {
+  it('an outer Workflow with one repeat step over the round body; every produce output surfaces; previous and feedback carried as state', () => {
     const [outer, body] = expandReviewLoop(loop, ports)
     expect([outer.metadata.name, body.metadata.name]).toEqual(['prd-with-review', 'prd-with-review-round'])
     expect(body.spec).toEqual({
       inputs: { research: report, previous: { ...prd, required: false }, feedback: { type: gateResult, required: false } },
-      outputs: { prd, verdict: { type: gateResult }, passed: { type: { kind: 'value', schema: { type: 'boolean' } } } },
-      outputBindings: { prd: { fromStep: { stepRef: 'produce', output: 'prd' } }, verdict: { fromStep: { stepRef: 'review', output: 'result' } }, passed: { expression: 'steps.review.outputs.result.passed' } },
+      outputs: { prd, notes, verdict: { type: gateResult }, passed: { type: { kind: 'value', schema: { type: 'boolean' } } } },
+      outputBindings: { prd: { fromStep: { stepRef: 'produce', output: 'prd' } }, notes: { fromStep: { stepRef: 'produce', output: 'notes' } }, verdict: { fromStep: { stepRef: 'review', output: 'result' } }, passed: { expression: 'steps.review.outputs.result.passed' } },
       entry: ['produce'],
       steps: [
         { id: 'produce', uses: { kind: 'Task', name: 'write-prd' }, inputs: { research: { fromInput: 'research' }, last: { fromInput: 'previous', onMissing: 'omit' }, verdict: { fromInput: 'feedback', onMissing: 'omit' } }, timeout: '35m' },
@@ -124,8 +125,8 @@ describe('expandReviewLoop', () => {
     const maxRounds = { type: { kind: 'value', schema: { type: 'integer', minimum: 1 } }, required: false, default: { kind: 'value', value: 3 } } // a run may ask for fewer rounds
     expect(outer.spec).toEqual({
       inputs: { research: report, maxRounds },
-      outputs: { prd, passed: { type: { kind: 'value', schema: { type: 'boolean' } } }, rounds: { type: { kind: 'value', schema: { type: 'integer' } } } },
-      outputBindings: { prd: { fromStep: { stepRef: 'rounds', output: 'prd' } }, passed: { fromStep: { stepRef: 'rounds', output: 'passed' } }, rounds: { expression: 'steps.rounds.iterations' } },
+      outputs: { prd, notes, passed: { type: { kind: 'value', schema: { type: 'boolean' } } }, rounds: { type: { kind: 'value', schema: { type: 'integer' } } } },
+      outputBindings: { prd: { fromStep: { stepRef: 'rounds', output: 'prd' } }, notes: { fromStep: { stepRef: 'rounds', output: 'notes' } }, passed: { fromStep: { stepRef: 'rounds', output: 'passed' } }, rounds: { expression: 'steps.rounds.iterations' } },
       entry: ['rounds'],
       steps: [{
         id: 'rounds',
@@ -150,5 +151,13 @@ describe('expandReviewLoop', () => {
   it('names the missing produce or subject', () => {
     expect(() => expandReviewLoop(loop, () => undefined)).toThrow(/produce: Task write-prd not found/)
     expect(() => expandReviewLoop({ ...loop, spec: { ...loop.spec, subject: 'nope' } }, ports)).toThrow(/subject nope is not an output/)
+  })
+
+  it("a produce output named like one of the loop's own is shadowed, never surfaced", () => {
+    const clashing = () => ({ inputs: {}, outputs: { prd, rounds: { type: { kind: 'value' as const, schema: { type: 'string' } } } } })
+    const [outer, body] = expandReviewLoop(loop, clashing)
+    expect(outer.spec.outputs!.rounds).toEqual({ type: { kind: 'value', schema: { type: 'integer' } } }) // the loop's round count, not the produce port
+    expect(outer.spec.outputBindings!.rounds).toEqual({ expression: 'steps.rounds.iterations' })
+    expect(body.spec.outputs).toEqual({ prd, verdict: { type: gateResult }, passed: { type: { kind: 'value', schema: { type: 'boolean' } } } })
   })
 })
