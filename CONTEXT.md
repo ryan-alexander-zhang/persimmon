@@ -407,7 +407,56 @@ The SDLC pack ships Workflows, Tasks, Gates, Validators, Executors, Prompts, Tri
 artifact kinds and RelationTypes; no kinds of its own.
 _Avoid_: bundle, library, preset, plugin
 
+**AI Native pack**:
+The second shipped **Pack** (`packs/ai-native/`, `23-pack-ai-native.md`): a spec-driven delivery
+process, domain artifacts first. Group `sdd.persimmon.ai`.
+_Avoid_: SDD pack, real SDLC pack, process pack
+
+**BoundedContext**:
+**Artifact kind** of the AI Native pack: where one domain model holds; `inScope`, `outOfScope`,
+`relationships` (its own view of the context map). Cited by artifact id.
+_Avoid_: domain, module, subsystem, context (bare)
+
+**Glossary**:
+**Artifact kind**, one per **BoundedContext**: the ubiquitous language; a term's identity is its
+`name`, documents cite it by using it.
+_Avoid_: dictionary, terms list, vocabulary
+
+**Fact type**:
+`Glossary.factTypes[]` entry (SBVR): what can be said about a term, `subject predicate object`; the
+object is a term or a typed value. The typed input of a rule's logic and of a **DecisionTable**.
+_Avoid_: attribute, field, property, relation
+
+**BusinessRules**:
+**Artifact kind**, one per **BoundedContext**: `BR-n` facts, constraints, derivations, decisions that outlive
+any **Prd** or **Spec**; one RuleSpeak `statement` each, optional typed `logic` over **Fact types**;
+withdrawn rules stay `deprecated`.
+_Avoid_: policies, domain rules, constraints (bare)
+
+**Decision rule**:
+A `BusinessRules` rule of `type: decision`: one signed outcome with its rationale and source,
+`then.decision` naming the outputs of the **DecisionTable** whose row cites it.
+_Avoid_: inference, action enabler, routing rule
+
+**DecisionTable**:
+**Artifact kind**, one per decision (DMN subset): inputs over **Fact types**, outputs, `hitPolicy`,
+`R-n` rows with unary tests, each row one **Decision rule**; cites every `BR-n` it implements.
+_Avoid_: rule table, routing table, DRD
+
+**Prd**:
+**Artifact kind** of the AI Native pack: why, for whom, `CAP-n` capabilities, `SC-n` success
+criteria. No stories, requirements or technology; those are the **Spec**'s.
+_Avoid_: ProductRequirement (demo pack), EarsPrd (example06), product spec
+
+**Spec**:
+**Artifact kind** of the AI Native pack, one per `CAP-n`: stories with EARS acceptance, FR, NFR,
+entities. Designed after **Prd**. Always the capitalised kind name; the envelope field is `spec`.
+_Avoid_: feature spec, requirements doc, spec.md
+
 ## Flagged ambiguities
+
+- **Spec vs `spec`.** The AI Native pack's kind and every Resource's envelope field. Resolution: the
+  kind is always `Spec` or "a Spec"; the field is always `spec` in code font or `spec.content`.
 
 - **ArtifactRef vs RevisionRef.** Same shape. Framework says RevisionRef; reference well-known
   schemas exposed `persimmon.ai/v1#/ArtifactRef`. Resolution: **RevisionRef** everywhere,
