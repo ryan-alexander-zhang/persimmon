@@ -60,6 +60,8 @@ spec:
     model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
     contextId: {type: {kind: value, schema: {type: string, minLength: 1}}}
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: false}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
   outputs:
     context: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext}}}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
@@ -68,13 +70,16 @@ spec:
   action:
     instructions: |
       Derive the BoundedContext, the Glossary and the DomainModel of the storming context whose id is `contextId`,
-      from the design-level model and the Prd, following the derivation rules in your context. The BoundedContext
-      artifact id you cite in `glossary.context` and `domainModel.context` is the storming context id; `source` is
-      the model's artifact id. Invent nothing; leave empty what the model does not say.
+      from the design-level model and the Prd, following the derivation rules in your context. Cite the storming
+      context id in `glossary.context` and `domainModel.context` (the engine names the BoundedContext artifact it
+      publishes for you); `source` is the model's artifact id. Invent nothing; leave empty what the model does not say.
+      With `previous` and `feedback` bound, the consistency check refused the last derivation: every finding names
+      a label that differs from the model; fix those and change nothing else.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: derive-domain-rules}}
       - {kind: artifact, input: model}
       - {kind: artifact, input: prd}
+      - {kind: artifact, input: previous}
     parameters: {effort: high}
   timeout: 30m
   sideEffects: none

@@ -76,49 +76,34 @@ spec:
   maxRounds: 3
   timeout: 240h
 ---
-# One context: derive, then check the derivation against the model.
+# One context: derive, check against the model, feed the findings back; two rounds.
 apiVersion: persimmon.ai/v1
-kind: Workflow
+kind: ReviewLoop
 metadata: {name: derive-one}
 spec:
   inputs:
     model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
     contextId: {type: {kind: value, schema: {type: string, minLength: 1}}}
-  outputs:
-    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
-  outputBindings:
-    domainModel: {fromStep: {stepRef: derive, output: domainModel}}
-  entry: [derive]
-  steps:
-    - id: derive
-      uses: {kind: Task, name: derive-domain}
-      inputs:
-        model: {fromInput: model}
-        prd: {fromInput: prd}
-        contextId: {fromInput: contextId}
-      timeout: 30m
-    - id: check
-      uses: {kind: Gate, name: derived-gate}
-      inputs:
-        model: {fromInput: model}
-        domainModel: {fromStep: {stepRef: derive, output: domainModel}}
-        contextId: {fromInput: contextId}
-      timeout: 5m
-  transitions:
-    - id: to-check
-      from: [{stepRef: derive, outcomes: [Succeeded, Failed]}]
-      to:
-        - {stepRef: check, when: 'steps.derive.phase == "Succeeded"'}
-        - {terminal: Failed, reason: derive_failed}
-      dispatch: first
-    - id: done
-      from: [{stepRef: check, outcomes: [Succeeded, Failed]}]
-      to:
-        - {terminal: Succeeded, when: 'steps.check.phase == "Succeeded" && steps.check.outputs.result.passed'}
-        - {terminal: Failed, reason: derivation_inconsistent}
-      dispatch: first
-  timeout: 1h
+  produce:
+    uses: {kind: Task, name: derive-domain}
+    inputs:
+      model: {fromInput: model}
+      prd: {fromInput: prd}
+      contextId: {fromInput: contextId}
+    timeout: 30m
+  review:
+    uses: {kind: Gate, name: derived-gate}
+    inputs:
+      model: {fromInput: model}
+      domainModel: {fromStep: {stepRef: produce, output: domainModel}}
+      contextId: {fromInput: contextId}
+    timeout: 5m
+  subject: domainModel
+  previous: previous
+  feedback: feedback
+  maxRounds: 2
+  timeout: 90m
 ---
 # Every context of the model: a repeat over the ids the design phase answered (11-workflow.md, state in expressions).
 apiVersion: persimmon.ai/v1
@@ -136,7 +121,7 @@ spec:
   entry: [each]
   steps:
     - id: each
-      uses: {kind: Workflow, name: derive-one}
+      uses: {kind: ReviewLoop, name: derive-one}
       inputs:
         model: {fromInput: model}
         prd: {fromInput: prd}
@@ -152,14 +137,14 @@ spec:
         next:
           index: {expression: "state.index + 1"}
           contexts: {fromState: contexts}
-        until: "iteration.index >= inputs.contexts.size()"
+        until: "!iteration.outputs.passed || iteration.index >= inputs.contexts.size()"
         maxIterations: 20
   transitions:
     - id: done
       from: [{stepRef: each, outcomes: [Succeeded, Failed]}]
       to:
-        - {terminal: Succeeded, when: 'steps.each.phase == "Succeeded"'}
-        - {terminal: Failed, reason: derivation_failed}
+        - {terminal: Succeeded, when: 'steps.each.phase == "Succeeded" && steps.each.outputs.passed'}
+        - {terminal: Failed, reason: derivation_inconsistent}
       dispatch: first
   timeout: 12h
 ---
