@@ -346,3 +346,291 @@ spec:
   mutability: Immutable
   revisioned: true
   snapshot: "None"
+---
+# One architecture decision (Nygard form with MADR alternatives). Taken first, against the revisions its drivers live in
+# (a Prd and its rules before any Architecture exists, an Architecture afterwards), pinned by provenance; the Architecture
+# or Design revision that applies it lists it. A status change is a new revision of the same id.
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata: {name: adrs.sdd.persimmon.ai}
+spec:
+  group: sdd.persimmon.ai
+  names: {kind: Adr, plural: adrs}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [title, status, deciders, context, drivers, decision, alternatives, consequences]
+        additionalProperties: false
+        properties:
+          title: {type: string, minLength: 1, description: "the decision as a short imperative or noun phrase"}
+          status: {enum: [proposed, accepted, rejected, superseded, deprecated]}
+          deciders: {type: array, minItems: 1, items: {type: string, minLength: 1}}
+          context: {type: string, minLength: 1, description: "the forces; names QG-n, C-n, BR-n in prose"}
+          drivers: {type: array, minItems: 1, items: {type: string, pattern: "^(QG|C|QS|BR|CAP|SC|G)-[0-9]+$"}, description: "the ids the decision answers, in the revisions provenance pins; a force against the decision is context prose, not a driver"}
+          decision: {type: string, minLength: 1}
+          alternatives:
+            type: array
+            minItems: 1
+            items:
+              type: object
+              required: [option, rejectedBecause]
+              additionalProperties: false
+              properties:
+                option: {type: string, minLength: 1}
+                rejectedBecause: {type: string, minLength: 1}
+          consequences:
+            type: array
+            minItems: 1
+            items:
+              type: object
+              required: [kind, statement]
+              additionalProperties: false
+              properties:
+                kind: {enum: [positive, negative, neutral]}
+                statement: {type: string, minLength: 1}
+          supersedes: {type: string, minLength: 1, description: "artifact id of the Adr this one replaces"}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"
+---
+# The product-level architecture, arc42's twelve sections as fields. Section 8's domain model and section 12 are by
+# reference; section 9 lists Adr artifacts. Written once from the Prd, revised when a Design breaks a constraint or a
+# quality scenario. A capability Design (later) adds detail in its own document and cites this one.
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata: {name: architectures.sdd.persimmon.ai}
+spec:
+  group: sdd.persimmon.ai
+  names: {kind: Architecture, plural: architectures}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [title, owner, status, introduction, constraints, context, strategy, buildingBlocks, relations, concepts, domainModels, decisions, qualityScenarios, glossaries]
+        additionalProperties: false
+        properties:
+          title: {type: string, minLength: 1}
+          owner: {type: string, minLength: 1}
+          status: {enum: [draft, accepted, superseded]}
+          introduction:
+            description: "arc42 1: the Prd is the requirements, by reference; the goals and stakeholders are the architecture's own"
+            type: object
+            required: [prd, qualityGoals, stakeholders]
+            additionalProperties: false
+            properties:
+              prd: {type: string, minLength: 1, description: "artifact id of the Prd"}
+              qualityGoals:
+                type: array
+                minItems: 1
+                maxItems: 5
+                description: "ordered, most important first"
+                items:
+                  type: object
+                  required: [id, quality, motivation]
+                  additionalProperties: false
+                  properties:
+                    id: {type: string, pattern: "^QG-[0-9]+$"}
+                    quality: {enum: [functional-suitability, performance-efficiency, compatibility, interaction-capability, reliability, security, maintainability, flexibility, safety], description: "ISO/IEC 25010:2023 characteristic"}
+                    motivation: {type: string, minLength: 1}
+              stakeholders:
+                type: array
+                minItems: 1
+                items:
+                  type: object
+                  required: [role, expectations]
+                  additionalProperties: false
+                  properties:
+                    role: {type: string, minLength: 1}
+                    expectations: {type: string, minLength: 1}
+          constraints:
+            type: array
+            description: "arc42 2; may be empty"
+            items:
+              type: object
+              required: [id, kind, statement]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^C-[0-9]+$"}
+                kind: {enum: [technical, organizational, convention]}
+                statement: {type: string, minLength: 1}
+                rationale: {type: string}
+          context:
+            description: "arc42 3"
+            type: object
+            required: [business, technical]
+            additionalProperties: false
+            properties:
+              business:
+                type: array
+                minItems: 1
+                items:
+                  type: object
+                  required: [partner, exchanges, direction]
+                  additionalProperties: false
+                  properties:
+                    partner: {type: string, minLength: 1, description: "a user role, an external system, or a neighbouring context"}
+                    context: {type: string, minLength: 1, description: "artifact id of the BoundedContext when the partner is one"}
+                    exchanges: {type: string, minLength: 1, description: "what crosses the boundary, in Glossary terms"}
+                    direction: {enum: [in, out, both], description: "seen from this system"}
+              technical:
+                type: array
+                items:
+                  type: object
+                  required: [channel, protocol, carries]
+                  additionalProperties: false
+                  properties:
+                    channel: {type: string, minLength: 1}
+                    protocol: {type: string, minLength: 1}
+                    carries: {type: string, minLength: 1, description: "which business exchanges travel on it"}
+          strategy:
+            type: array
+            minItems: 1
+            description: "arc42 4: the few decisions that shape everything; detail is an Adr"
+            items:
+              type: object
+              required: [id, decision, addresses]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^S-[0-9]+$"}
+                decision: {type: string, minLength: 1}
+                addresses: {type: array, minItems: 1, items: {type: string, pattern: "^(QG|C)-[0-9]+$"}}
+                note: {type: string}
+          buildingBlocks:
+            type: array
+            minItems: 1
+            description: "arc42 5: blocks without parent are level 1; a child names its parent"
+            items:
+              type: object
+              required: [id, name, responsibility, interfaces, contexts]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^BB-[0-9]+$"}
+                name: {type: string, minLength: 1}
+                parent: {type: string, pattern: "^BB-[0-9]+$"}
+                technology: {type: string, description: "the C4 container label: runtime, framework, store"}
+                responsibility: {type: string, minLength: 1}
+                interfaces:
+                  type: array
+                  items:
+                    type: object
+                    required: [name, kind, description]
+                    additionalProperties: false
+                    properties:
+                      name: {type: string, minLength: 1}
+                      kind: {enum: [provides, requires]}
+                      description: {type: string, minLength: 1}
+                contexts: {type: array, items: {type: string, minLength: 1}, description: "artifact ids of the BoundedContexts this block realises; empty for a purely technical block"}
+          relations:
+            type: array
+            minItems: 1
+            description: "arc42 5: the arrows of the building block view; a C4 container diagram is blocks plus these"
+            items:
+              type: object
+              required: [id, from, to, description]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^REL-[0-9]+$"}
+                from: {type: string, minLength: 1, description: "a BB-n or a context.business[].partner; at least one end is a block"}
+                to: {type: string, minLength: 1}
+                description: {type: string, minLength: 1, description: "what flows or is called, in Glossary terms"}
+                interface: {type: string, description: "an interface the `to` block provides, or the `from` block requires when `to` is a partner"}
+                technology: {type: string, description: "HTTPS/JSON, SCIM, file ..."}
+          runtime:
+            type: array
+            description: "arc42 6, optional at baseline"
+            items:
+              type: object
+              required: [id, scenario, steps]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^RT-[0-9]+$"}
+                scenario: {type: string, minLength: 1}
+                steps:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [from, to, message]
+                    additionalProperties: false
+                    properties:
+                      from: {type: string, minLength: 1, description: "a BB-n or a partner name"}
+                      to: {type: string, minLength: 1}
+                      message: {type: string, minLength: 1}
+          deployment:
+            description: "arc42 7, optional at baseline"
+            type: object
+            required: [nodes, channels]
+            additionalProperties: false
+            properties:
+              nodes:
+                type: array
+                minItems: 1
+                items:
+                  type: object
+                  required: [name, hosts]
+                  additionalProperties: false
+                  properties:
+                    name: {type: string, minLength: 1}
+                    technology: {type: string}
+                    hosts: {type: array, items: {type: string, pattern: "^BB-[0-9]+$"}}
+              channels:
+                type: array
+                items:
+                  type: object
+                  required: [from, to, protocol]
+                  additionalProperties: false
+                  properties:
+                    from: {type: string, minLength: 1}
+                    to: {type: string, minLength: 1}
+                    protocol: {type: string, minLength: 1}
+          concepts:
+            type: array
+            minItems: 1
+            description: "arc42 8, the domain model by reference below"
+            items:
+              type: object
+              required: [id, topic, statement]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^CC-[0-9]+$"}
+                topic: {enum: [domain, ux, security, persistence, errors, logging, transactions, i18n, build, testing, other]}
+                statement: {type: string, minLength: 1}
+          domainModels: {type: array, items: {type: string, minLength: 1}, description: "artifact ids of the DomainModels; empty until one exists"}
+          decisions: {type: array, items: {type: string, minLength: 1}, description: "arc42 9: artifact ids of the Adrs this revision applies; may be empty"}
+          qualityScenarios:
+            type: array
+            minItems: 1
+            description: "arc42 10: at least one per quality goal"
+            items:
+              type: object
+              required: [id, qualityGoal, stimulus, response, measure]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^QS-[0-9]+$"}
+                qualityGoal: {type: string, pattern: "^QG-[0-9]+$"}
+                stimulus: {type: string, minLength: 1}
+                source: {type: string}
+                environment: {type: string}
+                response: {type: string, minLength: 1}
+                measure: {type: string, minLength: 1, description: "a number or an observable fact"}
+          risks:
+            type: array
+            description: "arc42 11, risks and technical debt, optional"
+            items:
+              type: object
+              required: [id, kind, statement]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^RK-[0-9]+$"}
+                kind: {enum: [risk, debt]}
+                statement: {type: string, minLength: 1}
+                probability: {enum: [low, medium, high], description: "a risk"}
+                impact: {enum: [low, medium, high]}
+                mitigation: {type: string, description: "a risk's mitigation or a debt's repayment"}
+          glossaries: {type: array, minItems: 1, items: {type: string, minLength: 1}, description: "arc42 12: artifact ids of the Glossaries; no terms of its own"}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"
