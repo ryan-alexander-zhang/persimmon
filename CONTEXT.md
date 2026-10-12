@@ -478,6 +478,17 @@ The event storming **Tool**, `tools/eventstorming/`, opened at `/tools/eventstor
 `persimmon ui`; reads one revision, saves the next.
 _Avoid_: board app, canvas (for the whole tool), event storming web tool
 
+**DomainModel**:
+**Artifact kind**, one per **BoundedContext**, derived from a design-level **EventStorming**:
+aggregates with their commands, events and invariants, policies, read models, external systems;
+names are storming labels, attributes are **Fact types** (`26-domain-discovery.md`).
+_Avoid_: domain object model, class model, entity model, aggregate list
+
+**Domain discovery**:
+The pack process from a **Prd** to the domain kinds: three storming phases as ReviewLoops with a
+human gate, then one derivation per context, checked by `domain-consistency`.
+_Avoid_: storming pipeline, discovery workflow, modelling phase
+
 **Prd**:
 **Artifact kind** of the AI Native pack: why, for whom, `CAP-n` capabilities, `SC-n` success
 criteria. No stories, requirements or technology; those are the **Spec**'s.

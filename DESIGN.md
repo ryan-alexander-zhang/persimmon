@@ -55,6 +55,7 @@ Read top to bottom within a layer; a file depends only on files above it.
 | `docs/design/21-composition.md` | Pipeline, Approval, ReviewLoop: sugar kinds expanding to Workflow and Gate | active |
 | `docs/design/23-pack-ai-native.md` | AI Native pack: BoundedContext, Glossary, BusinessRules, DecisionTable, Prd, Adr, Architecture; Spec and the process later | draft |
 | `docs/design/24-eventstorming.md` | the event storming tool built in: `EventStorming` kind (DSL v4.0), grammar module, evaluator Adapter `eventstorming/v1`, evaluator conformance | draft |
+| `docs/design/26-domain-discovery.md` | Prd to domain kinds: the storming session as ReviewLoops with a human gate, `DomainModel`, the derivation and its consistency check | draft |
 
 ## Cross-cutting
 
