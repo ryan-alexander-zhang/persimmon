@@ -78,10 +78,10 @@ Per-step phase, recorded in `WorkflowRun.status.steps.<id>` (`17-runs.md`):
 
 | Field | Rule |
 |---|---|
-| `state` | `{<var>: InputSpec}` |
-| `initial` | `{<var>: Binding}`; outer scope; every required var bound |
-| `next` | `{<var>: Binding}`; `fromIterationOutput` allowed; every required var bound; keys ⊆ `state` |
-| `until` | CEL over `iteration.outputs`, `iteration.index`, `inputs`; boolean |
+| `state` | `{<var>: InputSpec}`; readable as `state.<var>` in the step's `inputs` and in `next`, nowhere else |
+| `initial` | `{<var>: Binding}`; outer scope, no `state`; every required var bound |
+| `next` | `{<var>: Binding}`; `fromState`, `fromIterationOutput` and `state.<var>` read the state and outputs of the iteration that just finished; every required var bound; keys ⊆ `state` |
+| `until` | CEL over `iteration.outputs`, `iteration.index`, `inputs`; no `state`; boolean |
 | `maxIterations` | ≥ 1; includes the first |
 
 | Case | Behaviour |
@@ -146,6 +146,11 @@ has no `repeat`; the run name already carries the enclosing iterations (`<parent
   (`step implement: skill_digest_mismatch: ...`), not `no_progress`; `no_progress` is reserved for
   the case with no failure, a routing hole. A body run's error then reaches the repeat step and
   the outer run unchanged. Found in UAT.
+- The `repeat` state is readable as `state.<var>` in the body `inputs` and in `next`: a loop over a
+  list (`item: state.items[state.index - 1]`, `index: state.index + 1`) has no other way to say it,
+  and `fromState` in `next` was already legal statically while the running state was nowhere to be
+  read. The state of the running iteration is therefore kept in `steps.<id>.state`. `until` keeps
+  `iteration` and `inputs` only. Found in design review.
 - A `repeat` step's `timeout` bounds the loop: the deadline is computed once at the first
   iteration and kept in `steps.<id>.deadline`; later iterations reuse it, a body WorkflowRun gets
   the remaining time as `timeout`. The code had given every iteration a fresh `timeout`, so a `6h`

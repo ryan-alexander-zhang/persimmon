@@ -5006,6 +5006,10 @@
              "type": "integer",
              "minimum": 1
             },
+            "state": {
+             "$ref": "ports.yaml#/$defs/RuntimeValues",
+             "description": "repeat state the running iteration was started with; read by next"
+            },
             "deadline": {
              "type": "string",
              "format": "date-time",

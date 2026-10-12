@@ -84,11 +84,11 @@ export function checkWorkflow(spec: WorkflowSpec, resolve: Resolve): Finding[] {
 
   // ports and bindings
   const stepOutputs = (id: string) => used.get(id)?.outputs ?? {}
-  const siteFor = (visible: Set<string>, step?: Step) =>
+  const siteFor = (visible: Set<string>, step?: Step, withState = true) =>
     siteOf({
       inputs: spec.inputs ?? {},
       steps: Object.fromEntries([...visible].map((id) => [id, stepOutputs(id)])),
-      ...(step?.repeat ? { state: step.repeat.state, iterationOutputs: stepOutputs(step.id) } : {}),
+      ...(step?.repeat ? { ...(withState ? { state: step.repeat.state } : {}), iterationOutputs: stepOutputs(step.id) } : {}), // `until` reads iteration and inputs, not state (11-workflow.md)
     })
   const bindingType = (b: Binding, step: Step | undefined, visible: Set<string>, path: string): PortType | 'value' | undefined => {
     if ('literal' in b || 'expression' in b) {
@@ -150,7 +150,7 @@ export function checkWorkflow(spec: WorkflowSpec, resolve: Resolve): Finding[] {
       checkBindings(s.repeat.initial, s.repeat.state, undefined, visible, `/spec/steps/${i}/repeat/initial`, true)
       checkBindings(s.repeat.next, s.repeat.state, s, visible, `/spec/steps/${i}/repeat/next`, true)
       try {
-        const t = siteFor(visible, s).check(s.repeat.until)
+        const t = siteFor(visible, s, false).check(s.repeat.until)
         if (t !== 'bool') bad(`/spec/steps/${i}/repeat/until`, `until is ${t}, not bool`)
       } catch (e) {
         if (e instanceof ExpressionError) bad(`/spec/steps/${i}/repeat/until`, `until: ${e.message}`)

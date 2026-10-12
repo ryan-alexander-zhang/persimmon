@@ -68,6 +68,7 @@ CEL, with the environment of the site:
 | `steps.<id>.error.{code, message, retryable}` | only when `phase == "Failed"` |
 | `steps.<id>.iterations` | how many iterations a finished `repeat` step ran (`11-workflow.md`) |
 | `iteration.index` (1-based), `iteration.outputs.<port>` | inside `repeat` |
+| `state.<var>` | the `repeat` state, typed by its declared InputSpec; inside `repeat`: body inputs and `next`, never `until` (`11-workflow.md`) |
 | `event` | Trigger only |
 | `artifacts.<port>.{content, provenance}`, `inputs.<port>` | `cel` Validator (`14-gate.md`) |
 

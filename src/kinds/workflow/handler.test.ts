@@ -20,6 +20,30 @@ const taskLike = (name: string, inputs: Record<string, unknown>, outputs: Record
   apiVersion: 'persimmon.ai/v1', kind: 'Task', metadata: { name, namespace: 'demo' },
   spec: { inputs, outputs, executorRef: { kind: 'Executor', name: 'claude-agent' }, action: { instructions: 'x' }, timeout: '1h', sideEffects: 'none' },
 })
+const text = { kind: 'value', schema: { type: 'string' } }
+// a repeat step that walks a list input: the body input and `next` read the repeat state, `until` counts iterations
+const listLoop = {
+  apiVersion: 'persimmon.ai/v1', kind: 'Workflow', metadata: { name: 'per-item', namespace: 'demo' },
+  spec: {
+    inputs: { items: { type: { kind: 'value', schema: { type: 'array', items: { type: 'string' } } } } },
+    outputs: { last: { type: text } },
+    outputBindings: { last: { fromStep: { stepRef: 'each', output: 'echo' } } },
+    entry: ['each'],
+    steps: [{
+      id: 'each', uses: { kind: 'Task', name: 'handle-item' }, timeout: '1h',
+      inputs: { item: { expression: 'state.items[state.index - 1]' } },
+      repeat: {
+        state: { index: { type: { kind: 'value', schema: { type: 'integer' } } }, items: { type: { kind: 'value', schema: { type: 'array', items: { type: 'string' } } } } },
+        initial: { index: { literal: 1 }, items: { fromInput: 'items' } },
+        next: { index: { expression: 'state.index + 1' }, items: { fromState: 'items' } },
+        until: 'iteration.index >= inputs.items.size()',
+        maxIterations: 10,
+      },
+    }],
+    transitions: [{ id: 'done', from: [{ stepRef: 'each', outcomes: ['Succeeded'] }], to: [{ terminal: 'Succeeded' }] }],
+    timeout: '2h',
+  },
+}
 const closure: Closure = {
   ...base,
   resources: [
@@ -28,6 +52,8 @@ const closure: Closure = {
     example('workflow-review-loop'),
     example('workflow-fan-in'),
     { apiVersion: 'persimmon.ai/v1', kind: 'Workflow', metadata: { name: 'prd-review-round', namespace: 'demo' }, spec: { inputs: { prd: { type: prd }, research: { type: report } }, outputs: { prd: { type: prd }, accepted: { type: { kind: 'value', schema: { type: 'boolean' } } } }, outputBindings: {}, entry: ['x'], steps: [], transitions: [], timeout: '1h' } },
+    taskLike('handle-item', { item: { type: text } }, { echo: { type: text } }),
+    listLoop,
     taskLike('security-review', { prd: { type: prd } }, { report: { type: report } }),
     taskLike('product-review', { prd: { type: prd } }, { report: { type: report } }),
     { apiVersion: 'persimmon.ai/v1', kind: 'Gate', metadata: { name: 'prd-approval-gate', namespace: 'demo' }, spec: { inputs: { prd: { type: prd }, security: { type: report, required: false }, product: { type: report, required: false } }, outputs: { result: { type: { kind: 'value', schema: { $ref: 'persimmon.ai/v1#/GateResult' } } } }, validators: [], timeout: '1h' } },
@@ -131,6 +157,22 @@ describe('workflow Handler', () => {
     const prd5 = { ...prdRef, revision: 5 }
     res = handler.reconcile(childFinished(r, 'review', 'Succeeded', { phase: 'Succeeded', outputs: { prd: { kind: 'artifact', ref: prd5 }, accepted: { kind: 'value', value: true } } })) as ReconcileResult
     expect(clean(res.statusPatch)).toMatchObject({ phase: 'Succeeded', outputs: { prd: { kind: 'artifact', ref: prd5 }, accepted: { kind: 'value', value: true } } })
+  })
+
+  it('a repeat step walks a list: state in the body input and in next', () => {
+    let r = run('per-item', { items: { kind: 'value', value: ['a', 'b', 'c'] } }, 'li')
+    let res = handler.reconcile(input(r, { type: 'Created', dedupeKey: 'created' })) as ReconcileResult
+    const seen: unknown[] = []
+    for (const expected of ['a', 'b', 'c']) {
+      const [child] = created(res)
+      expect(child!.metadata.name).toBe(`li-each-${seen.length + 1}`)
+      seen.push((child!.spec as { inputs: { item: { value: unknown } } }).inputs.item.value)
+      expect(clean(res.statusPatch).steps.each).toMatchObject({ iteration: seen.length, state: { index: { kind: 'value', value: seen.length } } })
+      r = apply(r, res)
+      res = handler.reconcile(childFinished(r, 'each', 'Succeeded', { phase: 'Succeeded', outputs: { echo: { kind: 'value', value: expected } } })) as ReconcileResult
+    }
+    expect(seen).toEqual(['a', 'b', 'c'])
+    expect(clean(res.statusPatch)).toMatchObject({ phase: 'Succeeded', outputs: { last: { kind: 'value', value: 'c' } } })
   })
 
   it('quorum join with dispatch first and onMissing inputs', () => {

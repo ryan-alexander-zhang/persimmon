@@ -20,6 +20,7 @@ const resolve: Resolve = (ref) => {
     'Task/security-review': { inputs: { prd: { type: prd } }, outputs: { report: { type: report } } },
     'Task/product-review': { inputs: { prd: { type: prd } }, outputs: { report: { type: report } } },
     'Gate/prd-approval-gate': { inputs: { prd: { type: prd }, security: { type: report, required: false }, product: { type: report, required: false } }, outputs: { result: { type: gateResult } } },
+    'Task/handle-item': { inputs: { item: { type: { kind: 'value', schema: { type: 'string' } } } }, outputs: { echo: { type: { kind: 'value', schema: { type: 'string' } } } } },
     'Workflow/prd-review-round': { inputs: { prd: { type: prd }, research: { type: report } }, outputs: { prd: { type: prd }, accepted: { type: { kind: 'value', schema: { type: 'boolean' } } } } },
   }
   const e = extra[`${ref.kind}/${ref.name}`]
@@ -66,6 +67,29 @@ describe('checkWorkflow', () => {
     const w = linear()
     w.steps[1]!.inputs!.research!.onMissing = 'omit'
     expect(checkWorkflow(w, resolve).map((f) => f.message)).toEqual(['onMissing: omit only on optional inputs'])
+  })
+
+  it('state is in scope for a repeat body input and next, nowhere else', () => {
+    const perItem = (expr: string, repeat: boolean, until = 'iteration.index >= inputs.items.size()') =>
+      ({
+        inputs: { items: { type: { kind: 'value', schema: { type: 'array', items: { type: 'string' } } } } },
+        entry: ['each'],
+        steps: [{
+          id: 'each', uses: { kind: 'Task', name: 'handle-item' }, timeout: '1h', inputs: { item: { expression: expr } },
+          ...(repeat ? { repeat: {
+            state: { index: { type: { kind: 'value', schema: { type: 'integer' } } }, items: { type: { kind: 'value', schema: { type: 'array', items: { type: 'string' } } } } },
+            initial: { index: { literal: 1 }, items: { fromInput: 'items' } },
+            next: { index: { expression: 'state.index + 1' }, items: { fromState: 'items' } },
+            until, maxIterations: 10,
+          } } : {}),
+        }],
+        transitions: [{ id: 'done', from: [{ stepRef: 'each', outcomes: ['Succeeded'] }], to: [{ terminal: 'Succeeded' }] }],
+        timeout: '2h',
+      }) as unknown as Workflow['spec']
+    expect(checkWorkflow(perItem('state.items[state.index - 1]', true), resolve)).toEqual([])
+    expect(checkWorkflow(perItem('state.items[state.index - 1]', false), resolve).map((f) => f.message)[0]).toMatch(/^expression: Unknown variable: state/)
+    expect(checkWorkflow(perItem("state.index + 'x'", true), resolve).map((f) => f.message)[0]).toMatch(/^expression: /) // state carries its declared InputSpec type
+    expect(checkWorkflow(perItem('state.items[state.index - 1]', true, 'state.index >= 2'), resolve).map((f) => f.message)[0]).toMatch(/^until: Unknown variable: state/)
   })
 
   it('type-checks when and until expressions', () => {

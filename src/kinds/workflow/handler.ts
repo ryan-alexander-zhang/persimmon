@@ -96,11 +96,11 @@ export function workflowHandler(deps: HandlerDeps): HandlerImpl {
         steps: Object.fromEntries(spec.steps.flatMap((s) => (stepOutputs(s.id) ? [[s.id, stepOutputs(s.id)!]] : []))),
         ...extra,
       })
-      const site = (step?: Step) =>
+      const site = (step?: Step, withState = true) =>
         siteOf({
           inputs: spec.inputs ?? {},
           steps: Object.fromEntries(spec.steps.map((s) => [s.id, used.get(s.id)!.outputs])),
-          ...(step?.repeat ? { state: step.repeat.state, iterationOutputs: used.get(step.id)!.outputs } : {}),
+          ...(step?.repeat ? { ...(withState ? { state: step.repeat.state } : {}), iterationOutputs: used.get(step.id)!.outputs } : {}), // `until` reads iteration and inputs, not state (11-workflow.md)
         })
 
       const cancelActivated = () => {
@@ -142,7 +142,7 @@ export function workflowHandler(deps: HandlerDeps): HandlerImpl {
         const address = { workflowRunRef, stepRef: step.id, iterationPath, logicalExecutionId: `${run.metadata.name}/${own}/${step.id}` } // the run name already carries the enclosing iterations
         const resource: Resource = { apiVersion: runRef.apiVersion, kind: runRef.kind, metadata: { name, namespace: ns }, spec: childSpec(u.contract.runKind.kind, step, inputs, address, deadline, now, run) }
         actions.push({ type: 'createResource', resource, snapshot: 'inherit', owned: true })
-        steps[step.id] = { phase: 'Pending', runRef, deadline: rfc3339(deadline), ...(iteration ? { iteration } : {}) } // the child reports its phase through ChildFinished
+        steps[step.id] = { phase: 'Pending', runRef, deadline: rfc3339(deadline), ...(iteration ? { iteration } : {}), ...(state ? { state } : {}) } // the child reports its phase through ChildFinished; the state is kept for `next`
       }
 
       /** Transition semantics (11-workflow.md), to a fixpoint. Returns the selected terminal, if any. */
@@ -238,11 +238,11 @@ export function workflowHandler(deps: HandlerDeps): HandlerImpl {
           if (step.repeat && phase === 'Succeeded') {
             const iteration = steps[id]!.iteration ?? 1
             const outputs = (readPath({ status: child.status }, contract.outputsValuePath) ?? {}) as RuntimeValues
-            const done = site(step).evaluate(step.repeat.until, { ...celContext(sources()), iteration: { index: iteration, outputs: unwrap(outputs) } }) === true
+            const done = site(step, false).evaluate(step.repeat.until, { ...celContext(sources()), iteration: { index: iteration, outputs: unwrap(outputs) } }) === true
             if (!done) {
               if (iteration >= step.repeat.maxIterations) steps[id] = { ...steps[id]!, phase: 'Failed', error: err('iteration_limit', `${step.repeat.maxIterations} iterations`) }
               else {
-                const next = bind(step.repeat.next, sources({ iteration: { index: iteration, outputs } }), site(step))
+                const next = bind(step.repeat.next, sources({ ...(steps[id]!.state ? { state: steps[id]!.state } : {}), iteration: { index: iteration, outputs } }), site(step))
                 start(step, iteration + 1, next)
                 return conclude()
               }
