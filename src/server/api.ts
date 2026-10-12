@@ -76,9 +76,16 @@ async function route(engine: Engine, req: IncomingMessage, path: string[], url: 
   const kd = revisionedKind(engine, kindName)
 
   if (method === 'POST' && rest.length === 3) {
-    const { content } = (await body(req)) as { content?: unknown }
+    const { content, base } = (await body(req)) as { content?: unknown; base?: unknown }
     if (content === undefined) throw new HttpError(400, 'bad_request', 'body {content} required')
+    if (base !== undefined) {
+      // the editor names the revision it edited; a save over a newer one would silently fork the lineage
+      const last = engine.store.resources.listRevisions(kd.spec.names.kind, namespace, id).at(-1)
+      const latest = last ? identityOf(last).revision : 0
+      if (base !== latest) throw new HttpError(409, 'conflict', `${id} is at revision ${latest}, not ${String(base)}; reload before saving`)
+    }
     const r = await write(engine, { apiVersion: apiVersionOf(kd), kind: kd.spec.names.kind, namespace, id }, content)
+    drainAfter(engine) // a publish may fire a Trigger; nothing else drains while ui runs (08-store.md)
     return { status: 201, body: { apiVersion: r.apiVersion, kind: r.kind, namespace, ...identityOf(r) } }
   }
   if (method !== 'GET') throw new HttpError(404, 'not_found', `no route ${method} ${url.pathname}`)
@@ -101,8 +108,15 @@ async function write(engine: Engine, ref: { apiVersion: string; kind: string; na
     return await createRevision(engine, ref, content)
   } catch (e) {
     const message = (e as Error).message
-    throw new HttpError(/is not the next one|exists with a different spec/.test(message) ? 409 : 400, 'invalid', message)
+    throw new HttpError(/is not the next one|exists with a different spec/.test(message) ? 409 : 400, /is not the next one|exists with a different spec/.test(message) ? 'conflict' : 'invalid', message)
   }
+}
+
+const drains = new WeakMap<Engine, Promise<void>>()
+/** One drain at a time per engine, after the response; a failure is the engine's log, not the caller's. */
+function drainAfter(engine: Engine): void {
+  const next = (drains.get(engine) ?? Promise.resolve()).then(() => engine.drain()).catch(() => undefined)
+  drains.set(engine, next)
 }
 
 function revisionedKind(engine: Engine, name: string): KindDefinition {

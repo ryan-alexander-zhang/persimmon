@@ -90,6 +90,10 @@ describe('persimmon ui server', () => {
     expect([escaped.status, (await escaped.json()).error.code]).toEqual([400, 'bad_request'])
     const top = await get('/%')
     expect([top.status, (await top.json()).error.code]).toEqual([400, 'bad_request'])
+    expect((await post(`/api/artifacts/default/${KIND}/forked`, { content: model('forked') })).status).toBe(201)
+    const stale = await post(`/api/artifacts/default/${KIND}/forked`, { content: model('forked'), base: 0 })
+    expect([stale.status, (await stale.json()).error.code]).toEqual([409, 'conflict'])
+    expect((await post(`/api/artifacts/default/${KIND}/forked`, { content: model('forked'), base: 1 })).status).toBe(201)
   })
 
   it('serves a tool, falls back to its index.html, and redirects the root', async () => {
