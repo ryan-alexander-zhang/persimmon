@@ -52,9 +52,12 @@ describe('persimmon CLI', () => {
     out = []
     expect([await run('validate', 'packs/sdlc/global/50-tasks.yaml', 'packs/sdlc/global/80-workflows.yaml', 'packs/sdlc/global/40-executors.yaml'), out.filter((l) => l.startsWith('error'))]).toEqual([0, []])
     expect(out.filter((l) => l.startsWith('ok')).length).toBeGreaterThanOrEqual(7)
-    // the AI Native pack's kinds apply (23-pack-ai-native.md)
+    // the AI Native pack's kinds and its worked domain example validate (23-pack-ai-native.md)
     out = []
     expect([await run('apply', 'packs/ai-native/global/10-artifact-kinds.yaml', '--global'), out.filter((l) => l.startsWith('error'))]).toEqual([0, []])
+    out = []
+    expect([await run('validate', 'docs/design/examples/ai-native-domain.yaml'), out.filter((l) => !l.startsWith('ok'))]).toEqual([0, []])
+    expect(out.length).toBe(5)
     out = []
     const bad = example('workflow-prd-create')
     bad.spec.entry = ['write-prd']

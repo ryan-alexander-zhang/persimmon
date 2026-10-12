@@ -1,0 +1,357 @@
+# One domain written with the AI Native pack's artifact kinds (23-pack-ai-native.md): a BoundedContext, its Glossary
+# (terms and fact types), BusinessRules with logic, one DecisionTable, and the Prd that cites them. Validates after
+# `persimmon apply packs/ai-native/global/*.yaml --global`. Prose uses Glossary term names only, never an alias.
+apiVersion: sdd.persimmon.ai/v1
+kind: BoundedContext
+metadata: {name: expenses.r1}
+spec:
+  identity: {id: expenses, revision: 1}
+  content:
+    name: Expenses
+    purpose: >-
+      Owns the life of an expense claim from the moment an employee submits it until it is approved or rejected
+      and handed to Accounting for payment. Decides what a claim may contain, who may approve it, and when it is final.
+    inScope: [claim, claim line, receipt, category, policy limit, approver, director, risk flag, trip, destination country, per diem]
+    outOfScope:
+      - "employee, reporting line, cost centre membership: Identity context"
+      - "payment, ledger posting, currency conversion at booking: Accounting context"
+    owner: Finance operations
+    relationships:
+      - {context: identity, role: downstream, pattern: conformist, note: "we read employees and reporting lines as Identity publishes them"}
+      - {context: accounting, role: upstream, pattern: published-language, note: "we publish approved claims as a fixed export record"}
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: Glossary
+metadata: {name: expenses-glossary.r1}
+spec:
+  identity: {id: expenses-glossary, revision: 1}
+  content:
+    title: Expenses glossary
+    context: expenses
+    terms:
+      - name: claim
+        definition: One request by an employee to be reimbursed, made of one or more claim lines, with one status at a time.
+        aliases: [reimbursement request]
+        related: [claim line, approver]
+        status: active
+      - name: claim line
+        definition: "One cost on a claim: date, category, amount in the currency paid, and the receipt that proves it."
+        aliases: [line item, expense]
+        related: [claim, receipt, category]
+        status: active
+      - name: receipt
+        definition: The document that proves a claim line was paid; an image or PDF attached to the line.
+        aliases: [proof of payment, invoice]
+        related: [claim line]
+        status: active
+      - name: category
+        definition: The kind of cost a claim line is; each category has one policy limit.
+        aliases: [expense type]
+        related: [claim line, policy limit]
+        status: active
+      - name: policy limit
+        definition: The largest amount a category allows per claim line without a written justification.
+        aliases: [cap]
+        related: [claim line, category]
+        status: active
+      - name: employee
+        definition: "As in Identity: a person on the payroll with one reporting line. Borrowed; Identity owns it."
+        related: [claim, approver]
+        status: active
+      - name: approver
+        definition: The person who decides a claim, as Identity reports the employee's reporting line on the day of submission.
+        aliases: [reviewer]
+        related: [claim, employee, director]
+        status: active
+      - name: director
+        definition: An approver two or more levels above the employee in the reporting line, as Identity reports it.
+        related: [approver]
+        status: active
+      - name: risk flag
+        definition: A mark Finance puts on a claim that matches a fraud pattern; set by the risk check, never by the employee.
+        related: [claim]
+        status: active
+      - name: trip
+        definition: A period of travel days on one claim, with one destination country.
+        related: [per diem, destination country]
+        status: active
+      - name: destination country
+        definition: The country a trip goes to; it sets the daily rate for per diem.
+        related: [trip, per diem]
+        status: active
+      - name: per diem
+        definition: A fixed daily allowance for the days of a trip that replaces receipts for meals; one claim line per trip.
+        aliases: [daily allowance]
+        related: [claim line, trip]
+        status: active
+      - name: expense report
+        definition: Old name for claim.
+        status: deprecated
+        replacedBy: claim
+    factTypes:
+      - {name: claim has approver, subject: claim, predicate: has, object: approver, status: active}
+      - {name: claim has employee, subject: claim, predicate: has, object: employee, status: active}
+      - {name: claim has risk flag, subject: claim, predicate: has, object: {type: boolean}, status: active}
+      - {name: claim has total, subject: claim, predicate: has, object: {type: decimal, unit: EUR}, status: active}
+      - {name: claim has submission date, subject: claim, predicate: has, object: {type: date}, status: active}
+      - {name: claim is complete, subject: claim, predicate: is, object: {type: boolean}, description: "every claim line that needs a receipt has one", status: active}
+      - {name: claim line has amount, subject: claim line, predicate: has, object: {type: decimal, unit: EUR}, status: active}
+      - {name: claim line has date, subject: claim line, predicate: has, object: {type: date}, status: active}
+      - {name: claim line has receipt, subject: claim line, predicate: has, object: {type: boolean}, status: active}
+      - {name: claim line has justification, subject: claim line, predicate: has, object: {type: boolean}, status: active}
+      - {name: claim line has category, subject: claim line, predicate: has, object: {type: enum, values: [travel, meals, lodging, equipment, per diem, other]}, status: active}
+      - {name: category has policy limit, subject: category, predicate: has, object: {type: decimal, unit: EUR}, status: active}
+      - {name: approver is director, subject: approver, predicate: is, object: {type: boolean}, status: active}
+      - {name: approver is employee, subject: approver, predicate: is, object: {type: boolean}, description: "the approver is the claim's own employee", status: active}
+      - {name: trip has days, subject: trip, predicate: has, object: {type: integer, unit: days}, status: active}
+      - {name: destination country has daily rate, subject: destination country, predicate: has, object: {type: decimal, unit: EUR}, status: active}
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: BusinessRules
+metadata: {name: expenses-rules.r1}
+spec:
+  identity: {id: expenses-rules, revision: 1}
+  content:
+    title: Expense claim rules
+    context: expenses
+    owner: Finance operations
+    rules:
+      - id: BR-1
+        type: fact
+        factType: claim has approver
+        statement: A claim must have exactly one approver, the one Identity reports for the employee on the day the claim is submitted.
+        rationale: Reporting lines change; the approver must not change under a claim in flight.
+        source: Finance policy FP-12 §3
+        status: active
+      - id: BR-2
+        type: constraint
+        statement: A claim line of 25 EUR or more must have a receipt attached before the claim can be submitted, unless its category is per diem.
+        rationale: Tax audit requires proof for every reimbursed cost above the small-amount limit; per diem is an allowance, not a cost paid.
+        source: Tax code, small-amount receipts rule
+        effectiveFrom: 2024-01-01
+        status: active
+        examples: ["24.99 EUR taxi, no receipt: allowed", "25.00 EUR taxi, no receipt: refused at submit", "120 EUR per diem, no receipt: allowed"]
+        logic:
+          inputs:
+            - {name: amount, factType: claim line has amount}
+            - {name: receipt, factType: claim line has receipt}
+            - {name: category, factType: claim line has category}
+          when:
+            all:
+              - {field: amount, op: gte, value: 25}
+              - {field: receipt, op: eq, value: false}
+              - {field: category, op: ne, value: per diem}
+          then: {violation: "claim line of 25 EUR or more without a receipt"}
+      - id: BR-3
+        type: constraint
+        statement: A claim line above its category's policy limit must carry a written justification, and its claim's approver must be a director.
+        rationale: Exceptions are allowed but visible and signed one level higher.
+        source: Finance policy FP-12 §5
+        status: active
+        logic:
+          inputs:
+            - {name: amount, factType: claim line has amount}
+            - {name: limit, factType: category has policy limit}
+            - {name: justification, factType: claim line has justification}
+            - {name: director, factType: approver is director}
+          when:
+            all:
+              - {field: amount, op: gt, value: {field: limit}}
+              - any:
+                  - {field: justification, op: eq, value: false}
+                  - {field: director, op: eq, value: false}
+          then: {violation: "claim line over the policy limit without a justification, or not approved by a director"}
+      - id: BR-4
+        type: derivation
+        statement: The per diem of a trip must be computed as the destination country's daily rate times the trip's days, with the first and the last day at half rate.
+        rationale: Matches the statutory allowance table; half days avoid paying meals the employee did not need.
+        source: Statutory allowance table, revised yearly
+        owner: Payroll
+        status: active
+        examples: ["3-day trip to a 60 EUR/day country: 30 + 60 + 30 = 120 EUR", "1-day trip: 30 EUR, the one day is both first and last"]
+        logic:
+          inputs:
+            - {name: days, factType: trip has days}
+            - {name: rate, factType: destination country has daily rate}
+            - {name: perDiem, factType: claim line has amount}
+          then: {derive: perDiem, expression: "if days = 1 then rate / 2 else rate * (days - 1)"}
+      - id: BR-5
+        type: constraint
+        statement: An employee must not be the approver of their own claim.
+        rationale: Separation of duties.
+        source: Internal control IC-4
+        status: active
+        logic:
+          inputs:
+            - {name: self, factType: approver is employee}
+          when: {field: self, op: eq, value: true}
+          then: {violation: "approver is the claim's own employee"}
+      - id: BR-6
+        type: constraint
+        statement: A claim must be submitted within 90 days of the earliest claim line date.
+        rationale: Old costs cannot be booked to the right period. Informal; never given logic, withdrawn before the 2026 revision.
+        source: Finance policy FP-12 §2
+        effectiveTo: 2025-12-31
+        status: deprecated
+      - id: BR-7
+        type: decision
+        statement: A submitted claim must be considered routed to auto-approve if it is complete, has no risk flag, and its total is 5000 EUR or less.
+        rationale: Nine of ten claims are small and clean; an approver's minute is for the rest.
+        source: Finance policy FP-12 §4, 2026 revision
+        effectiveFrom: 2026-01-01
+        status: active
+        logic:
+          inputs:
+            - {name: complete, factType: claim is complete}
+            - {name: risk, factType: claim has risk flag}
+            - {name: total, factType: claim has total}
+          when:
+            all:
+              - {field: complete, op: eq, value: true}
+              - {field: risk, op: eq, value: false}
+              - {field: total, op: lte, value: 5000}
+          then: {decision: {route: auto-approve}}
+      - id: BR-8
+        type: decision
+        statement: A submitted claim must be considered routed to finance-review if it has a risk flag, whatever else it holds.
+        rationale: Fraud patterns are checked by people trained for it, not by approvers.
+        source: Internal control IC-7
+        status: active
+        logic:
+          inputs:
+            - {name: risk, factType: claim has risk flag}
+          when: {field: risk, op: eq, value: true}
+          then: {decision: {route: finance-review}}
+      - id: BR-9
+        type: decision
+        statement: A submitted claim must be considered routed to return-to-employee if it has no risk flag and is not complete.
+        rationale: An approver never sees a claim a receipt would have fixed.
+        source: Finance policy FP-12 §4
+        status: active
+        logic:
+          inputs:
+            - {name: risk, factType: claim has risk flag}
+            - {name: complete, factType: claim is complete}
+          when:
+            all:
+              - {field: risk, op: eq, value: false}
+              - {field: complete, op: eq, value: false}
+          then: {decision: {route: return-to-employee}}
+      - id: BR-10
+        type: decision
+        statement: A submitted claim must be considered routed to approver if it has no risk flag, is complete, and its total is above 5000 EUR.
+        rationale: Large clean claims are an approver's call.
+        source: Finance policy FP-12 §4
+        status: active
+        logic:
+          inputs:
+            - {name: risk, factType: claim has risk flag}
+            - {name: complete, factType: claim is complete}
+            - {name: total, factType: claim has total}
+          when:
+            all:
+              - {field: risk, op: eq, value: false}
+              - {field: complete, op: eq, value: true}
+              - {field: total, op: gt, value: 5000}
+          then: {decision: {route: approver}}
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: DecisionTable
+metadata: {name: claim-routing.r1}
+spec:
+  identity: {id: claim-routing, revision: 1}
+  content:
+    title: Claim routing
+    context: expenses
+    decision: Where does a submitted claim go next?
+    owner: Finance operations
+    source: Finance policy FP-12 §4, Internal control IC-7
+    status: active
+    cites: [BR-2, BR-7, BR-8, BR-9, BR-10]
+    inputs:
+      - {name: risk, factType: claim has risk flag}
+      - {name: complete, factType: claim is complete}
+      - {name: total, factType: claim has total}
+    outputs:
+      - {name: route, type: enum, values: [finance-review, return-to-employee, auto-approve, approver]}
+    hitPolicy: unique
+    rows:
+      - {id: R-1, when: {risk: "true", complete: "-", total: "-"}, then: {route: finance-review}, cites: [BR-8]}
+      - {id: R-2, when: {risk: "false", complete: "false", total: "-"}, then: {route: return-to-employee}, cites: [BR-9], note: "complete is BR-2 applied to every claim line"}
+      - {id: R-3, when: {risk: "false", complete: "true", total: "<= 5000"}, then: {route: auto-approve}, cites: [BR-7]}
+      - {id: R-4, when: {risk: "false", complete: "true", total: "> 5000"}, then: {route: approver}, cites: [BR-10], note: "BR-3 may still demand a director"}
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: Prd
+metadata: {name: expense-claims.r1}
+spec:
+  identity: {id: expense-claims, revision: 1}
+  content:
+    title: Expense claims without the spreadsheet
+    problem: >-
+      Employees file claims as spreadsheets mailed to their approver with receipts as separate attachments. Finance
+      re-keys every claim line into the ledger, chases missing receipts by mail, and cannot tell which claims wait
+      on whom. A claim takes a median of 23 days from submission to payment; 18% are returned at least once for a
+      missing receipt or a line over the policy limit.
+    users:
+      - {name: employee, description: Anyone who pays a work cost and wants it back; files a claim a few times a year.}
+      - {name: approver, description: Decides claims for the employees in their reporting line; wants to decide in under a minute per claim.}
+      - {name: finance operator, description: Finance operations staff who hand approved claims to Accounting and answer audit questions.}
+    goals:
+      - {id: G-1, statement: An employee gets a decision on a claim within the same working week.}
+      - {id: G-2, statement: A claim that reaches an approver is complete and never comes back for paperwork.}
+      - {id: G-3, statement: Finance operators read and audit; they never type a claim.}
+    nonGoals:
+      - Paying the employee; Accounting pays from the export.
+      - Corporate card reconciliation.
+      - Travel booking or pre-approval of trips.
+    capabilities:
+      - id: CAP-1
+        name: Submit a claim
+        description: >-
+          An employee builds a claim from claim lines, attaches a receipt to each line that needs one, and submits
+          it. The claim refuses submission while a rule is broken and says which line and which rule, so a claim
+          that reaches an approver is already complete.
+        priority: P1
+        context: expenses
+        rules: [BR-1, BR-2, BR-3]
+      - id: CAP-2
+        name: Route and decide a claim
+        description: >-
+          A submitted claim is routed by the claim routing decision: a flagged claim to Finance, an incomplete one
+          back to the employee, a small clean one approved at once, the rest to the approver. The approver sees the
+          claim, every receipt, and every line that needed a justification, and approves or rejects it with a reason.
+        priority: P1
+        context: expenses
+        rules: [BR-1, BR-3, BR-5, BR-7, BR-8, BR-9, BR-10]
+      - id: CAP-3
+        name: Per diem lines
+        description: >-
+          An employee adds a trip with its days and destination country; the claim computes the per diem line
+          itself and needs no receipt for it.
+        priority: P2
+        context: expenses
+        rules: [BR-2, BR-4]
+      - id: CAP-4
+        name: Export approved claims
+        description: >-
+          Approved claims appear to Accounting as export records in the published format, once each, with the
+          receipts reachable by reference. Finance operators see which claims are exported and which wait.
+        priority: P1
+        context: expenses
+    successCriteria:
+      - {id: SC-1, statement: Median submission-to-approval time is under 3 working days over a full quarter.}
+      - {id: SC-2, statement: Fewer than 5% of submitted claims are rejected or returned over a full quarter., capabilities: [CAP-1]}
+      - {id: SC-3, statement: Every approved claim in a quarter has exactly one export record and no finance operator typed any of it., capabilities: [CAP-4]}
+      - {id: SC-4, statement: An approver decides 9 of 10 claims without opening anything beyond the claim screen., capabilities: [CAP-2]}
+    assumptions:
+      - Identity publishes every employee's reporting line and cost centre and is correct on the day of submission.
+      - Accounting accepts the published export record format and converts currency at booking.
+      - Receipts are images or PDFs; paper receipts are photographed by the employee.
+    openQuestions:
+      - id: Q-1
+        question: >-
+          Who is the approver of a director's own claim? BR-5 forbids self-approval and BR-1 takes the approver from
+          Identity; the top of the reporting line has none.
+      - id: Q-2
+        question: Is the 90-day submission window (BR-6, deprecated) coming back? Finance mentioned reinstating it next fiscal year.
