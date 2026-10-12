@@ -1,0 +1,80 @@
+# Tasks of the AI Native pack (12-task.md): the storming session, the human confirmation, the derivation.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: event-storm}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    level: {type: {kind: value, schema: {enum: [big-picture, process, design]}}}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}, required: false}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}, required: false}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+  outputs:
+    model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
+    contexts: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}}
+  executorRef: {kind: Executor, name: storming-agent}
+  action:
+    instructions: |
+      Run the event storming phase named by the `level` input for the product the Prd describes, following the DSL and
+      the phase prompt in your context. Start from `previous` (this phase's last round) when bound, else from `base`
+      (the phase before), else from the Prd alone: keep every id and order that still holds, add what the phase adds,
+      and fix what `feedback` found (each finding names a node, an edge or a context). Publish the whole model as `model` with `meta.level` equal to `level`, and
+      answer `contexts` with the ids of `contexts[]` in order. Ask nothing: an unknown is a hotspot.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: storming-dsl}}
+      - {kind: prompt, ref: {kind: Prompt, name: storming-big-picture}}
+      - {kind: prompt, ref: {kind: Prompt, name: storming-process}}
+      - {kind: prompt, ref: {kind: Prompt, name: storming-design}}
+      - {kind: artifact, input: prd}
+      - {kind: artifact, input: base}
+      - {kind: artifact, input: previous}
+    parameters: {effort: high}
+  timeout: 30m
+  sideEffects: none
+---
+# The human gate of a phase: open the model in `persimmon ui`, then approve or reject here with findings.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: confirm-storming}
+spec:
+  inputs:
+    model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
+  executorRef: {kind: Executor, name: local-reviewer}
+  action:
+    instructions: |
+      Confirm this phase of the event storming. Open the model in the editor: run `persimmon ui` in this project and
+      open the EventStorming artifact named below at its latest revision. Approve when the phase gate holds; reject
+      with one finding per node, edge or context that must change, naming its id.
+    context:
+      - {kind: artifact, input: model}
+  timeout: 72h
+  sideEffects: none
+---
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: derive-domain}
+spec:
+  inputs:
+    model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
+    contextId: {type: {kind: value, schema: {type: string, minLength: 1}}}
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+  outputs:
+    context: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext}}}
+    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
+    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
+  executorRef: {kind: Executor, name: storming-agent}
+  action:
+    instructions: |
+      Derive the BoundedContext, the Glossary and the DomainModel of the storming context whose id is `contextId`,
+      from the design-level model and the Prd, following the derivation rules in your context. The BoundedContext
+      artifact id you cite in `glossary.context` and `domainModel.context` is the storming context id; `source` is
+      the model's artifact id. Invent nothing; leave empty what the model does not say.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: derive-domain-rules}}
+      - {kind: artifact, input: model}
+      - {kind: artifact, input: prd}
+    parameters: {effort: high}
+  timeout: 30m
+  sideEffects: none

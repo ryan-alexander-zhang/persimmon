@@ -11,3 +11,31 @@ spec:
     adapter: eventstorming/v1
     configuration: {}
   timeout: 1m
+---
+# The human confirmation of a storming phase, as a Validator over the confirm-storming Task.
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: storming-confirmed}
+spec:
+  inputs:
+    model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
+  evaluator:
+    type: task
+    taskRef: {kind: Task, name: confirm-storming}
+    resultOutput: result
+  timeout: 72h
+---
+# A DomainModel agrees with the design-level model it was derived from (26-domain-discovery.md).
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: domain-consistency}
+spec:
+  inputs:
+    model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
+    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
+    context: {type: {kind: value, schema: {type: string, minLength: 1}}}
+  evaluator:
+    type: adapter
+    adapter: eventstorming/v1
+    configuration: {}
+  timeout: 1m

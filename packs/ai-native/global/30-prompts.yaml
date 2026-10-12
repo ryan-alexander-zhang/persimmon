@@ -1,0 +1,112 @@
+# Prompts of the AI Native pack (15-prompt-skill.md). The event storming session, one Prompt per phase plus the DSL,
+# ported from the old tool's skill references (26-domain-discovery.md); the agent writes the whole model at the phase's level.
+apiVersion: persimmon.ai/v1
+kind: Prompt
+metadata: {name: storming-dsl}
+spec:
+  mediaType: text/markdown
+  content: |
+    # Event storming DSL 4.0, the content of an EventStorming artifact
+
+    You answer the `model` port with one object: `{version: "4.0", meta: {name, level}, contexts: [], contextRelationships: [], nodes: [], edges: []}`.
+    No `createdAt`, no positions; layout is computed from `order` and the relations.
+
+    - `meta.level` is `big-picture`, `process` or `design`; it gates which node types may appear and rises as phases complete.
+    - `contexts[]`: `{id, name, order, classification?: core|supporting|generic, bigBallOfMud?}`; `order` from 0, left to right.
+    - `contextRelationships[]`: `{id, source, target, type}`; `source` is upstream; `type` is one of partnership, sharedKernel, customerSupplier, conformist, acl, openHostService, publishedLanguage, separateWays.
+    - `nodes[]`: `{id, type, label, context?, order?, properties}`; `properties` is always an object, `{}` when empty.
+      - types: `domainEvent` (past tense, carries `order`), `command` (imperative), `actor`, `readModel` (ends in View), `policy` (ends in Policy), `aggregate`, `constraint`, `externalSystem`, `hotspot` (the open question itself), `opportunity`.
+      - `order` is an integer on `domainEvent` only, one global sequence from 0 across every context; equal `order` means the same point in time.
+      - properties, each legal on its own type only: `description` (any); `pivotal`, `temporal` (domainEvent); `alternativeSet` (domainEvent, command: members happen instead of each other, at most one does; a set needs two members); `state` open|resolved, `kind` conflict|question|risk, `priority` low|medium|high, `resolution`, `resolvedAt` (hotspot); `condition` (the guard, no "if"), `execution` automatic|manual, `parameters` `[{name, value}]` both strings (policy); `rule` (constraint, the invariant itself).
+      - a `temporal` event is raised by time passing and needs no producer; never invent a Clock or Scheduler external system. A timeout our own system runs is a policy with its numbers as parameters, not a temporal event.
+    - `edges[]`: `{id, source, target, relation}`; legal pairs only:
+      `issues` actor|externalSystem → command · `produces` command → domainEvent · `constrainedBy` command → constraint · `handledBy` command → aggregate|externalSystem · `emits` aggregate|externalSystem → domainEvent · `triggers` domainEvent → policy · `invokes` policy → command · `updates` domainEvent → readModel · `informs` readModel → actor · `annotates` hotspot → any · `highlights` opportunity → any.
+      Nothing else connects: no event → event, command → command, policy → event. Chain them: event triggers policy invokes command produces event.
+    - level gating: big-picture allows actor, externalSystem, domainEvent, hotspot, opportunity; process adds command, policy, readModel; design adds constraint, aggregate.
+    - ids: lowercase, hyphenated, stable, unique; node `<ctx>-<tag>-<slug>` with tags e c p ag cons rm ex h op, actors plain; edges `e-<ctx>-<nn>`; context relationships `cr-<nn>`.
+    - a fact you cannot read from the Prd or the previous model is a `hotspot` with `kind` and `priority`, never a guess; a hotspot you resolve keeps its `description` and gains `resolution`.
+    - with `previous` bound, keep every id and `order` that still holds; change only what the phase adds or the feedback demands.
+---
+apiVersion: persimmon.ai/v1
+kind: Prompt
+metadata: {name: storming-big-picture}
+spec:
+  mediaType: text/markdown
+  content: |
+    # Phase 1, big picture
+
+    Goal: the whole story as an ordered chain of domain events, every unknown parked as a hotspot.
+    Allowed types: domainEvent, actor, externalSystem, hotspot, opportunity. No commands, policies or aggregates yet.
+
+    1. Discover: every event the Prd's problem, users, capabilities and rules imply. Aim wide.
+    2. Converge: deduplicate, past tense, one global `order` from 0; events that happen in parallel share an `order`.
+    3. Mark: `pivotal: true` on the few events that change the state of the business (three to seven); `temporal: true` on events raised by time passing; the two ways one moment can go share an `alternativeSet`.
+    4. Unhappy paths: what goes wrong, gets cancelled, rejected, expired, retried. People forget them; you may not.
+    5. Draft contexts: group events where the language changes meaning or the owner changes; write `contexts` and `nodes[].context`. A capability's `context` in the Prd names one.
+    6. Edges at this level: only `externalSystem emits domainEvent`, `hotspot annotates`, `opportunity highlights`. The timeline is `order`, never event-to-event edges.
+
+    Gate you must meet: every event past tense with an `order`; the chain reads as one story with no missing step; unhappy paths present; pivotal events marked; alternatives share a set; every unknown or disagreement a hotspot with kind and priority. `meta.level: big-picture`.
+---
+apiVersion: persimmon.ai/v1
+kind: Prompt
+metadata: {name: storming-process}
+spec:
+  mediaType: text/markdown
+  content: |
+    # Phase 2, process
+
+    Goal: explain every event. What causes it, who decided, what information they needed, what reacts to it.
+    Adds command, policy, readModel. Keep the events and their `order`; renumber only when you add an event.
+
+    Work event by event, in `order`, four questions each:
+    1. What command caused it? `command produces domainEvent`. An outside system: `command handledBy externalSystem emits domainEvent`, or the system emitting it. Time: mark the event `temporal`.
+    2. Who issues that command? `actor issues command` or `externalSystem issues command`. Nobody: a policy invokes it.
+    3. What does the actor need to know first? A `readModel`: `domainEvent updates readModel informs actor`.
+    4. What reacts automatically? A `policy`: `domainEvent triggers policy invokes command`. A reaction that goes different ways is one policy with a `condition`, an `invokes` to each command, and those commands in one `alternativeSet`.
+
+    Every policy gets, when they exist: `condition` (the guard, no "if"), `execution` automatic|manual, `parameters` for every threshold, timeout, limit, retry count, window or rate, as string pairs. An undecided number is a hotspot, and the parameter stays out.
+    The Prd's business rules (BR-n in `capabilities[].rules`) are where the numbers live; cite them in `description`.
+
+    Gate you must meet: every domainEvent has an incoming produces or emits, or is temporal; every command has an issues or an invokes; every actor decision that needs data has a read model; every policy has execution, plus condition and parameters where they exist; reaction loops are intentional and bounded. `meta.level: process`.
+---
+apiVersion: persimmon.ai/v1
+kind: Prompt
+metadata: {name: storming-design}
+spec:
+  mediaType: text/markdown
+  content: |
+    # Phase 3, design, with the context map
+
+    Goal: name the consistency boundary that owns each command, and the rules that can refuse it; then type every seam between contexts.
+    Adds aggregate (the design output) and constraint (the design input). Keep everything from phases 1 and 2.
+
+    Work command by command:
+    1. Who owns the decision? `command handledBy aggregate`, then `aggregate emits domainEvent`; keeping the `produces` edge too is allowed. Work done entirely outside: `command handledBy externalSystem emits domainEvent`, no aggregate.
+    2. What can refuse it? Every precondition, limit or permission is a `constraint`, `command constrainedBy constraint`, with `properties.rule` the assertion itself ("order total <= customer credit limit"), `description` why. A constraint that restates a business rule names the BR-n in its description.
+    3. Split what is overloaded: an aggregate with more than five commands or five events is usually two.
+
+    Context map:
+    4. Classify every context: core (a competitor copying it would hurt), supporting (needed, not differentiating), generic (could be bought). Most models have one or two core contexts.
+    5. Every edge that crosses a context is a seam; each pair with a seam gets at least one `contextRelationships` entry, `source` the upstream (the one that sets the terms). Downstream can ask for changes: customerSupplier; cannot: conformist; cannot and must protect its model: acl; upstream serves many the same way: openHostService, plus publishedLanguage when the contract is a documented schema; symmetric: partnership, sharedKernel, separateWays. A context whose model is a recognised mess gets `bigBallOfMud: true`.
+
+    Gate you must meet: every command has handledBy; every aggregate emits at least one event or its command's produces edge carries the spine; every "you cannot X unless Y" is a constraint with a rule; no aggregate over the threshold without a hotspot saying so; every context classified; every crossing pair typed; no relationship from a context to itself. `meta.level: design`.
+
+    Also answer the `contexts` port: the ids of `contexts[]`, in `order`.
+---
+apiVersion: persimmon.ai/v1
+kind: Prompt
+metadata: {name: derive-domain-rules}
+spec:
+  mediaType: text/markdown
+  content: |
+    # Deriving the domain kinds from a design-level model
+
+    You project one context of an EventStorming model into three artifacts. A projection invents nothing: every name is a storming label, unchanged; every relation is an edge of the model. What the model does not say, you leave empty.
+
+    `context` (BoundedContext): `name` from the context; `purpose` one paragraph from what its aggregates do; `inScope` the term names you put in the Glossary; `outOfScope` what neighbouring contexts own, naming them; `classification` and `bigBallOfMud` from the context; `relationships` from `contextRelationships` where this context is source or target: `role` upstream when it is the source, downstream when the target, peer for partnership, sharedKernel and separateWays; `pattern` is the type in kebab case (sharedKernel → shared-kernel, customerSupplier → customer-supplier, acl → anticorruption-layer, openHostService → open-host-service, publishedLanguage → published-language).
+
+    `glossary` (Glossary): `context` the BoundedContext id you were given; one term per aggregate, per entity you name under it, per read model and per actor in the context, `definition` from the model's descriptions and the Prd, `status: active`; `factTypes` for every attribute you give an entity, an event or a read model, named `<term> has <attribute>` with a typed `object`.
+
+    `domainModel` (DomainModel): `context` the BoundedContext id, `source` the model's artifact id; one aggregate per storming aggregate in the context with `commands` = the commands handledBy it, `events` = the events it emits, `root` and `entities` named from its label and its events' subjects, `attributes` as fact type names you declared in the Glossary, `invariants` = the `rule` of every constraint on its commands, `rules` citing BR-n when the constraint's description names one; `events` = every domainEvent of the context with its flags; `policies` = every policy of the context with `when` = the events that trigger it, `then` = the commands it invokes, `condition`, `execution`, `parameters` as on the node; `readModels` with `informs` = the actors it informs, `updatedBy` = the events that update it; `externalSystems` = every external system with an edge into or out of the context, with `issues`, `handles`, `emits` from its edges.
+
+    Labels match exactly: the Validator compares them to the model and refuses a derivation that drifts.

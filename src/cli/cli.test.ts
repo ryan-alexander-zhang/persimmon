@@ -54,10 +54,10 @@ describe('persimmon CLI', () => {
     expect(out.filter((l) => l.startsWith('ok')).length).toBeGreaterThanOrEqual(7)
     // the AI Native pack's kinds and its worked domain example validate (23-pack-ai-native.md)
     out = []
-    expect([await run('apply', 'packs/ai-native/global/10-artifact-kinds.yaml', 'packs/ai-native/global/60-validators.yaml', '--global'), out.filter((l) => l.startsWith('error') || l.startsWith('warn'))]).toEqual([0, []])
+    expect([await run('apply', ...['10-artifact-kinds', '30-prompts', '40-executors', '50-tasks', '60-validators', '70-gates', '80-workflows'].map((f) => `packs/ai-native/global/${f}.yaml`), '--global'), out.filter((l) => l.startsWith('error') || l.startsWith('warn'))]).toEqual([0, []])
     out = []
     expect([await run('validate', 'docs/design/examples/ai-native-domain.yaml'), out.filter((l) => !l.startsWith('ok'))]).toEqual([0, []])
-    expect(out.length).toBe(9)
+    expect(out.length).toBe(11)
     out = []
     const bad = example('workflow-prd-create')
     bad.spec.entry = ['write-prd']
@@ -89,7 +89,7 @@ describe('persimmon CLI', () => {
 
     out = []
     expect(await run('get', 'Task')).toBe(0)
-    expect(out.length).toBe(5)
+    expect(out.length).toBe(8) // the demo pack's five and the AI Native pack's three
     expect(await run('delete', 'Task/write-prd')).toBe(1) // referenced by prd-create
     expect(err.at(-1)).toMatch(/referenced/)
 

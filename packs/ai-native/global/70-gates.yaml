@@ -1,0 +1,43 @@
+# Gates (14-gate.md). A storming phase passes when the grammar is clean at the phase's level and a human confirmed it.
+apiVersion: persimmon.ai/v1
+kind: Gate
+metadata: {name: storming-gate}
+spec:
+  inputs:
+    model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
+    level: {type: {kind: value, schema: {enum: [big-picture, process, design]}}}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
+  validators:
+    - name: grammar
+      ref: {kind: Validator, name: eventstorming-grammar}
+      inputs:
+        model: {fromInput: model}
+        level: {fromInput: level}
+    - name: confirmed
+      ref: {kind: Validator, name: storming-confirmed}
+      inputs:
+        model: {fromInput: model}
+  policy: {strategy: all}
+  timeout: 72h
+---
+# A derived context passes when its DomainModel agrees with the model.
+apiVersion: persimmon.ai/v1
+kind: Gate
+metadata: {name: derived-gate}
+spec:
+  inputs:
+    model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
+    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
+    contextId: {type: {kind: value, schema: {type: string, minLength: 1}}}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
+  validators:
+    - name: consistency
+      ref: {kind: Validator, name: domain-consistency}
+      inputs:
+        model: {fromInput: model}
+        domainModel: {fromInput: domainModel}
+        context: {fromInput: contextId}
+  policy: {strategy: all}
+  timeout: 5m
