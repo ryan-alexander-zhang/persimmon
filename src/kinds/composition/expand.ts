@@ -15,8 +15,11 @@ export function expandPipeline(p: Pipeline, isGate: IsGate): Workflow {
   const transitions: Transition[] = phases.map((phase, i) => {
     const next: Target = i + 1 < phases.length ? { stepRef: phases[i + 1]!.id } : { terminal: 'Succeeded' }
     const t: Transition = { id: `after-${phase.id}`, from: [{ stepRef: phase.id, outcomes: ['Succeeded'] }], to: [next] }
-    if (isGate(phase.uses)) {
-      t.to = [{ ...next, when: `steps.${phase.id}.outputs.result.passed` }, { terminal: 'Failed', reason: `${phase.id}_rejected` }]
+    // a gate phase routes on its GateResult; a ReviewLoop phase on its own `passed`, since the loop Succeeds with passed false after maxRounds
+    const step = phase.id.includes('-') ? `steps['${phase.id}']` : `steps.${phase.id}` // a hyphen in CEL is a minus
+    const verdict = isGate(phase.uses) ? `${step}.outputs.result.passed` : phase.uses.kind === 'ReviewLoop' ? `${step}.outputs.passed` : undefined
+    if (verdict) {
+      t.to = [{ ...next, when: verdict }, { terminal: 'Failed', reason: `${phase.id.replaceAll('-', '_')}_rejected` }] // a reason is snake case; a phase id may carry hyphens
       t.dispatch = 'first'
     }
     return t

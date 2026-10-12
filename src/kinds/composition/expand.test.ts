@@ -37,6 +37,13 @@ describe('expandPipeline', () => {
     expect((wf.spec as Record<string, unknown>).phases).toBeUndefined()
   })
 
+  it('a ReviewLoop phase routes on its own passed, so an exhausted loop never feeds the next phase', () => {
+    const p: Pipeline = { ...pipeline, spec: { ...pipeline.spec, phases: [{ id: 'big-storm', uses: { kind: 'ReviewLoop', name: 'storm-x' }, timeout: '1h' }, { id: 'derive', uses: { kind: 'Workflow', name: 'derive-all' }, timeout: '1h' }] } }
+    const wf = expandPipeline(p, () => false)
+    expect(wf.spec.transitions[0]).toEqual({ id: 'after-big-storm', from: [{ stepRef: 'big-storm', outcomes: ['Succeeded'] }], to: [{ stepRef: 'derive', when: "steps['big-storm'].outputs.passed" }, { terminal: 'Failed', reason: 'big_storm_rejected' }], dispatch: 'first' })
+    expect(wf.spec.transitions[1]).toEqual({ id: 'after-derive', from: [{ stepRef: 'derive', outcomes: ['Succeeded'] }], to: [{ terminal: 'Succeeded' }] })
+  })
+
   it('a gate phase in the middle routes to the next phase on passed', () => {
     const p: Pipeline = { ...pipeline, spec: { ...pipeline.spec, phases: [pipeline.spec.phases[2]!, pipeline.spec.phases[0]!] } }
     const wf = expandPipeline(p, (ref) => ref.kind === 'Gate')

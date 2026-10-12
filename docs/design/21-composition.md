@@ -41,6 +41,7 @@ Expansion to Workflow `<name>`:
 | `steps` | `phases` verbatim |
 | `transitions` | one per phase, id `after-<id>`, `from: [{stepRef: id, outcomes: [Succeeded]}]`; `to` the next phase, or `{terminal: Succeeded}` after the last |
 | gate phase (`uses` kind's `stepContract.runKind` is GateRun: Gate, Approval) | `to: [{<next or terminal Succeeded>, when: 'steps.<id>.outputs.result.passed'}, {terminal: Failed, reason: <id>_rejected}]`, `dispatch: first` |
+| ReviewLoop phase | the same, on `steps.<id>.outputs.passed`: a loop Succeeds with `passed: false` after `maxRounds`, and the next phase must never start from a rejected subject |
 
 A phase that Fails is unrouted, so the run fails with that phase's error (`11-workflow.md`).
 No `onFailure` branches in v1: a failure stops the pipeline, a rejection ends it with
@@ -145,6 +146,10 @@ Expansion:
 - A finding on a ReviewLoop's expansion is rebased onto `/spec/produce`, `/spec/review`,
   `/spec/inputs/...` or `/spec/maxRounds`, else `/spec`: never a path the loop does not have. The
   message names the expanded Resource. Found in implementation (audit).
+
+- A Pipeline routes a ReviewLoop phase on the loop's `passed` as it routes a gate phase on its
+  GateResult: the loop Succeeds after `maxRounds` with `passed: false`, and without the route the next
+  phase started from a rejected model behind three human gates. Found in audit.
 
 ## Examples
 
