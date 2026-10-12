@@ -77,13 +77,14 @@ the static checker calls.
 | Path | Design file | Holds |
 |---|---|---|
 | `src/cli/` | `08-store.md` CLI verbs | one file per verb or verb family; `index.ts` dispatches; `tree.ts` also renders the run tree `--follow` ends with; no engine logic |
-| `src/server/` (not created) | `08-store.md` server Mode | roadmap: `persimmon serve`, https API, `server.auth.tokens[]` |
+| `src/server/` | `25-ui.md`, `08-store.md` server Mode | the HTTP API over the Engine: artifacts by kind, one revision, create a revision, revisioned kinds; static files of `tools/`; `persimmon ui` binds it to loopback in local mode; server mode adds https and `server.auth.tokens[]` later |
 | `packs/sdlc/global/`, `packs/sdlc/namespaced/` | `20-pack.md` | pack files; `persimmon init` applies `global/` as Global and `namespaced/` into `defaultNamespace` |
 | `packs/ai-native/global/` | `23-pack-ai-native.md` | the AI Native pack's artifact kinds (domain, Prd, Adr, Architecture); installed with `persimmon apply packs/ai-native/global/*.yaml --global` after `init` |
 | `adapters/<id>/` | `07-adapter.md`, `19-adapter-roles.md` | Adapters shipped with the binary: `adapter.yaml` manifest and a stdio script; `persimmon init` installs them before the pack |
 | `adapters/<id>/conformance.mjs`, `adapters/lib/conformance.mjs` | `22-conformance.md` | the stub each shipped Adapter runs in place of its CLI under the suite |
 | `adapters/eventstorming/` | `24-eventstorming.md` | evaluator Adapter `eventstorming/v1`: `evaluate` runs the event storming grammar over an `EventStorming` artifact and answers a ValidationResult; the first shipped evaluator Role |
 | `tools/` | `24-eventstorming.md` | human-facing web surfaces, one directory per tool; a tool's pure model code lives beside its UI so Adapters can import it without a build |
+| `tools/eventstorming/` | `25-ui.md` | the event storming editor: Vite + React + React Flow, built into `dist/tools/eventstorming/`, opened by `persimmon ui` at `/tools/eventstorming/`; reads and saves revisions through `src/server/` |
 | `tools/eventstorming/grammar/` | `24-eventstorming.md` | the DSL v4.0 grammar as `.mjs` + `.d.ts`: element types, level gating, edge rules, context relationship types, `check(content)` findings; imported by `adapters/eventstorming/` and later by the editor |
 | `adapters/lib/` | `19-adapter-roles.md` executor Role | `agent.mjs`: the one process-per-attempt runner behind `claude-code/v1`, `codex/v1` and `subprocess/v1`; a driver supplies the command line, the stdin text and the result parser; `skills.mjs`: the Skill bundle digest and fetch, imported by `src/cli/` too |
 | `examples/<nn>/` | `20-pack.md` | teaching projects, one scenario each: hand-written definitions plus a `README.md` the user follows; `persimmon init` runs inside the directory, so its `.persimmon/` and `persimmon.yaml` are generated and ignored |
@@ -107,7 +108,7 @@ kinds ───────────┘
 | `store` imports `base`, plus `config.ts` types | `08-store.md` Store interface |
 | `kinds` reaches state only through Engine callbacks and returned Actions; never `store` | `02-handler.md` |
 | `kinds` imports `handler` for the contract, `expression` and `kinds/ports` for values; never `snapshot` or `outbox` values; type imports allowed, adapter types too | `04-snapshot.md`, `06-outbox.md` |
-| `cli` and `server` hold no engine logic | `08-store.md` |
+| `cli` and `server` hold no engine logic; `server` reaches the Store through the Engine and the `cli/create` path only | `08-store.md`, `25-ui.md` |
 | `cli` and `conformance` import `adapters/lib/skills.mjs` for the Skill bundle digest and fetch, so the CLI, the suite and the Adapters share one implementation; no other `src/` → `adapters/` import | `15-prompt-skill.md`, `22-conformance.md` |
 | `adapters/eventstorming` imports `tools/eventstorming/grammar`; no `src/` → `tools/` import | `24-eventstorming.md` |
 
@@ -142,7 +143,7 @@ Postgres driver, https server framework: chosen with server mode.
 | examples | unit tests beside each module | design examples drive the module tests; `persimmon validate` covers the DSL |
 | scenario | `test/scenario/` | a Workflow runs end to end on SQLite with a fake Adapter |
 | adapters | `test/adapters/` | shipped Adapters' runner, drivers, skills against stub binaries; `conformance.test.ts` runs the suite over every shipped Adapter |
-| tools | `test/tools/` | a tool's pure model code: the event storming grammar against the ported example models |
+| tools | `test/tools/`, `tools/*/src/**/*.test.ts` | a tool's pure model code: the grammar against the ported example models; the editor's layout and store logic without a DOM |
 
 ## Reading order
 

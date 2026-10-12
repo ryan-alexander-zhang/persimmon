@@ -463,10 +463,20 @@ The event storming rules beyond the schema's shape: which property on which type
 edge rules, smells; `tools/eventstorming/grammar`, run by the Adapter `eventstorming/v1`.
 _Avoid_: validator (the kind), linter, health check
 
+**Local API**:
+The JSON routes `persimmon ui` serves over the Store on loopback (`25-ui.md`): kinds, artifacts,
+one revision, create a revision; server mode's first slice, without https or tokens.
+_Avoid_: REST API, backend, web API, server (bare)
+
 **Tool**:
 A human-facing web surface over artifact kinds, one directory under `tools/`, its pure model code
 beside the UI. Not the Executor type `tool`, which is a program run once per attempt.
 _Avoid_: app, studio, plugin, editor (bare)
+
+**Editor**:
+The event storming **Tool**, `tools/eventstorming/`, opened at `/tools/eventstorming/` by
+`persimmon ui`; reads one revision, saves the next.
+_Avoid_: board app, canvas (for the whole tool), event storming web tool
 
 **Prd**:
 **Artifact kind** of the AI Native pack: why, for whom, `CAP-n` capabilities, `SC-n` success

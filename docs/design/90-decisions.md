@@ -289,3 +289,9 @@ appears twice; the earlier file owns it.
 | 270 | `24-eventstorming.md` | `tools/` is the directory for human-facing web surfaces, one per tool, the pure model code beside the UI. The word collides with the Executor type `tool`; `CONTEXT.md` keeps both and flags it. Found in design review. |
 | 271 | `24-eventstorming.md` | `evaluate` answers `evidence: []`: the payload carries the model as `{content, provenance}`, and `provenance.inputs` are the model's inputs, not the model; the Validator's own input binding is the evidence the engine already holds. Found in implementation. |
 | 272 | `24-eventstorming.md` | The old tool is ported, not copied: its projects, autosave, snapshots and compare are the Store, revisions and two revisions here; import and export are `create` and `get`. |
+| 273 | `25-ui.md` | The local API is server mode's first slice, not a throwaway: the routes are what a remote client needs, local mode leaves out https and tokens. `src/server/` is created for it. |
+| 274 | `25-ui.md` | Vite over Next: a static single-page editor needs no routing or server rendering, and the engine's build stays `tsc` plus one Vite call. |
+| 275 | `25-ui.md` | React Flow kept: the old tool's layout and canvas code depends on it and is the bulk of the port; replacing it would be a rewrite, not a port. |
+| 276 | `25-ui.md` | Read and create only on the API: a revision is immutable (`05-revisioned-kind.md`); edit is a new revision, and nothing in the UI may need delete. |
+| 277 | `25-ui.md` | The editor trusts the API's 400 for the schema and runs the grammar itself for findings: one schema, in the pack; one grammar, in `tools/eventstorming/grammar`. |
+| 278 | `25-ui.md` | Projects, autosave, snapshots and compare are not ported: the Store is the project, a revision is a snapshot, two revisions are a compare. Found in design review. |

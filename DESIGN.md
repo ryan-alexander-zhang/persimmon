@@ -60,6 +60,7 @@ Read top to bottom within a layer; a file depends only on files above it.
 
 | File | Content | Status |
 |---|---|---|
-| `docs/design/22-conformance.md` | `persimmon adapter test`: rules by id for the executor Role, stub contract | active |
+| `docs/design/22-conformance.md` | `persimmon adapter test`: rules by id for the executor and evaluator Roles, stub contract | active |
+| `docs/design/25-ui.md` | `persimmon ui`: the local JSON API over the Store (server mode's first slice) and the event storming editor under `tools/` | draft |
 | `docs/design/90-decisions.md` | Decision log | active |
 | `docs/design/91-roadmap.md` | Deferred items, open questions | active |
