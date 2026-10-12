@@ -616,3 +616,169 @@ spec:
       - {id: exp-h-director, type: hotspot, label: Who approves a director's own claim?, context: exp, properties: {kind: question, priority: high, state: open, description: BR-5 forbids self-approval; the top of the reporting line has no approver}}
     edges:
       - {id: e-exp-01, source: exp-h-director, target: exp-e-routed, relation: annotates}
+---
+# The same model raised to design level: commands, aggregates, constraints, policies, read models, the context map.
+apiVersion: sdd.persimmon.ai/v1
+kind: EventStorming
+metadata: {name: expense-claims-storming.r2}
+spec:
+  identity: {id: expense-claims-storming, revision: 2}
+  content:
+    version: "4.0"
+    meta: {name: Expense claims, level: design}
+    contexts:
+      - {id: exp, name: Expenses, order: 0, classification: core}
+      - {id: idn, name: Identity, order: 1, classification: generic}
+      - {id: acc, name: Accounting, order: 2, classification: supporting}
+    contextRelationships:
+      - {id: cr-1, source: idn, target: exp, type: conformist}
+      - {id: cr-2, source: exp, target: acc, type: publishedLanguage}
+    nodes:
+      - {id: exp-employee, type: actor, label: Employee, context: exp, properties: {}}
+      - {id: exp-approver, type: actor, label: Approver, context: exp, properties: {}}
+      - {id: exp-finance, type: actor, label: Finance operator, context: exp, properties: {}}
+      - {id: idn-ex-directory, type: externalSystem, label: Identity directory, context: idn, properties: {}}
+      - {id: acc-ex-ledger, type: externalSystem, label: Accounting ledger, context: acc, properties: {}}
+      - {id: exp-e-drafted, type: domainEvent, label: Claim Drafted, context: exp, order: 0, properties: {}}
+      - {id: exp-e-receipt-attached, type: domainEvent, label: Receipt Attached, context: exp, order: 1, properties: {}}
+      - {id: exp-e-trip-added, type: domainEvent, label: Trip Added, context: exp, order: 1, properties: {description: per diem line computed from the trip}}
+      - {id: exp-e-submitted, type: domainEvent, label: Claim Submitted, context: exp, order: 2, properties: {pivotal: true}}
+      - {id: exp-e-refused, type: domainEvent, label: Submission Refused, context: exp, order: 2, properties: {description: a rule named the line and the BR-n, alternativeSet: submit-outcome}}
+      - {id: exp-e-routed, type: domainEvent, label: Claim Routed, context: exp, order: 3, properties: {description: by the claim routing table, alternativeSet: submit-outcome}}
+      - {id: exp-e-flagged, type: domainEvent, label: Risk Flag Set, context: exp, order: 4, properties: {}}
+      - {id: exp-e-approved, type: domainEvent, label: Claim Approved, context: exp, order: 5, properties: {pivotal: true, alternativeSet: decision}}
+      - {id: exp-e-rejected, type: domainEvent, label: Claim Rejected, context: exp, order: 5, properties: {alternativeSet: decision}}
+      - {id: exp-e-exported, type: domainEvent, label: Claim Exported, context: exp, order: 6, properties: {pivotal: true}}
+      - {id: acc-e-paid, type: domainEvent, label: Claim Paid, context: acc, order: 7, properties: {}}
+      - {id: exp-c-draft, type: command, label: Draft Claim, context: exp, properties: {}}
+      - {id: exp-c-attach, type: command, label: Attach Receipt, context: exp, properties: {}}
+      - {id: exp-c-add-trip, type: command, label: Add Trip, context: exp, properties: {}}
+      - {id: exp-c-submit, type: command, label: Submit Claim, context: exp, properties: {}}
+      - {id: exp-c-route, type: command, label: Route Claim, context: exp, properties: {}}
+      - {id: exp-c-flag, type: command, label: Set Risk Flag, context: exp, properties: {}}
+      - {id: exp-c-approve, type: command, label: Approve Claim, context: exp, properties: {}}
+      - {id: exp-c-reject, type: command, label: Reject Claim, context: exp, properties: {}}
+      - {id: exp-c-export, type: command, label: Export Claim, context: exp, properties: {}}
+      - {id: acc-c-pay, type: command, label: Pay Claim, context: acc, properties: {}}
+      - {id: exp-ag-claim, type: aggregate, label: Claim, context: exp, properties: {description: the claim and its lines until submission}}
+      - {id: exp-ag-decision, type: aggregate, label: Claim Decision, context: exp, properties: {description: "routing, risk flag, approval"}}
+      - {id: exp-ag-export, type: aggregate, label: Export Record, context: exp, properties: {description: one per approved claim}}
+      - {id: exp-cons-receipt, type: constraint, label: Receipt required, context: exp, properties: {rule: "every claim line of 25 EUR or more has a receipt, unless its category is per diem", description: BR-2}}
+      - {id: exp-cons-self, type: constraint, label: No self-approval, context: exp, properties: {rule: "approver is not the claim's employee", description: BR-5}}
+      - {id: exp-cons-director, type: constraint, label: Director for exceptions, context: exp, properties: {rule: "a line over its policy limit has a justification and the approver is a director", description: BR-3}}
+      - {id: exp-p-routing, type: policy, label: Routing Policy, context: exp, properties: {description: route a submitted claim by the claim routing table, execution: automatic}}
+      - {id: exp-p-export, type: policy, label: Export Policy, context: exp, properties: {description: export an approved claim once, execution: automatic}}
+      - {id: exp-rm-to-decide, type: readModel, label: Claims To Decide View, context: exp, properties: {}}
+      - {id: exp-rm-my-claims, type: readModel, label: My Claims View, context: exp, properties: {}}
+      - {id: exp-rm-export-status, type: readModel, label: Export Status View, context: exp, properties: {}}
+      - {id: exp-h-director, type: hotspot, label: Who approves a director's own claim?, context: exp, properties: {kind: question, priority: high, state: open, description: BR-5 forbids self-approval; the top of the reporting line has no approver}}
+    edges:
+      - {id: e-exp-01, source: exp-employee, target: exp-c-draft, relation: issues}
+      - {id: e-exp-02, source: exp-employee, target: exp-c-attach, relation: issues}
+      - {id: e-exp-03, source: exp-employee, target: exp-c-add-trip, relation: issues}
+      - {id: e-exp-04, source: exp-employee, target: exp-c-submit, relation: issues}
+      - {id: e-exp-05, source: exp-approver, target: exp-c-approve, relation: issues}
+      - {id: e-exp-06, source: exp-approver, target: exp-c-reject, relation: issues}
+      - {id: e-exp-07, source: exp-finance, target: exp-c-flag, relation: issues}
+      - {id: e-exp-08, source: exp-c-draft, target: exp-ag-claim, relation: handledBy}
+      - {id: e-exp-09, source: exp-c-attach, target: exp-ag-claim, relation: handledBy}
+      - {id: e-exp-10, source: exp-c-add-trip, target: exp-ag-claim, relation: handledBy}
+      - {id: e-exp-11, source: exp-c-submit, target: exp-ag-claim, relation: handledBy}
+      - {id: e-exp-12, source: exp-c-route, target: exp-ag-decision, relation: handledBy}
+      - {id: e-exp-13, source: exp-c-flag, target: exp-ag-decision, relation: handledBy}
+      - {id: e-exp-14, source: exp-c-approve, target: exp-ag-decision, relation: handledBy}
+      - {id: e-exp-15, source: exp-c-reject, target: exp-ag-decision, relation: handledBy}
+      - {id: e-exp-16, source: exp-c-export, target: exp-ag-export, relation: handledBy}
+      - {id: e-exp-17, source: exp-ag-claim, target: exp-e-drafted, relation: emits}
+      - {id: e-exp-18, source: exp-ag-claim, target: exp-e-receipt-attached, relation: emits}
+      - {id: e-exp-19, source: exp-ag-claim, target: exp-e-trip-added, relation: emits}
+      - {id: e-exp-20, source: exp-ag-claim, target: exp-e-submitted, relation: emits}
+      - {id: e-exp-21, source: exp-ag-claim, target: exp-e-refused, relation: emits}
+      - {id: e-exp-22, source: exp-ag-decision, target: exp-e-routed, relation: emits}
+      - {id: e-exp-23, source: exp-ag-decision, target: exp-e-flagged, relation: emits}
+      - {id: e-exp-24, source: exp-ag-decision, target: exp-e-approved, relation: emits}
+      - {id: e-exp-25, source: exp-ag-decision, target: exp-e-rejected, relation: emits}
+      - {id: e-exp-26, source: exp-ag-export, target: exp-e-exported, relation: emits}
+      - {id: e-exp-27, source: exp-c-submit, target: exp-cons-receipt, relation: constrainedBy}
+      - {id: e-exp-28, source: exp-c-approve, target: exp-cons-self, relation: constrainedBy}
+      - {id: e-exp-29, source: exp-c-approve, target: exp-cons-director, relation: constrainedBy}
+      - {id: e-exp-30, source: exp-e-submitted, target: exp-p-routing, relation: triggers}
+      - {id: e-exp-31, source: exp-p-routing, target: exp-c-route, relation: invokes}
+      - {id: e-exp-32, source: exp-e-approved, target: exp-p-export, relation: triggers}
+      - {id: e-exp-33, source: exp-p-export, target: exp-c-export, relation: invokes}
+      - {id: e-exp-34, source: exp-e-routed, target: exp-rm-to-decide, relation: updates}
+      - {id: e-exp-35, source: exp-e-submitted, target: exp-rm-my-claims, relation: updates}
+      - {id: e-exp-36, source: exp-e-approved, target: exp-rm-my-claims, relation: updates}
+      - {id: e-exp-37, source: exp-e-rejected, target: exp-rm-my-claims, relation: updates}
+      - {id: e-exp-38, source: exp-e-exported, target: exp-rm-export-status, relation: updates}
+      - {id: e-exp-39, source: acc-e-paid, target: exp-rm-export-status, relation: updates}
+      - {id: e-exp-40, source: exp-rm-to-decide, target: exp-approver, relation: informs}
+      - {id: e-exp-41, source: exp-rm-my-claims, target: exp-employee, relation: informs}
+      - {id: e-exp-42, source: exp-rm-export-status, target: exp-finance, relation: informs}
+      - {id: e-exp-43, source: exp-h-director, target: exp-c-approve, relation: annotates}
+      - {id: e-acc-01, source: acc-ex-ledger, target: acc-c-pay, relation: issues}
+      - {id: e-acc-02, source: acc-c-pay, target: acc-ex-ledger, relation: handledBy}
+      - {id: e-acc-03, source: acc-ex-ledger, target: acc-e-paid, relation: emits}
+---
+# The Expenses context projected from the design-level model; the Validator domain-consistency proves it agrees.
+apiVersion: sdd.persimmon.ai/v1
+kind: DomainModel
+metadata: {name: expenses-model.r1}
+spec:
+  identity: {id: expenses-model, revision: 1}
+  content:
+    context: expenses
+    source: expense-claims-storming
+    aggregates:
+      - id: AG-1
+        name: Claim
+        root: claim
+        entities:
+          - {name: claim, attributes: [claim has employee, claim has total, claim has submission date, claim is complete]}
+          - {name: claim line, attributes: [claim line has amount, claim line has date, claim line has receipt, claim line has justification, claim line has category]}
+          - {name: trip, attributes: [trip has days]}
+        valueObjects:
+          - {name: receipt, attributes: []}
+        commands: [Draft Claim, Attach Receipt, Add Trip, Submit Claim]
+        events: [Claim Drafted, Receipt Attached, Trip Added, Claim Submitted, Submission Refused]
+        invariants:
+          - {statement: "every claim line of 25 EUR or more has a receipt, unless its category is per diem", rules: [BR-2]}
+      - id: AG-2
+        name: Claim Decision
+        root: claim decision
+        entities:
+          - {name: claim decision, attributes: [claim has approver, claim has risk flag]}
+        valueObjects: []
+        commands: [Route Claim, Set Risk Flag, Approve Claim, Reject Claim]
+        events: [Claim Routed, Risk Flag Set, Claim Approved, Claim Rejected]
+        invariants:
+          - {statement: "approver is not the claim's employee", rules: [BR-5]}
+          - {statement: "a line over its policy limit has a justification and the approver is a director", rules: [BR-3]}
+      - id: AG-3
+        name: Export Record
+        root: export record
+        entities:
+          - {name: export record, attributes: []}
+        valueObjects: []
+        commands: [Export Claim]
+        events: [Claim Exported]
+        invariants: []
+    events:
+      - {name: Claim Drafted}
+      - {name: Receipt Attached}
+      - {name: Trip Added}
+      - {name: Claim Submitted, pivotal: true}
+      - {name: Submission Refused}
+      - {name: Claim Routed}
+      - {name: Risk Flag Set}
+      - {name: Claim Approved, pivotal: true}
+      - {name: Claim Rejected}
+      - {name: Claim Exported, pivotal: true}
+    policies:
+      - {id: POL-1, name: Routing Policy, when: [Claim Submitted], then: [Route Claim], execution: automatic}
+      - {id: POL-2, name: Export Policy, when: [Claim Approved], then: [Export Claim], execution: automatic}
+    readModels:
+      - {name: Claims To Decide View, informs: [Approver], updatedBy: [Claim Routed], fields: [claim has total, claim has risk flag]}
+      - {name: My Claims View, informs: [Employee], updatedBy: [Claim Submitted, Claim Approved, Claim Rejected], fields: [claim has total]}
+      - {name: Export Status View, informs: [Finance operator], updatedBy: [Claim Exported, Claim Paid], fields: [claim has total]}
+    externalSystems: []   # the Accounting ledger lives in the acc context; no edge of its own reaches into exp

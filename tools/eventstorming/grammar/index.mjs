@@ -88,6 +88,13 @@ const severityRank = { error: 0, warning: 1, info: 2 }
 const expand = (names) => (names.includes('*') ? elements : names)
 const isObject = (v) => !!v && typeof v === 'object' && !Array.isArray(v)
 const push = (map, key, value) => map.set(key, [...(map.get(key) ?? []), value])
+const arr = (v) => (Array.isArray(v) ? v.filter(isObject) : [])
+const trim = (v) => (typeof v === 'string' ? v.trim() : v)
+const strs = (v) => (Array.isArray(v) ? v.map(trim) : [])
+const order = (a, b) =>
+  severityRank[a.severity] - severityRank[b.severity] ||
+  (a.code < b.code ? -1 : a.code > b.code ? 1 : 0) ||
+  (a.message < b.message ? -1 : a.message > b.message ? 1 : 0)
 
 /**
  * Check a DSL v4.0 model. Returns findings ordered errors first, then by code, then by
@@ -220,13 +227,125 @@ export function check(content) {
 
   health(nodes, edges, level, contextIds, add)
 
-  findings.sort(
-    (a, b) =>
-      severityRank[a.severity] - severityRank[b.severity] ||
-      (a.code < b.code ? -1 : a.code > b.code ? 1 : 0) ||
-      (a.message < b.message ? -1 : a.message > b.message ? 1 : 0),
-  )
+  findings.sort(order)
   return findings
+}
+
+/** A label set the storming holds against the one the domain model holds. */
+function diffLabels(add, what, storming, derived, missingCode, extraCode = missingCode) {
+  for (const l of storming) if (!derived.includes(l)) add('error', missingCode, `${what} '${l}' is in the storming but not in the domain model`)
+  for (const l of derived) if (!storming.includes(l)) add('error', extraCode, `${what} '${l}' is in the domain model but not in the storming`)
+}
+
+const parameterKey = (list) => (Array.isArray(list) ? list : []).map((p) => `${trim(p?.name)}=${trim(p?.value)}`).join('\u0000')
+
+/**
+ * A DomainModel (26-domain-discovery.md) against the design-level EventStorming it claims as its
+ * source: one context's projection must say what that context's storming says. `context` is the
+ * storming context id; the DomainModel's own `context` is a BoundedContext artifact id. Findings
+ * in `check`'s order and shape.
+ */
+export function checkDerived(model, domainModel, context) {
+  const findings = []
+  const add = (severity, code, message) => findings.push({ severity, code, message })
+  const meta = isObject(model?.meta) ? model.meta : {}
+  const nodes = arr(model?.nodes)
+  const edges = arr(model?.edges)
+  const dm = isObject(domainModel) ? domainModel : {}
+  const cid = context ?? dm.context
+
+  if (meta.level !== 'design') {
+    add('error', 'derived-source-level', `source model is at level '${meta.level}' - a domain model is derived from a design-level storming`)
+  }
+  if (!arr(model?.contexts).some((c) => c.id === cid)) {
+    add('error', 'derived-unknown-context', `context '${cid}' is not a context of the source model`)
+  }
+  if (findings.length > 0) return findings.sort(order) // nothing to compare against
+
+  const byId = new Map(nodes.map((n) => [n.id, n]))
+  const label = (n) => trim(n?.label)
+  const inContext = (n) => n?.context === cid
+  const props = (n) => (isObject(n?.properties) ? n.properties : {})
+  const ofType = (type) => nodes.filter((n) => n.type === type && inContext(n))
+  // ponytail: linear edge scans - a model is a few hundred edges; index by relation if one ever is not
+  const sources = (relation, id) => edges.filter((e) => e.relation === relation && e.target === id).map((e) => byId.get(e.source)).filter(Boolean)
+  const targets = (relation, id) => edges.filter((e) => e.relation === relation && e.source === id).map((e) => byId.get(e.target)).filter(Boolean)
+  const match = (list, name) => list.find((x) => trim(x.name) === name)
+
+  const aggregates = ofType('aggregate')
+  const dmAggregates = arr(dm.aggregates)
+  diffLabels(add, 'aggregate', aggregates.map(label), dmAggregates.map((a) => trim(a.name)), 'derived-missing-aggregate', 'derived-extra-aggregate')
+  for (const n of aggregates) {
+    const a = match(dmAggregates, label(n))
+    if (!a) continue
+    const handled = sources('handledBy', n.id)
+    diffLabels(add, `aggregate '${label(n)}' command`, handled.map(label), strs(a.commands), 'derived-command-mismatch')
+    diffLabels(add, `aggregate '${label(n)}' event`, targets('emits', n.id).map(label), strs(a.events), 'derived-event-mismatch')
+    const rules = handled.flatMap((c) => targets('constrainedBy', c.id)).map((k) => trim(props(k).rule ?? k.label))
+    const statements = arr(a.invariants).map((i) => trim(i.statement))
+    for (const s of statements) if (!rules.includes(s)) add('warning', 'derived-invariant-unsourced', `aggregate '${label(n)}': invariant '${s}' restates no storming constraint`)
+    for (const r of rules) if (!statements.includes(r)) add('warning', 'derived-unused-constraint', `aggregate '${label(n)}': constraint '${r}' is in no invariant`)
+  }
+
+  const events = ofType('domainEvent')
+  const dmEvents = arr(dm.events)
+  diffLabels(add, 'event', events.map(label), dmEvents.map((e) => trim(e.name)), 'derived-missing-event', 'derived-extra-event')
+  for (const n of events) {
+    const e = match(dmEvents, label(n))
+    if (!e) continue
+    for (const flag of ['pivotal', 'temporal']) {
+      if (!!props(n)[flag] !== !!e[flag]) add('error', 'derived-event-flag', `event '${label(n)}': ${flag} is ${!!e[flag]} in the domain model and ${!!props(n)[flag]} in the storming`)
+    }
+  }
+
+  const policies = ofType('policy')
+  const dmPolicies = arr(dm.policies)
+  diffLabels(add, 'policy', policies.map(label), dmPolicies.map((p) => trim(p.name)), 'derived-policy-mismatch')
+  for (const n of policies) {
+    const p = match(dmPolicies, label(n))
+    if (!p) continue
+    diffLabels(add, `policy '${label(n)}' when`, sources('triggers', n.id).map(label), strs(p.when), 'derived-policy-mismatch')
+    diffLabels(add, `policy '${label(n)}' then`, targets('invokes', n.id).map(label), strs(p.then), 'derived-policy-mismatch')
+    for (const key of ['execution', 'condition']) {
+      if (trim(props(n)[key]) !== trim(p[key])) add('error', 'derived-policy-mismatch', `policy '${label(n)}': ${key} '${p[key]}' is not the storming's '${props(n)[key]}'`)
+    }
+    if (parameterKey(p.parameters) !== parameterKey(props(n).parameters)) {
+      add('error', 'derived-policy-mismatch', `policy '${label(n)}': parameters are not the storming's`)
+    }
+  }
+
+  const readModels = ofType('readModel')
+  const dmReadModels = arr(dm.readModels)
+  diffLabels(add, 'read model', readModels.map(label), dmReadModels.map((r) => trim(r.name)), 'derived-readmodel-mismatch')
+  for (const n of readModels) {
+    const r = match(dmReadModels, label(n))
+    if (!r) continue
+    diffLabels(add, `read model '${label(n)}' informs`, targets('informs', n.id).map(label), strs(r.informs), 'derived-readmodel-mismatch')
+    if (r.updatedBy !== undefined) {
+      diffLabels(add, `read model '${label(n)}' updatedBy`, sources('updates', n.id).map(label), strs(r.updatedBy), 'derived-readmodel-mismatch')
+    }
+  }
+
+  // An external system is outside every context: it belongs to this projection when an edge of it reaches into the context.
+  const touching = (n) => edges.some((e) => (e.source === n.id && inContext(byId.get(e.target))) || (e.target === n.id && inContext(byId.get(e.source))))
+  const externals = nodes.filter((n) => n.type === 'externalSystem' && (inContext(n) || touching(n)))
+  const dmExternals = arr(dm.externalSystems)
+  diffLabels(add, 'external system', externals.map(label), dmExternals.map((x) => trim(x.name)), 'derived-external-mismatch')
+  for (const n of externals) {
+    const x = match(dmExternals, label(n))
+    if (!x) continue
+    const edgesOf = {
+      issues: targets('issues', n.id),
+      handles: sources('handledBy', n.id),
+      emits: targets('emits', n.id),
+    }
+    for (const [key, reached] of Object.entries(edgesOf)) {
+      if (x[key] === undefined) continue
+      diffLabels(add, `external system '${label(n)}' ${key}`, reached.filter(inContext).map(label), strs(x[key]), 'derived-external-mismatch')
+    }
+  }
+
+  return findings.sort(order)
 }
 
 /** The model smells: nothing here is illegal, it is only probably wrong. */

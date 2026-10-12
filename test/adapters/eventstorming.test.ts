@@ -74,3 +74,47 @@ describe('eventstorming/v1', () => {
     expect(unknown).toMatchObject({ id: 6, ok: false, error: { code: 'invalid_input', retryable: false } })
   })
 })
+
+// The second mode: a DomainModel beside the model is compared against it (26-domain-discovery.md).
+describe('eventstorming/v1 against a derived DomainModel', () => {
+  const storming = {
+    version: '4.0',
+    meta: { name: 'x', level: 'design' },
+    contexts: [{ id: 'a', name: 'A', order: 0 }],
+    contextRelationships: [],
+    nodes: [
+      { id: 'a-ag', type: 'aggregate', label: 'Claim', context: 'a', properties: {} },
+      { id: 'a-c', type: 'command', label: 'Submit Claim', context: 'a', properties: {} },
+      { id: 'a-e', type: 'domainEvent', label: 'Claim Submitted', context: 'a', order: 0, properties: { pivotal: true } },
+    ],
+    edges: [
+      { id: 'x1', source: 'a-c', target: 'a-ag', relation: 'handledBy' },
+      { id: 'x2', source: 'a-ag', target: 'a-e', relation: 'emits' },
+    ],
+  }
+  const derived = {
+    context: 'bc-a',
+    source: 'es-a',
+    aggregates: [{ id: 'AG-1', name: 'Claim', root: 'Claim', entities: [{ name: 'Claim', attributes: ['claim id'] }], valueObjects: [], commands: ['Submit Claim'], events: ['Claim Submitted'], invariants: [] }],
+    events: [{ name: 'Claim Submitted', pivotal: true }],
+    policies: [],
+    readModels: [],
+    externalSystems: [],
+  }
+  const pair = (domainModel: unknown) => ({
+    ...payload(storming),
+    inputs: { context: { kind: 'value', value: 'a' } },
+    artifacts: { model: { content: storming, provenance }, domainModel: { content: domainModel, provenance } },
+  })
+
+  it('passes a domain model the storming describes', async () => {
+    const r = await adapter({ id: 9, op: 'evaluate', payload: pair(derived) })
+    expect(r.result).toEqual({ passed: true, findings: [], evidence: [] })
+  })
+
+  it('fails a domain model that names an aggregate the storming does not', async () => {
+    const r = await adapter({ id: 10, op: 'evaluate', payload: pair({ ...derived, aggregates: [{ ...derived.aggregates[0], name: 'Ghost' }] }) })
+    expect(r.result.passed).toBe(false)
+    expect(r.result.findings.map((f: { code: string }) => f.code)).toEqual(['derived-extra-aggregate', 'derived-missing-aggregate'])
+  })
+})

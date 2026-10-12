@@ -3,8 +3,9 @@
 // carried `meta.createdAt`; the DSL here dropped it, so the tests strip it.
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { parseAllDocuments } from 'yaml'
 import { describe, expect, it } from 'vitest'
-import { check } from '../../tools/eventstorming/grammar/index.mjs'
+import { check, checkDerived } from '../../tools/eventstorming/grammar/index.mjs'
 
 const fixture = (name: string): Record<string, unknown> => {
   const model = JSON.parse(readFileSync(join(import.meta.dirname, name), 'utf8'))
@@ -154,5 +155,104 @@ describe('a smelly model', () => {
     ['contextRelationship type', model({ contexts: [{ id: 'c', name: 'C', order: 0 }, { id: 'd', name: 'D', order: 1 }], contextRelationships: [{ id: 'cr-1', source: 'c', target: 'd', type: 'friends' }] })],
   ])('bad-enum on %s', (_what, content) => {
     expect(errorCodes(content)).toContain('bad-enum')
+  })
+})
+
+// A DomainModel against the storming it claims: the matching pair is silent, and every code fires on one mutation.
+describe('checkDerived', () => {
+  const storming = model({
+    meta: { name: 'Claims', level: 'design' },
+    contexts: [{ id: 'c', name: 'C', order: 0 }],
+    nodes: [
+      node('ag', 'aggregate', { label: 'Claim', context: 'c' }),
+      node('c1', 'command', { label: 'Submit Claim', context: 'c' }),
+      node('c2', 'command', { label: 'Approve Claim', context: 'c' }),
+      node('e1', 'domainEvent', { label: 'Claim Submitted', context: 'c', order: 0, properties: { pivotal: true } }),
+      node('e2', 'domainEvent', { label: 'Claim Approved', context: 'c', order: 1 }),
+      node('k', 'constraint', { label: 'One line', context: 'c', properties: { rule: 'A claim has at least one line' } }),
+      node('p', 'policy', { label: 'Approve On Submit', context: 'c', properties: { execution: 'automatic', condition: 'amount > 0' } }),
+      node('rm', 'readModel', { label: 'Claim List', context: 'c' }),
+      node('ac', 'actor', { label: 'Adjuster', context: 'c' }),
+      node('ex', 'externalSystem', { label: 'Payments', context: 'c' }),
+    ],
+    edges: [
+      edge('x1', 'c1', 'ag', 'handledBy'),
+      edge('x2', 'c2', 'ag', 'handledBy'),
+      edge('x3', 'ag', 'e1', 'emits'),
+      edge('x4', 'ag', 'e2', 'emits'),
+      edge('x5', 'c1', 'k', 'constrainedBy'),
+      edge('x6', 'e1', 'p', 'triggers'),
+      edge('x7', 'p', 'c2', 'invokes'),
+      edge('x8', 'e1', 'rm', 'updates'),
+      edge('x9', 'rm', 'ac', 'informs'),
+      edge('x10', 'ex', 'c1', 'issues'),
+    ],
+  })
+  const derived = {
+    context: 'bc-claims',
+    source: 'es-claims',
+    aggregates: [
+      {
+        id: 'AG-1',
+        name: 'Claim',
+        root: 'Claim',
+        entities: [{ name: 'Claim', attributes: ['claim id'] }],
+        valueObjects: [],
+        commands: ['Submit Claim', 'Approve Claim'],
+        events: ['Claim Submitted', 'Claim Approved'],
+        invariants: [{ statement: 'A claim has at least one line' }],
+      },
+    ],
+    events: [{ name: 'Claim Submitted', pivotal: true }, { name: 'Claim Approved' }],
+    policies: [{ id: 'POL-1', name: 'Approve On Submit', when: ['Claim Submitted'], then: ['Approve Claim'], condition: 'amount > 0', execution: 'automatic' }],
+    readModels: [{ name: 'Claim List', informs: ['Adjuster'], updatedBy: ['Claim Submitted'], fields: ['claim id'] }],
+    externalSystems: [{ name: 'Payments', issues: ['Submit Claim'] }],
+  }
+  type Derived = typeof derived
+  const mutate = (change: (d: any) => void): Derived => {
+    const copy = structuredClone(derived)
+    change(copy)
+    return copy
+  }
+
+  it('is silent on the model the storming describes', () => {
+    expect(checkDerived(storming, derived, 'c')).toEqual([])
+  })
+
+  it('falls back to the domain model own context, which is a BoundedContext id', () => {
+    expect(checkDerived(storming, derived).map((f) => f.code)).toEqual(['derived-unknown-context'])
+  })
+
+  const cases: [string, Record<string, unknown>, Derived, string | undefined][] = [
+    ['derived-source-level', model({ ...storming, meta: { name: 'Claims', level: 'process' } }), derived, 'c'],
+    ['derived-unknown-context', storming, derived, 'nope'],
+    ['derived-missing-aggregate', storming, mutate((d) => (d.aggregates = [])), 'c'],
+    ['derived-extra-aggregate', storming, mutate((d) => d.aggregates.push({ ...d.aggregates[0], id: 'AG-2', name: 'Ghost' })), 'c'],
+    ['derived-command-mismatch', storming, mutate((d) => (d.aggregates[0].commands = ['Submit Claim'])), 'c'],
+    ['derived-event-mismatch', storming, mutate((d) => d.aggregates[0].events.push('Claim Paid')), 'c'],
+    ['derived-missing-event', storming, mutate((d) => (d.events = d.events.slice(0, 1))), 'c'],
+    ['derived-extra-event', storming, mutate((d) => d.events.push({ name: 'Claim Paid' })), 'c'],
+    ['derived-event-flag', storming, mutate((d) => (d.events[0].pivotal = false)), 'c'],
+    ['derived-policy-mismatch', storming, mutate((d) => (d.policies[0].execution = 'manual')), 'c'],
+    ['derived-readmodel-mismatch', storming, mutate((d) => (d.readModels[0].informs = ['Nobody'])), 'c'],
+    ['derived-external-mismatch', storming, mutate((d) => (d.externalSystems[0].issues = [])), 'c'],
+    ['derived-invariant-unsourced', storming, mutate((d) => (d.aggregates[0].invariants = [{ statement: 'Something else' }])), 'c'],
+    ['derived-unused-constraint', storming, mutate((d) => (d.aggregates[0].invariants = [])), 'c'],
+  ]
+
+  it.each(cases)('%s', (code, source, domainModel, context) => {
+    expect(checkDerived(source, domainModel, context).map((f) => f.code)).toContain(code)
+  })
+})
+
+// The design example's pair is the derivation's worked case (26-domain-discovery.md): the model is clean and the
+// DomainModel agrees with it, so a schema or rule change that breaks either shows here.
+describe('the design example', () => {
+  const docs = parseAllDocuments(readFileSync(join(import.meta.dirname, '..', '..', 'docs', 'design', 'examples', 'ai-native-domain.yaml'), 'utf8')).map((d) => d.toJS() as { kind: string; spec: { identity: { revision: number }; content: unknown } })
+  const model = docs.find((d) => d.kind === 'EventStorming' && d.spec.identity.revision === 2)!.spec.content
+  const domainModel = docs.find((d) => d.kind === 'DomainModel')!.spec.content
+  it('expense-claims-storming r2 has no error and expenses-model agrees with it', () => {
+    expect(check(model).filter((f) => f.severity === 'error')).toEqual([])
+    expect(checkDerived(model, domainModel, 'exp')).toEqual([])
   })
 })
