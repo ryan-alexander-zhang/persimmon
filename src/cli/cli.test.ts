@@ -47,17 +47,17 @@ describe('persimmon CLI', () => {
     expect(await run('adapter', 'install', file('a.yaml', [fakeAdapter('claude-code/v1'), fakeAdapter('cli-human/v1', 'human')]))).toBe(0)
     out = []
     expect(await run('adapter', 'list')).toBe(0)
-    expect(out).toEqual(['claude-code/v1  Ready  roles: executor', 'cli-human/v1  Ready  roles: executor', 'codex/v1  Ready  roles: executor', 'subprocess/v1  Ready  roles: executor'])
+    expect(out).toEqual(['claude-code/v1  Ready  roles: executor', 'cli-human/v1  Ready  roles: executor', 'codex/v1  Ready  roles: executor', 'eventstorming/v1  Ready  roles: evaluator', 'subprocess/v1  Ready  roles: executor'])
 
     out = []
     expect([await run('validate', 'packs/sdlc/global/50-tasks.yaml', 'packs/sdlc/global/80-workflows.yaml', 'packs/sdlc/global/40-executors.yaml'), out.filter((l) => l.startsWith('error'))]).toEqual([0, []])
     expect(out.filter((l) => l.startsWith('ok')).length).toBeGreaterThanOrEqual(7)
     // the AI Native pack's kinds and its worked domain example validate (23-pack-ai-native.md)
     out = []
-    expect([await run('apply', 'packs/ai-native/global/10-artifact-kinds.yaml', '--global'), out.filter((l) => l.startsWith('error'))]).toEqual([0, []])
+    expect([await run('apply', 'packs/ai-native/global/10-artifact-kinds.yaml', 'packs/ai-native/global/60-validators.yaml', '--global'), out.filter((l) => l.startsWith('error') || l.startsWith('warn'))]).toEqual([0, []])
     out = []
     expect([await run('validate', 'docs/design/examples/ai-native-domain.yaml'), out.filter((l) => !l.startsWith('ok'))]).toEqual([0, []])
-    expect(out.length).toBe(8)
+    expect(out.length).toBe(9)
     out = []
     const bad = example('workflow-prd-create')
     bad.spec.entry = ['write-prd']
@@ -123,7 +123,7 @@ describe('persimmon CLI', () => {
     const run1 = { apiVersion: 'persimmon.ai/v1', kind: 'WorkflowRun', metadata: { name: 'r' }, spec: { workflowRef: { kind: 'Workflow', name: 'prd-create' }, inputs: {}, timeout: '1h', origin: { kind: 'manual' } } }
     expect(await run('apply', file('run.yaml', [run1]), '--global')).toBe(1) // Namespaced kind
     expect(err.at(-1)).toMatch(/--global does not apply/)
-  })
+  }, 30_000)
 
   it('run --follow returns when the run is parked on a human Task', async () => {
     await run('init')

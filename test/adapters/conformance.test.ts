@@ -7,7 +7,7 @@ import type { AdapterSpec } from '../../src/adapter/types.js'
 import { conformance, rules } from '../../src/conformance/suite.js'
 
 const root = join(import.meta.dirname, '..', '..')
-const shipped = ['claude-code', 'codex', 'subprocess', 'cli-human']
+const shipped = ['claude-code', 'codex', 'subprocess', 'cli-human'] // eventstorming/v1 has its own test below
 const spec = (id: string): AdapterSpec => {
   const s = (parse(readFileSync(join(root, 'adapters', id, 'adapter.yaml'), 'utf8')) as { spec: AdapterSpec }).spec
   return { ...s, command: [process.execPath, join(root, s.command![1]!)] }
@@ -17,13 +17,19 @@ const failures = (v: Awaited<ReturnType<typeof conformance>>) => v.filter((x) =>
 describe('conformance suite', () => {
   it('lists the rules the design lists, in order', () => {
     const doc = readFileSync(join(root, 'docs/design/22-conformance.md'), 'utf8')
-    expect(Object.keys(rules)).toEqual([...doc.matchAll(/^\| (E\d+) \|/gm)].map((m) => m[1]))
+    expect(Object.keys(rules)).toEqual([...doc.matchAll(/^\| ([EV]\d+) \|/gm)].map((m) => m[1]))
   })
 
   it.each(shipped)('%s passes', async (id) => {
     const v = await conformance(spec(id))
     expect(failures(v)).toEqual([])
     expect(v.map((x) => x.id)).toEqual(Object.keys(rules))
+  }, 60_000)
+
+  it('eventstorming/v1 is an evaluator: V1-V5 pass, the executor rules skip', async () => {
+    const v = await conformance(spec('eventstorming'))
+    expect(v.filter((x) => x.id.startsWith('V'))).toEqual(Object.keys(rules).filter((id) => id.startsWith('V')).map((id) => ({ id, rule: rules[id as keyof typeof rules], status: 'pass' })))
+    expect(v.filter((x) => x.id.startsWith('E')).every((x) => x.status === 'skip' && x.reason === 'not an executor')).toBe(true)
   }, 60_000)
 
   it('a non-conforming Adapter fails E3 and skips what depends on it', async () => {

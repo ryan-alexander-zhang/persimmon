@@ -46,10 +46,19 @@ export const rules = {
   E13: 'an unknown op is invalid_input',
   E14: 'human: execute answers HumanAck after a waiting stream line with reason human',
   E15: 'every error is {code, message, retryable}',
+  V1: 'describe validates EvaluatorDescribe; roles has evaluator',
+  V2: 'evaluate with the fixture artifact as artifacts.model answers a ValidationResult; passed may be false',
+  V3: 'a second identical evaluate answers an equal result',
+  V4: 'evaluate makes no Engine callback',
+  V5: 'an unknown op is invalid_input; every error is {code, message, retryable}',
 } as const
 export type RuleId = keyof typeof rules
 const ids = Object.keys(rules) as RuleId[]
+const eIds = ids.filter((id) => id.startsWith('E'))
+const vIds = ids.filter((id) => id.startsWith('V'))
 
+const evaluatorDescribe = validator<Describe & { configurationSchema: Record<string, unknown> }>('adapter-roles.yaml', '/$defs/EvaluatorDescribe')
+const validationResult = validator('ports.yaml', '/$defs/ValidationResult')
 const executorDescribe = validator<Describe & { executorTypes: string[]; contextKinds: string[]; skillFormats: string[]; supports: { cancel: boolean }; conformance?: { configuration?: Record<string, unknown>; skillDir?: string } }>('adapter-roles.yaml', '/$defs/ExecutorDescribe')
 const taskResult = validator<{ outputs: Record<string, unknown> }>('task.yaml', '/$defs/TaskResult')
 const humanAck = validator('adapter-roles.yaml', '/$defs/HumanAck')
@@ -60,6 +69,7 @@ const answer = { doc: { title: 'Fixture note' }, count: 1 } // what a careful ag
 const noteKind = { apiVersion: 'conformance.persimmon.ai/v1', kind: 'Note' }
 const noteRef = { ...noteKind, namespace: 'conformance', id: 'fixture-note', revision: 1 }
 const fixtureArtifact = { ...noteKind, metadata: { namespace: 'conformance', name: 'fixture-note.r1' }, spec: { identity: { id: 'fixture-note', revision: 1 }, content: { title: 'Fixture note' } } }
+const provenance = { producerRef: { apiVersion: 'persimmon.ai/v1', kind: 'TaskRun', namespace: 'conformance', name: 'conformance-001-fixture' }, inputs: [], actor: { kind: 'handler', id: 'conformance' } }
 const promptText = 'Conformance prompt: keep the title exact.\n'
 const instructions = 'You were given one note. Answer with doc = {title: <the title of that note, unchanged>} and count = 1, the number of notes you were given.'
 const credentialName = 'demo/github-token'
@@ -137,186 +147,240 @@ export async function conformance(spec: AdapterSpec, o: SuiteOptions = {}): Prom
       return { out, stream }
     }
     try {
-      let describe: (typeof executorDescribe extends (v: unknown) => v is infer T ? T : never) | undefined
-      await rule('E1', true, async () => {
-        const { out } = await send('describe', {})
-        check(out.state === 'succeeded', `describe ${outcome(out)}`)
-        const d = out.result
-        check(executorDescribe(d), `describe: ${formatErrors(executorDescribe.errors)}`)
-        check(d.adapterId === spec.id, `adapterId ${d.adapterId} != ${spec.id}`)
-        check(d.roles.includes('executor'), 'roles lack executor')
-        describe = d
-      })
-      if (!describe) {
-        for (const id of ids.slice(1)) verdicts.push({ id, rule: rules[id], status: 'skip', reason: 'E1 failed' })
+      const executorRules = async (): Promise<void> => {
+        let describe: (typeof executorDescribe extends (v: unknown) => v is infer T ? T : never) | undefined
+        await rule('E1', true, async () => {
+          const { out } = probe // the probe's describe is E1's
+          check(out.state === 'succeeded', `describe ${outcome(out)}`)
+          const d = out.result
+          check(executorDescribe(d), `describe: ${formatErrors(executorDescribe.errors)}`)
+          check(d.adapterId === spec.id, `adapterId ${d.adapterId} != ${spec.id}`)
+          check(d.roles.includes('executor'), 'roles lack executor')
+          describe = d
+        })
+        if (!describe) {
+          for (const id of eIds.slice(1)) verdicts.push({ id, rule: rules[id], status: 'skip', reason: 'E1 failed' })
+          return
+        }
+        const d = describe
+        await rule('E2', true, async () => {
+          const { out } = await send('describe', {})
+          check(out.state === 'succeeded' && isDeepStrictEqual(out.result, d), 'second describe differs')
+        })
+
+        const processType = d.executorTypes.find((t) => t !== 'human')
+        const isProcess = processType !== undefined
+        const isHuman = d.executorTypes.includes('human')
+        const isAgent = d.executorTypes.includes('agent')
+        const contextKinds = new Set(d.contextKinds)
+        const configuration = o.configuration ?? (live ? {} : (d.conformance?.configuration ?? {}))
+        const notLive = live ? 'live' : true
+        const forProcess = isProcess ? notLive : 'no agent, script or tool type'
+        const credentialEnv = envName('', credentialName)
+        const context = [
+          { kind: 'artifact', ref: noteRef },
+          { kind: 'prompt', name: 'conformance-prompt', mediaType: 'text/markdown', content: promptText, digest: `sha256:${'0'.repeat(64)}` },
+        ].filter((c) => contextKinds.has(c.kind))
+        const payload = (n: number, over: Record<string, unknown> = {}): Record<string, unknown> => ({
+          taskRun: { ref: { apiVersion: 'persimmon.ai/v1', kind: 'TaskRun', namespace: 'conformance', name: 'conformance-001-fixture', uid: 'conformance-uid' }, logicalExecutionId: lei, idempotencyKey: `${lei}/${n}`, attempt: 1 },
+          task: {
+            instructions, parameters: {}, sideEffects: 'idempotent',
+            outputs: { doc: { type: { kind: 'artifact', artifactKind: noteKind } }, count: { type: { kind: 'value', schema: { type: 'integer' } } } },
+            outputSchemas: { doc: { type: 'object', required: ['title'], additionalProperties: false, properties: { title: { type: 'string' } } } },
+          },
+          executor: { type: isProcess ? processType : 'human', configuration, security: { networkAccess: 'deny', credentialBindings: [credentialName] } },
+          inputs: { note: { kind: 'artifact', ref: noteRef } },
+          context,
+          deadline: new Date(Date.now() + (live ? 600_000 : 60_000)).toISOString(),
+          workspace,
+          credentials: { [credentialName]: secret },
+          engine: { endpoint: `unix://${socket}`, token: tokens.call },
+          ...over,
+        })
+        const execute = (n: number, cues: Record<string, string> = {}, over: Record<string, unknown> = {}, timeoutMs?: number): Promise<Sent> => {
+          rmSync(record, { force: true })
+          server.calls.length = 0
+          const p = send('execute', payload(n, over), { PERSIMMON_CONFORMANCE_ANSWER: JSON.stringify(answer), PERSIMMON_CONFORMANCE_RECORD: record, ...cues }, timeoutMs)
+          pending.push(p)
+          return p
+        }
+        const needRecord = (): Record_ => {
+          check(existsSync(record), 'the program wrote no record (22-conformance.md stub contract)')
+          return JSON.parse(readFileSync(record, 'utf8')) as Record_
+        }
+
+        let first: Sent | undefined
+        let firstId: string | undefined
+        let seen: Record_ | undefined
+        await rule('E3', isProcess || 'no agent, script or tool type', async () => {
+          first = await execute(1)
+          const { out } = first
+          check(out.state === 'succeeded', `execute ${outcome(out)}`)
+          check(taskResult(out.result), `result: ${formatErrors(taskResult.errors)}`)
+          const outputs = out.result.outputs
+          check(isDeepStrictEqual(Object.keys(outputs).sort(), ['count', 'doc']), `outputs ${Object.keys(outputs).join(', ')} != doc, count`)
+          check(isDeepStrictEqual(outputs.count, { kind: 'value', value: answer.count }), `count ${JSON.stringify(outputs.count)}`)
+          const published = server.calls.filter((c) => c.name === 'publishArtifact')
+          const put = server.calls.filter((c) => c.name === 'putBlob')
+          check(published.length === 1, `${published.length} publishArtifact calls, expected 1`)
+          check(put.length >= 1 && server.calls.indexOf(put[0]!) < server.calls.indexOf(published[0]!), 'putBlob must precede publishArtifact')
+          check([...put, ...published].every((c) => c.token === tokens.call), 'putBlob and publishArtifact must carry the call token')
+          check(isDeepStrictEqual(published[0]!.args.content, answer.doc), `published content ${JSON.stringify(published[0]!.args.content)}`)
+          firstId = published[0]!.args.id as string
+          check(isDeepStrictEqual(outputs.doc, { kind: 'artifact', ref: { ...noteKind, namespace: 'conformance', id: firstId, revision: 1 } }), `doc ${JSON.stringify(outputs.doc)} is not the published RevisionRef`)
+          if (!live) seen = needRecord() // a process Adapter that answered without a record proves nothing: FAIL, not skip
+        })
+        const afterE3 = firstId ? forProcess : 'E3 did not publish'
+        const withRecord = (): string | true => (seen ? true : afterE3 === true ? 'E3 left no record' : afterE3)
+        await rule('E4', afterE3, async () => {
+          const { out } = await execute(1)
+          check(out.state === 'succeeded', `execute ${outcome(out)}`)
+          const id = server.calls.find((c) => c.name === 'publishArtifact')?.args.id
+          if (id === undefined) check(isDeepStrictEqual(out.result, first!.out.state === 'succeeded' && first!.out.result), 'published nothing and answered other outputs than the first execute')
+          else check(id === firstId, `published ${String(id)}, the first execute published ${firstId}`)
+        })
+        await rule('E5', withRecord(), async () => {
+          const s = seen!
+          check(s.env[credentialEnv] === secret, `${credentialEnv} missing from the program environment`)
+          const holders = Object.entries(s.env).filter(([, v]) => v.includes(secret)).map(([k]) => k)
+          check(isDeepStrictEqual(holders, [credentialEnv]), `the secret is in environment ${holders.join(', ')}`)
+          check(!s.argv.join(' ').includes(secret), 'the secret is in an argument')
+          check(!s.stdin.includes(secret), 'the secret is on stdin')
+          check(!first!.stream.some((l) => l.event === 'log' && l.text.includes(secret)), 'the secret is in a log line')
+          check(!JSON.stringify(first!.out).includes(secret), 'the secret is in the result')
+        })
+        await rule('E6', withRecord(), async () => {
+          const dump = JSON.stringify(seen)
+          check(!dump.includes(tokens.call), 'engine.token reached the program')
+          check(!dump.includes(tokens.adapter), 'the adapter token reached the program')
+          check(!('PERSIMMON_ADAPTER_TOKEN' in seen!.env), 'PERSIMMON_ADAPTER_TOKEN is in the program environment')
+        })
+        await rule('E7', isProcess || 'no agent, script or tool type', async () => {
+          if (!live) check(realpathSync(needRecord().cwd) === realpathSync(workspace), `the program ran in ${seen?.cwd}, not the workspace`)
+          const { out } = await execute(2, {}, { workspace: join(dir, 'not-a-directory') })
+          failedWith(out, 'invalid_input', false)
+          if (live) return 'cwd not checked: live'
+        })
+        await rule('E8', isProcess || 'no agent, script or tool type', async () => {
+          const passed = await execute(3, {}, { deadline: new Date(Date.now() - 1000).toISOString() })
+          failedWith(passed.out, 'timeout')
+          if (live) return
+          const slept = await execute(4, { PERSIMMON_CONFORMANCE_AGENT: 'sleep' }, { deadline: new Date(Date.now() + 1500).toISOString() }, 20_000)
+          failedWith(slept.out, 'timeout', true)
+          const pid = needRecord().pid
+          check(typeof pid === 'number', 'the record has no pid')
+          await waitFor(() => !alive(pid), 7_000, `the program (pid ${pid}) outlived the deadline and the answer`)
+        })
+        await rule('E9', d.supports.cancel ? notLive : 'supports.cancel is false', async () => {
+          if (isProcess) {
+            const running = execute(5, { PERSIMMON_CONFORMANCE_AGENT: 'sleep' }, {}, 20_000)
+            await waitFor(() => existsSync(record), 10_000, 'the program never started')
+            const { out: c } = await send('cancel', { logicalExecutionId: lei, idempotencyKey: `${lei}/5` })
+            check(c.state === 'succeeded', `cancel ${outcome(c)}`)
+            check(cancelResult(c.result), `cancel result: ${formatErrors(cancelResult.errors)}`)
+            failedWith((await running).out, 'cancelled')
+          } else {
+            const { out } = await execute(5)
+            check(out.state === 'succeeded', `execute ${outcome(out)}`)
+            const { out: c } = await send('cancel', { logicalExecutionId: lei, idempotencyKey: `${lei}/5` })
+            check(c.state === 'succeeded', `cancel ${outcome(c)}`)
+            check(cancelResult(c.result), `cancel result: ${formatErrors(cancelResult.errors)}`)
+          }
+        })
+        await rule('E10', forProcess, async () => {
+          const { out, stream } = await execute(6, { PERSIMMON_CONFORMANCE_AGENT: 'fail' })
+          failedWith(out, 'agent_failed', true)
+          check(!stream.some((l) => l.event === 'log' && l.text.includes(secret)), 'the secret is in a log line')
+          check(!JSON.stringify(out).includes(secret), 'the secret is in the error')
+        })
+        await rule('E11', isAgent ? withRecord() : 'no agent type', async () => {
+          const s = seen!.stdin
+          // an artifact entry is presented by content or by id; the prompt entry by its text
+          const marks: string[][] = [...context.map((c) => (c.kind === 'artifact' ? ['Fixture note', noteRef.id] : [promptText.trim()])), [instructions]]
+          const at = marks.map((m) => Math.min(...m.map((x) => s.indexOf(x)).filter((i) => i >= 0), Infinity))
+          check(at.every((i) => i < Infinity), `the prompt lacks ${marks.filter((_, i) => at[i] === Infinity).map((m) => m[0]).join('; ')}`)
+          check(at.every((i, k) => k === 0 || i > at[k - 1]!), 'the prompt is not in context order, instructions last')
+        })
+        const skillFormat = d.skillFormats[0]
+        await rule('E12', skillFormat && contextKinds.has('skill') ? isProcess || 'no agent, script or tool type' : 'no skill format', async () => {
+          const skill = { kind: 'skill', name: 'conformance-skill', format: skillFormat, digest: `sha256:${'1'.repeat(64)}`, source: skillSource }
+          const missing = await execute(7, {}, { context: [...context, skill] })
+          failedWith(missing.out, 'invalid_input', false)
+          if (live) return 'installed cases not run: live'
+          const skillDir = d.conformance?.skillDir
+          if (!skillDir) return 'installed cases not run: no describe.conformance.skillDir'
+          const at = join(workspace, skillDir, skill.name)
+          mkdirSync(at, { recursive: true })
+          writeFileSync(join(at, 'SKILL.md'), '# conformance-skill\n\nSay the title exactly.\n')
+          const wrong = await execute(8, {}, { context: [...context, skill] })
+          failedWith(wrong.out, 'skill_digest_mismatch', false)
+          const right = await execute(9, {}, { context: [...context, { ...skill, digest: skillDigest(at) }] })
+          check(right.out.state === 'succeeded', `with the right digest: ${outcome(right.out)}`)
+        })
+        await rule('E13', true, async () => {
+          const { out } = await send('conformance-unknown-op', {})
+          failedWith(out, 'invalid_input')
+        })
+        await rule('E14', isHuman || 'no human type', async () => {
+          const { out, stream } = await execute(10)
+          check(out.state === 'succeeded', `execute ${outcome(out)}`)
+          check(humanAck(out.result), `result: ${formatErrors(humanAck.errors)}`)
+          check(stream.some((l) => l.event === 'waiting' && l.reason === 'human'), 'no waiting stream line with reason human')
+        })
+        await rule('E15', true, async () => {
+          const bad = errors.filter((e) => !errorShape(e))
+          check(bad.length === 0, `${bad.length} malformed error(s): ${JSON.stringify(bad[0])}`)
+        })
+      }
+
+      const probe = await send('describe', {})
+      const answered = probe.out.state === 'succeeded' ? (probe.out.result as Partial<Describe>) : undefined
+      // one describe for the Roles; a describe that did not answer, or answered without roles, runs E1 and V1, which report why
+      const roles = Array.isArray(answered?.roles) ? answered.roles : undefined
+      const isExecutor = !roles || roles.includes('executor') ? true : 'not an executor'
+      const isEvaluator = !roles || roles.includes('evaluator') ? true : 'not an evaluator'
+      const skipAll = (which: RuleId[], reason: string): void => {
+        for (const id of which) verdicts.push({ id, rule: rules[id], status: 'skip', reason })
+      }
+      if (isExecutor === true) await executorRules()
+      else skipAll(eIds, isExecutor)
+
+      if (isEvaluator !== true) {
+        skipAll(vIds, isEvaluator)
         return verdicts
       }
-      const d = describe
-      await rule('E2', true, async () => {
-        const { out } = await send('describe', {})
-        check(out.state === 'succeeded' && isDeepStrictEqual(out.result, d), 'second describe differs')
-      })
-
-      const processType = d.executorTypes.find((t) => t !== 'human')
-      const isProcess = processType !== undefined
-      const isHuman = d.executorTypes.includes('human')
-      const isAgent = d.executorTypes.includes('agent')
-      const contextKinds = new Set(d.contextKinds)
-      const configuration = o.configuration ?? (live ? {} : (d.conformance?.configuration ?? {}))
-      const notLive = live ? 'live' : true
-      const forProcess = isProcess ? notLive : 'no agent, script or tool type'
-      const credentialEnv = envName('', credentialName)
-      const context = [
-        { kind: 'artifact', ref: noteRef },
-        { kind: 'prompt', name: 'conformance-prompt', mediaType: 'text/markdown', content: promptText, digest: `sha256:${'0'.repeat(64)}` },
-      ].filter((c) => contextKinds.has(c.kind))
-      const payload = (n: number, over: Record<string, unknown> = {}): Record<string, unknown> => ({
-        taskRun: { ref: { apiVersion: 'persimmon.ai/v1', kind: 'TaskRun', namespace: 'conformance', name: 'conformance-001-fixture', uid: 'conformance-uid' }, logicalExecutionId: lei, idempotencyKey: `${lei}/${n}`, attempt: 1 },
-        task: {
-          instructions, parameters: {}, sideEffects: 'idempotent',
-          outputs: { doc: { type: { kind: 'artifact', artifactKind: noteKind } }, count: { type: { kind: 'value', schema: { type: 'integer' } } } },
-          outputSchemas: { doc: { type: 'object', required: ['title'], additionalProperties: false, properties: { title: { type: 'string' } } } },
-        },
-        executor: { type: isProcess ? processType : 'human', configuration, security: { networkAccess: 'deny', credentialBindings: [credentialName] } },
-        inputs: { note: { kind: 'artifact', ref: noteRef } },
-        context,
+      const evaluatePayload = {
+        validationRun: { ref: { apiVersion: 'persimmon.ai/v1', kind: 'ValidationRun', namespace: 'conformance', name: 'conformance-001-fixture', uid: 'conformance-uid' }, logicalExecutionId: lei, idempotencyKey: `${lei}/1` },
+        validator: { configuration: {} },
+        inputs: { model: { kind: 'artifact', ref: noteRef } },
+        artifacts: { model: { content: fixtureArtifact.spec.content, provenance } },
         deadline: new Date(Date.now() + (live ? 600_000 : 60_000)).toISOString(),
-        workspace,
-        credentials: { [credentialName]: secret },
         engine: { endpoint: `unix://${socket}`, token: tokens.call },
-        ...over,
-      })
-      const execute = (n: number, cues: Record<string, string> = {}, over: Record<string, unknown> = {}, timeoutMs?: number): Promise<Sent> => {
-        rmSync(record, { force: true })
-        server.calls.length = 0
-        const p = send('execute', payload(n, over), { PERSIMMON_CONFORMANCE_ANSWER: JSON.stringify(answer), PERSIMMON_CONFORMANCE_RECORD: record, ...cues }, timeoutMs)
-        pending.push(p)
-        return p
       }
-      const needRecord = (): Record_ => {
-        check(existsSync(record), 'the program wrote no record (22-conformance.md stub contract)')
-        return JSON.parse(readFileSync(record, 'utf8')) as Record_
-      }
-
-      let first: Sent | undefined
-      let firstId: string | undefined
-      let seen: Record_ | undefined
-      await rule('E3', isProcess || 'no agent, script or tool type', async () => {
-        first = await execute(1)
-        const { out } = first
-        check(out.state === 'succeeded', `execute ${outcome(out)}`)
-        check(taskResult(out.result), `result: ${formatErrors(taskResult.errors)}`)
-        const outputs = out.result.outputs
-        check(isDeepStrictEqual(Object.keys(outputs).sort(), ['count', 'doc']), `outputs ${Object.keys(outputs).join(', ')} != doc, count`)
-        check(isDeepStrictEqual(outputs.count, { kind: 'value', value: answer.count }), `count ${JSON.stringify(outputs.count)}`)
-        const published = server.calls.filter((c) => c.name === 'publishArtifact')
-        const put = server.calls.filter((c) => c.name === 'putBlob')
-        check(published.length === 1, `${published.length} publishArtifact calls, expected 1`)
-        check(put.length >= 1 && server.calls.indexOf(put[0]!) < server.calls.indexOf(published[0]!), 'putBlob must precede publishArtifact')
-        check([...put, ...published].every((c) => c.token === tokens.call), 'putBlob and publishArtifact must carry the call token')
-        check(isDeepStrictEqual(published[0]!.args.content, answer.doc), `published content ${JSON.stringify(published[0]!.args.content)}`)
-        firstId = published[0]!.args.id as string
-        check(isDeepStrictEqual(outputs.doc, { kind: 'artifact', ref: { ...noteKind, namespace: 'conformance', id: firstId, revision: 1 } }), `doc ${JSON.stringify(outputs.doc)} is not the published RevisionRef`)
-        if (!live) seen = needRecord() // a process Adapter that answered without a record proves nothing: FAIL, not skip
+      await rule('V1', true, async () => {
+        const { out } = probe
+        check(out.state === 'succeeded', `describe ${outcome(out)}`)
+        check(evaluatorDescribe(out.result), `describe: ${formatErrors(evaluatorDescribe.errors)}`)
+        check(out.result.roles.includes('evaluator'), 'roles lack evaluator')
       })
-      const afterE3 = firstId ? forProcess : 'E3 did not publish'
-      const withRecord = (): string | true => (seen ? true : afterE3 === true ? 'E3 left no record' : afterE3)
-      await rule('E4', afterE3, async () => {
-        const { out } = await execute(1)
-        check(out.state === 'succeeded', `execute ${outcome(out)}`)
-        const id = server.calls.find((c) => c.name === 'publishArtifact')?.args.id
-        if (id === undefined) check(isDeepStrictEqual(out.result, first!.out.state === 'succeeded' && first!.out.result), 'published nothing and answered other outputs than the first execute')
-        else check(id === firstId, `published ${String(id)}, the first execute published ${firstId}`)
+      let evaluated: Sent | undefined
+      await rule('V2', true, async () => {
+        server.calls.length = 0 // V4: evaluate needs no Engine callback
+        evaluated = await send('evaluate', evaluatePayload)
+        const { out } = evaluated
+        check(out.state === 'succeeded', `evaluate ${outcome(out)}`)
+        check(validationResult(out.result), `result: ${formatErrors(validationResult.errors)}`)
       })
-      await rule('E5', withRecord(), async () => {
-        const s = seen!
-        check(s.env[credentialEnv] === secret, `${credentialEnv} missing from the program environment`)
-        const holders = Object.entries(s.env).filter(([, v]) => v.includes(secret)).map(([k]) => k)
-        check(isDeepStrictEqual(holders, [credentialEnv]), `the secret is in environment ${holders.join(', ')}`)
-        check(!s.argv.join(' ').includes(secret), 'the secret is in an argument')
-        check(!s.stdin.includes(secret), 'the secret is on stdin')
-        check(!first!.stream.some((l) => l.event === 'log' && l.text.includes(secret)), 'the secret is in a log line')
-        check(!JSON.stringify(first!.out).includes(secret), 'the secret is in the result')
+      await rule('V3', evaluated?.out.state === 'succeeded' ? true : 'V2 did not answer a result', async () => {
+        const { out } = await send('evaluate', evaluatePayload)
+        check(out.state === 'succeeded' && isDeepStrictEqual(out.result, (evaluated!.out as { result: unknown }).result), 'the second evaluate answered a different result')
       })
-      await rule('E6', withRecord(), async () => {
-        const dump = JSON.stringify(seen)
-        check(!dump.includes(tokens.call), 'engine.token reached the program')
-        check(!dump.includes(tokens.adapter), 'the adapter token reached the program')
-        check(!('PERSIMMON_ADAPTER_TOKEN' in seen!.env), 'PERSIMMON_ADAPTER_TOKEN is in the program environment')
+      await rule('V4', evaluated ? true : 'V2 did not evaluate', async () => {
+        check(server.calls.length === 0, `evaluate called ${server.calls.map((c) => c.name).join(', ')}`)
       })
-      await rule('E7', isProcess || 'no agent, script or tool type', async () => {
-        if (!live) check(realpathSync(needRecord().cwd) === realpathSync(workspace), `the program ran in ${seen?.cwd}, not the workspace`)
-        const { out } = await execute(2, {}, { workspace: join(dir, 'not-a-directory') })
-        failedWith(out, 'invalid_input', false)
-        if (live) return 'cwd not checked: live'
-      })
-      await rule('E8', isProcess || 'no agent, script or tool type', async () => {
-        const passed = await execute(3, {}, { deadline: new Date(Date.now() - 1000).toISOString() })
-        failedWith(passed.out, 'timeout')
-        if (live) return
-        const slept = await execute(4, { PERSIMMON_CONFORMANCE_AGENT: 'sleep' }, { deadline: new Date(Date.now() + 1500).toISOString() }, 20_000)
-        failedWith(slept.out, 'timeout', true)
-        const pid = needRecord().pid
-        check(typeof pid === 'number', 'the record has no pid')
-        await waitFor(() => !alive(pid), 7_000, `the program (pid ${pid}) outlived the deadline and the answer`)
-      })
-      await rule('E9', d.supports.cancel ? notLive : 'supports.cancel is false', async () => {
-        if (isProcess) {
-          const running = execute(5, { PERSIMMON_CONFORMANCE_AGENT: 'sleep' }, {}, 20_000)
-          await waitFor(() => existsSync(record), 10_000, 'the program never started')
-          const { out: c } = await send('cancel', { logicalExecutionId: lei, idempotencyKey: `${lei}/5` })
-          check(c.state === 'succeeded', `cancel ${outcome(c)}`)
-          check(cancelResult(c.result), `cancel result: ${formatErrors(cancelResult.errors)}`)
-          failedWith((await running).out, 'cancelled')
-        } else {
-          const { out } = await execute(5)
-          check(out.state === 'succeeded', `execute ${outcome(out)}`)
-          const { out: c } = await send('cancel', { logicalExecutionId: lei, idempotencyKey: `${lei}/5` })
-          check(c.state === 'succeeded', `cancel ${outcome(c)}`)
-          check(cancelResult(c.result), `cancel result: ${formatErrors(cancelResult.errors)}`)
-        }
-      })
-      await rule('E10', forProcess, async () => {
-        const { out, stream } = await execute(6, { PERSIMMON_CONFORMANCE_AGENT: 'fail' })
-        failedWith(out, 'agent_failed', true)
-        check(!stream.some((l) => l.event === 'log' && l.text.includes(secret)), 'the secret is in a log line')
-        check(!JSON.stringify(out).includes(secret), 'the secret is in the error')
-      })
-      await rule('E11', isAgent ? withRecord() : 'no agent type', async () => {
-        const s = seen!.stdin
-        // an artifact entry is presented by content or by id; the prompt entry by its text
-        const marks: string[][] = [...context.map((c) => (c.kind === 'artifact' ? ['Fixture note', noteRef.id] : [promptText.trim()])), [instructions]]
-        const at = marks.map((m) => Math.min(...m.map((x) => s.indexOf(x)).filter((i) => i >= 0), Infinity))
-        check(at.every((i) => i < Infinity), `the prompt lacks ${marks.filter((_, i) => at[i] === Infinity).map((m) => m[0]).join('; ')}`)
-        check(at.every((i, k) => k === 0 || i > at[k - 1]!), 'the prompt is not in context order, instructions last')
-      })
-      const skillFormat = d.skillFormats[0]
-      await rule('E12', skillFormat && contextKinds.has('skill') ? isProcess || 'no agent, script or tool type' : 'no skill format', async () => {
-        const skill = { kind: 'skill', name: 'conformance-skill', format: skillFormat, digest: `sha256:${'1'.repeat(64)}`, source: skillSource }
-        const missing = await execute(7, {}, { context: [...context, skill] })
-        failedWith(missing.out, 'invalid_input', false)
-        if (live) return 'installed cases not run: live'
-        const skillDir = d.conformance?.skillDir
-        if (!skillDir) return 'installed cases not run: no describe.conformance.skillDir'
-        const at = join(workspace, skillDir, skill.name)
-        mkdirSync(at, { recursive: true })
-        writeFileSync(join(at, 'SKILL.md'), '# conformance-skill\n\nSay the title exactly.\n')
-        const wrong = await execute(8, {}, { context: [...context, skill] })
-        failedWith(wrong.out, 'skill_digest_mismatch', false)
-        const right = await execute(9, {}, { context: [...context, { ...skill, digest: skillDigest(at) }] })
-        check(right.out.state === 'succeeded', `with the right digest: ${outcome(right.out)}`)
-      })
-      await rule('E13', true, async () => {
+      await rule('V5', true, async () => {
         const { out } = await send('conformance-unknown-op', {})
         failedWith(out, 'invalid_input')
-      })
-      await rule('E14', isHuman || 'no human type', async () => {
-        const { out, stream } = await execute(10)
-        check(out.state === 'succeeded', `execute ${outcome(out)}`)
-        check(humanAck(out.result), `result: ${formatErrors(humanAck.errors)}`)
-        check(stream.some((l) => l.event === 'waiting' && l.reason === 'human'), 'no waiting stream line with reason human')
-      })
-      await rule('E15', true, async () => {
         const bad = errors.filter((e) => !errorShape(e))
         check(bad.length === 0, `${bad.length} malformed error(s): ${JSON.stringify(bad[0])}`)
       })

@@ -18,6 +18,7 @@ suite ── `E3 pass  execute answers exactly the declared outputs` ─▶ term
 | Step | Rule |
 |---|---|
 | Adapter | from the store by `id`; its manifest `command`; the suite runs it in a temp cwd with the engine's env allowlist (`07-adapter.md`) |
+| probe | one `describe` before any rule; its answer is E1's and V1's and tells the Roles; a probe that fails or names no Roles leaves every rule running so E1 and V1 report it |
 | configuration | `--config` (YAML, validated against `describe.configurationSchema`), else `describe.conformance.configuration` offline, else `{}` |
 | credentials | the fixture's Task credential is the suite's own random value; the Adapter's `credentialBindings` resolve as at apply only with `--live`, offline they are fake too, so the record the stub writes holds no real secret |
 | callbacks | served by the suite: `getArtifact` answers the fixture artifact, `putBlob` hashes, `publishArtifact` answers a RevisionRef in Namespace `conformance`, `log` records; a wrong token is `unauthorized` |
@@ -54,6 +55,19 @@ include `agent`, `script` or `tool`; `human` one that includes `human`.
 | E13 | an unknown op is `invalid_input` | `07` | all | yes |
 | E14 | `execute` answers HumanAck after a `waiting` stream line with reason `human` | `19` | human | yes |
 | E15 | every error seen is `{code, message, retryable}` with a lower snake `code` | `03`, `07` | all | yes |
+
+Evaluator Role (`24-eventstorming.md` brought the first one):
+
+| Id | Rule | Source | Applies | Live |
+|---|---|---|---|---|
+| V1 | `describe` validates `EvaluatorDescribe`; `roles` has `evaluator` | `19` | evaluator | yes |
+| V2 | `evaluate` with the fixture artifact as `artifacts.model` answers a ValidationResult; `passed` may be false | `14`, `19` | evaluator | yes |
+| V3 | a second identical `evaluate` answers an equal result | `19` | evaluator | yes |
+| V4 | `evaluate` makes no Engine callback | `14` | evaluator | yes |
+| V5 | an unknown op is `invalid_input`; every error is `{code, message, retryable}` | `07` | evaluator | yes |
+
+An Adapter without the executor Role skips E1–E15 "not an executor"; one without the evaluator
+Role skips V1–V5 "not an evaluator".
 
 A rule whose `Applies` does not hold is `skip`. A process rule that needs the record and finds none
 after a succeeded E3 is a `FAIL`: a program that ignores the contract proves nothing. E12 without
@@ -101,9 +115,9 @@ none.
   an Executor that names it at apply, and the runner refuses it without the flag. The suite's
   flag and cues travel as call options, never as `Adapter.spec.env`, which may not name
   `PERSIMMON_*` at all. Found in audit.
-- Handler and evaluator Roles are not covered: no shipped Adapter has them. Their rules
-  (validate pure, declared Actions only, no-op after terminal; `evaluate` answers a
-  ValidationResult) stay on the roadmap until an Adapter needs them.
+- The handler Role is not covered: no shipped Adapter has it. Its rules (validate pure, declared
+  Actions only, no-op after terminal) stay on the roadmap until an Adapter needs them. The evaluator
+  Role arrived with `eventstorming/v1` and has V1–V5.
 - The fixture answer reaches the stub by environment and a live model by the instructions;
   the live run is one real `execute`, the cheapest proof that the argument mapping works.
 - The fixture answer agrees with its context. An answer the context contradicted read as a

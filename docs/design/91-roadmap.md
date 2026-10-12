@@ -12,7 +12,7 @@ later     eager joins · retention policy · policy resource · external event s
 
 | Item | Deferred by | Note |
 |---|---|---|
-| conformance rules for the handler and evaluator Roles | `02-handler.md`, `22-conformance.md` | executor Role covered by `persimmon adapter test`; statelessness, idempotency, `evaluate` shape wait for an Adapter with those Roles |
+| conformance rules for the handler Role | `02-handler.md`, `22-conformance.md` | executor and evaluator Roles covered by `persimmon adapter test`; statelessness, declared Actions only, no-op after terminal wait for an Adapter with the handler Role |
 | server HTTP API specification | `08-store.md` | v1: the CLI verb set over https |
 | OIDC or other authentication beyond bearer tokens | `08-store.md` | |
 | authorization policy as a Resource | `08-store.md` | v1: grant table in `persimmon.yaml` |
