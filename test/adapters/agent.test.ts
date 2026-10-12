@@ -277,7 +277,7 @@ describe('codex/v1', () => {
     expect(last(r)).toMatchObject({ ok: false, error: { code: 'invalid_input', retryable: false } })
   })
 
-  it('strict form recurses into items and oneOf, keeps enum and $defs, and nulls are stripped from the answer', async () => {
+  it('strict form recurses into items and oneOf, keeps enum and hoisted $defs, and nulls are stripped from the answer', async () => {
     const outputSchemas = { prd: { type: 'object', required: ['title', 'items'], properties: { title: { type: 'string' }, note: { type: 'string', format: 'uri' }, items: { type: 'array', items: { oneOf: [{ type: 'object', required: ['id'], properties: { id: { type: 'string' }, level: { enum: ['a', 'b'] } } }, { $ref: '#/$defs/x' }] } } }, $defs: { x: { type: 'object', properties: { y: { type: 'integer' } } } } } }
     calls.length = 0
     const task = { ...payload().task, outputs: { prd: payload().task.outputs.prd }, outputSchemas }
@@ -290,10 +290,11 @@ describe('codex/v1', () => {
       properties: {
         title: { type: 'string' },
         note: { anyOf: [{ type: 'string' }, { type: 'null' }] },
-        items: { type: 'array', items: { anyOf: [{ type: 'object', required: ['id', 'level'], additionalProperties: false, properties: { id: { type: 'string' }, level: { anyOf: [{ enum: ['a', 'b'] }, { type: 'null' }] } } }, { $ref: '#/$defs/x' }] } },
+        items: { type: 'array', items: { anyOf: [{ type: 'object', required: ['id', 'level'], additionalProperties: false, properties: { id: { type: 'string' }, level: { anyOf: [{ enum: ['a', 'b'] }, { type: 'null' }] } } }, { $ref: '#/$defs/prd.x' }] } },
       },
-      $defs: { x: { type: 'object', required: ['y'], additionalProperties: false, properties: { y: { anyOf: [{ type: 'integer' }, { type: 'null' }] } } } },
     })
+    // the port's $defs are hoisted to the root under `<port>.<name>`, where the CLI resolves them (strict applies to them too)
+    expect(seen.schema.$defs).toEqual({ 'prd.x': { type: 'object', required: ['y'], additionalProperties: false, properties: { y: { anyOf: [{ type: 'integer' }, { type: 'null' }] } } } })
     expect(seen.prompt).toContain('## Instructions')
   })
 })
@@ -337,3 +338,18 @@ describe('subprocess/v1', () => {
   })
 })
 
+
+describe('outputSchema', () => {
+  it("hoists a port schema's $defs to the root and rewrites its $ref, since the CLI resolves refs from the root", async () => {
+    const { outputSchema } = await import('../../adapters/lib/agent.mjs')
+    const entity = { type: 'object', required: ['name'], properties: { name: { type: 'string' } } }
+    const content = { type: 'object', properties: { items: { type: 'array', items: { $ref: '#/$defs/Entity' } }, deep: { anyOf: [{ $ref: '#/$defs/Entity' }, { type: 'null' }] } }, $defs: { Entity: entity } }
+    const task = { outputs: { model: { type: { kind: 'artifact' } }, n: { type: { kind: 'value', schema: { type: 'integer' } } } }, outputSchemas: { model: content } }
+    const out = outputSchema(task as never) as { properties: Record<string, unknown>; $defs: Record<string, unknown> }
+    expect(out.$defs).toEqual({ 'model.Entity': entity })
+    expect(out.properties.model).not.toHaveProperty('$defs')
+    expect(JSON.stringify(out.properties.model)).toContain('"$ref":"#/$defs/model.Entity"')
+    expect(JSON.stringify(out.properties.model).match(/\$ref/g)).toHaveLength(2)
+    expect(out.properties.n).toEqual({ type: 'integer' })
+  })
+})

@@ -180,12 +180,30 @@ function redact(text, credentials) {
 }
 
 /** Structured output: artifact ports take the frozen content schema, value ports their port schema. */
-function outputSchema(task) {
+export function outputSchema(task) {
   const properties = {}
-  for (const [port, spec] of Object.entries(task.outputs))
-    properties[port] = spec.type.kind === 'artifact' ? task.outputSchemas[port] ?? { type: 'object' } : spec.type.schema ?? {}
+  const $defs = {}
+  for (const [port, spec] of Object.entries(task.outputs)) {
+    const schema = spec.type.kind === 'artifact' ? task.outputSchemas[port] ?? { type: 'object' } : spec.type.schema ?? {}
+    properties[port] = hoistDefs(schema, port, $defs)
+  }
   // flat: one top-level key per port, no wrapper and no summary; a nested `outputs` and a second `summary` made claude misplace keys (19-adapter-roles.md)
-  return { type: 'object', required: Object.keys(properties), additionalProperties: false, properties }
+  return { type: 'object', required: Object.keys(properties), additionalProperties: false, properties, ...(Object.keys($defs).length ? { $defs } : {}) }
+}
+
+/** A kind schema's `#/$defs/X` resolves from the root; nested under a port key it does not, and the CLI refuses it. Each port's $defs move to the root as `<port>.X`, every `$ref` rewritten. */
+function hoistDefs(schema, port, $defs) {
+  if (!schema || typeof schema !== 'object' || !schema.$defs) return schema
+  const { $defs: own, ...rest } = schema
+  for (const [name, def] of Object.entries(own)) $defs[`${port}.${name}`] = rewrite(def, port)
+  return rewrite(rest, port)
+}
+function rewrite(node, port) {
+  if (Array.isArray(node)) return node.map((n) => rewrite(n, port))
+  if (!node || typeof node !== 'object') return node
+  const out = {}
+  for (const [k, v] of Object.entries(node)) out[k] = k === '$ref' && typeof v === 'string' && v.startsWith('#/$defs/') ? `#/$defs/${port}.${v.slice('#/$defs/'.length)}` : rewrite(v, port)
+  return out
 }
 
 /** Whole lines of the agent's own output become `log` stream lines, ANSI escapes stripped, at most `maxLogLines` per stream per attempt; `map` turns a line into log text or drops it (undefined). The store keeps them beside the call (07-adapter.md). */
