@@ -18,8 +18,7 @@
     "resolveJsonModule": true
   },
   "include": [
-    "src",
-    "tools/**/*.d.ts"
+    "src"
   ],
   "exclude": [
     "src/**/*.test.ts"
