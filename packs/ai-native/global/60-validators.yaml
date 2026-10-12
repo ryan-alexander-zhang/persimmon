@@ -1,0 +1,13 @@
+# Validators of the AI Native pack (14-gate.md). eventstorming-grammar runs the grammar over a model (24-eventstorming.md).
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: eventstorming-grammar}
+spec:
+  inputs:
+    model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
+    level: {type: {kind: value, schema: {enum: [big-picture, process, design]}}, required: false}
+  evaluator:
+    type: adapter
+    adapter: eventstorming/v1
+    configuration: {}
+  timeout: 1m

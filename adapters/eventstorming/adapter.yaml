@@ -1,0 +1,9 @@
+# Evaluator Adapter for EventStorming artifacts (19-adapter-roles.md, 24-eventstorming.md). persimmon init resolves the script path.
+apiVersion: persimmon.ai/v1
+kind: Adapter
+metadata: {name: eventstorming-v1}
+spec:
+  id: eventstorming/v1
+  roles: [evaluator]
+  transport: stdio
+  command: [node, adapters/eventstorming/index.mjs]
