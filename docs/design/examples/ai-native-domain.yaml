@@ -580,3 +580,39 @@ spec:
         statement: The risk check (BB-3) starts with a fixed list of fraud patterns in its code; Finance cannot edit them without a release, against C-1.
         mitigation: move patterns to data once Finance has written three
     glossaries: [expenses-glossary]
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: EventStorming
+metadata: {name: expense-claims-storming.r1}
+spec:
+  identity: {id: expense-claims-storming, revision: 1}
+  content:
+    version: "4.0"
+    meta: {name: Expense claims, level: big-picture}
+    contexts:
+      - {id: exp, name: Expenses, order: 0, classification: core}
+      - {id: idn, name: Identity, order: 1, classification: generic}
+      - {id: acc, name: Accounting, order: 2, classification: supporting}
+    contextRelationships:
+      - {id: cr-1, source: idn, target: exp, type: conformist}
+      - {id: cr-2, source: exp, target: acc, type: publishedLanguage}
+    nodes:
+      - {id: exp-employee, type: actor, label: Employee, context: exp, properties: {}}
+      - {id: exp-approver, type: actor, label: Approver, context: exp, properties: {}}
+      - {id: exp-finance, type: actor, label: Finance operator, context: exp, properties: {}}
+      - {id: idn-ex-directory, type: externalSystem, label: Identity directory, context: idn, properties: {}}
+      - {id: acc-ex-ledger, type: externalSystem, label: Accounting ledger, context: acc, properties: {}}
+      - {id: exp-e-drafted, type: domainEvent, label: Claim Drafted, context: exp, order: 0, properties: {}}
+      - {id: exp-e-receipt-attached, type: domainEvent, label: Receipt Attached, context: exp, order: 1, properties: {}}
+      - {id: exp-e-trip-added, type: domainEvent, label: Trip Added, context: exp, order: 1, properties: {description: per diem lines computed from the trip}}
+      - {id: exp-e-submitted, type: domainEvent, label: Claim Submitted, context: exp, order: 2, properties: {pivotal: true}}
+      - {id: exp-e-refused, type: domainEvent, label: Submission Refused, context: exp, order: 2, properties: {description: a rule named the line and the BR-n, alternativeSet: submit-outcome}}
+      - {id: exp-e-routed, type: domainEvent, label: Claim Routed, context: exp, order: 3, properties: {description: by the claim routing table, alternativeSet: submit-outcome}}
+      - {id: exp-e-flagged, type: domainEvent, label: Risk Flag Set, context: exp, order: 4, properties: {}}
+      - {id: exp-e-approved, type: domainEvent, label: Claim Approved, context: exp, order: 5, properties: {pivotal: true, alternativeSet: decision}}
+      - {id: exp-e-rejected, type: domainEvent, label: Claim Rejected, context: exp, order: 5, properties: {alternativeSet: decision}}
+      - {id: exp-e-exported, type: domainEvent, label: Claim Exported, context: exp, order: 6, properties: {pivotal: true}}
+      - {id: acc-e-paid, type: domainEvent, label: Claim Paid, context: acc, order: 7, properties: {}}
+      - {id: exp-h-director, type: hotspot, label: Who approves a director's own claim?, context: exp, properties: {kind: question, priority: high, state: open, description: BR-5 forbids self-approval; the top of the reporting line has no approver}}
+    edges:
+      - {id: e-exp-01, source: exp-h-director, target: exp-e-routed, relation: annotates}

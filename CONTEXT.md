@@ -453,6 +453,21 @@ _Avoid_: decision record, decision log, design decision (bare)
 written inside. Section 8's domain model and 12 by reference, 9 a list of **Adr** ids.
 _Avoid_: architecture doc, system design, high-level design, technical design
 
+**EventStorming**:
+**Artifact kind** holding one event storming model in the tool's DSL v4.0 (`24-eventstorming.md`):
+contexts, nodes, edges, a `meta.level`; a revision per phase.
+_Avoid_: board, storming session, event storming JSON
+
+**Grammar**:
+The event storming rules beyond the schema's shape: which property on which type, level gating,
+edge rules, smells; `tools/eventstorming/grammar`, run by the Adapter `eventstorming/v1`.
+_Avoid_: validator (the kind), linter, health check
+
+**Tool**:
+A human-facing web surface over artifact kinds, one directory under `tools/`, its pure model code
+beside the UI. Not the Executor type `tool`, which is a program run once per attempt.
+_Avoid_: app, studio, plugin, editor (bare)
+
 **Prd**:
 **Artifact kind** of the AI Native pack: why, for whom, `CAP-n` capabilities, `SC-n` success
 criteria. No stories, requirements or technology; those are the **Spec**'s.
@@ -465,6 +480,8 @@ _Avoid_: feature spec, requirements doc, spec.md
 
 ## Flagged ambiguities
 
+- **Tool vs `tool`.** A web surface under `tools/` and the Executor type. Resolution: the surface is
+  capitalised **Tool** or "the event storming tool"; the Executor type is always `tool` in code font.
 - **Spec vs `spec`.** The AI Native pack's kind and every Resource's envelope field. Resolution: the
   kind is always `Spec` or "a Spec"; the field is always `spec` in code font or `spec.content`.
 

@@ -10,7 +10,8 @@ file grows one artifact kind at a time; the demo pack `packs/sdlc/` is untouched
 every arrow: "cites", downstream ──▶ upstream; the arrow's head is a Task input of its tail
 
 Glossary, BusinessRules, DecisionTable ──▶ BoundedContext     one each per context; a table cites BR-n
-the domain kinds above ──▶ Prd r1 (the idea; written by event storming); Prd r2 ──▶ BoundedContext, BusinessRules (CAP-n cite them)
+EventStorming ──▶ Prd r1 (the idea)                          the board, in the tool's DSL (24-eventstorming.md)
+the domain kinds above ──▶ EventStorming (derived, unit 2); Prd r2 ──▶ BoundedContext, BusinessRules (CAP-n cite them)
 Adr ──▶ Prd, rules (baseline) or Architecture (later)          taken first, pinned by provenance
 Architecture ──▶ Prd, BoundedContext (3, 5), Adr (9), Glossary (12), DomainModel (8, later)   arc42 baseline, once per product
 Spec per CAP-n (later) ──▶ Prd, Architecture, domain kinds
@@ -36,6 +37,7 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
 | `DecisionTable` | which outcome for which inputs | `title`, `context`, `decision`, `owner`, `source?`, `effectiveFrom?`, `effectiveTo?`, `status`, `cites[] BR-n`, `inputs[] {name, factType}`, `outputs[] {name, type, values?}`, `hitPolicy: unique\|first\|priority\|any\|collect`, `rows[] {id R-n, when: {input: unary test}, then: {output: literal}, cites?, note?}` |
 | `Adr` | one decision and why | `title`, `status: proposed\|accepted\|rejected\|superseded\|deprecated`, `deciders[]`, `context`, `drivers[] QG-n\|C-n\|QS-n\|BR-n\|G-n\|CAP-n\|SC-n`, `decision`, `alternatives[] {option, rejectedBecause}`, `consequences[] {kind, statement}`, `supersedes?` (Adr id) |
 | `Architecture` | how the product is shaped (arc42) | `title`, `owner`, `status`, 1 `introduction {prd, qualityGoals[] QG-n (ISO 25010:2023), stakeholders[]}`, 2 `constraints[] C-n`, 3 `context {business[], technical[]}`, 4 `strategy[] S-n`, 5 `buildingBlocks[] BB-n` (`parent?` for lower levels, `technology?`) and `relations[] {id REL-n, from, to, description, interface?, technology?}`, 6 `runtime[] RT-n?`, 7 `deployment?`, 8 `concepts[] CC-n` + `domainModels[]`, 9 `decisions[]` (Adr ids), 10 `qualityScenarios[] QS-n`, 11 `risks[] RK-n?`, 12 `glossaries[]` |
+| `EventStorming` | what happens in the domain, in whose words | DSL v4.0 of the event storming tool, `24-eventstorming.md`: `version`, `meta {name, level}`, `contexts[]`, `contextRelationships[]`, `nodes[]`, `edges[]` |
 | `Prd` | why, for whom, what capabilities | `title`, `problem`, `users[]`, `goals[] G-n`, `nonGoals[]`, `capabilities[] {id CAP-n, name, description, priority, context, rules?}`, `successCriteria[] {id SC-n, statement, capabilities?}`, `assumptions[]`, `openQuestions[] {id Q-n, question, resolution?}` |
 
 ## Citation
@@ -145,7 +147,8 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
 
 ## Examples
 
-- [`examples/ai-native-domain.yaml`](examples/ai-native-domain.yaml): one domain, expense claims, as a
+- [`examples/ai-native-domain.yaml`](examples/ai-native-domain.yaml): one domain, expense claims, as a big-picture
+  `EventStorming` model, a
   `BoundedContext`, its `Glossary` with fact types, `BusinessRules` with logic, the `DecisionTable`
   that routes a claim, the `Prd` that cites them, two `Adr`s and the `Architecture` that applies
   them; validates after the pack is applied
