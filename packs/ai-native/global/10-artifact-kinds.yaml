@@ -634,3 +634,98 @@ spec:
   mutability: Immutable
   revisioned: true
   snapshot: "None"
+---
+# An event storming model, DSL v4.0 of the event storming tool (24-eventstorming.md) without meta.createdAt: the
+# revision carries time. The schema is the shape only; per-type properties, level gating, edge rules and smells are the
+# grammar's (tools/eventstorming/grammar), run by the evaluator Adapter eventstorming/v1.
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata: {name: eventstormings.sdd.persimmon.ai}
+spec:
+  group: sdd.persimmon.ai
+  names: {kind: EventStorming, plural: eventstormings}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [version, meta, contexts, contextRelationships, nodes, edges]
+        additionalProperties: false
+        properties:
+          version: {const: "4.0", description: "the grammar version"}
+          meta:
+            type: object
+            required: [name, level]
+            additionalProperties: false
+            properties:
+              name: {type: string, minLength: 1}
+              level: {enum: [big-picture, process, design], description: "raised as phases complete; gates which node types may appear"}
+          contexts:
+            type: array
+            items:
+              type: object
+              required: [id, name, order]
+              additionalProperties: false
+              properties:
+                id: {type: string, minLength: 1}
+                name: {type: string, minLength: 1}
+                order: {type: integer, minimum: 0, description: "left-to-right reading order of the map"}
+                classification: {enum: [core, supporting, generic]}
+                bigBallOfMud: {type: boolean, description: "a recognised mess, boundary drawn so its model does not propagate"}
+          contextRelationships:
+            type: array
+            items:
+              type: object
+              required: [id, source, target, type]
+              additionalProperties: false
+              properties:
+                id: {type: string, minLength: 1}
+                source: {type: string, minLength: 1, description: "upstream context id"}
+                target: {type: string, minLength: 1, description: "downstream context id"}
+                type: {enum: [partnership, sharedKernel, customerSupplier, conformist, acl, openHostService, publishedLanguage, separateWays]}
+          nodes:
+            type: array
+            items:
+              type: object
+              required: [id, type, label, properties]
+              additionalProperties: false
+              properties:
+                id: {type: string, minLength: 1, description: "<ctx>-<tag>-<slug>; unique across nodes"}
+                type: {enum: [domainEvent, command, actor, readModel, policy, aggregate, constraint, externalSystem, hotspot, opportunity]}
+                label: {type: string, minLength: 1}
+                context: {type: string, minLength: 1, description: "a declared context id; absent is ungrouped"}
+                order: {type: integer, minimum: 0, description: "global timeline index; domainEvent only"}
+                properties:
+                  type: object
+                  additionalProperties: false
+                  description: "each key legal on its own type only; the grammar enforces which"
+                  properties:
+                    description: {type: string}
+                    pivotal: {type: boolean}
+                    temporal: {type: boolean, description: "raised by time passing; needs no producer"}
+                    state: {enum: [open, resolved]}
+                    kind: {enum: [conflict, question, risk]}
+                    priority: {enum: [low, medium, high]}
+                    resolution: {type: string}
+                    resolvedAt: {type: string}
+                    condition: {type: string, description: "a policy's guard, no 'if'"}
+                    execution: {enum: [automatic, manual]}
+                    parameters:
+                      type: array
+                      items: {type: object, required: [name, value], additionalProperties: false, properties: {name: {type: string, minLength: 1}, value: {type: string}}}
+                    alternativeSet: {type: string, minLength: 1, description: "members happen instead of each other; domainEvent and command only"}
+                    rule: {type: string, description: "a constraint's invariant"}
+          edges:
+            type: array
+            items:
+              type: object
+              required: [id, source, target, relation]
+              additionalProperties: false
+              properties:
+                id: {type: string, minLength: 1}
+                source: {type: string, minLength: 1}
+                target: {type: string, minLength: 1}
+                relation: {enum: [issues, produces, constrainedBy, handledBy, emits, triggers, invokes, updates, informs, annotates, highlights]}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"
