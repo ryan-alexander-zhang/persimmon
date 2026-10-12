@@ -112,6 +112,11 @@ describe('eventstorming/v1 against a derived DomainModel', () => {
     expect(r.result).toEqual({ passed: true, findings: [], evidence: [] })
   })
 
+  it('is invalid_input without inputs.context', async () => {
+    const r = await adapter({ id: 11, op: 'evaluate', payload: { ...pair(derived), inputs: {} } })
+    expect(r).toEqual({ id: 11, ok: false, error: { code: 'invalid_input', message: 'inputs.context is required beside artifacts.domainModel', retryable: false } })
+  })
+
   it('fails a domain model that names an aggregate the storming does not', async () => {
     const r = await adapter({ id: 10, op: 'evaluate', payload: pair({ ...derived, aggregates: [{ ...derived.aggregates[0], name: 'Ghost' }] }) })
     expect(r.result.passed).toBe(false)

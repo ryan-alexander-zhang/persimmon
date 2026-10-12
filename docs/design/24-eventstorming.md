@@ -44,7 +44,7 @@ publish; grammar findings arrive all at once from the Validator.
 | Severity | Codes |
 |---|---|
 | error | `not-a-model`, `duplicate-id`, `undeclared-context`, `self-relationship`, `not-at-level`, `order-not-on-event`, `property-not-on-type`, `bad-enum`, `bad-parameters`, `edge-endpoint-missing`, `illegal-connection`, `wrong-relation` |
-| warning | `event-without-order`, `empty-context`, `no-pivotal-event`, `orphan-event` (not a temporal event, not at big-picture), `dangling-command`, `unissued-command`, `overloaded-aggregate` (over 5 commands or 5 events), `untriggered-policy`, `idle-policy`, `policy-without-execution`, `lone-alternative`, `reaction-cycle`, `duplicate-edge`, `unrecorded-resolution` |
+| warning | `event-without-order`, `empty-context`, `no-pivotal-event`, `orphan-event` (not a temporal event, not at big-picture), `dangling-command`, `unissued-command`, `overloaded-aggregate` (over 5 commands or 5 events), `untriggered-policy`, `idle-policy`, `policy-without-execution` (an error at `design`: the DomainModel requires it), `lone-alternative`, `reaction-cycle`, `duplicate-edge`, `unrecorded-resolution` |
 | info | `open-hotspots` |
 
 An error is what the tool's editor refused; a warning is a smell the author decides on; info is

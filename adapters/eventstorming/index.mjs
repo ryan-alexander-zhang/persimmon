@@ -25,10 +25,12 @@ function evaluate(payload) {
   if (!model || !('content' in model)) throw invalid('artifacts.model is required')
   const domainModel = payload.artifacts.domainModel
   if (domainModel) {
+    const context = payload.inputs?.context?.value
+    if (typeof context !== 'string' || !context) throw invalid('inputs.context is required beside artifacts.domainModel')
     // a broken model cannot be compared, so its errors come first and the comparison is read under them
     const derived = [
       ...check(model.content).filter((f) => f.severity === 'error'),
-      ...checkDerived(model.content, domainModel.content, payload.inputs?.context?.value),
+      ...checkDerived(model.content, domainModel.content, context),
     ]
     return { passed: !derived.some((f) => f.severity === 'error'), findings: derived, evidence: [] }
   }

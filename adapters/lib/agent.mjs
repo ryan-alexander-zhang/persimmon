@@ -161,7 +161,13 @@ async function buildPrompt(task, inputs, context, call, skillDir = '.claude/skil
   const values = Object.entries(inputs).filter(([, v]) => v.kind !== 'artifact')
   if (values.length) parts.push(`## Inputs\n\n\`\`\`json\n${JSON.stringify(Object.fromEntries(values.map(([k, v]) => [k, v.kind === 'value' ? v.value : v.ref])), null, 2)}\n\`\`\``)
   parts.push(`## Instructions\n\n${task.instructions}`)
-  const schemas = Object.entries(outputSchema(task).properties).map(([port, s]) => `\`${port}\`:\n\n\`\`\`json\n${JSON.stringify(s, null, 2)}\n\`\`\``)
+  // each port prints with its own hoisted definitions, under the hoisted keys its `$ref`s name, so the prose stands alone
+  const { properties, $defs = {} } = outputSchema(task)
+  const schemas = Object.entries(properties).map(([port, s]) => {
+    const own = Object.entries($defs).filter(([name]) => name.startsWith(`${port}.`))
+    const shown = own.length ? { ...s, $defs: Object.fromEntries(own) } : s
+    return `\`${port}\`:\n\n\`\`\`json\n${JSON.stringify(shown, null, 2)}\n\`\`\``
+  })
   parts.push(`## Answer\n\nAnswer with one JSON object: one key per output port (${Object.keys(task.outputs).join(', ')}), nothing else, no wrapper key. No prose outside the JSON. Each output must validate against its JSON Schema, string formats included (a \`format: uri\` string is an absolute URL).\n\n${schemas.join('\n\n')}`)
   return parts.join('\n\n') + '\n'
 }

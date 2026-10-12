@@ -296,6 +296,10 @@ describe('codex/v1', () => {
     // the port's $defs are hoisted to the root under `<port>.<name>`, where the CLI resolves them (strict applies to them too)
     expect(seen.schema.$defs).toEqual({ 'prd.x': { type: 'object', required: ['y'], additionalProperties: false, properties: { y: { anyOf: [{ type: 'integer' }, { type: 'null' }] } } } })
     expect(seen.prompt).toContain('## Instructions')
+    // the prompt prints the port's own hoisted definitions, so `#/$defs/prd.x` has a body in the prose
+    const answer = seen.prompt.slice(seen.prompt.indexOf('## Answer'))
+    expect(answer).toContain('"$ref": "#/$defs/prd.x"')
+    expect(answer).toMatch(/"prd\.x": \{[\s\S]*"y"/)
   })
 })
 

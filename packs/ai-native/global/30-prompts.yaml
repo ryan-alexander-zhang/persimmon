@@ -64,7 +64,7 @@ spec:
     3. What does the actor need to know first? A `readModel`: `domainEvent updates readModel informs actor`.
     4. What reacts automatically? A `policy`: `domainEvent triggers policy invokes command`. A reaction that goes different ways is one policy with a `condition`, an `invokes` to each command, and those commands in one `alternativeSet`.
 
-    Every policy gets, when they exist: `condition` (the guard, no "if"), `execution` automatic|manual, `parameters` for every threshold, timeout, limit, retry count, window or rate, as string pairs. An undecided number is a hotspot, and the parameter stays out.
+    Every policy gets `execution` automatic|manual, always; and when they exist, `condition` (the guard, no "if") and `parameters` for every threshold, timeout, limit, retry count, window or rate, as string pairs. An undecided number is a hotspot, and the parameter stays out.
     The Prd's business rules (BR-n in `capabilities[].rules`) are where the numbers live; cite them in `description`.
 
     Gate you must meet: every domainEvent has an incoming produces or emits, or is temporal; every command has an issues or an invokes; every actor decision that needs data has a read model; every policy has execution, plus condition and parameters where they exist; reaction loops are intentional and bounded. `meta.level: process`.

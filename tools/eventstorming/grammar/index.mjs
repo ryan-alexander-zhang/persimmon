@@ -242,8 +242,8 @@ const parameterKey = (list) => (Array.isArray(list) ? list : []).map((p) => `${t
 /**
  * A DomainModel (26-domain-discovery.md) against the design-level EventStorming it claims as its
  * source: one context's projection must say what that context's storming says. `context` is the
- * storming context id; the DomainModel's own `context` is a BoundedContext artifact id. Findings
- * in `check`'s order and shape.
+ * storming context id and is required; the DomainModel's own `context` is a BoundedContext artifact
+ * id, so it is never a fallback. Findings in `check`'s order and shape.
  */
 export function checkDerived(model, domainModel, context) {
   const findings = []
@@ -252,7 +252,11 @@ export function checkDerived(model, domainModel, context) {
   const nodes = arr(model?.nodes)
   const edges = arr(model?.edges)
   const dm = isObject(domainModel) ? domainModel : {}
-  const cid = context ?? dm.context
+  const cid = context
+  // the caller names the storming context: the DomainModel's own `context` is a BoundedContext artifact id, never one
+  if (typeof cid !== 'string' || !cid) {
+    return [{ severity: 'error', code: 'derived-unknown-context', message: 'no context given - name the storming context this domain model projects' }]
+  }
 
   if (meta.level !== 'design') {
     add('error', 'derived-source-level', `source model is at level '${meta.level}' - a domain model is derived from a design-level storming`)
@@ -328,7 +332,7 @@ export function checkDerived(model, domainModel, context) {
 
   // An external system is outside every context: it belongs to this projection when an edge of it reaches into the context.
   const touching = (n) => edges.some((e) => (e.source === n.id && inContext(byId.get(e.target))) || (e.target === n.id && inContext(byId.get(e.source))))
-  const externals = nodes.filter((n) => n.type === 'externalSystem' && (inContext(n) || touching(n)))
+  const externals = nodes.filter((n) => n.type === 'externalSystem' && touching(n))
   const dmExternals = arr(dm.externalSystems)
   diffLabels(add, 'external system', externals.map(label), dmExternals.map((x) => trim(x.name)), 'derived-external-mismatch')
   for (const n of externals) {
@@ -400,7 +404,8 @@ function health(nodes, edges, level, contextIds, add) {
         add('warning', 'idle-policy', `node ${nid}: policy '${n.label}' - it invokes no command`)
       }
       if (!('execution' in props(n))) {
-        add('warning', 'policy-without-execution', `node ${nid}: policy '${n.label}' - no execution - automatic or manual?`)
+        // at design the model is what a domain model is derived from, so an unanswered execution is a hole, not a smell
+        add(level === 'design' ? 'error' : 'warning', 'policy-without-execution', `node ${nid}: policy '${n.label}' - no execution - automatic or manual?`)
       }
     }
   }

@@ -113,8 +113,8 @@ declare module '*/tools/eventstorming/grammar/index.mjs' {
   export function check(content: unknown): Finding[]
   /**
    * A DomainModel against the design-level EventStorming it was derived from, for the storming
-   * context `context` (the DomainModel's own `context` is a BoundedContext artifact id; when
-   * `context` is omitted it is used anyway). Findings in `check`'s order.
+   * context `context` (the DomainModel's own `context` is a BoundedContext artifact id, never a
+   * fallback). Findings in `check`'s order.
    */
-  export function checkDerived(model: unknown, domainModel: unknown, context?: string): Finding[]
+  export function checkDerived(model: unknown, domainModel: unknown, context: string): Finding[]
 }

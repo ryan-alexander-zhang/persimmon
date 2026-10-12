@@ -117,6 +117,18 @@ describe('the model smells', () => {
     expect(codes(content)).toContain('overloaded-aggregate')
   })
 
+  it.each([
+    ['design', 'error'],
+    ['process', 'warning'],
+  ])('a policy without execution at level %s is an %s', (level, severity) => {
+    const content = model({
+      meta: { name: 'Test', level },
+      nodes: [node('ev', 'domainEvent', { order: 0, properties: { pivotal: true } }), node('p', 'policy'), node('c1', 'command')],
+      edges: [edge('e1', 'ev', 'p', 'triggers'), edge('e2', 'p', 'c1', 'invokes')],
+    })
+    expect(check(content)).toContainEqual(expect.objectContaining({ severity, code: 'policy-without-execution' }))
+  })
+
   it('exempts a temporal event from orphan-event', () => {
     const content = model({
       nodes: [
@@ -133,8 +145,9 @@ describe('the model smells', () => {
 // Every warning code the ported example models never hit, pinned against the old validator's output on the same model.
 describe('a smelly model', () => {
   const smelly = {"version": "4.0", "meta": {"name": "Smelly", "level": "design"}, "contexts": [{"id": "c", "name": "C", "order": 0, "classification": "core"}, {"id": "empty", "name": "Empty", "order": 1, "classification": "supporting"}], "contextRelationships": [], "nodes": [{"id": "c-e-noorder", "type": "domainEvent", "label": "No Order Happened", "context": "c", "properties": {}}, {"id": "c-e-orphan", "type": "domainEvent", "label": "Orphan Happened", "context": "c", "order": 0, "properties": {}}, {"id": "c-c-dangling", "type": "command", "label": "Dangle", "context": "c", "properties": {}}, {"id": "c-c-unissued", "type": "command", "label": "Unissued", "context": "c", "properties": {}}, {"id": "c-e-made", "type": "domainEvent", "label": "Made", "context": "c", "order": 1, "properties": {}}, {"id": "c-p-idle", "type": "policy", "label": "Idle Policy", "context": "c", "properties": {"execution": "automatic"}}, {"id": "c-p-noexec", "type": "policy", "label": "No Exec Policy", "context": "c", "properties": {}}, {"id": "c-c-invoked", "type": "command", "label": "Invoked", "context": "c", "properties": {}}, {"id": "c-e-done", "type": "domainEvent", "label": "Done", "context": "c", "order": 2, "properties": {}}, {"id": "c-actor", "type": "actor", "label": "Someone", "context": "c", "properties": {}}, {"id": "c-h-closed", "type": "hotspot", "label": "Closed without why?", "context": "c", "properties": {"state": "resolved"}}], "edges": [{"id": "e-1", "source": "c-c-unissued", "target": "c-e-made", "relation": "produces"}, {"id": "e-2", "source": "c-actor", "target": "c-c-dangling", "relation": "issues"}, {"id": "e-3", "source": "c-e-made", "target": "c-p-noexec", "relation": "triggers"}, {"id": "e-4", "source": "c-p-noexec", "target": "c-c-invoked", "relation": "invokes"}, {"id": "e-5", "source": "c-c-invoked", "target": "c-e-done", "relation": "produces"}, {"id": "e-6", "source": "c-c-invoked", "target": "c-e-done", "relation": "produces"}, {"id": "e-7", "source": "c-h-closed", "target": "c-e-done", "relation": "annotates"}]}
-  it('reports the twelve warnings validate.py reports, and nothing else', () => {
+  it('reports the twelve findings validate.py reports, and nothing else', () => {
     expect(check(smelly).map((f) => [f.severity, f.code])).toEqual([
+      ['error', 'policy-without-execution'], // the model is at design: see 'the model smells'
       ['warning', 'dangling-command'],
       ['warning', 'duplicate-edge'],
       ['warning', 'empty-context'],
@@ -143,7 +156,6 @@ describe('a smelly model', () => {
       ['warning', 'no-pivotal-event'],
       ['warning', 'orphan-event'],
       ['warning', 'orphan-event'],
-      ['warning', 'policy-without-execution'],
       ['warning', 'unissued-command'],
       ['warning', 'unrecorded-resolution'],
       ['warning', 'untriggered-policy'],
@@ -219,8 +231,16 @@ describe('checkDerived', () => {
     expect(checkDerived(storming, derived, 'c')).toEqual([])
   })
 
-  it('falls back to the domain model own context, which is a BoundedContext id', () => {
-    expect(checkDerived(storming, derived).map((f) => f.code)).toEqual(['derived-unknown-context'])
+  it('refuses a call with no context: the domain model own context is a BoundedContext id, not a storming one', () => {
+    // the signature says required; a JS caller can still leave it out
+    expect(checkDerived(storming, derived, undefined as unknown as string)).toEqual([
+      { severity: 'error', code: 'derived-unknown-context', message: 'no context given - name the storming context this domain model projects' },
+    ])
+  })
+
+  it('leaves out an external system no edge of which reaches into the context, whatever context it carries', () => {
+    const idle = { ...storming, nodes: [...(storming.nodes as Record<string, unknown>[]), node('ex2', 'externalSystem', { label: 'Archive', context: 'c' })] }
+    expect(checkDerived(idle, derived, 'c')).toEqual([])
   })
 
   const cases: [string, Record<string, unknown>, Derived, string | undefined][] = [
@@ -242,6 +262,27 @@ describe('checkDerived', () => {
 
   it.each(cases)('%s', (code, source, domainModel, context) => {
     expect(checkDerived(source, domainModel, context).map((f) => f.code)).toContain(code)
+  })
+
+  // The branches the codes above share: each compared field gets its own failing mutation.
+  const reachingIn = {
+    ...storming,
+    contexts: [...(storming.contexts as Record<string, unknown>[]), { id: 'other', name: 'Other', order: 1 }],
+    nodes: [...(storming.nodes as Record<string, unknown>[]), node('ex2', 'externalSystem', { label: 'Bank', context: 'other' })],
+    edges: [...(storming.edges as Record<string, unknown>[]), edge('x11', 'ex2', 'c1', 'issues')],
+  }
+  const fields: [string, Record<string, unknown>, Derived][] = [
+    ['policy when', storming, mutate((d) => (d.policies[0].when = ['Claim Approved']))],
+    ['policy then', storming, mutate((d) => (d.policies[0].then = []))],
+    ['policy parameters', storming, mutate((d) => (d.policies[0].parameters = [{ name: 'limit', value: '10' }]))],
+    ['read model updatedBy', storming, mutate((d) => (d.readModels[0].updatedBy = ['Claim Approved']))],
+    ['external system handles', storming, mutate((d) => (d.externalSystems[0].handles = ['Submit Claim']))],
+    ['external system emits', storming, mutate((d) => (d.externalSystems[0].emits = ['Claim Submitted']))],
+    ['an external system of another context reaching into this one', reachingIn, derived],
+  ]
+
+  it.each(fields)('fails on %s', (_what, source, domainModel) => {
+    expect(checkDerived(source, domainModel, 'c').filter((f) => f.severity === 'error')).not.toEqual([])
   })
 })
 
