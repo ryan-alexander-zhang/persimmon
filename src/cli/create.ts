@@ -29,9 +29,15 @@ export async function create(cli: Cli, file: string, o: FollowOptions = {}): Pro
 export async function createRevision(engine: Engine, ref: { apiVersion: string; kind: string; namespace: string; id: string }, content: unknown): Promise<Resource> {
   const latest = engine.store.resources.listRevisions(ref.kind, ref.namespace, ref.id).at(-1)
   const revision = ((latest?.spec as { identity?: { revision: number } } | undefined)?.identity?.revision ?? 0) + 1
-  const doc: Resource = { apiVersion: ref.apiVersion, kind: ref.kind, metadata: { name: `${ref.id}.r${revision}`, namespace: ref.namespace }, spec: { identity: { id: ref.id, revision }, content } }
-  const { resource } = await engine.create(doc)
-  return resource
+  const doc = (n: number): Resource => ({ apiVersion: ref.apiVersion, kind: ref.kind, metadata: { name: `${ref.id}.r${n}`, namespace: ref.namespace }, spec: { identity: { id: ref.id, revision: n }, content } })
+  try {
+    return (await engine.create(doc(revision))).resource
+  } catch (e) {
+    // the reserve counter runs past staged or abandoned revisions (05-revisioned-kind.md); the engine names the next one
+    const next = /is not the next one \((\d+)\)/.exec((e as Error).message)?.[1]
+    if (!next) throw e
+    return (await engine.create(doc(Number(next)))).resource
+  }
 }
 
 /** `persimmon run <Workflow> [--input k=v]... [--timeout d] [--follow]`: a manual WorkflowRun without writing its YAML. */
