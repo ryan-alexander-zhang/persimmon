@@ -10,6 +10,7 @@ import { tree } from './tree.js'
 import { init } from './init.js'
 import { adapterList, adapterTest, del, resume } from './misc.js'
 import { complete, signal } from './signal.js'
+import { ui } from './ui.js'
 import { validate } from './validate.js'
 
 const usage = `usage: persimmon <verb> [args]
@@ -27,6 +28,7 @@ const usage = `usage: persimmon <verb> [args]
   skill install <name> --into <dir> [--for claude|codex] [--force] [-n ns | --global]   copy a verified Skill where the agent CLIs find it
   digest <dir>                                      the bundle digest a Skill declares for that directory
   init
+  ui [--port <n>]                                   the local API and the built tools on 127.0.0.1 (default port 4747)
   delete <kind>/<name> [-n ns | --global]
   adapter install <manifest> | adapter list | adapter test <id> [--config <file>] [--live]   conformance suite, one line per rule`
 
@@ -65,6 +67,7 @@ function parseCliArgs(argv: string[]) {
       'skip-adapter-validation': { type: 'boolean' },
       config: { type: 'string' },
       live: { type: 'boolean' },
+      port: { type: 'string' },
       payload: { type: 'string' },
       'event-id': { type: 'string' },
       file: { type: 'string' },
@@ -122,6 +125,8 @@ async function dispatchVerb(cli: Cli, verb: string, rest: string[], values: Retu
         throw new Error('skill: install <name> --into <dir> [--for claude|codex]')
       case 'init':
         return await init(cli)
+      case 'ui':
+        return await ui(cli, values.port ? { port: Number(values.port) } : {})
       case 'delete':
         need(1, '<kind>/<name>')
         return await del(cli, rest[0]!, where)
