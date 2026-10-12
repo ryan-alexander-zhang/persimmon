@@ -25,6 +25,15 @@ export async function create(cli: Cli, file: string, o: FollowOptions = {}): Pro
   return store(cli, doc, o)
 }
 
+/** The next revision of `id` from `content`: the `<id>.r<n>` document `persimmon create` would read, stored the same way (05-revisioned-kind.md). */
+export async function createRevision(engine: Engine, ref: { apiVersion: string; kind: string; namespace: string; id: string }, content: unknown): Promise<Resource> {
+  const latest = engine.store.resources.listRevisions(ref.kind, ref.namespace, ref.id).at(-1)
+  const revision = ((latest?.spec as { identity?: { revision: number } } | undefined)?.identity?.revision ?? 0) + 1
+  const doc: Resource = { apiVersion: ref.apiVersion, kind: ref.kind, metadata: { name: `${ref.id}.r${revision}`, namespace: ref.namespace }, spec: { identity: { id: ref.id, revision }, content } }
+  const { resource } = await engine.create(doc)
+  return resource
+}
+
 /** `persimmon run <Workflow> [--input k=v]... [--timeout d] [--follow]`: a manual WorkflowRun without writing its YAML. */
 export async function run(cli: Cli, workflow: string, o: FollowOptions & { inputs?: string[]; timeout?: string } = {}): Promise<number> {
   const inputs = Object.fromEntries((o.inputs ?? []).map((a) => parseInput(a, cli.cwd)))
