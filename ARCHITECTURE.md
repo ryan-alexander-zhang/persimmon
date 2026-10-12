@@ -79,7 +79,7 @@ the static checker calls.
 | `src/cli/` | `08-store.md` CLI verbs | one file per verb or verb family; `index.ts` dispatches; `tree.ts` also renders the run tree `--follow` ends with; no engine logic |
 | `src/server/` (not created) | `08-store.md` server Mode | roadmap: `persimmon serve`, https API, `server.auth.tokens[]` |
 | `packs/sdlc/global/`, `packs/sdlc/namespaced/` | `20-pack.md` | pack files; `persimmon init` applies `global/` as Global and `namespaced/` into `defaultNamespace` |
-| `packs/ai-native/global/` | `23-pack-ai-native.md` | the AI Native pack's artifact kinds; installed with `persimmon apply packs/ai-native/global/*.yaml --global` after `init` |
+| `packs/ai-native/global/` | `23-pack-ai-native.md` | the AI Native pack's artifact kinds (domain, Prd, Adr, Architecture); installed with `persimmon apply packs/ai-native/global/*.yaml --global` after `init` |
 | `adapters/<id>/` | `07-adapter.md`, `19-adapter-roles.md` | Adapters shipped with the binary: `adapter.yaml` manifest and a stdio script; `persimmon init` installs them before the pack |
 | `adapters/<id>/conformance.mjs`, `adapters/lib/conformance.mjs` | `22-conformance.md` | the stub each shipped Adapter runs in place of its CLI under the suite |
 | `adapters/lib/` | `19-adapter-roles.md` executor Role | `agent.mjs`: the one process-per-attempt runner behind `claude-code/v1`, `codex/v1` and `subprocess/v1`; a driver supplies the command line, the stdin text and the result parser; `skills.mjs`: the Skill bundle digest and fetch, imported by `src/cli/` too |

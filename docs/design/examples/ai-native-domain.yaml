@@ -1,5 +1,6 @@
 # One domain written with the AI Native pack's artifact kinds (23-pack-ai-native.md): a BoundedContext, its Glossary
-# (terms and fact types), BusinessRules with logic, one DecisionTable, and the Prd that cites them. Validates after
+# (terms and fact types), BusinessRules with logic, one DecisionTable, the Prd that cites them, two Adrs taken against the
+# Prd and the rules, and the Architecture that applies them. Validates after
 # `persimmon apply packs/ai-native/global/*.yaml --global`. Prose uses Glossary term names only, never an alias.
 apiVersion: sdd.persimmon.ai/v1
 kind: BoundedContext
@@ -83,6 +84,14 @@ spec:
         definition: A fixed daily allowance for the days of a trip that replaces receipts for meals; one claim line per trip.
         aliases: [daily allowance]
         related: [claim line, trip]
+        status: active
+      - name: auditor
+        definition: A person outside Finance who checks, years later, that every reimbursed cost had an unchanged receipt.
+        related: [receipt]
+        status: active
+      - name: export record
+        definition: "As in Accounting: the fixed record of one approved claim that Accounting books and pays. Borrowed; Accounting owns it."
+        related: [claim]
         status: active
       - name: expense report
         definition: Old name for claim.
@@ -254,6 +263,12 @@ spec:
               - {field: complete, op: eq, value: true}
               - {field: total, op: gt, value: 5000}
           then: {decision: {route: approver}}
+      - id: BR-11
+        type: constraint
+        statement: A receipt of an approved claim must be kept unchanged for ten years after the approval.
+        rationale: The tax authority may audit any reimbursed cost within the statutory retention period. Informal; retention is enforced by the receipt store, not evaluated per claim.
+        source: Tax code, retention of accounting records
+        status: active
 ---
 apiVersion: sdd.persimmon.ai/v1
 kind: DecisionTable
@@ -355,3 +370,213 @@ spec:
           Identity; the top of the reporting line has none.
       - id: Q-2
         question: Is the 90-day submission window (BR-6, deprecated) coming back? Finance mentioned reinstating it next fiscal year.
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: Adr
+metadata: {name: adr-receipts-as-blobs.r1}
+spec:
+  identity: {id: adr-receipts-as-blobs, revision: 1}
+  content:
+    title: Store receipts as immutable blobs addressed by digest
+    status: accepted
+    deciders: [Finance operations, platform team]
+    context: >-
+      A receipt proves a claim line to an auditor (BR-2); it must be unchanged for ten years (BR-11) and reachable from
+      the export record. Employees upload images and PDFs from phones; the same receipt may be attached twice by mistake.
+      Taken against the Prd and the rules, before the Architecture.
+    drivers: [BR-2, BR-11, SC-3]
+    decision: >-
+      A receipt is written once to the blob store under its sha256 digest; a claim line references the digest. Nothing
+      ever overwrites or deletes a blob within the retention period; the export record carries the digest.
+    alternatives:
+      - option: Receipts as rows in the claims database
+        rejectedBecause: backups and retention would couple audit evidence to the claim lifecycle, and a database row can be updated
+      - option: Receipts in the employee's mailbox by link
+        rejectedBecause: the mailbox leaves the company with the employee
+    consequences:
+      - kind: positive
+        statement: A duplicate upload is the same digest; the second attach is free and visibly the same receipt.
+      - kind: positive
+        statement: Audit evidence is content-addressed; an auditor verifies a receipt by hashing it.
+      - kind: negative
+        statement: A receipt uploaded to the wrong claim cannot be edited, only re-attached; the UI must make re-attach easy.
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: Adr
+metadata: {name: adr-routing-in-core.r1}
+spec:
+  identity: {id: adr-routing-in-core, revision: 1}
+  content:
+    title: Evaluate the claim routing decision in the claims core, never in a client
+    status: accepted
+    deciders: [Finance operations, platform team]
+    context: >-
+      The route of a submitted claim is the claim routing DecisionTable (BR-7 to BR-10). A client could compute it to
+      show the employee the outcome while typing, which an approver's minute (SC-4) would welcome; but a client is
+      outside Finance's control and the table changes yearly. Taken against the Prd and the rules, before the Architecture.
+    drivers: [BR-7, BR-8, BR-9, BR-10]
+    decision: >-
+      The claims core evaluates the claim routing table at submission and records the route and the row that fired on
+      the claim. Clients display the recorded route; they never compute one.
+    alternatives:
+      - option: Evaluate in the web client for instant feedback
+        rejectedBecause: two implementations of one table drift, and an audit question "why this route" needs the core's record
+    consequences:
+      - kind: positive
+        statement: One evaluation, one record per claim, the row id as the audit answer.
+      - kind: neutral
+        statement: The employee sees the route after submission, not while typing.
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: Architecture
+metadata: {name: expense-claims-architecture.r1}
+spec:
+  identity: {id: expense-claims-architecture, revision: 1}
+  content:
+    title: Expense claims architecture
+    owner: platform team
+    status: accepted
+    introduction:
+      prd: expense-claims
+      qualityGoals:
+        - id: QG-1
+          quality: reliability
+          motivation: The record is the only evidence; a lost or altered claim cannot be rebuilt from mail (G-3).
+        - id: QG-2
+          quality: security
+          motivation: Receipts and amounts are personal and financial data under audit for ten years.
+        - id: QG-3
+          quality: interaction-capability
+          motivation: The approver's screen is where G-1 is won or lost; the phone is where claims are filed.
+      stakeholders:
+        - {role: employee, expectations: the Prd's; plus a phone-first client}
+        - {role: approver, expectations: the Prd's; plus one screen per claim}
+        - {role: finance operator, expectations: the Prd's; plus rules and the routing table editable without a release}
+        - {role: auditor, expectations: every reimbursed cost traceable to an unchanged receipt for ten years}
+    constraints:
+      - id: C-1
+        kind: organizational
+        statement: Finance owns the business rules and the routing table; a change needs no release.
+        rationale: the table is revised yearly with policy FP-12
+      - id: C-2
+        kind: technical
+        statement: Receipts and claims stay in the company's EU region; no third-party storage.
+      - id: C-3
+        kind: technical
+        statement: Sign-in and reporting lines come from Identity's SSO and directory; no local accounts.
+    context:
+      business:
+        - {partner: employee, exchanges: "claims, claim lines, receipts, trips", direction: in}
+        - {partner: approver, exchanges: "claims to decide; approvals and rejections with reasons", direction: both}
+        - {partner: finance operator, exchanges: "risk flags, export status, audit questions", direction: both}
+        - {partner: Identity, context: identity, exchanges: "employees, reporting lines, cost centres", direction: in}
+        - {partner: Accounting, context: accounting, exchanges: export records with receipt references, direction: out}
+      technical:
+        - {channel: web and mobile web, protocol: HTTPS, carries: "everything employees, approvers and finance operators exchange"}
+        - {channel: directory API, protocol: HTTPS/JSON, carries: employee and reporting line lookups against Identity}
+        - {channel: export, protocol: HTTPS API with signed export records, carries: approved claims to Accounting}
+    strategy:
+      - {id: S-1, decision: "One claims core owns the Expenses context and every rule; clients are thin.", addresses: [QG-1, C-1]}
+      - {id: S-2, decision: "Rules and the routing table are data the core loads, revised by Finance without a release.", addresses: [C-1]}
+      - {id: S-3, decision: "Receipts are content-addressed blobs; the export carries digests, not copies.", addresses: [QG-2, C-2]}
+      - {id: S-4, decision: "Identity is the only source of people; the core stores ids, never names or lines.", addresses: [QG-2, C-3]}
+    buildingBlocks:
+      - id: BB-1
+        name: claims core
+        technology: Node service, event store
+        responsibility: "the Expenses context: claims, claim lines, trips, per diem, rules, routing, approval state"
+        interfaces:
+          - {name: claims API, kind: provides, description: "submit, read, decide a claim; list by employee, approver, state"}
+          - {name: directory, kind: requires, description: "employee and reporting line by id, from Identity"}
+        contexts: [expenses]
+      - id: BB-2
+        name: receipt store
+        technology: object store, EU region
+        responsibility: "immutable receipt blobs by digest, retention, access by claim membership"
+        interfaces:
+          - {name: blob API, kind: provides, description: "put by content, get by digest, with the claim's access rule"}
+        contexts: []
+      - id: BB-3
+        name: risk check
+        technology: Node service
+        responsibility: sets the risk flag on a submitted claim from Finance's fraud patterns
+        interfaces:
+          - {name: risk API, kind: provides, description: flag or clear a submitted claim against the fraud patterns}
+        contexts: [expenses]
+      - id: BB-4
+        name: export gateway
+        technology: Node service
+        responsibility: "one signed export record per approved claim to Accounting, with export status"
+        interfaces:
+          - {name: export intake, kind: provides, description: takes an approved claim once and owns its export status}
+          - {name: Accounting export API, kind: requires, description: export records in Accounting's published language}
+        contexts: [expenses]
+      - id: BB-5
+        name: web client
+        technology: browser app
+        responsibility: "the employee, approver and finance operator screens over the claims API"
+        interfaces:
+          - {name: claims API, kind: requires, description: everything shown comes from the core}
+        contexts: []
+    relations:
+      - {id: REL-1, from: employee, to: BB-5, description: builds and submits claims; attaches receipts; adds trips, technology: HTTPS}
+      - {id: REL-2, from: approver, to: BB-5, description: reads and decides claims, technology: HTTPS}
+      - {id: REL-3, from: finance operator, to: BB-5, description: sets risk flags; follows export status; answers audit questions, technology: HTTPS}
+      - {id: REL-4, from: BB-5, to: BB-1, description: every read and command of a claim, interface: claims API, technology: HTTPS/JSON}
+      - {id: REL-5, from: BB-1, to: BB-2, description: puts a receipt by content; reads it by digest for the approver, interface: blob API}
+      - {id: REL-6, from: BB-1, to: BB-3, description: asks for the risk flag of a submitted claim, interface: risk API}
+      - {id: REL-7, from: BB-1, to: Identity, description: employee and reporting line by id, interface: directory, technology: HTTPS/JSON}
+      - {id: REL-8, from: BB-1, to: BB-4, description: hands over an approved claim once, interface: export intake}
+      - {id: REL-9, from: BB-4, to: Accounting, description: one signed export record per approved claim, interface: Accounting export API, technology: HTTPS API}
+    concepts:
+      - id: CC-1
+        topic: domain
+        statement: The Expenses BoundedContext has one model in the claims core; one transaction per claim; a DomainModel artifact will name the aggregates.
+      - id: CC-2
+        topic: security
+        statement: A claim is readable by its employee, its approver, finance operators and auditors; roles come from Identity; every read of a receipt is logged.
+      - id: CC-3
+        topic: persistence
+        statement: Claims are event-sourced in the core so every state and the row that routed it are replayable; receipts are blobs, never rows.
+      - id: CC-4
+        topic: errors
+        statement: A refused submission names the claim line and the BR-n; no other error reaches an employee.
+      - id: CC-5
+        topic: testing
+        statement: Every BR-n with logic and every DecisionTable row has a derived test in the core; the tests are the rules' regression suite.
+    domainModels: []
+    decisions: [adr-receipts-as-blobs, adr-routing-in-core]
+    qualityScenarios:
+      - id: QS-1
+        qualityGoal: QG-1
+        stimulus: the core restarts during a submission
+        source: operations
+        response: the claim is either fully submitted or not at all; the employee sees which
+        measure: zero half-submitted claims in a quarter
+      - id: QS-2
+        qualityGoal: QG-1
+        stimulus: Finance revises the routing table
+        response: claims submitted after the revision route by the new table; earlier claims keep their recorded row
+        measure: every claim's route explainable by its recorded row and table revision
+      - id: QS-3
+        qualityGoal: QG-2
+        stimulus: an employee opens another employee's claim by URL
+        response: refused and logged
+        measure: zero cross-employee reads outside the approver and finance roles
+      - id: QS-4
+        qualityGoal: QG-3
+        stimulus: an approver opens a claim with eight lines and eight receipts
+        response: the claim, every receipt thumbnail and every justification render on one screen
+        measure: under 2 seconds on the office network
+    risks:
+      - id: RK-1
+        kind: risk
+        statement: Identity's directory lags a reorganisation and the wrong approver is named for a day.
+        probability: medium
+        impact: medium
+        mitigation: BR-1 pins the approver at submission; Finance can reassign with a logged reason
+      - id: RK-2
+        kind: debt
+        statement: The risk check (BB-3) starts with a fixed list of fraud patterns in its code; Finance cannot edit them without a release, against C-1.
+        mitigation: move patterns to data once Finance has written three
+    glossaries: [expenses-glossary]

@@ -443,6 +443,16 @@ _Avoid_: inference, action enabler, routing rule
 `R-n` rows with unary tests, each row one **Decision rule**; cites every `BR-n` it implements.
 _Avoid_: rule table, routing table, DRD
 
+**Adr**:
+**Artifact kind**, one per architecture decision (Nygard form, MADR alternatives); taken first,
+listed by the **Architecture** or Design revision that applies it; a status change is a revision.
+_Avoid_: decision record, decision log, design decision (bare)
+
+**Architecture**:
+**Artifact kind**, once per product, arc42's twelve sections as fields; the frame every **Spec** is
+written inside. Section 8's domain model and 12 by reference, 9 a list of **Adr** ids.
+_Avoid_: architecture doc, system design, high-level design, technical design
+
 **Prd**:
 **Artifact kind** of the AI Native pack: why, for whom, `CAP-n` capabilities, `SC-n` success
 criteria. No stories, requirements or technology; those are the **Spec**'s.
