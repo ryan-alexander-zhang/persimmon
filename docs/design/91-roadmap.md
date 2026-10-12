@@ -66,6 +66,8 @@ later     eager joins · retention policy · policy resource · external event s
 | `stepContract` child spec shape | `01-kind-definition.md`, `11-workflow.md` | engine knows the three core run kinds |
 | `describe` at every snapshot resolution | `04-snapshot.md` | cached digest checked instead |
 | `secretManager` credential source | `08-store.md` | server mode |
+| `security.networkAccess` and `allowedHosts` enforced by the agent Adapters | `13-executor.md` | declarative today; needs a sandbox the CLIs do not expose |
+| an artifact id chosen by the producer (a derived BoundedContext named after its storming context) | `19-adapter-roles.md`, `26-domain-discovery.md` | the runner names artifact outputs `<logicalExecutionId>-<port>` |
 | fired Transitions recorded in `WorkflowRun.status` | `11-workflow.md` | derived from step runs |
 | `allowedHosts` enforcement and a network switch for `claude-code/v1` | `19-adapter-roles.md` | agent runs with the CLI's own sandbox; codex has the on/off switch |
 

@@ -43,9 +43,9 @@ thing is defined.
 | Gates | `storming-gate` (grammar and confirmed, `all`); `derived-gate` (consistency) |
 | ReviewLoops `storm-big-picture`, `storm-process`, `storm-design` | `produce` `event-storm` with the level as a literal, `review` `storming-gate`, `maxRounds: 3`; `process` and `design` take `base` from the phase before |
 | Task `derive-domain` | inputs `model`, `contextId`, `prd`; outputs `context`, `glossary`, `domainModel`; a projection, invents nothing |
-| Workflow `derive-one` | derive, then `derived-gate`; `derivation_inconsistent` when the check rejects |
-| Workflow `derive-all` | `repeat` over `contexts`: state `index` and `contexts`, body `contextId: {expression: "state.contexts[state.index - 1]"}`, `until: iteration.index >= inputs.contexts.size()` |
-| Pipeline `domain-discovery` | the three loops then `derive-all`; outputs `model` and `derived` |
+| ReviewLoop `derive-one` | `produce` `derive-domain`, `review` `derived-gate`, `maxRounds: 2`; the consistency findings go back as `feedback` with the last `domainModel` as `previous` |
+| Workflow `derive-all` | `repeat` over `contexts`: state `index` and `contexts`, body `contextId: {expression: "state.contexts[state.index - 1]"}`, `until: !iteration.outputs.passed || iteration.index >= inputs.contexts.size()`; a context the loop could not derive ends the run `derivation_inconsistent` |
+| Pipeline `domain-discovery` | the three loops then `derive-all`; a loop phase routes on its `passed` (`21-composition.md`), so an exhausted phase ends the run `<phase>_rejected`; outputs `model` and `derived` |
 
 Two Layer 1 changes this needed, each its own unit: `state.<var>` readable in expressions inside
 `repeat` (`10-ports.md`, `11-workflow.md`), and a ReviewLoop surfacing every `produce` output
@@ -58,17 +58,18 @@ when `artifacts.domainModel` is present; `passed` iff no error. Labels compare e
 
 | Severity | Codes |
 |---|---|
-| error | `derived-source-level`, `derived-unknown-context`, `derived-missing-aggregate`, `derived-extra-aggregate`, `derived-command-mismatch`, `derived-event-mismatch`, `derived-missing-event`, `derived-extra-event`, `derived-event-flag`, `derived-policy-mismatch`, `derived-readmodel-mismatch`, `derived-external-mismatch` |
+| error | `derived-source-level`, `derived-unknown-context` (also when the Validator's `context` input is unbound), `derived-missing-aggregate`, `derived-extra-aggregate`, `derived-command-mismatch`, `derived-event-mismatch`, `derived-missing-event`, `derived-extra-event`, `derived-event-flag`, `derived-policy-mismatch`, `derived-readmodel-mismatch`, `derived-external-mismatch` |
 | warning | `derived-invariant-unsourced`, `derived-unused-constraint` |
 
 ## Rules
 
 | Rule | Enforcer |
 |---|---|
-| a phase's model has `meta.level` equal to the phase; the grammar Validator takes the level from the Gate | `storming-gate` |
+| a phase's model has `meta.level` at least the phase's; the grammar Validator takes the level from the Gate | `storming-gate` |
 | the agent asks nothing: an unknown is a hotspot with kind and priority; the human gate is where questions are answered | Prompts; `confirm-storming` |
 | a derivation is a projection: every name a storming label, every relation an edge; `domain-consistency` refuses drift | `derived-gate` |
-| `glossary.context` and `domainModel.context` cite the derived BoundedContext's id, which is the storming context id | `derive-domain` instructions; Validator later |
+| `glossary.context` and `domainModel.context` cite the storming context id; the BoundedContext artifact the Task publishes is named by the runner (`<logicalExecutionId>-context`), so the two ids differ until a producer may choose an artifact id (`91-roadmap.md`) | `derive-domain` instructions; Validator later |
+| `allowedHosts` on the storming Executor is declarative: the shipped agent Adapters do not enforce `security` (`13-executor.md`) | convention; roadmap |
 | the relationship names map camelCase to kebab in the derivation; the kinds keep their own enums | `derive-domain-rules` |
 
 ## Decisions
@@ -102,6 +103,11 @@ when `artifacts.domainModel` is present; `passed` iff no error. Labels compare e
   Prd calls it core, and the routing policy carrying the 5000 EUR threshold in prose rather than as a
   parameter. A reject with findings sends each back; the Prompts stay as written, the gate decides.
   Found in UAT.
+
+- The derivation is a ReviewLoop too: one drifted label would otherwise end the Pipeline after days
+  of human gating, with no word to the agent; the consistency findings name the labels, so they are the
+  feedback. A design-level policy without `execution` is a grammar error, since the DomainModel
+  requires it and the gate must refuse what the derivation cannot carry. Found in audit.
 
 ## Examples
 

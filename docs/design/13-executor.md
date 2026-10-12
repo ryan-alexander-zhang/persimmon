@@ -53,6 +53,10 @@ the Adapter process; Executor-level ones are per-attempt secrets for the work.
 
 ## Decisions
 
+- The shipped agent Adapters (`claude-code/v1`, `codex/v1`) do not enforce `security.networkAccess` or
+  `allowedHosts`: the CLIs own their sandboxes and expose no host allowlist, so the fields are declarative
+  today and the engine still validates them. Enforcement is a roadmap row. Found in audit.
+
 - `allowedOperations` and `validateConfig` dropped. Reference listed both; neither had a
   consumer beyond what `describe.configurationSchema` gives. `CONTEXT.md` updated.
 - `configuration` and `action.parameters` never merge; a key in both is two keys.
