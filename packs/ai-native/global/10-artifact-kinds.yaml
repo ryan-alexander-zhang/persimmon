@@ -20,6 +20,8 @@ spec:
           inScope: {type: array, minItems: 1, items: {type: string}, description: "the Glossary's term names this context owns"}
           outOfScope: {type: array, items: {type: string}, description: "concepts that look like ours but belong elsewhere; name the context"}
           owner: {type: string, description: "team or role that owns the model"}
+          classification: {enum: [core, supporting, generic], description: "the storming's strategic classification"}
+          bigBallOfMud: {type: boolean, description: "a recognised mess, boundary drawn so its model does not propagate"}
           relationships:
             type: array
             description: "this context's own view of the context map; the other side keeps its own"
@@ -726,6 +728,112 @@ spec:
                 source: {type: string, minLength: 1}
                 target: {type: string, minLength: 1}
                 relation: {enum: [issues, produces, constrainedBy, handledBy, emits, triggers, invokes, updates, informs, annotates, highlights]}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"
+---
+# The domain model of one BoundedContext, derived from a design-level EventStorming (26-domain-discovery.md): aggregates with
+# the commands they handle and the events they emit, policies, read models, external systems. Names are the storming
+# labels; attributes are Glossary fact type names, so the Glossary stays the only place a thing is defined.
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata: {name: domainmodels.sdd.persimmon.ai}
+spec:
+  group: sdd.persimmon.ai
+  names: {kind: DomainModel, plural: domainmodels}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [context, source, aggregates, events, policies, readModels, externalSystems]
+        additionalProperties: false
+        properties:
+          context: {type: string, minLength: 1, description: "artifact id of the BoundedContext"}
+          source: {type: string, minLength: 1, description: "artifact id of the EventStorming it was derived from; the revision is provenance"}
+          aggregates:
+            type: array
+            items:
+              type: object
+              required: [id, name, root, entities, valueObjects, commands, events, invariants]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^AG-[0-9]+$"}
+                name: {type: string, minLength: 1, description: "the storming aggregate label"}
+                root: {type: string, minLength: 1, description: "the root entity's name"}
+                entities:
+                  type: array
+                  minItems: 1
+                  items: {$ref: "#/$defs/Entity"}
+                valueObjects:
+                  type: array
+                  items: {$ref: "#/$defs/Entity"}
+                commands: {type: array, items: {type: string, minLength: 1}, description: "storming command labels this aggregate handles"}
+                events: {type: array, items: {type: string, minLength: 1}, description: "storming domain event labels this aggregate emits"}
+                invariants:
+                  type: array
+                  items:
+                    type: object
+                    required: [statement]
+                    additionalProperties: false
+                    properties:
+                      statement: {type: string, minLength: 1, description: "a storming constraint's rule, or one written here"}
+                      rules: {type: array, items: {type: string, pattern: "^BR-[0-9]+$"}}
+          events:
+            type: array
+            items:
+              type: object
+              required: [name]
+              additionalProperties: false
+              properties:
+                name: {type: string, minLength: 1, description: "the storming domain event label"}
+                pivotal: {type: boolean}
+                temporal: {type: boolean}
+                attributes: {type: array, items: {type: string, minLength: 1}, description: "Glossary fact type names the event carries"}
+          policies:
+            type: array
+            items:
+              type: object
+              required: [id, name, when, then, execution]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^POL-[0-9]+$"}
+                name: {type: string, minLength: 1}
+                when: {type: array, minItems: 1, items: {type: string, minLength: 1}, description: "domain event labels that trigger it"}
+                then: {type: array, minItems: 1, items: {type: string, minLength: 1}, description: "command labels it invokes"}
+                condition: {type: string}
+                execution: {enum: [automatic, manual]}
+                parameters: {type: array, items: {type: object, required: [name, value], additionalProperties: false, properties: {name: {type: string, minLength: 1}, value: {type: string}}}}
+          readModels:
+            type: array
+            items:
+              type: object
+              required: [name, informs, fields]
+              additionalProperties: false
+              properties:
+                name: {type: string, minLength: 1}
+                informs: {type: array, items: {type: string, minLength: 1}, description: "actor labels"}
+                updatedBy: {type: array, items: {type: string, minLength: 1}, description: "domain event labels"}
+                fields: {type: array, items: {type: string, minLength: 1}, description: "Glossary fact type names"}
+          externalSystems:
+            type: array
+            items:
+              type: object
+              required: [name]
+              additionalProperties: false
+              properties:
+                name: {type: string, minLength: 1}
+                issues: {type: array, items: {type: string, minLength: 1}, description: "command labels"}
+                handles: {type: array, items: {type: string, minLength: 1}, description: "command labels"}
+                emits: {type: array, items: {type: string, minLength: 1}, description: "domain event labels"}
+        $defs:
+          Entity:
+            type: object
+            required: [name, attributes]
+            additionalProperties: false
+            properties:
+              name: {type: string, minLength: 1}
+              attributes: {type: array, items: {type: string, minLength: 1}, description: "Glossary fact type names"}
   mutability: Immutable
   revisioned: true
   snapshot: "None"
