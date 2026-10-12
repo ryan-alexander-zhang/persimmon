@@ -495,8 +495,10 @@ criteria. No stories, requirements or technology; those are the **Spec**'s.
 _Avoid_: ProductRequirement (demo pack), EarsPrd (example06), product spec
 
 **Spec**:
-**Artifact kind** of the AI Native pack, one per `CAP-n`: stories with EARS acceptance, FR, NFR,
-entities. Designed after **Prd**. Always the capitalised kind name; the envelope field is `spec`.
+**Artifact kind** of the AI Native pack, one per `CAP-n` of a **Prd**: stories `US-n` with EARS
+acceptance criteria `AC-n`, `qualities` citing Architecture `QS-n`, open questions. Names are the
+**DomainModel**'s, rules `BR-n`; no FR, NFR or entity of its own. Always the capitalised kind name;
+the envelope field is `spec`.
 _Avoid_: feature spec, requirements doc, spec.md
 
 ## Flagged ambiguities

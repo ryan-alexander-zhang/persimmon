@@ -14,7 +14,7 @@ EventStorming ──▶ Prd r1 (the idea)                          the board, in
 the domain kinds above ──▶ EventStorming (derived, unit 2); Prd r2 ──▶ BoundedContext, BusinessRules (CAP-n cite them)
 Adr ──▶ Prd, rules (baseline) or Architecture (later)          taken first, pinned by provenance
 Architecture ──▶ Prd, BoundedContext (3, 5), Adr (9), Glossary (12), DomainModel (8, later)   arc42 baseline, once per product
-Spec per CAP-n (later) ──▶ Prd, Architecture, domain kinds
+Spec per CAP-n ──▶ Prd, Architecture, DomainModel, rules
 Design per CAP-n (later) ──▶ Spec, Architecture;  Plan (later) ──▶ Design;  work ──▶ Plan
 why, for whom: Prd · exactly what: Spec · how: Architecture, Design · work: Plan
 ```
@@ -39,6 +39,7 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
 | `Architecture` | how the product is shaped (arc42) | `title`, `owner`, `status`, 1 `introduction {prd, qualityGoals[] QG-n (ISO 25010:2023), stakeholders[]}`, 2 `constraints[] C-n`, 3 `context {business[], technical[]}`, 4 `strategy[] S-n`, 5 `buildingBlocks[] BB-n` (`parent?` for lower levels, `technology?`) and `relations[] {id REL-n, from, to, description, interface?, technology?}`, 6 `runtime[] RT-n?`, 7 `deployment?`, 8 `concepts[] CC-n` + `domainModels[]`, 9 `decisions[]` (Adr ids), 10 `qualityScenarios[] QS-n`, 11 `risks[] RK-n?`, 12 `glossaries[]` |
 | `EventStorming` | what happens in the domain, in whose words | DSL v4.0 of the event storming tool, `24-eventstorming.md`: `version`, `meta {name, level}`, `contexts[]`, `contextRelationships[]`, `nodes[]`, `edges[]` |
 | `Prd` | why, for whom, what capabilities | `title`, `problem`, `users[]`, `goals[] G-n`, `nonGoals[]`, `capabilities[] {id CAP-n, name, description, priority, context, rules?}`, `successCriteria[] {id SC-n, statement, capabilities?}`, `assumptions[]`, `openQuestions[] {id Q-n, question, resolution?}` |
+| `Spec` | exactly what one capability does | `title`, `prd`, `capability` CAP-n, `architecture`, `domainModel`, `stories[] {id US-n, actor, want, benefit, commands?[], events?[], readModels?[], acceptance[] {id AC-n, pattern: ubiquitous\|event-driven\|state-driven\|unwanted-behaviour\|optional\|complex, statement, rules?[] BR-n}}`, `qualities[] {scenario QS-n, delta?}`, `openQuestions[] Q-n` |
 
 ## Citation
 
@@ -54,6 +55,11 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
 | `Architecture` | `introduction.prd` | one `Prd` | artifact id; the requirements are the Prd, never restated |
 | `Architecture` | `decisions[]`, `domainModels[]`, `glossaries[]`, `buildingBlocks[].contexts[]`, `context.business[].context` | `Adr`, `DomainModel`, `Glossary`, `BoundedContext` | artifact ids; an Adr is taken first and cites the revision it was taken against in provenance, the Architecture revision that applies it lists it |
 | `Adr` | `drivers[]`, prose | `QG-n`, `C-n`, `QS-n` of the Architecture, `BR-n` of the rules, `G-n`, `CAP-n`, `SC-n` of the Prd | by id, in the revisions provenance pins |
+| `Spec` | `prd`, `capability` | one `Prd`, one of its capabilities | artifact id and `CAP-n`; the capability's `context` is the Spec's context, never restated |
+| `Spec` | `domainModel`, `stories[].commands[]`, `events[]`, `readModels[]` | one `DomainModel` and its names | artifact id; command, event and read model labels by name, never redefined |
+| `Spec` | `architecture`, `qualities[].scenario` | one `Architecture` and its `QS-n` | artifact id; a `delta` only tightens a scenario |
+| `Spec` | `acceptance[].rules[]` | `BusinessRules` rules | `BR-n`; the rules artifact is a Task input |
+| `Spec` | `stories[].actor`, `benefit` prose | `Prd` users, `G-n` | by name, by id |
 | any | prose | `Glossary` terms | by using the term; `aliases` never appear in documents |
 
 ## Rules
@@ -72,6 +78,7 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
 | an unknown fact is a `Q-n`, never a guess; a Prd with open questions is valid and gated later | author Prompt |
 | inside an `Architecture`: `strategy[].addresses`, `qualityScenarios[].qualityGoal`, `buildingBlocks[].parent`, `deployment.nodes[].hosts`, `deployment.channels[].from/to` (nodes), `runtime[].steps[].from/to` and `relations[].from/to` (a `BB-n` or a `context.business[].partner`, at least one end a block) resolve; `relations[].interface` is an interface the `to` block provides, or the `from` block requires when `to` is a partner; every level 1 block and every partner has a relation; every `QG-n` has at least one `QS-n`; level 1 blocks' `contexts` cover every `BoundedContext` the Prd's capabilities name; `decisions[]` name Adrs with status `accepted` | Validator later |
 | a Spec never cites a Design, a Design never cites a Plan, an Architecture never names a Spec story: every artifact cites upstream only; downstream is a Relation query | author Prompt; convention |
+| in a `Spec`: `capability` is a `CAP-n` of `prd`; `domainModel.context` is that capability's `context`; `commands`, `events`, `readModels` resolve in the DomainModel; `qualities[].scenario` resolves in `architecture`; `rules` resolve and are active; every `BR-n` the Prd capability lists is tested by at least one acceptance criterion; `actor` is a Prd user; each `statement` opens with its pattern's keyword (`The`, `When`, `While`, `If`, `Where`) | Validator later |
 | an `Adr`'s `drivers` resolve in the revisions its `provenance.inputs` pin (a Prd and rules for a baseline Adr, an Architecture later); the Adr carries no artifact id of its own for them | Validator later |
 | `goals` give direction without a number; `successCriteria` carry the number; `successCriteria` and `capabilities` name no technology, architecture or task | author Prompt |
 | a success criterion is an outcome measured in production over time, decided by measurement; a behaviour one test decides on one run is an acceptance criterion and belongs to a Spec story; a capability no success criterion names is reported | author Prompt; Validator later |
@@ -142,6 +149,22 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
   those and the constraints behind its inputs (`complete` is BR-2 over every line). Found in audit.
 - `goals` stay beside `successCriteria` as direction without a number: a metric changes, the reason
   survives. Found in audit.
+- A `Spec` adds stories and acceptance criteria and cites everything else. Entities are not restated: a
+  story names the DomainModel's commands, events and read models, and a name the model lacks is a
+  gap in the model, fixed upstream, never a "not in model" marker that nobody clears. Found in design
+  review.
+- No `FR-n` beside the stories: a functional requirement no story owns has no user; it is an acceptance
+  criterion of a story, a rule in `BusinessRules`, or a quality scenario. One form for "what the system
+  does". Found in design review.
+- No NFR text in a Spec: `qualities[]` cites Architecture scenarios by `QS-n` with an optional `delta`
+  that only tightens. Free NFR prose is where duplicates and contradictions breed. Found in design
+  review.
+- Brownfield changes are a new revision of the Spec, never a change kind: the engine keeps every
+  revision and diffs them. OpenSpec's change artifact exists because files have no revisions. Found in
+  design review.
+- Acceptance criteria are EARS sentences over "the system", not over a building block: the Spec stays
+  free of `BB-n`; the Design maps a criterion to blocks. `AC-n` is unique in the Spec, not per story, so
+  a Design or a test cites one id. Found in design review.
 - Group `sdd.persimmon.ai`, kind `Prd`: the demo pack's `ProductRequirement` and example06's
   `EarsPrd` keep their names in `engineering.persimmon.ai`; no collision.
 
@@ -151,4 +174,5 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
   `EventStorming` model, a
   `BoundedContext`, its `Glossary` with fact types, `BusinessRules` with logic, the `DecisionTable`
   that routes a claim, the `Prd` that cites them, two `Adr`s and the `Architecture` that applies
-  them; validates after the pack is applied
+  them, a design-level `EventStorming` and the `DomainModel` derived from it, and the `Spec` of `CAP-1`;
+  validates after the pack is applied

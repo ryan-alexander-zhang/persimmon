@@ -837,3 +837,78 @@ spec:
   mutability: Immutable
   revisioned: true
   snapshot: "None"
+---
+# Exactly what one capability does: one Spec per CAP-n of a Prd. Stories with EARS acceptance criteria are the only
+# functional statements; every name is the DomainModel's, every rule the BusinessRules', every quality an Architecture
+# scenario. A Spec adds behaviour and cites everything else; it never names a Design or a Plan.
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata: {name: specs.sdd.persimmon.ai}
+spec:
+  group: sdd.persimmon.ai
+  names: {kind: Spec, plural: specs}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [title, prd, capability, architecture, domainModel, stories, qualities, openQuestions]
+        additionalProperties: false
+        properties:
+          title: {type: string, minLength: 1}
+          prd: {type: string, minLength: 1, description: "artifact id of the Prd"}
+          capability: {type: string, pattern: "^CAP-[0-9]+$", description: "the one capability of the Prd this Spec is"}
+          architecture: {type: string, minLength: 1, description: "artifact id of the Architecture the qualities cite"}
+          domainModel: {type: string, minLength: 1, description: "artifact id of the DomainModel of the capability's context; every command, event and read model name is its"}
+          stories:
+            type: array
+            minItems: 1
+            items:
+              type: object
+              required: [id, actor, want, benefit, acceptance]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^US-[0-9]+$"}
+                actor: {type: string, minLength: 1, description: "a Prd user name"}
+                want: {type: string, minLength: 1, description: "what the actor does, in Glossary terms; no solution"}
+                benefit: {type: string, minLength: 1, description: "why; names a G-n in prose when one applies"}
+                commands: {type: array, items: {type: string, minLength: 1}, description: "DomainModel command labels the story invokes"}
+                events: {type: array, items: {type: string, minLength: 1}, description: "DomainModel domain event labels the story observes or causes"}
+                readModels: {type: array, items: {type: string, minLength: 1}, description: "DomainModel read model names the story reads"}
+                acceptance:
+                  type: array
+                  minItems: 1
+                  description: "one test decides each on one run; an outcome measured over time is a Prd success criterion"
+                  items:
+                    type: object
+                    required: [id, pattern, statement]
+                    additionalProperties: false
+                    properties:
+                      id: {type: string, pattern: "^AC-[0-9]+$", description: "unique in the Spec, not per story"}
+                      pattern: {enum: [ubiquitous, event-driven, state-driven, unwanted-behaviour, optional, complex]}
+                      statement: {type: string, minLength: 1, description: "one EARS sentence of the declared pattern over 'the system'; a quantity names a unit"}
+                      rules: {type: array, items: {type: string, pattern: "^BR-[0-9]+$"}, description: "the rules this criterion tests"}
+          qualities:
+            type: array
+            description: "Architecture quality scenarios the capability is held to; a delta only tightens"
+            items:
+              type: object
+              required: [scenario]
+              additionalProperties: false
+              properties:
+                scenario: {type: string, pattern: "^QS-[0-9]+$"}
+                delta: {type: string, minLength: 1, description: "a stricter measure or response for this capability; absent means the scenario as written"}
+          openQuestions:
+            type: array
+            description: "an unknown fact is a question here, never a guess in a story"
+            items:
+              type: object
+              required: [id, question]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^Q-[0-9]+$"}
+                question: {type: string, minLength: 1}
+                resolution: {type: string}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"

@@ -782,3 +782,53 @@ spec:
       - {name: My Claims View, informs: [Employee], updatedBy: [Claim Submitted, Claim Approved, Claim Rejected], fields: [claim has total]}
       - {name: Export Status View, informs: [Finance operator], updatedBy: [Claim Exported, Claim Paid], fields: [claim has total]}
     externalSystems: []   # the Accounting ledger lives in the acc context; no edge of its own reaches into exp
+---
+# The Spec of CAP-1. Every command, event and read model is the DomainModel's, every rule BR-n, every quality QS-n.
+apiVersion: sdd.persimmon.ai/v1
+kind: Spec
+metadata: {name: submit-a-claim.r1}
+spec:
+  identity: {id: submit-a-claim, revision: 1}
+  content:
+    title: Submit a claim
+    prd: expense-claims
+    capability: CAP-1
+    architecture: expense-claims-architecture
+    domainModel: expenses-model
+    stories:
+      - id: US-1
+        actor: employee
+        want: build a claim from claim lines and attach a receipt to each line that needs one
+        benefit: the claim is complete before anyone else sees it (G-2)
+        commands: [Draft Claim, Attach Receipt]
+        events: [Claim Drafted, Receipt Attached]
+        acceptance:
+          - {id: AC-1, pattern: event-driven, statement: "When the employee adds a claim line, the system shall record its amount in EUR, its date and its category."}
+          - {id: AC-2, pattern: event-driven, statement: "When the employee attaches a receipt to a claim line, the system shall show the receipt on that line.", rules: [BR-2]}
+          - {id: AC-3, pattern: state-driven, statement: "While a claim line of 25 EUR or more has no receipt and its category is not per diem, the system shall mark the line as needing a receipt.", rules: [BR-2]}
+      - id: US-2
+        actor: employee
+        want: submit a claim and learn at once which line and which rule hold it back
+        benefit: a claim that reaches an approver never comes back for paperwork (G-2)
+        commands: [Submit Claim]
+        events: [Claim Submitted, Submission Refused]
+        acceptance:
+          - {id: AC-4, pattern: event-driven, statement: "When the employee submits a claim whose claim lines all honour BR-2 and BR-3, the system shall record the claim as submitted with the submission date.", rules: [BR-2, BR-3]}
+          - {id: AC-5, pattern: event-driven, statement: "When the employee submits a claim, the system shall record as its approver the one Identity reports for the employee on the submission date.", rules: [BR-1]}
+          - {id: AC-6, pattern: unwanted-behaviour, statement: "If a claim line breaks BR-2 or BR-3, then the system shall refuse the submission and name every such line with the rule it breaks.", rules: [BR-2, BR-3]}
+          - {id: AC-7, pattern: unwanted-behaviour, statement: "If the submission is refused, then the system shall keep the claim and every claim line and receipt unchanged.", rules: []}
+      - id: US-3
+        actor: employee
+        want: see each claim of mine with its state
+        benefit: no mail to the approver asking where a claim is (G-1)
+        readModels: [My Claims View]
+        events: [Claim Submitted]
+        acceptance:
+          - {id: AC-8, pattern: ubiquitous, statement: "The system shall list the employee's own claims with each claim's total in EUR and whether it is submitted."}
+          - {id: AC-9, pattern: unwanted-behaviour, statement: "If an employee opens another employee's claim, then the system shall refuse and log the attempt.", rules: []}
+    qualities:
+      - {scenario: QS-1}
+      - {scenario: QS-3, delta: "a draft claim is refused to other employees as a submitted one is"}
+    openQuestions:
+      - id: Q-1
+        question: After a refused submission, may the employee edit the refused lines in place, or is the refusal the end of that claim and a new draft starts?
