@@ -29,6 +29,8 @@ export function serveStatic(dir: string, path: string, res: ServerResponse): boo
   if (file !== base && !file.startsWith(base + sep)) return false // ../ out of the tool
   if (!existsSync(file) || !statSync(file).isFile()) return false
   res.writeHead(200, { 'content-type': types[extname(file)] ?? 'application/octet-stream' })
-  createReadStream(file).pipe(res)
+  createReadStream(file)
+    .on('error', () => res.destroy()) // a read that fails mid-way must not take the process down
+    .pipe(res)
   return true
 }

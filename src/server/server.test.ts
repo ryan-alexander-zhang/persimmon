@@ -1,4 +1,5 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { request } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -71,6 +72,24 @@ describe('persimmon ui server', () => {
     expect((await get(`/api/artifacts/default/${KIND}/missing`)).status).toBe(404)
     expect((await get(`/api/artifacts/default/${KIND}/missing/1`)).status).toBe(404)
     expect((await get('/api/nothing')).status).toBe(404)
+  })
+
+  it('keeps other origins out and refuses what it cannot parse', async () => {
+    // fetch drops a Host header, so the rebound request goes through node:http
+    const rebound = await new Promise<{ status: number; code: string }>((resolve) => {
+      request({ host: '127.0.0.1', port: server.port, path: '/api/kinds', headers: { host: `evil.example:${server.port}` } }, (res) => {
+        let text = ''
+        res.on('data', (c) => (text += c))
+        res.on('end', () => resolve({ status: res.statusCode!, code: JSON.parse(text).error.code }))
+      }).end()
+    })
+    expect(rebound).toEqual({ status: 403, code: 'forbidden' })
+    const plain = await fetch(url(`/api/artifacts/default/${KIND}/x`), { method: 'POST', headers: { 'content-type': 'text/plain' }, body: JSON.stringify({ content: model('x') }) })
+    expect([plain.status, (await plain.json()).error.code]).toEqual([415, 'unsupported_media_type'])
+    const escaped = await get('/api/artifacts/default/%zz/x')
+    expect([escaped.status, (await escaped.json()).error.code]).toEqual([400, 'bad_request'])
+    const top = await get('/%')
+    expect([top.status, (await top.json()).error.code]).toEqual([400, 'bad_request'])
   })
 
   it('serves a tool, falls back to its index.html, and redirects the root', async () => {

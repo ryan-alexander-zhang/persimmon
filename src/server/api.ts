@@ -16,16 +16,33 @@ class HttpError extends Error {
   }
 }
 
+const maxBody = 16 * 1024 * 1024
+
 /** Answers one `/api/...` request. */
 export async function api(engine: Engine, req: IncomingMessage, res: ServerResponse): Promise<void> {
   try {
+    // a page on any origin can reach loopback: a DNS-rebound host reads the Store, a cross-site no-cors POST writes it;
+    // the Host header and a JSON content type (which forces a CORS preflight no page passes) keep it to this user's tabs
+    const port = (req.socket.address() as { port?: number }).port
+    const host = req.headers.host ?? ''
+    if (host !== `127.0.0.1:${port}` && host !== `localhost:${port}`) throw new HttpError(403, 'forbidden', `host ${host} is not this server`)
+    if (req.method === 'POST' && !/^application\/json\b/.test(req.headers['content-type'] ?? '')) throw new HttpError(415, 'unsupported_media_type', 'POST needs content-type application/json')
     const url = new URL(req.url ?? '/', 'http://127.0.0.1')
-    const path = url.pathname.split('/').filter(Boolean).map(decodeURIComponent).slice(1) // after `api`
+    const path = decode(url.pathname).split('/').filter(Boolean).slice(1) // after `api`
     const { status, body } = await route(engine, req, path, url)
     send(res, status, body)
   } catch (e) {
     const { status, code } = e instanceof HttpError ? e : { status: 500, code: 'internal' }
     send(res, status, { error: { code, message: (e as Error).message } })
+  }
+}
+
+/** A malformed escape is the caller's error, not ours. */
+export function decode(path: string): string {
+  try {
+    return decodeURIComponent(path)
+  } catch {
+    throw new HttpError(400, 'bad_request', `path ${path}: malformed escape`)
   }
 }
 
@@ -103,7 +120,12 @@ function throwNotFound(kind: string, namespace: string, id: string): never {
 
 async function body(req: IncomingMessage): Promise<Record<string, unknown>> {
   const chunks: Buffer[] = []
-  for await (const c of req) chunks.push(c as Buffer)
+  let size = 0
+  for await (const c of req) {
+    size += (c as Buffer).length
+    if (size > maxBody) throw new HttpError(413, 'payload_too_large', `body over ${maxBody} bytes`)
+    chunks.push(c as Buffer)
+  }
   try {
     return JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}') as Record<string, unknown>
   } catch (e) {
