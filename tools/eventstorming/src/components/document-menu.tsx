@@ -1,6 +1,6 @@
 import { Download, FolderOpen, FolderPlus, Menu, Save, Upload } from "lucide-react";
 import { type ChangeEvent, useRef, useState } from "react";
-import { currentModel, parseImport, save, toResourceYaml } from "@/lib/document";
+import { currentModel, exportFile, parseImport, save } from "@/lib/document";
 import { fromModel } from "@/lib/dsl/serialize";
 import { useESStore } from "@/lib/store/store";
 
@@ -30,12 +30,11 @@ export function DocumentMenu() {
   };
 
   const onExport = () => {
-    const name = doc?.id ?? "event-storming";
-    const yaml = toResourceYaml(name, doc?.revision ?? null, currentModel());
-    const url = URL.createObjectURL(new Blob([yaml], { type: "application/yaml" }));
+    const file = exportFile(doc?.id ?? "event-storming", doc?.revision ?? null, currentModel());
+    const url = URL.createObjectURL(new Blob([file.yaml], { type: "application/yaml" }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${name}.r${doc?.revision ?? 1}.yaml`;
+    a.download = file.name;
     a.click();
     URL.revokeObjectURL(url);
     setOpen(false);
@@ -69,7 +68,8 @@ export function DocumentMenu() {
       <button
         type="button"
         className="flex items-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-800 px-2.5 py-1 text-xs font-medium text-white hover:bg-zinc-700 disabled:opacity-50"
-        disabled={saving}
+        disabled={saving || doc?.readOnly}
+        title={doc?.readOnly ? "An older revision is read-only — edit it as a new revision" : undefined}
         onClick={() => void onSave()}
       >
         <Save size={14} /> {saving ? "Saving…" : "Save"}

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { RELATION_STYLE, type RelationTier } from "./edge-style";
-import { RELATION_TYPES } from "./relations";
+import { relations } from "./grammar";
+
+const RELATION_TYPES = relations.map((r) => r.relation);
 
 describe("relation edge styling (RA1)", () => {
   it("styles every relation type with a valid colour and positive width", () => {

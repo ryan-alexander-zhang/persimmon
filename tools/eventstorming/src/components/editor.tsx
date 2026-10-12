@@ -26,6 +26,7 @@ import { ElementNode, routeHandles } from "@/components/nodes/element-node";
 import { Picker } from "@/components/picker";
 import { PropertyPanel } from "@/components/property-panel";
 import { Toolbar } from "@/components/toolbar";
+import { ApiError } from "@/lib/api";
 import { open as openRevision, readLocation } from "@/lib/document";
 import { RELATION_STYLE } from "@/lib/eventstorming/edge-style";
 import { ELEMENT_DEFINITIONS, ELEMENT_TYPES, type ElementType } from "@/lib/eventstorming/elements";
@@ -236,9 +237,18 @@ function useRouting() {
       return;
     }
     let alive = true;
-    void openRevision(namespace, id, revision).catch(() => {
-      // No such revision: an id nobody has saved yet is an empty board, not an error.
-      if (alive) useESStore.getState().newDocument(namespace, id);
+    void openRevision(namespace, id, revision).catch((e: unknown) => {
+      if (!alive) return;
+      const s = useESStore.getState();
+      // An id nobody has saved yet is an empty board, not an error — but only for
+      // `latest`: a missing numbered revision, or any other failure, is one, and
+      // an empty board over it would invite a save that is not its next revision.
+      if (revision === "latest" && e instanceof ApiError && e.code === "not_found") {
+        s.newDocument(namespace, id);
+        return;
+      }
+      s.closeDocument();
+      s.setLoadError(e instanceof Error ? e.message : `${id} could not be opened.`);
     });
     return () => {
       alive = false;
@@ -246,6 +256,17 @@ function useRouting() {
   }, [namespace, id, revision]);
 
   return location;
+}
+
+/** Unsaved edits live only in the page: the browser asks before leaving with them. */
+function useUnsavedGuard() {
+  const dirty = useESStore((s) => s.doc?.dirty ?? false);
+  useEffect(() => {
+    if (!dirty) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [dirty]);
 }
 
 function Canvas() {
@@ -276,6 +297,7 @@ function Canvas() {
   const contextMapOpen = useESStore((s) => s.contextMapOpen);
   const revisionsOpen = useESStore((s) => s.revisionsOpen);
   const filter = useESStore((s) => s.filter);
+  const readOnly = useESStore((s) => s.doc?.readOnly ?? false);
   const setEventOrder = useESStore((s) => s.setEventOrder);
   const toggleIsolate = useESStore((s) => s.toggleIsolate);
   // Visible element types = the Level filter, further narrowed by semantic zoom.
@@ -792,7 +814,8 @@ function Canvas() {
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             defaultEdgeOptions={defaultEdgeOptions}
-            nodesDraggable
+            nodesDraggable={!readOnly}
+            nodesConnectable={!readOnly}
             deleteKeyCode={null}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
@@ -862,6 +885,7 @@ export function Editor() {
   // whether a board renders at all.
   const location = useRouting();
   useDirtyTracking();
+  useUnsavedGuard();
   const doc = useESStore((s) => s.doc);
   const pickerOpen = useESStore((s) => s.pickerOpen);
   return (

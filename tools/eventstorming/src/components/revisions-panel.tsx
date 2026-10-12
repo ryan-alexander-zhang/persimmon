@@ -10,7 +10,9 @@ import { useESStore } from "@/lib/store/store";
 export function RevisionsPanel() {
   const doc = useESStore((s) => s.doc);
   const toggleRevisions = useESStore((s) => s.toggleRevisions);
+  const editAsNewRevision = useESStore((s) => s.editAsNewRevision);
   const [revisions, setRevisions] = useState<number[]>([]);
+  const latest = revisions[0];
   const [error, setError] = useState<string | null>(null);
 
   const namespace = doc?.namespace;
@@ -45,6 +47,17 @@ export function RevisionsPanel() {
         </button>
       </div>
 
+      {/* Editing an older revision: the board keeps its content, and the save goes
+          onto the latest revision — the only base the API accepts. */}
+      {doc?.readOnly && latest !== undefined && (
+        <button
+          type="button"
+          className="m-3 rounded-md border border-zinc-800 bg-zinc-800 px-2.5 py-1 text-xs font-medium text-white hover:bg-zinc-700"
+          onClick={() => editAsNewRevision(latest)}
+        >
+          Edit as new revision
+        </button>
+      )}
       {error && (
         <p className="m-3 rounded bg-red-50 px-2 py-1 text-[11px] text-red-600" role="alert">
           {error}

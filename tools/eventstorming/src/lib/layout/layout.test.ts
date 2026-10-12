@@ -6,7 +6,6 @@ import type { ESEdge, ESNode } from "@/lib/store/types";
 import {
   BAND_H,
   COL_W,
-  computeContextBoxes,
   computeIsolateLayout,
   computeLayout,
   STACK_H,
@@ -203,21 +202,6 @@ describe("layout engine (RT2)", () => {
     // distinct columns, one shared band row — never stacked (issue-00007).
     expect(xs[0]).not.toBe(xs[1]);
     expect(ys[0]).toBe(ys[1]);
-  });
-
-  it("derives a context box from its events' columns; empty contexts collapse to the origin [us-00015-AC-3.1]", () => {
-    const ev = (id: string, order: number): ESNode => ({
-      id,
-      type: "domainEvent",
-      position: { x: 0, y: 0 },
-      data: { label: id, context: "A", order },
-    });
-    const boxes = computeContextBoxes([ev("e0", 0), ev("e1", 1)], [], contexts); // B empty
-    const a = boxes.find((b) => b.id === "A")!;
-    const b = boxes.find((b) => b.id === "B")!;
-    expect(a.x).toBe(0); // spans its events' columns 0..1
-    expect(a.width).toBeGreaterThan(0);
-    expect(b.x).toBeGreaterThan(a.x); // empty context parks after the timeline
   });
 
   it("collapses bands hidden at a coarse level so visible bands sit adjacent [issue-00009]", () => {

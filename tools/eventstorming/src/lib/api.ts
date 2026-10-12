@@ -4,7 +4,7 @@
 
 import type { Model } from "@/lib/eventstorming/grammar";
 
-export const KIND = "eventstormings.sdd.persimmon.ai";
+const KIND = "eventstormings.sdd.persimmon.ai";
 
 export interface ArtifactRef {
   apiVersion: string;
@@ -66,14 +66,17 @@ export const getRevision = (
   rev: number | "latest" = "latest",
 ): Promise<Resource> => call(`${base(namespace, id)}/${rev}`);
 
-/** Publish a new revision of `id` from `content`; answers the revision created. */
+/** Publish a new revision of `id` from `content`; answers the revision created.
+ *  `from` is the revision the content was edited from — the API refuses with 409
+ *  `conflict` unless it is still the latest. Omitted for an artifact with none. */
 export const saveRevision = (
   namespace: string,
   id: string,
   content: Model,
+  from?: number,
 ): Promise<ArtifactRef> =>
   call(base(namespace, id), {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({ content, base: from }),
   });

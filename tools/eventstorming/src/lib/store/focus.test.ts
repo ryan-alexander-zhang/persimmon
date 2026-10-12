@@ -4,7 +4,6 @@ import {
   computeContextNeighborhood,
   computeFocus,
   computeNeighborhood,
-  focusSource,
 } from "./focus";
 import type { ESEdge, ESNode } from "./types";
 
@@ -135,19 +134,6 @@ describe("computeNeighborhood (TC1)", () => {
     const n = computeNeighborhood("lonely", chain, { depth: 3, direction: "both" });
     expect([...n.nodeIds]).toEqual(["lonely"]);
     expect(n.edgeIds.size).toBe(0);
-  });
-});
-
-describe("focusSource (RA3)", () => {
-  it("prefers the hovered node over the selected one", () => {
-    expect(focusSource("h", "s")).toBe("h");
-  });
-  it("falls back to the selected node when nothing is hovered", () => {
-    expect(focusSource(null, "s")).toBe("s");
-  });
-  it("is null when neither is set", () => {
-    expect(focusSource(null, null)).toBe(null);
-    expect(focusSource(undefined, undefined)).toBe(null);
   });
 });
 

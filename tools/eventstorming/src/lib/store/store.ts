@@ -82,6 +82,10 @@ export interface OpenDocument {
   name: string;
   /** The revision loaded, or null for a model that has never been saved. */
   revision: number | null;
+  /** The revision the next Save declares as its base — the one loaded, or the
+   *  latest when an older revision was taken on with `editAsNewRevision`. Null
+   *  for a model that has never been saved. */
+  base: number | null;
   /** An older revision, opened to read. Editing it is saving a new revision. */
   readOnly: boolean;
   /** Edited since the revision it was loaded from. */
@@ -123,6 +127,9 @@ export interface ESState {
   doc: OpenDocument | null;
   /** Why the last save did not land, or null. Surfaced rather than swallowed. */
   saveError: string | null;
+  /** Why the revision in the URL could not be opened, or null. There is no board
+   *  to carry it, so the picker shows it. */
+  loadError: string | null;
   /** Picker (open / new model) visibility. Forced open whenever no artifact is
    *  open — with no board there is nothing else to show. View-only. */
   pickerOpen: boolean;
@@ -240,7 +247,7 @@ export interface ESState {
   clear: () => void;
 
   /** Load a revision onto the board: its model replaces whatever was there. */
-  openDocument: (doc: Omit<OpenDocument, "name" | "dirty">, model: Model) => void;
+  openDocument: (doc: Omit<OpenDocument, "name" | "dirty" | "base">, model: Model) => void;
   /** Start an empty model under `namespace`/`id`; nothing is written until Save. */
   newDocument: (namespace: string, id: string) => void;
   closeDocument: () => void;
@@ -248,7 +255,11 @@ export interface ESState {
   markDirty: () => void;
   /** Record that the board now *is* revision `revision`. */
   markSaved: (revision: number) => void;
+  /** Take an older revision on for editing: the next Save forks from it onto
+   *  `base`, which has to be the latest revision or the API refuses it. */
+  editAsNewRevision: (base: number) => void;
   setSaveError: (message: string | null) => void;
+  setLoadError: (message: string | null) => void;
   openPicker: () => void;
   closePicker: () => void;
 }
@@ -279,6 +290,7 @@ const initializer: StateCreator<ESState> = (set, get) => ({
   contextMapOpen: false,
   doc: null,
   saveError: null,
+  loadError: null,
   pickerOpen: false,
   revisionsOpen: false,
 
@@ -611,16 +623,26 @@ const initializer: StateCreator<ESState> = (set, get) => ({
     get().setModel(fromModel(model));
     set({
       saveError: null,
+      loadError: null,
       pickerOpen: false,
-      doc: { ...doc, name: model.meta.name, dirty: false },
+      doc: { ...doc, base: doc.revision, name: model.meta.name, dirty: false },
     });
   },
   newDocument: (namespace, id) => {
     get().clear();
     set({
       saveError: null,
+      loadError: null,
       pickerOpen: false,
-      doc: { namespace, id, name: id, revision: null, readOnly: false, dirty: false },
+      doc: {
+        namespace,
+        id,
+        name: id,
+        revision: null,
+        base: null,
+        readOnly: false,
+        dirty: false,
+      },
     });
   },
   closeDocument: () => {
@@ -637,14 +659,66 @@ const initializer: StateCreator<ESState> = (set, get) => ({
   markSaved: (revision) => {
     const doc = get().doc;
     if (!doc) return;
-    set({ doc: { ...doc, revision, readOnly: false, dirty: false }, saveError: null });
+    set({
+      doc: { ...doc, revision, base: revision, readOnly: false, dirty: false },
+      saveError: null,
+    });
+  },
+  // The board keeps the older revision's content and number — the fork is what
+  // `base` says: the save goes onto the latest, as latest + 1.
+  editAsNewRevision: (base) => {
+    const doc = get().doc;
+    if (!doc) return;
+    set({ doc: { ...doc, base, readOnly: false }, saveError: null });
   },
   setSaveError: (message) => set({ saveError: message }),
+  setLoadError: (message) => set({ loadError: message }),
   openPicker: () => set({ pickerOpen: true }),
   closePicker: () => set({ pickerOpen: false }),
 });
 
-export const useESStore = create<ESState>()(initializer);
+// An older revision is read-only (25-ui.md): everything that would change the
+// model is a no-op until "edit as new revision" takes it on. One gate here rather
+// than a guard in every panel. `setModel` is out of it — loading a revision runs
+// through it — and so are the React Flow change handlers, which also carry
+// selection; dragging and connecting are switched off on the canvas instead.
+const MODEL_ACTIONS = [
+  "addContext",
+  "renameContext",
+  "setContextClassification",
+  "setContextBigBallOfMud",
+  "addContextRelationship",
+  "setContextRelationshipType",
+  "removeContextRelationship",
+  "removeContext",
+  "addNode",
+  "updateNodeData",
+  "removeNode",
+  "addHotspot",
+  "setHotspotState",
+  "addOpportunity",
+  "connect",
+  "removeEdge",
+  "setEventOrder",
+  "nudgeEvent",
+  "moveEventToEnd",
+  "reassignContext",
+  "converge",
+] as const satisfies readonly (keyof ESState)[];
+
+type Action = (...args: never[]) => unknown;
+
+const readOnlyGuarded: StateCreator<ESState> = (set, get, api) => {
+  const state = initializer(set, get, api);
+  const actions = state as unknown as Record<string, Action>;
+  for (const name of MODEL_ACTIONS) {
+    const action = actions[name] as Action;
+    actions[name] = (...args) => (get().doc?.readOnly ? undefined : action(...args));
+  }
+  return state;
+};
+
+export const useESStore = create<ESState>()(readOnlyGuarded);
 
 /** Isolated store instance (for tests). */
-export const createESStore = () => createStore<ESState>()(initializer);
+export const createESStore = () => createStore<ESState>()(readOnlyGuarded);

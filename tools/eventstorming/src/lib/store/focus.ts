@@ -22,15 +22,6 @@ export interface FocusEdge {
   target: string;
 }
 
-/** The node that drives the focus set: a hovered node takes precedence over the
- *  selected one, so pointing at a node previews its chain without changing the
- *  selection. */
-export function focusSource(
-  hoveredId: string | null | undefined,
-  selectedId: string | null | undefined,
-): string | null {
-  return hoveredId ?? selectedId ?? null;
-}
 
 export type IsolateDirection = "up" | "down" | "both";
 

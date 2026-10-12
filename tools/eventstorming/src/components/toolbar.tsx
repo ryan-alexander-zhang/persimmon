@@ -65,11 +65,17 @@ export function Toolbar() {
         <span className="shrink-0 text-[11px] text-zinc-500">
           {doc?.revision === null ? "unsaved" : `r${doc?.revision}`}
         </span>
-        {doc?.readOnly && (
+        {doc?.readOnly ? (
           <span className="shrink-0 rounded bg-amber-50 px-1 text-[11px] text-amber-700">
             older revision
           </span>
-        )}
+        ) : doc && doc.base !== doc.revision ? (
+          // Taken on with "edit as new revision": the board is the older revision,
+          // the save goes onto the latest.
+          <span className="shrink-0 rounded bg-amber-50 px-1 text-[11px] text-amber-700">
+            forks from r{doc.revision}
+          </span>
+        ) : null}
         {doc?.dirty && (
           <span
             className="shrink-0 rounded bg-blue-50 px-1 text-[11px] text-blue-700"

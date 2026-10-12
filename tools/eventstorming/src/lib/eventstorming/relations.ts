@@ -7,8 +7,6 @@ import type { ElementType } from "./elements";
 
 export type { RelationType };
 
-export const RELATION_TYPES = relations.map((r) => r.relation);
-
 export interface ConnectionRule {
   relation: RelationType;
   sources: ElementType[];
@@ -20,7 +18,7 @@ export interface ConnectionRule {
 const expand = (names: string[]): ElementType[] =>
   names.includes("*") ? [...elements] : (names as ElementType[]);
 
-export const CONNECTION_RULES: ConnectionRule[] = relations.map((r) => ({
+const CONNECTION_RULES: ConnectionRule[] = relations.map((r) => ({
   relation: r.relation,
   sources: expand(r.sources),
   targets: expand(r.targets),

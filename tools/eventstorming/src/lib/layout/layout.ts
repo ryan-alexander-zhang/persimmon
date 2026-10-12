@@ -243,28 +243,3 @@ export function computeBandTops(
   const { place } = computePlacement(nodes, edges, contexts);
   return computeRows(nodes, place, level).bandTops;
 }
-
-/** Flow-space horizontal box of each context, derived from the columns its member
- *  nodes occupy on the global timeline (decision-00005). Contexts may overlap in
- *  x when they interleave in time; an empty context collapses to the origin. */
-export function computeContextBoxes(
-  nodes: ESNode[],
-  edges: ESEdge[],
-  contexts: Context[],
-): Array<{ id: string; x: number; width: number }> {
-  const { place, ctxIds } = computePlacement(nodes, edges, contexts);
-  let maxCol = -1;
-  for (const p of place.values()) if (p.col > maxCol) maxCol = p.col;
-  let empty = 0;
-  return ctxIds.map((id) => {
-    const cols = [...place.values()].filter((p) => p.ctx === id).map((p) => p.col);
-    // An empty context has no timeline span; park it in its own header slot after
-    // the timeline so its header stays visible and clickable (never overlapping).
-    if (cols.length === 0) {
-      return { id, x: (maxCol + 1 + empty++) * COL_W, width: NODE_W };
-    }
-    const min = Math.min(...cols);
-    const max = Math.max(...cols);
-    return { id, x: min * COL_W, width: (max - min + 1) * COL_W - (COL_W - NODE_W) };
-  });
-}

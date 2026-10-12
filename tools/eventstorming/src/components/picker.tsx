@@ -13,6 +13,7 @@ export function Picker({ namespace }: { namespace: string }) {
   const newDocument = useESStore((s) => s.newDocument);
   const setModel = useESStore((s) => s.setModel);
   const closePicker = useESStore((s) => s.closePicker);
+  const loadError = useESStore((s) => s.loadError);
   const [artifacts, setArtifacts] = useState<ArtifactRef[]>([]);
   const [id, setId] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -28,10 +29,18 @@ export function Picker({ namespace }: { namespace: string }) {
     };
   }, [namespace]);
 
+  // A new model is a new artifact: an id already in the namespace would publish a
+  // revision of someone else's model, not create one.
+  const exists = (candidate: string) => artifacts.some((a) => a.id === candidate);
+
   const create = () => {
     const trimmed = id.trim();
     if (!isDnsLabel(trimmed)) {
       setError("An id is a DNS label: lower-case letters, digits and dashes.");
+      return;
+    }
+    if (exists(trimmed)) {
+      setError(`"${trimmed}" already exists — open it from the list to edit it.`);
       return;
     }
     setError(null);
@@ -51,6 +60,10 @@ export function Picker({ namespace }: { namespace: string }) {
       if (!doc) {
         if (!isDnsLabel(target)) {
           setError(`"${target}" is not a usable id — name the model first, then import into it.`);
+          return;
+        }
+        if (exists(target)) {
+          setError(`"${target}" already exists — open it, then import into it.`);
           return;
         }
         newDocument(namespace, target);
@@ -139,9 +152,9 @@ export function Picker({ namespace }: { namespace: string }) {
           <Upload size={14} /> Import a model file…
         </button>
 
-        {error && (
+        {(error ?? loadError) && (
           <p className="mt-2 rounded bg-red-50 px-2 py-1 text-[11px] text-red-600" role="alert">
-            {error}
+            {error ?? loadError}
           </p>
         )}
         <input

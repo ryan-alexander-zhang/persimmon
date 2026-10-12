@@ -3,7 +3,7 @@
 // Resource envelope the engine reads.
 
 import YAML from "yaml";
-import { type ArtifactRef, getRevision, saveRevision } from "@/lib/api";
+import { ApiError, type ArtifactRef, getRevision, saveRevision } from "@/lib/api";
 import { stripCreatedAt, toModel } from "@/lib/dsl/serialize";
 import type { Model } from "@/lib/eventstorming/grammar";
 import { useESStore } from "@/lib/store/store";
@@ -71,31 +71,65 @@ export function currentModel(): Model {
   );
 }
 
-/** Publish the board as the next revision and move the URL onto it. */
+/** Publish the board as the next revision and move the URL onto it. The save
+ *  declares the revision it was edited from, so the API refuses it when someone
+ *  else published in the meantime rather than writing over them. */
 export async function save(): Promise<ArtifactRef> {
   const doc = useESStore.getState().doc;
   if (!doc) throw new Error("no open model");
-  const ref = await saveRevision(doc.namespace, doc.id, currentModel());
+  const ref = await saveRevision(
+    doc.namespace,
+    doc.id,
+    currentModel(),
+    doc.base ?? undefined,
+  ).catch((e: unknown) => {
+    if (e instanceof ApiError && e.code === "conflict") {
+      const what =
+        doc.base === null
+          ? "This model already has revisions"
+          : `r${doc.base} is no longer the latest revision`;
+      throw new Error(`${what} — reload the latest revision, then save again.`);
+    }
+    throw e;
+  });
   useESStore.getState().markSaved(ref.revision);
   navigate(doc.namespace, doc.id, ref.revision);
   return ref;
 }
 
-/** The Resource envelope `persimmon create` reads back (00-resource.md). */
-export function toResourceYaml(id: string, revision: number | null, content: Model): string {
-  const n = revision ?? 1;
-  return YAML.stringify({
-    apiVersion: "sdd.persimmon.ai/v1",
-    kind: "EventStorming",
-    metadata: { name: `${id}.r${n}` },
-    spec: { identity: { id, revision: n }, content },
-  });
+/** The file an export downloads: the Resource envelope `persimmon create` reads
+ *  back (00-resource.md). It carries the *next* revision — `revision` is the one
+ *  on the board — so creating the file stores it as that next revision. */
+export function exportFile(
+  id: string,
+  revision: number | null,
+  content: Model,
+): { name: string; yaml: string } {
+  const n = (revision ?? 0) + 1;
+  return {
+    name: `${id}.r${n}.yaml`,
+    yaml: YAML.stringify({
+      apiVersion: "sdd.persimmon.ai/v1",
+      kind: "EventStorming",
+      metadata: { name: `${id}.r${n}` },
+      spec: { identity: { id, revision: n }, content },
+    }),
+  };
 }
 
 /** The model inside an imported file: a Resource (YAML or JSON) or a bare old
  *  `.eventstorming.json`. JSON is YAML, so one parser reads both. */
 export function parseImport(text: string): Model {
-  const parsed: unknown = YAML.parse(text);
-  const spec = (parsed as { spec?: { content?: unknown } } | null)?.spec;
-  return stripCreatedAt(spec?.content ?? parsed) as Model;
+  const parsed = YAML.parse(text) as Record<string, unknown> | null;
+  const kind = parsed?.kind;
+  if (typeof kind === "string" && kind !== "EventStorming") {
+    throw new Error(`That file is a Resource of kind ${kind}, not EventStorming.`);
+  }
+  const spec = parsed?.spec as { content?: unknown } | undefined;
+  const model = (spec?.content ?? parsed) as Record<string, unknown> | null;
+  const meta = model?.meta;
+  if (model?.version !== "4.0" || typeof meta !== "object" || meta === null || Array.isArray(meta)) {
+    throw new Error("That file is not a DSL 4.0 model.");
+  }
+  return stripCreatedAt(model) as Model;
 }
