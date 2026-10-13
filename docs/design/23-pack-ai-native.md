@@ -82,12 +82,12 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
 | in a `Spec`: `capability` is a `CAP-n` of `prd`; `role` is a Prd user; `commands`, `events`, `readModels` resolve in the DomainModel; `stories[].requirements` resolve in the Spec and every `FR-n` is covered by a story; `requirements[].rules` resolve and are active; every `BR-n` the Prd capability lists is enforced by a requirement; each `statement` opens with its pattern's keyword (`The`, `When`, `While`, `If`, `Where`; `complex` opens with `While`, `When` or `If` and holds two of those clauses before `shall`); `qualities[].scenario` resolves in `architecture`; `domainModel.context` against the capability's `context` is deferred (`27-spec-process.md`) | `spec-consistency` (`27-spec-process.md`) |
 | an `Adr`'s `drivers` resolve in the revisions its `provenance.inputs` pin (a Prd and rules for a baseline Adr, an Architecture later); the Adr carries no artifact id of its own for them | Validator later |
 | `goals` give direction without a number; `successCriteria` carry the number; `successCriteria` and `capabilities` name no technology, architecture or task | author Prompt |
-| a success criterion is an outcome measured in production over time, decided by measurement; a behaviour one test decides on one run is an acceptance criterion and belongs to a Spec story; a capability no success criterion names is reported | author Prompt; Validator later |
+| a success criterion is an outcome measured in production over time, decided by measurement; a behaviour one test decides on one run is an acceptance scenario and belongs to a Spec story; a capability no success criterion names is reported | author Prompt; Validator later |
 
 ## Decisions
 
 - Two levels, not one: a `Prd` per product or initiative (why, for whom, capabilities), a `Spec`
-  per capability (stories, EARS acceptance, cited qualities). spec-kit's `spec.md` is the second;
+  per capability (stories, requirements, acceptance scenarios, cited qualities). spec-kit's `spec.md` is the second;
   BMAD's PRD mixes both. A PRD revises rarely and is judged on goals and scope; a spec revises per
   feature and is judged on completeness and testability. A brownfield change is a Spec revision.
 - `BusinessRules` is a kind of its own, one per `BoundedContext`: rules outlive any document, a
@@ -106,7 +106,7 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
   overlap. Rows and rules cite each other one to one. The sentence and the cells duplicate on purpose.
   A decision written as a constraint ("must be approved without a decision") named no violation; the
   reader and the Validator need "pick" and "stop" told apart. Found in design review.
-- Success criteria live in the `Prd` only, acceptance criteria in the `Spec` only. spec-kit keeps both
+- Success criteria live in the `Prd` only, acceptance scenarios in the `Spec` only. spec-kit keeps both
   in `spec.md`; here an outcome (users, time, a number from production) and a behaviour (one story, one
   test, one run) are judged by different people at different times, so they never share a list. The
   chain is SC ← CAP ← Spec ← US ← AC; `successCriteria[].capabilities` is the only explicit link.
@@ -121,7 +121,7 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
 - Two levels of design. The `Architecture` (arc42, once per product) comes right after the `Prd`,
   before any `Spec`: constraints, quality scenarios and building blocks are the frame a Spec is written
   inside, and a Spec writes only its deltas to them. A capability `Design` comes after its Spec and
-  holds the data schema, API and runtime detail, so acceptance criteria stay storage-free. arc42's
+  holds the data schema, API and runtime detail, so acceptance scenarios stay storage-free. arc42's
   activities have no fixed order; here iteration is a revision. Found in design review.
 - `Adr` is a kind of its own, one artifact per decision, not arc42's section 9 as a list: a decision
   outlives the document that first applied it, Architecture and every Design share it, and a status
@@ -159,7 +159,8 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
   stories are the user's side (Connextra: `role`, `goal`, `benefit`) and cover requirements by `FR-n`;
   requirements are the system's side (EARS, one sentence over "the system", never a building block)
   and enforce rules by `BR-n`; acceptance scenarios (Given/When/Then with concrete values) belong to
-  a story and cite nothing. An earlier draft had EARS criteria under stories and no `FR-n`, then
+  a story and cite nothing; `AC-n` is numbered across the Spec, not per story, so a Design or a
+  test cites one id. An earlier draft had EARS criteria under stories and no `FR-n`, then
   criteria citing `FR-n` (the classic traceability matrix): the first merged two kinds of knowledge,
   the second put a link on the wrong object. Kiro, spec-kit and BMAD each settle on one of the three
   forms; this takes all three with one link each. Found in design review.
@@ -172,6 +173,10 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
   truth means one definition, not one citation. Relations are of three classes: ownership (a Prd owns
   its capabilities, a Spec its stories, requirements and scenarios), normative dependency (governed
   by, enforces, covers), verification (a TestCase verifies, `91-roadmap.md`). Found in design review.
+- Writing the first Spec found two Prd gaps its own review missed: the Glossary term says a claim line's
+  amount is in the currency paid while the fact type says EUR, and CAP-1 refuses an incomplete submission
+  while CAP-2 and BR-9 route an incomplete claim back. Both stay open questions of the Spec, not guesses;
+  the cheapest Prd check is the Spec after it. Found in audit.
 - Group `sdd.persimmon.ai`, kind `Prd`: the demo pack's `ProductRequirement` and example06's
   `EarsPrd` keep their names in `engineering.persimmon.ai`; no collision.
 

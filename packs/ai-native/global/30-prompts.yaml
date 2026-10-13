@@ -111,7 +111,7 @@ spec:
 
     Labels match exactly: the Validator compares them to the model and refuses a derivation that drifts.
 ---
-# The Spec author's rules (27-spec-process.md): cite, never restate; EARS; one test per criterion; an unknown is a Q-n.
+# The Spec author's rules (27-spec-process.md): cite, never restate; Connextra stories, EARS requirements, Given/When/Then scenarios; an unknown is a Q-n.
 apiVersion: persimmon.ai/v1
 kind: Prompt
 metadata: {name: spec-rules}
@@ -140,6 +140,8 @@ spec:
     - `architecture`: the Architecture's artifact id. `qualities` cite its quality scenarios by `QS-n`; a `delta` only tightens a measure or a response for this capability. No other non-functional text anywhere in the Spec.
     - Prose uses Glossary term names, never aliases.
 
-    Open questions: `Q-n`, sequential from 1. An unknown fact, a contradiction between the inputs, or a name the model lacks is a question here, never a guess in a story or a requirement.
+    Ids: `US-n`, `FR-n`, `AC-n`, `Q-n` each sequential from 1 in document order; a revision keeps every id and fixes in place.
+
+    Open questions: `Q-n`. An unknown fact, a contradiction between the inputs, or a name the model lacks is a question here, never a guess in a story or a requirement.
 
     With `previous` and `feedback` bound, the consistency check refused the last Spec: every finding names an id, a label or a rule; fix those and change nothing else.

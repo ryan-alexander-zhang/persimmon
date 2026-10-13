@@ -498,7 +498,7 @@ _Avoid_: functional requirement (as a different thing), FR text, system requirem
 A **Spec** element `AC-n` under a **Story**: `given`, `when`, `then` with concrete values, decided
 by one test on one run. Not a **TestCase** (roadmap): a scenario says what is accepted, a test case
 how it is verified.
-_Avoid_: acceptance criterion, AC (in prose), test, scenario (alone)
+_Avoid_: acceptance criterion, AC (in prose), test case (for a scenario)
 
 **Spec process**:
 The pack process from a **Prd** capability to its **Spec**: Task `write-spec` under a ReviewLoop whose

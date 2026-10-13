@@ -279,7 +279,7 @@ spec:
   snapshot: "None"
 ---
 # Product requirements: why, for whom, what capabilities, how success is measured. No stories, no requirements,
-# no acceptance criteria, no technology: those are the Spec's, one per capability.
+# no acceptance scenarios, no technology: those are the Spec's, one per capability.
 apiVersion: persimmon.ai/v1
 kind: KindDefinition
 metadata: {name: prds.sdd.persimmon.ai}
@@ -317,14 +317,14 @@ spec:
               properties:
                 id: {type: string, pattern: "^CAP-[0-9]+$"}
                 name: {type: string, minLength: 1}
-                description: {type: string, minLength: 1, description: "one paragraph, no stories, no acceptance criteria"}
+                description: {type: string, minLength: 1, description: "one paragraph, no stories, no acceptance scenarios"}
                 priority: {enum: [P1, P2, P3]}
                 context: {type: string, minLength: 1, description: "artifact id of the BoundedContext the capability lives in"}
                 rules: {type: array, items: {type: string, pattern: "^BR-[0-9]+$"}, description: "BusinessRules ids the capability must honour"}
           successCriteria:
             type: array
             minItems: 1
-            description: "outcomes measured in production over time, each with a number or an observable fact; a story's acceptance criteria are the Spec's"
+            description: "outcomes measured in production over time, each with a number or an observable fact; a story's acceptance scenarios are the Spec's"
             items:
               type: object
               required: [id, statement]
@@ -838,9 +838,10 @@ spec:
   revisioned: true
   snapshot: "None"
 ---
-# Exactly what one capability does: one Spec per CAP-n of a Prd. Stories with EARS acceptance criteria are the only
-# functional statements; every name is the DomainModel's, every rule the BusinessRules', every quality an Architecture
-# scenario. A Spec adds behaviour and cites everything else; it never names a Design or a Plan.
+# Exactly what one capability does: one Spec per CAP-n of a Prd. Three forms joined by citation: stories (Connextra)
+# cover requirements (EARS), requirements enforce rules, acceptance scenarios (Given/When/Then) belong to a story; every
+# name is the DomainModel's, every rule the BusinessRules', every quality an Architecture scenario. A Spec adds behaviour
+# and cites everything else; it never names a Design or a Plan.
 apiVersion: persimmon.ai/v1
 kind: KindDefinition
 metadata: {name: specs.sdd.persimmon.ai}

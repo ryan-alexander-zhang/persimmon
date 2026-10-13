@@ -84,7 +84,7 @@ spec:
   timeout: 30m
   sideEffects: none
 ---
-# The Spec of one capability (27-spec-process.md): stories and acceptance criteria that cite the kinds beside them.
+# The Spec of one capability (27-spec-process.md): stories, requirements and acceptance scenarios that cite the kinds beside them.
 apiVersion: persimmon.ai/v1
 kind: Task
 metadata: {name: write-spec}

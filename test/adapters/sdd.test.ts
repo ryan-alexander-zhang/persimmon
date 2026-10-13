@@ -54,7 +54,9 @@ describe('sdd/v1', () => {
 
   it('fails content that is not a Spec, and reports nothing else', async () => {
     const r = await adapter({ id: 1002, op: 'evaluate', payload: payload({ spec: { title: 'not a Spec' } }) })
-    expect(r.result).toEqual({ passed: false, findings: [{ severity: 'error', code: 'not-a-spec', message: 'content is not a Spec: it has no stories array or no capability' }], evidence: [] })
+    expect(r.result).toEqual({ passed: false, findings: [{ severity: 'error', code: 'not-a-spec', message: 'content is not a Spec: it has no stories array, no requirements array or no capability' }], evidence: [] })
+    const strung = await adapter({ id: 1007, op: 'evaluate', payload: payload({ ...example(), spec: { ...example().spec, requirements: 'none' } }) })
+    expect(strung.result.findings.map((f: { code: string }) => f.code)).toEqual(['not-a-spec'])
   })
 
   it('fails a capability the Prd does not have', async () => {

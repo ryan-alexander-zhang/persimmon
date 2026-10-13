@@ -4,8 +4,8 @@
 const keyword = { ubiquitous: 'The', 'event-driven': 'When', 'state-driven': 'While', 'unwanted-behaviour': 'If', optional: 'Where' }
 
 export function checkSpec({ spec, prd, domainModel, architecture, rules }) {
-  if (!spec || !Array.isArray(spec.stories) || !spec.capability) {
-    return [{ severity: 'error', code: 'not-a-spec', message: 'content is not a Spec: it has no stories array or no capability' }]
+  if (!spec || !Array.isArray(spec.stories) || !Array.isArray(spec.requirements) || !spec.capability) {
+    return [{ severity: 'error', code: 'not-a-spec', message: 'content is not a Spec: it has no stories array, no requirements array or no capability' }]
   }
   const findings = []
   const bad = (code, message) => findings.push({ severity: 'error', code, message })

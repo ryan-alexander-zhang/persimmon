@@ -4,7 +4,7 @@ status: draft · layer: 2 (`23-pack-ai-native.md`, `26-domain-discovery.md`) · 
 
 From a Prd capability to its `Spec`: an agent writes stories, requirements and acceptance scenarios
 from the Prd, the Architecture, the DomainModel, the Glossary and the rules of the capability's
-context; a Validator checks that every name, rule and scenario the Spec uses exists upstream, that
+context; a Validator checks that every name, rule and quality scenario the Spec uses exists upstream, that
 every requirement is covered by a story and that every rule governing the capability is enforced;
 the loop feeds findings back once. Pack content
 plus one shipped evaluator Adapter.
@@ -35,7 +35,7 @@ returning findings, every one `error`:
 
 | Code | Finding |
 |---|---|
-| `not-a-spec` | content without `stories` or `capability`; the only finding then |
+| `not-a-spec` | content without `stories`, `requirements` or `capability`; the only finding then |
 | `unknown-capability` | `capability` is no `CAP-n` of the Prd |
 | `unknown-role` | a story's `role` is no Prd user |
 | `unknown-command`, `unknown-event`, `unknown-read-model` | a name the DomainModel lacks (commands: aggregates' and external systems' `handles` and `issues`; events: `events[]`, read models' `updatedBy`, external systems' `emits`, so another context's event counts once the model names it) |

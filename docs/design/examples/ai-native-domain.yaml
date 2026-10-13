@@ -808,7 +808,7 @@ spec:
         events: [Claim Drafted, Receipt Attached]
         acceptance:
           - id: AC-1
-            title: A line of 25 EUR or more without a receipt shows the claim as not complete
+            title: A 30 EUR meals line without a receipt shows the claim as not complete
             given: [a drafted claim with one meals line of 30 EUR and no receipt]
             when: [the employee opens the claim]
             then: [the claim shows as not complete, naming the meals line and BR-2]
@@ -847,7 +847,7 @@ spec:
             then: [the submission is refused, the refusal names the meals line and BR-2]
       - id: US-3
         role: employee
-        goal: see each claim of mine with its state
+        goal: see each claim of mine with its total and submission date
         benefit: no mail to the approver asking where a claim is (G-1)
         requirements: [FR-6]
         readModels: [My Claims View]
@@ -855,12 +855,12 @@ spec:
         acceptance:
           - id: AC-7
             title: My claims list shows total and submission date
-            given: [an employee with one drafted claim of 70 EUR and one claim of 130 EUR submitted on 2026-10-01]
+            given: [an employee with one claim of 70 EUR submitted on 2026-09-28 and one claim of 130 EUR submitted on 2026-10-01]
             when: [the employee opens My Claims View]
-            then: [two claims show, the first with total 70 EUR and no submission date, the second with total 130 EUR and submission date 2026-10-01]
+            then: [two claims show, the first with total 70 EUR and submission date 2026-09-28, the second with total 130 EUR and submission date 2026-10-01]
     requirements:
       - {id: FR-1, pattern: event-driven, statement: "When the employee drafts a claim, the system shall record each claim line's amount, date and category."}
-      - {id: FR-2, pattern: state-driven, statement: "While a claim line breaks BR-2, the system shall show the claim as not complete and name the line.", rules: [BR-2]}
+      - {id: FR-2, pattern: state-driven, statement: "While a claim line breaks BR-2, the system shall show the claim as not complete and name the line with the rule it breaks.", rules: [BR-2]}
       - {id: FR-3, pattern: event-driven, statement: "When the employee submits a claim whose claim lines all honour BR-2 and BR-3, the system shall record the claim as submitted with the submission date.", rules: [BR-2, BR-3]}
       - {id: FR-4, pattern: unwanted-behaviour, statement: "If a claim line breaks BR-2 or BR-3, then the system shall refuse the submission and name every such line with the rule it breaks.", rules: [BR-2, BR-3]}
       - {id: FR-5, pattern: unwanted-behaviour, statement: "If the submission is refused, then the system shall keep the claim and every claim line and receipt unchanged."}
