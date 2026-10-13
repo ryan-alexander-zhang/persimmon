@@ -3,7 +3,7 @@ import type { Resource } from '../../resource/types.js'
 import type { Target, Transition, Workflow } from '../workflow/types.js'
 import type { Gate, Validator } from '../gate/types.js'
 import type { Approval, Pipeline, ReviewLoop } from './types.js'
-import type { InputSpec, OutputSpec, PortType } from '../ports/types.js'
+import type { Binding, InputSpec, OutputSpec, PortType } from '../ports/types.js'
 import type { Step } from '../workflow/types.js'
 
 /** Whether a step's `uses` runs as a GateRun (Gate, Approval): its phase routes on `passed`. */
@@ -75,10 +75,12 @@ export function expandReviewLoop(r: ReviewLoop, ports: Ports): [Workflow, Workfl
   // the loop surfaces every produce output, so a Pipeline phase can read any of them; one named like an output of the loop's own is shadowed
   const surfaced = Object.fromEntries(Object.keys(produced.outputs).filter((p) => !loopOutputs.includes(p)).map((p) => [p, { type: produced.outputs[p]!.type }]))
   const carried: Record<string, InputSpec> = { ...(previous ? { previous: { type: subjectType, required: false } } : {}), ...(feedback ? { feedback: { type: gateResult, required: false } } : {}) }
+  // an optional loop input may be unbound on a run; a binding from it omits instead of failing with source absent
+  const omitOptional = (b: Binding): Binding => ('fromInput' in b && inputs[b.fromInput]?.required === false && !b.onMissing ? { ...b, onMissing: 'omit' } : b)
   const produceStep: Step = {
     id: 'produce',
     uses: produce.uses,
-    inputs: { ...produce.inputs, ...(previous ? { [previous]: { fromInput: 'previous', onMissing: 'omit' } } : {}), ...(feedback ? { [feedback]: { fromInput: 'feedback', onMissing: 'omit' } } : {}) },
+    inputs: { ...Object.fromEntries(Object.entries(produce.inputs ?? {}).map(([p, b]) => [p, omitOptional(b)])), ...(previous ? { [previous]: { fromInput: 'previous', onMissing: 'omit' } } : {}), ...(feedback ? { [feedback]: { fromInput: 'feedback', onMissing: 'omit' } } : {}) },
     timeout: produce.timeout,
   }
   const reviewStep: Step = { id: 'review', uses: review.uses, ...(review.inputs ? { inputs: review.inputs } : {}), timeout: review.timeout }
@@ -113,7 +115,7 @@ export function expandReviewLoop(r: ReviewLoop, ports: Ports): [Workflow, Workfl
         {
           id: 'rounds',
           uses: { kind: 'Workflow', name: body.metadata.name },
-          inputs: { ...Object.fromEntries(Object.keys(inputs).map((p) => [p, { fromInput: p }])), ...Object.fromEntries(Object.keys(carried).map((p) => [p, { fromState: p, onMissing: 'omit' as const }])) },
+          inputs: { ...Object.fromEntries(Object.keys(inputs).map((p) => [p, omitOptional({ fromInput: p })])), ...Object.fromEntries(Object.keys(carried).map((p) => [p, { fromState: p, onMissing: 'omit' as const }])) },
           timeout,
           repeat: {
             state: carried,
