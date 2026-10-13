@@ -3,6 +3,10 @@
 - {kind: value, value: {passed: true, findings: [], evidence: []}}
 - kind: artifact
   ref: {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport, namespace: demo, id: research-checkout-v2, revision: 1}
+- kind: artifacts
+  refs:
+    - {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport, namespace: demo, id: research-checkout-v2, revision: 1}
+    - {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport, namespace: demo, id: research-checkout-v2, revision: 2}
 - kind: externalResource
   ref:
     provider: git

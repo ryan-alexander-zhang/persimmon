@@ -2862,6 +2862,7 @@
       "enum": [
        "value",
        "artifact",
+       "artifacts",
        "externalResource"
       ]
      }
@@ -2921,6 +2922,34 @@
      {
       "properties": {
        "kind": {
+        "const": "artifacts"
+       },
+       "artifactKind": {
+        "type": "object",
+        "required": [
+         "apiVersion",
+         "kind"
+        ],
+        "additionalProperties": false,
+        "x-persimmon-kind-ref": {},
+        "properties": {
+         "apiVersion": {
+          "$ref": "resource.yaml#/$defs/ApiVersion"
+         },
+         "kind": {
+          "$ref": "resource.yaml#/$defs/Kind"
+         }
+        }
+       }
+      },
+      "required": [
+       "artifactKind"
+      ],
+      "additionalProperties": false
+     },
+     {
+      "properties": {
+       "kind": {
         "const": "externalResource"
        },
        "provider": {
@@ -2950,6 +2979,7 @@
       "enum": [
        "value",
        "artifact",
+       "artifacts",
        "externalResource"
       ]
      }
@@ -2978,6 +3008,23 @@
       },
       "required": [
        "ref"
+      ],
+      "additionalProperties": false
+     },
+     {
+      "properties": {
+       "kind": {
+        "const": "artifacts"
+       },
+       "refs": {
+        "type": "array",
+        "items": {
+         "$ref": "resource.yaml#/$defs/RevisionRef"
+        }
+       }
+      },
+      "required": [
+       "refs"
       ],
       "additionalProperties": false
      },

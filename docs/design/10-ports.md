@@ -9,7 +9,7 @@ definition                          run
   inputs:  {port: InputSpec}  ───▶  inputs:  {port: RuntimeValue}     bound by Binding
   outputs: {port: OutputSpec} ───▶  outputs: {port: RuntimeValue}     produced by the executor
 
-PortType  value {schema?} | artifact {artifactKind} | externalResource {provider, type}
+PortType  value {schema?} | artifact {artifactKind} | artifacts {artifactKind} | externalResource {provider, type}
 Binding   literal | fromInput | fromStep | fromState | fromIterationOutput | expression | fromEvent
 ```
 
@@ -27,6 +27,7 @@ Binding   literal | fromInput | fromStep | fromState | fromIterationOutput | exp
 |---|---|---|
 | `value` | `schema?`: JSON Schema, or `{$ref: persimmon.ai/v1#/<Name>}` from the well-known set | `{kind: value, value}` |
 | `artifact` | `artifactKind: {apiVersion, kind}` of a revisioned kind (`x-persimmon-kind-ref`) | `{kind: artifact, ref: RevisionRef}` |
+| `artifacts` | `artifactKind`, as `artifact` | `{kind: artifacts, refs: RevisionRef[]}`, ordered, may be empty; every ref of the kind |
 | `externalResource` | `provider`, `type` | `{kind: externalResource, ref: ExternalResourceRef}` |
 
 Equality: `kind` and every field equal after expanding `$ref`. No subtyping.
@@ -70,10 +71,10 @@ CEL, with the environment of the site:
 | `iteration.index` (1-based), `iteration.outputs.<port>` | inside `repeat` |
 | `state.<var>` | the `repeat` state, typed by its declared InputSpec; inside `repeat`: body inputs and `next`, never `until` (`11-workflow.md`) |
 | `event` | Trigger only |
-| `artifacts.<port>.{content, provenance}`, `inputs.<port>` | `cel` Validator (`14-gate.md`) |
+| `artifacts.<port>.{content, provenance}`, a list of them for an `artifacts` port; `inputs.<port>` | `cel` Validator (`14-gate.md`) |
 
-Artifact and externalResource values appear as their ref objects. No side effects, no
-network, no custom functions.
+Artifact and externalResource values appear as their ref objects, an `artifacts` value as a
+list of them. No side effects, no network, no custom functions.
 
 Values enter CEL typed by the port schema: `integer` → `int`, `number` → `double`, `string`,
 `boolean`, `array` → `list`, `object` → `map`. Map literals may mix value types.
@@ -123,6 +124,12 @@ Values enter CEL typed by the port schema: `integer` → `int`, `number` → `do
 - Port values bind to CEL by schema type, because a JSON integer bound as `double` makes
   `inputs.n + 1` a type error in every spec-conformant library.
 - `inputs` and `outputs` optional on a definition.
+- `artifacts` is a PortType of its own, not a flag on `artifact`: one port holds any number
+  of revisions of one kind, in the caller's order, because a Plan builds against every Design
+  of its blocks and fixed slots cap the count. A `{kind: artifact, input}` context entry on it
+  injects one entry per ref (`12-task.md`); an evaluator receives `artifacts.<port>` as a list
+  (`14-gate.md`); each ref lands in `provenance.inputs`. No shipped Executor produces one as an
+  output; it passes through bindings. Found in design review.
 
 ## Examples
 

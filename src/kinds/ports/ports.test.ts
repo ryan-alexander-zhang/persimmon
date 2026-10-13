@@ -8,7 +8,7 @@ import type { Binding, InputSpec, OutputSpec, RuntimeValue } from './types.js'
 const example = (n: string) => parse(readFileSync(`docs/design/examples/${n}.yaml`, 'utf8'))
 const task = example('ports-task') as { inputs: Record<string, InputSpec>; outputs: Record<string, OutputSpec> }
 const values = example('ports-runtime-values') as RuntimeValue[]
-const [num, validation, report, repo] = values as [RuntimeValue, RuntimeValue, RuntimeValue, RuntimeValue]
+const [num, validation, report, many, repo] = values as [RuntimeValue, RuntimeValue, RuntimeValue, RuntimeValue, RuntimeValue]
 
 describe('port types', () => {
   it('expands well-known refs and compares by expanded equality', () => {
