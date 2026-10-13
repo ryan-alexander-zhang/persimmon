@@ -502,8 +502,8 @@ _Avoid_: acceptance criterion, AC (in prose), test case (for a scenario)
 
 **Prd process**:
 The pack process from a brief to a **Prd**: Task `draft-prd` writes the Prd and the context's
-**BusinessRules** under ReviewLoop `author-prd`, whose gate is `prd-consistency` (Adapter `sdd/v1`)
-plus a human `confirm-prd`.
+**BusinessRules** under ReviewLoop `author-prd`, whose Gate `prd-gate` runs `prd-consistency` (Adapter
+`sdd/v1`) and the human `prd-confirmed`.
 _Avoid_: prd pipeline, prd workflow, requirements phase
 
 **Spec process**:

@@ -5,7 +5,15 @@
 const keyword = { ubiquitous: 'The', 'event-driven': 'When', 'state-driven': 'While', 'unwanted-behaviour': 'If', optional: 'Where' }
 
 // unique and sequential from 1 in document order: a duplicate or a gap breaks the run
-const sequence = (bad, prefix, ids) => ids.forEach((id, i) => { if (id !== `${prefix}-${i + 1}`) bad('id-sequence', `${id} should be ${prefix}-${i + 1}`) })
+// unique and increasing in document order; a gap marks an item a revision removed, an id is never reused
+const sequence = (bad, prefix, ids) => {
+  let last = 0
+  for (const id of ids) {
+    const n = Number(String(id).slice(prefix.length + 1))
+    if (!(n > last)) bad('id-sequence', `${id} is not above ${prefix}-${last}: ids are unique and increasing`)
+    last = Math.max(last, n)
+  }
+}
 
 export function checkSpec({ spec, prd, domainModel, architecture, rules }) {
   if (!spec || !Array.isArray(spec.stories) || !Array.isArray(spec.requirements) || !spec.capability) {
@@ -100,6 +108,7 @@ export function checkPrd({ prd, rules }) {
   // a number belongs to a success criterion
   for (const g of prd.goals ?? []) if (/\d/.test(String(g.statement ?? ''))) bad('goal-with-number', `${g.id}: a goal states a direction without a number`)
 
+  sequence(bad, 'BR', (rules?.rules ?? []).map((r) => r.id))
   sequence(bad, 'G', (prd.goals ?? []).map((g) => g.id))
   sequence(bad, 'CAP', capabilityIds)
   sequence(bad, 'SC', (prd.successCriteria ?? []).map((s) => s.id))

@@ -45,7 +45,7 @@ returning findings, every one `error`:
 | `unknown-rule`, `inactive-rule` | a requirement's `BR-n` missing or not `active` |
 | `rule-unenforced` | a `BR-n` the Prd capability lists that no requirement enforces |
 | `pattern-mismatch` | a requirement not opening with its pattern's keyword (the first word, punctuation ignored); `complex` opens with `While`, `When` or `If` and holds two of those words before `shall` |
-| `id-sequence` | `FR-n`, `US-n`, `AC-n`, `Q-n` not sequential from 1 in document order |
+| `id-sequence` | `FR-n`, `US-n`, `AC-n`, `Q-n` not unique and increasing in document order (a gap is a removed item) |
 
 A story with no scenario, a scenario with an empty `given`, `when` or `then`, a story covering
 nothing: the schema refuses those (`minItems: 1`).

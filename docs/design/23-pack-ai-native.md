@@ -67,7 +67,7 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
 
 | Rule | Enforcer |
 |---|---|
-| ids (`BR-n`, `R-n`, `G-n`, `CAP-n`, `SC-n`, `Q-n`, `QG-n`, `C-n`, `S-n`, `BB-n`, `REL-n`, `RT-n`, `CC-n`, `QS-n`, `RK-n`, `US-n`, `FR-n`, `AC-n`) unique in a document, sequential from 1, never reused across revisions; term and fact type `name`s unique in a Glossary, never reused; a revision keeps every id and name and fixes in place | author Prompt; `spec-consistency` for `US-n`, `FR-n`, `AC-n`, `Q-n` of a Spec; Validator later for the rest |
+| ids (`BR-n`, `R-n`, `G-n`, `CAP-n`, `SC-n`, `Q-n`, `QG-n`, `C-n`, `S-n`, `BB-n`, `REL-n`, `RT-n`, `CC-n`, `QS-n`, `RK-n`, `US-n`, `FR-n`, `AC-n`) unique in a document and increasing in document order, from 1 on a first draft, never reused across revisions: a removed item leaves a gap, a new one takes the next number; term and fact type `name`s unique in a Glossary, never reused; a revision keeps every id and name and fixes in place | author Prompt; `spec-consistency` for `US-n`, `FR-n`, `AC-n`, `Q-n` of a Spec; `prd-consistency` for `G-n`, `CAP-n`, `SC-n`, `Q-n` of a Prd and `BR-n` of the rules it writes; Validator later for the rest |
 | a term's `aliases` never name another term; a `relationships[]` entry's `role` fits its `pattern` (conformist, anticorruption-layer: downstream; open-host-service, published-language: upstream; shared-kernel, partnership, separate-ways: peer; customer-supplier: either) | Validator later |
 | a `fact` names its `factType` and is a structural rule over it (cardinality, necessity); a `fact`'s or `constraint`'s `then` is a `violation`, a `derivation`'s is `derive` + `expression`, a `decision`'s is `decision`; `when` absent means always; a rule without `logic` is informal and says so in `rationale` | Validator later |
 | a `decision` rule's `then.decision` keys are outputs of the `DecisionTable` that cites it; in a `unique` table every row cites exactly one `decision` rule and every `decision` rule the table cites sits in exactly one row; a row's `cites` ⊆ the table's `cites`, which also holds the constraints behind its inputs | Validator later |
@@ -75,13 +75,13 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
 | a `unique` table's rows never overlap (DMN) and, as a pack rule, cover every combination of its inputs' types; `first` and `priority` rows are ordered | Validator later |
 | `expression` and unary tests are a FEEL subset: literals, `- + * /`, `if then else`, comparisons, `[a..b]`, `a, b`, `-` for any; nothing in the pack evaluates them yet | convention; evaluator later |
 | a withdrawn rule or term stays with `status: deprecated` (`replacedBy` for a term) so no citation dangles | author Prompt; Validator later |
-| cited `context` exists, except `relationships[].context` and `Architecture.context.business[].context`, which may name a context in another Namespace or not yet written; cited `BR-n` exists and is active in the input revision; `related` and `replacedBy` resolve | Validator later; schema cannot see across documents or entries |
+| cited `context` exists, except `relationships[].context` and `Architecture.context.business[].context`, which may name a context in another Namespace or not yet written; cited `BR-n` exists and is active in the input revision; `related` and `replacedBy` resolve | `prd-consistency` for a Prd's `capabilities[].rules[]`, `spec-consistency` for a Spec's `requirements[].rules[]`; Validator later for the rest; schema cannot see across documents or entries |
 | an unknown fact is a `Q-n`, never a guess; a Prd with open questions is valid and gated later | author Prompt |
 | inside an `Architecture`: `strategy[].addresses`, `qualityScenarios[].qualityGoal`, `buildingBlocks[].parent`, `deployment.nodes[].hosts`, `deployment.channels[].from/to` (nodes), `runtime[].steps[].from/to` and `relations[].from/to` (a `BB-n` or a `context.business[].partner`, at least one end a block) resolve; `relations[].interface` is an interface the `to` block provides, or the `from` block requires when `to` is a partner; every level 1 block and every partner has a relation; every `QG-n` has at least one `QS-n`; level 1 blocks' `contexts` cover every `BoundedContext` the Prd's capabilities name; `decisions[]` name Adrs with status `accepted` | Validator later |
 | a Spec never cites a Design, a Design never cites a Plan, an Architecture never names a Spec story: every artifact cites upstream only; downstream is a Relation query | author Prompt; convention |
 | in a `Spec`: `capability` is a `CAP-n` of `prd`; `role` is a Prd user; `commands`, `events`, `readModels` resolve in the DomainModel; `stories[].requirements` resolve in the Spec and every `FR-n` is covered by a story; `requirements[].rules` resolve and are active; every `BR-n` the Prd capability lists is enforced by a requirement; each `statement` opens with its pattern's keyword (`The`, `When`, `While`, `If`, `Where`; `complex` opens with `While`, `When` or `If` and holds two of those clauses before `shall`); `qualities[].scenario` resolves in `architecture`; `domainModel.context` against the capability's `context` is deferred (`27-spec-process.md`) | `spec-consistency` (`27-spec-process.md`) |
 | an `Adr`'s `drivers` resolve in the revisions its `provenance.inputs` pin (a Prd and rules for a baseline Adr, an Architecture later); the Adr carries no artifact id of its own for them | Validator later |
-| `goals` give direction without a number; `successCriteria` carry the number; `successCriteria` and `capabilities` name no technology, architecture or task | author Prompt |
+| `goals` give direction without a number; `successCriteria` carry the number; `successCriteria` and `capabilities` name no technology, architecture or task | author Prompt; `prd-consistency` refuses a digit in a goal |
 | a success criterion is an outcome measured in production over time, decided by measurement; a behaviour one test decides on one run is an acceptance scenario and belongs to a Spec story; a capability no success criterion names is reported | author Prompt; Validator later |
 
 ## Decisions
@@ -177,6 +177,10 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
   amount is in the currency paid while the fact type says EUR, and CAP-1 refuses an incomplete submission
   while CAP-2 and BR-9 route an incomplete claim back. Both stay open questions of the Spec, not guesses;
   the cheapest Prd check is the Spec after it. Found in audit.
+- Ids are unique and increasing, not contiguous: "sequential from 1" and "a revision keeps every id,
+  never reused" contradict each other the moment a human drops a capability. A gap now marks the
+  removal; nothing is renumbered, nothing reused; the Validators check order and uniqueness only.
+  Found in audit.
 - Group `sdd.persimmon.ai`, kind `Prd`: the demo pack's `ProductRequirement` and example06's
   `EarsPrd` keep their names in `engineering.persimmon.ai`; no collision.
 

@@ -164,8 +164,8 @@ spec:
   action:
     instructions: |
       Confirm the Prd and the rules it cites. Judge scope, users, goals and whether the capabilities are the right
-      cut; the Validator has already checked ids and citations. Approve, or reject with one finding per G-n,
-      CAP-n, SC-n, Q-n or BR-n that must change, naming the id in the finding's code.
+      cut; the Validator checks ids and citations beside you. Approve, or reject with one finding per G-n,
+      CAP-n, SC-n, Q-n or BR-n that must change, naming the id in the finding's message.
     context:
       - {kind: artifact, input: prd}
       - {kind: artifact, input: rules}

@@ -18,7 +18,7 @@ ReviewLoop author-prd
 ## Where the agent learns how to write a Prd
 
 A "template" is three things, each in its place: the kind's schema (the form: fields, what is
-required, a `description` on every field the runner prints under `## Answer`), a Prompt (the method:
+required, the schema with its `description`s, which the runner prints under `## Answer`), a Prompt (the method:
 how each field is written and judged), and the Task's `instructions` (what to do with which inputs).
 spec-kit's `spec-template.md` holds the first two in one Markdown file that nothing checks; here the
 form is refused by the engine when wrong and the method is a Prompt a Namespace can override.
@@ -29,7 +29,7 @@ form is refused by the engine when wrong and the method is a Prompt a Namespace 
 |---|---|
 | Prompt `prd-rules` | problem before solution; users as roles; goals are direction and success criteria carry the number, measured in production; a capability is one Spec's worth with its context and the rules that govern it; a rule is written into `BusinessRules`, never into the Prd; what is refused is a non-goal; an unknown is a `Q-n` |
 | Executor `prd-agent` | `claude-code/v1`, read-only, its own name so a Namespace picks the model per Task |
-| Task `draft-prd` | inputs `brief` (text), `contextId` (the BoundedContext the capabilities live in), `rules` and `glossary` (optional, the context's current ones), `previous` (the last Prd), `feedback`; outputs `prd` and `rules` (the context's BusinessRules, revised or new) |
+| Task `draft-prd` | inputs `brief` (text), `contextId` (the BoundedContext the capabilities live in), `rules` and `glossary` (optional, the context's current ones), `previous` (the last Prd), `feedback`; outputs `prd` and `rules` (the context's BusinessRules: the input artifact's rules carried forward plus the brief's) |
 | Task `confirm-prd` | human on `cli-human/v1`: reads the Prd and the rules at the terminal, approves or rejects with one finding per id |
 | Validators | `prd-consistency`: `sdd/v1` over `prd` and `rules`; `prd-confirmed`: over `confirm-prd` |
 | Gate `prd-gate` | both, `all` |
@@ -46,7 +46,7 @@ form is refused by the engine when wrong and the method is a Prompt a Namespace 
 | `context-mismatch` | a `capabilities[].context` that is not the BusinessRules' `context` |
 | `unknown-capability` | a `successCriteria[].capabilities[]` id that is no capability |
 | `goal-with-number` | a goal statement containing a digit; the number belongs to a success criterion |
-| `id-sequence` | `G-n`, `CAP-n`, `SC-n`, `Q-n` not sequential from 1 in document order |
+| `id-sequence` | `G-n`, `CAP-n`, `SC-n`, `Q-n` of the Prd and `BR-n` of the rules not unique and increasing in document order (a gap is a removed item) |
 
 The Adapter picks the mode from the payload: `artifacts.spec` (or `artifacts.model`, the
 conformance suite's name) runs `checkSpec`; otherwise `artifacts.prd` runs `checkPrd`.
@@ -55,7 +55,9 @@ conformance suite's name) runs `checkSpec`; otherwise `artifacts.prd` runs `chec
 
 | Rule | Enforcer |
 |---|---|
-| a Prd process runs over one context: `rules` is one artifact and every capability's `context` is its; a product spanning contexts runs it once per context and the Prds are merged by hand until a Prd may cite several rules artifacts | convention |
+| a Prd process runs over one context: `rules` is one artifact and every capability's `context` is its; a product spanning contexts runs it once per context and the Prds are merged by hand until a Prd may cite several rules artifacts | `prd-consistency` (`context-mismatch`) |
+| the `rules` output is a new artifact named by the runner (`<logicalExecutionId>-rules`), not a revision of the input one, until a producer may choose an artifact id (`91-roadmap.md`); the input artifact is superseded by citation, as the derived BoundedContext is in `26-domain-discovery.md` | convention; roadmap |
+| `author-prd` writes the first Prd of a product: `contextId` is the id the BoundedContext will carry, chosen by the author before domain discovery derives it; `23-pack-ai-native.md` allows a cited context not yet written | convention |
 | the Task writes the whole `BusinessRules` artifact each round from the input rules and its previous Prd: a ReviewLoop carries one subject back as `previous`, so the rules of the last round are not an input; `prd-consistency` refuses a Prd citing a rule the produced artifact lacks | `prd-consistency`; `21-composition.md` |
 | a new rule carries `status: active`, `source` naming the brief, and `logic` only when the brief states the condition; a rule the brief implies but does not state is a `Q-n`, not a rule | `prd-rules` |
 | the human gate is the Prd's reviewer: `prd-consistency` decides form and citations, the human decides scope, goals and whether the capabilities are the right cut | `prd-gate` |
