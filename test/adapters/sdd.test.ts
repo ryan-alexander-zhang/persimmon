@@ -172,7 +172,7 @@ describe('sdd/v1 over a Prd', () => {
     expect(await prdCodes((a) => { a.prd.goals[1].id = 'G-3' })).toEqual(['id-sequence']) // G-1, G-3, G-3
     expect(await prdCodes((a) => { a.prd.capabilities[3].id = 'CAP-5' })).toEqual(['unknown-capability']) // SC-3 still cites CAP-4; the gap itself is allowed
     expect(await prdCodes((a) => { a.prd.capabilities[3].id = 'CAP-2' })).toEqual(['unknown-capability', 'id-sequence'])
-    expect(await prdCodes((a) => { a.rules.rules[5].id = 'BR-2' })).toEqual(['id-sequence']) // the rules artifact is written here too; BR-6 is cited by nothing
+    expect(await prdCodes((a) => { a.rules.rules[10].id = 'BR-2' })).toEqual(['id-sequence']) // the rules artifact is written here too; BR-11 is active and cited by nothing
     expect(await prdCodes((a) => { a.prd.successCriteria[0].id = 'SC-0' })).toEqual(['id-sequence'])
     expect(await prdCodes((a) => { a.prd.openQuestions[1].id = 'Q-1' })).toEqual(['id-sequence'])
   })
