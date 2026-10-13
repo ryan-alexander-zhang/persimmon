@@ -1,7 +1,8 @@
 // One Spec of the AI Native pack against the artifacts it cites (23-pack-ai-native.md, 27-spec-process.md): the Prd
 // capability and its governing rules, the DomainModel's names, the Architecture's quality scenarios, the BusinessRules;
 // inside the Spec, stories cover requirements and requirements enforce rules. And one Prd against the BusinessRules of
-// its context. Plain data in, findings out.
+// its context. And one Design against the Architecture block it belongs to, the DomainModel its elements realise and the
+// BusinessRules it enforces. Plain data in, findings out.
 const keyword = { ubiquitous: 'The', 'event-driven': 'When', 'state-driven': 'While', 'unwanted-behaviour': 'If', optional: 'Where' }
 
 // unique and sequential from 1 in document order: a duplicate or a gap breaks the run
@@ -13,6 +14,17 @@ const sequence = (bad, prefix, ids) => {
     if (!(n > last)) bad('id-sequence', `${id} is not above ${prefix}-${last}: ids are unique and increasing`)
     last = Math.max(last, n)
   }
+}
+
+// the names a Spec or a Design may cite from the DomainModel
+const domainNames = (domainModel) => {
+  const aggregates = domainModel?.aggregates ?? []
+  const external = domainModel?.externalSystems ?? []
+  const commands = new Set([...aggregates.flatMap((a) => a.commands ?? []), ...external.flatMap((e) => e.handles ?? []), ...external.flatMap((e) => e.issues ?? [])])
+  // another context's event reaches the model only as a read model's updatedBy or an external system's emits
+  const events = new Set([...(domainModel?.events ?? []).map((e) => e.name), ...(domainModel?.readModels ?? []).flatMap((r) => r.updatedBy ?? []), ...external.flatMap((e) => e.emits ?? [])])
+  const readModels = new Set((domainModel?.readModels ?? []).map((r) => r.name))
+  return { commands, events, readModels }
 }
 
 export function checkSpec({ spec, prd, domainModel, architecture, rules }) {
@@ -27,12 +39,7 @@ export function checkSpec({ spec, prd, domainModel, architecture, rules }) {
   // domainModel.context is not compared with the capability's: a derived model names the storming context, the Prd the
   // BoundedContext artifact, until a producer may choose an artifact id (91-roadmap.md)
 
-  const aggregates = domainModel?.aggregates ?? []
-  const external = domainModel?.externalSystems ?? []
-  const commands = new Set([...aggregates.flatMap((a) => a.commands ?? []), ...external.flatMap((e) => e.handles ?? []), ...external.flatMap((e) => e.issues ?? [])])
-  // another context's event reaches the model only as a read model's updatedBy or an external system's emits
-  const events = new Set([...(domainModel?.events ?? []).map((e) => e.name), ...(domainModel?.readModels ?? []).flatMap((r) => r.updatedBy ?? []), ...external.flatMap((e) => e.emits ?? [])])
-  const readModels = new Set((domainModel?.readModels ?? []).map((r) => r.name))
+  const { commands, events, readModels } = domainNames(domainModel)
   const scenarios = new Set((architecture?.qualityScenarios ?? []).map((q) => q.id))
   const status = new Map((rules?.rules ?? []).map((r) => [r.id, r.status]))
   const users = new Set((prd?.users ?? []).map((u) => u.name))
@@ -113,5 +120,42 @@ export function checkPrd({ prd, rules }) {
   sequence(bad, 'CAP', capabilityIds)
   sequence(bad, 'SC', (prd.successCriteria ?? []).map((s) => s.id))
   sequence(bad, 'Q', (prd.openQuestions ?? []).map((q) => q.id))
+  return findings
+}
+
+export function checkDesign({ design, architecture, domainModel, rules }) {
+  if (!design || !Array.isArray(design.elements) || !design.type) {
+    return [{ severity: 'error', code: 'not-a-design', message: 'content is not a Design: it has no elements array or no type' }]
+  }
+  const findings = []
+  const bad = (code, message) => findings.push({ severity: 'error', code, message })
+
+  const block = (architecture?.buildingBlocks ?? []).find((b) => b.id === design.block)
+  if (!block) bad('unknown-block', `block ${design.block} is not a building block of the Architecture`)
+  else if (design.interface !== undefined && !(block.interfaces ?? []).some((i) => i.name === design.interface && i.kind === 'provides')) {
+    bad('unknown-interface', `interface ${design.interface} is not an interface ${design.block} provides`)
+  }
+
+  const { commands, events, readModels } = domainNames(domainModel)
+  const known = { command: commands, event: events, readModel: readModels, aggregate: new Set((domainModel?.aggregates ?? []).map((a) => a.id)) }
+  const status = new Map((rules?.rules ?? []).map((r) => [r.id, r.status]))
+  const ruleCheck = (owner, r) => {
+    if (!status.has(r)) bad('unknown-rule', `${owner}: rule ${r} is not in the BusinessRules`)
+    else if (status.get(r) !== 'active') bad('inactive-rule', `${owner}: rule ${r} is ${status.get(r)}, not active`)
+  }
+  const union = new Set(design.rules ?? [])
+
+  for (const el of design.elements) {
+    const { kind, name } = el.realises ?? {}
+    if (!known[kind]?.has(name)) bad('unknown-realised', `${el.id}: ${kind} ${name} is not in the DomainModel`)
+    for (const r of el.rules ?? []) {
+      ruleCheck(el.id, r)
+      if (!union.has(r)) bad('rules-incomplete', `${el.id}: rule ${r} is not in the Design's rules, the union of the elements'`)
+    }
+  }
+  for (const r of design.rules ?? []) ruleCheck(design.title, r)
+
+  sequence(bad, 'EL', design.elements.map((e) => e.id))
+  sequence(bad, 'Q', (design.openQuestions ?? []).map((q) => q.id))
   return findings
 }

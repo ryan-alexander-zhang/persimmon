@@ -124,7 +124,7 @@ describe('sdd/v1', () => {
     const missing = await adapter({ id: 1004, op: 'evaluate', payload: payload(rest) })
     expect(missing).toEqual({ id: 1004, ok: false, error: { code: 'invalid_input', message: 'artifacts.rules is required', retryable: false } })
     const noSpec = await adapter({ id: 1005, op: 'evaluate', payload: { ...payload(example()), artifacts: {} } })
-    expect(noSpec).toEqual({ id: 1005, ok: false, error: { code: 'invalid_input', message: 'artifacts.spec or artifacts.prd is required', retryable: false } })
+    expect(noSpec).toEqual({ id: 1005, ok: false, error: { code: 'invalid_input', message: 'artifacts.spec, artifacts.prd or artifacts.design is required', retryable: false } })
     const unknown = await adapter({ id: 1006, op: 'nonsense', payload: {} })
     expect(unknown).toMatchObject({ id: 1006, ok: false, error: { code: 'invalid_input', retryable: false } })
   })
@@ -180,5 +180,74 @@ describe('sdd/v1 over a Prd', () => {
   it('is invalid_input without the BusinessRules beside a Prd', async () => {
     const r = await adapter({ id: 2003, op: 'evaluate', payload: payload({ prd: content('Prd') }) })
     expect(r).toEqual({ id: 2003, ok: false, error: { code: 'invalid_input', message: 'artifacts.rules is required', retryable: false } })
+  })
+})
+
+describe('sdd/v1 over a Design', () => {
+  const designExample = () => ({ design: content('Design'), architecture: content('Architecture'), domainModel: content('DomainModel'), rules: content('BusinessRules') })
+  const designCodes = async (mutate: (a: ReturnType<typeof designExample>) => void) => {
+    const artifacts = structuredClone(designExample())
+    mutate(artifacts)
+    const r = await adapter({ id: ++id, op: 'evaluate', payload: payload(artifacts) })
+    expect(r.result.passed).toBe(false)
+    return r.result.findings.map((f: { code: string }) => f.code)
+  }
+
+  it('passes the worked example: the claims API against the artifacts it cites', async () => {
+    const r = await adapter({ id: 3001, op: 'evaluate', payload: payload(designExample()) })
+    expect(r).toEqual({ id: 3001, ok: true, result: { passed: true, findings: [], evidence: [] } })
+  })
+
+  it('fails content that is not a Design, and reports nothing else', async () => {
+    const r = await adapter({ id: 3002, op: 'evaluate', payload: payload({ design: { title: 'not a Design' } }) })
+    expect(r.result).toEqual({ passed: false, findings: [{ severity: 'error', code: 'not-a-design', message: 'content is not a Design: it has no elements array or no type' }], evidence: [] })
+    expect(await designCodes((a) => { delete (a.design as any).type })).toEqual(['not-a-design'])
+  })
+
+  it('fails a block the Architecture does not have', async () => {
+    expect(await designCodes((a) => { a.design.block = 'BB-9' })).toEqual(['unknown-block'])
+  })
+
+  it('fails an interface the block does not provide', async () => {
+    expect(await designCodes((a) => { a.design.interface = 'ghost API' })).toEqual(['unknown-interface'])
+    expect(await designCodes((a) => { a.design.interface = 'directory' })).toEqual(['unknown-interface']) // BB-1 requires it, does not provide it
+    const none = structuredClone(designExample())
+    delete (none.design as any).interface
+    const r = await adapter({ id: 3003, op: 'evaluate', payload: payload(none) })
+    expect(r.result).toEqual({ passed: true, findings: [], evidence: [] })
+  })
+
+  it('fails a command, a read model and an aggregate the DomainModel does not name', async () => {
+    expect(await designCodes((a) => {
+      a.design.elements[0].realises.name = 'Ghost Claim'
+      a.design.elements[3].realises.name = 'Ghost View'
+      a.design.elements[1].realises = { kind: 'aggregate', name: 'AG-9' }
+    })).toEqual(['unknown-realised', 'unknown-realised', 'unknown-realised'])
+    const ok = structuredClone(designExample())
+    ok.design.elements[1].realises = { kind: 'aggregate', name: 'AG-1' }
+    ok.design.elements[3].realises = { kind: 'event', name: 'Claim Paid' } // another context's event that updates a read model
+    const r = await adapter({ id: 3004, op: 'evaluate', payload: payload(ok) })
+    expect(r.result).toEqual({ passed: true, findings: [], evidence: [] })
+  })
+
+  it('fails a rule that does not resolve, and one that is not active', async () => {
+    expect(await designCodes((a) => { a.design.rules.push('BR-99') })).toEqual(['unknown-rule'])
+    expect(await designCodes((a) => { a.design.rules.push('BR-6') })).toEqual(['inactive-rule'])
+    expect(await designCodes((a) => { a.design.elements[2].rules = ['BR-2', 'BR-99']; a.design.rules.push('BR-99') })).toEqual(['unknown-rule', 'unknown-rule'])
+  })
+
+  it('fails a rule an element lists but the Design rules lack', async () => {
+    expect(await designCodes((a) => { a.design.elements[0].rules = ['BR-5'] })).toEqual(['rules-incomplete'])
+  })
+
+  it('fails ids that are not unique and increasing', async () => {
+    expect(await designCodes((a) => { a.design.elements[2].id = 'EL-2' })).toEqual(['id-sequence'])
+    expect(await designCodes((a) => { a.design.openQuestions[0].id = 'Q-0' })).toEqual(['id-sequence'])
+  })
+
+  it('is invalid_input without the BusinessRules beside a Design', async () => {
+    const { rules, ...rest } = designExample()
+    const r = await adapter({ id: 3005, op: 'evaluate', payload: payload(rest) })
+    expect(r).toEqual({ id: 3005, ok: false, error: { code: 'invalid_input', message: 'artifacts.rules is required', retryable: false } })
   })
 })

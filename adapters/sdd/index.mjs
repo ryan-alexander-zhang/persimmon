@@ -1,9 +1,10 @@
-// sdd/v1: the evaluator Role (19-adapter-roles.md) over the AI Native pack (23-pack-ai-native.md), in two modes.
+// sdd/v1: the evaluator Role (19-adapter-roles.md) over the AI Native pack (23-pack-ai-native.md), in three modes.
 // Given a Spec, `evaluate` runs `checkSpec` on it and the Prd, DomainModel, Architecture and BusinessRules it cites;
-// given a Prd, it runs `checkPrd` on it and the BusinessRules of its context. It answers a ValidationResult
-// (10-ports.md). No Engine callbacks.
+// given a Prd, it runs `checkPrd` on it and the BusinessRules of its context; given a Design, it runs `checkDesign` on
+// it and the Architecture, DomainModel and BusinessRules it cites. It answers a ValidationResult (10-ports.md). No
+// Engine callbacks.
 import { createInterface } from 'node:readline'
-import { checkPrd, checkSpec } from './check.mjs'
+import { checkDesign, checkPrd, checkSpec } from './check.mjs'
 
 const describe = {
   adapterId: 'sdd/v1',
@@ -23,7 +24,19 @@ function evaluate(payload) {
   const artifacts = payload?.artifacts ?? {}
   // the artifact under evaluation is artifacts.spec; the conformance suite names it artifacts.model (22-conformance.md)
   if (!(artifacts.spec ?? artifacts.model)) {
-    if (!artifacts.prd) throw invalid('artifacts.spec or artifacts.prd is required')
+    if (!artifacts.prd) {
+      if (!artifacts.design) throw invalid('artifacts.spec, artifacts.prd or artifacts.design is required')
+      const design = required(artifacts, 'design')
+      const notADesign = checkDesign({ design }).filter((f) => f.code === 'not-a-design')
+      if (notADesign.length) return { passed: false, findings: notADesign, evidence: [] }
+      const findings = checkDesign({
+        design,
+        architecture: required(artifacts, 'architecture'),
+        domainModel: required(artifacts, 'domainModel'),
+        rules: required(artifacts, 'rules'),
+      })
+      return { passed: findings.length === 0, findings, evidence: [] }
+    }
     const prd = required(artifacts, 'prd')
     // same stance as not-a-spec: content that is not a Prd is a finding, before the rules are required
     const notAPrd = checkPrd({ prd }).filter((f) => f.code === 'not-a-prd')
