@@ -68,7 +68,7 @@ when `artifacts.domainModel` is present; `passed` iff no error. Labels compare e
 | a phase's model has `meta.level` at least the phase's; the grammar Validator takes the level from the Gate | `storming-gate` |
 | the agent asks nothing: an unknown is a hotspot with kind and priority; the human gate is where questions are answered | Prompts; `confirm-storming` |
 | a derivation is a projection: every name a storming label, every relation an edge; `domain-consistency` refuses drift | `derived-gate` |
-| `glossary.context` and `domainModel.context` cite the storming context id; the BoundedContext artifact the Task publishes is named by the runner (`<logicalExecutionId>-context`), so the two ids differ until a producer may choose an artifact id (`91-roadmap.md`) | `derive-domain` instructions; Validator later |
+| `glossary.context` and `domainModel.context` cite the storming context id, and the BoundedContext artifact the Task publishes carries that id (`outputs.context.id: inputs.contextId`, `12-task.md`), the Glossary `<context>-glossary`, the DomainModel `<context>-model`; a second derivation publishes their next revisions | `derive-domain` outputs; Validator later |
 | `allowedHosts` on the storming Executor is declarative: the shipped agent Adapters do not enforce `security` (`13-executor.md`) | convention; roadmap |
 | the relationship names map camelCase to kebab in the derivation; the kinds keep their own enums | `derive-domain-rules` |
 

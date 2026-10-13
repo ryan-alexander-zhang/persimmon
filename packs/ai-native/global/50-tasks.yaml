@@ -10,7 +10,7 @@ spec:
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
   outputs:
-    model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
+    model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}, id: {expression: "inputs.prd.id + '-storming'"}}
     contexts: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}}
   executorRef: {kind: Executor, name: storming-agent}
   action:
@@ -63,9 +63,9 @@ spec:
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
   outputs:
-    context: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext}}}
-    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
-    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
+    context: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext}}, id: {expression: "inputs.contextId"}}
+    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, id: {expression: "inputs.contextId + '-glossary'"}}
+    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, id: {expression: "inputs.contextId + '-model'"}}
   executorRef: {kind: Executor, name: storming-agent}
   action:
     instructions: |
@@ -99,7 +99,7 @@ spec:
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
   outputs:
-    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, id: {expression: "inputs.prd.id + '-' + inputs.capabilityId.lowerAscii()"}}
   executorRef: {kind: Executor, name: spec-agent}
   action:
     instructions: |
@@ -133,8 +133,8 @@ spec:
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
   outputs:
-    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
-    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, id: {expression: "inputs.contextId + '-prd'"}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, id: {expression: "inputs.contextId + '-rules'"}}
   executorRef: {kind: Executor, name: prd-agent}
   action:
     instructions: |
@@ -188,7 +188,7 @@ spec:
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
   outputs:
-    design: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
+    design: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, id: {expression: "inputs.blockId.lowerAscii() + '-' + inputs.type"}}
   executorRef: {kind: Executor, name: design-agent}
   action:
     instructions: |
@@ -219,7 +219,7 @@ spec:
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
   outputs:
-    plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}}
+    plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}, id: {expression: "inputs.spec.id + '-plan'"}}
   executorRef: {kind: Executor, name: plan-agent}
   action:
     instructions: |

@@ -215,6 +215,13 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
   the claims core realises an API operation and a schema table at once. No estimate, owner or
   status field: status is the state of the runs that later cite the Plan. Found in design review.
 
+- Every pack Task names what it publishes through `outputs.<port>.id` (`12-task.md`): the storming
+  `<prd>-storming`, the derived kinds `<context>`, `<context>-glossary`, `<context>-model`, a Spec
+  `<prd>-<cap-n>`, a Prd run's `<context>-prd` and `<context>-rules`, a Design `<bb-n>-<type>`, a
+  Plan `<spec>-plan`. A second run or a second loop round publishes the next revision of the same
+  identity, which is what a revision means; the runner's `<logicalExecutionId>-<port>` gave each a
+  new one. Found in UAT.
+
 ## Examples
 
 - [`examples/ai-native-domain.yaml`](examples/ai-native-domain.yaml): one domain, expense claims, as a big-picture
