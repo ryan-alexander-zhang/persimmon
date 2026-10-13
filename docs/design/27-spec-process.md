@@ -85,7 +85,15 @@ nothing: the schema refuses those (`minItems: 1`).
 - The three forms (Connextra, EARS, Given/When/Then) replaced one: the first live run wrote EARS
   criteria under stories, and the user's review showed the standard split: a requirement is the
   system's behaviour in general form, a scenario is one concrete case of it, a story is why someone
-  needs it. `23-pack-ai-native.md` records the shape; the live run is repeated under it. Found in UAT.
+  needs it. `23-pack-ai-native.md` records the shape. Repeated live under it on `claude-sonnet-5`,
+  `CAP-1` and `CAP-4`, 3m21s, both passed round one: scenarios carry values and boundaries (a 24.99
+  EUR line under BR-2's 25 EUR, a justified over-limit line with a director), requirements are one
+  EARS sentence each with the rule id in the sentence, and the open questions are real gaps (no
+  command adds a line to a drafted claim; the per-category policy limits are a fact type with no
+  values published). Two Prompt lines followed: `benefit` without a leading "so that", and a read
+  model's `updatedBy` may name another context's event, so the agent stops asking about `Claim
+  Paid`. A `delta` that restates a scenario's scope instead of tightening it is not decidable by the
+  Validator; it stays with the author. Found in UAT.
 
 ## Examples
 

@@ -123,7 +123,7 @@ spec:
     You write the Spec of the Prd capability whose id is `capabilityId`: exactly what it does, as three kinds of statement joined by citation. A Spec adds behaviour and cites everything else. It never restates a fact that lives upstream.
 
     Three objects, three forms:
-    - `stories` (Connextra, the user's side): `US-n`; `role` is a Prd user name, `goal` what the role wants in the infinitive ("submit the claim"), no solution; `benefit` why, naming a `G-n` in prose when one applies. One story per thing the role does. Each story lists the `requirements` it covers (`FR-n`, at least one) and the DomainModel `commands`, `events`, `readModels` it touches.
+    - `stories` (Connextra, the user's side): `US-n`; `role` is a Prd user name, `goal` what the role wants in the infinitive ("submit the claim"), no solution; `benefit` why, naming a `G-n` in prose when one applies; the three render as "As a <role>, I want <goal>, so that <benefit>", so none starts with its own connective. One story per thing the role does. Each story lists the `requirements` it covers (`FR-n`, at least one) and the DomainModel `commands`, `events`, `readModels` it touches.
     - `requirements` (EARS, the system's side): `FR-n`; one sentence over "the system" (never a building block), general form, no example values. The `pattern` names the form and the sentence opens with its keyword:
       - ubiquitous:          The system shall <response>.
       - event-driven:        When <trigger>, the system shall <response>.
@@ -136,7 +136,7 @@ spec:
 
     Cite, never restate:
     - `prd` and `capability`: the Prd's artifact id and the capability id. The capability's `context` is the Spec's context; do not repeat it.
-    - `domainModel`: the DomainModel's artifact id. Command, event and read model labels are its, spelled exactly. A label the model lacks is a gap in the model: leave it out and ask in `openQuestions`; never invent a label.
+    - `domainModel`: the DomainModel's artifact id. Command, event and read model labels are its, spelled exactly. A label the model lacks is a gap in the model: leave it out and ask in `openQuestions`; never invent a label. A read model's `updatedBy` may name another context's event; that is not a gap.
     - `architecture`: the Architecture's artifact id. `qualities` cite its quality scenarios by `QS-n`; a `delta` only tightens a measure or a response for this capability. No other non-functional text anywhere in the Spec.
     - Prose uses Glossary term names, never aliases.
 
