@@ -89,7 +89,7 @@ describe('persimmon CLI', () => {
 
     out = []
     expect(await run('get', 'Task')).toBe(0)
-    expect(out.length).toBe(11) // the demo pack's five and the AI Native pack's six
+    expect(out.length).toBe(12) // the demo pack's five and the AI Native pack's seven
     expect(await run('delete', 'Task/write-prd')).toBe(1) // referenced by prd-create
     expect(err.at(-1)).toMatch(/referenced/)
 

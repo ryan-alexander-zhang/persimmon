@@ -171,3 +171,37 @@ spec:
       - {kind: artifact, input: rules}
   timeout: 72h
   sideEffects: none
+---
+# One design asset of one block (29-design-process.md): the contract whole, indexed against the DomainModel.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: design-asset}
+spec:
+  inputs:
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    blockId: {type: {kind: value, schema: {type: string, pattern: "^BB-[0-9]+$"}}}
+    type: {type: {kind: value, schema: {enum: [http-api, async-api, data-schema]}}}
+    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
+    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+  outputs:
+    design: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
+  executorRef: {kind: Executor, name: design-agent}
+  action:
+    instructions: |
+      Write the Design of `type` for the building block `blockId` of the Architecture, following the Design rules in
+      your context. `architecture` and `domainModel` in the Design are the artifact ids of the inputs with those
+      names; `block` is `blockId`. Every element realises a label the DomainModel names; every rule id is in `rules`.
+      With `previous` and `feedback` bound, fix what the findings name and change nothing else.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: design-rules}}
+      - {kind: artifact, input: architecture}
+      - {kind: artifact, input: domainModel}
+      - {kind: artifact, input: glossary}
+      - {kind: artifact, input: rules}
+      - {kind: artifact, input: previous}
+    parameters: {effort: high}
+  timeout: 30m
+  sideEffects: none

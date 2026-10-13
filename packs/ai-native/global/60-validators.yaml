@@ -83,3 +83,19 @@ spec:
     taskRef: {kind: Task, name: confirm-prd}
     resultOutput: result
   timeout: 72h
+---
+# design-consistency: sdd/v1 checks a Design's index against the Architecture, DomainModel and rules (29-design-process.md).
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: design-consistency}
+spec:
+  inputs:
+    design: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+  evaluator:
+    type: adapter
+    adapter: sdd/v1
+    configuration: {}
+  timeout: 1m

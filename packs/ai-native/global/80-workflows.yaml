@@ -301,3 +301,87 @@ spec:
   feedback: feedback
   maxRounds: 3
   timeout: 240h
+---
+# The Design process (29-design-process.md): one ReviewLoop per block for one type, repeated over the blocks listed.
+apiVersion: persimmon.ai/v1
+kind: ReviewLoop
+metadata: {name: design-one}
+spec:
+  inputs:
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    blockId: {type: {kind: value, schema: {type: string, pattern: "^BB-[0-9]+$"}}}
+    type: {type: {kind: value, schema: {enum: [http-api, async-api, data-schema]}}}
+    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
+    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+  produce:
+    uses: {kind: Task, name: design-asset}
+    inputs:
+      architecture: {fromInput: architecture}
+      blockId: {fromInput: blockId}
+      type: {fromInput: type}
+      domainModel: {fromInput: domainModel}
+      glossary: {fromInput: glossary}
+      rules: {fromInput: rules}
+    timeout: 30m
+  review:
+    uses: {kind: Gate, name: design-gate}
+    inputs:
+      design: {fromStep: {stepRef: produce, output: design}}
+      architecture: {fromInput: architecture}
+      domainModel: {fromInput: domainModel}
+      rules: {fromInput: rules}
+    timeout: 5m
+  subject: design
+  previous: previous
+  feedback: feedback
+  maxRounds: 2
+  timeout: 90m
+---
+apiVersion: persimmon.ai/v1
+kind: Workflow
+metadata: {name: design-all}
+spec:
+  inputs:
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    blocks: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, pattern: "^BB-[0-9]+$"}}}}
+    type: {type: {kind: value, schema: {enum: [http-api, async-api, data-schema]}}}
+    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
+    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+  outputs:
+    written: {type: {kind: value, schema: {type: integer}}}
+  outputBindings:
+    written: {expression: "steps.each.iterations"}
+  entry: [each]
+  steps:
+    - id: each
+      uses: {kind: ReviewLoop, name: design-one}
+      inputs:
+        architecture: {fromInput: architecture}
+        blockId: {expression: "state.blocks[state.index - 1]"}
+        type: {fromInput: type}
+        domainModel: {fromInput: domainModel}
+        glossary: {fromInput: glossary}
+        rules: {fromInput: rules}
+      timeout: 12h
+      repeat:
+        state:
+          index: {type: {kind: value, schema: {type: integer, minimum: 1}}}
+          blocks: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, pattern: "^BB-[0-9]+$"}}}}
+        initial:
+          index: {literal: 1}
+          blocks: {fromInput: blocks}
+        next:
+          index: {expression: "state.index + 1"}
+          blocks: {fromState: blocks}
+        until: "!iteration.outputs.passed || iteration.index >= inputs.blocks.size()"
+        maxIterations: 20
+  transitions:
+    - id: done
+      from: [{stepRef: each, outcomes: [Succeeded, Failed]}]
+      to:
+        - {terminal: Succeeded, when: 'steps.each.phase == "Succeeded" && steps.each.outputs.passed'}
+        - {terminal: Failed, reason: design_inconsistent}
+      dispatch: first
+  timeout: 12h
