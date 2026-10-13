@@ -197,6 +197,10 @@ describe('task Handler', () => {
     const r = handler.reconcile(input(state, { type: 'Signal', dedupeKey: 's', payload: { source: 'adapter', eventId: 'c', payload: completion } })) as ReconcileResult
     expect(published).toEqual([request])
     expect(clean(r.statusPatch)).toMatchObject({ phase: 'Succeeded', outputs: { prd: { kind: 'artifact', ref: { id: 'checkout-v2', revision: 7 } } } })
+    // a ref the signal carries as an output, published nowhere, is not staged: schema_violation
+    const smuggled = { taskResult: { protocol: 'persimmon.result/v1', outputs: { prd: { kind: 'artifact', ref: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement', namespace: 'demo', id: 'checkout-v2', revision: 3 } } } }, publish: [] }
+    const bad = handler.reconcile(input(state, { type: 'Signal', dedupeKey: 's2', payload: { source: 'adapter', eventId: 'c2', payload: smuggled } })) as ReconcileResult
+    expect(clean(bad.statusPatch)).toMatchObject({ phase: 'Failed', error: { code: 'schema_violation', message: 'artifact checkout-v2 revision 3 not staged in this attempt' } })
     state = apply(state, r)
     expect(handler.reconcile(input(state, { type: 'CancelRequested', dedupeKey: 'cancel' }))).toEqual({ actions: [] })
   })
@@ -211,8 +215,9 @@ describe('task Handler', () => {
     task.spec.retryPolicy.retryOn.push('invalid_input')
     task.spec.action.context.push({ kind: 'file', input: 'research', path: 'x' })
     task.spec.action.workspace = { input: 'research' }
+    task.spec.outputs.many = { type: { kind: 'artifacts', artifactKind: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement' } } }
     const findings = handler.validate(task).findings
-    expect(findings.map((f) => f.message)).toEqual(['invalid_input in both retryOn and abortOn', 'invalid_input is never retried', 'research is not an externalResource port', 'research is not an externalResource port'])
+    expect(findings.map((f) => f.message)).toEqual(['invalid_input in both retryOn and abortOn', 'invalid_input is never retried', 'many: no Executor produces an artifacts output', 'research is not an externalResource port', 'research is not an externalResource port'])
   })
 
   it('action.workspace reaches the execute payload: a path as given, an input through its locator.path', () => {

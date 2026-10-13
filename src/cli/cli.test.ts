@@ -252,8 +252,10 @@ describe('persimmon CLI', () => {
     const pairWf = { apiVersion: 'persimmon.ai/v1', kind: 'Workflow', metadata: { name: 'pair-wf' }, spec: { inputs: { prds: { type: { kind: 'artifacts', artifactKind: pk } } }, entry: ['pair'], steps: [{ id: 'pair', uses: { kind: 'Task', name: 'pair' }, inputs: { prds: { fromInput: 'prds' } }, timeout: '1h' }], transitions: [{ id: 'done', from: [{ stepRef: 'pair', outcomes: ['Succeeded'] }], to: [{ terminal: 'Succeeded' }] }], timeout: '3h' } }
     expect(await run('apply', file('pair.yaml', [pair, pairWf]))).toBe(0)
     const r2 = { ...pk, namespace: 'default', id: 'spec-1', revision: 2 }
+    expect(await run('run', 'pair-wf', '--input', `prds=@${file('bad.yaml', [[prdDoc, { id: 'x' }]])}`)).toBe(1)
+    expect(err.at(-1)).toMatch(/--input prds\[1\]: neither a revision document nor a RevisionRef/)
     out = []
-    expect(await run('run', 'pair-wf', '--input', `prds=@${file('prds.yaml', [[prdDoc, r2]])}`, '--follow')).toBe(0)
+    expect(await run('run', 'pair-wf', '--input', `prds=@${file('prds.yaml', [[prdDoc, { ...r2, namespace: undefined }]])}`, '--follow')).toBe(0) // a ref without a Namespace is in the run's
     const pairRun = out[0]!.split('/')[1]!
     out = []
     expect(await run('get', `WorkflowRun/${pairRun}`)).toBe(0)

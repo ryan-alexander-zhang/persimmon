@@ -62,6 +62,7 @@ export function taskHandler(deps: HandlerDeps): HandlerImpl {
           findings.push({ severity: 'warning', code: 'adapter_describe', path: '/spec/action/parameters', message: `${executor!.adapter} describe.parametersSchema is not a valid schema: ${(e as Error).message}` })
         }
       }
+      for (const [port, o] of Object.entries(spec.outputs ?? {})) if (o.type.kind === 'artifacts') bad(`/spec/outputs/${port}`, `${port}: no Executor produces an artifacts output`)
       const ws = spec.action.workspace
       if (ws && 'input' in ws && spec.inputs?.[ws.input]?.type.kind !== 'externalResource') bad('/spec/action/workspace/input', `${ws.input} is not an externalResource port`)
       for (const [i, e] of (spec.action.context ?? []).entries()) {
@@ -244,12 +245,12 @@ export function taskHandler(deps: HandlerDeps): HandlerImpl {
           const body = ev.payload.payload as { taskResult: TaskResult; publish?: { port: string; request: PublishRequest }[] } | undefined
           if (!body?.taskResult || !current) return { actions: [] }
           const outputs: RuntimeValues = { ...body.taskResult.outputs }
+          const stagedNow: { ref: RevisionRef; scope: string }[] = []
           for (const p of body.publish ?? []) {
             const ref = deps.callback(input.engine.token, 'publishArtifact', p.request as unknown as Record<string, unknown>) as RevisionRef
             outputs[p.port] = { kind: 'artifact', ref }
+            stagedNow.push({ ref, scope: current.idempotencyKey }) // only what was published here is staged; a ref the signal carries is not
           }
-          // artifacts published here are staged to this reconcile, so the staged check sees them
-          const stagedNow = Object.values(outputs).flatMap((v) => (v.kind === 'artifact' ? [v.ref] : v.kind === 'artifacts' ? v.refs : []).map((ref) => ({ ref, scope: current.idempotencyKey })))
           input.context.staged = [...(input.context.staged ?? []), ...stagedNow]
           return succeed(current, { ...body.taskResult, outputs }, input.context.actor ? { actor: input.context.actor } : {})
         }

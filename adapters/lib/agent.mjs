@@ -90,7 +90,8 @@ async function execute(driver, payload, log) {
     rmSync(dir, { recursive: true, force: true })
   }
   if (!answer?.outputs || typeof answer.outputs !== 'object') throw new AdapterError('agent_failed', 'agent answer has no outputs object', true)
-  const artifactInputs = Object.values(inputs).flatMap((v) => (v.kind === 'artifact' ? [v.ref] : v.kind === 'artifacts' ? v.refs : [])) // every revision read lands in provenance
+  const refs = Object.values(inputs).flatMap((v) => (v.kind === 'artifact' ? [v.ref] : v.kind === 'artifacts' ? v.refs : []))
+  const artifactInputs = [...new Map(refs.map((r) => [JSON.stringify(r), r])).values()] // every revision read lands in provenance, once
   const outputs = {}
   for (const [port, spec] of Object.entries(task.outputs)) {
     const value = answer.outputs[port]

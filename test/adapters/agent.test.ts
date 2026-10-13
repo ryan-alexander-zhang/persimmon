@@ -148,7 +148,7 @@ describe('claude-code/v1', () => {
     const many = { ...payload(), inputs: { ...payload().inputs, prior: { kind: 'artifacts', refs: [research, r2] } }, context: [{ kind: 'artifact', ref: research }, { kind: 'artifact', ref: r2 }] }
     const r = await adapter('claude-code', { id: 9, op: 'execute', payload: many }, { STUB_RESULT: JSON.stringify({ prd: { title: 'Checkout v2' }, count: 2 }) })
     expect(last(r).ok).toBe(true)
-    expect(calls.find((c) => c.name === 'publishArtifact')!.args.inputs).toEqual([research, research, r2])
+    expect(calls.find((c) => c.name === 'publishArtifact')!.args.inputs).toEqual([research, r2]) // once each
     const p: string = JSON.parse(readFileSync(join(stubs, 'claude.json'), 'utf8')).prompt
     expect(p).toContain('ResearchReport research-checkout-v2 revision 2')
     expect(p.slice(p.indexOf('## Inputs'), p.indexOf('## Instructions'))).not.toContain('prior')

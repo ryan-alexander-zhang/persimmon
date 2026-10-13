@@ -206,7 +206,12 @@ async function artifactInputs(engine: Engine, wf: Resource | undefined, doc: Res
     if (kind === 'artifact' && isDoc(v.value)) spec.inputs[port] = { kind: 'artifact', ref: await store(port, v.value) } as never
     if (kind === 'artifacts' && Array.isArray(v.value)) {
       const refs: RevisionRef[] = []
-      for (const item of v.value) refs.push(isDoc(item) ? await store(port, item) : (item as RevisionRef))
+      for (const [i, item] of v.value.entries()) {
+        const ref = item as Partial<RevisionRef>
+        if (isDoc(item)) refs.push(await store(port, item))
+        else if (ref?.apiVersion && ref.kind && ref.id && ref.revision) refs.push({ namespace: doc.metadata.namespace!, ...ref } as RevisionRef) // a ref without a Namespace is in the run's
+        else throw new Error(`--input ${port}[${i}]: neither a revision document nor a RevisionRef`)
+      }
       spec.inputs[port] = { kind: 'artifacts', refs } as never
     }
   }

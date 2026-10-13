@@ -100,7 +100,7 @@ export function triggerHandler(deps: HandlerDeps): HandlerImpl {
       for (const [port, s] of Object.entries(wf.inputs ?? {})) if (s.required !== false && !t.spec.run.inputs?.[port]) bad('/spec/run/inputs', `required input ${port} unbound`)
       if (t.spec.event.kind === 'artifactPublished') {
         const ak = t.spec.event.artifactKind
-        if (Object.values(wf.outputs ?? {}).some((o) => o.type.kind === 'artifact' && sameType(o.type, { kind: 'artifact', artifactKind: ak }))) bad('/spec/run/workflowRef', 'target Workflow outputs the triggering artifact kind')
+        if (Object.values(wf.outputs ?? {}).some((o) => (o.type.kind === 'artifact' || o.type.kind === 'artifacts') && sameType(o.type, { kind: o.type.kind, artifactKind: ak }))) bad('/spec/run/workflowRef', 'target Workflow outputs the triggering artifact kind')
       } else if (t.spec.event.workflowRef.name === t.spec.run.workflowRef.name) bad('/spec/run/workflowRef', 'a run-finished Trigger must start a different Workflow')
       return { findings: f }
     },

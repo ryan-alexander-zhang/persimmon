@@ -88,6 +88,11 @@ describe('trigger Handler', () => {
     const loop = example('trigger-on-run-finished') as Resource
     ;(loop.spec as { run: { workflowRef: { name: string } } }).run.workflowRef.name = 'prd-approval'
     expect(handler.validate(loop).findings.map((f) => f.message)).toContain('a run-finished Trigger must start a different Workflow')
+    // a target that outputs the triggering kind, one or many, would fire itself
+    const prev = deps.getResource
+    deps.getResource = (kind, ns, name) => (name === 'prd-approval' ? ({ ...approval, spec: { ...approval.spec, outputs: { prds: { type: { kind: 'artifacts', artifactKind: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement' } } } } } } as Resource) : prev(kind, ns, name))
+    expect(handler.validate(trigger()).findings.map((f) => f.message)).toEqual(['target Workflow outputs the triggering artifact kind'])
+    deps.getResource = prev
     const missing = trigger()
     ;(missing.spec as { run: { workflowRef: { name: string } } }).run.workflowRef.name = 'gone'
     expect(handler.validate(missing).findings[0]).toMatchObject({ severity: 'warning', code: 'workflow_missing' })

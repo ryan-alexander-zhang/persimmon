@@ -73,7 +73,7 @@ What an attempt returns, `persimmon.result/v1`.
 | Field | Rule |
 |---|---|
 | `protocol` | `persimmon.result/v1` |
-| `outputs` | `{<port>: RuntimeValue}`; exactly the declared outputs, types equal; artifacts staged in this attempt's Publication scope |
+| `outputs` | `{<port>: RuntimeValue}`; exactly the declared outputs, types equal; artifacts staged in this attempt's Publication scope (a human completion stages only what its `publish[]` published, never a ref the signal carries) |
 | `summary` | optional text for humans |
 
 Anything else fails the attempt with `schema_violation`.
@@ -88,7 +88,7 @@ Anything else fails the attempt with `schema_violation`.
 | `action.workspace.input` names an `externalResource` input; at run time its `locator.path` is a string (task Handler) and a directory (Adapter), else `invalid_input` | static checker; task Handler; Adapter |
 | `file` context `path` resolves inside `action.workspace`; the entry's `ref` is provenance, not a root | none; stated |
 | every `context.kind` ∈ adapter `describe.contextKinds` | static checker |
-| `file.input` is an `externalResource` port; `artifact.input` is an `artifact` or `artifacts` port | static checker |
+| `file.input` is an `externalResource` port; `artifact.input` is an `artifact` or `artifacts` port; no output is an `artifacts` port | static checker |
 | the referenced Skill's `format` ∈ adapter `describe.skillFormats` | static checker |
 | `retryOn ∩ abortOn = ∅`; the three never-retried codes ∉ `retryOn` | static checker |
 | `unknown_result` retried unless `sideEffects: nonIdempotent`; `retryPolicy` cannot override | `task` handler (`17-runs.md`) |
