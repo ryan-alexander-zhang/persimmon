@@ -83,3 +83,39 @@ spec:
     parameters: {effort: high}
   timeout: 30m
   sideEffects: none
+---
+# The Spec of one capability (27-spec-process.md): stories and acceptance criteria that cite the kinds beside them.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: write-spec}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    capabilityId: {type: {kind: value, schema: {type: string, pattern: "^CAP-[0-9]+$"}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
+    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, required: false}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+  outputs:
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+  executorRef: {kind: Executor, name: spec-agent}
+  action:
+    instructions: |
+      Write the Spec of the Prd capability whose id is `capabilityId`, following the Spec rules in your context.
+      `prd`, `architecture` and `domainModel` in the Spec are the artifact ids of the inputs with those names.
+      Every command, event and read model label is the DomainModel's; every rule id is in `rules`; every quality
+      scenario id is in `architecture`. With `previous` and `feedback` bound, fix what the findings name and
+      change nothing else.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: spec-rules}}
+      - {kind: artifact, input: prd}
+      - {kind: artifact, input: architecture}
+      - {kind: artifact, input: domainModel}
+      - {kind: artifact, input: glossary}
+      - {kind: artifact, input: rules}
+      - {kind: artifact, input: previous}
+    parameters: {effort: high}
+  timeout: 30m
+  sideEffects: none

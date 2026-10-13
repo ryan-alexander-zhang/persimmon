@@ -39,3 +39,20 @@ spec:
     adapter: eventstorming/v1
     configuration: {}
   timeout: 1m
+---
+# spec-consistency: sdd/v1 checks a Spec against the artifacts it cites (27-spec-process.md).
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: spec-consistency}
+spec:
+  inputs:
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+  evaluator:
+    type: adapter
+    adapter: sdd/v1
+    configuration: {}
+  timeout: 1m
