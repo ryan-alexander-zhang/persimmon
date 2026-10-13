@@ -80,6 +80,9 @@ The Adapter picks the mode from the payload: `artifacts.plan` first (a Plan payl
   Two things the Prompt could say better: a chain where every task depends only on the previous
   one is an order, not a dependency graph, and the receipt store (`BB-2`) got no task because no
   requirement names it; both are judgement, not findings. Found in UAT.
+- Run again after `write-plan` chose its id (`inputs.spec.id + '-plan'`): the output was
+  `Plan/submit-a-claim-plan.r2`, the next revision of the example's `r1`, 1m07s, round one. Found
+  in UAT.
 
 ## Examples
 
