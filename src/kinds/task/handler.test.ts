@@ -205,6 +205,44 @@ describe('task Handler', () => {
     expect(handler.reconcile(input(state, { type: 'CancelRequested', dedupeKey: 'cancel' }))).toEqual({ actions: [] })
   })
 
+  it('an output that chooses its id: resolved at start, handed to the Adapter, enforced on the published ref', () => {
+    const research = closure.resources.find((r) => r.kind === 'Task' && (r.spec as { action: { instructions: string } }).action.instructions.startsWith('Research'))!
+    const withId = (id: unknown): Closure => ({ ...closure, resources: closure.resources.map((r) => (r === research ? { ...r, spec: { ...r.spec, outputs: { report: { ...(r.spec as TaskSpec).outputs!.report, id } } } } : r)) })
+    deps.closure = () => withId({ literal: 'research-checkout-v2' })
+    let run = base()
+    const r = handler.reconcile(input(run, { type: 'Created', dedupeKey: 'created' })) as ReconcileResult
+    expect((r.actions[0] as { payload: { task: { outputIds: unknown } } }).payload.task.outputIds).toEqual({ report: 'research-checkout-v2' })
+    run = apply(run, r)
+    const ref = { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ResearchReport', namespace: 'demo', id: 'research-checkout-v2', revision: 2 }
+    const finished = (id: string) => ({ type: 'AdapterFinished' as const, dedupeKey: 'a', payload: { idempotencyKey: 'prd-create-002//research/1', state: 'succeeded' as const, result: { protocol: 'persimmon.result/v1', outputs: { report: { kind: 'artifact', ref: { ...ref, id } } } } } })
+    const other = handler.reconcile(input(run, finished('prd-create-002-research-report'), [{ ref: { ...ref, id: 'prd-create-002-research-report' }, scope: 'prd-create-002//research/1' }])) as ReconcileResult
+    expect(clean(other.statusPatch)).toMatchObject({ phase: 'Failed', error: { code: 'schema_violation', message: 'report: published prd-create-002-research-report, not the chosen id research-checkout-v2' } })
+    const ok = handler.reconcile(input(run, finished('research-checkout-v2'), [{ ref, scope: 'prd-create-002//research/1' }])) as ReconcileResult
+    expect(clean(ok.statusPatch)).toMatchObject({ phase: 'Succeeded', outputs: { report: { ref: { id: 'research-checkout-v2', revision: 2 } } } })
+    // a value that is no Id fails the attempt before any call
+    deps.closure = () => withId({ expression: 'inputs.repository.id' })
+    const bad = handler.reconcile(input(base(), { type: 'Created', dedupeKey: 'created' })) as ReconcileResult
+    expect(clean(bad.statusPatch)).toMatchObject({ phase: 'Failed', error: { code: 'invalid_input', message: 'report: id "github.com/persimmon-ai/demo" is not an Id' } })
+  })
+
+  it('validate checks an output id: artifact port, inputs only, a string', () => {
+    const task = example('task-write-prd')
+    const check = (id: unknown, port = 'prd') => {
+      const t = structuredClone(task)
+      t.spec.outputs[port] = { ...(t.spec.outputs[port] ?? { type: { kind: 'value', schema: { type: 'integer' } } }), id }
+      return handler.validate(t).findings.map((f) => f.message)
+    }
+    expect(check({ expression: "inputs.research.id + '-prd'" })).toEqual([])
+    expect(check({ literal: 'checkout-v2' })).toEqual([])
+    expect(check({ fromInput: 'maxRequirements' })).toEqual([])
+    expect(check({ expression: 'inputs.maxRequirements + 1' })).toEqual(['prd: id expression is int, not string'])
+    expect(check({ expression: 'inputs.nope' })).toEqual([expect.stringMatching(/^prd: id expression: /)])
+    expect(check({ literal: 7 })).toEqual(['prd: id literal is not a string'])
+    expect(check({ fromInput: 'research' })).toEqual(['prd: id fromInput research is not a value input'])
+    expect(check({ fromStep: { stepRef: 'x', output: 'y' } })).toEqual(['prd: id reads inputs only'])
+    expect(check({ literal: 'x' }, 'count')).toEqual(['count: only an artifact output chooses its id'])
+  })
+
   it('cancel is immediate and validate catches context and retry policy mistakes', () => {
     let run = base()
     run = apply(run, handler.reconcile(input(run, { type: 'Created', dedupeKey: 'created' })) as ReconcileResult)

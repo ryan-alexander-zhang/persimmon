@@ -1,7 +1,7 @@
 // Task and TaskRun (12-task.md, 17-runs.md, schemas/task.yaml, schemas/runs.yaml).
 import type { ReconcileError } from '../../reconcile/types.js'
 import type { Actor, ExternalResourceRef, LocalDefinitionRef, ObjectRef, Resource, RevisionRef } from '../../resource/types.js'
-import type { InputSpec, OutputSpec, RuntimeValues } from '../ports/types.js'
+import type { Binding, InputSpec, OutputSpec, RuntimeValues } from '../ports/types.js'
 
 export type ContextEntry =
   | { kind: 'file'; input: string; path: string }
@@ -26,7 +26,8 @@ export type SideEffects = 'none' | 'idempotent' | 'nonIdempotent'
 
 export interface TaskSpec {
   inputs?: Record<string, InputSpec>
-  outputs?: Record<string, OutputSpec>
+  /** an artifact output may choose its identity: a Binding over `inputs` yielding an Id (12-task.md) */
+  outputs?: Record<string, OutputSpec & { id?: Binding }>
   executorRef: LocalDefinitionRef
   action: { instructions: string; context?: ContextEntry[]; parameters?: Record<string, unknown>; workspace?: { path: string } | { input: string } }
   timeout: string

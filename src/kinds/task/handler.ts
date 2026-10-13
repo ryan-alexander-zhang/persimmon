@@ -7,13 +7,28 @@ import type { Action, AdapterFinishedPayload, ReconcileError, PublishRequest } f
 import type { Resource, RevisionRef } from '../../resource/types.js'
 import type { Closure } from '../../snapshot/walk.js'
 import { fromClosure, type HandlerDeps } from '../deps.js'
-import { checkInputs, checkOutputs, inlineSchema, overrideFindings, PortError } from '../ports/ports.js'
+import { checkInputs, checkOutputs, evaluateBinding, inlineSchema, overrideFindings, PortError, siteOf } from '../ports/ports.js'
 import type { RuntimeValues } from '../ports/types.js'
 import { ContextError, resolveContext } from './context.js'
 import { backoffMs, shouldRetry } from './retry.js'
 import { type Attempt, type ExecutorSpec, neverRetried, type Task, type TaskResult, type TaskRun, type TaskSpec, terminal } from './types.js'
 
 const err = (code: string, message: string, retryable = false): ReconcileError => ({ code, message, retryable })
+const dnsLabel = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/ // resource.yaml Id
+
+/** The identities a Task chose for its artifact outputs, resolved over the bound inputs (12-task.md). */
+function outputIdsOf(task: Task, inputs: RuntimeValues): Record<string, string> {
+  const site = siteOf({ inputs: task.spec.inputs ?? {} })
+  const out: Record<string, string> = {}
+  for (const [port, o] of Object.entries(task.spec.outputs ?? {})) {
+    if (!o.id) continue
+    const v = evaluateBinding(o.id, { inputs }, site)
+    const id = v?.kind === 'value' ? v.value : undefined
+    if (typeof id !== 'string' || id.length > 63 || !dnsLabel.test(id)) throw new PortError(`${port}: id ${JSON.stringify(id)} is not an Id`)
+    out[port] = id
+  }
+  return out
+}
 /** RFC 3339 without a fraction, as every design example writes times. */
 export const rfc3339 = (d: Date): string => d.toISOString().replace(/\.\d{3}Z$/, 'Z')
 
@@ -46,6 +61,22 @@ export function taskHandler(deps: HandlerDeps): HandlerImpl {
       const retryOn = new Set(spec.retryPolicy?.retryOn ?? [])
       for (const c of spec.retryPolicy?.abortOn ?? []) if (retryOn.has(c)) bad('/spec/retryPolicy', `${c} in both retryOn and abortOn`)
       for (const c of retryOn) if (neverRetried.has(c)) bad('/spec/retryPolicy/retryOn', `${c} is never retried`)
+      for (const [port, o] of Object.entries(spec.outputs ?? {})) {
+        if (!o.id) continue
+        if (o.type.kind !== 'artifact') bad(`/spec/outputs/${port}/id`, `${port}: only an artifact output chooses its id`)
+        else if ('literal' in o.id) {
+          if (typeof o.id.literal !== 'string') bad(`/spec/outputs/${port}/id`, `${port}: id literal is not a string`)
+        } else if ('fromInput' in o.id) {
+          if (spec.inputs?.[o.id.fromInput]?.type.kind !== 'value') bad(`/spec/outputs/${port}/id`, `${port}: id fromInput ${o.id.fromInput} is not a value input`)
+        } else if ('expression' in o.id) {
+          try {
+            const type = siteOf({ inputs: spec.inputs ?? {} }).check(o.id.expression)
+            if (type !== 'string') bad(`/spec/outputs/${port}/id`, `${port}: id expression is ${type}, not string`)
+          } catch (e) {
+            bad(`/spec/outputs/${port}/id`, `${port}: id expression: ${(e as Error).message}`, 'invalid_expression')
+          }
+        } else bad(`/spec/outputs/${port}/id`, `${port}: id reads inputs only`)
+      }
       // the Executor's Adapter describe, when both resolve; the Executor's own validate reports an unreachable Adapter
       const ns = resource.metadata.namespace
       const executor = deps.getResource('Executor', ns, spec.executorRef.name)?.spec as ExecutorSpec | undefined
@@ -106,9 +137,11 @@ export function taskHandler(deps: HandlerDeps): HandlerImpl {
         const { task, executor, describe } = loaded
         let inputs: RuntimeValues
         let context
+        let outputIds: Record<string, string>
         try {
           inputs = checkInputs(task.spec.inputs ?? {}, run.spec.inputs)
           context = resolveContext(task.spec.action.context ?? [], task.spec.inputs ?? {}, inputs, loaded.closure, run.metadata.namespace)
+          outputIds = outputIdsOf(task, inputs)
         } catch (e) {
           if (e instanceof PortError || e instanceof ContextError) return fail(err(e instanceof ContextError ? e.code : 'invalid_input', e.message))
           throw e
@@ -154,7 +187,7 @@ export function taskHandler(deps: HandlerDeps): HandlerImpl {
               deadline: rfc3339(attemptDeadline),
               payload: {
                 taskRun: { ref: ref(run), logicalExecutionId: lei, idempotencyKey: key, attempt: index },
-                task: { instructions: task.spec.action.instructions, parameters: task.spec.action.parameters ?? {}, sideEffects: task.spec.sideEffects, outputs, outputSchemas },
+                task: { instructions: task.spec.action.instructions, parameters: task.spec.action.parameters ?? {}, sideEffects: task.spec.sideEffects, outputs, outputSchemas, outputIds },
                 executor: { type: executor.type, configuration: executor.configuration ?? {}, security: executor.security ?? { networkAccess: 'deny' } },
                 inputs,
                 context,
@@ -186,6 +219,11 @@ export function taskHandler(deps: HandlerDeps): HandlerImpl {
         try {
           if (result.protocol !== 'persimmon.result/v1') throw new PortError(`protocol ${String(result.protocol)}`)
           checkOutputs(task.spec.outputs ?? {}, result.outputs)
+          const chosen = outputIdsOf(task, checkInputs(task.spec.inputs ?? {}, run.spec.inputs))
+          for (const [port, id] of Object.entries(chosen)) {
+            const v = result.outputs[port]
+            if (v?.kind === 'artifact' && v.ref.id !== id) throw new PortError(`${port}: published ${v.ref.id}, not the chosen id ${id}`)
+          }
           const staged = (input.context.staged ?? []).filter((s) => s.scope === a.idempotencyKey).map((s) => s.ref)
           for (const v of Object.values(result.outputs))
             for (const ref of v.kind === 'artifact' ? [v.ref] : v.kind === 'artifacts' ? v.refs : [])
