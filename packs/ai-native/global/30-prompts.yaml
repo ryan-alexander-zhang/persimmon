@@ -129,7 +129,7 @@ spec:
     - rules: an acceptance criterion that tests a rule cites it by `BR-n` in `rules`; the sentence names the rule id instead of copying its condition ("While a claim line breaks BR-2, ..."). Every `BR-n` the capability lists in the Prd is cited by at least one criterion. Cite only `active` rules.
     - `actor` is a Prd user name; `benefit` names a `G-n` in prose when one applies. Prose uses Glossary term names, never aliases.
 
-    Stories: `US-n`, sequential from 1. `want` is what the actor does, no solution. One story per thing the actor does; a story with no command, event or read model is suspect.
+    Stories: `US-n`, sequential from 1. `want` is what the actor does, in the infinitive ("submit the claim"), no solution. One story per thing the actor does; a story with no command, event or read model is suspect.
 
     Acceptance criteria: `AC-n`, sequential from 1 across the whole Spec, not per story. Each is one EARS sentence over "the system" (never a building block), decidable by one test on one run; an outcome measured over time is a Prd success criterion and does not belong here. The `pattern` names the sentence form and the sentence opens with its keyword:
     - ubiquitous:          The system shall <response>.

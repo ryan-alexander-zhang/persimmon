@@ -65,6 +65,15 @@ returning findings, every one `error`:
   value or an artifact, never a field of one; the caller lists the capabilities it wants, which is
   also how one context of a multi-context Prd is chosen. Found in design review.
 
+- Proven live on `claude-sonnet-5`: `spec-all` over `CAP-1` and `CAP-4` of the worked example, two
+  minutes, both Specs passed `spec-consistency` in round one. Model quality: one story per command,
+  every rule the capability lists cited, qualities thin (`QS-1` only for CAP-1, none for CAP-4), and
+  the CAP-4 Spec asked a real question: the example DomainModel's `Export Status View` was updated by
+  `Claim Paid`, an event the model never lists. The example is fixed; the question is the process
+  working as designed. Found in UAT.
+- `want` is written in the infinitive ("submit the claim"), not the third person: the Prompt says so
+  after the live run wrote "views the export status". Found in UAT.
+
 ## Examples
 
 - `docs/design/examples/ai-native-domain.yaml`: the `Spec` of `CAP-1` passes `checkSpec` against
