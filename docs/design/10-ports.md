@@ -74,7 +74,9 @@ CEL, with the environment of the site:
 | `artifacts.<port>.{content, provenance}`, a list of them for an `artifacts` port; `inputs.<port>` | `cel` Validator (`14-gate.md`) |
 
 Artifact and externalResource values appear as their ref objects, an `artifacts` value as a
-list of them. No side effects, no network, no custom functions.
+list of them. No side effects, no network, no custom functions; of the CEL string extension
+only `lowerAscii()`, `upperAscii()`, `replace()`, `split()`, `trim()` and `join()` are relied on
+(`@marcbachmann/cel-js` ships them; a Task's output `id` uses `lowerAscii()`).
 
 Values enter CEL typed by the port schema: `integer` → `int`, `number` → `double`, `string`,
 `boolean`, `array` → `list`, `object` → `map`. Map literals may mix value types.

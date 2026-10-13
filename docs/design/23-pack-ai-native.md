@@ -220,7 +220,9 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
   `<prd>-<cap-n>`, a Prd run's `<context>-prd` and `<context>-rules`, a Design `<bb-n>-<type>`, a
   Plan `<spec>-plan`. A second run or a second loop round publishes the next revision of the same
   identity, which is what a revision means; the runner's `<logicalExecutionId>-<port>` gave each a
-  new one. Found in UAT.
+  new one. A storming context id and every `contextId` input are DNS labels of at most 40
+  characters, so `<context>-prd-cap-n-plan` stays an Id; a Design is `<architecture>-<bb-n>-<type>`
+  because `BB-n` numbers are per Architecture. Found in audit.
 
 ## Examples
 

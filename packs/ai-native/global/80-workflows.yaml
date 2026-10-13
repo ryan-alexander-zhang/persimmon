@@ -84,7 +84,7 @@ spec:
   inputs:
     model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
-    contextId: {type: {kind: value, schema: {type: string, minLength: 1}}}
+    contextId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}
   produce:
     uses: {kind: Task, name: derive-domain}
     inputs:
@@ -113,7 +113,7 @@ spec:
   inputs:
     model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
-    contexts: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}}
+    contexts: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}}
   outputs:
     derived: {type: {kind: value, schema: {type: integer}}}
   outputBindings:
@@ -130,7 +130,7 @@ spec:
       repeat:
         state:
           index: {type: {kind: value, schema: {type: integer, minimum: 1}}}
-          contexts: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}}
+          contexts: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}}
         initial:
           index: {literal: 1}
           contexts: {fromInput: contexts}
@@ -279,7 +279,7 @@ metadata: {name: author-prd}
 spec:
   inputs:
     brief: {type: {kind: value, schema: {type: string, minLength: 1}}}
-    contextId: {type: {kind: value, schema: {type: string, minLength: 1}}}
+    contextId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: false}
   produce:
@@ -310,7 +310,7 @@ spec:
   inputs:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     blockId: {type: {kind: value, schema: {type: string, pattern: "^BB-[0-9]+$"}}}
-    type: {type: {kind: value, schema: {enum: [http-api, async-api, data-schema]}}}
+    type: {type: {kind: value, schema: {type: string, enum: [http-api, async-api, data-schema]}}}
     interface: {type: {kind: value, schema: {type: string, minLength: 1}}, required: false}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
@@ -347,7 +347,7 @@ spec:
   inputs:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     blocks: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, pattern: "^BB-[0-9]+$"}}}}
-    type: {type: {kind: value, schema: {enum: [http-api, async-api, data-schema]}}}
+    type: {type: {kind: value, schema: {type: string, enum: [http-api, async-api, data-schema]}}}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}

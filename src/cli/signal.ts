@@ -102,6 +102,7 @@ export async function askForm(cli: Cli, form: Form, taskRun: string): Promise<Re
   const evidence = form.reading
     ? reading.filter((r) => r.ref && !r.error).map((r) => r.ref) // only what was actually shown
     : Object.values(form.inputs ?? {}).flatMap((v) => ((v as { kind?: string }).kind === 'artifact' ? [(v as { ref: RevisionRef }).ref] : (v as { kind?: string }).kind === 'artifacts' ? (v as { refs: RevisionRef[] }).refs : []))
+  if (form.outputIds === undefined && Object.values(form.outputs).some((o) => o.type.kind === 'artifact')) throw new Error('complete: the form predates chosen artifact ids (12-task.md); cancel the run and start it again')
   const outputs: Record<string, unknown> = {}
   const publish: { port: string; request: Record<string, unknown> }[] = []
   for (const [port, spec] of Object.entries(form.outputs)) {

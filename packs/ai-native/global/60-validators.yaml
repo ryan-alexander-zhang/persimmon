@@ -5,7 +5,7 @@ metadata: {name: eventstorming-grammar}
 spec:
   inputs:
     model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
-    level: {type: {kind: value, schema: {enum: [big-picture, process, design]}}, required: false}
+    level: {type: {kind: value, schema: {type: string, enum: [big-picture, process, design]}}, required: false}
   evaluator:
     type: adapter
     adapter: eventstorming/v1
@@ -33,7 +33,7 @@ spec:
   inputs:
     model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
-    context: {type: {kind: value, schema: {type: string, minLength: 1}}}
+    context: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}
   evaluator:
     type: adapter
     adapter: eventstorming/v1

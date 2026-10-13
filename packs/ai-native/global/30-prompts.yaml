@@ -12,7 +12,7 @@ spec:
     No `createdAt`, no positions; layout is computed from `order` and the relations.
 
     - `meta.level` is `big-picture`, `process` or `design`; it gates which node types may appear and rises as phases complete.
-    - `contexts[]`: `{id, name, order, classification?: core|supporting|generic, bigBallOfMud?}`; `order` from 0, left to right.
+    - `contexts[]`: `{id, name, order, classification?: core|supporting|generic, bigBallOfMud?}`; `order` from 0, left to right; `id` a DNS label (lower case letters, digits, hyphens, at most 40 characters): it becomes the BoundedContext artifact id.
     - `contextRelationships[]`: `{id, source, target, type}`; `source` is upstream; `type` is one of partnership, sharedKernel, customerSupplier, conformist, acl, openHostService, publishedLanguage, separateWays.
     - `nodes[]`: `{id, type, label, context?, order?, properties}`; `properties` is always an object, `{}` when empty.
       - types: `domainEvent` (past tense, carries `order`), `command` (imperative), `actor`, `readModel` (ends in View), `policy` (ends in Policy), `aggregate`, `constraint`, `externalSystem`, `hotspot` (the open question itself), `opportunity`.

@@ -66,9 +66,10 @@ The Adapter picks the mode from the payload: `artifacts.plan` first (a Plan payl
 - The Designs reach the Plan through one `artifacts` input the caller lists, not a query: the engine
   has no Relation query yet (`91-roadmap.md`) and the caller knows the blocks the Spec touches.
   Found in design review.
-- No `plan-all`: `spec-all` names its Specs `<run>-<port>` and a Workflow has no way to find the
-  Spec of `CAP-n`; chaining `spec-one` then `plan-one` in one Workflow would carry the ref but
-  also need the Designs per capability. Deferred with producer-chosen ids. Found in design review.
+- No `plan-all`: the Spec of `CAP-n` is now `<prd>-cap-n` (`12-task.md`), but a Workflow binding
+  cannot turn an id into an artifact value: it has no "latest revision of" lookup. Chaining
+  `spec-one` then `plan-one` in one Workflow would carry the ref but also need the Designs per
+  capability. Deferred on that lookup (`91-roadmap.md`). Found in design review.
 - `verifiedBy` and `covers` may both be empty on a task (groundwork), but every `FR-n` and `AC-n` of
   the Spec must be in some task: coverage is a Spec-level rule, not a task-level one. Found in
   design review.

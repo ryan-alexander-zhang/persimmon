@@ -223,6 +223,10 @@ describe('task Handler', () => {
     deps.closure = () => withId({ expression: 'inputs.repository.id' })
     const bad = handler.reconcile(input(base(), { type: 'Created', dedupeKey: 'created' })) as ReconcileResult
     expect(clean(bad.statusPatch)).toMatchObject({ phase: 'Failed', error: { code: 'invalid_input', message: 'report: id "github.com/persimmon-ai/demo" is not an Id' } })
+    // a CEL runtime error (a key the bound input lacks) fails the attempt the same way, never escapes reconcile
+    deps.closure = () => withId({ expression: 'inputs.repository.locator.nope' })
+    const thrown = handler.reconcile(input(base(), { type: 'Created', dedupeKey: 'created' })) as ReconcileResult
+    expect(clean(thrown.statusPatch)).toMatchObject({ phase: 'Failed', error: { code: 'invalid_input', message: expect.stringMatching(/^report: id expression: /) } })
   })
 
   it('validate checks an output id: artifact port, inputs only, a string', () => {
@@ -234,11 +238,11 @@ describe('task Handler', () => {
     }
     expect(check({ expression: "inputs.research.id + '-prd'" })).toEqual([])
     expect(check({ literal: 'checkout-v2' })).toEqual([])
-    expect(check({ fromInput: 'maxRequirements' })).toEqual([])
+    expect(check({ fromInput: 'maxRequirements' })).toEqual(['prd: id fromInput maxRequirements is not a string value input'])
     expect(check({ expression: 'inputs.maxRequirements + 1' })).toEqual(['prd: id expression is int, not string'])
     expect(check({ expression: 'inputs.nope' })).toEqual([expect.stringMatching(/^prd: id expression: /)])
     expect(check({ literal: 7 })).toEqual(['prd: id literal is not a string'])
-    expect(check({ fromInput: 'research' })).toEqual(['prd: id fromInput research is not a value input'])
+    expect(check({ fromInput: 'research' })).toEqual(['prd: id fromInput research is not a string value input'])
     expect(check({ fromStep: { stepRef: 'x', output: 'y' } })).toEqual(['prd: id reads inputs only'])
     expect(check({ literal: 'x' }, 'count')).toEqual(['count: only an artifact output chooses its id'])
   })

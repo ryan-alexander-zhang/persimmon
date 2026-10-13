@@ -1,13 +1,14 @@
 // task Handler: validates Tasks, drives TaskRuns (17-runs.md task Handler table).
 import type { Describe } from '../../adapter/types.js'
 import { durationMs } from '../../config.js'
+import { ExpressionError } from '../../expression/site.js'
 import { ajv } from '../../resource/ajv.js'
 import type { Finding, HandlerImpl, ReconcileInput, ReconcileResult } from '../../handler/types.js'
 import type { Action, AdapterFinishedPayload, ReconcileError, PublishRequest } from '../../reconcile/types.js'
 import type { Resource, RevisionRef } from '../../resource/types.js'
 import type { Closure } from '../../snapshot/walk.js'
 import { fromClosure, type HandlerDeps } from '../deps.js'
-import { checkInputs, checkOutputs, evaluateBinding, inlineSchema, overrideFindings, PortError, siteOf } from '../ports/ports.js'
+import { celTypeOf, checkInputs, checkOutputs, evaluateBinding, expandSchema, inlineSchema, overrideFindings, PortError, siteOf } from '../ports/ports.js'
 import type { RuntimeValues } from '../ports/types.js'
 import { ContextError, resolveContext } from './context.js'
 import { backoffMs, shouldRetry } from './retry.js'
@@ -22,7 +23,13 @@ function outputIdsOf(task: Task, inputs: RuntimeValues): Record<string, string> 
   const out: Record<string, string> = {}
   for (const [port, o] of Object.entries(task.spec.outputs ?? {})) {
     if (!o.id) continue
-    const v = evaluateBinding(o.id, { inputs }, site)
+    let v
+    try {
+      v = evaluateBinding(o.id, { inputs }, site)
+    } catch (e) {
+      if (e instanceof ExpressionError) throw new PortError(`${port}: id expression: ${e.message}`)
+      throw e
+    }
     const id = v?.kind === 'value' ? v.value : undefined
     if (typeof id !== 'string' || id.length > 63 || !dnsLabel.test(id)) throw new PortError(`${port}: id ${JSON.stringify(id)} is not an Id`)
     out[port] = id
@@ -67,7 +74,8 @@ export function taskHandler(deps: HandlerDeps): HandlerImpl {
         else if ('literal' in o.id) {
           if (typeof o.id.literal !== 'string') bad(`/spec/outputs/${port}/id`, `${port}: id literal is not a string`)
         } else if ('fromInput' in o.id) {
-          if (spec.inputs?.[o.id.fromInput]?.type.kind !== 'value') bad(`/spec/outputs/${port}/id`, `${port}: id fromInput ${o.id.fromInput} is not a value input`)
+          const t = spec.inputs?.[o.id.fromInput]?.type
+          if (t?.kind !== 'value' || celTypeOf(expandSchema(t.schema)) !== 'string') bad(`/spec/outputs/${port}/id`, `${port}: id fromInput ${o.id.fromInput} is not a string value input`)
         } else if ('expression' in o.id) {
           try {
             const type = siteOf({ inputs: spec.inputs ?? {} }).check(o.id.expression)

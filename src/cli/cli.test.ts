@@ -307,9 +307,13 @@ describe('persimmon CLI', () => {
     asks.length = 0
     out = []
     const report = { type: { kind: 'artifact' as const, artifactKind: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ReviewReport' } } }
-    c = await askForm({ cwd: dir, out: (l) => out.push(l), err: (l) => err.push(l), ask: scripted(['verdict: [', 'verdict: 3', 'verdict: approve']) }, { instructions: 'Review', reading: [], inputs: { prd: { kind: 'artifact', ref: prd[0]!.ref } }, outputs: { Report: report }, outputSchemas: { Report: { type: 'object', required: ['verdict'], properties: { verdict: { enum: ['approve', 'revise'] } } } } }, 'my-Run')
+    c = await askForm({ cwd: dir, out: (l) => out.push(l), err: (l) => err.push(l), ask: scripted(['verdict: [', 'verdict: 3', 'verdict: approve']) }, { instructions: 'Review', reading: [], inputs: { prd: { kind: 'artifact', ref: prd[0]!.ref } }, outputs: { Report: report }, outputSchemas: { Report: { type: 'object', required: ['verdict'], properties: { verdict: { enum: ['approve', 'revise'] } } } }, outputIds: {} }, 'my-Run')
     expect(c).toEqual({ taskResult: { protocol: 'persimmon.result/v1', outputs: {} }, publish: [{ port: 'Report', request: { kind: report.type.artifactKind, id: 'my-run-report', content: { verdict: 'approve' }, representations: [] } }] })
-    expect(asks).toHaveLength(3)
+    // the Task chose the id: the form carries it and the publish uses it; a form from before chosen ids is refused before anything is signalled
+    c = await askForm({ cwd: dir, out: (l) => out.push(l), err: (l) => err.push(l), ask: scripted(['verdict: approve']) }, { instructions: 'Review', reading: [], outputs: { Report: report }, outputSchemas: {}, outputIds: { Report: 'checkout-review' } }, 'my-Run')
+    expect(c.publish[0]!.request.id).toBe('checkout-review')
+    await expect(askForm({ cwd: dir, out: (l) => out.push(l), err: (l) => err.push(l), ask: scripted([]) }, { instructions: 'Review', reading: [], outputs: { Report: report } }, 'my-Run')).rejects.toThrow(/predates chosen artifact ids/)
+    expect(asks).toHaveLength(4)
     expect(asks[0]!.prompt).toContain('for example:\nverdict: approve') // the example, not the schema
     expect(err.filter((l) => l.startsWith('not YAML') || l.startsWith('Report:'))).toHaveLength(2)
     expect(out.join('\n')).toContain('inputs:') // no reading: the references are shown instead

@@ -5,13 +5,13 @@ metadata: {name: event-storm}
 spec:
   inputs:
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
-    level: {type: {kind: value, schema: {enum: [big-picture, process, design]}}}
+    level: {type: {kind: value, schema: {type: string, enum: [big-picture, process, design]}}}
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}, required: false}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
   outputs:
     model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}, id: {expression: "inputs.prd.id + '-storming'"}}
-    contexts: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}}
+    contexts: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}}
   executorRef: {kind: Executor, name: storming-agent}
   action:
     instructions: |
@@ -58,7 +58,7 @@ metadata: {name: derive-domain}
 spec:
   inputs:
     model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
-    contextId: {type: {kind: value, schema: {type: string, minLength: 1}}}
+    contextId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
@@ -127,7 +127,7 @@ metadata: {name: draft-prd}
 spec:
   inputs:
     brief: {type: {kind: value, schema: {type: string, minLength: 1}}}
-    contextId: {type: {kind: value, schema: {type: string, minLength: 1}}}
+    contextId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: false}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false}
@@ -180,7 +180,7 @@ spec:
   inputs:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     blockId: {type: {kind: value, schema: {type: string, pattern: "^BB-[0-9]+$"}}}
-    type: {type: {kind: value, schema: {enum: [http-api, async-api, data-schema]}}}
+    type: {type: {kind: value, schema: {type: string, enum: [http-api, async-api, data-schema]}}}
     interface: {type: {kind: value, schema: {type: string, minLength: 1}}, required: false}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
@@ -188,7 +188,7 @@ spec:
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
   outputs:
-    design: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, id: {expression: "inputs.blockId.lowerAscii() + '-' + inputs.type"}}
+    design: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, id: {expression: "inputs.architecture.id + '-' + inputs.blockId.lowerAscii() + '-' + inputs.type"}}
   executorRef: {kind: Executor, name: design-agent}
   action:
     instructions: |

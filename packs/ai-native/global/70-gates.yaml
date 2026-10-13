@@ -5,7 +5,7 @@ metadata: {name: storming-gate}
 spec:
   inputs:
     model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
-    level: {type: {kind: value, schema: {enum: [big-picture, process, design]}}}
+    level: {type: {kind: value, schema: {type: string, enum: [big-picture, process, design]}}}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
   validators:
@@ -29,7 +29,7 @@ spec:
   inputs:
     model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
-    contextId: {type: {kind: value, schema: {type: string, minLength: 1}}}
+    contextId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
   validators:
