@@ -484,6 +484,11 @@ aggregates with their commands, events and invariants, policies, read models, ex
 names are storming labels, attributes are **Fact types** (`26-domain-discovery.md`).
 _Avoid_: domain object model, class model, entity model, aggregate list
 
+**Spec process**:
+The pack process from a **Prd** capability to its **Spec**: Task `write-spec` under a ReviewLoop whose
+gate is `spec-consistency` (Adapter `sdd/v1`), repeated by `spec-all` over a list of `CAP-n`.
+_Avoid_: spec pipeline, spec workflow, specification phase
+
 **Domain discovery**:
 The pack process from a **Prd** to the domain kinds: three storming phases as ReviewLoops with a
 human gate, then one derivation per context, checked by `domain-consistency`.
