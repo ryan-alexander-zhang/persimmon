@@ -90,7 +90,7 @@ async function execute(driver, payload, log) {
     rmSync(dir, { recursive: true, force: true })
   }
   if (!answer?.outputs || typeof answer.outputs !== 'object') throw new AdapterError('agent_failed', 'agent answer has no outputs object', true)
-  const artifactInputs = Object.values(inputs).filter((v) => v.kind === 'artifact').map((v) => v.ref)
+  const artifactInputs = Object.values(inputs).flatMap((v) => (v.kind === 'artifact' ? [v.ref] : v.kind === 'artifacts' ? v.refs : [])) // every revision read lands in provenance
   const outputs = {}
   for (const [port, spec] of Object.entries(task.outputs)) {
     const value = answer.outputs[port]
@@ -158,7 +158,7 @@ async function buildPrompt(task, inputs, context, call, skillDir = '.claude/skil
         throw new AdapterError('invalid_input', `context kind ${c.kind} is not supported by this Adapter`, false)
     }
   }
-  const values = Object.entries(inputs).filter(([, v]) => v.kind !== 'artifact')
+  const values = Object.entries(inputs).filter(([, v]) => v.kind !== 'artifact' && v.kind !== 'artifacts') // artifacts are context entries, not Inputs
   if (values.length) parts.push(`## Inputs\n\n\`\`\`json\n${JSON.stringify(Object.fromEntries(values.map(([k, v]) => [k, v.kind === 'value' ? v.value : v.ref])), null, 2)}\n\`\`\``)
   parts.push(`## Instructions\n\n${task.instructions}`)
   // each port prints with its own hoisted definitions, under the hoisted keys its `$ref`s name, so the prose stands alone

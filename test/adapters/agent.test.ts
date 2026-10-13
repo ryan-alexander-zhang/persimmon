@@ -142,6 +142,18 @@ describe('claude-code/v1', () => {
     expect(logs.some((t) => t.includes('structured_output'))).toBe(false)
   })
 
+  it('an artifacts input: every ref in provenance, none in the Inputs block', async () => {
+    calls.length = 0
+    const r2 = { ...research, revision: 2 }
+    const many = { ...payload(), inputs: { ...payload().inputs, prior: { kind: 'artifacts', refs: [research, r2] } }, context: [{ kind: 'artifact', ref: research }, { kind: 'artifact', ref: r2 }] }
+    const r = await adapter('claude-code', { id: 9, op: 'execute', payload: many }, { STUB_RESULT: JSON.stringify({ prd: { title: 'Checkout v2' }, count: 2 }) })
+    expect(last(r).ok).toBe(true)
+    expect(calls.find((c) => c.name === 'publishArtifact')!.args.inputs).toEqual([research, research, r2])
+    const p: string = JSON.parse(readFileSync(join(stubs, 'claude.json'), 'utf8')).prompt
+    expect(p).toContain('ResearchReport research-checkout-v2 revision 2')
+    expect(p.slice(p.indexOf('## Inputs'), p.indexOf('## Instructions'))).not.toContain('prior')
+  })
+
   it('configuration.command stands in for claude only under PERSIMMON_ADAPTER_CONFORMANCE=1', async () => {
     const stubbed = { type: 'agent', configuration: { command: [process.execPath, join(root, 'adapters', 'claude-code', 'conformance.mjs')] }, security: { networkAccess: 'deny', credentialBindings: [] } }
     const refused = last(await adapter('claude-code', { id: 15, op: 'execute', payload: payload({ executor: stubbed, credentials: {} }) }))
