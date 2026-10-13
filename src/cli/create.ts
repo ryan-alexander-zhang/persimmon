@@ -5,7 +5,7 @@ import { basename, resolve } from 'node:path'
 import { parse } from 'yaml'
 import type { Engine } from '../engine.js'
 import { readPath } from '../reconcile/merge-patch.js'
-import type { Resource } from '../resource/types.js'
+import type { Resource, RevisionRef } from '../resource/types.js'
 import { placeDoc } from './apply.js'
 import type { Cli } from './context.js'
 import { openEngine } from './context.js'
@@ -59,7 +59,7 @@ export function parseInput(arg: string, cwd = process.cwd()): [string, unknown] 
   const [port, raw] = [arg.slice(0, eq), arg.slice(eq + 1)]
   const v: unknown = parse(raw.startsWith('@') ? readFileSync(resolve(cwd, raw.slice(1)), 'utf8') : raw)
   const kind = (v as { kind?: unknown } | null)?.kind
-  return [port, kind === 'value' || kind === 'artifact' || kind === 'externalResource' ? v : { kind: 'value', value: v }]
+  return [port, kind === 'value' || kind === 'artifact' || kind === 'artifacts' || kind === 'externalResource' ? v : { kind: 'value', value: v }]
 }
 
 async function store(cli: Cli, doc: Resource, o: FollowOptions): Promise<number> {
@@ -187,18 +187,28 @@ export function describe(r: Resource): string {
   return parts.filter(Boolean).join(' ')
 }
 
-/** `--input spec=@spec.yaml` on an artifact port: a revision document in the file is stored (once) and the run gets its reference. */
+/** `--input spec=@spec.yaml` on an artifact port: a revision document in the file is stored (once) and the run gets its reference.
+ * On an artifacts port the file holds a list; each item is a revision document, stored the same way, or a RevisionRef taken as is. */
 async function artifactInputs(engine: Engine, wf: Resource | undefined, doc: Resource): Promise<void> {
   const spec = doc.spec as { inputs: Record<string, { kind: string; value?: unknown }> }
   const ports = (wf?.spec as { inputs?: Record<string, { type: { kind: string } }> } | undefined)?.inputs ?? {}
-  for (const [port, v] of Object.entries(spec.inputs)) {
-    const d = v.value as Resource | undefined
-    if (ports[port]?.type.kind !== 'artifact' || v.kind !== 'value' || !d?.apiVersion || !d.kind || !d.metadata) continue
+  const isDoc = (d: unknown): d is Resource => !!(d as Resource | undefined)?.apiVersion && !!(d as Resource).kind && !!(d as Resource).metadata
+  const store = async (port: string, d: Resource): Promise<RevisionRef> => {
     const identity = (d.spec as { identity?: { id: string; revision: number } } | undefined)?.identity
     if (!identity) throw new Error(`--input ${port}: ${d.kind}/${d.metadata.name} has no spec.identity`)
     if (!d.metadata.namespace && doc.metadata.namespace) d.metadata.namespace = doc.metadata.namespace // the run's Namespace
     const { resource } = await engine.create(d) // exists: same name, same content by immutability
-    spec.inputs[port] = { kind: 'artifact', ref: { apiVersion: resource.apiVersion, kind: resource.kind, namespace: resource.metadata.namespace, id: identity.id, revision: identity.revision } } as never
+    return { apiVersion: resource.apiVersion, kind: resource.kind, namespace: resource.metadata.namespace!, id: identity.id, revision: identity.revision }
+  }
+  for (const [port, v] of Object.entries(spec.inputs)) {
+    const kind = ports[port]?.type.kind
+    if (v.kind !== 'value') continue
+    if (kind === 'artifact' && isDoc(v.value)) spec.inputs[port] = { kind: 'artifact', ref: await store(port, v.value) } as never
+    if (kind === 'artifacts' && Array.isArray(v.value)) {
+      const refs: RevisionRef[] = []
+      for (const item of v.value) refs.push(isDoc(item) ? await store(port, item) : (item as RevisionRef))
+      spec.inputs[port] = { kind: 'artifacts', refs } as never
+    }
   }
 }
 

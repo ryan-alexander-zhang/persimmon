@@ -246,6 +246,21 @@ describe('persimmon CLI', () => {
     out = []
     expect(await run('get', 'ProductRequirement/spec-1.r2')).toBe(0)
     expect(parse(out.join('\n')).spec.provenance.actor).toEqual({ kind: 'user', id: 'local' }) // provenance is never caller-supplied
+    // an artifacts port takes a list: a revision document is stored, a RevisionRef is taken as is
+    const pk = { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement' }
+    const pair = { apiVersion: 'persimmon.ai/v1', kind: 'Task', metadata: { name: 'pair' }, spec: { inputs: { prds: { type: { kind: 'artifacts', artifactKind: pk } } }, outputs: { result: { type: { kind: 'value', schema: { $ref: 'persimmon.ai/v1#/ValidationResult' } } } }, executorRef: { kind: 'Executor', name: 'local-reviewer' }, action: { instructions: 'Compare', context: [{ kind: 'artifact', input: 'prds' }] }, timeout: '1h', sideEffects: 'none' } }
+    const pairWf = { apiVersion: 'persimmon.ai/v1', kind: 'Workflow', metadata: { name: 'pair-wf' }, spec: { inputs: { prds: { type: { kind: 'artifacts', artifactKind: pk } } }, entry: ['pair'], steps: [{ id: 'pair', uses: { kind: 'Task', name: 'pair' }, inputs: { prds: { fromInput: 'prds' } }, timeout: '1h' }], transitions: [{ id: 'done', from: [{ stepRef: 'pair', outcomes: ['Succeeded'] }], to: [{ terminal: 'Succeeded' }] }], timeout: '3h' } }
+    expect(await run('apply', file('pair.yaml', [pair, pairWf]))).toBe(0)
+    const r2 = { ...pk, namespace: 'default', id: 'spec-1', revision: 2 }
+    out = []
+    expect(await run('run', 'pair-wf', '--input', `prds=@${file('prds.yaml', [[prdDoc, r2]])}`, '--follow')).toBe(0)
+    const pairRun = out[0]!.split('/')[1]!
+    out = []
+    expect(await run('get', `WorkflowRun/${pairRun}`)).toBe(0)
+    expect(parse(out.join('\n')).spec.inputs.prds).toEqual({ kind: 'artifacts', refs: [{ ...r2, revision: 1 }, r2] })
+    out = []
+    expect(await run('get', `TaskRun/${pairRun}-pair`)).toBe(0)
+    expect(parse(out.join('\n')).status.context.map((c: { ref: { revision: number } }) => c.ref.revision)).toEqual([1, 2]) // one context entry per ref, in order
     expect(parseInput('n=12')).toEqual(['n', { kind: 'value', value: 12 }])
     expect(parseInput('s=hello world')).toEqual(['s', { kind: 'value', value: 'hello world' }])
     expect(parseInput('a={kind: artifact, ref: {id: x}}')).toEqual(['a', { kind: 'artifact', ref: { id: 'x' } }])

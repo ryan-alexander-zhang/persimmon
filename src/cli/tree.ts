@@ -44,7 +44,7 @@ export async function tree(cli: Cli, ref: string, o: Where = {}): Promise<number
 }
 
 export type Status = { phase?: string; waitingReason?: string; error?: { code: string; message: string }; outputs?: Record<string, Output>; result?: Verdict; attempts?: { finishedAt?: string }[] }
-type Output = { kind: string; ref?: { kind: string; id: string; revision: number }; value?: unknown }
+type Output = { kind: string; ref?: { kind: string; id: string; revision: number }; refs?: { kind: string; id: string; revision: number }[]; value?: unknown }
 type Verdict = { passed: boolean; findings?: { severity: string; code?: string; message: string }[] }
 interface Row {
   left: string
@@ -103,13 +103,15 @@ function extraLines(node: Resource, s: Status): string[] {
   if (s.error) lines.push(`${s.error.code}: ${s.error.message}`)
   if (s.phase === 'Waiting' && s.waitingReason === 'human' && node.kind === 'TaskRun') lines.push(`persimmon complete ${node.metadata.name}`)
   if (node.kind === 'ValidationRun' && s.result && !s.result.passed) for (const f of s.result.findings ?? []) if (f.severity !== 'info') lines.push(`${f.code ? `${f.code}: ` : ''}${f.message}`)
-  if (node.kind === 'TaskRun') for (const v of Object.values(s.outputs ?? {})) if (v.kind === 'artifact' && v.ref) lines.push(`${v.ref.kind}/${v.ref.id}.r${v.ref.revision}`)
+  if (node.kind === 'TaskRun') for (const v of Object.values(s.outputs ?? {})) for (const ref of refsOf(v)) lines.push(`${ref.kind}/${ref.id}.r${ref.revision}`)
   return lines
 }
 
-/** An artifact as `<Kind>/<id>.r<n>`, a result as `passed true`, any other value as short JSON. */
+const refsOf = (v: Output): NonNullable<Output['ref']>[] => (v.kind === 'artifact' && v.ref ? [v.ref] : v.kind === 'artifacts' ? (v.refs ?? []) : [])
+
+/** An artifact as `<Kind>/<id>.r<n>`, artifacts as a comma list of them, a result as `passed true`, any other value as short JSON. */
 function short(v: Output): string {
-  if (v.kind === 'artifact' && v.ref) return `${v.ref.kind}/${v.ref.id}.r${v.ref.revision}`
+  if (v.kind === 'artifact' || v.kind === 'artifacts') return refsOf(v).map((r) => `${r.kind}/${r.id}.r${r.revision}`).join(', ')
   const val = v.value as { passed?: unknown } | undefined
   if (val && typeof val === 'object' && typeof val.passed === 'boolean') return `passed ${val.passed}`
   const json = JSON.stringify(v.value) ?? ''

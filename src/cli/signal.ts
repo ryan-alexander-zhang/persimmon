@@ -100,7 +100,7 @@ export async function askForm(cli: Cli, form: Form, taskRun: string): Promise<Re
   if (reading.length === 0 && form.inputs) cli.out(toYaml({ inputs: form.inputs }).trimEnd()) // an older or foreign form: at least the references
   const evidence = form.reading
     ? reading.filter((r) => r.ref && !r.error).map((r) => r.ref) // only what was actually shown
-    : Object.values(form.inputs ?? {}).flatMap((v) => ((v as { kind?: string }).kind === 'artifact' ? [(v as { ref: RevisionRef }).ref] : []))
+    : Object.values(form.inputs ?? {}).flatMap((v) => ((v as { kind?: string }).kind === 'artifact' ? [(v as { ref: RevisionRef }).ref] : (v as { kind?: string }).kind === 'artifacts' ? (v as { refs: RevisionRef[] }).refs : []))
   const outputs: Record<string, unknown> = {}
   const publish: { port: string; request: Record<string, unknown> }[] = []
   for (const [port, spec] of Object.entries(form.outputs)) {
