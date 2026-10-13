@@ -123,8 +123,59 @@ describe('sdd/v1', () => {
     const missing = await adapter({ id: 1004, op: 'evaluate', payload: payload(rest) })
     expect(missing).toEqual({ id: 1004, ok: false, error: { code: 'invalid_input', message: 'artifacts.rules is required', retryable: false } })
     const noSpec = await adapter({ id: 1005, op: 'evaluate', payload: { ...payload(example()), artifacts: {} } })
-    expect(noSpec).toEqual({ id: 1005, ok: false, error: { code: 'invalid_input', message: 'artifacts.spec is required', retryable: false } })
+    expect(noSpec).toEqual({ id: 1005, ok: false, error: { code: 'invalid_input', message: 'artifacts.spec or artifacts.prd is required', retryable: false } })
     const unknown = await adapter({ id: 1006, op: 'nonsense', payload: {} })
     expect(unknown).toMatchObject({ id: 1006, ok: false, error: { code: 'invalid_input', retryable: false } })
+  })
+})
+
+describe('sdd/v1 over a Prd', () => {
+  const prdExample = () => ({ prd: content('Prd'), rules: content('BusinessRules') })
+  const prdCodes = async (mutate: (a: ReturnType<typeof prdExample>) => void) => {
+    const artifacts = structuredClone(prdExample())
+    mutate(artifacts)
+    const r = await adapter({ id: ++id, op: 'evaluate', payload: payload(artifacts) })
+    expect(r.result.passed).toBe(false)
+    return r.result.findings.map((f: { code: string }) => f.code)
+  }
+
+  it('passes the worked example: the Prd against the BusinessRules of its context', async () => {
+    const r = await adapter({ id: 2001, op: 'evaluate', payload: payload(prdExample()) })
+    expect(r).toEqual({ id: 2001, ok: true, result: { passed: true, findings: [], evidence: [] } })
+  })
+
+  it('fails content that is not a Prd, and reports nothing else', async () => {
+    const r = await adapter({ id: 2002, op: 'evaluate', payload: payload({ prd: { title: 'not a Prd' } }) })
+    expect(r.result).toEqual({ passed: false, findings: [{ severity: 'error', code: 'not-a-prd', message: 'content is not a Prd: it has no capabilities array or no title' }], evidence: [] })
+    expect(await prdCodes((a) => { delete (a.prd as any).title })).toEqual(['not-a-prd'])
+  })
+
+  it('fails a rule that does not resolve, and one that is not active', async () => {
+    expect(await prdCodes((a) => { a.prd.capabilities[0].rules = ['BR-99'] })).toEqual(['unknown-rule'])
+    expect(await prdCodes((a) => { a.prd.capabilities[0].rules = ['BR-6'] })).toEqual(['inactive-rule'])
+  })
+
+  it('fails a capability in another context than the BusinessRules', async () => {
+    expect(await prdCodes((a) => { a.prd.capabilities[1].context = 'payments' })).toEqual(['context-mismatch'])
+  })
+
+  it('fails a success criterion citing a capability the Prd does not have', async () => {
+    expect(await prdCodes((a) => { a.prd.successCriteria[1].capabilities = ['CAP-9'] })).toEqual(['unknown-capability'])
+  })
+
+  it('fails a goal with a number', async () => {
+    expect(await prdCodes((a) => { a.prd.goals[0].statement = 'An employee gets a decision on a claim within 5 days.' })).toEqual(['goal-with-number'])
+  })
+
+  it('fails ids that are not sequential from 1 in document order', async () => {
+    expect(await prdCodes((a) => { a.prd.goals[1].id = 'G-3' })).toEqual(['id-sequence'])
+    expect(await prdCodes((a) => { a.prd.capabilities[3].id = 'CAP-5' })).toEqual(['unknown-capability', 'id-sequence']) // SC-3 still cites CAP-4
+    expect(await prdCodes((a) => { a.prd.successCriteria[0].id = 'SC-0' })).toEqual(['id-sequence'])
+    expect(await prdCodes((a) => { a.prd.openQuestions[1].id = 'Q-1' })).toEqual(['id-sequence'])
+  })
+
+  it('is invalid_input without the BusinessRules beside a Prd', async () => {
+    const r = await adapter({ id: 2003, op: 'evaluate', payload: payload({ prd: content('Prd') }) })
+    expect(r).toEqual({ id: 2003, ok: false, error: { code: 'invalid_input', message: 'artifacts.rules is required', retryable: false } })
   })
 })

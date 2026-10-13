@@ -1,8 +1,9 @@
-// sdd/v1: the evaluator Role (19-adapter-roles.md) over a Spec of the AI Native pack (23-pack-ai-native.md).
-// `evaluate` runs `checkSpec` on the Spec and the Prd, DomainModel, Architecture and BusinessRules it cites,
-// and answers a ValidationResult (10-ports.md). No Engine callbacks.
+// sdd/v1: the evaluator Role (19-adapter-roles.md) over the AI Native pack (23-pack-ai-native.md), in two modes.
+// Given a Spec, `evaluate` runs `checkSpec` on it and the Prd, DomainModel, Architecture and BusinessRules it cites;
+// given a Prd, it runs `checkPrd` on it and the BusinessRules of its context. It answers a ValidationResult
+// (10-ports.md). No Engine callbacks.
 import { createInterface } from 'node:readline'
-import { checkSpec } from './check.mjs'
+import { checkPrd, checkSpec } from './check.mjs'
 
 const describe = {
   adapterId: 'sdd/v1',
@@ -21,6 +22,15 @@ const required = (artifacts, name) => {
 function evaluate(payload) {
   const artifacts = payload?.artifacts ?? {}
   // the artifact under evaluation is artifacts.spec; the conformance suite names it artifacts.model (22-conformance.md)
+  if (!(artifacts.spec ?? artifacts.model)) {
+    if (!artifacts.prd) throw invalid('artifacts.spec or artifacts.prd is required')
+    const prd = required(artifacts, 'prd')
+    // same stance as not-a-spec: content that is not a Prd is a finding, before the rules are required
+    const notAPrd = checkPrd({ prd }).filter((f) => f.code === 'not-a-prd')
+    if (notAPrd.length) return { passed: false, findings: notAPrd, evidence: [] }
+    const findings = checkPrd({ prd, rules: required(artifacts, 'rules') })
+    return { passed: findings.length === 0, findings, evidence: [] }
+  }
   const spec = required({ spec: artifacts.spec ?? artifacts.model }, 'spec')
   // content that is not a Spec is a not-a-spec finding, never an Adapter error; nothing it cites can be read off it
   const notASpec = checkSpec({ spec }).filter((f) => f.code === 'not-a-spec')

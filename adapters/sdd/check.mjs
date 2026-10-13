@@ -1,7 +1,11 @@
 // One Spec of the AI Native pack against the artifacts it cites (23-pack-ai-native.md, 27-spec-process.md): the Prd
 // capability and its governing rules, the DomainModel's names, the Architecture's quality scenarios, the BusinessRules;
-// inside the Spec, stories cover requirements and requirements enforce rules. Plain data in, findings out.
+// inside the Spec, stories cover requirements and requirements enforce rules. And one Prd against the BusinessRules of
+// its context. Plain data in, findings out.
 const keyword = { ubiquitous: 'The', 'event-driven': 'When', 'state-driven': 'While', 'unwanted-behaviour': 'If', optional: 'Where' }
+
+// unique and sequential from 1 in document order: a duplicate or a gap breaks the run
+const sequence = (bad, prefix, ids) => ids.forEach((id, i) => { if (id !== `${prefix}-${i + 1}`) bad('id-sequence', `${id} should be ${prefix}-${i + 1}`) })
 
 export function checkSpec({ spec, prd, domainModel, architecture, rules }) {
   if (!spec || !Array.isArray(spec.stories) || !Array.isArray(spec.requirements) || !spec.capability) {
@@ -66,11 +70,39 @@ export function checkSpec({ spec, prd, domainModel, architecture, rules }) {
   }
   for (const q of spec.qualities ?? []) if (!scenarios.has(q.scenario)) bad('unknown-scenario', `scenario ${q.scenario} is not in the Architecture`)
 
-  // unique and sequential from 1 in document order: a duplicate or a gap breaks the run
-  const sequence = (prefix, ids) => ids.forEach((id, i) => { if (id !== `${prefix}-${i + 1}`) bad('id-sequence', `${id} should be ${prefix}-${i + 1}`) })
-  sequence('FR', requirementIds)
-  sequence('US', storyIds)
-  sequence('AC', criterionIds)
-  sequence('Q', (spec.openQuestions ?? []).map((q) => q.id))
+  sequence(bad, 'FR', requirementIds)
+  sequence(bad, 'US', storyIds)
+  sequence(bad, 'AC', criterionIds)
+  sequence(bad, 'Q', (spec.openQuestions ?? []).map((q) => q.id))
+  return findings
+}
+
+export function checkPrd({ prd, rules }) {
+  if (!prd || !Array.isArray(prd.capabilities) || !prd.title) {
+    return [{ severity: 'error', code: 'not-a-prd', message: 'content is not a Prd: it has no capabilities array or no title' }]
+  }
+  const findings = []
+  const bad = (code, message) => findings.push({ severity: 'error', code, message })
+
+  const status = new Map((rules?.rules ?? []).map((r) => [r.id, r.status]))
+  const capabilityIds = prd.capabilities.map((c) => c.id)
+  for (const cap of prd.capabilities) {
+    for (const r of cap.rules ?? []) {
+      if (!status.has(r)) bad('unknown-rule', `${cap.id}: rule ${r} is not in the BusinessRules`)
+      else if (status.get(r) !== 'active') bad('inactive-rule', `${cap.id}: rule ${r} is ${status.get(r)}, not active`)
+    }
+    // the BusinessRules artifact is one per context, and a run checks one context
+    if (cap.context !== rules?.context) bad('context-mismatch', `${cap.id}: context ${cap.context} is not ${rules?.context}, the context of the BusinessRules`)
+  }
+  for (const sc of prd.successCriteria ?? []) {
+    for (const c of sc.capabilities ?? []) if (!capabilityIds.includes(c)) bad('unknown-capability', `${sc.id}: capability ${c} is not in the Prd`)
+  }
+  // a number belongs to a success criterion
+  for (const g of prd.goals ?? []) if (/\d/.test(String(g.statement ?? ''))) bad('goal-with-number', `${g.id}: a goal states a direction without a number`)
+
+  sequence(bad, 'G', (prd.goals ?? []).map((g) => g.id))
+  sequence(bad, 'CAP', capabilityIds)
+  sequence(bad, 'SC', (prd.successCriteria ?? []).map((s) => s.id))
+  sequence(bad, 'Q', (prd.openQuestions ?? []).map((q) => q.id))
   return findings
 }
