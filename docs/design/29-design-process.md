@@ -63,6 +63,15 @@ The Adapter picks the mode from the payload: `artifacts.spec` (or `artifacts.mod
   interface; an API without one would be unplaceable. The Validator checks it when present. Found in
   design review.
 
+- Proven live on `claude-sonnet-5`: `design-all` over `BB-1` and `BB-4`, type `http-api`, 3m04s,
+  both passed `design-consistency` in round one. The claims API had ten operations, one per command
+  and read model of the context, a 232-line OpenAPI document, refusals citing the rules; the export
+  gateway two. The open questions were real DomainModel gaps: no read model for one claim's detail
+  (the approver's screen, QS-4), no fact type for a rejection reason or an export status. Two things
+  the Prompt now says: a read model's `updatedBy` may name another context's event (the `Claim Paid`
+  question again), and a read model is realised by the block whose responsibility names it (both
+  Designs had exposed `Export Status View`). Found in UAT.
+
 ## Examples
 
 - `docs/design/examples/ai-native-domain.yaml`: `Design/claims-api`, the OpenAPI contract of `BB-1`'s
