@@ -1,5 +1,5 @@
-// sdd/v1: the evaluator Role (19-adapter-roles.md) over the AI Native pack (23-pack-ai-native.md), in three modes.
-// Given a Plan, `evaluate` runs `checkPlan`; given a Spec, it runs `checkSpec` on it and the Prd, DomainModel, Architecture and BusinessRules it cites;
+// sdd/v1: the evaluator Role (19-adapter-roles.md) over the AI Native pack (23-pack-ai-native.md), in four modes.
+// Given a Spec, `evaluate` runs `checkSpec` on it and the Prd, DomainModel, Architecture and BusinessRules it cites;
 // given a Prd, it runs `checkPrd` on it and the BusinessRules of its context; given a Design, it runs `checkDesign` on
 // it and the Architecture, DomainModel and BusinessRules it cites; given a Plan, it runs `checkPlan` on it, the Spec,
 // the Architecture and the Designs (an artifacts port, paired with inputs.designs.refs by position). It answers a
@@ -29,7 +29,8 @@ function evaluate(payload) {
     if (notAPlan.length) return { passed: false, findings: notAPlan, evidence: [] }
     const refs = payload.inputs?.designs?.refs ?? []
     const designs = Object.fromEntries((artifacts.designs ?? []).map((d, i) => [refs[i]?.id, d.content]))
-    const findings = checkPlan({ plan, spec: required(artifacts, 'spec'), architecture: required(artifacts, 'architecture'), designs })
+    const ids = { spec: payload.inputs?.spec?.ref?.id, architecture: payload.inputs?.architecture?.ref?.id }
+    const findings = checkPlan({ plan, spec: required(artifacts, 'spec'), architecture: required(artifacts, 'architecture'), designs, ids })
     return { passed: findings.length === 0, findings, evidence: [] }
   }
   // the artifact under evaluation is artifacts.spec; the conformance suite names it artifacts.model (22-conformance.md)

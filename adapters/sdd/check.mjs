@@ -170,7 +170,8 @@ export function checkDesign({ design, architecture, domainModel, rules }) {
 
 // One Plan against the Spec it builds, the Architecture its tasks name blocks of, and the Designs it realises elements
 // of; `designs` is artifact id → content, paired by the caller from inputs.designs.refs and artifacts.designs.
-export function checkPlan({ plan, spec, architecture, designs = {} }) {
+// `ids` are the bound inputs' artifact ids, `{spec, architecture}`, which a content never carries.
+export function checkPlan({ plan, spec, architecture, designs = {}, ids = {} }) {
   if (!plan || !Array.isArray(plan.tasks) || !plan.spec) {
     return [{ severity: 'error', code: 'not-a-plan', message: 'content is not a Plan: it has no tasks array or no spec' }]
   }
@@ -180,7 +181,10 @@ export function checkPlan({ plan, spec, architecture, designs = {} }) {
   const requirements = new Set((spec?.requirements ?? []).map((r) => r.id))
   const scenarios = new Set((spec?.stories ?? []).flatMap((s) => (s.acceptance ?? []).map((a) => a.id)))
   const blocks = new Set((architecture?.buildingBlocks ?? []).map((b) => b.id))
+  if (ids.spec && plan.spec !== ids.spec) bad('spec-mismatch', `spec ${plan.spec} is not ${ids.spec}, the Spec evaluated`)
+  if (ids.architecture && plan.architecture !== ids.architecture) bad('architecture-mismatch', `architecture ${plan.architecture} is not ${ids.architecture}, the Architecture evaluated`)
   const listed = new Set(plan.designs ?? [])
+  if (listed.size !== (plan.designs ?? []).length) bad('design-duplicate', 'designs lists an artifact id twice')
   const covered = new Set()
   const verified = new Set()
   const used = new Set()

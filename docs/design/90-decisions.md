@@ -166,7 +166,7 @@ appears twice; the earlier file owns it.
 | 147 | `14-gate.md` | Evaluator Adapters get no `credentials` or `security`; they run on Adapter-level bindings. |
 | 148 | `14-gate.md` | Validator inputs are bound per Gate, so one Validator serves many Gates. |
 | 149 | `14-gate.md` | `cel` sees `{content, provenance}` per artifact and may return a full ValidationResult. |
-| 150 | `14-gate.md` | Gate and Validator inputs exclude `externalResource`: a Validator judges produced facts; a repository check is a `task` Validator whose Task reads the repository. `artifacts` is allowed: one Validator judges a document against every revision it cites. |
+| 150 | `14-gate.md` | Gate and Validator inputs exclude `externalResource`: a Validator judges produced facts; a repository check is a `task` Validator whose Task reads the repository. `artifacts` is allowed, on an Approval too (same port schema): one Validator or approver judges a document against every revision it cites. |
 | 151 | `14-gate.md` | A ValidationRun exists only under a GateRun in v1. |
 | 152 | `14-gate.md` | `resultOutput` needs a `value` port; the ValidationResult `$ref` is recommended, the runtime check is what binds (reference rule 14; kept). |
 | 153 | `14-gate.md` | Gate and Validator are `scope: Any`. `validateConfig` dropped for the evaluator Role too. |

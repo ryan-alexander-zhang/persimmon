@@ -31,13 +31,15 @@ where `designs.yaml` is a YAML list of RevisionRefs (`08-store.md`).
 
 ## `checkPlan`
 
-`adapters/sdd/check.mjs`, pure, `checkPlan({plan, spec, architecture, designs})` where `designs`
+`adapters/sdd/check.mjs`, pure, `checkPlan({plan, spec, architecture, designs, ids})` where `designs`
 maps artifact id to content, paired by `index.mjs` from `inputs.designs.refs[i]` and
 `artifacts.designs[i]`; every finding `error`:
 
 | Code | Finding |
 |---|---|
 | `not-a-plan` | content without `tasks` or `spec`; the only finding then |
+| `spec-mismatch`, `architecture-mismatch` | `spec` or `architecture` is not the id of the input bound (`inputs.spec.ref.id`, `inputs.architecture.ref.id`); a content carries no id of its own |
+| `design-duplicate` | an id listed twice in `designs[]` |
 | `unknown-requirement`, `unknown-scenario` | a `covers` or `verifiedBy` id the Spec lacks |
 | `requirement-unplanned`, `scenario-unverified` | an `FR-n` no task covers; an `AC-n` no task verifies |
 | `unknown-block` | a task's `block` is no `BB-n` of the Architecture |

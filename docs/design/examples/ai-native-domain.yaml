@@ -1022,7 +1022,7 @@ spec:
         title: Receipt store put and get by digest
         description: Store a receipt by content, hand back its digest for the claim line; the claim's access rule applies on get.
         block: BB-2
-        covers: [FR-2]
+        covers: []            # groundwork: no requirement of this Spec names the store; AC-2 needs it
         verifiedBy: [AC-2]
         dependsOn: [T-1]
       - id: T-3

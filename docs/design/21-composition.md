@@ -53,7 +53,7 @@ A Gate whose Validators are Tasks: a human at the terminal, an agent, a script.
 
 | Field | Rule |
 |---|---|
-| `inputs` | Ports; `artifact` and `value` only (`14-gate.md`) |
+| `inputs` | Ports; `artifact`, `artifacts` and `value` only (`14-gate.md`) |
 | `approvers[]` | `{name, uses: {kind: Task}, inputs?, resultOutput?}`; `name` unique; `uses` a Task with a `value` output `resultOutput` (default `result`) of the ValidationResult `$ref`; `inputs` maps `{<task port>: <approval port>}`, default: every Approval input to the Task port of the same name |
 | `policy` | `{strategy: all \| any \| quorum, count?}`; default `all` |
 | `timeout` | Duration for the GateRun and each ValidationRun |

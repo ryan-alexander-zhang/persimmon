@@ -22,8 +22,9 @@ why, for whom: Prd · exactly what: Spec · how: Architecture, Design (reusable 
 
 Every arrow is a Task input: the author Task reads the upstream artifact, so `provenance.inputs`
 pins the revision it cited. Ids inside content (`BR-n`, `CAP-n`, `QG-n`) are for the reader and the
-Validators; the engine never resolves them. Links point upstream only: a Design cites its Spec, a
-Spec never names a Design; "which Design implements this Spec" is a Relation query.
+Validators; the engine never resolves them. Links point upstream only: a Spec never names a
+Design and a Design never names a Spec; the Plan of a Spec names the Designs its tasks realise
+elements of, and "which Designs serve this Spec" is read off it.
 
 ## Artifact kinds
 
@@ -91,7 +92,7 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
 | a Spec never cites a Design, a Design never cites a Plan, an Architecture never names a Spec story: every artifact cites upstream only; downstream is a Relation query | author Prompt; convention |
 | in a `Design`: `block` resolves and `interface` is one it provides; every element's `realises` resolves in the DomainModel; rules resolve, are active, and the root `rules[]` is exactly the union of the elements'; `type` and `document.mediaType` pair; ids unique and increasing; `decisions[]` is not checked (no Adr in the payload). The document is not parsed; whether every operation of the contract has an element, and whether every command and read model of the block's contexts is realised across the block's Designs, are later checks (`91-roadmap.md`) | `design-consistency` (`29-design-process.md`); Validator later |
 | in a `Spec`: `capability` is a `CAP-n` of `prd`; `role` is a Prd user; `commands`, `events`, `readModels` resolve in the DomainModel; `stories[].requirements` resolve in the Spec and every `FR-n` is covered by a story; `requirements[].rules` resolve and are active; every `BR-n` the Prd capability lists is enforced by a requirement; each `statement` opens with its pattern's keyword (`The`, `When`, `While`, `If`, `Where`; `complex` opens with `While`, `When` or `If` and holds two of those clauses before `shall`); `qualities[].scenario` resolves in `architecture`; `domainModel.context` against the capability's `context` is deferred (`27-spec-process.md`) | `spec-consistency` (`27-spec-process.md`) |
-| in a `Plan`: `spec` resolves; every `FR-n` of the Spec is in some task's `covers` and every `AC-n` in some `verifiedBy`, and each cited one exists; `block` resolves in `architecture`; `dependsOn` names lower `T-n` only, so document order is build order and no cycle is possible; `elements[].design` is in `designs[]`, the Design is in the payload, its `block` equals the task's and the `EL-n` exists; ids unique and increasing | `plan-consistency` (`30-plan-process.md`) |
+| in a `Plan`: `spec` and `architecture` are the ids of the Spec and Architecture evaluated; every `FR-n` of the Spec is in some task's `covers` and every `AC-n` in some `verifiedBy`, and each cited one exists; `block` resolves in `architecture`; `dependsOn` names lower `T-n` only, so document order is build order and no cycle is possible; `elements[].design` is in `designs[]`, the Design is in the payload, its `block` equals the task's and the `EL-n` exists; every listed Design is realised by some task and none is listed twice; ids unique and increasing | `plan-consistency` (`30-plan-process.md`) |
 | an `Adr`'s `drivers` resolve in the revisions its `provenance.inputs` pin (a Prd and rules for a baseline Adr, an Architecture later); the Adr carries no artifact id of its own for them | Validator later |
 | `goals` give direction without a number; `successCriteria` carry the number; `successCriteria` and `capabilities` name no technology, architecture or task | author Prompt; `prd-consistency` refuses a digit in a goal |
 | a success criterion is an outcome measured in production over time, decided by measurement; a behaviour one test decides on one run is an acceptance scenario and belongs to a Spec story; a capability no success criterion names is reported | author Prompt; Validator later |

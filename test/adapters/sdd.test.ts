@@ -278,7 +278,8 @@ describe('sdd/v1 over a Plan', () => {
   // the Designs are an artifacts port: a list in artifacts, their refs in inputs, paired by position
   const planPayload = (a: ReturnType<typeof planExample>, refs = [designRef]) => {
     const { designs, ...rest } = a
-    return { ...payload(rest), inputs: { designs: { kind: 'artifacts', refs } }, artifacts: { ...payload(rest).artifacts, designs: designs.map((c) => ({ content: c, provenance })) } }
+    const ref = (kind: string, id: string) => ({ kind: 'artifact', ref: { ...designRef, kind, id } })
+    return { ...payload(rest), inputs: { spec: ref('Spec', 'submit-a-claim'), architecture: ref('Architecture', 'expense-claims-architecture'), designs: { kind: 'artifacts', refs } }, artifacts: { ...payload(rest).artifacts, designs: designs.map((c) => ({ content: c, provenance })) } }
   }
   const planCodes = async (mutate: (a: ReturnType<typeof planExample>) => void, refs?: typeof designRef[]) => {
     const artifacts = structuredClone(planExample())
@@ -316,6 +317,12 @@ describe('sdd/v1 over a Plan', () => {
     expect(await planCodes((a) => { a.plan.tasks[0].block = 'BB-2' })).toEqual(['design-block', 'design-block'])
     expect(await planCodes((a) => { a.plan.tasks[0].elements![0].element = 'EL-99' })).toEqual(['unknown-element'])
     expect(await planCodes((a) => { a.plan.designs.push('spare') })).toEqual(['design-unused'])
+  })
+
+  it('fails a spec or architecture that is not the one evaluated, and a design listed twice', async () => {
+    expect(await planCodes((a) => { a.plan.spec = 'other' })).toEqual(['spec-mismatch'])
+    expect(await planCodes((a) => { a.plan.architecture = 'other' })).toEqual(['architecture-mismatch'])
+    expect(await planCodes((a) => { a.plan.designs.push('claims-api') })).toEqual(['design-duplicate'])
   })
 
   it('fails ids that are not unique and increasing', async () => {
