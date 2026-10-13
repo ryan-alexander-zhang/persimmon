@@ -120,26 +120,26 @@ spec:
   content: |
     # Writing the Spec of one capability
 
-    You write the Spec of the Prd capability whose id is `capabilityId`: exactly what it does, as stories with acceptance criteria. A Spec adds behaviour and cites everything else. It never restates a fact that lives upstream.
+    You write the Spec of the Prd capability whose id is `capabilityId`: exactly what it does, as three kinds of statement joined by citation. A Spec adds behaviour and cites everything else. It never restates a fact that lives upstream.
+
+    Three objects, three forms:
+    - `stories` (Connextra, the user's side): `US-n`; `role` is a Prd user name, `goal` what the role wants in the infinitive ("submit the claim"), no solution; `benefit` why, naming a `G-n` in prose when one applies. One story per thing the role does. Each story lists the `requirements` it covers (`FR-n`, at least one) and the DomainModel `commands`, `events`, `readModels` it touches.
+    - `requirements` (EARS, the system's side): `FR-n`; one sentence over "the system" (never a building block), general form, no example values. The `pattern` names the form and the sentence opens with its keyword:
+      - ubiquitous:          The system shall <response>.
+      - event-driven:        When <trigger>, the system shall <response>.
+      - state-driven:        While <state>, the system shall <response>.
+      - unwanted-behaviour:  If <condition>, then the system shall <response>.
+      - optional:            Where <feature is included>, the system shall <response>.
+      - complex:             While <state>, when <trigger>, the system shall <response> (two of while/when/if before shall).
+      A requirement that enforces a rule lists it in `rules` (`BR-n`) and names the rule id in the sentence instead of copying its condition ("While a claim line breaks BR-2, ..."). Every `BR-n` the capability lists in the Prd is enforced by at least one requirement. Cite only `active` rules. Every requirement is covered by at least one story.
+    - `acceptance` (Given/When/Then, under its story): `AC-n`, numbered across the whole Spec, not per story; `title`; `given` the state before with concrete values and units ("a meals line of 30 EUR and no receipt"), `when` what the role does (a DomainModel command in prose), `then` observable outcomes: a recorded fact, a shown value, a refusal with its reason. One test decides each on one run; an outcome measured over time is a Prd success criterion and does not belong here. A scenario cites nothing. Cover the happy path, each refusal, each boundary the rules name.
 
     Cite, never restate:
     - `prd` and `capability`: the Prd's artifact id and the capability id. The capability's `context` is the Spec's context; do not repeat it.
-    - `domainModel`: the DomainModel's artifact id. A story's `commands`, `events` and `readModels` are its labels, spelled exactly. A command, event or read model the model lacks is a gap in the model: leave it out and ask in `openQuestions`; never invent a label.
+    - `domainModel`: the DomainModel's artifact id. Command, event and read model labels are its, spelled exactly. A label the model lacks is a gap in the model: leave it out and ask in `openQuestions`; never invent a label.
     - `architecture`: the Architecture's artifact id. `qualities` cite its quality scenarios by `QS-n`; a `delta` only tightens a measure or a response for this capability. No other non-functional text anywhere in the Spec.
-    - rules: an acceptance criterion that tests a rule cites it by `BR-n` in `rules`; the sentence names the rule id instead of copying its condition ("While a claim line breaks BR-2, ..."). Every `BR-n` the capability lists in the Prd is cited by at least one criterion. Cite only `active` rules.
-    - `actor` is a Prd user name; `benefit` names a `G-n` in prose when one applies. Prose uses Glossary term names, never aliases.
+    - Prose uses Glossary term names, never aliases.
 
-    Stories: `US-n`, sequential from 1. `want` is what the actor does, in the infinitive ("submit the claim"), no solution. One story per thing the actor does; a story with no command, event or read model is suspect.
-
-    Acceptance criteria: `AC-n`, sequential from 1 across the whole Spec, not per story. Each is one EARS sentence over "the system" (never a building block), decidable by one test on one run; an outcome measured over time is a Prd success criterion and does not belong here. The `pattern` names the sentence form and the sentence opens with its keyword:
-    - ubiquitous:          The system shall <response>.
-    - event-driven:        When <trigger>, the system shall <response>.
-    - state-driven:        While <state>, the system shall <response>.
-    - unwanted-behaviour:  If <condition>, then the system shall <response>.
-    - optional:            Where <feature is included>, the system shall <response>.
-    - complex:             While <state>, when <trigger>, the system shall <response> (two of while/when/if).
-    A response is observable: a recorded fact, a shown value, a refusal with its reason. A quantity names its unit.
-
-    Open questions: `Q-n`, sequential from 1. An unknown fact, a contradiction between the inputs, or a name the model lacks is a question here, never a guess in a story.
+    Open questions: `Q-n`, sequential from 1. An unknown fact, a contradiction between the inputs, or a name the model lacks is a question here, never a guess in a story or a requirement.
 
     With `previous` and `feedback` bound, the consistency check refused the last Spec: every finding names an id, a label or a rule; fix those and change nothing else.
