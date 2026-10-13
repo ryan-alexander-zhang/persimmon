@@ -68,9 +68,9 @@ export function taskHandler(deps: HandlerDeps): HandlerImpl {
         if (describe?.contextKinds && !describe.contextKinds.includes(e.kind)) bad(`/spec/action/context/${i}/kind`, `${executor!.adapter} does not accept ${e.kind} context`)
         if (e.kind === 'file' || e.kind === 'artifact') {
           const port = spec.inputs?.[e.input]
-          const want = e.kind === 'file' ? 'externalResource' : 'artifact'
+          const want = e.kind === 'file' ? ['externalResource'] : ['artifact', 'artifacts']
           if (!port) bad(`/spec/action/context/${i}/input`, `${e.input} is not an input`)
-          else if (port.type.kind !== want) bad(`/spec/action/context/${i}/input`, `${e.input} is not an ${want} port`)
+          else if (!want.includes(port.type.kind)) bad(`/spec/action/context/${i}/input`, `${e.input} is not an ${want[0]} port`)
         }
         if (e.kind === 'skill' && describe?.skillFormats) {
           const skill = deps.getResource('Skill', ns, e.ref.name)?.spec as { format?: string } | undefined
@@ -187,7 +187,8 @@ export function taskHandler(deps: HandlerDeps): HandlerImpl {
           checkOutputs(task.spec.outputs ?? {}, result.outputs)
           const staged = (input.context.staged ?? []).filter((s) => s.scope === a.idempotencyKey).map((s) => s.ref)
           for (const v of Object.values(result.outputs))
-            if (v.kind === 'artifact' && !staged.some((s) => sameRef(s, v.ref))) throw new PortError(`artifact ${v.ref.id} revision ${v.ref.revision} not staged in this attempt`)
+            for (const ref of v.kind === 'artifact' ? [v.ref] : v.kind === 'artifacts' ? v.refs : [])
+              if (!staged.some((s) => sameRef(s, ref))) throw new PortError(`artifact ${ref.id} revision ${ref.revision} not staged in this attempt`)
         } catch (e) {
           if (e instanceof PortError) return attemptFailed(a, err('schema_violation', e.message))
           throw e
@@ -248,7 +249,7 @@ export function taskHandler(deps: HandlerDeps): HandlerImpl {
             outputs[p.port] = { kind: 'artifact', ref }
           }
           // artifacts published here are staged to this reconcile, so the staged check sees them
-          const stagedNow = Object.values(outputs).flatMap((v) => (v.kind === 'artifact' ? [{ ref: v.ref, scope: current.idempotencyKey }] : []))
+          const stagedNow = Object.values(outputs).flatMap((v) => (v.kind === 'artifact' ? [v.ref] : v.kind === 'artifacts' ? v.refs : []).map((ref) => ({ ref, scope: current.idempotencyKey })))
           input.context.staged = [...(input.context.staged ?? []), ...stagedNow]
           return succeed(current, { ...body.taskResult, outputs }, input.context.actor ? { actor: input.context.actor } : {})
         }

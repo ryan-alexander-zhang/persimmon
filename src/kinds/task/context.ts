@@ -37,8 +37,8 @@ export function resolveContext(
           if (!v.ref.version) throw new ContextError('invalid_input', `context file: ${e.input} has no version`)
           out.push({ kind: 'file', ref: v.ref as ExternalResourceRef, path: e.path })
         } else {
-          if (v.kind !== 'artifact') throw new ContextError('invalid_input', `context artifact: ${e.input} is not an artifact`)
-          out.push({ kind: 'artifact', ref: v.ref })
+          if (v.kind !== 'artifact' && v.kind !== 'artifacts') throw new ContextError('invalid_input', `context artifact: ${e.input} is not an artifact`)
+          for (const ref of v.kind === 'artifact' ? [v.ref] : v.refs) out.push({ kind: 'artifact', ref }) // an artifacts port: one entry per ref, in order
         }
         break
       }

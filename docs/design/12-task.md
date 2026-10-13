@@ -38,7 +38,7 @@ Step contract: `inputsPath: spec.inputs`, `outputsPath: spec.outputs`, `runKind:
 | kind | Fields | Resolved to (`TaskRun.status.context`, execute payload) | Rule |
 |---|---|---|---|
 | `file` | `input`, `path` | `{kind, ref: ExternalResourceRef, path}` | `input` is an `externalResource` port; ref carries `version` at run time |
-| `artifact` | `input` | `{kind, ref: RevisionRef}` | `input` is an `artifact` port |
+| `artifact` | `input` | `{kind, ref: RevisionRef}`; on an `artifacts` port one entry per ref, in order | `input` is an `artifact` or `artifacts` port |
 | `prompt` | `ref` | `{kind, name, mediaType, content, digest}` | LocalDefinitionRef to a Prompt (`15-prompt-skill.md`) |
 | `skill` | `ref` | `{kind, name, source, digest, format}` | LocalDefinitionRef to a Skill; `format` ∈ adapter `describe.skillFormats` |
 
@@ -88,7 +88,7 @@ Anything else fails the attempt with `schema_violation`.
 | `action.workspace.input` names an `externalResource` input; at run time its `locator.path` is a string (task Handler) and a directory (Adapter), else `invalid_input` | static checker; task Handler; Adapter |
 | `file` context `path` resolves inside `action.workspace`; the entry's `ref` is provenance, not a root | none; stated |
 | every `context.kind` ∈ adapter `describe.contextKinds` | static checker |
-| `file.input` is an `externalResource` port; `artifact.input` is an `artifact` port | static checker |
+| `file.input` is an `externalResource` port; `artifact.input` is an `artifact` or `artifacts` port | static checker |
 | the referenced Skill's `format` ∈ adapter `describe.skillFormats` | static checker |
 | `retryOn ∩ abortOn = ∅`; the three never-retried codes ∉ `retryOn` | static checker |
 | `unknown_result` retried unless `sideEffects: nonIdempotent`; `retryPolicy` cannot override | `task` handler (`17-runs.md`) |
