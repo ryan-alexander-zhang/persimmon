@@ -57,6 +57,7 @@ Read top to bottom within a layer; a file depends only on files above it.
 | `docs/design/24-eventstorming.md` | the event storming tool built in: `EventStorming` kind (DSL v4.0), grammar module, evaluator Adapter `eventstorming/v1`, evaluator conformance | draft |
 | `docs/design/26-domain-discovery.md` | Prd to domain kinds: the storming session as ReviewLoops with a human gate, `DomainModel`, the derivation and its consistency check | draft |
 | `docs/design/27-spec-process.md` | Prd capability to `Spec`: the writing Task, the consistency check `sdd/v1`, one ReviewLoop per capability, `spec-all` over a Prd | draft |
+| `docs/design/28-prd-process.md` | brief to `Prd`: the writing Task that also writes the rules, the `sdd/v1` Prd check, a human gate, `author-prd` | draft |
 
 ## Cross-cutting
 

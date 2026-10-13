@@ -500,6 +500,12 @@ by one test on one run. Not a **TestCase** (roadmap): a scenario says what is ac
 how it is verified.
 _Avoid_: acceptance criterion, AC (in prose), test case (for a scenario)
 
+**Prd process**:
+The pack process from a brief to a **Prd**: Task `write-prd` writes the Prd and the context's
+**BusinessRules** under ReviewLoop `author-prd`, whose gate is `prd-consistency` (Adapter `sdd/v1`)
+plus a human `confirm-prd`.
+_Avoid_: prd pipeline, prd workflow, requirements phase
+
 **Spec process**:
 The pack process from a **Prd** capability to its **Spec**: Task `write-spec` under a ReviewLoop whose
 gate is `spec-consistency` (Adapter `sdd/v1`), repeated by `spec-all` over a list of `CAP-n`.
