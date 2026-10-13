@@ -784,7 +784,9 @@ spec:
       - {name: Export Status View, informs: [Finance operator], updatedBy: [Claim Exported, Claim Paid], fields: [claim has total]}
     externalSystems: []   # the Accounting ledger lives in the acc context; no edge of its own reaches into exp
 ---
-# The Spec of CAP-1. Every command, event and read model is the DomainModel's, every rule BR-n, every quality QS-n.
+# The Spec of CAP-1. Stories are the employee's side (Connextra) and cover requirements; requirements are the
+# system's side (EARS) and enforce rules; acceptance scenarios (Given/When/Then) carry concrete values. Every command,
+# event and read model is the DomainModel's, every rule BR-n, every quality QS-n.
 apiVersion: sdd.persimmon.ai/v1
 kind: Spec
 metadata: {name: submit-a-claim.r1}
@@ -798,33 +800,71 @@ spec:
     domainModel: expenses-model
     stories:
       - id: US-1
-        actor: employee
-        want: build a claim from claim lines and attach a receipt to each line that needs one
+        role: employee
+        goal: build a claim from claim lines and attach a receipt to each line that needs one
         benefit: the claim is complete before anyone else sees it (G-2)
+        requirements: [FR-1, FR-2]
         commands: [Draft Claim, Attach Receipt]
         events: [Claim Drafted, Receipt Attached]
         acceptance:
-          - {id: AC-1, pattern: event-driven, statement: "When the employee drafts a claim, the system shall record each claim line's amount, date and category."}
-          - {id: AC-2, pattern: event-driven, statement: "When the employee attaches a receipt to a claim line, the system shall show the receipt on that line."}
-          - {id: AC-3, pattern: state-driven, statement: "While a claim line breaks BR-2, the system shall show the claim as not complete and name the line.", rules: [BR-2]}
+          - id: AC-1
+            title: A line of 25 EUR or more without a receipt shows the claim as not complete
+            given: [a drafted claim with one meals line of 30 EUR and no receipt]
+            when: [the employee opens the claim]
+            then: [the claim shows as not complete, naming the meals line and BR-2]
+          - id: AC-2
+            title: Attaching the receipt completes the claim
+            given: [a drafted claim with one meals line of 30 EUR and no receipt]
+            when: [the employee attaches a receipt to the meals line]
+            then: [the receipt shows on the meals line, the claim shows as complete]
+          - id: AC-3
+            title: A per diem line needs no receipt
+            given: [a drafted claim with one per diem line of 120 EUR and no receipt]
+            when: [the employee opens the claim]
+            then: [the claim shows as complete]
       - id: US-2
-        actor: employee
-        want: submit a claim and learn at once which line and which rule hold it back
+        role: employee
+        goal: submit a claim and learn at once which line and which rule hold it back
         benefit: a claim that reaches an approver never comes back for paperwork (G-2)
+        requirements: [FR-3, FR-4, FR-5]
         commands: [Submit Claim]
         events: [Claim Submitted, Submission Refused]
         acceptance:
-          - {id: AC-4, pattern: event-driven, statement: "When the employee submits a claim whose claim lines all honour BR-2 and BR-3, the system shall record the claim as submitted with the submission date.", rules: [BR-2, BR-3]}
-          - {id: AC-5, pattern: unwanted-behaviour, statement: "If a claim line breaks BR-2 or BR-3, then the system shall refuse the submission and name every such line with the rule it breaks.", rules: [BR-2, BR-3]}
-          - {id: AC-6, pattern: unwanted-behaviour, statement: "If the submission is refused, then the system shall keep the claim and every claim line and receipt unchanged.", rules: []}
+          - id: AC-4
+            title: A complete claim is submitted
+            given: [a complete claim with two lines of 30 EUR and 40 EUR, each with a receipt, both under their category's policy limit]
+            when: [the employee submits the claim]
+            then: [the claim is recorded as submitted with today's date as submission date]
+          - id: AC-5
+            title: A line over its policy limit without a justification refuses the submission
+            given: [a complete claim with one equipment line of 900 EUR, policy limit 500 EUR, no justification]
+            when: [the employee submits the claim]
+            then: [the submission is refused, the refusal names the equipment line and BR-3, the claim and its lines are unchanged]
+          - id: AC-6
+            title: A missing receipt refuses the submission
+            given: [a claim with one meals line of 30 EUR and no receipt]
+            when: [the employee submits the claim]
+            then: [the submission is refused, the refusal names the meals line and BR-2]
       - id: US-3
-        actor: employee
-        want: see each claim of mine with its state
+        role: employee
+        goal: see each claim of mine with its state
         benefit: no mail to the approver asking where a claim is (G-1)
+        requirements: [FR-6]
         readModels: [My Claims View]
         events: [Claim Submitted]
         acceptance:
-          - {id: AC-7, pattern: ubiquitous, statement: "The system shall list the employee's own claims with each claim's total and submission date."}
+          - id: AC-7
+            title: My claims list shows total and submission date
+            given: [an employee with one drafted claim of 70 EUR and one claim of 130 EUR submitted on 2026-10-01]
+            when: [the employee opens My Claims View]
+            then: [two claims show, the first with total 70 EUR and no submission date, the second with total 130 EUR and submission date 2026-10-01]
+    requirements:
+      - {id: FR-1, pattern: event-driven, statement: "When the employee drafts a claim, the system shall record each claim line's amount, date and category."}
+      - {id: FR-2, pattern: state-driven, statement: "While a claim line breaks BR-2, the system shall show the claim as not complete and name the line.", rules: [BR-2]}
+      - {id: FR-3, pattern: event-driven, statement: "When the employee submits a claim whose claim lines all honour BR-2 and BR-3, the system shall record the claim as submitted with the submission date.", rules: [BR-2, BR-3]}
+      - {id: FR-4, pattern: unwanted-behaviour, statement: "If a claim line breaks BR-2 or BR-3, then the system shall refuse the submission and name every such line with the rule it breaks.", rules: [BR-2, BR-3]}
+      - {id: FR-5, pattern: unwanted-behaviour, statement: "If the submission is refused, then the system shall keep the claim and every claim line and receipt unchanged."}
+      - {id: FR-6, pattern: ubiquitous, statement: "The system shall list the employee's own claims with each claim's total and submission date."}
     qualities:
       - {scenario: QS-1}
       - {scenario: QS-3}

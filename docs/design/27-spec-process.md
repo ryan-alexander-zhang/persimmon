@@ -2,10 +2,11 @@
 
 status: draft · layer: 2 (`23-pack-ai-native.md`, `26-domain-discovery.md`) · schema: the `Spec` kind in `packs/ai-native/global/10-artifact-kinds.yaml`
 
-From a Prd capability to its `Spec`: an agent writes stories with EARS acceptance criteria from
-the Prd, the Architecture, the DomainModel, the Glossary and the rules of the capability's
-context; a Validator checks that every name, rule and scenario the Spec uses exists upstream and
-that every rule the capability lists is tested; the loop feeds findings back once. Pack content
+From a Prd capability to its `Spec`: an agent writes stories, requirements and acceptance scenarios
+from the Prd, the Architecture, the DomainModel, the Glossary and the rules of the capability's
+context; a Validator checks that every name, rule and scenario the Spec uses exists upstream, that
+every requirement is covered by a story and that every rule governing the capability is enforced;
+the loop feeds findings back once. Pack content
 plus one shipped evaluator Adapter.
 
 ```text
@@ -19,7 +20,7 @@ Workflow spec-all: repeat over `capabilities` ─▶ ReviewLoop spec-one per CAP
 
 | Member | Content |
 |---|---|
-| Prompt `spec-rules` | how a Spec is written: cite, never restate; EARS patterns with their keywords; one test per criterion; an unknown is a `Q-n` |
+| Prompt `spec-rules` | how a Spec is written: cite, never restate; Connextra stories covering EARS requirements enforcing rules; Given/When/Then scenarios with values; an unknown is a `Q-n` |
 | Executor `spec-agent` | `claude-code/v1`, read-only, the same configuration as `storming-agent` under its own name, so a Namespace overrides the model per Task |
 | Task `write-spec` | inputs `prd`, `capabilityId`, `architecture`, `domainModel`, `glossary`, `rules`, `previous`, `feedback`; output `spec` |
 | Validator `spec-consistency` | `sdd/v1` over `spec`, `prd`, `domainModel`, `architecture`, `rules`; the rule row of `23-pack-ai-native.md` as findings |
@@ -36,19 +37,25 @@ returning findings, every one `error`:
 |---|---|
 | `not-a-spec` | content without `stories` or `capability`; the only finding then |
 | `unknown-capability` | `capability` is no `CAP-n` of the Prd |
-| `unknown-actor` | a story's `actor` is no Prd user |
+| `unknown-role` | a story's `role` is no Prd user |
 | `unknown-command`, `unknown-event`, `unknown-read-model` | a name the DomainModel lacks (commands: aggregates' and external systems' `handles` and `issues`; events: `events[]`, read models' `updatedBy`, external systems' `emits`, so another context's event counts once the model names it) |
+| `unknown-requirement` | a story covers an `FR-n` the Spec lacks |
+| `requirement-uncovered` | an `FR-n` no story covers |
 | `unknown-scenario` | a `qualities[].scenario` the Architecture lacks |
-| `unknown-rule`, `inactive-rule` | an acceptance criterion's `BR-n` missing or not `active` |
-| `rule-untested` | a `BR-n` the Prd capability lists that no criterion cites |
-| `pattern-mismatch` | a statement not opening with its pattern's keyword (the first word, punctuation ignored); `complex` opens with `While`, `When` or `If` and holds two of those words before `shall` |
-| `id-sequence` | `US-n`, `AC-n`, `Q-n` not sequential from 1 in document order |
+| `unknown-rule`, `inactive-rule` | a requirement's `BR-n` missing or not `active` |
+| `rule-unenforced` | a `BR-n` the Prd capability lists that no requirement enforces |
+| `pattern-mismatch` | a requirement not opening with its pattern's keyword (the first word, punctuation ignored); `complex` opens with `While`, `When` or `If` and holds two of those words before `shall` |
+| `id-sequence` | `FR-n`, `US-n`, `AC-n`, `Q-n` not sequential from 1 in document order |
+
+A story with no scenario, a scenario with an empty `given`, `when` or `then`, a story covering
+nothing: the schema refuses those (`minItems: 1`).
 
 ## Rules
 
 | Rule | Enforcer |
 |---|---|
 | a Spec cites and never restates: a name the DomainModel lacks is a finding, fixed upstream, never invented in the Spec | `spec-consistency` |
+| a scenario's values ("25 EUR") are example data of the revision the Spec read, never the rule's authority; provenance pins the BusinessRules revision, and a Spec whose pinned revision is behind is a Relation query, not a field (`91-roadmap.md`) | convention |
 | the Spec's `prd`, `architecture`, `domainModel` artifact ids are not checked against the inputs: the evaluator payload carries content and provenance, no RevisionRef (`19-adapter-roles.md`); provenance pins what was read | convention; Validator later |
 | `domainModel.context` is not compared with the capability's `context`: a derived DomainModel names the storming context id, the Prd the BoundedContext artifact id, and the author cannot change an input; the check lands with producer-chosen artifact ids (`91-roadmap.md`) | deferred |
 | `spec-all` runs over one context: its `domainModel`, `glossary` and `rules` are one artifact each; a Prd spanning contexts runs it once per context with that context's capability ids | convention |
@@ -72,10 +79,16 @@ returning findings, every one `error`:
   `events[]` never lists. It is the Accounting context's event, reaching this model through an
   `updates` edge; the kind now says `updatedBy` may name another context's event and `checkSpec`
   accepts it as a story event. The question was the process working as designed. Found in UAT.
-- `want` is written in the infinitive ("submit the claim"), not the third person: the Prompt says so
+- `goal` is written in the infinitive ("submit the claim"), not the third person: the Prompt says so
   after the live run wrote "views the export status". Found in UAT.
+
+- The three forms (Connextra, EARS, Given/When/Then) replaced one: the first live run wrote EARS
+  criteria under stories, and the user's review showed the standard split: a requirement is the
+  system's behaviour in general form, a scenario is one concrete case of it, a story is why someone
+  needs it. `23-pack-ai-native.md` records the shape; the live run is repeated under it. Found in UAT.
 
 ## Examples
 
-- `docs/design/examples/ai-native-domain.yaml`: the `Spec` of `CAP-1` passes `checkSpec` against
-  the Prd, DomainModel, Architecture and BusinessRules beside it (`test/adapters/sdd.test.ts`).
+- `docs/design/examples/ai-native-domain.yaml`: the `Spec` of `CAP-1`: three stories, six
+  requirements, seven scenarios; passes `checkSpec` against the Prd, DomainModel, Architecture and
+  BusinessRules beside it (`test/adapters/sdd.test.ts`).

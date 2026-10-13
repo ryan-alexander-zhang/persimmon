@@ -62,8 +62,8 @@ describe('sdd/v1', () => {
   })
 
 
-  it('fails an actor who is not a Prd user', async () => {
-    expect(await codes((a) => { a.spec.stories[0].actor = 'intern' })).toEqual(['unknown-actor'])
+  it('fails a role who is not a Prd user', async () => {
+    expect(await codes((a) => { a.spec.stories[0].role = 'intern' })).toEqual(['unknown-role'])
   })
 
   it('fails a command, an event and a read model the DomainModel does not name', async () => {
@@ -85,30 +85,32 @@ describe('sdd/v1', () => {
     expect(await codes((a) => { a.spec.qualities[1].scenario = 'QS-9' })).toEqual(['unknown-scenario'])
   })
 
-  it('fails a rule that does not resolve', async () => {
-    expect(await codes((a) => { a.spec.stories[1].acceptance[2].rules = ['BR-99'] })).toEqual(['unknown-rule'])
+  it('fails a rule that does not resolve, and one that is not active', async () => {
+    expect(await codes((a) => { a.spec.requirements[4].rules = ['BR-99'] })).toEqual(['unknown-rule'])
+    expect(await codes((a) => { a.spec.requirements[4].rules = ['BR-6'] })).toEqual(['inactive-rule'])
   })
 
-  it('fails a rule that is not active', async () => {
-    expect(await codes((a) => { a.spec.stories[1].acceptance[2].rules = ['BR-6'] })).toEqual(['inactive-rule'])
+  it('fails a requirement a story cites but the Spec lacks, and one no story covers', async () => {
+    expect(await codes((a) => { a.spec.stories[2].requirements = ['FR-9'] })).toEqual(['unknown-requirement', 'requirement-uncovered'])
   })
 
-  it('fails a capability rule no acceptance criterion tests', async () => {
-    expect(await codes((a) => { a.prd.capabilities[0].rules.push('BR-1') })).toEqual(['rule-untested'])
+  it('fails a rule that governs the capability but no requirement enforces', async () => {
+    expect(await codes((a) => { a.prd.capabilities[0].rules.push('BR-1') })).toEqual(['rule-unenforced'])
   })
 
   it('fails a statement that does not open with its pattern keyword', async () => {
-    expect(await codes((a) => { a.spec.stories[0].acceptance[0].pattern = 'ubiquitous' })).toEqual(['pattern-mismatch'])
-    // complex wants two of while/when/if; the one-clause statement has only its own When
-    expect(await codes((a) => { a.spec.stories[0].acceptance[0].pattern = 'complex' })).toEqual(['pattern-mismatch'])
+    expect(await codes((a) => { a.spec.requirements[0].pattern = 'ubiquitous' })).toEqual(['pattern-mismatch'])
+    // complex wants two of while/when/if before shall; the one-clause statement has only its own When
+    expect(await codes((a) => { a.spec.requirements[0].pattern = 'complex' })).toEqual(['pattern-mismatch'])
     const ok = structuredClone(example())
-    ok.spec.stories[0].acceptance[0].pattern = 'complex'
-    ok.spec.stories[0].acceptance[0].statement = 'When the employee drafts a claim, if the claim line has a receipt, the system shall show it.'
+    ok.spec.requirements[0].pattern = 'complex'
+    ok.spec.requirements[0].statement = 'When the employee drafts a claim, if the claim line has a receipt, the system shall show it.'
     const r = await adapter({ id: 1003, op: 'evaluate', payload: payload(ok) })
     expect(r.result).toEqual({ passed: true, findings: [], evidence: [] })
   })
 
   it('fails ids that are not sequential from 1 in document order', async () => {
+    expect(await codes((a) => { a.spec.requirements[5].id = 'FR-7' })).toEqual(['unknown-requirement', 'requirement-uncovered', 'id-sequence'])
     expect(await codes((a) => { a.spec.stories[1].id = 'US-5' })).toEqual(['id-sequence'])
     expect(await codes((a) => { a.spec.stories[1].acceptance[0].id = 'AC-1' })).toEqual(['id-sequence']) // AC-n runs across stories: the second story's first criterion is AC-4
     expect(await codes((a) => { a.spec.openQuestions[0].id = 'Q-2' })).toEqual(['id-sequence']) // the duplicate shows as the out-of-place first id

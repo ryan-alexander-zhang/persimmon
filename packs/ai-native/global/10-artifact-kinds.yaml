@@ -852,7 +852,7 @@ spec:
     - name: v1
       schema:
         type: object
-        required: [title, prd, capability, architecture, domainModel, stories, qualities, openQuestions]
+        required: [title, prd, capability, architecture, domainModel, stories, requirements, qualities, openQuestions]
         additionalProperties: false
         properties:
           title: {type: string, minLength: 1}
@@ -863,31 +863,47 @@ spec:
           stories:
             type: array
             minItems: 1
+            description: "the user's side (Connextra): who wants what, why; covers requirements, owns acceptance scenarios"
             items:
               type: object
-              required: [id, actor, want, benefit, acceptance]
+              required: [id, role, goal, benefit, requirements, acceptance]
               additionalProperties: false
               properties:
                 id: {type: string, pattern: "^US-[0-9]+$"}
-                actor: {type: string, minLength: 1, description: "a Prd user name"}
-                want: {type: string, minLength: 1, description: "what the actor does, in Glossary terms; no solution"}
-                benefit: {type: string, minLength: 1, description: "why; names a G-n in prose when one applies"}
+                role: {type: string, minLength: 1, description: "As a <role>: a Prd user name"}
+                goal: {type: string, minLength: 1, description: "I want <goal>: infinitive, in Glossary terms, no solution"}
+                benefit: {type: string, minLength: 1, description: "so that <benefit>: names a G-n in prose when one applies"}
+                requirements: {type: array, minItems: 1, items: {type: string, pattern: "^FR-[0-9]+$"}, description: "the requirements this story covers"}
                 commands: {type: array, items: {type: string, minLength: 1}, description: "DomainModel command labels the story invokes"}
                 events: {type: array, items: {type: string, minLength: 1}, description: "DomainModel domain event labels the story observes or causes"}
                 readModels: {type: array, items: {type: string, minLength: 1}, description: "DomainModel read model names the story reads"}
                 acceptance:
                   type: array
                   minItems: 1
-                  description: "one test decides each on one run; an outcome measured over time is a Prd success criterion"
+                  description: "acceptance scenarios (Given/When/Then) with concrete values; one test decides each on one run; an outcome measured over time is a Prd success criterion"
                   items:
                     type: object
-                    required: [id, pattern, statement]
+                    required: [id, title, given, when, then]
                     additionalProperties: false
                     properties:
                       id: {type: string, pattern: "^AC-[0-9]+$", description: "unique in the Spec, not per story"}
-                      pattern: {enum: [ubiquitous, event-driven, state-driven, unwanted-behaviour, optional, complex]}
-                      statement: {type: string, minLength: 1, description: "one EARS sentence of the declared pattern over 'the system'; a quantity names a unit"}
-                      rules: {type: array, items: {type: string, pattern: "^BR-[0-9]+$"}, description: "the rules this criterion tests"}
+                      title: {type: string, minLength: 1}
+                      given: {type: array, minItems: 1, items: {type: string, minLength: 1}, description: "the state before, with values and units"}
+                      when: {type: array, minItems: 1, items: {type: string, minLength: 1}, description: "what the role does; a DomainModel command in prose"}
+                      then: {type: array, minItems: 1, items: {type: string, minLength: 1}, description: "observable outcomes: a recorded fact, a shown value, a refusal with its reason"}
+          requirements:
+            type: array
+            minItems: 1
+            description: "the system's side (EARS): what the system does under which trigger or state; enforces rules"
+            items:
+              type: object
+              required: [id, pattern, statement]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^FR-[0-9]+$"}
+                pattern: {enum: [ubiquitous, event-driven, state-driven, unwanted-behaviour, optional, complex]}
+                statement: {type: string, minLength: 1, description: "one EARS sentence of the declared pattern over 'the system'; names a rule by BR-n instead of copying its condition; a quantity names a unit"}
+                rules: {type: array, items: {type: string, pattern: "^BR-[0-9]+$"}, description: "the rules this requirement enforces"}
           qualities:
             type: array
             description: "Architecture quality scenarios the capability is held to; a delta only tightens"

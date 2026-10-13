@@ -484,6 +484,22 @@ aggregates with their commands, events and invariants, policies, read models, ex
 names are storming labels, attributes are **Fact types** (`26-domain-discovery.md`).
 _Avoid_: domain object model, class model, entity model, aggregate list
 
+**Story**:
+A **Spec** element `US-n` in Connextra form: `role` (a Prd user), `goal`, `benefit`; covers
+requirements, owns acceptance scenarios.
+_Avoid_: user story (as a different thing), feature, epic
+
+**Requirement**:
+A **Spec** element `FR-n`: one EARS sentence over "the system", enforcing rules by `BR-n`. Always
+"requirement" for the Spec element; a Prd capability is not a requirement.
+_Avoid_: functional requirement (as a different thing), FR text, system requirement
+
+**Acceptance scenario**:
+A **Spec** element `AC-n` under a **Story**: `given`, `when`, `then` with concrete values, decided
+by one test on one run. Not a **TestCase** (roadmap): a scenario says what is accepted, a test case
+how it is verified.
+_Avoid_: acceptance criterion, AC (in prose), test, scenario (alone)
+
 **Spec process**:
 The pack process from a **Prd** capability to its **Spec**: Task `write-spec` under a ReviewLoop whose
 gate is `spec-consistency` (Adapter `sdd/v1`), repeated by `spec-all` over a list of `CAP-n`.
@@ -500,10 +516,11 @@ criteria. No stories, requirements or technology; those are the **Spec**'s.
 _Avoid_: ProductRequirement (demo pack), EarsPrd (example06), product spec
 
 **Spec**:
-**Artifact kind** of the AI Native pack, one per `CAP-n` of a **Prd**: stories `US-n` with EARS
-acceptance criteria `AC-n`, `qualities` citing Architecture `QS-n`, open questions. Names are the
-**DomainModel**'s, rules `BR-n`; no FR, NFR or entity of its own. Always the capitalised kind name;
-the envelope field is `spec`.
+**Artifact kind** of the AI Native pack, one per `CAP-n` of a **Prd**: stories `US-n` (Connextra)
+covering requirements `FR-n` (EARS) that enforce rules `BR-n`, acceptance scenarios `AC-n`
+(Given/When/Then) under each story, `qualities` citing Architecture `QS-n`, open questions. Names
+are the **DomainModel**'s; no NFR text or entity of its own. Always the capitalised kind name; the
+envelope field is `spec`.
 _Avoid_: feature spec, requirements doc, spec.md
 
 ## Flagged ambiguities

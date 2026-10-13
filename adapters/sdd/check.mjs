@@ -1,5 +1,6 @@
-// One Spec of the AI Native pack against the artifacts it cites (23-pack-ai-native.md): the Prd capability, the
-// DomainModel's names, the Architecture's quality scenarios, the BusinessRules. Plain data in, findings out.
+// One Spec of the AI Native pack against the artifacts it cites (23-pack-ai-native.md, 27-spec-process.md): the Prd
+// capability and its governing rules, the DomainModel's names, the Architecture's quality scenarios, the BusinessRules;
+// inside the Spec, stories cover requirements and requirements enforce rules. Plain data in, findings out.
 const keyword = { ubiquitous: 'The', 'event-driven': 'When', 'state-driven': 'While', 'unwanted-behaviour': 'If', optional: 'Where' }
 
 export function checkSpec({ spec, prd, domainModel, architecture, rules }) {
@@ -24,41 +25,50 @@ export function checkSpec({ spec, prd, domainModel, architecture, rules }) {
   const status = new Map((rules?.rules ?? []).map((r) => [r.id, r.status]))
   const users = new Set((prd?.users ?? []).map((u) => u.name))
 
-  const tested = new Set()
+  const requirementIds = (spec.requirements ?? []).map((r) => r.id)
+  const enforced = new Set()
+  for (const fr of spec.requirements ?? []) {
+    for (const r of fr.rules ?? []) {
+      enforced.add(r)
+      if (!status.has(r)) bad('unknown-rule', `${fr.id}: rule ${r} is not in the BusinessRules`)
+      else if (status.get(r) !== 'active') bad('inactive-rule', `${fr.id}: rule ${r} is ${status.get(r)}, not active`)
+    }
+    const statement = String(fr.statement ?? '')
+    const opens = statement.match(/^\s*([A-Za-z]+)/)?.[1]
+    if (fr.pattern === 'complex') {
+      const clauses = statement.split(/\bshall\b/)[0].match(/\b(while|when|if)\b/gi) ?? [] // the clauses before the response
+      if (!['While', 'When', 'If'].includes(opens) || clauses.length < 2) {
+        bad('pattern-mismatch', `${fr.id}: a complex statement opens with While, When or If and holds two such clauses`)
+      }
+    } else if (keyword[fr.pattern] && opens !== keyword[fr.pattern]) {
+      bad('pattern-mismatch', `${fr.id}: a ${fr.pattern} statement opens with ${keyword[fr.pattern]}`)
+    }
+  }
+
+  const covered = new Set()
   const storyIds = []
   const criterionIds = []
   for (const story of spec.stories) {
     storyIds.push(story.id)
-    if (!users.has(story.actor)) bad('unknown-actor', `${story.id}: actor ${story.actor} is not a Prd user`)
+    if (!users.has(story.role)) bad('unknown-role', `${story.id}: role ${story.role} is not a Prd user`)
+    for (const r of story.requirements ?? []) {
+      covered.add(r)
+      if (!requirementIds.includes(r)) bad('unknown-requirement', `${story.id}: requirement ${r} is not in the Spec`)
+    }
     for (const c of story.commands ?? []) if (!commands.has(c)) bad('unknown-command', `${story.id}: command ${c} is not in the DomainModel`)
     for (const e of story.events ?? []) if (!events.has(e)) bad('unknown-event', `${story.id}: event ${e} is not in the DomainModel`)
     for (const r of story.readModels ?? []) if (!readModels.has(r)) bad('unknown-read-model', `${story.id}: read model ${r} is not in the DomainModel`)
-    for (const ac of story.acceptance ?? []) {
-      criterionIds.push(ac.id)
-      for (const r of ac.rules ?? []) {
-        tested.add(r)
-        if (!status.has(r)) bad('unknown-rule', `${ac.id}: rule ${r} is not in the BusinessRules`)
-        else if (status.get(r) !== 'active') bad('inactive-rule', `${ac.id}: rule ${r} is ${status.get(r)}, not active`)
-      }
-      const statement = String(ac.statement ?? '')
-      const opens = statement.match(/^\s*([A-Za-z]+)/)?.[1]
-      if (ac.pattern === 'complex') {
-        const clauses = statement.split(/\bshall\b/)[0].match(/\b(while|when|if)\b/gi) ?? [] // the clauses before the response
-        if (!['While', 'When', 'If'].includes(opens) || clauses.length < 2) {
-          bad('pattern-mismatch', `${ac.id}: a complex statement opens with While, When or If and holds two such clauses`)
-        }
-      } else if (keyword[ac.pattern] && opens !== keyword[ac.pattern]) {
-        bad('pattern-mismatch', `${ac.id}: a ${ac.pattern} statement opens with ${keyword[ac.pattern]}`)
-      }
-    }
+    for (const ac of story.acceptance ?? []) criterionIds.push(ac.id)
   }
+  for (const id of requirementIds) if (!covered.has(id)) bad('requirement-uncovered', `requirement ${id} is covered by no story`)
   for (const r of capability?.rules ?? []) {
-    if (!tested.has(r)) bad('rule-untested', `rule ${r} of ${capability.id} is tested by no acceptance criterion`)
+    if (!enforced.has(r)) bad('rule-unenforced', `rule ${r} governs ${capability.id} but no requirement enforces it`)
   }
   for (const q of spec.qualities ?? []) if (!scenarios.has(q.scenario)) bad('unknown-scenario', `scenario ${q.scenario} is not in the Architecture`)
 
   // unique and sequential from 1 in document order: a duplicate or a gap breaks the run
   const sequence = (prefix, ids) => ids.forEach((id, i) => { if (id !== `${prefix}-${i + 1}`) bad('id-sequence', `${id} should be ${prefix}-${i + 1}`) })
+  sequence('FR', requirementIds)
   sequence('US', storyIds)
   sequence('AC', criterionIds)
   sequence('Q', (spec.openQuestions ?? []).map((q) => q.id))
