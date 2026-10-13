@@ -124,7 +124,7 @@ describe('sdd/v1', () => {
     const missing = await adapter({ id: 1004, op: 'evaluate', payload: payload(rest) })
     expect(missing).toEqual({ id: 1004, ok: false, error: { code: 'invalid_input', message: 'artifacts.rules is required', retryable: false } })
     const noSpec = await adapter({ id: 1005, op: 'evaluate', payload: { ...payload(example()), artifacts: {} } })
-    expect(noSpec).toEqual({ id: 1005, ok: false, error: { code: 'invalid_input', message: 'artifacts.spec, artifacts.prd or artifacts.design is required', retryable: false } })
+    expect(noSpec).toEqual({ id: 1005, ok: false, error: { code: 'invalid_input', message: 'artifacts.spec, artifacts.prd, artifacts.design or artifacts.plan is required', retryable: false } })
     const unknown = await adapter({ id: 1006, op: 'nonsense', payload: {} })
     expect(unknown).toMatchObject({ id: 1006, ok: false, error: { code: 'invalid_input', retryable: false } })
   })
@@ -269,5 +269,64 @@ describe('sdd/v1 over a Design', () => {
     expect(await adapter({ id: 3006, op: 'evaluate', payload: payload(noArchitecture) })).toEqual({ id: 3006, ok: false, error: { code: 'invalid_input', message: 'artifacts.architecture is required', retryable: false } })
     const { domainModel, ...noDomainModel } = designExample()
     expect(await adapter({ id: 3007, op: 'evaluate', payload: payload(noDomainModel) })).toEqual({ id: 3007, ok: false, error: { code: 'invalid_input', message: 'artifacts.domainModel is required', retryable: false } })
+  })
+})
+
+describe('sdd/v1 over a Plan', () => {
+  const designRef = { apiVersion: 'sdd.persimmon.ai/v1', kind: 'Design', namespace: 'default', id: 'claims-api', revision: 1 }
+  const planExample = () => ({ plan: content('Plan'), spec: content('Spec'), architecture: content('Architecture'), designs: [content('Design')] })
+  // the Designs are an artifacts port: a list in artifacts, their refs in inputs, paired by position
+  const planPayload = (a: ReturnType<typeof planExample>, refs = [designRef]) => {
+    const { designs, ...rest } = a
+    return { ...payload(rest), inputs: { designs: { kind: 'artifacts', refs } }, artifacts: { ...payload(rest).artifacts, designs: designs.map((c) => ({ content: c, provenance })) } }
+  }
+  const planCodes = async (mutate: (a: ReturnType<typeof planExample>) => void, refs?: typeof designRef[]) => {
+    const artifacts = structuredClone(planExample())
+    mutate(artifacts)
+    const r = await adapter({ id: ++id, op: 'evaluate', payload: planPayload(artifacts, refs) })
+    expect(r.result.passed).toBe(false)
+    return r.result.findings.map((f: { code: string }) => f.code)
+  }
+
+  it('passes the worked example: the Plan of CAP-1 against its Spec, Architecture and Design', async () => {
+    const r = await adapter({ id: 4001, op: 'evaluate', payload: planPayload(planExample()) })
+    expect(r).toEqual({ id: 4001, ok: true, result: { passed: true, findings: [], evidence: [] } })
+  })
+
+  it('fails content that is not a Plan, and reports nothing else', async () => {
+    const r = await adapter({ id: 4002, op: 'evaluate', payload: planPayload({ ...planExample(), plan: { title: 'x' } as never }) })
+    expect(r.result).toEqual({ passed: false, findings: [{ severity: 'error', code: 'not-a-plan', message: 'content is not a Plan: it has no tasks array or no spec' }], evidence: [] })
+  })
+
+  it('fails a requirement or scenario the Spec lacks, and one no task covers or verifies', async () => {
+    expect(await planCodes((a) => { a.plan.tasks[3].covers = ['FR-9'] })).toEqual(['unknown-requirement', 'requirement-unplanned'])
+    expect(await planCodes((a) => { a.plan.tasks[3].verifiedBy = ['AC-9'] })).toEqual(['unknown-scenario', 'scenario-unverified'])
+  })
+
+  it('fails a block the Architecture lacks and a dependency that is unknown or not earlier', async () => {
+    expect(await planCodes((a) => { a.plan.tasks[1].block = 'BB-9' })).toEqual(['unknown-block'])
+    expect(await planCodes((a) => { a.plan.tasks[0].dependsOn = ['T-3'] })).toEqual(['dependency-forward'])
+    expect(await planCodes((a) => { a.plan.tasks[0].dependsOn = ['T-9'] })).toEqual(['unknown-task'])
+  })
+
+  it('fails an element of a design not listed, not evaluated, of another block, or missing', async () => {
+    expect(await planCodes((a) => { a.plan.tasks[0].elements![0].design = 'ghost' })).toEqual(['unknown-design'])
+    expect(await planCodes((a) => { a.plan.designs.push('ghost'); a.plan.tasks[0].elements![0].design = 'ghost' })).toEqual(['design-unread'])
+    expect(await planCodes(() => {}, [{ ...designRef, id: 'other' }])).toEqual(['design-unread', 'design-unread', 'design-unread', 'design-unread'])
+    expect(await planCodes((a) => { a.plan.tasks[0].block = 'BB-2' })).toEqual(['design-block', 'design-block'])
+    expect(await planCodes((a) => { a.plan.tasks[0].elements![0].element = 'EL-99' })).toEqual(['unknown-element'])
+    expect(await planCodes((a) => { a.plan.designs.push('spare') })).toEqual(['design-unused'])
+  })
+
+  it('fails ids that are not unique and increasing', async () => {
+    expect(await planCodes((a) => { a.plan.tasks[3].id = 'T-3' })).toEqual(['dependency-forward', 'id-sequence']) // T-4 renamed T-3 also depends on itself
+    expect(await planCodes((a) => { a.plan.openQuestions[0].id = 'Q-0' })).toEqual(['id-sequence'])
+  })
+
+  it('is invalid_input without the Spec or the Architecture beside a Plan', async () => {
+    const { spec, ...noSpec } = planExample()
+    expect(await adapter({ id: 4003, op: 'evaluate', payload: planPayload(noSpec as never) })).toMatchObject({ ok: false, error: { code: 'invalid_input', message: 'artifacts.spec is required' } })
+    const { architecture, ...noArchitecture } = planExample()
+    expect(await adapter({ id: 4004, op: 'evaluate', payload: planPayload(noArchitecture as never) })).toMatchObject({ ok: false, error: { code: 'invalid_input', message: 'artifacts.architecture is required' } })
   })
 })

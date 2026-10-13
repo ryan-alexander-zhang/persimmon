@@ -2,7 +2,7 @@
 // capability and its governing rules, the DomainModel's names, the Architecture's quality scenarios, the BusinessRules;
 // inside the Spec, stories cover requirements and requirements enforce rules. And one Prd against the BusinessRules of
 // its context. And one Design against the Architecture block it belongs to, the DomainModel its elements realise and the
-// BusinessRules it enforces. Plain data in, findings out.
+// BusinessRules it enforces. And one Plan against its Spec, the Architecture and the Designs it realises. Plain data in, findings out.
 // the document a Design of each type carries
 const mediaTypes = { 'http-api': ['application/openapi+yaml'], 'async-api': ['application/asyncapi+yaml'], 'data-schema': ['application/schema+json', 'application/sql'] }
 const keyword = { ubiquitous: 'The', 'event-driven': 'When', 'state-driven': 'While', 'unwanted-behaviour': 'If', optional: 'Where' }
@@ -165,5 +165,57 @@ export function checkDesign({ design, architecture, domainModel, rules }) {
 
   sequence(bad, 'EL', design.elements.map((e) => e.id))
   sequence(bad, 'Q', (design.openQuestions ?? []).map((q) => q.id))
+  return findings
+}
+
+// One Plan against the Spec it builds, the Architecture its tasks name blocks of, and the Designs it realises elements
+// of; `designs` is artifact id → content, paired by the caller from inputs.designs.refs and artifacts.designs.
+export function checkPlan({ plan, spec, architecture, designs = {} }) {
+  if (!plan || !Array.isArray(plan.tasks) || !plan.spec) {
+    return [{ severity: 'error', code: 'not-a-plan', message: 'content is not a Plan: it has no tasks array or no spec' }]
+  }
+  const findings = []
+  const bad = (code, message) => findings.push({ severity: 'error', code, message })
+
+  const requirements = new Set((spec?.requirements ?? []).map((r) => r.id))
+  const scenarios = new Set((spec?.stories ?? []).flatMap((s) => (s.acceptance ?? []).map((a) => a.id)))
+  const blocks = new Set((architecture?.buildingBlocks ?? []).map((b) => b.id))
+  const listed = new Set(plan.designs ?? [])
+  const covered = new Set()
+  const verified = new Set()
+  const used = new Set()
+  const taskIds = plan.tasks.map((t) => t.id)
+  const number = (id) => Number(String(id).slice(2))
+
+  for (const t of plan.tasks) {
+    if (!blocks.has(t.block)) bad('unknown-block', `${t.id}: block ${t.block} is not a building block of the Architecture`)
+    for (const r of t.covers ?? []) {
+      covered.add(r)
+      if (!requirements.has(r)) bad('unknown-requirement', `${t.id}: requirement ${r} is not in the Spec`)
+    }
+    for (const a of t.verifiedBy ?? []) {
+      verified.add(a)
+      if (!scenarios.has(a)) bad('unknown-scenario', `${t.id}: scenario ${a} is not in the Spec`)
+    }
+    for (const d of t.dependsOn ?? []) {
+      if (!taskIds.includes(d)) bad('unknown-task', `${t.id}: depends on ${d}, not a task of the Plan`)
+      else if (!(number(d) < number(t.id))) bad('dependency-forward', `${t.id}: depends on ${d}, not an earlier task; document order is build order`)
+    }
+    for (const { design, element } of t.elements ?? []) {
+      used.add(design)
+      if (!listed.has(design)) bad('unknown-design', `${t.id}: design ${design} is not in the Plan's designs`)
+      else if (!designs[design]) bad('design-unread', `${t.id}: design ${design} is not among the Designs evaluated`)
+      else {
+        if (designs[design].block !== t.block) bad('design-block', `${t.id}: design ${design} is of block ${designs[design].block}, the task is on ${t.block}`)
+        if (!(designs[design].elements ?? []).some((e) => e.id === element)) bad('unknown-element', `${t.id}: element ${element} is not in design ${design}`)
+      }
+    }
+  }
+  for (const id of requirements) if (!covered.has(id)) bad('requirement-unplanned', `requirement ${id} is covered by no task`)
+  for (const id of scenarios) if (!verified.has(id)) bad('scenario-unverified', `scenario ${id} verifies no task`)
+  for (const d of listed) if (!used.has(d)) bad('design-unused', `design ${d} is listed but no task realises an element of it`)
+
+  sequence(bad, 'T', taskIds)
+  sequence(bad, 'Q', (plan.openQuestions ?? []).map((q) => q.id))
   return findings
 }

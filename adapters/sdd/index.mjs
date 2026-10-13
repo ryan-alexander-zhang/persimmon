@@ -1,10 +1,11 @@
 // sdd/v1: the evaluator Role (19-adapter-roles.md) over the AI Native pack (23-pack-ai-native.md), in three modes.
-// Given a Spec, `evaluate` runs `checkSpec` on it and the Prd, DomainModel, Architecture and BusinessRules it cites;
+// Given a Plan, `evaluate` runs `checkPlan`; given a Spec, it runs `checkSpec` on it and the Prd, DomainModel, Architecture and BusinessRules it cites;
 // given a Prd, it runs `checkPrd` on it and the BusinessRules of its context; given a Design, it runs `checkDesign` on
-// it and the Architecture, DomainModel and BusinessRules it cites. It answers a ValidationResult (10-ports.md). No
-// Engine callbacks.
+// it and the Architecture, DomainModel and BusinessRules it cites; given a Plan, it runs `checkPlan` on it, the Spec,
+// the Architecture and the Designs (an artifacts port, paired with inputs.designs.refs by position). It answers a
+// ValidationResult (10-ports.md). No Engine callbacks.
 import { createInterface } from 'node:readline'
-import { checkDesign, checkPrd, checkSpec } from './check.mjs'
+import { checkDesign, checkPlan, checkPrd, checkSpec } from './check.mjs'
 
 const describe = {
   adapterId: 'sdd/v1',
@@ -22,10 +23,19 @@ const required = (artifacts, name) => {
 
 function evaluate(payload) {
   const artifacts = payload?.artifacts ?? {}
+  if (artifacts.plan) {
+    const plan = required(artifacts, 'plan')
+    const notAPlan = checkPlan({ plan }).filter((f) => f.code === 'not-a-plan')
+    if (notAPlan.length) return { passed: false, findings: notAPlan, evidence: [] }
+    const refs = payload.inputs?.designs?.refs ?? []
+    const designs = Object.fromEntries((artifacts.designs ?? []).map((d, i) => [refs[i]?.id, d.content]))
+    const findings = checkPlan({ plan, spec: required(artifacts, 'spec'), architecture: required(artifacts, 'architecture'), designs })
+    return { passed: findings.length === 0, findings, evidence: [] }
+  }
   // the artifact under evaluation is artifacts.spec; the conformance suite names it artifacts.model (22-conformance.md)
   if (!(artifacts.spec ?? artifacts.model)) {
     if (!artifacts.prd) {
-      if (!artifacts.design) throw invalid('artifacts.spec, artifacts.prd or artifacts.design is required')
+      if (!artifacts.design) throw invalid('artifacts.spec, artifacts.prd, artifacts.design or artifacts.plan is required')
       const design = required(artifacts, 'design')
       const notADesign = checkDesign({ design }).filter((f) => f.code === 'not-a-design')
       if (notADesign.length) return { passed: false, findings: notADesign, evidence: [] }
