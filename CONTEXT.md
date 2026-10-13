@@ -529,6 +529,12 @@ data-schema) of one **Architecture** building block, its `document` embedded who
 block; a **Spec** never cites one, the Plan does. Always the capitalised kind name.
 _Avoid_: design doc, technical design, design asset, design per capability, API spec (for the kind)
 
+**Plan**:
+**Artifact kind** of the AI Native pack, one per **Spec**: tasks `T-n` in build order, each on one
+**Architecture** block, covering the Spec's `FR-n`, verified by its `AC-n`, realising `EL-n` of the
+**Design**s it lists. The only artifact that links a Spec to Designs. Always the capitalised kind name.
+_Avoid_: tasks.md, work breakdown, implementation plan, task (for the kind; a Task is the engine's)
+
 **Spec**:
 **Artifact kind** of the AI Native pack, one per `CAP-n` of a **Prd**: stories `US-n` (Connextra)
 covering requirements `FR-n` (EARS) that enforce rules `BR-n`, acceptance scenarios `AC-n`

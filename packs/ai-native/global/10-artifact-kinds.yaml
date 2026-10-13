@@ -995,3 +995,64 @@ spec:
   mutability: Immutable
   revisioned: true
   snapshot: "None"
+---
+# The Plan of one Spec: the work that builds its capability, as tasks on one building block each, covering the Spec's
+# requirements, verified by its acceptance scenarios, realising elements of the Designs it builds against. The Plan
+# carries the Spec-to-Design link; a Spec never cites a Design. No estimates, owners or status: status is run state.
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata: {name: plans.sdd.persimmon.ai}
+spec:
+  group: sdd.persimmon.ai
+  names: {kind: Plan, plural: plans}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [title, spec, architecture, designs, tasks, openQuestions]
+        additionalProperties: false
+        properties:
+          title: {type: string, minLength: 1}
+          spec: {type: string, minLength: 1, description: "artifact id of the Spec this plan builds"}
+          architecture: {type: string, minLength: 1, description: "artifact id of the Architecture whose blocks the tasks name"}
+          designs: {type: array, items: {type: string, minLength: 1}, description: "artifact ids of every Design a task realises an element of"}
+          tasks:
+            type: array
+            minItems: 1
+            description: "in build order: a task depends on earlier tasks only"
+            items:
+              type: object
+              required: [id, title, block, covers, verifiedBy]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^T-[0-9]+$"}
+                title: {type: string, minLength: 1}
+                description: {type: string}
+                block: {type: string, pattern: "^BB-[0-9]+$", description: "the one building block this task changes; work on two blocks is two tasks"}
+                covers: {type: array, items: {type: string, pattern: "^FR-[0-9]+$"}, description: "Spec requirements this task implements"}
+                verifiedBy: {type: array, items: {type: string, pattern: "^AC-[0-9]+$"}, description: "Spec acceptance scenarios that pass once this task is done"}
+                elements:
+                  type: array
+                  description: "what of which Design this task realises"
+                  items:
+                    type: object
+                    required: [design, element]
+                    additionalProperties: false
+                    properties:
+                      design: {type: string, minLength: 1, description: "a Design artifact id listed in designs"}
+                      element: {type: string, pattern: "^EL-[0-9]+$"}
+                dependsOn: {type: array, items: {type: string, pattern: "^T-[0-9]+$"}, description: "earlier tasks this one needs finished"}
+          openQuestions:
+            type: array
+            items:
+              type: object
+              required: [id, question]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^Q-[0-9]+$"}
+                question: {type: string, minLength: 1}
+                resolution: {type: string}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"

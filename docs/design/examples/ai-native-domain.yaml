@@ -995,3 +995,54 @@ spec:
         question: Is a claim line's amount in EUR or in the currency paid? The Glossary term says currency paid, the fact type says EUR; the schema leaves `amount` unitless until that is settled.
       - id: Q-2
         question: The DomainModel names no fact type for a rejection reason, yet the approver rejects with one (Architecture context); `Decision.reason` is unmodelled.
+---
+# The Plan of CAP-1's Spec: four tasks in build order, each on one block, together covering FR-1..FR-6 and verified by
+# AC-1..AC-7. Tasks on BB-1 realise operations of the claims API Design; BB-2 has no Design yet, which is Q-1.
+apiVersion: sdd.persimmon.ai/v1
+kind: Plan
+metadata: {name: submit-a-claim-plan.r1}
+spec:
+  identity: {id: submit-a-claim-plan, revision: 1}
+  content:
+    title: Submit a claim, plan
+    spec: submit-a-claim
+    architecture: expense-claims-architecture
+    designs: [claims-api]
+    tasks:
+      - id: T-1
+        title: Claim aggregate with Draft Claim and Attach Receipt
+        description: The Claim aggregate, its lines, the BR-2 completeness check as a read of the claim, and the two operations that build a draft.
+        block: BB-1
+        covers: [FR-1, FR-2]
+        verifiedBy: [AC-1, AC-3]
+        elements:
+          - {design: claims-api, element: EL-1}
+          - {design: claims-api, element: EL-2}
+      - id: T-2
+        title: Receipt store put and get by digest
+        description: Store a receipt by content, hand back its digest for the claim line; the claim's access rule applies on get.
+        block: BB-2
+        covers: [FR-2]
+        verifiedBy: [AC-2]
+        dependsOn: [T-1]
+      - id: T-3
+        title: Submit Claim with refusal naming line and rule
+        description: The submission operation; BR-2 and BR-3 checked over every line, a refusal names each breaking line with its rule and changes nothing.
+        block: BB-1
+        covers: [FR-3, FR-4, FR-5]
+        verifiedBy: [AC-4, AC-5, AC-6]
+        elements:
+          - {design: claims-api, element: EL-3}
+        dependsOn: [T-1, T-2]
+      - id: T-4
+        title: My Claims View
+        description: The employee's list of own claims with total and submission date, updated on Claim Submitted.
+        block: BB-1
+        covers: [FR-6]
+        verifiedBy: [AC-7]
+        elements:
+          - {design: claims-api, element: EL-4}
+        dependsOn: [T-3]
+    openQuestions:
+      - id: Q-1
+        question: BB-2's blob API has no Design yet; T-2 names no element until one exists. Write the Design before T-2 starts, or let T-2 produce it?

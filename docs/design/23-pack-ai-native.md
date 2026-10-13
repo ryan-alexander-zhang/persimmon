@@ -15,7 +15,8 @@ the domain kinds above ──▶ EventStorming (derived, unit 2); Prd r2 ──�
 Adr ──▶ Prd, rules (baseline) or Architecture (later)          taken first, pinned by provenance
 Architecture ──▶ Prd, BoundedContext (3, 5), Adr (9), Glossary (12), DomainModel (8, later)   arc42 baseline, once per product
 Spec per CAP-n ──▶ Prd, Architecture, DomainModel, Glossary, rules
-Design per block and type ──▶ Architecture, DomainModel, Glossary, rules;  Plan (later) ──▶ Spec, Design;  work ──▶ Plan
+Design per block and type ──▶ Architecture, DomainModel, Glossary, rules
+Plan per Spec ──▶ Spec, Architecture, Design (many);  work (later) ──▶ Plan
 why, for whom: Prd · exactly what: Spec · how: Architecture, Design (reusable assets) · work: Plan
 ```
 
@@ -40,6 +41,7 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
 | `EventStorming` | what happens in the domain, in whose words | DSL v4.0 of the event storming tool, `24-eventstorming.md`: `version`, `meta {name, level}`, `contexts[]`, `contextRelationships[]`, `nodes[]`, `edges[]` |
 | `Prd` | why, for whom, what capabilities | `title`, `problem`, `users[]`, `goals[] G-n`, `nonGoals[]`, `capabilities[] {id CAP-n, name, description, priority, context, rules?}`, `successCriteria[] {id SC-n, statement, capabilities?}`, `assumptions[]`, `openQuestions[] {id Q-n, question, resolution?}` |
 | `Spec` | exactly what one capability does | `title`, `prd`, `capability` CAP-n, `architecture`, `domainModel`, `stories[] {id US-n, role, goal, benefit, requirements[] FR-n, commands?[], events?[], readModels?[], acceptance[] {id AC-n, title, given[], when[], then[]}}` (Connextra; Given/When/Then), `requirements[] {id FR-n, pattern: ubiquitous\|event-driven\|state-driven\|unwanted-behaviour\|optional\|complex, statement, rules?[] BR-n}` (EARS), `qualities[] {scenario QS-n, delta?}`, `openQuestions[] {id Q-n, question, resolution?}` |
+| `Plan` | the work that builds one Spec | `title`, `spec`, `architecture`, `designs[]` (Design ids), `tasks[] {id T-n, title, description?, block BB-n, covers[] FR-n, verifiedBy[] AC-n, elements?[] {design, element EL-n}, dependsOn?[] T-n}` in build order, `openQuestions[]` |
 | `Design` | one reusable contract or schema of one block | `title`, `type: http-api\|async-api\|data-schema`, `architecture`, `block` BB-n, `interface?`, `domainModel`, `document {mediaType, content}` (OpenAPI 3.1, AsyncAPI 3, JSON Schema or DDL, embedded whole), `elements[] {id EL-n, name, realises {kind: command\|event\|readModel\|aggregate, name}, rules?[] BR-n}`, `rules[] BR-n`, `decisions[]` (Adr ids), `openQuestions[]` |
 
 ## Citation
@@ -66,6 +68,9 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
 | `Design` | `domainModel`, `elements[].realises` | one `DomainModel` and its names | artifact id; a command, event or read model label, or `AG-n` |
 | `Design` | `rules[]`, `elements[].rules[]` | `BusinessRules` rules | `BR-n`, "enforces"; the root list is the union of the elements' |
 | `Design` | `decisions[]` | `Adr` | artifact ids |
+| `Plan` | `spec`, `tasks[].covers`, `verifiedBy` | one `Spec`, its `FR-n` and `AC-n` | artifact id; every requirement and scenario of the Spec is covered or verified by a task |
+| `Plan` | `architecture`, `tasks[].block` | one `Architecture` and its blocks | artifact id, `BB-n`; one block per task |
+| `Plan` | `designs[]`, `tasks[].elements[]` | the `Design`s and their `EL-n` | artifact ids, listed in `designs`; the Design's `block` is the task's. The Spec-to-Design link lives here only |
 | any | prose | `Glossary` terms | by using the term; `aliases` never appear in documents |
 
 ## Rules
@@ -86,6 +91,7 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
 | a Spec never cites a Design, a Design never cites a Plan, an Architecture never names a Spec story: every artifact cites upstream only; downstream is a Relation query | author Prompt; convention |
 | in a `Design`: `block` resolves and `interface` is one it provides; every element's `realises` resolves in the DomainModel; rules resolve, are active, and the root `rules[]` is exactly the union of the elements'; `type` and `document.mediaType` pair; ids unique and increasing; `decisions[]` is not checked (no Adr in the payload). The document is not parsed; whether every operation of the contract has an element, and whether every command and read model of the block's contexts is realised across the block's Designs, are later checks (`91-roadmap.md`) | `design-consistency` (`29-design-process.md`); Validator later |
 | in a `Spec`: `capability` is a `CAP-n` of `prd`; `role` is a Prd user; `commands`, `events`, `readModels` resolve in the DomainModel; `stories[].requirements` resolve in the Spec and every `FR-n` is covered by a story; `requirements[].rules` resolve and are active; every `BR-n` the Prd capability lists is enforced by a requirement; each `statement` opens with its pattern's keyword (`The`, `When`, `While`, `If`, `Where`; `complex` opens with `While`, `When` or `If` and holds two of those clauses before `shall`); `qualities[].scenario` resolves in `architecture`; `domainModel.context` against the capability's `context` is deferred (`27-spec-process.md`) | `spec-consistency` (`27-spec-process.md`) |
+| in a `Plan`: `spec` resolves; every `FR-n` of the Spec is in some task's `covers` and every `AC-n` in some `verifiedBy`, and each cited one exists; `block` resolves in `architecture`; `dependsOn` names lower `T-n` only, so document order is build order and no cycle is possible; `elements[].design` is in `designs[]`, the Design is in the payload, its `block` equals the task's and the `EL-n` exists; ids unique and increasing | `plan-consistency` (`30-plan-process.md`) |
 | an `Adr`'s `drivers` resolve in the revisions its `provenance.inputs` pin (a Prd and rules for a baseline Adr, an Architecture later); the Adr carries no artifact id of its own for them | Validator later |
 | `goals` give direction without a number; `successCriteria` carry the number; `successCriteria` and `capabilities` name no technology, architecture or task | author Prompt; `prd-consistency` refuses a digit in a goal |
 | a success criterion is an outcome measured in production over time, decided by measurement; a behaviour one test decides on one run is an acceptance scenario and belongs to a Spec story; a capability no success criterion names is reported | author Prompt; Validator later |
@@ -202,12 +208,18 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
 - Group `sdd.persimmon.ai`, kind `Prd`: the demo pack's `ProductRequirement` and example06's
   `EarsPrd` keep their names in `engineering.persimmon.ai`; no collision.
 
+- `Plan` per Spec, not per Design or per release: a task covers requirements and is verified by
+  scenarios, both the Spec's, so the Plan's unit is the Spec's. It names every Design it builds
+  against through an `artifacts` input (`10-ports.md`), one per block and type, because a task on
+  the claims core realises an API operation and a schema table at once. No estimate, owner or
+  status field: status is the state of the runs that later cite the Plan. Found in design review.
+
 ## Examples
 
 - [`examples/ai-native-domain.yaml`](examples/ai-native-domain.yaml): one domain, expense claims, as a big-picture
   `EventStorming` model, a
   `BoundedContext`, its `Glossary` with fact types, `BusinessRules` with logic, the `DecisionTable`
   that routes a claim, the `Prd` that cites them, two `Adr`s and the `Architecture` that applies
-  them, a design-level `EventStorming` and the `DomainModel` derived from it, the `Spec` of `CAP-1`, and the
-  `Design` of the claims API (OpenAPI, one asset for three capabilities);
+  them, a design-level `EventStorming` and the `DomainModel` derived from it, the `Spec` of `CAP-1`, the
+  `Design` of the claims API (OpenAPI, one asset for three capabilities), and the `Plan` of that Spec;
   validates after the pack is applied
