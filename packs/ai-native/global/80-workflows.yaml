@@ -311,6 +311,7 @@ spec:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     blockId: {type: {kind: value, schema: {type: string, pattern: "^BB-[0-9]+$"}}}
     type: {type: {kind: value, schema: {enum: [http-api, async-api, data-schema]}}}
+    interface: {type: {kind: value, schema: {type: string, minLength: 1}}, required: false}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
@@ -320,6 +321,7 @@ spec:
       architecture: {fromInput: architecture}
       blockId: {fromInput: blockId}
       type: {fromInput: type}
+      interface: {fromInput: interface}
       domainModel: {fromInput: domainModel}
       glossary: {fromInput: glossary}
       rules: {fromInput: rules}

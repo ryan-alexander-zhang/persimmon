@@ -930,7 +930,7 @@ spec:
   revisioned: true
   snapshot: "None"
 ---
-# One reusable design asset: an HTTP or async API contract or a data schema, for one Architecture building block,
+# One reusable Design: an HTTP or async API contract or a data schema, for one Architecture building block,
 # shared by every capability that uses it. The document is embedded whole and never parsed here; `elements[]` is the
 # index a Validator reads: what in the DomainModel each operation, channel or table realises. A Spec never cites a
 # Design; the Plan (later) says which assets realise which capability.

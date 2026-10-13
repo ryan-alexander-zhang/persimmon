@@ -223,6 +223,8 @@ describe('sdd/v1 over a Design', () => {
       a.design.elements[3].realises.name = 'Ghost View'
       a.design.elements[1].realises = { kind: 'aggregate', name: 'AG-9' }
     })).toEqual(['unknown-realised', 'unknown-realised', 'unknown-realised'])
+    // names are looked up per kind: a read model's name is not a command
+    expect(await designCodes((a) => { a.design.elements[0].realises = { kind: 'command', name: 'My Claims View' } })).toEqual(['unknown-realised'])
     const ok = structuredClone(designExample())
     ok.design.elements[1].realises = { kind: 'aggregate', name: 'AG-1' }
     ok.design.elements[3].realises = { kind: 'event', name: 'Claim Paid' } // another context's event that updates a read model
@@ -231,13 +233,24 @@ describe('sdd/v1 over a Design', () => {
   })
 
   it('fails a rule that does not resolve, and one that is not active', async () => {
-    expect(await designCodes((a) => { a.design.rules.push('BR-99') })).toEqual(['unknown-rule'])
-    expect(await designCodes((a) => { a.design.rules.push('BR-6') })).toEqual(['inactive-rule'])
-    expect(await designCodes((a) => { a.design.elements[2].rules = ['BR-2', 'BR-99']; a.design.rules.push('BR-99') })).toEqual(['unknown-rule', 'unknown-rule'])
+    // a rule in the root only is also unplaced
+    expect(await designCodes((a) => { a.design.rules.push('BR-99') })).toEqual(['unknown-rule', 'rules-unplaced'])
+    expect(await designCodes((a) => { a.design.rules.push('BR-6') })).toEqual(['inactive-rule', 'rules-unplaced'])
+    expect(await designCodes((a) => { a.design.elements[2].rules = ['BR-2', 'BR-3', 'BR-99']; a.design.rules.push('BR-99') })).toEqual(['unknown-rule', 'unknown-rule'])
+    // the element reports it, then the root does: elements are checked before the Design's rules
+    expect(await designCodes((a) => { a.design.elements[2].rules.push('BR-6'); a.design.rules.push('BR-6') })).toEqual(['inactive-rule', 'inactive-rule'])
+  })
+
+  it('fails a rule in the Design rules that no element lists', async () => {
+    expect(await designCodes((a) => { a.design.rules.push('BR-1') })).toEqual(['rules-unplaced'])
+  })
+
+  it('fails a type whose document is not of its mediaType', async () => {
+    expect(await designCodes((a) => { a.design.type = 'data-schema' })).toEqual(['type-mediatype'])
   })
 
   it('fails a rule an element lists but the Design rules lack', async () => {
-    expect(await designCodes((a) => { a.design.elements[0].rules = ['BR-5'] })).toEqual(['rules-incomplete'])
+    expect(await designCodes((a) => { a.design.elements[0].rules = ['BR-11'] })).toEqual(['rules-incomplete']) // BR-11 is active and in no list
   })
 
   it('fails ids that are not unique and increasing', async () => {
@@ -249,5 +262,12 @@ describe('sdd/v1 over a Design', () => {
     const { rules, ...rest } = designExample()
     const r = await adapter({ id: 3005, op: 'evaluate', payload: payload(rest) })
     expect(r).toEqual({ id: 3005, ok: false, error: { code: 'invalid_input', message: 'artifacts.rules is required', retryable: false } })
+  })
+
+  it('is invalid_input without the Architecture or the DomainModel beside a Design', async () => {
+    const { architecture, ...noArchitecture } = designExample()
+    expect(await adapter({ id: 3006, op: 'evaluate', payload: payload(noArchitecture) })).toEqual({ id: 3006, ok: false, error: { code: 'invalid_input', message: 'artifacts.architecture is required', retryable: false } })
+    const { domainModel, ...noDomainModel } = designExample()
+    expect(await adapter({ id: 3007, op: 'evaluate', payload: payload(noDomainModel) })).toEqual({ id: 3007, ok: false, error: { code: 'invalid_input', message: 'artifacts.domainModel is required', retryable: false } })
   })
 })

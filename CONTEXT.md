@@ -526,7 +526,7 @@ _Avoid_: ProductRequirement (demo pack), EarsPrd (example06), product spec
 data-schema) of one **Architecture** building block, its `document` embedded whole and indexed by
 `elements` that name what in the **DomainModel** each realises. Shared by every capability of the
 block; a **Spec** never cites one, the Plan does. Always the capitalised kind name.
-_Avoid_: design doc, technical design, design per capability, API spec (for the kind)
+_Avoid_: design doc, technical design, design asset, design per capability, API spec (for the kind)
 
 **Spec**:
 **Artifact kind** of the AI Native pack, one per `CAP-n` of a **Prd**: stories `US-n` (Connextra)

@@ -3,6 +3,8 @@
 // inside the Spec, stories cover requirements and requirements enforce rules. And one Prd against the BusinessRules of
 // its context. And one Design against the Architecture block it belongs to, the DomainModel its elements realise and the
 // BusinessRules it enforces. Plain data in, findings out.
+// the document a Design of each type carries
+const mediaTypes = { 'http-api': ['application/openapi+yaml'], 'async-api': ['application/asyncapi+yaml'], 'data-schema': ['application/schema+json', 'application/sql'] }
 const keyword = { ubiquitous: 'The', 'event-driven': 'When', 'state-driven': 'While', 'unwanted-behaviour': 'If', optional: 'Where' }
 
 // unique and sequential from 1 in document order: a duplicate or a gap breaks the run
@@ -135,6 +137,8 @@ export function checkDesign({ design, architecture, domainModel, rules }) {
   else if (design.interface !== undefined && !(block.interfaces ?? []).some((i) => i.name === design.interface && i.kind === 'provides')) {
     bad('unknown-interface', `interface ${design.interface} is not an interface ${design.block} provides`)
   }
+  const mediaType = design.document?.mediaType
+  if (!mediaTypes[design.type]?.includes(mediaType)) bad('type-mediatype', `type ${design.type} does not carry a document of mediaType ${mediaType}`)
 
   const { commands, events, readModels } = domainNames(domainModel)
   const known = { command: commands, event: events, readModel: readModels, aggregate: new Set((domainModel?.aggregates ?? []).map((a) => a.id)) }
@@ -144,6 +148,7 @@ export function checkDesign({ design, architecture, domainModel, rules }) {
     else if (status.get(r) !== 'active') bad('inactive-rule', `${owner}: rule ${r} is ${status.get(r)}, not active`)
   }
   const union = new Set(design.rules ?? [])
+  const placed = new Set(design.elements.flatMap((el) => el.rules ?? []))
 
   for (const el of design.elements) {
     const { kind, name } = el.realises ?? {}
@@ -153,7 +158,10 @@ export function checkDesign({ design, architecture, domainModel, rules }) {
       if (!union.has(r)) bad('rules-incomplete', `${el.id}: rule ${r} is not in the Design's rules, the union of the elements'`)
     }
   }
-  for (const r of design.rules ?? []) ruleCheck(design.title, r)
+  for (const r of design.rules ?? []) {
+    ruleCheck(design.title, r)
+    if (!placed.has(r)) bad('rules-unplaced', `${design.title}: rule ${r} is in the Design's rules but no element lists it`)
+  }
 
   sequence(bad, 'EL', design.elements.map((e) => e.id))
   sequence(bad, 'Q', (design.openQuestions ?? []).map((q) => q.id))

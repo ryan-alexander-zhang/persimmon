@@ -1,7 +1,7 @@
 # One domain written with the AI Native pack's artifact kinds (23-pack-ai-native.md): a BoundedContext, its Glossary
 # (terms and fact types), BusinessRules with logic, one DecisionTable, the Prd that cites them, two Adrs taken against the
 # Prd and the rules, the Architecture that applies them, a big-picture and a design-level EventStorming, the DomainModel
-# derived from the latter, and the Spec of CAP-1. Validates after
+# derived from the latter, the Spec of CAP-1 and the Design of the claims API. Validates after
 # `persimmon apply packs/ai-native/global/*.yaml --global`. Prose uses Glossary term names only, never an alias.
 apiVersion: sdd.persimmon.ai/v1
 kind: BoundedContext
@@ -876,8 +876,9 @@ spec:
       - id: Q-3
         question: CAP-1 refuses a submission that breaks BR-2, so no submitted claim is incomplete; CAP-2 and BR-9 route an incomplete claim back to the employee. Which holds?
 ---
-# A design asset: the claims API of BB-1, shared by CAP-1, CAP-2 and CAP-4. The contract is OpenAPI, embedded whole; the
-# elements index says which DomainModel command, read model or event each operation realises.
+# The Design of BB-1's claims API, one asset for CAP-1, CAP-2 and CAP-4: every command and read model the block's
+# responsibility names, as OpenAPI 3.1 embedded whole; the elements index says what each operation realises. The caller
+# is the SSO identity (C-3), so no operation takes an employee as a parameter (QS-3).
 apiVersion: sdd.persimmon.ai/v1
 kind: Design
 metadata: {name: claims-api.r1}
@@ -894,42 +895,103 @@ spec:
       mediaType: application/openapi+yaml
       content: |
         openapi: 3.1.0
-        info: {title: Claims API, version: "1"}
+        info: {title: Claims API, version: "1", description: the caller is the SSO identity; an employee sees their own claims, an approver those routed to them, finance every claim}
+        components:
+          parameters:
+            claimId: {name: claimId, in: path, required: true, schema: {type: string}}
+            lineId: {name: lineId, in: path, required: true, schema: {type: string}}
+          schemas:
+            ClaimDraft: {type: object, required: [lines], properties: {lines: {type: array, items: {$ref: "#/components/schemas/ClaimLineDraft"}}}}
+            ClaimLineDraft: {type: object, required: [amount, date, category], properties: {amount: {type: number}, date: {type: string, format: date}, category: {enum: [travel, meals, lodging, equipment, per diem, other]}, justification: {type: string}}}
+            ClaimLine:
+              allOf:
+                - {$ref: "#/components/schemas/ClaimLineDraft"}
+                - {type: object, required: [id, receipt], properties: {id: {type: string}, receipt: {type: boolean, description: a receipt is attached}}}
+            Finding: {type: object, required: [lineId, rule], properties: {lineId: {type: string}, rule: {type: string, pattern: "^BR-[0-9]+$"}}}
+            Claim:
+              type: object
+              required: [id, employee, total, complete, findings, lines]
+              properties:
+                id: {type: string}
+                employee: {type: string}
+                total: {type: number}
+                complete: {type: boolean}
+                findings: {type: array, items: {$ref: "#/components/schemas/Finding"}, description: every line that breaks a rule, with the rule}
+                submissionDate: {type: string, format: date}
+                approver: {type: string}
+                riskFlag: {type: boolean}
+                route: {enum: [finance-review, return-to-employee, auto-approve, approver]}
+                lines: {type: array, items: {$ref: "#/components/schemas/ClaimLine"}}
+            ClaimSummary: {type: object, required: [id, total], properties: {id: {type: string}, total: {type: number}, submissionDate: {type: string, format: date}, riskFlag: {type: boolean}}}
+            Trip: {type: object, required: [days, destinationCountry], properties: {days: {type: integer}, destinationCountry: {type: string}}}
+            Refusal: {type: object, required: [findings], properties: {findings: {type: array, minItems: 1, items: {$ref: "#/components/schemas/Finding"}}}}
+            Decision: {type: object, required: [reason], properties: {reason: {type: string}}}
         paths:
           /claims:
             post:
               operationId: draftClaim
               requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/ClaimDraft"}}}}
               responses: {"201": {description: the drafted claim, content: {application/json: {schema: {$ref: "#/components/schemas/Claim"}}}}}
+          /claims/mine:
             get:
               operationId: myClaims
-              parameters: [{name: employee, in: query, required: true, schema: {type: string}}]
-              responses: {"200": {description: the employee's claims, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/ClaimSummary"}}}}}}
+              responses: {"200": {description: the caller's claims, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/ClaimSummary"}}}}}}
+          /claims/to-decide:
+            get:
+              operationId: claimsToDecide
+              responses: {"200": {description: the claims routed to the caller as approver, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/ClaimSummary"}}}}}}
           /claims/{claimId}/lines/{lineId}/receipt:
+            parameters: [{$ref: "#/components/parameters/claimId"}, {$ref: "#/components/parameters/lineId"}]
             put:
               operationId: attachReceipt
               requestBody: {required: true, content: {application/octet-stream: {schema: {type: string, format: binary}}}}
-              responses: {"204": {description: receipt attached}}
+              responses: {"200": {description: the claim with the receipt on the line, content: {application/json: {schema: {$ref: "#/components/schemas/Claim"}}}}}
+          /claims/{claimId}/trips:
+            parameters: [{$ref: "#/components/parameters/claimId"}]
+            post:
+              operationId: addTrip
+              requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/Trip"}}}}
+              responses: {"200": {description: the claim with its per diem line, content: {application/json: {schema: {$ref: "#/components/schemas/Claim"}}}}}
           /claims/{claimId}/submission:
+            parameters: [{$ref: "#/components/parameters/claimId"}]
             post:
               operationId: submitClaim
               responses:
                 "200": {description: submitted, content: {application/json: {schema: {$ref: "#/components/schemas/Claim"}}}}
-                "422": {description: refused, content: {application/json: {schema: {$ref: "#/components/schemas/Refusal"}}}}
-        components:
-          schemas:
-            ClaimDraft: {type: object, required: [employee, lines], properties: {employee: {type: string}, lines: {type: array, items: {$ref: "#/components/schemas/ClaimLine"}}}}
-            ClaimLine: {type: object, required: [amount, date, category], properties: {amount: {type: number, description: EUR}, date: {type: string, format: date}, category: {enum: [travel, meals, lodging, equipment, per diem, other]}, justification: {type: string}}}
-            Claim: {type: object, required: [id, employee, total, complete, lines], properties: {id: {type: string}, employee: {type: string}, total: {type: number}, complete: {type: boolean}, submissionDate: {type: string, format: date}, lines: {type: array, items: {$ref: "#/components/schemas/ClaimLine"}}}}
-            ClaimSummary: {type: object, required: [id, total], properties: {id: {type: string}, total: {type: number}, submissionDate: {type: string, format: date}}}
-            Refusal: {type: object, required: [lines], properties: {lines: {type: array, items: {type: object, required: [lineId, rule], properties: {lineId: {type: string}, rule: {type: string, pattern: "^BR-[0-9]+$"}}}}}}
+                "422": {description: refused; every broken line with its rule, content: {application/json: {schema: {$ref: "#/components/schemas/Refusal"}}}}
+          /claims/{claimId}/route:
+            parameters: [{$ref: "#/components/parameters/claimId"}]
+            post:
+              operationId: routeClaim
+              responses: {"200": {description: the claim with its recorded route, content: {application/json: {schema: {$ref: "#/components/schemas/Claim"}}}}}
+          /claims/{claimId}/approval:
+            parameters: [{$ref: "#/components/parameters/claimId"}]
+            post:
+              operationId: approveClaim
+              requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/Decision"}}}}
+              responses:
+                "200": {description: approved, content: {application/json: {schema: {$ref: "#/components/schemas/Claim"}}}}
+                "422": {description: refused; the caller is the claim's employee or not a director where one is needed, content: {application/json: {schema: {$ref: "#/components/schemas/Refusal"}}}}
+          /claims/{claimId}/rejection:
+            parameters: [{$ref: "#/components/parameters/claimId"}]
+            post:
+              operationId: rejectClaim
+              requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/Decision"}}}}
+              responses: {"200": {description: rejected with the reason, content: {application/json: {schema: {$ref: "#/components/schemas/Claim"}}}}}
     elements:
       - {id: EL-1, name: POST /claims, realises: {kind: command, name: Draft Claim}}
       - {id: EL-2, name: "PUT /claims/{claimId}/lines/{lineId}/receipt", realises: {kind: command, name: Attach Receipt}}
       - {id: EL-3, name: "POST /claims/{claimId}/submission", realises: {kind: command, name: Submit Claim}, rules: [BR-2, BR-3]}
-      - {id: EL-4, name: GET /claims, realises: {kind: readModel, name: My Claims View}}
-    rules: [BR-2, BR-3]
-    decisions: [adr-routing-in-core]
+      - {id: EL-4, name: GET /claims/mine, realises: {kind: readModel, name: My Claims View}}
+      - {id: EL-5, name: "POST /claims/{claimId}/trips", realises: {kind: command, name: Add Trip}, rules: [BR-4]}
+      - {id: EL-6, name: "POST /claims/{claimId}/route", realises: {kind: command, name: Route Claim}, rules: [BR-7, BR-8, BR-9, BR-10]}
+      - {id: EL-7, name: "POST /claims/{claimId}/approval", realises: {kind: command, name: Approve Claim}, rules: [BR-3, BR-5]}
+      - {id: EL-8, name: "POST /claims/{claimId}/rejection", realises: {kind: command, name: Reject Claim}}
+      - {id: EL-9, name: GET /claims/to-decide, realises: {kind: readModel, name: Claims To Decide View}}
+    rules: [BR-2, BR-3, BR-4, BR-5, BR-7, BR-8, BR-9, BR-10]
+    decisions: [adr-receipts-as-blobs, adr-routing-in-core]
     openQuestions:
       - id: Q-1
-        question: Does a refused submission answer 422 with every broken line, or the first only? The Spec's FR-4 says every line; the risk check needs the whole claim either way.
+        question: Is a claim line's amount in EUR or in the currency paid? The Glossary term says currency paid, the fact type says EUR; the schema leaves `amount` unitless until that is settled.
+      - id: Q-2
+        question: The DomainModel names no fact type for a rejection reason, yet the approver rejects with one (Architecture context); `Decision.reason` is unmodelled.

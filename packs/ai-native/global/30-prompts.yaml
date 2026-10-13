@@ -181,20 +181,20 @@ metadata: {name: design-rules}
 spec:
   mediaType: text/markdown
   content: |
-    # Writing one design asset
+    # Writing one Design
 
     You write one Design of `type` for the Architecture building block whose id is `blockId`: the contract or schema that block offers, shared by every capability that touches it. A Design follows from the block and the domain, never from one capability; it cites the Architecture, the DomainModel, the Glossary and the rules, and nothing downstream.
 
     The document (`document.content`), whole and standard:
-    - `http-api`: an OpenAPI 3.1 document (`mediaType: application/openapi+yaml`) for the one interface the block provides that you name in `interface`; one operation per DomainModel command the block's contexts handle and per read model it serves; a refusal is a 4xx response whose body names the `BR-n` broken.
-    - `async-api`: an AsyncAPI 3 document (`mediaType: application/asyncapi+yaml`); one channel or message per domain event the block's contexts emit.
+    - `http-api`: an OpenAPI 3.1 document (`mediaType: application/openapi+yaml`) for one interface the block provides, named in `interface` (the input `interface` when bound, else the block's first provided one); one operation per DomainModel command and read model the block's `responsibility` names; a refusal is a 4xx response whose body names the `BR-n` broken; every path template parameter is declared.
+    - `async-api`: an AsyncAPI 3 document (`mediaType: application/asyncapi+yaml`) for one interface the block provides, named in `interface`; one channel or message per domain event the block's responsibility names.
     - `data-schema`: a JSON Schema (`mediaType: application/schema+json`) or DDL (`mediaType: application/sql`); one table or object per aggregate and entity the block stores, with a key, and every invariant the DomainModel names as a constraint where the form allows.
-    Field and property names are Glossary term and fact type names in the document's own convention (`claimLine`, `claim_line`); never a word the Glossary lacks. Amounts carry their unit as the Glossary gives it.
+    Domain field and property names are Glossary term and fact type names in the document's own convention (`claimLine`, `claim_line`); never a domain word the Glossary lacks. Structural names (`id`, `lines`, `claimId`, a schema's name) are the document's own. Amounts carry their unit as the Glossary gives it; a unit the Glossary leaves open is a `Q-n`, not a guess.
 
-    The index (`elements`), `EL-n` from 1: one entry per operation, channel, message or table in the document, `name` as the document names it ("POST /claims", "claim.submitted", "claim_line"), `realises` the DomainModel command, event or read model label spelled exactly, or the aggregate's `AG-n`; `rules` the `BR-n` the element's refusals or constraints enforce. The root `rules` is the union of the elements'. Nothing the DomainModel lacks is realised: a command or read model you need that the model does not name is a `Q-n`, never an invented element. A read model's `updatedBy` may name another context's event; that is not a gap. A read model belongs to the block whose responsibility names it; another block reaches it through that block's interface and does not realise it again.
+    The index (`elements`), `EL-n` from 1: one entry per operation, channel, message or table in the document, `name` as the document names it ("POST /claims", "claim.submitted", "claim_line"), `realises` the DomainModel command, event or read model label spelled exactly, or the aggregate's `AG-n`; `rules` the `BR-n` the element's refusals or constraints enforce, `active` rules only. The root `rules` is the union of the elements': every element's rule is there and nothing else. Nothing the DomainModel lacks is realised: a command or read model you need that the model does not name is a `Q-n`, never an invented element. A read model's `updatedBy` may name another context's event; that is not a gap. A read model belongs to the block whose responsibility names it; another block reaches it through that block's interface and does not realise it again.
 
-    `decisions` lists the Adr artifact ids the Architecture applies that bind this asset. `openQuestions`, `Q-n` from 1: an unknown, a contradiction between the Architecture and the DomainModel, a label the model lacks.
+    `decisions` lists, from the Architecture's `decisions`, the Adr ids that concern this block. `openQuestions`, `Q-n` from 1: an unknown, a contradiction between the Architecture and the DomainModel, a label the model lacks.
 
     Ids `EL-n`, `Q-n` unique and increasing; a revision keeps every id in place and never reuses one.
 
-    With `previous` and `feedback` bound, the consistency check refused the last asset: every finding names an id, a label or a rule; fix those and change nothing else.
+    With `previous` and `feedback` bound, the consistency check refused the last Design: every finding names an id, a label or a rule; fix those and change nothing else.

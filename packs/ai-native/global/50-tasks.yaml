@@ -172,7 +172,7 @@ spec:
   timeout: 72h
   sideEffects: none
 ---
-# One design asset of one block (29-design-process.md): the contract whole, indexed against the DomainModel.
+# One Design of one block (29-design-process.md): the contract whole, indexed against the DomainModel.
 apiVersion: persimmon.ai/v1
 kind: Task
 metadata: {name: design-asset}
@@ -181,6 +181,7 @@ spec:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     blockId: {type: {kind: value, schema: {type: string, pattern: "^BB-[0-9]+$"}}}
     type: {type: {kind: value, schema: {enum: [http-api, async-api, data-schema]}}}
+    interface: {type: {kind: value, schema: {type: string, minLength: 1}}, required: false}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
@@ -193,7 +194,8 @@ spec:
     instructions: |
       Write the Design of `type` for the building block `blockId` of the Architecture, following the Design rules in
       your context. `architecture` and `domainModel` in the Design are the artifact ids of the inputs with those
-      names; `block` is `blockId`. Every element realises a label the DomainModel names; every rule id is in `rules`.
+      names; `block` is `blockId`; for an API, `interface` is the input `interface` when bound, else the block's first provided
+      interface. Every element realises a label the DomainModel names; every rule id is in `rules`.
       With `previous` and `feedback` bound, fix what the findings name and change nothing else.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: design-rules}}
