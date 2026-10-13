@@ -38,7 +38,7 @@ returning findings, every one `error`:
 | `unknown-capability` | `capability` is no `CAP-n` of the Prd |
 | `context-mismatch` | `domainModel.context` is not the capability's `context` |
 | `unknown-actor` | a story's `actor` is no Prd user |
-| `unknown-command`, `unknown-event`, `unknown-read-model` | a name the DomainModel lacks (commands: aggregates' and external systems' `handles` and `issues`) |
+| `unknown-command`, `unknown-event`, `unknown-read-model` | a name the DomainModel lacks (commands: aggregates' and external systems' `handles` and `issues`; events: `events[]`, read models' `updatedBy`, external systems' `emits`, so another context's event counts once the model names it) |
 | `unknown-scenario` | a `qualities[].scenario` the Architecture lacks |
 | `unknown-rule`, `inactive-rule` | an acceptance criterion's `BR-n` missing or not `active` |
 | `rule-untested` | a `BR-n` the Prd capability lists that no criterion cites |
@@ -68,9 +68,10 @@ returning findings, every one `error`:
 - Proven live on `claude-sonnet-5`: `spec-all` over `CAP-1` and `CAP-4` of the worked example, two
   minutes, both Specs passed `spec-consistency` in round one. Model quality: one story per command,
   every rule the capability lists cited, qualities thin (`QS-1` only for CAP-1, none for CAP-4), and
-  the CAP-4 Spec asked a real question: the example DomainModel's `Export Status View` was updated by
-  `Claim Paid`, an event the model never lists. The example is fixed; the question is the process
-  working as designed. Found in UAT.
+  the CAP-4 Spec asked a real question: `Export Status View` is updated by `Claim Paid`, an event
+  `events[]` never lists. It is the Accounting context's event, reaching this model through an
+  `updates` edge; the kind now says `updatedBy` may name another context's event and `checkSpec`
+  accepts it as a story event. The question was the process working as designed. Found in UAT.
 - `want` is written in the infinitive ("submit the claim"), not the third person: the Prompt says so
   after the live run wrote "views the export status". Found in UAT.
 

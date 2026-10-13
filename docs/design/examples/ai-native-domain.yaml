@@ -781,7 +781,7 @@ spec:
     readModels:
       - {name: Claims To Decide View, informs: [Approver], updatedBy: [Claim Routed], fields: [claim has total, claim has risk flag]}
       - {name: My Claims View, informs: [Employee], updatedBy: [Claim Submitted, Claim Approved, Claim Rejected], fields: [claim has total, claim has submission date]}
-      - {name: Export Status View, informs: [Finance operator], updatedBy: [Claim Exported], fields: [claim has total]}
+      - {name: Export Status View, informs: [Finance operator], updatedBy: [Claim Exported, Claim Paid], fields: [claim has total]}
     externalSystems: []   # the Accounting ledger lives in the acc context; no edge of its own reaches into exp
 ---
 # The Spec of CAP-1. Every command, event and read model is the DomainModel's, every rule BR-n, every quality QS-n.

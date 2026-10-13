@@ -18,7 +18,8 @@ export function checkSpec({ spec, prd, domainModel, architecture, rules }) {
   const aggregates = domainModel?.aggregates ?? []
   const external = domainModel?.externalSystems ?? []
   const commands = new Set([...aggregates.flatMap((a) => a.commands ?? []), ...external.flatMap((e) => e.handles ?? []), ...external.flatMap((e) => e.issues ?? [])])
-  const events = new Set((domainModel?.events ?? []).map((e) => e.name))
+  // another context's event reaches the model only as a read model's updatedBy or an external system's emits
+  const events = new Set([...(domainModel?.events ?? []).map((e) => e.name), ...(domainModel?.readModels ?? []).flatMap((r) => r.updatedBy ?? []), ...external.flatMap((e) => e.emits ?? [])])
   const readModels = new Set((domainModel?.readModels ?? []).map((r) => r.name))
   const scenarios = new Set((architecture?.qualityScenarios ?? []).map((q) => q.id))
   const status = new Map((rules?.rules ?? []).map((r) => [r.id, r.status]))

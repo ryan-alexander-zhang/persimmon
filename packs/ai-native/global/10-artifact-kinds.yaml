@@ -813,7 +813,7 @@ spec:
               properties:
                 name: {type: string, minLength: 1}
                 informs: {type: array, items: {type: string, minLength: 1}, description: "actor labels"}
-                updatedBy: {type: array, items: {type: string, minLength: 1}, description: "domain event labels"}
+                updatedBy: {type: array, items: {type: string, minLength: 1}, description: "domain event labels, of this context or of another one whose event updates it; events[] lists this context's only"}
                 fields: {type: array, items: {type: string, minLength: 1}, description: "Glossary fact type names"}
           externalSystems:
             type: array

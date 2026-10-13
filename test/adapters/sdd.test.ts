@@ -77,6 +77,13 @@ describe('sdd/v1', () => {
     })).toEqual(['unknown-command', 'unknown-event', 'unknown-read-model'])
   })
 
+  it("accepts another context's event that updates a read model", async () => {
+    const artifacts = structuredClone(example())
+    artifacts.spec.stories[2].events.push('Claim Paid')
+    const r = await adapter({ id: ++id, op: 'evaluate', payload: payload(artifacts) })
+    expect(r.result).toEqual({ passed: true, findings: [], evidence: [] })
+  })
+
   it('fails a quality scenario the Architecture does not have', async () => {
     expect(await codes((a) => { a.spec.qualities[1].scenario = 'QS-9' })).toEqual(['unknown-scenario'])
   })
