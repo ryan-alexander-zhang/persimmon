@@ -14,13 +14,23 @@ properties:
 $defs:
   ErrorCode: {type: string, pattern: "^[a-z][a-z0-9_]*$"}
 
+  # an OutputSpec that may also choose the artifact's identity: a Binding over the Task's inputs yielding an Id
+  TaskOutputSpec:
+    type: object
+    required: [type]
+    additionalProperties: false
+    properties:
+      type: {$ref: "ports.yaml#/$defs/PortType"}
+      description: {type: string}
+      id: {$ref: "ports.yaml#/$defs/Binding"}
+
   Spec:
     type: object
     required: [executorRef, action, timeout, sideEffects]
     additionalProperties: false
     properties:
       inputs: {$ref: "ports.yaml#/$defs/Ports/properties/inputs"}
-      outputs: {$ref: "ports.yaml#/$defs/Ports/properties/outputs"}
+      outputs: {type: object, default: {}, propertyNames: {$ref: "ports.yaml#/$defs/PortName"}, additionalProperties: {$ref: "#/$defs/TaskOutputSpec"}}
       executorRef:
         allOf: [{$ref: "resource.yaml#/$defs/LocalDefinitionRef"}, {properties: {kind: {const: Executor}}}]
         x-persimmon-ref: {kinds: [Executor]}

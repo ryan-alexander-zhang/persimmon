@@ -33,7 +33,7 @@ Validator.evaluator.adapter ─▶ Adapter role evaluator: describe | evaluate
 | Payload field | Content |
 |---|---|
 | `taskRun` | `{ref: ObjectRef, logicalExecutionId, idempotencyKey, attempt}` |
-| `task` | `{instructions, parameters, sideEffects, outputs: {<port>: OutputSpec}, outputSchemas: {<port>: schema}}`; `outputSchemas` holds the frozen content schema of every artifact output |
+| `task` | `{instructions, parameters, sideEffects, outputs: {<port>: OutputSpec}, outputSchemas: {<port>: schema}, outputIds?: {<port>: Id}}`; `outputSchemas` holds the frozen content schema of every artifact output; `outputIds` the identity the Adapter publishes each named port under (`12-task.md`), the rest it names `<logicalExecutionId>-<port>` |
 | `executor` | `{type, configuration, security}` |
 | `inputs` | `{<port>: RuntimeValue}` |
 | `context[]` | resolved entries, in order (`12-task.md`, `15-prompt-skill.md`) |
@@ -128,8 +128,8 @@ Result: a ValidationResult (`10-ports.md`). No `credentials`, no `security` (`14
   (`adapters/lib/agent.mjs`). One agent process per attempt, prompt is context entries in
   order, value inputs, `instructions`, then the output schemas; the agent answers one flat JSON
   object, one key per output port, through the CLI's structured output; the Adapter publishes the
-  artifact outputs itself under identity `<logicalExecutionId>-<port>` as a DNS label, one
-  per logical execution. The agent never sees `engine.token` or the adapter token; task
+  artifact outputs itself under `task.outputIds.<port>` when given, else identity
+  `<logicalExecutionId>-<port>` as a DNS label, one per logical execution. The agent never sees `engine.token` or the adapter token; task
   credentials reach it as `<NS>__<NAME>` environment. Found in implementation.
 - `agent_failed` (retryable) is the Layer 1 code for an agent process that exits non-zero or
   answers no JSON; a publish the engine refuses is `schema_violation`, not retryable; a

@@ -20,7 +20,7 @@ Task ── executorRef ──▶ Executor ── adapter ──▶ Adapter (rol
 
 | Field | Rule |
 |---|---|
-| `inputs`, `outputs` | Ports (`10-ports.md`) |
+| `inputs`, `outputs` | Ports (`10-ports.md`); an artifact output may carry `id`, a Binding over `inputs` (`literal`, `fromInput`, `expression`) yielding the artifact identity (revisioned `Id`), so a Task names what it publishes (`<spec id>-plan`) and a second run or round publishes the next revision of it; absent, the Adapter names it `<logicalExecutionId>-<port>` |
 | `executorRef` | LocalDefinitionRef to an Executor (`x-persimmon-ref`); the only place that says who works |
 | `action.instructions` | text; no templating |
 | `action.context[]` | ordered Context entries |
@@ -32,6 +32,8 @@ Task ── executorRef ──▶ Executor ── adapter ──▶ Adapter (rol
 
 Step contract: `inputsPath: spec.inputs`, `outputsPath: spec.outputs`, `runKind: TaskRun`,
 `phasePath: status.phase`, `outputsValuePath: status.outputs`, `errorPath: status.error`.
+
+The execute payload carries the resolved ids as `task.outputIds: {<port>: Id}` (`19-adapter-roles.md`).
 
 ## Context
 
@@ -91,10 +93,19 @@ Anything else fails the attempt with `schema_violation`.
 | `file.input` is an `externalResource` port; `artifact.input` is an `artifact` or `artifacts` port; no output is an `artifacts` port | static checker |
 | the referenced Skill's `format` ∈ adapter `describe.skillFormats` | static checker |
 | `retryOn ∩ abortOn = ∅`; the three never-retried codes ∉ `retryOn` | static checker |
+| `outputs.<port>.id` only on an `artifact` output; its Binding reads `inputs` only and yields a string (an `expression` type-checks against the inputs site; a `literal` is a string; a `fromInput` names a `value` input); at attempt start the value is an `Id`, else `invalid_input`; the published ref carries that id, else `schema_violation` | static checker; `task` handler |
 | `unknown_result` retried unless `sideEffects: nonIdempotent`; `retryPolicy` cannot override | `task` handler (`17-runs.md`) |
 | `file` ref without `version` at attempt start | `task` handler: `invalid_input` |
 
 ## Decisions
+
+- An artifact output may choose its identity through `outputs.<port>.id`, a Binding over the
+  inputs resolved by the engine and handed to the Adapter as `task.outputIds`, because the runner's
+  `<logicalExecutionId>-<port>` gave every round, retry and re-run a fresh identity: the rules a
+  Prd run writes were never revision 2 of the context's rules, a Plan's second round was not
+  revision 2 of the Plan, and no Workflow could find the Spec of a capability by id. The engine,
+  not the Adapter, resolves the Binding, so an Adapter publishes a name it was given and the
+  handler refuses any other. Found in UAT.
 
 - No `action.kind` and no `resultProtocol` field. Reference decision 25 removed the first;
   the second was a constant.

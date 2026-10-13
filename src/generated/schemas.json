@@ -234,6 +234,15 @@
         "additionalProperties": {
          "type": "object"
         }
+       },
+       "outputIds": {
+        "type": "object",
+        "propertyNames": {
+         "$ref": "ports.yaml#/$defs/PortName"
+        },
+        "additionalProperties": {
+         "$ref": "revisioned.yaml#/$defs/Id"
+        }
        }
       }
      },
@@ -6136,6 +6145,24 @@
     "type": "string",
     "pattern": "^[a-z][a-z0-9_]*$"
    },
+   "TaskOutputSpec": {
+    "type": "object",
+    "required": [
+     "type"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "type": {
+      "$ref": "ports.yaml#/$defs/PortType"
+     },
+     "description": {
+      "type": "string"
+     },
+     "id": {
+      "$ref": "ports.yaml#/$defs/Binding"
+     }
+    }
+   },
    "Spec": {
     "type": "object",
     "required": [
@@ -6150,7 +6177,14 @@
       "$ref": "ports.yaml#/$defs/Ports/properties/inputs"
      },
      "outputs": {
-      "$ref": "ports.yaml#/$defs/Ports/properties/outputs"
+      "type": "object",
+      "default": {},
+      "propertyNames": {
+       "$ref": "ports.yaml#/$defs/PortName"
+      },
+      "additionalProperties": {
+       "$ref": "#/$defs/TaskOutputSpec"
+      }
      },
      "executorRef": {
       "allOf": [

@@ -69,6 +69,7 @@ $defs:
           sideEffects: {enum: [none, idempotent, nonIdempotent]}
           outputs: {$ref: "ports.yaml#/$defs/Ports/properties/outputs"}
           outputSchemas: {type: object, propertyNames: {$ref: "ports.yaml#/$defs/PortName"}, additionalProperties: {type: object}}
+          outputIds: {type: object, propertyNames: {$ref: "ports.yaml#/$defs/PortName"}, additionalProperties: {$ref: "revisioned.yaml#/$defs/Id"}}
       executor:
         type: object
         required: [type, configuration, security]
