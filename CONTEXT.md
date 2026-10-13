@@ -521,6 +521,13 @@ _Avoid_: storming pipeline, discovery workflow, modelling phase
 criteria. No stories, requirements or technology; those are the **Spec**'s.
 _Avoid_: ProductRequirement (demo pack), EarsPrd (example06), product spec
 
+**Design**:
+**Artifact kind** of the AI Native pack: one reusable contract or schema (`type` http-api, async-api,
+data-schema) of one **Architecture** building block, its `document` embedded whole and indexed by
+`elements` that name what in the **DomainModel** each realises. Shared by every capability of the
+block; a **Spec** never cites one, the Plan does. Always the capitalised kind name.
+_Avoid_: design doc, technical design, design per capability, API spec (for the kind)
+
 **Spec**:
 **Artifact kind** of the AI Native pack, one per `CAP-n` of a **Prd**: stories `US-n` (Connextra)
 covering requirements `FR-n` (EARS) that enforce rules `BR-n`, acceptance scenarios `AC-n`

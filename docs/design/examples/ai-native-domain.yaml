@@ -875,3 +875,61 @@ spec:
         question: Is a claim line's amount entered in the currency paid (the Glossary term) or in EUR (the fact type and BR-2)? Accounting converts at booking.
       - id: Q-3
         question: CAP-1 refuses a submission that breaks BR-2, so no submitted claim is incomplete; CAP-2 and BR-9 route an incomplete claim back to the employee. Which holds?
+---
+# A design asset: the claims API of BB-1, shared by CAP-1, CAP-2 and CAP-4. The contract is OpenAPI, embedded whole; the
+# elements index says which DomainModel command, read model or event each operation realises.
+apiVersion: sdd.persimmon.ai/v1
+kind: Design
+metadata: {name: claims-api.r1}
+spec:
+  identity: {id: claims-api, revision: 1}
+  content:
+    title: Claims API
+    type: http-api
+    architecture: expense-claims-architecture
+    block: BB-1
+    interface: claims API
+    domainModel: expenses-model
+    document:
+      mediaType: application/openapi+yaml
+      content: |
+        openapi: 3.1.0
+        info: {title: Claims API, version: "1"}
+        paths:
+          /claims:
+            post:
+              operationId: draftClaim
+              requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/ClaimDraft"}}}}
+              responses: {"201": {description: the drafted claim, content: {application/json: {schema: {$ref: "#/components/schemas/Claim"}}}}}
+            get:
+              operationId: myClaims
+              parameters: [{name: employee, in: query, required: true, schema: {type: string}}]
+              responses: {"200": {description: the employee's claims, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/ClaimSummary"}}}}}}
+          /claims/{claimId}/lines/{lineId}/receipt:
+            put:
+              operationId: attachReceipt
+              requestBody: {required: true, content: {application/octet-stream: {schema: {type: string, format: binary}}}}
+              responses: {"204": {description: receipt attached}}
+          /claims/{claimId}/submission:
+            post:
+              operationId: submitClaim
+              responses:
+                "200": {description: submitted, content: {application/json: {schema: {$ref: "#/components/schemas/Claim"}}}}
+                "422": {description: refused, content: {application/json: {schema: {$ref: "#/components/schemas/Refusal"}}}}
+        components:
+          schemas:
+            ClaimDraft: {type: object, required: [employee, lines], properties: {employee: {type: string}, lines: {type: array, items: {$ref: "#/components/schemas/ClaimLine"}}}}
+            ClaimLine: {type: object, required: [amount, date, category], properties: {amount: {type: number, description: EUR}, date: {type: string, format: date}, category: {enum: [travel, meals, lodging, equipment, per diem, other]}, justification: {type: string}}}
+            Claim: {type: object, required: [id, employee, total, complete, lines], properties: {id: {type: string}, employee: {type: string}, total: {type: number}, complete: {type: boolean}, submissionDate: {type: string, format: date}, lines: {type: array, items: {$ref: "#/components/schemas/ClaimLine"}}}}
+            ClaimSummary: {type: object, required: [id, total], properties: {id: {type: string}, total: {type: number}, submissionDate: {type: string, format: date}}}
+            Refusal: {type: object, required: [lines], properties: {lines: {type: array, items: {type: object, required: [lineId, rule], properties: {lineId: {type: string}, rule: {type: string, pattern: "^BR-[0-9]+$"}}}}}}
+    elements:
+      - {id: EL-1, name: POST /claims, realises: {kind: command, name: Draft Claim}}
+      - {id: EL-2, name: "PUT /claims/{claimId}/lines/{lineId}/receipt", realises: {kind: command, name: Attach Receipt}}
+      - {id: EL-3, name: "POST /claims/{claimId}/submission", realises: {kind: command, name: Submit Claim}, rules: [BR-2, BR-3]}
+      - {id: EL-4, name: GET /claims, realises: {kind: readModel, name: My Claims View}}
+    rules: [BR-2, BR-3]
+    decisions: [adr-routing-in-core]
+    openQuestions:
+      - id: Q-1
+        question: Does a refused submission answer 422 with every broken line, or the first only? The Spec's FR-4 says every line; the risk check needs the whole claim either way.

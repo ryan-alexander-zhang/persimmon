@@ -929,3 +929,69 @@ spec:
   mutability: Immutable
   revisioned: true
   snapshot: "None"
+---
+# One reusable design asset: an HTTP or async API contract or a data schema, for one Architecture building block,
+# shared by every capability that uses it. The document is embedded whole and never parsed here; `elements[]` is the
+# index a Validator reads: what in the DomainModel each operation, channel or table realises. A Spec never cites a
+# Design; the Plan (later) says which assets realise which capability.
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata: {name: designs.sdd.persimmon.ai}
+spec:
+  group: sdd.persimmon.ai
+  names: {kind: Design, plural: designs}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [title, type, architecture, block, domainModel, document, elements, rules, decisions, openQuestions]
+        additionalProperties: false
+        properties:
+          title: {type: string, minLength: 1}
+          type: {enum: [http-api, async-api, data-schema]}
+          architecture: {type: string, minLength: 1, description: "artifact id of the Architecture the block is in"}
+          block: {type: string, pattern: "^BB-[0-9]+$", description: "the building block this asset belongs to"}
+          interface: {type: string, minLength: 1, description: "for an API: the name of the interface the block provides (Architecture buildingBlocks[].interfaces[].name)"}
+          domainModel: {type: string, minLength: 1, description: "artifact id of the DomainModel the elements realise"}
+          document:
+            type: object
+            required: [mediaType, content]
+            additionalProperties: false
+            properties:
+              mediaType: {enum: [application/openapi+yaml, application/asyncapi+yaml, application/schema+json, application/sql]}
+              content: {type: string, minLength: 1, description: "the contract whole: OpenAPI 3.1, AsyncAPI 3, JSON Schema or DDL"}
+          elements:
+            type: array
+            minItems: 1
+            description: "the index of the document: one per operation, channel, message or table; what the Validator checks against the DomainModel"
+            items:
+              type: object
+              required: [id, name, realises]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^EL-[0-9]+$"}
+                name: {type: string, minLength: 1, description: "as the document names it: 'POST /claims', 'claim.submitted', 'claim_line'"}
+                realises:
+                  type: object
+                  required: [kind, name]
+                  additionalProperties: false
+                  properties:
+                    kind: {enum: [command, event, readModel, aggregate]}
+                    name: {type: string, minLength: 1, description: "the DomainModel label, or AG-n for an aggregate"}
+                rules: {type: array, items: {type: string, pattern: "^BR-[0-9]+$"}, description: "the rules this element's refusals or constraints enforce"}
+          rules: {type: array, items: {type: string, pattern: "^BR-[0-9]+$"}, description: "every rule the document enforces; the union of the elements'"}
+          decisions: {type: array, items: {type: string, minLength: 1}, description: "Adr artifact ids taken for this asset"}
+          openQuestions:
+            type: array
+            items:
+              type: object
+              required: [id, question]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^Q-[0-9]+$"}
+                question: {type: string, minLength: 1}
+                resolution: {type: string}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"

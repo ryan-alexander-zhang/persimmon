@@ -15,8 +15,8 @@ the domain kinds above ──▶ EventStorming (derived, unit 2); Prd r2 ──�
 Adr ──▶ Prd, rules (baseline) or Architecture (later)          taken first, pinned by provenance
 Architecture ──▶ Prd, BoundedContext (3, 5), Adr (9), Glossary (12), DomainModel (8, later)   arc42 baseline, once per product
 Spec per CAP-n ──▶ Prd, Architecture, DomainModel, Glossary, rules
-Design per CAP-n (later) ──▶ Spec, Architecture;  Plan (later) ──▶ Design;  work ──▶ Plan
-why, for whom: Prd · exactly what: Spec · how: Architecture, Design · work: Plan
+Design per block and type ──▶ Architecture, DomainModel, rules;  Plan (later) ──▶ Spec, Design;  work ──▶ Plan
+why, for whom: Prd · exactly what: Spec · how: Architecture, Design (reusable assets) · work: Plan
 ```
 
 Every arrow is a Task input: the author Task reads the upstream artifact, so `provenance.inputs`
@@ -40,6 +40,7 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
 | `EventStorming` | what happens in the domain, in whose words | DSL v4.0 of the event storming tool, `24-eventstorming.md`: `version`, `meta {name, level}`, `contexts[]`, `contextRelationships[]`, `nodes[]`, `edges[]` |
 | `Prd` | why, for whom, what capabilities | `title`, `problem`, `users[]`, `goals[] G-n`, `nonGoals[]`, `capabilities[] {id CAP-n, name, description, priority, context, rules?}`, `successCriteria[] {id SC-n, statement, capabilities?}`, `assumptions[]`, `openQuestions[] {id Q-n, question, resolution?}` |
 | `Spec` | exactly what one capability does | `title`, `prd`, `capability` CAP-n, `architecture`, `domainModel`, `stories[] {id US-n, role, goal, benefit, requirements[] FR-n, commands?[], events?[], readModels?[], acceptance[] {id AC-n, title, given[], when[], then[]}}` (Connextra; Given/When/Then), `requirements[] {id FR-n, pattern: ubiquitous\|event-driven\|state-driven\|unwanted-behaviour\|optional\|complex, statement, rules?[] BR-n}` (EARS), `qualities[] {scenario QS-n, delta?}`, `openQuestions[] {id Q-n, question, resolution?}` |
+| `Design` | one reusable contract or schema of one block | `title`, `type: http-api\|async-api\|data-schema`, `architecture`, `block` BB-n, `interface?`, `domainModel`, `document {mediaType, content}` (OpenAPI 3.1, AsyncAPI 3, JSON Schema or DDL, embedded whole), `elements[] {id EL-n, name, realises {kind: command\|event\|readModel\|aggregate, name}, rules?[] BR-n}`, `rules[] BR-n`, `decisions[]` (Adr ids), `openQuestions[]` |
 
 ## Citation
 
@@ -61,6 +62,10 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
 | `Spec` | `requirements[].rules[]` | `BusinessRules` rules | `BR-n`, "enforces"; the Prd capability's `rules[]` is "governed by": two relations, one rule text |
 | `Spec` | `stories[].requirements[]` | its own `FR-n` | "covers"; a scenario cites nothing, it belongs to its story |
 | `Spec` | `stories[].role`, `benefit` prose | `Prd` users, `G-n` | by name, by id |
+| `Design` | `architecture`, `block`, `interface` | one `Architecture`, one of its blocks, an interface it provides | artifact id, `BB-n`, interface name |
+| `Design` | `domainModel`, `elements[].realises` | one `DomainModel` and its names | artifact id; a command, event or read model label, or `AG-n` |
+| `Design` | `rules[]`, `elements[].rules[]` | `BusinessRules` rules | `BR-n`, "enforces"; the root list is the union of the elements' |
+| `Design` | `decisions[]` | `Adr` | artifact ids |
 | any | prose | `Glossary` terms | by using the term; `aliases` never appear in documents |
 
 ## Rules
@@ -79,6 +84,7 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
 | an unknown fact is a `Q-n`, never a guess; a Prd with open questions is valid and gated later | author Prompt |
 | inside an `Architecture`: `strategy[].addresses`, `qualityScenarios[].qualityGoal`, `buildingBlocks[].parent`, `deployment.nodes[].hosts`, `deployment.channels[].from/to` (nodes), `runtime[].steps[].from/to` and `relations[].from/to` (a `BB-n` or a `context.business[].partner`, at least one end a block) resolve; `relations[].interface` is an interface the `to` block provides, or the `from` block requires when `to` is a partner; every level 1 block and every partner has a relation; every `QG-n` has at least one `QS-n`; level 1 blocks' `contexts` cover every `BoundedContext` the Prd's capabilities name; `decisions[]` name Adrs with status `accepted` | Validator later |
 | a Spec never cites a Design, a Design never cites a Plan, an Architecture never names a Spec story: every artifact cites upstream only; downstream is a Relation query | author Prompt; convention |
+| in a `Design`: `block` resolves and `interface` is one it provides; every element's `realises` resolves in the DomainModel; rules resolve, are active, and the root `rules[]` holds every element's; ids unique and increasing. The document is not parsed; whether every operation of the contract has an element, and whether every command and read model of the block's contexts is realised across the block's Designs, are later checks (`91-roadmap.md`) | `design-consistency` (`29-design-process.md`); Validator later |
 | in a `Spec`: `capability` is a `CAP-n` of `prd`; `role` is a Prd user; `commands`, `events`, `readModels` resolve in the DomainModel; `stories[].requirements` resolve in the Spec and every `FR-n` is covered by a story; `requirements[].rules` resolve and are active; every `BR-n` the Prd capability lists is enforced by a requirement; each `statement` opens with its pattern's keyword (`The`, `When`, `While`, `If`, `Where`; `complex` opens with `While`, `When` or `If` and holds two of those clauses before `shall`); `qualities[].scenario` resolves in `architecture`; `domainModel.context` against the capability's `context` is deferred (`27-spec-process.md`) | `spec-consistency` (`27-spec-process.md`) |
 | an `Adr`'s `drivers` resolve in the revisions its `provenance.inputs` pin (a Prd and rules for a baseline Adr, an Architecture later); the Adr carries no artifact id of its own for them | Validator later |
 | `goals` give direction without a number; `successCriteria` carry the number; `successCriteria` and `capabilities` name no technology, architecture or task | author Prompt; `prd-consistency` refuses a digit in a goal |
@@ -181,6 +187,18 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
   never reused" contradict each other the moment a human drops a capability. A gap now marks the
   removal; nothing is renumbered, nothing reused; the Validators check order and uniqueness only.
   Found in audit.
+- A `Design` is a reusable asset, one per block and type, not a document per capability: an API or a
+  schema serves every capability that touches its block, and a design per `CAP-n` would restate it
+  per capability or own what belongs to a block. The first proposal (components, data, operations,
+  flows per capability) was dropped for this; components become child blocks of the Architecture,
+  flows and tactics wait for the Plan. Found in design review.
+- A Spec never cites a Design: the Spec says what, an endpoint is how, and a Spec naming `POST /claims`
+  revises with the API and invites its authors to invent one. The Plan cites the Spec and the Design
+  assets that realise it; "which designs realise CAP-1" is answered there. Found in design review.
+- The contract is embedded whole (`document`) and indexed by hand (`elements[]`), not parsed: the
+  Validator checks the index against the DomainModel today, and a later evaluator may parse OpenAPI or
+  AsyncAPI to check the index against the document. One truth is the document; the index is the
+  Validator's view of it and may lag, which is a finding for that evaluator. Found in design review.
 - Group `sdd.persimmon.ai`, kind `Prd`: the demo pack's `ProductRequirement` and example06's
   `EarsPrd` keep their names in `engineering.persimmon.ai`; no collision.
 
@@ -190,5 +208,6 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
   `EventStorming` model, a
   `BoundedContext`, its `Glossary` with fact types, `BusinessRules` with logic, the `DecisionTable`
   that routes a claim, the `Prd` that cites them, two `Adr`s and the `Architecture` that applies
-  them, a design-level `EventStorming` and the `DomainModel` derived from it, and the `Spec` of `CAP-1`;
+  them, a design-level `EventStorming` and the `DomainModel` derived from it, the `Spec` of `CAP-1`, and the
+  `Design` of the claims API (OpenAPI, one asset for three capabilities);
   validates after the pack is applied
