@@ -32,3 +32,16 @@ spec:
   security:
     networkAccess: allowlist
     allowedHosts: [api.anthropic.com]
+---
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: prd-agent}
+spec:
+  type: agent
+  adapter: claude-code/v1
+  configuration:
+    model: claude-opus-5
+    sandbox: read-only      # draft-prd answers JSON and writes no file
+  security:
+    networkAccess: allowlist
+    allowedHosts: [api.anthropic.com]

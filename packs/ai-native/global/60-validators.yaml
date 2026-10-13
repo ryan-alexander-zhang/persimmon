@@ -56,3 +56,30 @@ spec:
     adapter: sdd/v1
     configuration: {}
   timeout: 1m
+---
+# prd-consistency: sdd/v1 checks a Prd against the BusinessRules it cites (28-prd-process.md); prd-confirmed is the human.
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: prd-consistency}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+  evaluator:
+    type: adapter
+    adapter: sdd/v1
+    configuration: {}
+  timeout: 1m
+---
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: prd-confirmed}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+  evaluator:
+    type: task
+    taskRef: {kind: Task, name: confirm-prd}
+    resultOutput: result
+  timeout: 72h

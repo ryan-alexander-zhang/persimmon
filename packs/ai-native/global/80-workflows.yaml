@@ -271,3 +271,33 @@ spec:
         - {terminal: Failed, reason: spec_inconsistent}
       dispatch: first
   timeout: 12h
+---
+# The Prd process (28-prd-process.md): write, check, confirm at the terminal, up to three rounds.
+apiVersion: persimmon.ai/v1
+kind: ReviewLoop
+metadata: {name: author-prd}
+spec:
+  inputs:
+    brief: {type: {kind: value, schema: {type: string, minLength: 1}}}
+    contextId: {type: {kind: value, schema: {type: string, minLength: 1}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
+    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: false}
+  produce:
+    uses: {kind: Task, name: draft-prd}
+    inputs:
+      brief: {fromInput: brief}
+      contextId: {fromInput: contextId}
+      rules: {fromInput: rules}
+      glossary: {fromInput: glossary}
+    timeout: 30m
+  review:
+    uses: {kind: Gate, name: prd-gate}
+    inputs:
+      prd: {fromStep: {stepRef: produce, output: prd}}
+      rules: {fromStep: {stepRef: produce, output: rules}}
+    timeout: 72h
+  subject: prd
+  previous: previous
+  feedback: feedback
+  maxRounds: 3
+  timeout: 240h
