@@ -101,7 +101,8 @@ async function execute(driver, payload, log) {
       continue
     }
     const blob = await call('putBlob', { bytes: Buffer.from(JSON.stringify(value)).toString('base64'), mediaType: 'application/json' })
-    const ref = await call('publishArtifact', { kind: spec.type.artifactKind, id: artifactId(taskRun.logicalExecutionId, port), content: value, inputs: artifactInputs, representations: [{ name: 'json', mediaType: 'application/json', digest: blob.digest }] })
+    const id = task.outputIds?.[port] ?? artifactId(taskRun.logicalExecutionId, port) // the Task's chosen identity, else one per logical execution and port
+    const ref = await call('publishArtifact', { kind: spec.type.artifactKind, id, content: value, inputs: artifactInputs, representations: [{ name: 'json', mediaType: 'application/json', digest: blob.digest }] })
     outputs[port] = { kind: 'artifact', ref }
   }
   const result = { protocol: 'persimmon.result/v1', outputs }

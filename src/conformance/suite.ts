@@ -46,6 +46,7 @@ export const rules = {
   E13: 'an unknown op is invalid_input',
   E14: 'human: execute answers HumanAck after a waiting stream line with reason human',
   E15: 'every error is {code, message, retryable}',
+  E16: 'execute with task.outputIds publishes the artifact output under that id',
   V1: 'describe validates EvaluatorDescribe; roles has evaluator',
   V2: 'evaluate with the fixture artifact as artifacts.model answers a ValidationResult; passed may be false',
   V3: 'a second identical evaluate answers an equal result',
@@ -330,6 +331,13 @@ export async function conformance(spec: AdapterSpec, o: SuiteOptions = {}): Prom
         await rule('E15', true, async () => {
           const bad = errors.filter((e) => !errorShape(e))
           check(bad.length === 0, `${bad.length} malformed error(s): ${JSON.stringify(bad[0])}`)
+        })
+        await rule('E16', afterE3, async () => {
+          const { out } = await execute(11, {}, { task: { ...(payload(11).task as Record<string, unknown>), outputIds: { doc: 'conformance-chosen' } } })
+          check(out.state === 'succeeded', `execute ${outcome(out)}`)
+          const id = server.calls.find((c) => c.name === 'publishArtifact')?.args.id
+          check(id === 'conformance-chosen', `published ${String(id)}, not the chosen id conformance-chosen`)
+          check(isDeepStrictEqual((out.result as { outputs: { doc: unknown } }).outputs.doc, { kind: 'artifact', ref: { ...noteKind, namespace: 'conformance', id: 'conformance-chosen', revision: 1 } }), 'doc output is not the RevisionRef of the chosen id')
         })
       }
 

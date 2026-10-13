@@ -61,6 +61,7 @@ async function handle({ id, op, payload }) {
         context: payload.context,
         outputs: payload.task.outputs,
         outputSchemas: payload.task.outputSchemas,
+        outputIds: payload.task.outputIds,
         deadline: payload.deadline,
         answer: `persimmon complete ${name}   # or --file <result.yaml> with {protocol: persimmon.result/v1, outputs: {<port>: {kind: value, value: ...}}}`,
       }

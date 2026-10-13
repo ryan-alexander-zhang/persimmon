@@ -74,6 +74,7 @@ export interface Form {
   inputs?: Record<string, unknown>
   outputs: Record<string, OutputSpec>
   outputSchemas?: Record<string, Record<string, unknown>>
+  outputIds?: Record<string, string>
 }
 
 /** `<taskRun>-<port>` as a DNS label (revisioned.yaml Id); the same rule the agent runner applies. */
@@ -115,7 +116,7 @@ export async function askForm(cli: Cli, form: Form, taskRun: string): Promise<Re
         value = await askYaml(cli, port, what, schema, value) // the heuristic was wrong for this schema: edit the typed answer, never signal a bad value
       }
     } else value = await askYaml(cli, port, what, schema)
-    if (spec.type.kind === 'artifact') publish.push({ port, request: { kind: spec.type.artifactKind, id: dnsLabel(`${taskRun}-${port}`), content: value, representations: [] } })
+    if (spec.type.kind === 'artifact') publish.push({ port, request: { kind: spec.type.artifactKind, id: form.outputIds?.[port] ?? dnsLabel(`${taskRun}-${port}`), content: value, representations: [] } })
     else outputs[port] = { kind: 'value', value }
   }
   return { taskResult: { protocol: 'persimmon.result/v1', outputs }, publish }
