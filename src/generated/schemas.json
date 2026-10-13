@@ -446,6 +446,22 @@
      }
     }
    },
+   "SeenArtifact": {
+    "type": "object",
+    "required": [
+     "content",
+     "provenance"
+    ],
+    "additionalProperties": false,
+    "properties": {
+     "content": {
+      "type": "object"
+     },
+     "provenance": {
+      "$ref": "revisioned.yaml#/$defs/Provenance"
+     }
+    }
+   },
    "EvaluatePayload": {
     "type": "object",
     "required": [
@@ -482,20 +498,17 @@
        "$ref": "ports.yaml#/$defs/PortName"
       },
       "additionalProperties": {
-       "type": "object",
-       "required": [
-        "content",
-        "provenance"
-       ],
-       "additionalProperties": false,
-       "properties": {
-        "content": {
-         "type": "object"
+       "oneOf": [
+        {
+         "$ref": "#/$defs/SeenArtifact"
         },
-        "provenance": {
-         "$ref": "revisioned.yaml#/$defs/Provenance"
+        {
+         "type": "array",
+         "items": {
+          "$ref": "#/$defs/SeenArtifact"
+         }
         }
-       }
+       ]
       }
      },
      "deadline": {

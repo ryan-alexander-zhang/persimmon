@@ -46,7 +46,7 @@ Step contract: `inputsPath: spec.inputs`, `outputsPath: spec.outputs`, `runKind:
 
 | `evaluator.type` | Fields | Contract |
 |---|---|---|
-| `cel` | `expression` | CEL over `inputs.<port>` and `artifacts.<port>` = `{content, provenance}` typed by the frozen kind schema; returns boolean or a ValidationResult map |
+| `cel` | `expression` | CEL over `inputs.<port>` and `artifacts.<port>` = `{content, provenance}` typed by the frozen kind schema, a list of them for an `artifacts` port; returns boolean or a ValidationResult map |
 | `task` | `taskRef` (`x-persimmon-ref`), `resultOutput` | the Task's `value` output `resultOutput` returns the ValidationResult; the Validator's inputs equal the Task's inputs name for name, type and `required` equal |
 | `adapter` | `adapter` (`x-persimmon-adapter: {roles: [evaluator]}`), `configuration` | `callAdapter(evaluate)` returns a ValidationResult; `configuration` validates against `describe.configurationSchema` |
 

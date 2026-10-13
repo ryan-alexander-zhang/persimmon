@@ -77,7 +77,7 @@ as `unknown` is a no-op.
 | `validationRun` | `{ref: ObjectRef, logicalExecutionId, idempotencyKey}` |
 | `validator` | `{configuration}` |
 | `inputs` | `{<port>: RuntimeValue}` |
-| `artifacts` | `{<port>: {content, provenance}}` for artifact inputs |
+| `artifacts` | `{<port>: {content, provenance}}` for artifact inputs; a list of them for an `artifacts` port, in the refs' order |
 | `deadline`, `engine` | as `execute` |
 
 Result: a ValidationResult (`10-ports.md`). No `credentials`, no `security` (`14-gate.md`).

@@ -110,6 +110,18 @@ describe('validator Handler', () => {
     expect(clean(fail.statusPatch)).toMatchObject({ phase: 'Succeeded', result: { passed: false, findings: [{ code: 'too_few' }] } })
   })
 
+  it('cel: an artifacts port is a list of {content, provenance}, typed as such', () => {
+    const many = { ...example('validator-cel'), metadata: { name: 'prd-pair', namespace: 'demo' } }
+    many.spec.inputs = { prds: { type: { kind: 'artifacts', artifactKind: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement' } } } }
+    many.spec.evaluator.expression = 'artifacts.prds.size() == 2 && artifacts.prds.all(p, p.content.title == "Checkout v2")'
+    handler = validatorHandler({ ...deps(), closure: () => ({ ...closure, resources: [...closure.resources, many] }) })
+    const r = { ...vrun('prd-structure', 'structure'), spec: { ...vrun('prd-structure', 'structure').spec, validatorRef: { kind: 'Validator', name: 'prd-pair' }, inputs: { prds: { kind: 'artifacts', refs: [prdRef, { ...prdRef, revision: 2 }] } } } }
+    const res = handler.reconcile(input(r as unknown as Resource, { type: 'Created', dedupeKey: 'created' })) as ReconcileResult
+    expect(clean(res.statusPatch)).toMatchObject({ phase: 'Succeeded', result: { passed: true } })
+    const typo = { ...many, spec: { ...many.spec, evaluator: { type: 'cel', expression: 'artifacts.prds.content.title == "x"' } } }
+    expect(handler.validate(typo as unknown as Resource).findings.map((f) => f.code)).toEqual(['invalid_expression']) // a list has no content field
+  })
+
   it('task: creates the TaskRun and reads the result output', () => {
     const r = vrun('prd-human-review', 'humanReview')
     const res = handler.reconcile(input(r as unknown as Resource, { type: 'Created', dedupeKey: 'created' })) as ReconcileResult

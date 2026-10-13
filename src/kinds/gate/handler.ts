@@ -4,7 +4,7 @@ import { ExpressionError } from '../../expression/site.js'
 import type { Finding, HandlerImpl, ReconcileInput, ReconcileResult } from '../../handler/types.js'
 import type { Action, ReconcileError } from '../../reconcile/types.js'
 import { ajv } from '../../resource/ajv.js'
-import type { ObjectRef, Resource } from '../../resource/types.js'
+import type { ObjectRef, Resource, RevisionRef } from '../../resource/types.js'
 import type { Closure, Entry } from '../../snapshot/walk.js'
 import { fromClosure, type HandlerDeps } from '../deps.js'
 import { bind, celContext, checkInputs, overrideFindings, PortError, sameType, siteOf } from '../ports/ports.js'
@@ -151,17 +151,17 @@ export function gateHandler(deps: HandlerDeps): HandlerImpl {
   }
 }
 
+type Seen = { content: unknown; provenance: unknown }
+
 export function validatorHandler(deps: HandlerDeps): HandlerImpl {
-  /** Artifact inputs as the evaluator sees them: `{content, provenance}` per port (14-gate.md). */
-  const artifactsOf = (token: string, inputs: RuntimeValues): Record<string, { content: unknown; provenance: unknown }> =>
-    Object.fromEntries(
-      Object.entries(inputs).flatMap(([port, v]) => {
-        if (v.kind !== 'artifact') return []
-        const rev = deps.callback(token, 'getArtifact', v.ref as unknown as Record<string, unknown>) as Resource
-        const spec = rev.spec as { content: unknown; provenance: unknown }
-        return [[port, { content: spec.content, provenance: spec.provenance }]]
-      }),
-    )
+  /** Artifact inputs as the evaluator sees them: `{content, provenance}` per port, a list of them for an artifacts port (14-gate.md). */
+  const artifactsOf = (token: string, inputs: RuntimeValues): Record<string, Seen | Seen[]> => {
+    const seen = (ref: RevisionRef): Seen => {
+      const spec = (deps.callback(token, 'getArtifact', ref as unknown as Record<string, unknown>) as Resource).spec as Seen
+      return { content: spec.content, provenance: spec.provenance }
+    }
+    return Object.fromEntries(Object.entries(inputs).flatMap(([port, v]): [string, Seen | Seen[]][] => (v.kind === 'artifact' ? [[port, seen(v.ref)]] : v.kind === 'artifacts' ? [[port, v.refs.map(seen)]] : [])))
+  }
 
   return {
     validate(resource: Resource): { findings: Finding[] } {
@@ -290,14 +290,15 @@ function cancelChild(input: ReconcileInput, evaluator: Validator['spec']['evalua
   return []
 }
 
-/** The `cel` evaluator's site: `inputs.<port>` and `artifacts.<port>.{content, provenance}` typed by the frozen kind schema. */
+/** The `cel` evaluator's site: `inputs.<port>` and `artifacts.<port>.{content, provenance}` typed by the frozen kind schema, a list of them for an artifacts port. */
 function celSite(inputs: Record<string, InputSpec>, schemaOf: (ak: { apiVersion: string; kind: string }) => Record<string, unknown> | undefined) {
   const artifacts = Object.fromEntries(
     Object.entries(inputs)
-      .filter(([, s]) => s.type.kind === 'artifact')
+      .filter(([, s]) => s.type.kind === 'artifact' || s.type.kind === 'artifacts')
       .map(([port, s]) => {
         const ak = (s.type as { artifactKind: { apiVersion: string; kind: string } }).artifactKind
-        return [port, { type: 'object', properties: { content: schemaOf(ak) ?? { type: 'object' }, provenance: { type: 'object' } } }]
+        const one = { type: 'object', properties: { content: schemaOf(ak) ?? { type: 'object' }, provenance: { type: 'object' } } }
+        return [port, s.type.kind === 'artifacts' ? { type: 'array', items: one } : one]
       }),
   )
   return siteOf({ inputs, extra: { artifacts: { type: 'object', properties: artifacts } } })
