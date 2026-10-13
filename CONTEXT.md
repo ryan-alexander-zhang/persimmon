@@ -280,8 +280,9 @@ A typed input or output slot: `InputSpec` or `OutputSpec` with a **PortType**.
 _Avoid_: parameter, argument, field, variable
 
 **PortType**:
-`value` (with optional well-known `$ref` schema), `artifact` (a revisioned kind), or
-`externalResource`. Producer and consumer types must be equal.
+`value` (with optional well-known `$ref` schema), `artifact` (a revisioned kind), `artifacts`
+(an ordered list of revisions of one kind, any count) or `externalResource`. Producer and
+consumer types must be equal.
 _Avoid_: data type, schema (unqualified)
 
 **Static rule**:
