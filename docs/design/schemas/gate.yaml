@@ -8,7 +8,7 @@ $defs:
     additionalProperties:
       allOf:
         - {$ref: "ports.yaml#/$defs/InputSpec"}
-        - properties: {type: {properties: {kind: {enum: [value, artifact]}}}}
+        - properties: {type: {properties: {kind: {enum: [value, artifact, artifacts]}}}}
 
   GateOutputs:
     const:

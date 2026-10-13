@@ -207,3 +207,33 @@ spec:
     parameters: {effort: high}
   timeout: 30m
   sideEffects: none
+---
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: write-plan}
+spec:
+  inputs:
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, description: "every Design of the blocks the Spec touches"}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}, required: false}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+  outputs:
+    plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}}
+  executorRef: {kind: Executor, name: plan-agent}
+  action:
+    instructions: |
+      Write the Plan of the Spec, following the Plan rules in your context. `spec` and `architecture` in the Plan
+      are the artifact ids of the inputs with those names; `designs` lists the artifact ids of the Designs in your
+      context that some task realises an element of. Every task sits on one block, covers requirements and is
+      verified by scenarios of the Spec, and depends on earlier tasks only.
+      With `previous` and `feedback` bound, fix what the findings name and change nothing else.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: plan-rules}}
+      - {kind: artifact, input: spec}
+      - {kind: artifact, input: architecture}
+      - {kind: artifact, input: designs}
+      - {kind: artifact, input: previous}
+    parameters: {effort: high}
+  timeout: 30m
+  sideEffects: none

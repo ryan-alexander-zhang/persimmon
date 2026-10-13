@@ -80,7 +80,8 @@ A `task` Validator's TaskRun has invocation address
 - Validator inputs are bound per Gate, so one Validator serves many Gates.
 - `cel` sees `{content, provenance}` per artifact and may return a full ValidationResult.
 - Gate and Validator inputs exclude `externalResource`: a Validator judges produced facts; a
-  repository check is a `task` Validator whose Task reads the repository.
+  repository check is a `task` Validator whose Task reads the repository. `artifacts` is allowed:
+  one Validator judges a document against every revision it cites.
 - A ValidationRun exists only under a GateRun in v1.
 - `resultOutput` needs a `value` port; the ValidationResult `$ref` is recommended, the
   runtime check is what binds (reference rule 14; kept).

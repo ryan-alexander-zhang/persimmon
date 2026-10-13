@@ -198,3 +198,28 @@ spec:
     Ids `EL-n`, `Q-n` unique and increasing; a revision keeps every id in place and never reuses one.
 
     With `previous` and `feedback` bound, the consistency check refused the last Design: every finding names an id, a label or a rule; fix those and change nothing else.
+---
+apiVersion: persimmon.ai/v1
+kind: Prompt
+metadata: {name: plan-rules}
+spec:
+  mediaType: text/markdown
+  content: |
+    # Writing one Plan
+
+    You write the Plan of one Spec: the work that builds its capability, as tasks in build order. The Plan cites the Spec, the Architecture and the Designs it builds against, and nothing else; it is the only artifact that says which Design elements realise which Spec.
+
+    Tasks (`tasks`, `T-n` from 1), each:
+    - `block`: the one Architecture building block the task changes. Work on two blocks is two tasks.
+    - `covers`: the Spec requirements (`FR-n`) this task implements; `verifiedBy`: the Spec acceptance scenarios (`AC-n`) that pass once it is done. Together the tasks cover every `FR-n` and verify every `AC-n` of the Spec; nothing outside the Spec is planned.
+    - `elements`: for each Design in your context whose `block` is this task's, the `EL-n` this task realises, as `{design, element}` where `design` is the Design's artifact id. A block whose Design is not in your context gets no elements and a `Q-n` saying which Design is missing.
+    - `dependsOn`: earlier tasks only; document order is build order. A task that touches data before the API that serves it, an aggregate before the view updated from its events.
+    - `title` and `description`: what is built, in Glossary words; no estimate, owner, file path or technology the Architecture does not name.
+
+    `spec`, `architecture` are the artifact ids of the inputs with those names; `designs` lists the artifact id of every Design some task names an element of, and no other.
+
+    `openQuestions`, `Q-n` from 1: a requirement no block's responsibility covers, a Design the block lacks, an order the Spec leaves open.
+
+    Ids `T-n`, `Q-n` unique and increasing; a revision keeps every id in place and never reuses one.
+
+    With `previous` and `feedback` bound, the consistency check refused the last Plan: every finding names a task, a requirement, a scenario, a block or an element; fix those and change nothing else.

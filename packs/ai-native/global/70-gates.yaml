@@ -110,3 +110,25 @@ spec:
         rules: {fromInput: rules}
   policy: {strategy: all}
   timeout: 5m
+---
+apiVersion: persimmon.ai/v1
+kind: Gate
+metadata: {name: plan-gate}
+spec:
+  inputs:
+    plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}}
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
+  validators:
+    - name: consistency
+      ref: {kind: Validator, name: plan-consistency}
+      inputs:
+        plan: {fromInput: plan}
+        spec: {fromInput: spec}
+        architecture: {fromInput: architecture}
+        designs: {fromInput: designs}
+  policy: {strategy: all}
+  timeout: 5m

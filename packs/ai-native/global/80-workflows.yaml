@@ -387,3 +387,34 @@ spec:
         - {terminal: Failed, reason: design_inconsistent}
       dispatch: first
   timeout: 12h
+---
+# plan-one: the Plan of one Spec against the Designs the caller lists (30-plan-process.md). Run per Spec by ref:
+#   persimmon run plan-one --input 'spec={kind: artifact, ref: {...}}' --input designs=@designs.yaml ...
+apiVersion: persimmon.ai/v1
+kind: ReviewLoop
+metadata: {name: plan-one}
+spec:
+  inputs:
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
+  produce:
+    uses: {kind: Task, name: write-plan}
+    inputs:
+      spec: {fromInput: spec}
+      architecture: {fromInput: architecture}
+      designs: {fromInput: designs}
+    timeout: 30m
+  review:
+    uses: {kind: Gate, name: plan-gate}
+    inputs:
+      plan: {fromStep: {stepRef: produce, output: plan}}
+      spec: {fromInput: spec}
+      architecture: {fromInput: architecture}
+      designs: {fromInput: designs}
+    timeout: 5m
+  subject: plan
+  previous: previous
+  feedback: feedback
+  maxRounds: 2
+  timeout: 90m

@@ -517,6 +517,11 @@ The pack process from a **Prd** to the domain kinds: three storming phases as Re
 human gate, then one derivation per context, checked by `domain-consistency`.
 _Avoid_: storming pipeline, discovery workflow, modelling phase
 
+**Plan process**:
+The pack process from a **Spec** and its **Design**s to a **Plan**: one ReviewLoop `plan-one` per Spec,
+the Designs listed by the caller, checked by `plan-consistency`.
+_Avoid_: planning phase, task breakdown, plan-all
+
 **Prd**:
 **Artifact kind** of the AI Native pack: why, for whom, `CAP-n` capabilities, `SC-n` success
 criteria. No stories, requirements or technology; those are the **Spec**'s.
