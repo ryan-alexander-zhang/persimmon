@@ -11,9 +11,8 @@ export function checkSpec({ spec, prd, domainModel, architecture, rules }) {
 
   const capability = (prd?.capabilities ?? []).find((c) => c.id === spec.capability)
   if (!capability) bad('unknown-capability', `capability ${spec.capability} is not a capability of the Prd`)
-  else if (domainModel?.context !== capability.context) {
-    bad('context-mismatch', `the DomainModel's context ${domainModel?.context} is not ${capability.id}'s context ${capability.context}`)
-  }
+  // domainModel.context is not compared with the capability's: a derived model names the storming context, the Prd the
+  // BoundedContext artifact, until a producer may choose an artifact id (91-roadmap.md)
 
   const aggregates = domainModel?.aggregates ?? []
   const external = domainModel?.externalSystems ?? []
@@ -42,9 +41,9 @@ export function checkSpec({ spec, prd, domainModel, architecture, rules }) {
         else if (status.get(r) !== 'active') bad('inactive-rule', `${ac.id}: rule ${r} is ${status.get(r)}, not active`)
       }
       const statement = String(ac.statement ?? '')
-      const opens = statement.trim().split(/\s+/)[0]
+      const opens = statement.match(/^\s*([A-Za-z]+)/)?.[1]
       if (ac.pattern === 'complex') {
-        const clauses = statement.match(/\b(while|when|if)\b/gi) ?? []
+        const clauses = statement.split(/\bshall\b/)[0].match(/\b(while|when|if)\b/gi) ?? [] // the clauses before the response
         if (!['While', 'When', 'If'].includes(opens) || clauses.length < 2) {
           bad('pattern-mismatch', `${ac.id}: a complex statement opens with While, When or If and holds two such clauses`)
         }

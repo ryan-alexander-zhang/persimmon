@@ -61,9 +61,6 @@ describe('sdd/v1', () => {
     expect(await codes((a) => { a.spec.capability = 'CAP-9' })).toEqual(['unknown-capability'])
   })
 
-  it('fails a DomainModel of another context', async () => {
-    expect(await codes((a) => { a.domainModel.context = 'payroll' })).toEqual(['context-mismatch'])
-  })
 
   it('fails an actor who is not a Prd user', async () => {
     expect(await codes((a) => { a.spec.stories[0].actor = 'intern' })).toEqual(['unknown-actor'])
@@ -113,6 +110,7 @@ describe('sdd/v1', () => {
 
   it('fails ids that are not sequential from 1 in document order', async () => {
     expect(await codes((a) => { a.spec.stories[1].id = 'US-5' })).toEqual(['id-sequence'])
+    expect(await codes((a) => { a.spec.stories[1].acceptance[0].id = 'AC-1' })).toEqual(['id-sequence']) // AC-n runs across stories: the second story's first criterion is AC-4
     expect(await codes((a) => { a.spec.openQuestions[0].id = 'Q-2' })).toEqual(['id-sequence']) // the duplicate shows as the out-of-place first id
   })
 

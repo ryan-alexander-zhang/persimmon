@@ -20,7 +20,7 @@ Workflow spec-all: repeat over `capabilities` ─▶ ReviewLoop spec-one per CAP
 | Member | Content |
 |---|---|
 | Prompt `spec-rules` | how a Spec is written: cite, never restate; EARS patterns with their keywords; one test per criterion; an unknown is a `Q-n` |
-| Executor `spec-agent` | `claude-code/v1`, read-only, as the storming agent |
+| Executor `spec-agent` | `claude-code/v1`, read-only, the same configuration as `storming-agent` under its own name, so a Namespace overrides the model per Task |
 | Task `write-spec` | inputs `prd`, `capabilityId`, `architecture`, `domainModel`, `glossary`, `rules`, `previous`, `feedback`; output `spec` |
 | Validator `spec-consistency` | `sdd/v1` over `spec`, `prd`, `domainModel`, `architecture`, `rules`; the rule row of `23-pack-ai-native.md` as findings |
 | Gate `spec-gate` | consistency only; a human sign-off is an Approval the project adds |
@@ -36,13 +36,12 @@ returning findings, every one `error`:
 |---|---|
 | `not-a-spec` | content without `stories` or `capability`; the only finding then |
 | `unknown-capability` | `capability` is no `CAP-n` of the Prd |
-| `context-mismatch` | `domainModel.context` is not the capability's `context` |
 | `unknown-actor` | a story's `actor` is no Prd user |
 | `unknown-command`, `unknown-event`, `unknown-read-model` | a name the DomainModel lacks (commands: aggregates' and external systems' `handles` and `issues`; events: `events[]`, read models' `updatedBy`, external systems' `emits`, so another context's event counts once the model names it) |
 | `unknown-scenario` | a `qualities[].scenario` the Architecture lacks |
 | `unknown-rule`, `inactive-rule` | an acceptance criterion's `BR-n` missing or not `active` |
 | `rule-untested` | a `BR-n` the Prd capability lists that no criterion cites |
-| `pattern-mismatch` | a statement not opening with its pattern's keyword; `complex` opens with `While`, `When` or `If` and holds two of those words |
+| `pattern-mismatch` | a statement not opening with its pattern's keyword (the first word, punctuation ignored); `complex` opens with `While`, `When` or `If` and holds two of those words before `shall` |
 | `id-sequence` | `US-n`, `AC-n`, `Q-n` not sequential from 1 in document order |
 
 ## Rules
@@ -51,6 +50,7 @@ returning findings, every one `error`:
 |---|---|
 | a Spec cites and never restates: a name the DomainModel lacks is a finding, fixed upstream, never invented in the Spec | `spec-consistency` |
 | the Spec's `prd`, `architecture`, `domainModel` artifact ids are not checked against the inputs: the evaluator payload carries content and provenance, no RevisionRef (`19-adapter-roles.md`); provenance pins what was read | convention; Validator later |
+| `domainModel.context` is not compared with the capability's `context`: a derived DomainModel names the storming context id, the Prd the BoundedContext artifact id, and the author cannot change an input; the check lands with producer-chosen artifact ids (`91-roadmap.md`) | deferred |
 | `spec-all` runs over one context: its `domainModel`, `glossary` and `rules` are one artifact each; a Prd spanning contexts runs it once per context with that context's capability ids | convention |
 | `spec-gate` has no human: a project that wants sign-off wraps `spec-one` in an Approval, as example06 does | convention |
 
