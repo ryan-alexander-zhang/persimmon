@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
 import { describe, expect, it } from 'vitest'
 import { ExpressionError } from '../../expression/site.js'
-import { bind, checkInputs, checkOutputs, expandSchema, inlineSchema, overrideFindings, PortError, sameType, siteOf } from './ports.js'
+import { bind, checkInputs, checkOutputs, expandSchema, inlineSchema, overrideFindings, PortError, sameType, siteOf, unwrap } from './ports.js'
 import type { Binding, InputSpec, OutputSpec, RuntimeValue } from './types.js'
 
 const example = (n: string) => parse(readFileSync(`docs/design/examples/${n}.yaml`, 'utf8'))
@@ -61,6 +61,13 @@ describe('port types', () => {
     expect(() => checkInputs(task.inputs, { research: report, nope: num })).toThrow(/not an input/)
     expect(() => checkInputs(task.inputs, { research: report, repository: repo })).not.toThrow()
     expect(() => checkInputs(task.inputs, { research: { ...report, ref: { ...(report as { ref: object }).ref, kind: 'ProductRequirement' } } as RuntimeValue })).toThrow(/expected ResearchReport/)
+    // an artifacts port: every ref of the kind, in order; CEL sees the list of refs
+    const reports: Record<string, InputSpec> = { reports: { type: { kind: 'artifacts', artifactKind: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ResearchReport' } } } }
+    expect(checkInputs(reports, { reports: many })).toEqual({ reports: many })
+    expect(() => checkInputs(reports, { reports: report })).toThrow(/expected artifacts, got artifact/)
+    expect(() => checkInputs(reports, { reports: { kind: 'artifacts', refs: [(report as { ref: never }).ref, { ...(report as { ref: object }).ref, kind: 'ProductRequirement' } as never] } })).toThrow(/expected ResearchReport, got ProductRequirement/)
+    expect(unwrap({ reports: many })).toEqual({ reports: (many as { refs: unknown }).refs })
+    expect(() => siteOf({ inputs: reports }).check('inputs.reports[1].revision == 2')).not.toThrow()
   })
 
   it('checks outputs exactly', () => {

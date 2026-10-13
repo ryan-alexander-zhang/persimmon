@@ -79,6 +79,9 @@ export function checkValue(port: string, type: PortType, v: RuntimeValue): void 
   } else if (type.kind === 'artifact' && v.kind === 'artifact') {
     if (v.ref.apiVersion !== type.artifactKind.apiVersion || v.ref.kind !== type.artifactKind.kind)
       throw new PortError(`${port}: expected ${type.artifactKind.kind}, got ${v.ref.kind}`)
+  } else if (type.kind === 'artifacts' && v.kind === 'artifacts') {
+    for (const ref of v.refs)
+      if (ref.apiVersion !== type.artifactKind.apiVersion || ref.kind !== type.artifactKind.kind) throw new PortError(`${port}: expected ${type.artifactKind.kind}, got ${ref.kind}`)
   } else if (type.kind === 'externalResource' && v.kind === 'externalResource') {
     if (v.ref.provider !== type.provider || v.ref.type !== type.type) throw new PortError(`${port}: expected ${type.provider}/${type.type}, got ${v.ref.provider}/${v.ref.type}`)
   }
@@ -144,9 +147,9 @@ export function bind(bindings: Bindings, s: Sources, site: Site): RuntimeValues 
   return out
 }
 
-/** RuntimeValues as CEL sees them: value ports unwrapped, refs as their ref objects (10-ports.md). */
+/** RuntimeValues as CEL sees them: value ports unwrapped, refs as their ref objects, an artifacts port as a list of them (10-ports.md). */
 export function unwrap(values: RuntimeValues | undefined): Record<string, unknown> {
-  return Object.fromEntries(Object.entries(values ?? {}).map(([k, v]) => [k, v.kind === 'value' ? v.value : v.ref]))
+  return Object.fromEntries(Object.entries(values ?? {}).map(([k, v]) => [k, v.kind === 'value' ? v.value : v.kind === 'artifacts' ? v.refs : v.ref]))
 }
 
 /** CEL context of a site's Sources (10-ports.md expression profile). */
@@ -162,7 +165,8 @@ export function celContext(s: Sources): Record<string, unknown> {
 
 /** The CEL environment of a site (10-ports.md expression profile). Ports become typed roots. */
 export function siteOf(roots: { inputs?: Record<string, InputSpec>; steps?: Record<string, Record<string, OutputSpec>>; state?: Record<string, InputSpec>; iterationOutputs?: Record<string, OutputSpec>; event?: JsonSchema; extra?: Record<string, JsonSchema> }): Site {
-  const portSchema = (t: PortType): JsonSchema => (t.kind === 'value' ? (expandSchema(t.schema) ?? {}) : expandSchema({ $ref: t.kind === 'artifact' ? 'persimmon.ai/v1#/RevisionRef' : 'persimmon.ai/v1#/ExternalResourceRef' }) ?? {})
+  const refSchema = (t: PortType): JsonSchema => expandSchema({ $ref: t.kind === 'externalResource' ? 'persimmon.ai/v1#/ExternalResourceRef' : 'persimmon.ai/v1#/RevisionRef' }) ?? {}
+  const portSchema = (t: PortType): JsonSchema => (t.kind === 'value' ? (expandSchema(t.schema) ?? {}) : t.kind === 'artifacts' ? { type: 'array', items: refSchema(t) } : refSchema(t))
   const objectOf = (ports: Record<string, { type: PortType }> | undefined): JsonSchema | undefined =>
     ports && { type: 'object', properties: Object.fromEntries(Object.entries(ports).map(([k, p]) => [k, portSchema(p.type)])) }
   const r: Record<string, JsonSchema | undefined> = {}

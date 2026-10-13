@@ -5,11 +5,13 @@ import type { ExternalResourceRef, RevisionRef } from '../../resource/types.js'
 export type PortType =
   | { kind: 'value'; schema?: JsonSchema | { $ref: string } }
   | { kind: 'artifact'; artifactKind: { apiVersion: string; kind: string } }
+  | { kind: 'artifacts'; artifactKind: { apiVersion: string; kind: string } }
   | { kind: 'externalResource'; provider: string; type: string }
 
 export type RuntimeValue =
   | { kind: 'value'; value: unknown }
   | { kind: 'artifact'; ref: RevisionRef }
+  | { kind: 'artifacts'; refs: RevisionRef[] }
   | { kind: 'externalResource'; ref: ExternalResourceRef }
 
 export interface InputSpec {
