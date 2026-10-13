@@ -77,6 +77,18 @@ conformance suite's name) runs `checkSpec`; otherwise `artifacts.prd` runs `chec
 - `goal-with-number` is decidable and cheap: a digit in a goal is the one rule of `23-pack-ai-native.md`
   ("goals give direction without a number") a regular expression can hold. Found in design review.
 
+- Proven live on `claude-sonnet-5` from a one-paragraph brief, no rules or Glossary bound: one round,
+  1m14s to the human gate, `prd-consistency` passed, approved from the terminal with the completion
+  file. The Prd had five goals without a number, five capabilities each citing its rules, five
+  success criteria with the brief's numbers, four real open questions (per diem evidence, the
+  category limits, the director who is also the approver, when retention starts). The rules
+  artifact held the brief's four policies plus retention as `BR-1` to `BR-5`, RuleSpeak statements,
+  but its `logic.inputs[].factType` named invented fact types (`ClaimLine`) since no Glossary
+  existed; the Prompt now forbids `logic` without a Glossary. Two Layer 1 findings on the way: a
+  plain-text `--input brief=@file` is parsed as YAML and a colon breaks it (the brief goes in as a
+  block scalar), and an optional loop input unbound on a run failed `source absent`
+  (`21-composition.md`, fixed). Found in UAT.
+
 ## Examples
 
 - `docs/design/examples/ai-native-domain.yaml`: `Prd/expense-claims` passes `checkPrd` against
