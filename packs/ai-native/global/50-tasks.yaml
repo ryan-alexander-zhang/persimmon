@@ -188,11 +188,13 @@ spec:
   inputs:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     blockId: {type: {kind: value, schema: {type: string, pattern: "^BB-[0-9]+$"}}}
-    type: {type: {kind: value, schema: {type: string, enum: [http-api, async-api, data-schema]}}}
+    type: {type: {kind: value, schema: {type: string, enum: [http-api, async-api, data-schema, ui]}}}
     interface: {type: {kind: value, schema: {type: string, minLength: 1}}, required: false}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: false, description: "for a ui Design: the product's DesignSystem (32-ui-design-process.md)"}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "for a ui Design: the http-api Designs of the interfaces the block requires"}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
   outputs:
@@ -203,7 +205,9 @@ spec:
       Write the Design of `type` for the building block `blockId` of the Architecture, following the Design rules in
       your context. `architecture` and `domainModel` in the Design are the artifact ids of the inputs with those
       names; `block` is `blockId`; for an API, `interface` is the input `interface` when bound, else the block's first provided
-      interface. Every element realises a label the DomainModel names; every rule id is in `rules`.
+      interface. Every element realises a label the DomainModel names; every rule id is in `rules`. For a `ui` Design,
+      `designSystem` is the artifact id of the DesignSystem in your context and the screens call the operations of the
+      Designs in your context.
       With `previous` and `feedback` bound, fix what the findings name and change nothing else.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: design-rules}}
@@ -211,6 +215,8 @@ spec:
       - {kind: artifact, input: domainModel}
       - {kind: artifact, input: glossary}
       - {kind: artifact, input: rules}
+      - {kind: artifact, input: designSystem}
+      - {kind: artifact, input: designs}
       - {kind: artifact, input: previous}
     parameters: {effort: high}
   timeout: 30m
@@ -302,5 +308,53 @@ spec:
     context:
       - {kind: artifact, input: architecture}
       - {kind: artifact, input: adrs}
+  timeout: 72h
+  sideEffects: none
+---
+# The UI design process (32-ui-design-process.md): the DesignSystem once per product, confirmed by a human.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: write-design-system}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: false}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+  outputs:
+    designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, id: {expression: "inputs.prd.id + '-design-system'"}}
+  executorRef: {kind: Executor, name: design-system-agent}
+  action:
+    instructions: |
+      Write the DesignSystem of the product the Prd describes, following the DesignSystem rules in your context:
+      `document.content` is the whole DESIGN.md, front matter and the eight sections in order; `prd` is the Prd's
+      artifact id. With `previous` and `feedback` bound, fix what the findings name and change nothing else; answer
+      the whole file again.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: design-system-rules}}
+      - {kind: artifact, input: prd}
+      - {kind: artifact, input: architecture}
+      - {kind: artifact, input: previous}
+    parameters: {effort: high}
+  timeout: 30m
+  sideEffects: none
+---
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: confirm-design-system}
+spec:
+  inputs:
+    designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
+  executorRef: {kind: Executor, name: local-reviewer}
+  action:
+    instructions: |
+      Confirm the DesignSystem. Judge the look and feel, the palette, the type, the components and the Do's and
+      Don'ts for the product and the people who look at it; the linter checks the format, the token references and
+      the contrast beside you. Approve, or reject with one finding per section or token path that must change,
+      naming it in the finding's message.
+    context:
+      - {kind: artifact, input: designSystem}
   timeout: 72h
   sideEffects: none

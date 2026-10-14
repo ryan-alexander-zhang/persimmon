@@ -318,11 +318,13 @@ spec:
   inputs:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     blockId: {type: {kind: value, schema: {type: string, pattern: "^BB-[0-9]+$"}}}
-    type: {type: {kind: value, schema: {type: string, enum: [http-api, async-api, data-schema]}}}
+    type: {type: {kind: value, schema: {type: string, enum: [http-api, async-api, data-schema, ui]}}}
     interface: {type: {kind: value, schema: {type: string, minLength: 1}}, required: false}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: false}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false}
   produce:
     uses: {kind: Task, name: design-asset}
     inputs:
@@ -333,6 +335,8 @@ spec:
       domainModel: {fromInput: domainModel}
       glossary: {fromInput: glossary}
       rules: {fromInput: rules}
+      designSystem: {fromInput: designSystem}
+      designs: {fromInput: designs}
     timeout: 30m
   review:
     uses: {kind: Gate, name: design-gate}
@@ -341,6 +345,7 @@ spec:
       architecture: {fromInput: architecture}
       domainModel: {fromInput: domainModel}
       rules: {fromInput: rules}
+      designSystem: {fromInput: designSystem}
     timeout: 5m
   subject: design
   previous: previous
@@ -355,10 +360,12 @@ spec:
   inputs:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     blocks: {type: {kind: value, schema: {type: array, minItems: 1, maxItems: 20, items: {type: string, pattern: "^BB-[0-9]+$"}}}}
-    type: {type: {kind: value, schema: {type: string, enum: [http-api, async-api, data-schema]}}}
+    type: {type: {kind: value, schema: {type: string, enum: [http-api, async-api, data-schema, ui]}}}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: false}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false}
   outputs:
     written: {type: {kind: value, schema: {type: integer}}}
   outputBindings:
@@ -374,6 +381,8 @@ spec:
         domainModel: {fromInput: domainModel}
         glossary: {fromInput: glossary}
         rules: {fromInput: rules}
+        designSystem: {fromInput: designSystem}
+        designs: {fromInput: designs}
       timeout: 12h
       repeat:
         state:
@@ -498,6 +507,32 @@ spec:
       glossaries: {fromInput: glossaries}
     timeout: 72h
   subject: architecture
+  previous: previous
+  feedback: feedback
+  maxRounds: 3
+  timeout: 240h
+---
+# The UI design process (32-ui-design-process.md): the DesignSystem once per product, linted and confirmed by a human.
+#   persimmon run design-system --input 'prd={kind: artifact, ref: {...}}' --input 'architecture={...}'
+apiVersion: persimmon.ai/v1
+kind: ReviewLoop
+metadata: {name: design-system}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+  produce:
+    uses: {kind: Task, name: write-design-system}
+    inputs:
+      prd: {fromInput: prd}
+      architecture: {fromInput: architecture}
+    timeout: 30m
+  review:
+    uses: {kind: Gate, name: design-system-gate}
+    inputs:
+      designSystem: {fromStep: {stepRef: produce, output: designSystem}}
+    timeout: 72h
+  subject: designSystem
   previous: previous
   feedback: feedback
   maxRounds: 3

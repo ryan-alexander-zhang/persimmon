@@ -47,7 +47,7 @@ describe('persimmon CLI', () => {
     expect(await run('adapter', 'install', file('a.yaml', [fakeAdapter('claude-code/v1'), fakeAdapter('cli-human/v1', 'human')]))).toBe(0)
     out = []
     expect(await run('adapter', 'list')).toBe(0)
-    expect(out).toEqual(['claude-code/v1  Ready  roles: executor', 'cli-human/v1  Ready  roles: executor', 'codex/v1  Ready  roles: executor', 'eventstorming/v1  Ready  roles: evaluator', 'sdd/v1  Ready  roles: evaluator', 'subprocess/v1  Ready  roles: executor'])
+    expect(out).toEqual(['claude-code/v1  Ready  roles: executor', 'cli-human/v1  Ready  roles: executor', 'codex/v1  Ready  roles: executor', 'designmd/v1  Ready  roles: evaluator', 'eventstorming/v1  Ready  roles: evaluator', 'sdd/v1  Ready  roles: evaluator', 'subprocess/v1  Ready  roles: executor'])
 
     out = []
     expect([await run('validate', 'packs/sdlc/global/50-tasks.yaml', 'packs/sdlc/global/80-workflows.yaml', 'packs/sdlc/global/40-executors.yaml'), out.filter((l) => l.startsWith('error'))]).toEqual([0, []])
@@ -94,7 +94,7 @@ describe('persimmon CLI', () => {
 
     out = []
     expect(await run('get', 'Task')).toBe(0)
-    expect(out.length).toBe(15) // the demo pack's five and the AI Native pack's ten
+    expect(out.length).toBe(17) // the demo pack's five and the AI Native pack's twelve
     expect(await run('delete', 'Task/write-prd')).toBe(1) // referenced by prd-create
     expect(err.at(-1)).toMatch(/referenced/)
 
