@@ -16,7 +16,7 @@ Adr ──▶ Prd, rules (baseline) or Architecture (later)          taken first
 Architecture ──▶ Prd, BoundedContext (3, 5), Adr (9), Glossary (12), DomainModel (8, later)   arc42 baseline, once per product
 Spec per CAP-n ──▶ Prd, Architecture, DomainModel, Glossary, rules
 Design per block and type ──▶ Architecture, DomainModel, Glossary, rules
-Plan per Spec ──▶ Spec, Architecture, Design (many);  work (later) ──▶ Plan
+Plan per Spec ──▶ Spec (by id, latest), Architecture, Design (many);  work (later) ──▶ Plan
 why, for whom: Prd · exactly what: Spec · how: Architecture, Design (reusable assets) · work: Plan
 ```
 

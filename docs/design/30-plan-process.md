@@ -9,7 +9,8 @@ reference; the loop feeds findings back once. The Plan is the only artifact link
 Designs.
 
 ```text
-ReviewLoop plan-one, run per Spec by ref, the Designs listed by the caller (an artifacts port, 10-ports.md)
+Workflow plan-all: repeat over `capabilities` ─▶ ReviewLoop plan-one per Spec, the Spec bound by id (fromArtifact)
+ReviewLoop plan-one, run per Spec by ref or from plan-all, the Designs listed by the caller (an artifacts port, 10-ports.md)
   produce: Task write-plan (plan-agent) ─▶ Plan
   review:  Gate plan-gate = Validator plan-consistency (sdd/v1: plan, spec, architecture, designs)
   previous and feedback fed back; maxRounds 2
@@ -24,10 +25,12 @@ ReviewLoop plan-one, run per Spec by ref, the Designs listed by the caller (an a
 | Task `write-plan` | inputs `spec`, `architecture`, `designs` (artifacts), `previous`, `feedback`; output `plan` |
 | Validator `plan-consistency` | `sdd/v1` over `plan`, `spec`, `architecture`, `designs`; the Plan rule row of `23-pack-ai-native.md` as findings |
 | Gate `plan-gate` | consistency only |
-| ReviewLoop `plan-one` | `produce` `write-plan`, `review` `plan-gate`, `maxRounds: 2`; no `plan-all`: a Workflow cannot find the Spec of `CAP-n` by id until a producer may choose artifact ids (`91-roadmap.md`) |
+| ReviewLoop `plan-one` | `produce` `write-plan`, `review` `plan-gate`, `maxRounds: 2` |
+| Workflow `plan-all` | `repeat` over `capabilities` as `spec-all` does; each iteration binds `spec` by `fromArtifact` to `<prd>-cap-n` at its latest revision (`10-ports.md`), `designs` once for the product; a capability without a Spec ends the run `source absent`; a Plan the loop could not write ends it `plan_inconsistent`; output `written` |
 
-Run: `persimmon run plan-one --input 'spec={kind: artifact, ref: {...}}' --input 'architecture={...}' --input designs=@designs.yaml`,
-where `designs.yaml` is a YAML list of RevisionRefs (`08-store.md`).
+Run one: `persimmon run plan-one --input 'spec={kind: artifact, ref: {...}}' --input 'architecture={...}' --input designs=@designs.yaml`,
+where `designs.yaml` is a YAML list of RevisionRefs (`08-store.md`). Run all:
+`persimmon run plan-all --input 'prd={...}' --input 'capabilities=[CAP-1, CAP-2]' --input 'architecture={...}' --input designs=@designs.yaml`.
 
 ## `checkPlan`
 
@@ -66,10 +69,11 @@ The Adapter picks the mode from the payload: `artifacts.plan` first (a Plan payl
 - The Designs reach the Plan through one `artifacts` input the caller lists, not a query: the engine
   has no Relation query yet (`91-roadmap.md`) and the caller knows the blocks the Spec touches.
   Found in design review.
-- No `plan-all`: the Spec of `CAP-n` is now `<prd>-cap-n` (`12-task.md`), but a Workflow binding
-  cannot turn an id into an artifact value: it has no "latest revision of" lookup. Chaining
-  `spec-one` then `plan-one` in one Workflow would carry the ref but also need the Designs per
-  capability. Deferred on that lookup (`91-roadmap.md`). Found in design review.
+- `plan-all` binds each Spec by `fromArtifact` (`10-ports.md`) to `<prd>-cap-n`, the id
+  `write-spec` chooses (`12-task.md`), so it runs after `spec-all` without anyone copying refs.
+  The Designs are passed once for the whole product: a Plan lists only the Designs its tasks
+  realise elements of, so extra Designs in the payload are no finding. The per-capability query
+  ("every Design of the blocks this Spec touches") stays roadmap. Found in design review.
 - `verifiedBy` and `covers` may both be empty on a task (groundwork), but every `FR-n` and `AC-n` of
   the Spec must be in some task: coverage is a Spec-level rule, not a task-level one. Found in
   design review.

@@ -418,3 +418,48 @@ spec:
   feedback: feedback
   maxRounds: 2
   timeout: 90m
+---
+# plan-all: the Plan of every capability's Spec (30-plan-process.md). The Spec of CAP-n is bound by its chosen id,
+# <prd>-cap-n, at its latest revision; the Designs are the product's, listed once by the caller.
+apiVersion: persimmon.ai/v1
+kind: Workflow
+metadata: {name: plan-all}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    capabilities: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, pattern: "^CAP-[0-9]+$"}}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
+  outputs:
+    written: {type: {kind: value, schema: {type: integer}}}
+  outputBindings:
+    written: {expression: "steps.each.iterations"}
+  entry: [each]
+  steps:
+    - id: each
+      uses: {kind: ReviewLoop, name: plan-one}
+      inputs:
+        spec: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}, id: "inputs.prd.id + '-' + state.capabilities[state.index - 1].lowerAscii()"}}
+        architecture: {fromInput: architecture}
+        designs: {fromInput: designs}
+      timeout: 12h
+      repeat:
+        state:
+          index: {type: {kind: value, schema: {type: integer, minimum: 1}}}
+          capabilities: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, pattern: "^CAP-[0-9]+$"}}}}
+        initial:
+          index: {literal: 1}
+          capabilities: {fromInput: capabilities}
+        next:
+          index: {expression: "state.index + 1"}
+          capabilities: {fromState: capabilities}
+        until: "!iteration.outputs.passed || iteration.index >= inputs.capabilities.size()"
+        maxIterations: 20
+  transitions:
+    - id: done
+      from: [{stepRef: each, outcomes: [Succeeded, Failed]}]
+      to:
+        - {terminal: Succeeded, when: 'steps.each.phase == "Succeeded" && steps.each.outputs.passed'}
+        - {terminal: Failed, reason: plan_inconsistent}
+      dispatch: first
+  timeout: 12h
