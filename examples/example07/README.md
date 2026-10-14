@@ -84,7 +84,10 @@ persimmon run architect --input 'prd={kind: artifact, ref: {apiVersion: sdd.pers
 One Gate: the Validator checks every citation, you judge the block cut, the strategy and its Adrs,
 the quality goals. A finding names a `BB-n`, `S-n`, `QG-n`, `C-n`, `QS-n` or an Adr id. The run
 ends with `Architecture/room-booking-prd-architecture.r1` and `Adr/room-booking-prd-adr-<k>.r1`,
-one per strategy decision. `architecture.yaml` in this directory is the hand-written one an earlier
+one per strategy decision. This recording predates the slot rule (`31-architecture-process.md`: the n-th Adr backs
+`S-n`, a dropped strategy's slot superseded in place) and the Adr `strategy` field: round two dropped `S-2` and
+`S-5` and republished five Adrs under `adr-1` to `adr-5`, so the Adrs here name no strategy and
+`architecture-consistency` does not hold them to a slot. `architecture.yaml` in this directory is the hand-written one an earlier
 run of these steps used, kept for comparison; the one the loop wrote is in `room-booking-domain.yaml`.
 
 ### 5. One Spec per capability

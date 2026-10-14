@@ -380,7 +380,6 @@ spec:
   content:
     title: Store receipts as immutable blobs addressed by digest
     status: accepted
-    strategy: S-3
     deciders: [Finance operations, platform team]
     context: >-
       A receipt proves a claim line to an auditor (BR-2); it must be unchanged for ten years (BR-11) and reachable from
@@ -411,7 +410,6 @@ spec:
   content:
     title: Evaluate the claim routing decision in the claims core, never in a client
     status: accepted
-    strategy: S-1
     deciders: [Finance operations, platform team]
     context: >-
       The route of a submitted claim is the claim routing DecisionTable (BR-7 to BR-10). A client could compute it to
