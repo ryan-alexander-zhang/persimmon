@@ -49,6 +49,7 @@ each list a YAML list of RevisionRefs (`08-store.md`), one entry per context in 
 | `unknown-relation-end`, `relation-no-block`, `unknown-interface` | a relation end neither a block nor a partner; neither end a block; `interface` not provided by the `to` block, or not required by the `from` block when `to` is a partner |
 | `block-unrelated`, `partner-unrelated` | a level 1 block or a partner with no relation |
 | `adr-status`, `unknown-adr-driver` | an Adr not `accepted`; a driver that resolves in neither the Architecture (`QG`, `C`, `QS`), the Prd (`G`, `CAP`, `SC`) nor the rules (`BR`) |
+| `adr-strategy` | an Adr's `strategy` is no `S-n` of the Architecture, or a second Adr names an `S-n` already backed (superseded ones skipped; an Adr without `strategy` is not checked) |
 | `id-sequence` | `QG-n`, `C-n`, `S-n`, `BB-n`, `REL-n`, `CC-n`, `QS-n`, `RK-n` not unique and increasing |
 
 The Adapter picks the mode from the payload: `artifacts.plan` first, else `artifacts.spec` (or
@@ -60,7 +61,7 @@ else `artifacts.prd`.
 | Rule | Enforcer |
 |---|---|
 | the Architecture rule row of `23-pack-ai-native.md`, except `deployment` and `runtime` references and `decisions[]` with status `accepted` being the only Adrs (they are: `adr-status`) | `architecture-consistency` |
-| the agent takes one Adr per `S-n`, the n-th Adr backing `S-n`, so `<prd>-adr-n` names one decision across rounds; a dropped `S-n` keeps its slot as a `superseded` Adr the Architecture does not list; the Validator checks status, drivers and the list, skips superseded entries, and does not count: the kind rule ("detail is an Adr") lets an Architecture apply fewer Adrs than it has strategies, as the worked example does | `architecture-rules`; `adr-mismatch`, `adr-status` |
+| the agent takes one Adr per `S-n`, each naming its `S-n` in `strategy`; the list order is the first round's, so `<prd>-adr-n` names one decision across rounds; a dropped `S-n` keeps its slot as a `superseded` Adr the Architecture does not list; the Validator checks status, drivers, the list and that a named strategy exists and is backed once, skips superseded entries, and does not count: the kind rule ("detail is an Adr") lets an Architecture apply fewer Adrs than it has strategies, as the worked example does | `architecture-rules`; `adr-mismatch`, `adr-status`, `adr-strategy` |
 | one BoundedContext per product today: `rules` is one BusinessRules, per context, and `checkPrd` holds every capability to it; a product over several contexts takes `rules` as a list with the query row of `10-ports.md` | convention; `91-roadmap.md` |
 | `status: accepted` on the Architecture and its Adrs is the author's claim; the Gate's pass is the fact, read from the run; a rejected round's artifacts are committed revisions all the same, as every produce output is | convention |
 | every context the Prd's capabilities name is in `contexts`, and the caller lists its model and glossary beside it | `prd-context-unread`; convention for the lists |
@@ -107,6 +108,16 @@ else `artifacts.prd`.
 - "Adr n backs `S-n`" pairs by position, so once strategy ids gap (`S-1, S-3, S-4, S-6, S-7`) the
   pairing is implicit: `adr-2` backs `S-3`. An Adr field naming its `S-n`, with a check, would make
   it explicit; roadmap. Found in UAT.
+
+- An Adr names the `S-n` it backs in `strategy`, checked by `adr-strategy`: the positional pairing
+  ("the n-th Adr backs `S-n`") went implicit as soon as strategy ids gapped, and a reader of
+  `adr-2` had to count. The slot rule stays, for the id: list order is the first round's, a dropped
+  strategy's Adr is superseded in place, a new one goes at the end. The field is optional on the kind
+  (an Adr taken outside the loop backs no strategy) and the Prompt requires it. The worked example and
+  example07 name theirs. A revisioned KindDefinition never changes, so an existing project takes the
+  field only as a fresh project (`91-roadmap.md`). Not rerun live: the check is pure and the Prompt
+  change is one sentence; the next end-to-end UAT exercises it. Found in UAT; the field built from
+  the roadmap.
 
 ## Examples
 
