@@ -192,9 +192,12 @@ export class Engine {
   }
 
   async #upsert(input: Resource, actor: Actor): Promise<{ resource: Resource; created: boolean; changed: boolean }> {
-    const existing = this.store.resources.get({ kind: input.kind, namespace: input.metadata.namespace ?? (this.kinds.get(input.apiVersion, input.kind).definition.spec.scope === 'Global' ? undefined : this.dispatch.defaultNamespace), name: input.metadata.name })
+    // no Namespace on the doc: the Global one (apply --global, a pack upgrade), else the default Namespace's for a kind that is not Global
+    const key = (namespace: string | undefined) => ({ kind: input.kind, namespace, name: input.metadata.name })
+    const scope = this.kinds.get(input.apiVersion, input.kind).definition.spec.scope
+    const existing = input.metadata.namespace ? this.store.resources.get(key(input.metadata.namespace)) : (this.store.resources.get(key(undefined)) ?? (scope === 'Global' ? undefined : this.store.resources.get(key(this.dispatch.defaultNamespace))))
     if (!existing) {
-      const r = await createResourceRaw(this.dispatch, input, { actor }) // a scope Any lookup misses the Global one; create then finds it and returns it unchanged
+      const r = await createResourceRaw(this.dispatch, input, { actor })
       return { ...r, changed: r.created }
     }
     // SpecMutable update: CAS on the stored version, generation bump, SpecUpdated when spec changed

@@ -120,6 +120,14 @@ describe('persimmon CLI', () => {
     out = []
     expect(await run('get', 'Task/write-prd-2')).toBe(0)
     expect(out.join('\n')).not.toMatch(/namespace:/)
+    // a pack upgrade: a changed Global definition is updated in place, not refused (20-pack.md upgrade)
+    const upgraded = { ...override, metadata: { name: 'write-prd-2' }, spec: { ...override.spec, action: { ...override.spec.action, instructions: 'Write the PRD, briefly.' } } }
+    out = []
+    expect(await run('apply', file('task2-upgrade.yaml', [upgraded]), '--global')).toBe(0)
+    expect(out).toEqual(['updated Task/write-prd-2'])
+    out = []
+    expect(await run('get', 'Task/write-prd-2')).toBe(0)
+    expect(parse(out.join('\n')).metadata.generation).toBe(2)
     const run1 = { apiVersion: 'persimmon.ai/v1', kind: 'WorkflowRun', metadata: { name: 'r' }, spec: { workflowRef: { kind: 'Workflow', name: 'prd-create' }, inputs: {}, timeout: '1h', origin: { kind: 'manual' } } }
     expect(await run('apply', file('run.yaml', [run1]), '--global')).toBe(1) // Namespaced kind
     expect(err.at(-1)).toMatch(/--global does not apply/)
