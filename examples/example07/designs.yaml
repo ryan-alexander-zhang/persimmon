@@ -1,2 +1,5 @@
 - {apiVersion: sdd.persimmon.ai/v1, kind: Design, id: room-booking-prd-architecture-bb-1-http-api, revision: 1}
 - {apiVersion: sdd.persimmon.ai/v1, kind: Design, id: room-booking-prd-architecture-bb-1-data-schema, revision: 1}
+- {apiVersion: sdd.persimmon.ai/v1, kind: Design, id: room-booking-prd-architecture-bb-5-ui, revision: 1}
+- {apiVersion: sdd.persimmon.ai/v1, kind: Design, id: room-booking-prd-architecture-bb-6-ui, revision: 1}
+- {apiVersion: sdd.persimmon.ai/v1, kind: Design, id: room-booking-prd-architecture-bb-7-ui, revision: 1}

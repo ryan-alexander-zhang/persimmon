@@ -6,15 +6,15 @@ capability, one Design per building block and type, and one Plan per Spec. You s
 approve, or reject with findings the next round must fix. Nothing is yours to write but the brief.
 
 ```text
-brief ─▶ author-prd ─▶ domain-discovery ─▶ architect ─▶ spec-all ─▶ design-all ─▶ plan-all
-          Prd, rules    EventStorming ×3       Architecture,  Spec ×6     Design ×2     Plan ×6
-          you confirm   you confirm each       Adrs; you confirm
+brief ─▶ author-prd ─▶ domain-discovery ─▶ architect ─▶ spec-all ─▶ design-all ─▶ design-system ─▶ design-all (ui) ─▶ plan-all
+          Prd, rules    EventStorming ×3       Architecture,  Spec ×6     Design ×2     DesignSystem      Design ×3          Plan ×6
+          you confirm   you confirm each       Adrs; you confirm                       you confirm
                         BoundedContext,
                         Glossary, DomainModel
 ```
 
 [`room-booking-domain.yaml`](room-booking-domain.yaml) is what one run of these steps produced on
-`claude-sonnet-5`: twenty-six artifacts, the Architecture and its five Adrs included. Read it to see the shapes, or
+`claude-sonnet-5`: thirty artifacts, the Architecture and its five Adrs, the DesignSystem and the three `ui` Designs included. Read it to see the shapes, or
 load it into a project without running anything (step 8).
 
 ## Prerequisites
@@ -22,7 +22,7 @@ load it into a project without running anything (step 8).
 - `persimmon` on your PATH: `npm install && npm install -g .` in the repository root
   ([Installation](../../README.md#installation))
 - `claude` CLI installed and logged in
-- about 50 minutes of wall clock and your attention at eight Gates
+- about 65 minutes of wall clock and your attention at nine Gates
 
 ## Steps
 
@@ -34,7 +34,7 @@ Run every command inside this directory.
 cd examples/example07
 persimmon init
 persimmon apply ../../packs/ai-native/global/*.yaml --global
-persimmon apply overrides.yaml          # the five agent Executors on claude-sonnet-5
+persimmon apply overrides.yaml          # the seven agent Executors on claude-sonnet-5
 ```
 
 `overrides.yaml` overrides the pack's Executors by name in the default Namespace; delete it from
@@ -107,8 +107,33 @@ persimmon run design-all --input 'blocks=[BB-1]' --input type=http-api <architec
 persimmon run design-all --input 'blocks=[BB-1]' --input type=data-schema <the same> --follow
 ```
 
-`Design/room-booking-prd-architecture-bb-1-http-api.r1` and `...-bb-1-data-schema.r1`; `designs.yaml`
-lists both for the next step.
+`Design/room-booking-prd-architecture-bb-1-http-api.r1` and `...-bb-1-data-schema.r1`; `api-designs.yaml`
+lists the first for the `ui` Designs, `designs.yaml` lists every Design for the Plans.
+
+### 6b. The design system, you at the Gate
+
+```sh
+persimmon run design-system --input 'prd=...' --input 'architecture=...' --follow
+```
+
+`DesignSystem/room-booking-prd-design-system`: a DESIGN.md (Google Labs' format) in `document.content`,
+linted by `designmd/v1` and parked on you. Round one here wrote a `border` sub-token the linter refuses
+and a report page no client block shows; the rejection named both, round two passed the linter and
+the human. `persimmon get DesignSystem/room-booking-prd-design-system` and read `document.content` as
+the file it is; `npx @google/design.md export --format css-tailwind` turns it into a theme.
+
+### 6c. Screens of the three client blocks
+
+```sh
+persimmon run design-all --input 'blocks=[BB-5, BB-6, BB-7]' --input type=ui <architecture, domainModel, glossary, rules as above> \
+  --input 'designSystem={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem, namespace: default, id: room-booking-prd-design-system, revision: <n>}}' \
+  --input designs=@api-designs.yaml --follow
+```
+
+`written 3`, each round one: `Design/room-booking-prd-architecture-bb-5-ui.r1`, `-bb-6-ui.r1`, `-bb-7-ui.r1`, one
+`## <screen>` section per screen, elements per screen (the read model shown) and per action (the command
+submitted). Their open questions are real: the API has no operation to list rooms by fit, and the
+DomainModel has no fact for a room's name, so a door screen cannot say which room it is.
 
 ### 7. One Plan per Spec
 

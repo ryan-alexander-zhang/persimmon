@@ -52,3 +52,12 @@ spec:
   configuration: {model: claude-sonnet-5, sandbox: read-only}
   security: {networkAccess: allowlist, allowedHosts: [api.anthropic.com]}
 ---
+---
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: design-system-agent}
+spec:
+  type: agent
+  adapter: claude-code/v1
+  configuration: {model: claude-sonnet-5, sandbox: read-only}
+  security: {networkAccess: allowlist, allowedHosts: [api.anthropic.com]}

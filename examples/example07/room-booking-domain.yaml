@@ -1,5 +1,5 @@
 # Meeting room booking: every artifact below was produced by the AI Native pack live (author-prd, domain-discovery, architect,
-# spec-all, design-all, plan-all on claude-sonnet-5), nothing by hand but the brief. See README.md. Every artifact is at
+# spec-all, design-all (http-api, data-schema, ui), design-system, plan-all on claude-sonnet-5), nothing by hand but the brief. See README.md. Every artifact is at
 # revision 1: the rounds collapsed into the revision that passed.
 apiVersion: sdd.persimmon.ai/v1
 kind: Prd
@@ -2818,6 +2818,525 @@ spec:
         question: AG-1's Booking attributes and invariants do not include a field distinguishing a walk-in claim from a scheduled booking, yet Claim Walk-In Room, Expire Walk-In Hold and the Walk-In Hold Expiry Policy (POL-2) must act only on walk-in holds. Is this an implicit value of an existing attribute, or does the DomainModel need an explicit origin/type attribute on Booking?
 ---
 apiVersion: sdd.persimmon.ai/v1
+kind: DesignSystem
+metadata:
+  name: room-booking-prd-design-system.r1
+spec:
+  identity:
+    id: room-booking-prd-design-system
+    revision: 1
+  content:
+    title: Meeting Room Booking — Design System
+    prd: room-booking-prd
+    decisions: []
+    openQuestions:
+      - id: Q-1
+        question: Neither the Prd nor the Architecture names a company brand colour. Is there an existing corporate colour this product must use instead of the neutral professional blue chosen here?
+      - id: Q-2
+        question: Neither document names a typeface the office already owns or standardises on. Is there a licensed/brand typeface to use instead of Inter, the open, highly legible neutral chosen here?
+      - id: Q-3
+        question: The Door Status Screen and Floor Status Screen are kiosk displays (Architecture BB-6, BB-7), but neither document states their mounting distance. This file assumes the door screen is read from arm's length to a few metres (someone approaching the room) and the floor screen is read from across the room (several metres, from a desk). Is that right, or does either screen need larger/smaller type?
+    document:
+      mediaType: text/markdown
+      content: |-
+        ---
+        version: alpha
+        name: Meeting Room Booking
+        colors:
+          primary: "#1D4ED8"
+          on-primary: "#FFFFFF"
+          primary-hover: "#1E40AF"
+          secondary: "#4B5563"
+          on-secondary: "#FFFFFF"
+          surface: "#FFFFFF"
+          on-surface: "#1F2937"
+          surface-variant: "#F3F4F6"
+          on-surface-variant: "#4B5563"
+          outline: "#D1D5DB"
+          error: "#B91C1C"
+          on-error: "#FFFFFF"
+          success: "#1B5E20"
+          on-success: "#FFFFFF"
+          warning: "#92400E"
+          on-warning: "#FFFFFF"
+          occupied: "#374151"
+          on-occupied: "#FFFFFF"
+        typography:
+          display-lg:
+            fontFamily: "Inter, -apple-system, 'Segoe UI', Roboto, sans-serif"
+            fontSize: "80px"
+            fontWeight: 700
+            lineHeight: 1.1
+          display-md:
+            fontFamily: "Inter, -apple-system, 'Segoe UI', Roboto, sans-serif"
+            fontSize: "56px"
+            fontWeight: 700
+            lineHeight: 1.15
+          headline-lg:
+            fontFamily: "Inter, -apple-system, 'Segoe UI', Roboto, sans-serif"
+            fontSize: "32px"
+            fontWeight: 700
+            lineHeight: 1.25
+          headline-md:
+            fontFamily: "Inter, -apple-system, 'Segoe UI', Roboto, sans-serif"
+            fontSize: "24px"
+            fontWeight: 600
+            lineHeight: 1.3
+          title-lg:
+            fontFamily: "Inter, -apple-system, 'Segoe UI', Roboto, sans-serif"
+            fontSize: "20px"
+            fontWeight: 600
+            lineHeight: 1.3
+          title-md:
+            fontFamily: "Inter, -apple-system, 'Segoe UI', Roboto, sans-serif"
+            fontSize: "18px"
+            fontWeight: 600
+            lineHeight: 1.35
+          body-lg:
+            fontFamily: "Inter, -apple-system, 'Segoe UI', Roboto, sans-serif"
+            fontSize: "16px"
+            fontWeight: 400
+            lineHeight: 1.5
+          body-md:
+            fontFamily: "Inter, -apple-system, 'Segoe UI', Roboto, sans-serif"
+            fontSize: "14px"
+            fontWeight: 400
+            lineHeight: 1.5
+          body-sm:
+            fontFamily: "Inter, -apple-system, 'Segoe UI', Roboto, sans-serif"
+            fontSize: "13px"
+            fontWeight: 400
+            lineHeight: 1.4
+          label-lg:
+            fontFamily: "Inter, -apple-system, 'Segoe UI', Roboto, sans-serif"
+            fontSize: "14px"
+            fontWeight: 600
+            lineHeight: 1.2
+          label-md:
+            fontFamily: "Inter, -apple-system, 'Segoe UI', Roboto, sans-serif"
+            fontSize: "13px"
+            fontWeight: 600
+            lineHeight: 1.2
+          label-sm:
+            fontFamily: "Inter, -apple-system, 'Segoe UI', Roboto, sans-serif"
+            fontSize: "11px"
+            fontWeight: 600
+            lineHeight: 1.2
+        spacing:
+          xs: "4px"
+          sm: "8px"
+          md: "16px"
+          lg: "24px"
+          xl: "32px"
+          gutter: "16px"
+          margin: "24px"
+        rounded:
+          sm: "4px"
+          md: "8px"
+          lg: "16px"
+          full: "9999px"
+        components:
+          button-primary:
+            backgroundColor: "{colors.primary}"
+            textColor: "{colors.on-primary}"
+            typography: "{typography.label-lg}"
+            rounded: "{rounded.md}"
+            padding: "{spacing.sm} {spacing.lg}"
+          button-primary-hover:
+            backgroundColor: "{colors.primary-hover}"
+            textColor: "{colors.on-primary}"
+            typography: "{typography.label-lg}"
+            rounded: "{rounded.md}"
+            padding: "{spacing.sm} {spacing.lg}"
+          button-primary-disabled:
+            backgroundColor: "{colors.surface-variant}"
+            textColor: "{colors.on-surface-variant}"
+            typography: "{typography.label-lg}"
+            rounded: "{rounded.md}"
+            padding: "{spacing.sm} {spacing.lg}"
+          button-secondary:
+            backgroundColor: "{colors.surface-variant}"
+            textColor: "{colors.secondary}"
+            typography: "{typography.label-lg}"
+            rounded: "{rounded.md}"
+            padding: "{spacing.sm} {spacing.lg}"
+          button-secondary-hover:
+            backgroundColor: "{colors.outline}"
+            textColor: "{colors.secondary}"
+            typography: "{typography.label-lg}"
+            rounded: "{rounded.md}"
+            padding: "{spacing.sm} {spacing.lg}"
+          button-secondary-disabled:
+            backgroundColor: "{colors.surface}"
+            textColor: "{colors.on-surface-variant}"
+            typography: "{typography.label-lg}"
+            rounded: "{rounded.md}"
+            padding: "{spacing.sm} {spacing.lg}"
+          input:
+            backgroundColor: "{colors.surface-variant}"
+            textColor: "{colors.on-surface}"
+            typography: "{typography.body-md}"
+            rounded: "{rounded.sm}"
+            padding: "{spacing.sm} {spacing.md}"
+          input-error:
+            backgroundColor: "{colors.surface-variant}"
+            textColor: "{colors.error}"
+            typography: "{typography.body-md}"
+            rounded: "{rounded.sm}"
+            padding: "{spacing.sm} {spacing.md}"
+          card:
+            backgroundColor: "{colors.surface}"
+            textColor: "{colors.on-surface}"
+            typography: "{typography.title-lg}"
+            rounded: "{rounded.lg}"
+            padding: "{spacing.md}"
+          status-badge:
+            backgroundColor: "{colors.success}"
+            textColor: "{colors.on-success}"
+            typography: "{typography.label-md}"
+            rounded: "{rounded.full}"
+            padding: "{spacing.xs} {spacing.sm}"
+          status-badge-occupied:
+            backgroundColor: "{colors.occupied}"
+            textColor: "{colors.on-occupied}"
+            typography: "{typography.label-md}"
+            rounded: "{rounded.full}"
+            padding: "{spacing.xs} {spacing.sm}"
+          status-badge-held:
+            backgroundColor: "{colors.warning}"
+            textColor: "{colors.on-warning}"
+            typography: "{typography.label-md}"
+            rounded: "{rounded.full}"
+            padding: "{spacing.xs} {spacing.sm}"
+          status-badge-offline:
+            backgroundColor: "{colors.error}"
+            textColor: "{colors.on-error}"
+            typography: "{typography.label-md}"
+            rounded: "{rounded.full}"
+            padding: "{spacing.xs} {spacing.sm}"
+          door-status-panel:
+            backgroundColor: "{colors.surface}"
+            textColor: "{colors.on-surface}"
+            typography: "{typography.display-md}"
+            rounded: "{rounded.lg}"
+            padding: "{spacing.xl}"
+          door-status-panel-offline:
+            backgroundColor: "{colors.error}"
+            textColor: "{colors.on-error}"
+            typography: "{typography.display-md}"
+            rounded: "{rounded.lg}"
+            padding: "{spacing.xl}"
+          floor-room-tile:
+            backgroundColor: "{colors.surface}"
+            textColor: "{colors.on-surface}"
+            typography: "{typography.display-lg}"
+            rounded: "{rounded.lg}"
+            padding: "{spacing.lg}"
+          floor-room-tile-offline:
+            backgroundColor: "{colors.error}"
+            textColor: "{colors.on-error}"
+            typography: "{typography.display-lg}"
+            rounded: "{rounded.lg}"
+            padding: "{spacing.lg}"
+        ---
+
+        ## Overview
+
+        Meeting Room Booking is looked at by four kinds of people, on four kinds of screens. The **Employee** (PRD) opens the **Employee Booking App** (Architecture BB-5, a web/mobile client) at their own desk or on their phone to find a room, book it, cancel it or check in — a normal screen at normal reading distance, with touch targets sized for a thumb on a phone as readily as a mouse on a laptop. The **Walk-in employee** (PRD) stands at a room's door and scans the QR code shown on the **Door Status Screen** (BB-6, a kiosk mounted beside that door) with their own device — this screen is read from arm's length to a few metres by someone deciding, in passing, whether to walk in. The **Floor Status Screen** (BB-7, a shared kiosk/dashboard) hangs where anyone on the floor can see it from their desk, several metres away, to check at a glance which rooms are free without walking over (G-3, SC-5) — it needs the largest, highest-contrast type in the system. **Office management** (PRD) does not view the Monthly Utilisation Report on a screen this file describes: Architecture (BB-1's Monthly Utilisation Report interface) delivers it by email/file export, not through any client block's UI, so no typography or layout decision in this file governs its presentation.
+
+        The product should feel calm, factual and immediately trustworthy: an office utility that tells the truth about a room's status without decoration. It is not a consumer or marketing surface — no playful illustration, no marketing colour, no motion for its own sake. Status is the product's one piece of drama (free, held, occupied, offline), so colour and scale are spent there; everything else stays quiet, neutral surfaces and restrained type so status reads instantly.
+
+        ## Colors
+
+        `primary` (`#1D4ED8`), a measured blue, is reserved for the one action the product most wants taken: booking or confirming a room (`button-primary`). `primary-hover` (`#1E40AF`) darkens it for pressed/hover feedback. `secondary` (`#4B5563`) is the quieter action colour for `button-secondary` (cancel, back) — never the default action, never alarming.
+
+        `surface` (`#FFFFFF`) and `on-surface` (`#1F2937`) are the default page and card background/text pair used throughout the booking app and both kiosk screens. `surface-variant` (`#F3F4F6`) with `on-surface-variant` (`#4B5563`) is the muted fill this file reaches for wherever a control needs to read as present without competing with `primary` — the default `input` and `button-secondary` fill, disabled controls, and secondary text such as form hints, timestamps and captions. `outline` (`#D1D5DB`) is reserved for `button-secondary-hover`'s fill; it is never used for text.
+
+        Four colours exist solely to answer the one question every screen in this product ultimately asks — *what is this room's status?* — and they appear nowhere else, so they stay legible at a glance: `success` (`#1B5E20`) means the room is free right now; `occupied` (`#374151`) means it is currently booked and in use; `warning` (`#92400E`) means the room is held but about to turn over (a walk-in hold, or a booking approaching its no-show window); `error` (`#B91C1C`) means either a booking action was refused (a clash, a bad request) or — on a door/floor screen — that the screen's connection has gone stale (RK-1) and its status cannot be trusted. Each has a dedicated `on-*` text colour for AA contrast on its own fill.
+
+        ## Typography
+
+        One family, Inter, runs across every surface so the booking app and both kiosks read as one product; scale — not font choice — is what changes with viewing distance. `display-lg` (80px) exists only for `floor-room-tile` (and its `-offline` state): a status word like FREE or BUSY must resolve from across the room without anyone walking closer (SC-5). `display-md` (56px) is the Door Status Screen's status headline (and its `-offline` state), sized for someone a few metres out deciding whether to approach. `headline-lg`/`headline-md` title the booking app's own screens ("Book a room", "My bookings") and the floor screen's room name above its status. `title-lg`/`title-md` name things at reading distance — a room card's name and capacity, a dialog's heading. `body-lg`/`body-md`/`body-sm` carry the booking form and secondary detail, in descending emphasis. `label-lg` sets every button; `label-md` sets badge text and form labels; `label-sm` is reserved for the small, frequent timestamps this product lives on — "held until 3:40 PM", "check in within 10 min", "no-show in 2 min", "last updated at HH:MM".
+
+        ## Layout
+
+        The booking app is a single-column, form-first layout on phone widths and a two-column list-plus-detail layout from tablet width up, with `spacing.margin` (24px) as the page's outer margin and `spacing.gutter` (16px) between list items and form fields — generous enough for a thumb, not so generous that a room list needs scrolling to compare options. The Monthly Utilisation Report has no layout in this file: Architecture delivers it as an email/file export from the Room Booking Service (BB-1), not as a screen any client block renders, so its presentation is out of this design system's scope.
+
+        Both kiosk screens are full-bleed, single-purpose layouts with no navigation chrome — there is nothing to tap, per CC-6, so there is nothing to compete with the status for attention. The Door Status Screen stacks, centred, top to bottom: room name (`title-lg`), status (`display-md` in a `door-status-panel`), holder and held-until time (`body-lg`), what's-next (`body-md`), and the check-in QR code anchored at the bottom. The Floor Status Screen is a responsive grid of `floor-room-tile`s, one per room, at `spacing.lg` gutters, each tile showing room name (`headline-md`) over its status (`display-lg`) — the grid reflows by room count, never by scrolling, since every room must be visible without interaction.
+
+        ## Elevation & Depth
+
+        Depth is used sparingly and only to say "this sits above the page," never for decoration. The default surface is flat. A `card` lifts only slightly off the page background with a soft shadow (`0 1px 3px rgba(0,0,0,0.08)`), enough to separate one room option from the next. Modal confirmations (e.g. confirming a cancellation) sit one level above that (`0 4px 16px rgba(0,0,0,0.16)`) with a dimmed scrim behind them. Both kiosk screens are intentionally flat — `door-status-panel` and `floor-room-tile` carry no border and no shadow — because a kiosk is read, not navigated, and shadow depth has nothing to communicate when there's only one layer on screen; a room tile is set apart from its neighbours by the grid's `spacing.lg` gutter and its own status colour, not by elevation.
+
+        ## Shapes
+
+        Rounding scales with how much attention a shape should draw and how it's touched. `rounded.sm` (4px) is for inputs — a small, precise correction that doesn't fight the eye on a dense form. `rounded.md` (8px) is for buttons, giving primary and secondary actions a touch-friendly, confident shape. `rounded.lg` (16px) is for the larger containers — cards, the door panel, floor tiles — soft enough to feel calm at both desk and kiosk scale. `rounded.full` is reserved entirely for `status-badge` and its variants: a pill is this product's one consistent shorthand for "this is a status," so it is never borrowed for anything else.
+
+        ## Components
+
+        `button-primary` carries the one default action per screen — book, confirm, check in — in `primary`; its `-hover` state darkens to `primary-hover` and its `-disabled` state drops to the muted `surface-variant`/`on-surface-variant` pair so a greyed-out "Book" reads as unavailable, not broken. `button-secondary` is a filled, lower-emphasis twin for cancel and back actions — a quiet `surface-variant` fill instead of `primary`'s solid blue — darkening to `outline` on hover and fading to a plain, borderless `surface` fill with muted text when disabled.
+
+        `input` is the shared field for every booking form value — date, time, attendee count, video need — set in a quiet `surface-variant` fill; its `-error` variant turns the field's text `error`-red when a request would violate a booking rule (BR-1–BR-7), so the refusal is visible at the field before any error text is read.
+
+        `card` is the room-option tile in the booking app's results list, lifted off the page by the shadow described in Elevation & Depth.
+
+        `status-badge` is the one component shared by all three live surfaces — the booking app's room list, the Door Status Screen, and the Floor Status Screen — because "what is this room's status" must look identical everywhere it's asked. Its default fill is `success` (free); `status-badge-occupied`, `status-badge-held` and `status-badge-offline` cover booked, held-pending-turnover, and stale/disconnected respectively.
+
+        `door-status-panel` and `floor-room-tile` are the two kiosk-only containers described in Layout: the former holds one room's full detail at door-reading distance, the latter holds one room's status at across-the-room distance, both built from the same `status-badge` colours so a room's state never contradicts itself between screens. When a kiosk's connection goes stale (RK-1), the whole panel or tile switches to `door-status-panel-offline` or `floor-room-tile-offline` — the same `error`/`on-error` fill as `status-badge-offline`, now covering the entire surface instead of a small pill — with its usual status text replaced by a `label-sm` line reading "last updated at HH:MM", so staleness and its age are unmistakable even glanced at from across the floor.
+
+        ## Do's and Don'ts
+
+        **Do** reserve `success`/`occupied`/`warning`/`error` exclusively for room and connection status — if a colour starts meaning more than one thing, status stops being trustworthy at a glance. **Do** keep kiosk screens read-only and chrome-free (CC-6); if a future screen needs an action, it belongs in the booking app, not the door or floor display. **Do** switch the whole panel or tile to `door-status-panel-offline` / `floor-room-tile-offline` with its last-update time the moment a kiosk's data goes stale, per RK-1 — never let a screen hold its last-known colour silently. **Do** pair every status colour with its matching `on-*` text colour; never place status text over `surface` or vice versa.
+
+        **Don't** use `primary` for anything other than the page's one default action — a screen with two blue buttons has no default action. **Don't** introduce a shadow or elevation step beyond the three defined here; a kiosk tile does not need to "float." **Don't** shrink `display-lg` or `display-md` below their set sizes to fit more on a kiosk screen — reduce what's shown (fewer rooms per view, pagination) before shrinking type that has to be read from a distance. **Don't** use the full-rounded shape for anything but a status pill.
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: Design
+metadata:
+  name: room-booking-prd-architecture-bb-5-ui.r1
+spec:
+  identity:
+    id: room-booking-prd-architecture-bb-5-ui
+    revision: 1
+  content:
+    title: Employee Booking App — Screens
+    type: ui
+    architecture: room-booking-prd-architecture
+    block: BB-5
+    domainModel: room-booking-model
+    designSystem: room-booking-prd-design-system
+    document:
+      mediaType: text/markdown
+      content: |-
+        ## Book a Room
+
+        **Purpose.** An employee enters a meeting's date, time slot, attendee count and video need, and books a room that is free and fits every one of those requirements, with no advance-notice minimum for the room's current 15-minute slot (BR-11).
+
+        **Data.** Room Status View for each candidate room that could fit the request: *Room Status View has free status*, *Room Status View has holder*, *Room Status View has held until*, *Room Status View has next booking*. The app reads this per room as the employee adjusts the slot, so only rooms free for the whole requested slot are offered.
+
+        **Actions.**
+        - *Book a Room: Book* — submits the **Book Room** command via `POST /bookings` (`bookRoom`), carrying the entered date, start time, end time, attendee count and video need.
+
+        **States.**
+        - *Empty* — no room is both free for the whole slot and large/equipped enough: "No room is free and fits this meeting."
+        - *Loading* — checking candidate rooms' status while the form's slot or criteria change, and while the booking request is in flight.
+        - *Refusal* — the booking is refused and no room is created, naming the broken rule: too many attendees for every fitting room (BR-1), video need unmet by every free room (BR-2), the slot does not begin and end on a 15-minute boundary (BR-3), the slot falls outside 08:00–20:00 (BR-4), the slot exceeds 4 hours (BR-5), the slot is more than 30 days out (BR-6), or every room that fits is already booked for the slot (BR-7).
+
+        **Layout.** Single-column, form-first on phone widths (two-column list-plus-detail from tablet width up), outer margin `spacing.margin`, fields spaced at `spacing.gutter`. Date, start time, end time, attendee count and video-need fields use `input`, switching to `input-error` the moment a refused field is identified. Candidate rooms render as a list of `card`s titled in `title-md`, each carrying a `status-badge` (free), `status-badge-occupied` (booked) or `status-badge-held` (walk-in hold or pending turnover) per the room's *free status*, with held-until/next-booking text in `label-sm`. The *Book* control is `button-primary`, `button-primary-disabled` until at least one fitting, free room is found for the slot.
+
+        ## Room Status
+
+        **Purpose.** An employee or walk-in employee opens one room's live status — reached from a booking just made, or by scanning that room's door QR code — to cancel their own booking, check in to it, or claim the room as a walk-in.
+
+        **Data.** Room Status View for the one room: *Room Status View has free status*, *Room Status View has holder*, *Room Status View has held until*, *Room Status View has next booking*.
+
+        **Actions.**
+        - *Room Status: Cancel* — submits the **Cancel Booking** command via `POST /bookings/{bookingId}/cancel` (`cancelBooking`); shown when the viewer holds the room's current booking and its start time has not passed.
+        - *Room Status: Check In* — submits the **Check In Booking** command via `POST /bookings/{bookingId}/check-in` (`checkInBooking`); shown when the viewer holds the room's current booking and its scheduled start has arrived.
+        - *Room Status: Claim Walk-In* — submits the **Claim Walk-In Room** command via `POST /rooms/{roomId}/walk-in-claims` (`claimWalkInRoom`); shown when the room's free status is free.
+
+        **States.**
+        - *Empty* — the room has no holder and no next booking: fully free, nothing to cancel or check into.
+        - *Loading* — refreshing the room's live status.
+        - *Refusal* — Cancel refused because the viewer is not the booking's owner or its start time has already passed (BR-8); Check In refused because the viewer is not the booking's owner or the check-in window after the scheduled start has closed (BR-9); Claim Walk-In refused because the room already has an active booking or hold at the moment of claim.
+
+        **Layout.** A single `card` centred on the page at `spacing.margin`, headed by the room name in `title-lg` and a `status-badge` / `status-badge-occupied` / `status-badge-held` matching the room's current *free status*; held-until and next-booking read in `label-sm`. Exactly one `button-primary` default action shows per state — *Check In* when the viewer's booking has started, *Claim Walk-In* when the room is free — with *Cancel* always rendered as `button-secondary` alongside it when the viewer holds the room.
+    elements:
+      - id: EL-1
+        name: Book a Room
+        realises:
+          kind: readModel
+          name: Room Status View
+        rules: []
+      - id: EL-2
+        name: "Book a Room: Book"
+        realises:
+          kind: command
+          name: Book Room
+        rules:
+          - BR-1
+          - BR-2
+          - BR-3
+          - BR-4
+          - BR-5
+          - BR-6
+          - BR-7
+      - id: EL-3
+        name: Room Status
+        realises:
+          kind: readModel
+          name: Room Status View
+        rules: []
+      - id: EL-4
+        name: "Room Status: Cancel"
+        realises:
+          kind: command
+          name: Cancel Booking
+        rules:
+          - BR-8
+      - id: EL-5
+        name: "Room Status: Check In"
+        realises:
+          kind: command
+          name: Check In Booking
+        rules:
+          - BR-9
+      - id: EL-6
+        name: "Room Status: Claim Walk-In"
+        realises:
+          kind: command
+          name: Claim Walk-In Room
+        rules: []
+    rules:
+      - BR-1
+      - BR-2
+      - BR-3
+      - BR-4
+      - BR-5
+      - BR-6
+      - BR-7
+      - BR-8
+      - BR-9
+    decisions:
+      - room-booking-prd-adr-1
+      - room-booking-prd-adr-2
+      - room-booking-prd-adr-3
+      - room-booking-prd-adr-4
+      - room-booking-prd-adr-5
+    openQuestions:
+      - id: Q-1
+        question: The Room Booking Service's Booking Commands API (room-booking-prd-architecture-bb-1-http-api) exposes only GET /rooms/{roomId}/status for a single, already-known room; it names no operation to list or search rooms by fitting/free criteria. Architecture REL-3 requires the booking app to query which rooms are currently free before offering them for a slot (BR-1, BR-2, BR-7) — what operation does the Book a Room screen actually call to enumerate candidate rooms, and is it missing from that Design or out of scope for BB-1's interface as specified?
+      - id: Q-2
+        question: PRD open question Q-2, carried into Architecture C-3 and RK-2, leaves open whether check-in is scanned with the employee's own device or a door reader. This decides whether the Room Status screen's Check In action always runs under the employee's own SSO session, or must also support an unauthenticated door-reader device acting on the employee's behalf.
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: Design
+metadata:
+  name: room-booking-prd-architecture-bb-6-ui.r1
+spec:
+  identity:
+    id: room-booking-prd-architecture-bb-6-ui
+    revision: 1
+  content:
+    title: Door Status Screen — Door Status Design
+    type: ui
+    architecture: room-booking-prd-architecture
+    block: BB-6
+    domainModel: room-booking-model
+    designSystem: room-booking-prd-design-system
+    document:
+      mediaType: text/markdown
+      content: |-
+        ## Door Status
+
+        ### Purpose
+
+        Shows, for the one room this kiosk sits outside, its current status, who holds it, until when, and what's next, so a passer-by or the room's own booked employee can tell at a glance whether to enter, without walking the floor (QG-3, SC-5), and shows the QR code used to check in at this room. The screen is read-only: per CC-6, no booking action is taken at the screen itself, so its own availability or staleness can never block a booking.
+
+        ### Data
+
+        Reads this room's Room Status View (Architecture BB-1, interface Room Status View; carried by `GET /rooms/{roomId}/status` on the Booking Commands API):
+
+        - Room Status View has free status — whether the room is currently free.
+        - Room Status View has holder — the employee or walk-in currently holding the room, when occupied or held.
+        - Room Status View has held until — the time the current hold or booking ends.
+        - Room Status View has next booking — a short summary (owner, start time) of the room's next scheduled booking, when one exists.
+
+        The room's own name/identity and its printed check-in QR code are fixed per physical installation (this kiosk is mounted at one specific room, C-2) and are not fields of the Room Status View; see Q-3.
+
+        ### Actions
+
+        None. Per CC-6 the Door Status Screen submits no command itself. The QR code it displays encodes this room's identity so that a visitor's own device, scanning it through the Employee Booking App (BB-5), can submit Check In Booking or Claim Walk-In Room against the Booking Commands API (`POST /bookings/{bookingId}/check-in`, `POST /rooms/{roomId}/walk-in-claims`); any refusal those commands produce (BR-9, or the room already held at the time of claim) is shown on the scanning device, not here. Whether the scan is read by the visitor's own device or by a reader built into this kiosk is open (C-3, Q-2); either way this screen itself issues no request.
+
+        ### States
+
+        - Loading — the screen has not yet received a response from the Room Status View query; shows a neutral placeholder in place of the `status-badge`, no holder or held-until text.
+        - Free / idle — free status is true; shows only the status badge (`success`) and the room name; holder, held-until and what's-next are empty since none apply.
+        - Held or booked — free status is false; shows holder, held-until (`body-lg`) and what's-next (`body-md`) alongside the matching status badge (`occupied` for a confirmed booking in progress, `warning` for a walk-in hold or a booking nearing its no-show window).
+        - Stale / offline — the screen's connection to the Room Booking Service has gone stale past a timeout (RK-1); shows `status-badge-offline` and an explicit "status unavailable" message in place of the last-known status, never holding the prior value silently.
+
+        ### Layout
+
+        Full-bleed, single-purpose, no navigation chrome (CC-6), stacked and centred top to bottom per the DesignSystem's Door Status Screen layout: the room's name (`title-lg`, static per installation) above the status headline (`display-md`, inside a `door-status-panel`, coloured by `status-badge`/`status-badge-occupied`/`status-badge-held`/`status-badge-offline`), then holder and held-until (`body-lg`), then what's-next (`body-md`), with the room's check-in QR code anchored at the bottom. Sized for someone reading from arm's length to a few metres while approaching the room (DesignSystem Q-3).
+    elements:
+      - id: EL-1
+        name: Door Status
+        realises:
+          kind: readModel
+          name: Room Status View
+        rules: []
+    rules: []
+    decisions: []
+    openQuestions:
+      - id: Q-1
+        question: PRD/Architecture open question (C-3, RK-2) leaves whether check-in at a room is scanned by the employee's own device or by a reader built into this kiosk. This Design assumes the screen only displays a static QR code and issues no request itself either way, but if a door reader is chosen, the Door Status Screen would need its own scanning and command-submission behaviour, which is out of scope here.
+      - id: Q-2
+        question: DesignSystem Q-3 assumes the Door Status Screen is read from arm's length to a few metres by someone approaching the room. If that mounting distance is wrong, the `display-md`/`title-lg` sizes this Design relies on may need to change.
+      - id: Q-3
+        question: The DomainModel's Room Status View names no field for the room's own name or identity, yet the DesignSystem's Door Status Screen layout shows a room name above the status. This Design assumes the room name is fixed, physical-installation configuration read outside the Room Status View query, not a queried field; confirm that assumption or add a room-identity field to the read model.
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: Design
+metadata:
+  name: room-booking-prd-architecture-bb-7-ui.r1
+spec:
+  identity:
+    id: room-booking-prd-architecture-bb-7-ui
+    revision: 1
+  content:
+    title: Floor Status Screen
+    type: ui
+    architecture: room-booking-prd-architecture
+    block: BB-7
+    domainModel: room-booking-model
+    designSystem: room-booking-prd-design-system
+    document:
+      mediaType: text/markdown
+      content: |-
+        ## Floor Status
+
+        **Purpose**
+
+        Lists the current status of every room on the floor on one screen, so anyone can see at a glance which rooms are available without walking the floor or leaving their desk (QG-3, SC-5, REL-12).
+
+        **Data**
+
+        For every room, the Room Status View:
+        - free status (`Room Status View has free status`) — drives which status badge the tile shows.
+        - holder (`Room Status View has holder`) — shown when the room is held or occupied.
+        - held until (`Room Status View has held until`) — shown when the room is held or occupied.
+        - next booking (`Room Status View has next booking`) — shown as what's next for the room.
+        - the room's id (structural, not a domain word; identifies which tile is which room — see Q-1 on whether a room also has a displayable name).
+
+        **Actions**
+
+        None. The Floor Status Screen is a read-only display; no control on it submits a command, so a room's availability here can never be blocked by this screen itself (CC-6).
+
+        **States**
+
+        - Loading: while the initial Room Status View query for all rooms is in flight, each tile shows a loading placeholder instead of a status badge.
+        - Stale/offline: if the connection to the Room Status View is lost or a tile's data goes stale, that tile (or the whole screen) switches to the offline status badge rather than silently holding its last-known status (RK-1, C-5).
+        - No refusal state applies: the screen submits no command, so no `BR-n` can be broken here.
+
+        **Layout**
+
+        A full-bleed, chrome-free kiosk layout with no navigation (per CC-6, there is nothing to tap). A responsive grid of `floor-room-tile` components, one per room, at `spacing.lg` gutters, reflowing by room count rather than scrolling so every room stays visible without interaction. Each tile shows the room's id in `headline-md` above its status in `display-lg`, coloured with the shared `status-badge` family: `status-badge` (free), `status-badge-occupied` (booked and in use), `status-badge-held` (walk-in hold or approaching no-show turnover), `status-badge-offline` (stale/disconnected).
+    elements:
+      - id: EL-1
+        name: Floor Status
+        realises:
+          kind: readModel
+          name: Room Status View
+        rules: []
+    rules: []
+    decisions: []
+    openQuestions:
+      - id: Q-1
+        question: The DomainModel's Room entity has only seating capacity and video capability (no name fact type), and the Room Status View carries no room identifier field either, yet the DesignSystem's floor-room-tile shows a room name above its status. Should each tile display the room's id (structural, used here) or does the domain need a 'Room has name' fact type for a human-readable label?
+      - id: Q-2
+        question: The Glossary types 'Room Status View has held until' and 'has next booking' as plain strings with no format (same gap as Q-3 in the Booking Commands API Design). This screen assumes a local-time-of-day string in the office's single time zone (C-4); the exact wire format is unconfirmed.
+---
+apiVersion: sdd.persimmon.ai/v1
 kind: Plan
 metadata:
   name: room-booking-prd-cap-1-plan.r1
@@ -2826,55 +3345,31 @@ spec:
     id: room-booking-prd-cap-1-plan
     revision: 1
   content:
-    title: Book a Room
+    title: Book a Room — Plan
     spec: room-booking-prd-cap-1
     architecture: room-booking-prd-architecture
     designs:
       - room-booking-prd-architecture-bb-1-http-api
       - room-booking-prd-architecture-bb-1-data-schema
+      - room-booking-prd-architecture-bb-5-ui
     tasks:
       - id: T-1
-        title: Hold room seating capacity and video-conferencing capability as configuration
+        title: Persist rooms, bookings and booking-limit configuration
         block: BB-1
-        description: Give each Room a seating capacity and a video-conferencing capability as configuration data that office management edits directly, for the Room Schedule aggregate to check a requested attendee count and video need against (BR-1, BR-2).
-        covers:
-          - FR-1
-          - FR-2
+        covers: []
+        verifiedBy: []
         elements:
           - design: room-booking-prd-architecture-bb-1-data-schema
             element: EL-1
-        dependsOn: []
-        verifiedBy: []
-      - id: T-2
-        title: Hold the booking-limit parameters as configuration
-        block: BB-1
-        description: Hold the slot granularity, booking-hours window, maximum booking duration and maximum advance-booking window as configuration data office management edits directly, for the Room Schedule aggregate to check a requested time slot against (BR-3, BR-4, BR-5, BR-6).
-        covers:
-          - FR-3
-          - FR-4
-          - FR-5
-          - FR-6
-        elements:
+          - design: room-booking-prd-architecture-bb-1-data-schema
+            element: EL-2
           - design: room-booking-prd-architecture-bb-1-data-schema
             element: EL-3
         dependsOn: []
-        verifiedBy: []
-      - id: T-3
-        title: Record bookings and enforce no overlapping active booking per room
+        description: Hold each room's seating capacity and video-conferencing capability, each booking's date, slot, attendee count, video need and status, and the booking-limit parameters (slot granularity, booking window, max duration, max advance) as configuration data, in the Room Schedule aggregate's store, so the Book Room command below can check a candidate room and slot against current data without a compiled constant.
+      - id: T-2
+        title: Book Room command finds a fitting, free room for the requested slot or refuses
         block: BB-1
-        description: Record each Booking against its Room with date, time slot, attendee count and video need, and let the Room Schedule aggregate check a requested slot against a room's existing active bookings so no two active bookings for the same room overlap (BR-7).
-        covers:
-          - FR-7
-        elements:
-          - design: room-booking-prd-architecture-bb-1-data-schema
-            element: EL-2
-        dependsOn:
-          - T-1
-        verifiedBy: []
-      - id: T-4
-        title: "Execute Book Room: select a fitting, free room or report none available"
-        block: BB-1
-        description: "Execute the Book Room command: have the Room Schedule aggregate offer only a room whose seating capacity and, where video is needed, video-conferencing capability fit the request (BR-1, BR-2), whose requested slot sits on the slot granularity, inside the booking-hours window, within the maximum duration and within the maximum advance window (BR-3, BR-4, BR-5, BR-6), allowing a request for the room's current slot with no advance notice (BR-11), and that has no overlapping active booking (BR-7); when such a room exists, record the booking and confirm it to the employee, and when none exists, report that no room is available."
         covers:
           - FR-1
           - FR-2
@@ -2886,13 +3381,6 @@ spec:
           - FR-8
           - FR-9
           - FR-10
-        elements:
-          - design: room-booking-prd-architecture-bb-1-http-api
-            element: EL-1
-        dependsOn:
-          - T-1
-          - T-2
-          - T-3
         verifiedBy:
           - AC-1
           - AC-2
@@ -2909,9 +3397,67 @@ spec:
           - AC-13
           - AC-14
           - AC-15
+        elements:
+          - design: room-booking-prd-architecture-bb-1-http-api
+            element: EL-1
+        dependsOn:
+          - T-1
+        description: Given a requested date, time slot, attendee count and video need, search rooms for one whose seating capacity and video capability fit (BR-1, BR-2), whose slot sits on a 15-minute boundary within opening hours, within the 4-hour and 30-day limits (BR-3 to BR-6), and that has no overlapping active booking (BR-7), allowing the room's own current 15-minute slot with no advance-notice minimum (BR-11). Record Room Booked for the first such room found and confirm it, refusing with the broken rule when a specific room is requested that fails one of BR-1 to BR-7, or reporting No Available Room Found when no room qualifies at all.
+      - id: T-3
+        title: Room Status View reports a room's current status for candidate checks
+        block: BB-1
+        covers: []
+        verifiedBy: []
+        elements:
+          - design: room-booking-prd-architecture-bb-1-http-api
+            element: EL-7
+        dependsOn:
+          - T-1
+        description: Serve each room's current free/held/booked status, holder, held-until time and what's next as a query over the Room Schedule's store, so a candidate room can be checked for freedom over the requested slot before Book Room is submitted.
+      - id: T-4
+        title: Book a Room screen lets an employee submit criteria and see the outcome
+        block: BB-5
+        covers:
+          - FR-1
+          - FR-2
+          - FR-3
+          - FR-4
+          - FR-5
+          - FR-6
+          - FR-7
+          - FR-8
+          - FR-9
+          - FR-10
+        verifiedBy:
+          - AC-1
+          - AC-2
+          - AC-3
+          - AC-4
+          - AC-5
+          - AC-6
+          - AC-7
+          - AC-8
+          - AC-9
+          - AC-10
+          - AC-11
+          - AC-12
+          - AC-13
+          - AC-14
+          - AC-15
+        elements:
+          - design: room-booking-prd-architecture-bb-5-ui
+            element: EL-1
+          - design: room-booking-prd-architecture-bb-5-ui
+            element: EL-2
+        dependsOn:
+          - T-2
+          - T-3
+        description: Let the employee enter a date, time slot, attendee count and video need, show candidate rooms by reading Room Status View as the criteria change, submit Book Room, and show the confirmed room on success or, on refusal, the broken rule (BR-1 to BR-7) or that no room is available for the slot.
     openQuestions:
       - id: Q-1
-        question: FR-8 rests on BR-11 (a room's current 15-minute slot may be booked with no advance notice), but neither Design in context lists BR-11 among its rules (the http-api Design's POST /bookings stops at BR-7, and the data-schema Design's booking_limit_config stops at BR-10). Which Design element is meant to carry BR-11, and is a minimum-advance-notice parameter missing from booking_limit_config?
+        question: The bb-5-ui Design's own Q-1 notes that the Booking Commands API exposes no operation to list or search rooms by fitting/free criteria, only a single room's status by id (EL-7) and a criteria-only Book Room command (EL-1) with no room id. T-4's candidate-room display therefore has no confirmed data source for enumerating which rooms to check via Room Status View before Book is pressed.
+      - id: Q-2
+        question: FR-8 ties the current-15-minute-slot allowance to BR-11, but neither the http-api Design's EL-1 rules list nor any other Design element's rules name BR-11. Confirm BR-11 is enforced inside T-2's Book Room slot validation (EL-1) alongside BR-3 to BR-7, even though it is not listed among that element's rules.
 ---
 apiVersion: sdd.persimmon.ai/v1
 kind: Plan
@@ -3128,51 +3674,53 @@ spec:
     architecture: room-booking-prd-architecture
     designs:
       - room-booking-prd-architecture-bb-1-http-api
+      - room-booking-prd-architecture-bb-6-ui
+      - room-booking-prd-architecture-bb-7-ui
     tasks:
       - id: T-1
-        title: Serve the Room Status View query
+        title: Serve the Room Status View query on the Room Booking Service
         block: BB-1
-        description: Build the Room Status View query over the Room Booking Service's store, returning each room's current status, holder, held-until time and what's next, for consumption by the door and floor screens.
+        description: Expose each room's current status, holder, held-until time and what's next as a query over the Room Schedule aggregate's own store, so door and floor screens can read live room state.
         covers:
           - FR-1
           - FR-2
-        verifiedBy: []
         elements:
           - design: room-booking-prd-architecture-bb-1-http-api
             element: EL-7
         dependsOn: []
+        verifiedBy: []
       - id: T-2
-        title: Show a room's status at its door
+        title: Build the Door Status Screen
         block: BB-6
-        description: Build the door screen that reads the Room Status View for its own room and displays that room's status, holder, held-until time and what's next, for employees and walk-in employees checking the room before use.
+        description: Display, at a room's door, that room's current status, holder, held-until time and what's next, read live from the Room Status View, so both the room's own employee and a walk-in employee can tell at a glance whether to enter.
         covers:
           - FR-1
+        elements:
+          - design: room-booking-prd-architecture-bb-6-ui
+            element: EL-1
+        dependsOn:
+          - T-1
         verifiedBy:
           - AC-3
           - AC-4
           - AC-5
           - AC-6
           - AC-7
-        elements: []
-        dependsOn:
-          - T-1
       - id: T-3
-        title: List every room's status on the floor screen
+        title: Build the Floor Status Screen
         block: BB-7
-        description: Build the floor-wide screen that reads the Room Status View for every room and lists each room's current status, so an employee can find a free room without walking the floor.
+        description: List the current status of every room on the floor on one screen, read live from the Room Status View, so an employee can find a free room without walking the floor.
         covers:
           - FR-2
+        elements:
+          - design: room-booking-prd-architecture-bb-7-ui
+            element: EL-1
+        dependsOn:
+          - T-1
         verifiedBy:
           - AC-1
           - AC-2
-        elements: []
-        dependsOn:
-          - T-1
-    openQuestions:
-      - id: Q-1
-        question: No Design for BB-6 (Door Status Screen) is in context, so T-2's elements cannot be mapped to a Design element; which Design covers how the door screen renders status, holder, held-until time and what's next?
-      - id: Q-2
-        question: No Design for BB-7 (Floor Status Screen) is in context, so T-3's elements cannot be mapped to a Design element; which Design covers how the floor screen lists every room's status?
+    openQuestions: []
 ---
 apiVersion: sdd.persimmon.ai/v1
 kind: Plan
