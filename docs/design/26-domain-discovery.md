@@ -44,7 +44,7 @@ thing is defined.
 | ReviewLoops `storm-big-picture`, `storm-process`, `storm-design` | `produce` `event-storm` with the level as a literal, `review` `storming-gate`, `maxRounds: 3`; `process` and `design` take `base` from the phase before |
 | Task `derive-domain` | inputs `model`, `contextId`, `prd`; outputs `context`, `glossary`, `domainModel`; a projection, invents nothing |
 | ReviewLoop `derive-one` | `produce` `derive-domain`, `review` `derived-gate`, `maxRounds: 2`; the consistency findings go back as `feedback` with the last `domainModel` as `previous` |
-| Workflow `derive-all` | `repeat` over `contexts`: state `index` and `contexts`, body `contextId: {expression: "state.contexts[state.index - 1]"}`, `until: !iteration.outputs.passed || iteration.index >= inputs.contexts.size()`; a context the loop could not derive ends the run `derivation_inconsistent` |
+| Workflow `derive-all` | `repeat` over `contexts`: state `index` only, body `contextId: {expression: "inputs.contexts[state.index - 1]"}`, `until: !iteration.outputs.passed || iteration.index >= inputs.contexts.size()`; a context the loop could not derive ends the run `derivation_inconsistent` |
 | Pipeline `domain-discovery` | the three loops then `derive-all`; a loop phase routes on its `passed` (`21-composition.md`), so an exhausted phase ends the run `<phase>_rejected`; outputs `model` and `derived` |
 
 Two Layer 1 changes this needed, each its own unit: `state.<var>` readable in expressions inside

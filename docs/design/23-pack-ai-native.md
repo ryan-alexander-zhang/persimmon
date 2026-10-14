@@ -223,6 +223,11 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
   new one. A storming context id and every `contextId` input are DNS labels of at most 40
   characters, so `<context>-prd-cap-n-plan` stays an Id; a Design is `<architecture>-<bb-n>-<type>`
   because `BB-n` numbers are per Architecture. Found in audit.
+- The four `-all` loops (`derive-all`, `spec-all`, `design-all`, `plan-all`) keep only the cursor
+  `index` in `repeat` state and read the list as `inputs.<list>[state.index - 1]`: a step binding
+  inside a `repeat` sees `inputs` as any step does, so the copy of the list into state (a second
+  schema, `fromInput` in `initial`, `fromState` in `next`) said nothing the input did not. Found in
+  audit.
 
 ## Examples
 
