@@ -47,6 +47,7 @@ export const rules = {
   E14: 'human: execute answers HumanAck after a waiting stream line with reason human',
   E15: 'every error is {code, message, retryable}',
   E16: 'execute with task.outputIds publishes the artifact output under that id',
+  E17: 'execute with an artifacts output publishes each item in order as <prefix>-<n> under task.outputIds',
   V1: 'describe validates EvaluatorDescribe; roles has evaluator',
   V2: 'evaluate with the fixture artifact as artifacts.model answers a ValidationResult; passed may be false',
   V3: 'a second identical evaluate answers an equal result',
@@ -338,6 +339,16 @@ export async function conformance(spec: AdapterSpec, o: SuiteOptions = {}): Prom
           const id = server.calls.find((c) => c.name === 'publishArtifact')?.args.id
           check(id === 'conformance-chosen', `published ${String(id)}, not the chosen id conformance-chosen`)
           check(isDeepStrictEqual((out.result as { outputs: { doc: unknown } }).outputs.doc, { kind: 'artifact', ref: { ...noteKind, namespace: 'conformance', id: 'conformance-chosen', revision: 1 } }), 'doc output is not the RevisionRef of the chosen id')
+        })
+        await rule('E17', afterE3, async () => {
+          const task = payload(12).task as Record<string, unknown> & { outputs: Record<string, unknown>; outputSchemas: Record<string, unknown> }
+          const many = { ...task, outputs: { docs: { type: { kind: 'artifacts', artifactKind: noteKind } }, count: task.outputs.count }, outputSchemas: { docs: task.outputSchemas.doc }, outputIds: { docs: 'conformance-many' } }
+          const { out } = await execute(12, { PERSIMMON_CONFORMANCE_ANSWER: JSON.stringify({ docs: [answer.doc, answer.doc], count: 2 }) }, { task: many })
+          check(out.state === 'succeeded', `execute ${outcome(out)}`)
+          const ids = server.calls.filter((c) => c.name === 'publishArtifact').map((c) => c.args.id)
+          check(isDeepStrictEqual(ids, ['conformance-many-1', 'conformance-many-2']), `published ${JSON.stringify(ids)}, not conformance-many-1 and conformance-many-2 in order`)
+          const refs = [1, 2].map((revision, i) => ({ ...noteKind, namespace: 'conformance', id: `conformance-many-${i + 1}`, revision: 1 }))
+          check(isDeepStrictEqual((out.result as { outputs: { docs: unknown } }).outputs.docs, { kind: 'artifacts', refs }), 'docs output is not the RevisionRefs of the published items, in order')
         })
       }
 

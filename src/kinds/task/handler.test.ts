@@ -219,6 +219,21 @@ describe('task Handler', () => {
     expect(clean(other.statusPatch)).toMatchObject({ phase: 'Failed', error: { code: 'schema_violation', message: 'report: published prd-create-002-research-report, not the chosen id research-checkout-v2' } })
     const ok = handler.reconcile(input(run, finished('research-checkout-v2'), [{ ref, scope: 'prd-create-002//research/1' }])) as ReconcileResult
     expect(clean(ok.statusPatch)).toMatchObject({ phase: 'Succeeded', outputs: { report: { ref: { id: 'research-checkout-v2', revision: 2 } } } })
+    // an artifacts output: the prefix is handed over, every item is <prefix>-<n> in order
+    const prd = { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement' }
+    deps.closure = () => ({ ...closure, resources: closure.resources.map((r) => (r === research ? { ...r, spec: { ...r.spec, outputs: { ...(r.spec as TaskSpec).outputs, many: { type: { kind: 'artifacts', artifactKind: prd }, id: { literal: 'checkout-adr' } } } } } : r)) })
+    let runM = base()
+    const rm = handler.reconcile(input(runM, { type: 'Created', dedupeKey: 'created' })) as ReconcileResult
+    expect((rm.actions[0] as { payload: { task: { outputIds: unknown } } }).payload.task.outputIds).toEqual({ many: 'checkout-adr' })
+    runM = apply(runM, rm)
+    const refsOf = (ids: string[]) => ids.map((id) => ({ ...prd, namespace: 'demo', id, revision: 1 }))
+    const report = { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ResearchReport', namespace: 'demo', id: 'prd-create-002-research-report', revision: 1 }
+    const finishedMany = (ids: string[]) => ({ type: 'AdapterFinished' as const, dedupeKey: 'm', payload: { idempotencyKey: 'prd-create-002//research/1', state: 'succeeded' as const, result: { protocol: 'persimmon.result/v1', outputs: { report: { kind: 'artifact', ref: report }, many: { kind: 'artifacts', refs: refsOf(ids) } } } } })
+    const stagedMany = (ids: string[]) => [{ ref: report, scope: 'prd-create-002//research/1' }, ...refsOf(ids).map((ref) => ({ ref, scope: 'prd-create-002//research/1' }))]
+    const wrong = handler.reconcile(input(runM, finishedMany(['checkout-adr-1', 'checkout-adr-3']), stagedMany(['checkout-adr-1', 'checkout-adr-3']))) as ReconcileResult
+    expect(clean(wrong.statusPatch)).toMatchObject({ phase: 'Failed', error: { code: 'schema_violation', message: 'many[1]: published checkout-adr-3, not the chosen id checkout-adr-2' } })
+    const okM = handler.reconcile(input(runM, finishedMany(['checkout-adr-1', 'checkout-adr-2']), stagedMany(['checkout-adr-1', 'checkout-adr-2']))) as ReconcileResult
+    expect(clean(okM.statusPatch)).toMatchObject({ phase: 'Succeeded', outputs: { many: { kind: 'artifacts', refs: [{ id: 'checkout-adr-1' }, { id: 'checkout-adr-2' }] } } })
     // a value that is no Id fails the attempt before any call
     deps.closure = () => withId({ expression: 'inputs.repository.id' })
     const bad = handler.reconcile(input(base(), { type: 'Created', dedupeKey: 'created' })) as ReconcileResult
@@ -244,7 +259,7 @@ describe('task Handler', () => {
     expect(check({ literal: 7 })).toEqual(['prd: id literal is not a string'])
     expect(check({ fromInput: 'research' })).toEqual(['prd: id fromInput research is not a string value input'])
     expect(check({ fromStep: { stepRef: 'x', output: 'y' } })).toEqual(['prd: id reads inputs only'])
-    expect(check({ literal: 'x' }, 'count')).toEqual(['count: only an artifact output chooses its id'])
+    expect(check({ literal: 'x' }, 'count')).toEqual(['count: only an artifact or artifacts output chooses its id'])
   })
 
   it('cancel is immediate and validate catches context and retry policy mistakes', () => {
@@ -259,7 +274,7 @@ describe('task Handler', () => {
     task.spec.action.workspace = { input: 'research' }
     task.spec.outputs.many = { type: { kind: 'artifacts', artifactKind: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement' } } }
     const findings = handler.validate(task).findings
-    expect(findings.map((f) => f.message)).toEqual(['invalid_input in both retryOn and abortOn', 'invalid_input is never retried', 'many: no Executor produces an artifacts output', 'research is not an externalResource port', 'research is not an externalResource port'])
+    expect(findings.map((f) => f.message)).toEqual(['invalid_input in both retryOn and abortOn', 'invalid_input is never retried', 'many: an artifacts output names its id prefix', 'research is not an externalResource port', 'research is not an externalResource port'])
   })
 
   it('action.workspace reaches the execute payload: a path as given, an input through its locator.path', () => {

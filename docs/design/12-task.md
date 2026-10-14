@@ -33,7 +33,7 @@ Task ── executorRef ──▶ Executor ── adapter ──▶ Adapter (rol
 Step contract: `inputsPath: spec.inputs`, `outputsPath: spec.outputs`, `runKind: TaskRun`,
 `phasePath: status.phase`, `outputsValuePath: status.outputs`, `errorPath: status.error`.
 
-The execute payload carries the resolved ids as `task.outputIds: {<port>: Id}` (`19-adapter-roles.md`).
+The execute payload carries the resolved ids as `task.outputIds: {<port>: Id}` (`19-adapter-roles.md`); on an `artifacts` output the id is the prefix, and the Adapter publishes the list's items as `<prefix>-<n>` in order.
 
 ## Context
 
@@ -90,10 +90,10 @@ Anything else fails the attempt with `schema_violation`.
 | `action.workspace.input` names an `externalResource` input; at run time its `locator.path` is a string (task Handler) and a directory (Adapter), else `invalid_input` | static checker; task Handler; Adapter |
 | `file` context `path` resolves inside `action.workspace`; the entry's `ref` is provenance, not a root | none; stated |
 | every `context.kind` ∈ adapter `describe.contextKinds` | static checker |
-| `file.input` is an `externalResource` port; `artifact.input` is an `artifact` or `artifacts` port; no output is an `artifacts` port | static checker |
+| `file.input` is an `externalResource` port; `artifact.input` is an `artifact` or `artifacts` port; an `artifacts` output names its `id` prefix | static checker |
 | the referenced Skill's `format` ∈ adapter `describe.skillFormats` | static checker |
 | `retryOn ∩ abortOn = ∅`; the three never-retried codes ∉ `retryOn` | static checker |
-| `outputs.<port>.id` only on an `artifact` output; its Binding reads `inputs` only and yields a string (an `expression` type-checks against the inputs site; a `literal` is a string; a `fromInput` names a `value` input); at attempt start the value is an `Id`, else `invalid_input`; the published ref carries that id, else `schema_violation` | static checker; `task` handler |
+| `outputs.<port>.id` only on an `artifact` or `artifacts` output; its Binding reads `inputs` only and yields a string (an `expression` type-checks against the inputs site; a `literal` is a string; a `fromInput` names a `value` input); at attempt start the value is an `Id` (at most 59 characters on an `artifacts` output, a prefix), else `invalid_input`; the published ref carries that id, and an `artifacts` output's refs are `<prefix>-1`, `<prefix>-2`, ... in list order, else `schema_violation` | static checker; `task` handler |
 | `unknown_result` retried unless `sideEffects: nonIdempotent`; `retryPolicy` cannot override | `task` handler (`17-runs.md`) |
 | `file` ref without `version` at attempt start | `task` handler: `invalid_input` |
 
@@ -130,6 +130,13 @@ Anything else fails the attempt with `schema_violation`.
   rule (only `none`) made `idempotent` behave like `nonIdempotent`, the one place `sideEffects` is
   read; and in local mode a killed engine kills its stdio Adapter and agent, so a resumed call with
   no answer had done nothing, yet an `idempotent` Task failed for good. Found in UAT.
+- A Task may output `artifacts`: the output names an id prefix through `outputs.<port>.id`, the
+  agent answers a list of contents, the Adapter publishes them in order as `<prefix>-1`,
+  `<prefix>-2`, ... and the handler refuses any other id. The prefix is the Task's, never the
+  agent's, so a second round republishes the same identities as the next revisions; a shorter list
+  leaves the tail at its last revision. One `id` per item was rejected: the engine resolves ids
+  before the attempt, when the count is unknown. Needed by `write-architecture`, one Adr per
+  strategy decision. Found in UAT.
 
 ## Examples
 

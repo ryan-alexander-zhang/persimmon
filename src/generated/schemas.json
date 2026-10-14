@@ -242,7 +242,8 @@
         },
         "additionalProperties": {
          "$ref": "revisioned.yaml#/$defs/Id"
-        }
+        },
+        "description": "the id each artifact output publishes under; on an artifacts output the prefix, items publish as <prefix>-<n> in order"
        }
       }
      },

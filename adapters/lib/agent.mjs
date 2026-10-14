@@ -96,14 +96,25 @@ async function execute(driver, payload, log) {
   for (const [port, spec] of Object.entries(task.outputs)) {
     const value = answer.outputs[port]
     if (value === undefined) continue // the task Handler reports the missing port as schema_violation
-    if (spec.type.kind !== 'artifact') {
+    if (spec.type.kind !== 'artifact' && spec.type.kind !== 'artifacts') {
       outputs[port] = { kind: 'value', value }
       continue
     }
-    const blob = await call('putBlob', { bytes: Buffer.from(JSON.stringify(value)).toString('base64'), mediaType: 'application/json' })
+    const publish = async (content, id) => {
+      const blob = await call('putBlob', { bytes: Buffer.from(JSON.stringify(content)).toString('base64'), mediaType: 'application/json' })
+      return call('publishArtifact', { kind: spec.type.artifactKind, id, content, inputs: artifactInputs, representations: [{ name: 'json', mediaType: 'application/json', digest: blob.digest }] })
+    }
+    if (spec.type.kind === 'artifacts') {
+      // a list of contents, published in order as <prefix>-<n> under the Task's chosen prefix (12-task.md)
+      if (!Array.isArray(value)) throw new AdapterError('agent_failed', `${port}: an artifacts output is a list`, true)
+      const prefix = task.outputIds?.[port] ?? artifactId(taskRun.logicalExecutionId, port)
+      const refs = []
+      for (const [i, item] of value.entries()) refs.push(await publish(item, `${prefix}-${i + 1}`))
+      outputs[port] = { kind: 'artifacts', refs }
+      continue
+    }
     const id = task.outputIds?.[port] ?? artifactId(taskRun.logicalExecutionId, port) // the Task's chosen identity, else one per logical execution and port
-    const ref = await call('publishArtifact', { kind: spec.type.artifactKind, id, content: value, inputs: artifactInputs, representations: [{ name: 'json', mediaType: 'application/json', digest: blob.digest }] })
-    outputs[port] = { kind: 'artifact', ref }
+    outputs[port] = { kind: 'artifact', ref: await publish(value, id) }
   }
   const result = { protocol: 'persimmon.result/v1', outputs }
   if (typeof answer.summary === 'string') result.summary = answer.summary
@@ -187,13 +198,13 @@ function redact(text, credentials) {
   return text
 }
 
-/** Structured output: artifact ports take the frozen content schema, value ports their port schema. */
+/** Structured output: artifact ports take the frozen content schema, an artifacts port a list of it, value ports their port schema. */
 export function outputSchema(task) {
   const properties = {}
   const $defs = {}
   for (const [port, spec] of Object.entries(task.outputs)) {
-    const schema = spec.type.kind === 'artifact' ? task.outputSchemas[port] ?? { type: 'object' } : spec.type.schema ?? {}
-    properties[port] = hoistDefs(schema, port, $defs)
+    const content = () => hoistDefs(task.outputSchemas[port] ?? { type: 'object' }, port, $defs)
+    properties[port] = spec.type.kind === 'artifact' ? content() : spec.type.kind === 'artifacts' ? { type: 'array', items: content() } : hoistDefs(spec.type.schema ?? {}, port, $defs)
   }
   // flat: one top-level key per port, no wrapper and no summary; a nested `outputs` and a second `summary` made claude misplace keys (19-adapter-roles.md)
   return { type: 'object', required: Object.keys(properties), additionalProperties: false, properties, ...(Object.keys($defs).length ? { $defs } : {}) }

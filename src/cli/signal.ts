@@ -106,7 +106,7 @@ export async function askForm(cli: Cli, form: Form, taskRun: string): Promise<Re
   const outputs: Record<string, unknown> = {}
   const publish: { port: string; request: Record<string, unknown> }[] = []
   for (const [port, spec] of Object.entries(form.outputs)) {
-    if (spec.type.kind === 'externalResource') throw new Error(`complete: output ${port} is an externalResource port; answer it with --file`)
+    if (spec.type.kind === 'externalResource' || spec.type.kind === 'artifacts') throw new Error(`complete: output ${port} is an ${spec.type.kind} port; answer it with --file`)
     const schema = spec.type.kind === 'value' ? (spec.type.schema as Record<string, unknown> | undefined) : form.outputSchemas?.[port]
     const what = spec.type.kind === 'artifact' ? `content of a ${spec.type.artifactKind.kind}` : port
     let value: unknown

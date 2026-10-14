@@ -31,7 +31,8 @@ function outputIdsOf(task: Task, inputs: RuntimeValues): Record<string, string> 
       throw e
     }
     const id = v?.kind === 'value' ? v.value : undefined
-    if (typeof id !== 'string' || id.length > 63 || !dnsLabel.test(id)) throw new PortError(`${port}: id ${JSON.stringify(id)} is not an Id`)
+    const max = o.type.kind === 'artifacts' ? 59 : 63 // an artifacts output publishes <prefix>-<n>, so the prefix leaves room for the suffix
+    if (typeof id !== 'string' || id.length > max || !dnsLabel.test(id)) throw new PortError(`${port}: id ${JSON.stringify(id)} is not an Id${o.type.kind === 'artifacts' ? ' prefix' : ''}`)
     out[port] = id
   }
   return out
@@ -70,7 +71,7 @@ export function taskHandler(deps: HandlerDeps): HandlerImpl {
       for (const c of retryOn) if (neverRetried.has(c)) bad('/spec/retryPolicy/retryOn', `${c} is never retried`)
       for (const [port, o] of Object.entries(spec.outputs ?? {})) {
         if (!o.id) continue
-        if (o.type.kind !== 'artifact') bad(`/spec/outputs/${port}/id`, `${port}: only an artifact output chooses its id`)
+        if (o.type.kind !== 'artifact' && o.type.kind !== 'artifacts') bad(`/spec/outputs/${port}/id`, `${port}: only an artifact or artifacts output chooses its id`)
         else if ('literal' in o.id) {
           if (typeof o.id.literal !== 'string') bad(`/spec/outputs/${port}/id`, `${port}: id literal is not a string`)
         } else if ('fromInput' in o.id) {
@@ -101,7 +102,7 @@ export function taskHandler(deps: HandlerDeps): HandlerImpl {
           findings.push({ severity: 'warning', code: 'adapter_describe', path: '/spec/action/parameters', message: `${executor!.adapter} describe.parametersSchema is not a valid schema: ${(e as Error).message}` })
         }
       }
-      for (const [port, o] of Object.entries(spec.outputs ?? {})) if (o.type.kind === 'artifacts') bad(`/spec/outputs/${port}`, `${port}: no Executor produces an artifacts output`)
+      for (const [port, o] of Object.entries(spec.outputs ?? {})) if (o.type.kind === 'artifacts' && !o.id) bad(`/spec/outputs/${port}`, `${port}: an artifacts output names its id prefix`)
       const ws = spec.action.workspace
       if (ws && 'input' in ws && spec.inputs?.[ws.input]?.type.kind !== 'externalResource') bad('/spec/action/workspace/input', `${ws.input} is not an externalResource port`)
       for (const [i, e] of (spec.action.context ?? []).entries()) {
@@ -231,6 +232,7 @@ export function taskHandler(deps: HandlerDeps): HandlerImpl {
           for (const [port, id] of Object.entries(chosen)) {
             const v = result.outputs[port]
             if (v?.kind === 'artifact' && v.ref.id !== id) throw new PortError(`${port}: published ${v.ref.id}, not the chosen id ${id}`)
+            if (v?.kind === 'artifacts') for (const [i, ref] of v.refs.entries()) if (ref.id !== `${id}-${i + 1}`) throw new PortError(`${port}[${i}]: published ${ref.id}, not the chosen id ${id}-${i + 1}`)
           }
           const staged = (input.context.staged ?? []).filter((s) => s.scope === a.idempotencyKey).map((s) => s.ref)
           for (const v of Object.values(result.outputs))

@@ -137,9 +137,10 @@ Values enter CEL typed by the port schema: `integer` → `int`, `number` → `do
   of revisions of one kind, in the caller's order, because a Plan builds against every Design
   of its blocks and fixed slots cap the count. A `{kind: artifact, input}` context entry on it
   injects one entry per ref (`12-task.md`); an evaluator receives `artifacts.<port>` as a list
-  (`14-gate.md`); each ref lands in `provenance.inputs`, once. No Executor produces one as an
-  output: a Task declaring one is refused by the static checker; a Workflow output passes it
-  through. Found in design review.
+  (`14-gate.md`); each ref lands in `provenance.inputs`, once. A Workflow output passes it
+  through; a Task output of it names an id prefix and the Adapter publishes the list's items as
+  `<prefix>-<n>` in order (`12-task.md`), a rule that came when the Architecture process needed one
+  Adr per strategy decision. Found in design review; the output in UAT.
 
 ## Examples
 

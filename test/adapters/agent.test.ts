@@ -118,6 +118,18 @@ describe('claude-code/v1', () => {
     expect(d.result).toMatchObject({ adapterId: 'claude-code/v1', protocol: 'persimmon.adapter/v1', executorTypes: ['agent'], contextKinds: ['file', 'artifact', 'prompt', 'skill'], skillFormats: ['claude-code-skill/v1'], supports: { cancel: true, complete: false } })
   })
 
+  it('an artifacts output: the answered list publishes in order as <prefix>-<n> under the chosen prefix', async () => {
+    calls.length = 0
+    const base = payload()
+    const task = { ...base.task, outputs: { adrs: { type: { kind: 'artifacts', artifactKind: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement' } } } }, outputSchemas: { adrs: base.task.outputSchemas.prd }, outputIds: { adrs: 'checkout-adr' } }
+    const r = await adapter('claude-code', { id: 9, op: 'execute', payload: payload({ task }) }, { STUB_RESULT: JSON.stringify({ adrs: [{ title: 'One' }, { title: 'Two' }] }) })
+    const refs = ['checkout-adr-1', 'checkout-adr-2'].map((id) => ({ apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement', namespace: 'demo', id, revision: 1 }))
+    expect(last(r)).toEqual({ id: 9, ok: true, result: { protocol: 'persimmon.result/v1', outputs: { adrs: { kind: 'artifacts', refs } } } })
+    expect(calls.filter((c) => c.name === 'publishArtifact').map((c) => [c.args.id, c.args.content.title])).toEqual([['checkout-adr-1', 'One'], ['checkout-adr-2', 'Two']])
+    const schema = JSON.parse(JSON.parse(readFileSync(join(stubs, 'claude.json'), 'utf8')).args.filter((_: string, i: number, a: string[]) => a[i - 1] === '--json-schema')[0])
+    expect(schema.properties.adrs).toEqual({ type: 'array', items: base.task.outputSchemas.prd })
+  })
+
   it('builds the prompt in context order, publishes artifact outputs, passes credentials as env', async () => {
     calls.length = 0
     const r = await adapter('claude-code', { id: 2, op: 'execute', payload: payload() }, { STUB_RESULT: JSON.stringify({ prd: { title: 'Checkout v2' }, count: 2 }) })
@@ -367,5 +379,11 @@ describe('outputSchema', () => {
     expect(JSON.stringify(out.properties.model)).toContain('"$ref":"#/$defs/model.Entity"')
     expect(JSON.stringify(out.properties.model).match(/\$ref/g)).toHaveLength(2)
     expect(out.properties.n).toEqual({ type: 'integer' })
+  })
+  it('an artifacts port is a list of the frozen content schema', async () => {
+    const { outputSchema } = await import('../../adapters/lib/agent.mjs')
+    const note = { type: 'object', required: ['title'], properties: { title: { type: 'string' } } }
+    const out = outputSchema({ outputs: { adrs: { type: { kind: 'artifacts' } } }, outputSchemas: { adrs: note } } as never) as { properties: Record<string, unknown> }
+    expect(out.properties.adrs).toEqual({ type: 'array', items: note })
   })
 })

@@ -56,6 +56,7 @@ include `agent`, `script` or `tool`; `human` one that includes `human`.
 | E14 | `execute` answers HumanAck after a `waiting` stream line with reason `human` | `19` | human | yes |
 | E15 | every error seen is `{code, message, retryable}` with a lower snake `code` | `03`, `07` | all | yes |
 | E16 | `execute` with `task.outputIds` publishes the artifact output under that id, and the output is its RevisionRef | `12`, `19` | process | no |
+| E17 | `execute` with an `artifacts` output and `task.outputIds` publishes each item of the answered list as `<prefix>-<n>` in order, and the output is their RevisionRefs | `12`, `19` | process | no |
 
 Evaluator Role (`24-eventstorming.md` brought the first one):
 
@@ -67,7 +68,7 @@ Evaluator Role (`24-eventstorming.md` brought the first one):
 | V4 | `evaluate` makes no Engine callback | `14` | evaluator | yes |
 | V5 | an unknown op is `invalid_input`; every error is `{code, message, retryable}` | `07` | evaluator | yes |
 
-An Adapter without the executor Role skips E1–E16 "not an executor"; one without the evaluator
+An Adapter without the executor Role skips E1–E17 "not an executor"; one without the evaluator
 Role skips V1–V5 "not an evaluator".
 
 A rule whose `Applies` does not hold is `skip`. A process rule that needs the record and finds none
