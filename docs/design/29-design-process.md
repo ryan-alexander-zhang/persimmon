@@ -76,6 +76,10 @@ The Adapter picks the mode from the payload: `artifacts.spec` (or `artifacts.mod
   the Prompt now says: a read model's `updatedBy` may name another context's event (the `Claim Paid`
   question again), and a read model is realised by the block whose responsibility names it (both
   Designs had exposed `Export Status View`). Found in UAT.
+- `design-rules` says the document's dialect is the block's `technology`: the live data schema of a
+  block declared "Node service, SQLite" was PostgreSQL DDL (`EXTRACT`, `INTERVAL`), and nothing in
+  `checkDesign` reads `technology`. A dialect check is the Design evaluator's job (roadmap); the
+  prompt says it now. Found in UAT.
 
 ## Examples
 
