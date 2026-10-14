@@ -303,15 +303,23 @@ export function checkArchitecture({ architecture, prd, rules, ids = {}, adrs = {
   const ruleIds = new Set((rules?.rules ?? []).map((r) => r.id))
   const prdIds = new Set([...(prd?.goals ?? []), ...(prd?.capabilities ?? []), ...(prd?.successCriteria ?? [])].map((x) => x.id))
   const strategies = new Set((a.strategy ?? []).map((s) => s.id))
-  const backed = new Map()
-  for (const [id, adr] of Object.entries(adrs)) {
-    if (adr.status === 'superseded') continue // its strategy was dropped with it; the slot stays for the id
+  // the slot rule (31-architecture-process.md): the n-th Adr of the list backs S-n, says so in `strategy`, and a dropped
+  // strategy's slot is a superseded Adr still naming it; so an id names one decision across rounds and the Validator can
+  // tell. An Adr without `strategy` (taken outside the loop) is not held to a slot. No count check: an Architecture may
+  // apply fewer Adrs than it has strategies.
+  const order = ids.adrs?.length ? ids.adrs : Object.keys(adrs)
+  for (const [i, id] of order.entries()) {
+    const adr = adrs[id]
+    if (!adr) continue
+    const slot = `S-${i + 1}`
+    if (adr.status === 'superseded') {
+      if (adr.strategy !== undefined && strategies.has(adr.strategy)) bad('adr-strategy', `adr ${id} is superseded but ${adr.strategy} is still a strategy decision of the Architecture`)
+      continue
+    }
     if (adr.status !== 'accepted') bad('adr-status', `adr ${id} is ${adr.status}, not accepted`)
-    // an Adr names the S-n it backs; one Adr per strategy, no count check (an Architecture may apply fewer Adrs than it has strategies)
     if (adr.strategy !== undefined) {
-      if (!strategies.has(adr.strategy)) bad('adr-strategy', `adr ${id}: strategy ${adr.strategy} is not a strategy decision of the Architecture`)
-      else if (backed.has(adr.strategy)) bad('adr-strategy', `adr ${id}: strategy ${adr.strategy} is already backed by ${backed.get(adr.strategy)}`)
-      else backed.set(adr.strategy, id)
+      if (adr.strategy !== slot) bad('adr-strategy', `adr ${id} is the Adr in slot ${i + 1} and names ${adr.strategy}; the n-th Adr backs ${slot}`)
+      else if (!strategies.has(adr.strategy)) bad('adr-strategy', `adr ${id}: strategy ${adr.strategy} is not a strategy decision of the Architecture`)
     }
     for (const d of adr.drivers ?? []) if (!goals.has(d) && !constraints.has(d) && !scenarios.has(d) && !ruleIds.has(d) && !prdIds.has(d)) bad('unknown-adr-driver', `adr ${id}: driver ${d} resolves in neither the Architecture, the Prd nor the rules`)
   }

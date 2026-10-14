@@ -448,10 +448,26 @@ describe('sdd/v1 over an Architecture', () => {
   it('fails an Adr that is not accepted, and a driver that resolves nowhere; a superseded slot is skipped', async () => {
     expect(await archCodes((a) => (a.adrs[0].status = 'proposed'))).toEqual(['adr-status'])
     expect(await archCodes((a) => (a.adrs[0].drivers = ['BR-99']))).toEqual(['unknown-adr-driver'])
-    expect(await archCodes((a) => (a.adrs[0].strategy = 'S-9'))).toEqual(['adr-strategy'])
-    expect(await archCodes((a) => (a.adrs[1].strategy = a.adrs[0].strategy))).toEqual(['adr-strategy']) // two Adrs on one S-n: the second is the finding
-    const unnamed = structuredClone(archExample())
-    delete (unnamed.adrs[0] as any).strategy // an Adr taken outside the loop names no strategy; nothing to check
+  })
+
+  // the slot rule (31-architecture-process.md): the n-th Adr backs S-n and says so; the worked example's Adrs are taken
+  // outside the loop and name no strategy, so the tests set it
+  it('holds an Adr naming its strategy to its slot, and a superseded one to a dropped strategy', async () => {
+    const named = (a: ReturnType<typeof archExample>) => { a.adrs[0].strategy = 'S-1'; a.adrs[1].strategy = 'S-2' }
+    const ok = structuredClone(archExample())
+    named(ok)
+    expect((await adapter({ id: ++id, op: 'evaluate', payload: archPayload(ok) })).result).toEqual({ passed: true, findings: [], evidence: [] })
+    expect(await archCodes((a) => { named(a); a.adrs[1].strategy = 'S-3' })).toEqual(['adr-strategy']) // slot 2 names S-3
+    expect(await archCodes((a) => { named(a); a.adrs[1].strategy = 'S-1' })).toEqual(['adr-strategy']) // two Adrs on one S-n: the second is off its slot
+    expect(await archCodes((a) => { named(a); a.architecture.strategy = a.architecture.strategy.filter((x: any) => x.id !== 'S-2') })).toEqual(['adr-strategy']) // accepted on a dropped S-n
+    // a superseded Adr on a dropped S-n is the slot rule working; one on a live S-n leaves that strategy unbacked
+    const dropped = structuredClone(archExample())
+    named(dropped)
+    dropped.architecture = { ...dropped.architecture, strategy: dropped.architecture.strategy.filter((x: any) => x.id !== 'S-2'), decisions: [adrIds[0]] }
+    dropped.adrs[1] = { ...dropped.adrs[1], status: 'superseded' }
+    expect((await adapter({ id: ++id, op: 'evaluate', payload: archPayload(dropped) })).result.passed).toBe(true)
+    expect(await archCodes((a) => { named(a); a.architecture.decisions = [adrIds[0]]; a.adrs[1] = { ...a.adrs[1], status: 'superseded' } })).toEqual(['adr-strategy'])
+    const unnamed = structuredClone(archExample()) // no strategy named: nothing to hold to a slot
     expect((await adapter({ id: ++id, op: 'evaluate', payload: archPayload(unnamed) })).result.passed).toBe(true)
     // a dropped strategy's slot: superseded, evaluated, not listed, not refused
     const r = await adapter({ id: ++id, op: 'evaluate', payload: archPayload({ ...archExample(), architecture: { ...content('Architecture'), decisions: [adrIds[0]] }, adrs: [adrs()[0], { ...adrs()[1], status: 'superseded' }] }) })
