@@ -157,11 +157,13 @@ describe('expandReviewLoop', () => {
 
   it('a binding from an optional loop input omits when the input is unbound', () => {
     const glossary = { type: { kind: 'artifact' as const, artifactKind: { apiVersion: 'x/v1', kind: 'Glossary' } }, required: false }
-    const withOptional: ReviewLoop = { ...loop, spec: { ...loop.spec, inputs: { research: report, glossary }, produce: { ...loop.spec.produce, inputs: { research: { fromInput: 'research' }, glossary: { fromInput: 'glossary' } } } } }
+    const withOptional: ReviewLoop = { ...loop, spec: { ...loop.spec, inputs: { research: report, glossary }, produce: { ...loop.spec.produce, inputs: { research: { fromInput: 'research' }, glossary: { fromInput: 'glossary' } } }, review: { ...loop.spec.review, inputs: { ...loop.spec.review.inputs, glossary: { fromInput: 'glossary' } } } } }
     const [outer, body] = expandReviewLoop(withOptional, () => ({ inputs: { research: report, glossary, last: { ...prd, required: false }, verdict: { type: gateResult, required: false } }, outputs: { prd, notes } }))
     expect(outer.spec.steps[0]!.inputs).toMatchObject({ research: { fromInput: 'research' }, glossary: { fromInput: 'glossary', onMissing: 'omit' } })
     expect(outer.spec.steps[0]!.inputs!.research).not.toHaveProperty('onMissing')
     expect(body.spec.steps[0]!.inputs).toMatchObject({ research: { fromInput: 'research' }, glossary: { fromInput: 'glossary', onMissing: 'omit' } })
+    // the review step's bindings from an optional loop input omit too: a Gate input bound from an unbound optional must not fail source absent
+    expect(body.spec.steps[1]!.inputs).toMatchObject({ glossary: { fromInput: 'glossary', onMissing: 'omit' } })
   })
 
   it('names the missing produce or subject', () => {

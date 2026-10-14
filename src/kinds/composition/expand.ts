@@ -83,7 +83,7 @@ export function expandReviewLoop(r: ReviewLoop, ports: Ports): [Workflow, Workfl
     inputs: { ...Object.fromEntries(Object.entries(produce.inputs ?? {}).map(([p, b]) => [p, omitOptional(b)])), ...(previous ? { [previous]: { fromInput: 'previous', onMissing: 'omit' } } : {}), ...(feedback ? { [feedback]: { fromInput: 'feedback', onMissing: 'omit' } } : {}) },
     timeout: produce.timeout,
   }
-  const reviewStep: Step = { id: 'review', uses: review.uses, ...(review.inputs ? { inputs: review.inputs } : {}), timeout: review.timeout }
+  const reviewStep: Step = { id: 'review', uses: review.uses, ...(review.inputs ? { inputs: Object.fromEntries(Object.entries(review.inputs).map(([p, b]) => [p, omitOptional(b)])) } : {}), timeout: review.timeout }
   const body: Workflow = {
     apiVersion: r.apiVersion,
     kind: 'Workflow',
