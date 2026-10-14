@@ -85,6 +85,15 @@ else `artifacts.prd`.
 - `context.business[].context` is not checked against the contexts evaluated: the worked example
   names `identity` and `accounting`, neighbours no process has written. The pack rule row says so.
   Found in implementation.
+- Proven live on `claude-sonnet-5` over the meeting room brief: round one gave seven blocks, an
+  event-driven read model, a worker and an analytical store for an office of eighty; the human's
+  three findings (merge `BB-2` to `BB-4` into `BB-1`, drop `S-2` and `S-5`, add maintainability)
+  came back in round two as four blocks, five strategies with gaps, `QG-5`, `C-7`, `QS-5`, five
+  Adrs republished as `r2`. The Validator passed both rounds; the human was the judge of size.
+  Found in UAT.
+- "Adr n backs `S-n`" pairs by position, so once strategy ids gap (`S-1, S-3, S-4, S-6, S-7`) the
+  pairing is implicit: `adr-2` backs `S-3`. An Adr field naming its `S-n`, with a check, would make
+  it explicit; roadmap. Found in UAT.
 
 ## Examples
 
