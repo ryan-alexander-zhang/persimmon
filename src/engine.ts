@@ -11,7 +11,7 @@ import type { Adapter } from './adapter/types.js'
 import { type Config, durationMs } from './config.js'
 import { HandlerRegistry } from './handler/registry.js'
 import type { HandlerImpl } from './handler/types.js'
-import { audit, createResource as createResourceRaw, type CreateOptions } from './handler/write.js'
+import { audit, createResource as createResourceRaw, type CreateOptions, prepareCreate } from './handler/write.js'
 import { KindRegistry } from './kind-definition/registry.js'
 import { coreHandlers, coreKinds, frameworkKinds } from './kinds/core.js'
 import type { HandlerDeps } from './kinds/deps.js'
@@ -192,20 +192,20 @@ export class Engine {
   }
 
   async #upsert(input: Resource, actor: Actor): Promise<{ resource: Resource; created: boolean; changed: boolean }> {
-    // no Namespace on the doc: the Global one (apply --global, a pack upgrade), else the default Namespace's for a kind that is not Global
-    const key = (namespace: string | undefined) => ({ kind: input.kind, namespace, name: input.metadata.name })
+    // the lookup mirrors placement (write.ts): a doc without a Namespace is Global unless its kind is Namespaced
     const scope = this.kinds.get(input.apiVersion, input.kind).definition.spec.scope
-    const existing = input.metadata.namespace ? this.store.resources.get(key(input.metadata.namespace)) : (this.store.resources.get(key(undefined)) ?? (scope === 'Global' ? undefined : this.store.resources.get(key(this.dispatch.defaultNamespace))))
+    const existing = this.store.resources.get({ kind: input.kind, namespace: input.metadata.namespace ?? (scope === 'Namespaced' ? this.dispatch.defaultNamespace : undefined), name: input.metadata.name })
     if (!existing) {
       const r = await createResourceRaw(this.dispatch, input, { actor })
       return { ...r, changed: r.created }
     }
     // SpecMutable update: CAS on the stored version, generation bump, SpecUpdated when spec changed
     this.kinds.checkMutability(existing, input)
-    this.kinds.validateResource({ ...input, metadata: existing.metadata }) // fills schema defaults, so the comparison below sees what would be stored
+    // envelope, schema defaults and the Handler's validate, as on create: an upgrade never stores a definition create would refuse
+    const prepared = await prepareCreate(this.dispatch, { ...input, metadata: { ...input.metadata, namespace: existing.metadata.namespace } })
     const same = (k: 'labels' | 'annotations') => !input.metadata[k] || isDeepStrictEqual(input.metadata[k], existing.metadata[k])
-    if (isDeepStrictEqual(existing.spec, input.spec) && same('labels') && same('annotations')) return { resource: existing, created: false, changed: false } // nothing to write, no version bump
-    const next: Resource = { ...existing, spec: input.spec, metadata: { ...existing.metadata, ...(input.metadata.labels ? { labels: input.metadata.labels } : {}), ...(input.metadata.annotations ? { annotations: input.metadata.annotations } : {}) } }
+    if (isDeepStrictEqual(existing.spec, prepared.spec) && same('labels') && same('annotations')) return { resource: existing, created: false, changed: false } // nothing to write, no version bump
+    const next: Resource = { ...existing, spec: prepared.spec, metadata: { ...existing.metadata, ...(input.metadata.labels ? { labels: input.metadata.labels } : {}), ...(input.metadata.annotations ? { annotations: input.metadata.annotations } : {}) } }
     const stored = this.store.transaction(() => {
       const s = this.store.resources.put(next)
       this.store.audit.append(audit(s, actor, this.dispatch.now().toISOString(), 'spec'))

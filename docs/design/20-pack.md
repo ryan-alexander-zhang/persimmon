@@ -60,9 +60,11 @@ Credentials the pack Executors bind are Global names resolved at run time.
 
 - `apply --global` of a changed pack definition is `updated`, not `exists with a different
   spec`: for a kind of scope Any the engine looked the doc up in the default Namespace, missed
-  the Global one and fell into create. A doc without a Namespace now finds the Global resource
-  first, then the default Namespace's for a kind that is not Global. Every UAT project since the
-  Spec unit was a fresh one because of this. Found in UAT.
+  the Global one and fell into create. The lookup now mirrors placement: a doc without a Namespace
+  is the Global resource unless its kind is Namespaced, so a Namespaced override of a name the pack
+  adds later is left alone. The update runs the Handler's validate as create does, so an upgrade
+  never stores a definition create would refuse. Every UAT project since the Spec unit was a fresh
+  one because of this. Found in UAT.
 
 - No pack manifest, version, dependency resolution or `pack` verb: reference roadmap excluded
   a pack format from v1. A Pack is a directory and `apply`.

@@ -193,11 +193,10 @@ describe('Engine', () => {
     expect(engine.store.resources.getByUid(short.metadata.uid as string)?.status).toMatchObject({ phase: 'Succeeded', outputs: { passed: { value: false }, rounds: { value: 1 } } })
     expect(errors).toEqual([])
 
-    // a cycle through produce (A produces with B, B with A) is refused at snapshot, not a stack overflow
+    // a cycle through produce (A produces with B, B with A) is refused at apply, since an update runs the Handler validate as create does; never a stack overflow
     const loopB = { ...loop, metadata: { name: 'prd-loop-b', namespace: 'demo' }, spec: { ...loop.spec, previous: undefined, feedback: undefined, produce: { uses: { kind: 'ReviewLoop', name: 'prd-loop' }, inputs: { research: { fromInput: 'research' } }, timeout: '1h' } } } as Resource
     await engine.apply(loopB)
-    await engine.apply({ ...loop, spec: { ...loop.spec, previous: undefined, feedback: undefined, produce: { uses: { kind: 'ReviewLoop', name: 'prd-loop-b' }, inputs: { research: { fromInput: 'research' } }, timeout: '1h' } } } as Resource)
-    await expect(engine.create({ apiVersion: 'persimmon.ai/v1', kind: 'WorkflowRun', metadata: { name: 'prd-loop-002', namespace: 'demo' }, spec: { workflowRef: { kind: 'ReviewLoop', name: 'prd-loop' }, inputs: { research }, origin: { kind: 'manual' } } } as Resource)).rejects.toThrow(/expands through itself/)
+    await expect(engine.apply({ ...loop, spec: { ...loop.spec, previous: undefined, feedback: undefined, produce: { uses: { kind: 'ReviewLoop', name: 'prd-loop-b' }, inputs: { research: { fromInput: 'research' } }, timeout: '1h' } } } as Resource)).rejects.toThrow(/expands through itself/)
   })
 
   it('runs prd-create end to end against the fake Adapter until the task fails validation', async () => {

@@ -128,6 +128,19 @@ describe('persimmon CLI', () => {
     out = []
     expect(await run('get', 'Task/write-prd-2')).toBe(0)
     expect(parse(out.join('\n')).metadata.generation).toBe(2)
+    // an upgrade the Handler would refuse on create is refused on update too
+    const broken = { ...upgraded, spec: { ...upgraded.spec, action: { ...upgraded.spec.action, context: [{ kind: 'artifact', input: 'nope' }] } } }
+    err = []
+    expect(await run('apply', file('task2-broken.yaml', [broken]), '--global')).toBe(1)
+    expect(err.at(-1)).toMatch(/error Task\/write-prd-2: .*nope is not an input/)
+    // a Namespaced override of a name the pack adds later: --global creates the Global one, the override stays
+    expect(await run('apply', file('ns3.yaml', [{ ...override, metadata: { name: 'write-prd-3' } }]))).toBe(0)
+    out = []
+    expect(await run('apply', file('g3.yaml', [{ ...upgraded, metadata: { name: 'write-prd-3' } }]), '--global')).toBe(0)
+    expect(out).toEqual(['created Task/write-prd-3'])
+    out = []
+    expect(await run('get', 'Task/write-prd-3', '-n', 'default')).toBe(0)
+    expect(parse(out.join('\n')).spec.action.instructions).not.toBe('Write the PRD, briefly.')
     const run1 = { apiVersion: 'persimmon.ai/v1', kind: 'WorkflowRun', metadata: { name: 'r' }, spec: { workflowRef: { kind: 'Workflow', name: 'prd-create' }, inputs: {}, timeout: '1h', origin: { kind: 'manual' } } }
     expect(await run('apply', file('run.yaml', [run1]), '--global')).toBe(1) // Namespaced kind
     expect(err.at(-1)).toMatch(/--global does not apply/)
@@ -155,7 +168,17 @@ describe('persimmon CLI', () => {
     const name2 = out[0]!.split('/')[1]!
     out = []
     expect(await run('get', `WorkflowRun/${name2}`)).toBe(0)
-    expect(parse(out.join('\n')).spec.inputs.q).toEqual({ kind: 'value', value: 'Title: a brief\nwith: colons, and a list:\n- not yaml\n' })
+    expect(parse(out.join('\n')).spec.inputs.q).toEqual({ kind: 'value', value: 'Title: a brief\nwith: colons, and a list:\n- not yaml' }) // one final newline dropped
+    writeFileSync(join(dir, 'rv.yaml'), 'kind: value\nvalue: typed\n')
+    out = []
+    expect(await run('run', 'ask-wf', '--input', 'q=@rv.yaml')).toBe(0) // a RuntimeValue file passes through on a string port too
+    expect(await run('get', `WorkflowRun/${out[0]!.split('/')[1]!}`)).toBe(0)
+    expect(parse(out.slice(1).join('\n')).spec.inputs.q).toEqual({ kind: 'value', value: 'typed' })
+    const num = { apiVersion: 'persimmon.ai/v1', kind: 'Workflow', metadata: { name: 'num-wf' }, spec: { ...wf.spec, inputs: { n: { type: { kind: 'value', schema: { type: 'integer' } } } }, steps: [{ ...wf.spec.steps[0], inputs: { q: { literal: 'ok?' } } }] } }
+    expect(await run('apply', file('num.yaml', [num]))).toBe(0)
+    err = []
+    expect(await run('run', 'num-wf', '--input', 'n=@q.txt')).toBe(1) // not a string port: the YAML error, not a string
+    expect(err.at(-1)).toMatch(/--input n: Nested mappings are not allowed/)
   })
 
   it('create --follow drives a run to its terminal value and logs show the RunLog', async () => {
