@@ -57,7 +57,7 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
 | `Prd` | `capabilities[].rules[]` | `BusinessRules` rules | `BR-n`; the rules artifact is a Task input |
 | `Prd` | `successCriteria[].capabilities[]` | its own capabilities | `CAP-n`; absent means the product as a whole |
 | `Architecture` | `introduction.prd` | one `Prd` | artifact id; the requirements are the Prd, never restated |
-| `Architecture` | `decisions[]`, `domainModels[]`, `glossaries[]`, `buildingBlocks[].contexts[]`, `context.business[].context` | `Adr`, `DomainModel`, `Glossary`, `BoundedContext` | artifact ids; an Adr is taken first and cites the revision it was taken against in provenance, the Architecture revision that applies it lists it |
+| `Architecture` | `decisions[]`, `domainModels[]`, `glossaries[]`, `buildingBlocks[].contexts[]`, `context.business[].context` | `Adr`, `DomainModel`, `Glossary`, `BoundedContext` | artifact ids; an Adr is taken first, or with the Architecture by `architect`, and the Architecture revision that applies it lists it |
 | `Adr` | `drivers[]`, prose | `QG-n`, `C-n`, `QS-n` of the Architecture, `BR-n` of the rules, `G-n`, `CAP-n`, `SC-n` of the Prd | by id, in the revisions provenance pins |
 | `Spec` | `prd`, `capability` | one `Prd`, one of its capabilities | artifact id and `CAP-n`; the capability's `context` is the Spec's context, never restated |
 | `Spec` | `domainModel`, `stories[].commands[]`, `events[]`, `readModels[]` | one `DomainModel` and its names | artifact id; command, event and read model labels by name, never redefined |
@@ -93,7 +93,7 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
 | in a `Design`: `block` resolves and `interface` is one it provides; every element's `realises` resolves in the DomainModel; rules resolve, are active, and the root `rules[]` is exactly the union of the elements'; `type` and `document.mediaType` pair; ids unique and increasing; `decisions[]` is not checked (no Adr in the payload). The document is not parsed; whether every operation of the contract has an element, and whether every command and read model of the block's contexts is realised across the block's Designs, are later checks (`91-roadmap.md`) | `design-consistency` (`29-design-process.md`); Validator later |
 | in a `Spec`: `capability` is a `CAP-n` of `prd`; `role` is a Prd user; `commands`, `events`, `readModels` resolve in the DomainModel; `stories[].requirements` resolve in the Spec and every `FR-n` is covered by a story; `requirements[].rules` resolve and are active; every `BR-n` the Prd capability lists is enforced by a requirement; each `statement` opens with its pattern's keyword (`The`, `When`, `While`, `If`, `Where`; `complex` opens with `While`, `When` or `If` and holds two of those clauses before `shall`); `qualities[].scenario` resolves in `architecture`; `domainModel.context` is the capability's `context` | `spec-consistency` (`27-spec-process.md`) |
 | in a `Plan`: `spec` and `architecture` are the ids of the Spec and Architecture evaluated; every `FR-n` of the Spec is in some task's `covers` and every `AC-n` in some `verifiedBy`, and each cited one exists; `block` resolves in `architecture`; `dependsOn` names lower `T-n` only, so document order is build order and no cycle is possible; `elements[].design` is in `designs[]`, the Design is in the payload, its `block` equals the task's and the `EL-n` exists; every listed Design is realised by some task and none is listed twice; ids unique and increasing | `plan-consistency` (`30-plan-process.md`) |
-| an `Adr`'s `drivers` resolve in the revisions its `provenance.inputs` pin (a Prd and rules for a baseline Adr, an Architecture later); the Adr carries no artifact id of its own for them | `architecture-consistency` for the Adrs an Architecture applies; Validator later for a baseline Adr |
+| an `Adr`'s `drivers` resolve in the revisions its `provenance.inputs` pin (a Prd and rules for a baseline Adr, an Architecture later), or, for an Adr the `architect` loop takes beside its Architecture, in that Architecture, which provenance does not pin and `decisions[]` names | `architecture-consistency` for the Adrs an Architecture applies; Validator later for a baseline Adr |
 | `goals` give direction without a number; `successCriteria` carry the number; `successCriteria` and `capabilities` name no technology, architecture or task | author Prompt; `prd-consistency` refuses a digit in a goal |
 | a success criterion is an outcome measured in production over time, decided by measurement; a behaviour one test decides on one run is an acceptance scenario and belongs to a Spec story; a capability no success criterion names is reported | author Prompt; Validator later |
 
@@ -231,8 +231,8 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
 - A second example is the pack's own output, not a hand-written one: `examples/example07/room-booking-domain.yaml`
   is what `author-prd`, `domain-discovery`, `spec-all`, `design-all` and `plan-all` produced on a small
   real brief with a human at the Gates, so a regression in a prompt, a Task context or a Validator shows
-  against artifacts the pack once wrote. The hand-written expense claims example stays: it covers `Adr`
-  and `DecisionTable`, which no process produces yet. Found in UAT.
+  against artifacts the pack once wrote. The hand-written expense claims example stays: it covers `DecisionTable`,
+  which no process produces yet, and a baseline Adr taken before the Architecture. Found in UAT.
 
 ## Examples
 

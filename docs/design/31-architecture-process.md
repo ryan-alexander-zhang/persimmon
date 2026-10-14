@@ -60,7 +60,8 @@ else `artifacts.prd`.
 | Rule | Enforcer |
 |---|---|
 | the Architecture rule row of `23-pack-ai-native.md`, except `deployment` and `runtime` references and `decisions[]` with status `accepted` being the only Adrs (they are: `adr-status`) | `architecture-consistency` |
-| the agent takes one Adr per `S-n`, in order, so `<prd>-adr-n` backs `S-n`; the Validator checks what it can see (status, drivers, the list), not the pairing | `architecture-rules`; convention |
+| the agent takes one Adr per `S-n`, the n-th Adr backing `S-n`, so `<prd>-adr-n` names one decision across rounds; a dropped `S-n` keeps its slot as a `superseded` Adr the Architecture does not list; the Validator checks status, drivers and the list, skips superseded entries, and does not count: the kind rule ("detail is an Adr") lets an Architecture apply fewer Adrs than it has strategies, as the worked example does | `architecture-rules`; `adr-mismatch`, `adr-status` |
+| one BoundedContext per product today: `rules` is one BusinessRules, per context, and `checkPrd` holds every capability to it; a product over several contexts takes `rules` as a list with the query row of `10-ports.md` | convention; `91-roadmap.md` |
 | `status: accepted` on the Architecture and its Adrs is the author's claim; the Gate's pass is the fact, read from the run; a rejected round's artifacts are committed revisions all the same, as every produce output is | convention |
 | every context the Prd's capabilities name is in `contexts`, and the caller lists its model and glossary beside it | `prd-context-unread`; convention for the lists |
 | the Architecture is written once per product, after `domain-discovery` and before `spec-all`; a second run publishes `r2` and the Specs that follow cite it | convention |
@@ -80,8 +81,20 @@ else `artifacts.prd`.
   view. Filling the lists by query is the roadmap row `10-ports.md` already has. Found in design review.
 - The Adrs are an `artifacts` output under the prefix `<prd>-adr`, the first in the pack, and the
   reason a Task may output a list (`12-task.md`). A round two republishes every Adr as its next
-  revision, so an Adr the human did not name changes only if the agent disobeys "change nothing
-  else"; a shorter list leaves the tail at its last revision. Found in design review.
+  revision. The loop's `previous` carries the subject only, so round two rewrites the Adrs without
+  seeing its own: an Adr the human did not name is regenerated from the same inputs and may drift
+  in wording. A `previous` for every produce output is a roadmap row. Found in design review; the
+  blind rewrite found in audit.
+- The n-th Adr backs `S-n` and a dropped strategy keeps its slot as a `superseded` Adr: the first
+  live round two dropped `S-2` and `S-5` and republished five Adrs under `adr-1` to `adr-5`, so
+  `adr-2` r2 backed `S-3` while r1 had backed `S-2`, one id for two decisions. Position equal to the
+  S-number keeps an id one decision for good; an Adr naming its `S-n` outright is the roadmap row.
+  Found in audit.
+- An architect Adr cites `QG-n`, `C-n` and `QS-n` of the Architecture published in the same
+  attempt, which its provenance does not pin: provenance pins the Task's inputs, and the
+  Architecture is an output beside it. The Validator resolves those ids in the Architecture it
+  evaluates with the Adrs; a reader follows `decisions[]` back. The pack rule row for an `Adr` says
+  so. Found in audit.
 - `context.business[].context` is not checked against the contexts evaluated: the worked example
   names `identity` and `accounting`, neighbours no process has written. The pack rule row says so.
   Found in implementation.

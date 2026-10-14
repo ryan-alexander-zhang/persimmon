@@ -404,14 +404,18 @@ describe('sdd/v1 over an Architecture', () => {
   })
   it('fails a relation end that resolves nowhere, one between two partners, a wrong interface, an unrelated block or partner', async () => {
     expect(await archCodes((a) => (a.architecture.relations[0].from = 'nobody'))).toEqual(['unknown-relation-end', 'partner-unrelated']) // the employee lost its only relation
+    expect(await archCodes((a) => (a.architecture.relations[3].to = 'nobody'))).toEqual(['unknown-relation-end']) // no interface finding on top
     expect(await archCodes((a) => (a.architecture.relations[0].to = 'approver'))).toEqual(['relation-no-block'])
     expect(await archCodes((a) => (a.architecture.relations[3].interface = 'blob API'))).toEqual(['unknown-interface'])
     expect(await archCodes((a) => a.architecture.relations.splice(8, 1))).toEqual(['partner-unrelated'])
     expect(await archCodes((a) => a.architecture.buildingBlocks.push({ id: 'BB-6', name: 'spare', responsibility: 'nothing yet', interfaces: [], contexts: [] }))).toEqual(['block-unrelated'])
   })
-  it('fails an Adr that is not accepted, and a driver that resolves nowhere', async () => {
+  it('fails an Adr that is not accepted, and a driver that resolves nowhere; a superseded slot is skipped', async () => {
     expect(await archCodes((a) => (a.adrs[0].status = 'proposed'))).toEqual(['adr-status'])
     expect(await archCodes((a) => (a.adrs[0].drivers = ['BR-99']))).toEqual(['unknown-adr-driver'])
+    // a dropped strategy's slot: superseded, evaluated, not listed, not refused
+    const r = await adapter({ id: ++id, op: 'evaluate', payload: archPayload({ ...archExample(), architecture: { ...content('Architecture'), decisions: [adrIds[0]] }, adrs: [adrs()[0], { ...adrs()[1], status: 'superseded' }] }) })
+    expect(r.result).toEqual({ passed: true, findings: [], evidence: [] })
   })
   it('fails ids out of sequence', async () => {
     expect(await archCodes((a) => (a.architecture.strategy[1].id = 'S-1'))).toEqual(['id-sequence'])

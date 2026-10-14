@@ -124,7 +124,7 @@ persimmon run plan-all --input 'prd=...' --input 'capabilities=[CAP-1, CAP-2, CA
 ```sh
 persimmon init
 persimmon apply ../../packs/ai-native/global/10-artifact-kinds.yaml --global
-persimmon validate room-booking-domain.yaml        # 21 lines `ok`
+persimmon validate room-booking-domain.yaml        # 26 lines `ok`
 ```
 
 `persimmon create` takes one document per file; split the file to load it, or read it as it is.

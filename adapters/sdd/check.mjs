@@ -264,7 +264,9 @@ export function checkArchitecture({ architecture, prd, rules, ids = {}, adrs = {
   }
   same('model-mismatch', 'domainModel', a.domainModels ?? [], ids.domainModels ?? [])
   same('glossary-mismatch', 'glossary', a.glossaries ?? [], ids.glossaries ?? [])
-  same('adr-mismatch', 'adr', a.decisions ?? [], ids.adrs ?? [])
+  // the Adrs applied are the accepted ones evaluated; a superseded one is a dropped strategy's slot, evaluated but not listed
+  const applied = (ids.adrs ?? []).filter((id) => adrs[id]?.status !== 'superseded')
+  same('adr-mismatch', 'adr', a.decisions ?? [], applied) // how many: the kind rule says "detail is an Adr", not one per S-n; the architect loop's one-per-S-n is a prompt convention the human reads
 
   // strategy, scenarios, relations resolve inside the document
   for (const s of a.strategy ?? []) for (const id of s.addresses ?? []) if (!goals.has(id) && !constraints.has(id)) bad('unknown-driver', `${s.id}: addresses ${id}, neither a quality goal nor a constraint`)
@@ -280,8 +282,8 @@ export function checkArchitecture({ architecture, prd, rules, ids = {}, adrs = {
     for (const e of ends) if (!blocks.has(e) && !partners.has(e)) bad('unknown-relation-end', `${r.id}: ${e} is neither a building block nor a partner`)
     if (!ends.some((e) => blocks.has(e))) bad('relation-no-block', `${r.id}: neither end is a building block`)
     for (const e of ends) related.add(e)
-    if (r.interface) {
-      const provider = blocks.has(r.to) ? blocks.get(r.to) : blocks.get(r.from)
+    if (r.interface && (blocks.has(r.to) || partners.has(r.to))) {
+      const provider = blocks.has(r.to) ? blocks.get(r.to) : blocks.get(r.from) // `to` a partner: the `from` block requires it
       const kind = blocks.has(r.to) ? 'provides' : 'requires'
       if (provider && !(provider.interfaces ?? []).some((i) => i.name === r.interface && i.kind === kind)) bad('unknown-interface', `${r.id}: ${provider.id} ${kind} no interface ${r.interface}`)
     }
@@ -293,6 +295,7 @@ export function checkArchitecture({ architecture, prd, rules, ids = {}, adrs = {
   const ruleIds = new Set((rules?.rules ?? []).map((r) => r.id))
   const prdIds = new Set([...(prd?.goals ?? []), ...(prd?.capabilities ?? []), ...(prd?.successCriteria ?? [])].map((x) => x.id))
   for (const [id, adr] of Object.entries(adrs)) {
+    if (adr.status === 'superseded') continue
     if (adr.status !== 'accepted') bad('adr-status', `adr ${id} is ${adr.status}, not accepted`)
     for (const d of adr.drivers ?? []) if (!goals.has(d) && !constraints.has(d) && !scenarios.has(d) && !ruleIds.has(d) && !prdIds.has(d)) bad('unknown-adr-driver', `adr ${id}: driver ${d} resolves in neither the Architecture, the Prd nor the rules`)
   }
