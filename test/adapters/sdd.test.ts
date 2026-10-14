@@ -177,6 +177,10 @@ describe('sdd/v1 over a Prd', () => {
     expect(await prdCodes((a) => { a.prd.openQuestions[1].id = 'Q-1' })).toEqual(['id-sequence'])
   })
 
+  it('fails a DomainModel of another context than the capability', async () => {
+    expect(await codes((a) => { a.domainModel.context = 'payments' })).toEqual(['context-mismatch'])
+  })
+
   it('is invalid_input without the BusinessRules beside a Prd', async () => {
     const r = await adapter({ id: 2003, op: 'evaluate', payload: payload({ prd: content('Prd') }) })
     expect(r).toEqual({ id: 2003, ok: false, error: { code: 'invalid_input', message: 'artifacts.rules is required', retryable: false } })

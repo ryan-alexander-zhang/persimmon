@@ -37,6 +37,7 @@ returning findings, every one `error`:
 |---|---|
 | `not-a-spec` | content without `stories`, `requirements` or `capability`; the only finding then |
 | `unknown-capability` | `capability` is no `CAP-n` of the Prd |
+| `context-mismatch` | `domainModel.context` is not the capability's `context` |
 | `unknown-role` | a story's `role` is no Prd user |
 | `unknown-command`, `unknown-event`, `unknown-read-model` | a name the DomainModel lacks (commands: aggregates' and external systems' `handles` and `issues`; events: `events[]`, read models' `updatedBy`, external systems' `emits`, so another context's event counts once the model names it) |
 | `unknown-requirement` | a story covers an `FR-n` the Spec lacks |
@@ -57,7 +58,7 @@ nothing: the schema refuses those (`minItems: 1`).
 | a Spec cites and never restates: a name the DomainModel lacks is a finding, fixed upstream, never invented in the Spec | `spec-consistency` |
 | a scenario's values ("25 EUR") are example data of the revision the Spec read, never the rule's authority; provenance pins the BusinessRules revision, and a Spec whose pinned revision is behind is a Relation query, not a field (`91-roadmap.md`) | convention |
 | the Spec's `prd`, `architecture`, `domainModel` artifact ids are not checked against the inputs: the evaluator payload carries content and provenance, no RevisionRef (`19-adapter-roles.md`); provenance pins what was read | convention; Validator later |
-| `domainModel.context` is not yet compared with the capability's `context`: since `derive-domain` names the BoundedContext after the storming context (`26-domain-discovery.md`) the two ids agree, and the check is a small follow-up | deferred |
+| `domainModel.context` is the capability's `context` (`context-mismatch`): `derive-domain` names the BoundedContext after the storming context (`26-domain-discovery.md`), so the two ids agree | `spec-consistency` |
 | `spec-all` runs over one context: its `domainModel`, `glossary` and `rules` are one artifact each; a Prd spanning contexts runs it once per context with that context's capability ids | convention |
 | `spec-gate` has no human: a project that wants sign-off wraps `spec-one` in an Approval, as example06 does | convention |
 

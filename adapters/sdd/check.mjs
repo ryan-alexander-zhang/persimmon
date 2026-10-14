@@ -38,8 +38,8 @@ export function checkSpec({ spec, prd, domainModel, architecture, rules }) {
 
   const capability = (prd?.capabilities ?? []).find((c) => c.id === spec.capability)
   if (!capability) bad('unknown-capability', `capability ${spec.capability} is not a capability of the Prd`)
-  // domainModel.context is not compared with the capability's: a derived model names the storming context, the Prd the
-  // BoundedContext artifact id; derive-domain now names one after the other, so the check is a follow-up (27-spec-process.md)
+  // derive-domain names the BoundedContext after the storming context, so the model's context is the capability's
+  else if (domainModel?.context !== capability.context) bad('context-mismatch', `${capability.id}: context ${capability.context} is not ${domainModel?.context}, the context of the DomainModel`)
 
   const { commands, events, readModels } = domainNames(domainModel)
   const scenarios = new Set((architecture?.qualityScenarios ?? []).map((q) => q.id))
