@@ -112,6 +112,22 @@ describe('workflow Handler', () => {
     expect(res.actions).toEqual([{ type: 'clearTimer', key: 'deadline' }])
   })
 
+  it('a fromArtifact step input binds the latest revision the engine knows', () => {
+    const wf = closure.resources.find((r) => r.kind === 'Workflow' && r.metadata.name === 'prd-create')!
+    const steps = (wf.spec as { steps: { id: string; inputs: Record<string, unknown> }[] }).steps
+    const byId = { ...wf, spec: { ...wf.spec, steps: steps.map((st) => (st.id === 'write-prd' ? { ...st, inputs: { ...st.inputs, research: { fromArtifact: { kind: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ResearchReport' }, id: '"research-" + inputs.repository.id' } } } } : st)) } }
+    const altered: Closure = { ...closure, resources: closure.resources.map((r) => (r === wf ? byId : r)) }
+    const kinds = new KindRegistry()
+    for (const kd of closure.resources.filter((r) => r.kind === 'KindDefinition')) kinds.register(kd)
+    const seen: string[] = []
+    const h = workflowHandler({ kinds, adapters: new AdapterRegistry({ resolve: () => undefined }), now: () => new Date(clock), closure: () => altered, callback: () => undefined, getResource: () => undefined, getByUid: () => undefined, random: () => 0, latestRevision: (kind, ns, id) => (seen.push(`${kind.kind}/${ns}/${id}`), id === 'research-checkout-v2' ? { ...reportRef, revision: 5 } : undefined) })
+    let r = run('prd-create', { repository: { kind: 'externalResource', ref: { ...repo, id: 'checkout-v2' } } }, 'by-id')
+    r = apply(r, h.reconcile(input(r, { type: 'Created', dedupeKey: 'created' })) as ReconcileResult)
+    const res = h.reconcile(childFinished(r, 'research', 'Succeeded', { phase: 'Succeeded', outputs: { report: { kind: 'artifact', ref: reportRef } } })) as ReconcileResult
+    expect(created(res)[0]!.spec).toMatchObject({ inputs: { research: { kind: 'artifact', ref: { ...reportRef, revision: 5 } } } }) // r5, not the step's r1
+    expect(seen).toEqual(['ResearchReport/demo/research-checkout-v2'])
+  })
+
   it('fails with unconsumed_failure, and a listed failure routes to a Failed terminal with its reason', () => {
     let r = run('prd-create', { repository: { kind: 'externalResource', ref: repo } })
     r = apply(r, handler.reconcile(input(r, { type: 'Created', dedupeKey: 'created' })) as ReconcileResult)

@@ -94,6 +94,7 @@ export function workflowHandler(deps: HandlerDeps): HandlerImpl {
       const sources = (extra: Partial<Sources> = {}): Sources => ({
         inputs: runInputs,
         steps: Object.fromEntries(spec.steps.flatMap((s) => (stepOutputs(s.id) ? [[s.id, stepOutputs(s.id)!]] : []))),
+        latest: (kind, id) => deps.latestRevision?.(kind, ns, id),
         ...extra,
       })
       const site = (step?: Step, withState = true) =>

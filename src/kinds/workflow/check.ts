@@ -123,6 +123,16 @@ export function checkWorkflow(spec: WorkflowSpec, resolve: Resolve): Finding[] {
       if (!step?.repeat) bad(path, 'fromIterationOutput outside repeat')
       return stepOutputs(step?.id ?? '')[b.fromIterationOutput]?.type
     }
+    if ('fromArtifact' in b) {
+      try {
+        const type = siteFor(visible, step).check(b.fromArtifact.id)
+        if (type !== 'string') bad(path, `fromArtifact id is ${type}, not string`)
+      } catch (e) {
+        if (e instanceof ExpressionError) bad(path, `fromArtifact id: ${e.message}`)
+        else throw e
+      }
+      return { kind: 'artifact', artifactKind: b.fromArtifact.kind }
+    }
     bad(path, 'fromEvent only in Trigger')
     return undefined
   }

@@ -1,7 +1,7 @@
 // What a builtin Handler may touch: Engine callbacks in process plus read-only registries (02-handler.md).
 import type { AdapterRegistry } from '../adapter/registry.js'
 import type { KindRegistry } from '../kind-definition/registry.js'
-import type { Resource, Snapshot } from '../resource/types.js'
+import type { Resource, RevisionRef, Snapshot } from '../resource/types.js'
 import type { Closure, Entry } from '../snapshot/walk.js'
 
 export interface HandlerDeps {
@@ -19,6 +19,8 @@ export interface HandlerDeps {
   random(): number
   /** The expansion of a live composition Resource (21-composition.md); absent in handler unit tests. */
   expand?(resource: Resource, namespace?: string): Resource[]
+  /** The latest committed revision of an artifact id, for `fromArtifact` bindings (10-ports.md); absent in handler unit tests. */
+  latestRevision?(kind: { apiVersion: string; kind: string }, namespace: string, id: string): RevisionRef | undefined
 }
 
 /** Definition lookup inside a closure: the run's Namespace first, then Global (04-snapshot.md). */

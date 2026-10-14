@@ -58,6 +58,16 @@ describe('checkWorkflow', () => {
     const t = linear()
     t.steps[1]!.inputs = { research: { fromInput: 'repository' } }
     expect(checkWorkflow(t, resolve).map((f) => f.message)).toEqual(['producer type differs from consumer type'])
+    // fromArtifact: the kind is the producer type, the id expression must be a string at the site
+    const byId = linear()
+    byId.steps[1]!.inputs = { research: { fromArtifact: { kind: report.artifactKind, id: '"research-" + inputs.repository.id' } } }
+    expect(checkWorkflow(byId, resolve).map((f) => f.message)).toEqual([])
+    byId.steps[1]!.inputs = { research: { fromArtifact: { kind: prd.artifactKind, id: 'inputs.repository.id' } } }
+    expect(checkWorkflow(byId, resolve).map((f) => f.message)).toEqual(['producer type differs from consumer type'])
+    byId.steps[1]!.inputs = { research: { fromArtifact: { kind: report.artifactKind, id: 'inputs.nope' } } }
+    expect(checkWorkflow(byId, resolve).map((f) => f.message)).toEqual([expect.stringMatching(/^fromArtifact id: /)])
+    byId.steps[1]!.inputs = { research: { fromArtifact: { kind: report.artifactKind, id: '1 + 1' } } }
+    expect(checkWorkflow(byId, resolve).map((f) => f.message)).toEqual(['fromArtifact id is int, not string'])
     const u = linear()
     u.steps[1]!.inputs = {}
     expect(checkWorkflow(u, resolve).map((f) => f.message)).toEqual(['required input research unbound'])

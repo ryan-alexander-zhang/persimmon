@@ -76,6 +76,10 @@ export class Engine {
       getByUid: (uid) => this.store.resources.getByUid(uid),
       random: Math.random,
       expand: (r, ns) => this.handlers.get(r.apiVersion, r.kind).impl?.expand?.(r, ns).resources ?? [],
+      latestRevision: (kind, ns, id) => {
+        const revision = Math.max(0, ...this.store.resources.listRevisions(kind.kind, ns, id).map((r) => (r.spec as { identity: { revision: number } }).identity.revision))
+        return revision ? { apiVersion: kind.apiVersion, kind: kind.kind, namespace: ns, id, revision } : undefined
+      },
     }
     const builtins = new Map<string, HandlerImpl>([
       ['workflow', workflowHandler(deps)],
