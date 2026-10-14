@@ -143,6 +143,7 @@ More scenarios, each with step-by-step instructions, are in [`examples/`](exampl
 | [`example02`](examples/example02/) | Spec to tested code, behind a Gate that loops rejected rounds back |
 | [`example03`](examples/example03/) | Event-driven release chain with Triggers, no agents |
 | [`example04`](examples/example04/) | Your own SDLC with templates you edit |
+| [`example07`](examples/example07/) | Brief to Plan with the AI Native pack: Prd, domain, Specs, Designs, Plans, a human at every Gate |
 
 ## Core concepts
 

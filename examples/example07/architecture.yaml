@@ -1,0 +1,87 @@
+apiVersion: sdd.persimmon.ai/v1
+kind: Architecture
+metadata: {name: room-booking-architecture.r1}
+spec:
+  identity: {id: room-booking-architecture, revision: 1}
+  content:
+    title: Meeting room booking architecture
+    owner: office IT
+    status: accepted
+    introduction:
+      prd: room-booking-prd
+      qualityGoals:
+        - {id: QG-1, quality: reliability, motivation: "One schedule is the truth; a double booking or a lost cancellation is the problem the tool exists to end (G-1, G-2)."}
+        - {id: QG-2, quality: interaction-capability, motivation: "Booking and check-in happen on a phone in a corridor; status must be readable from a screen across the floor (G-3)."}
+        - {id: QG-3, quality: maintainability, motivation: "One office IT person keeps it running beside other work; rules change by editing data, not code."}
+      stakeholders:
+        - {role: employee, expectations: the Prd's; plus a phone-first client and a check-in that takes one scan}
+        - {role: walk-in employee, expectations: the Prd's; plus a room claimed in one scan}
+        - {role: office management, expectations: the Prd's; plus the monthly report without asking IT}
+        - {role: office IT, expectations: "one deployable, no local accounts, rules as data"}
+    constraints:
+      - {id: C-1, kind: technical, statement: "Sign-in is the company SSO; name and team come from the directory; no local accounts.", rationale: the brief}
+      - {id: C-2, kind: technical, statement: "Door and floor screens are browsers in kiosk mode on the office network; they hold no credentials.", rationale: cheapest hardware IT already runs}
+      - {id: C-3, kind: organizational, statement: "Room capacities, video capability and the booking limits (BR-2 to BR-6, BR-9, BR-10) are data office management edits; no release.", rationale: the limits were set by office management and will change}
+    context:
+      business:
+        - {partner: employee, exchanges: "bookings, cancellations, check-ins", direction: both}
+        - {partner: walk-in employee, exchanges: "walk-in claims at the door", direction: in}
+        - {partner: office management, exchanges: "monthly utilisation report; room and limit data", direction: both}
+        - {partner: Directory, exchanges: "employee name and team by id", direction: in}
+      technical:
+        - {channel: web, protocol: HTTPS, carries: "everything employees exchange, on phone and desktop"}
+        - {channel: door QR, protocol: "HTTPS URL per room", carries: "check-in and walk-in claim"}
+        - {channel: screens, protocol: HTTPS, carries: "room status to door and floor screens"}
+        - {channel: directory API, protocol: HTTPS/JSON, carries: employee name and team lookups}
+    strategy:
+      - {id: S-1, decision: "One booking core owns the Room Booking context: the schedule, every rule, the status view and the report; clients are thin.", addresses: [QG-1, QG-3]}
+      - {id: S-2, decision: "Rooms and limits are data the core loads; office management edits them in the web client.", addresses: [C-3, QG-3]}
+      - {id: S-3, decision: "A check-in and a walk-in claim are the same door URL: the QR code carries the room id, the core decides which it is.", addresses: [QG-2]}
+      - {id: S-4, decision: "The core stores employee ids only; names and teams are read from the Directory when shown or reported.", addresses: [C-1]}
+    buildingBlocks:
+      - id: BB-1
+        name: booking core
+        technology: Node service, SQLite
+        responsibility: "the Room Booking context: rooms, bookings, walk-in claims, check-in, no-show release, hold expiry, the room status view, the monthly report"
+        interfaces:
+          - {name: booking API, kind: provides, description: "book, cancel, check in, claim; room status now; monthly report; rooms and limits for office management"}
+          - {name: directory, kind: requires, description: "employee name and team by id"}
+        contexts: [room-booking]
+      - id: BB-2
+        name: web client
+        technology: browser app
+        responsibility: "the employee's booking screens, the door URL that checks in or claims, office management's room and limit editing and the report"
+        interfaces:
+          - {name: booking API, kind: requires, description: everything shown comes from the core}
+        contexts: []
+      - id: BB-3
+        name: status screens
+        technology: browser app in kiosk mode
+        responsibility: "the door screen of one room and the floor screen of every room, refreshed from the status view"
+        interfaces:
+          - {name: booking API, kind: requires, description: "room status now, read only"}
+        contexts: []
+    relations:
+      - {id: REL-1, from: employee, to: BB-2, description: "books, cancels, checks in; scans the door QR", technology: HTTPS}
+      - {id: REL-2, from: walk-in employee, to: BB-2, description: scans the door QR to claim the room, technology: HTTPS}
+      - {id: REL-3, from: office management, to: BB-2, description: edits rooms and limits; reads the monthly report, technology: HTTPS}
+      - {id: REL-4, from: BB-2, to: BB-1, description: every command and read of the schedule, interface: booking API, technology: HTTPS/JSON}
+      - {id: REL-5, from: BB-3, to: BB-1, description: "room status now, every 30 seconds", interface: booking API, technology: HTTPS/JSON}
+      - {id: REL-6, from: BB-1, to: Directory, description: employee name and team by id, interface: directory, technology: HTTPS/JSON}
+    concepts:
+      - {id: CC-1, topic: domain, statement: "The Room Booking context has one model in the booking core; the Room Schedule aggregate is one transaction per room and slot, so two bookings of the same slot cannot both commit."}
+      - {id: CC-2, topic: transactions, statement: "No-show release and hold expiry run from a one-minute scheduler in the core; the policy parameters are data (C-3)."}
+      - {id: CC-3, topic: security, statement: "Every call carries the SSO identity; a booking's owner is the id that made it; screens read the status view with no identity."}
+      - {id: CC-4, topic: errors, statement: "A refused command names the rule BR-n; no other error reaches an employee."}
+      - {id: CC-5, topic: persistence, statement: "Bookings and their state changes are rows with a history table; the monthly report is a query over it."}
+    domainModels: [room-booking-model]
+    decisions: []
+    qualityScenarios:
+      - {id: QS-1, qualityGoal: QG-1, stimulus: two employees confirm the same room and slot within the same second, source: employees, response: one booking is made; the other sees No Available Room Found, measure: zero overlapping bookings in the history table}
+      - {id: QS-2, qualityGoal: QG-1, stimulus: the core restarts during the no-show window, response: the release still happens within one minute of the window's end, measure: release time minus window end under 60 seconds}
+      - {id: QS-3, qualityGoal: QG-2, stimulus: an employee scans the door QR, response: the booking is checked in or the room claimed with no further input beyond SSO, measure: under 5 seconds on the office network}
+      - {id: QS-4, qualityGoal: QG-2, stimulus: a booking is cancelled or released, response: the door and floor screens show the room free, measure: within 60 seconds}
+      - {id: QS-5, qualityGoal: QG-3, stimulus: office management changes the check-in window to 15 minutes, response: the next release uses it, measure: no deployment}
+    risks:
+      - {id: RK-1, kind: risk, statement: "The scheduler misses a release while the core is down for longer than the window.", probability: low, impact: medium, mitigation: QS-2; the scheduler catches up on restart from the history table}
+    glossaries: [room-booking-glossary]

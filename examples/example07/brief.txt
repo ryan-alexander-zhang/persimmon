@@ -1,0 +1,12 @@
+Meeting room booking for one office of about 80 people.
+
+The office has eight meeting rooms of different sizes (4, 6, 8 and 12 seats); two have video conferencing. Today rooms are booked in a shared spreadsheet. Problems: double bookings, rooms booked and never used ("ghost bookings"), people wander the floor looking for a free room, and nobody knows which rooms are free right now.
+
+We want a small internal tool:
+- An employee books a room for a time slot on a day, for a number of attendees, optionally needing video. The tool offers only rooms that fit and are free. Slots are 15-minute granular, between 08:00 and 20:00, at most 4 hours per booking, up to 30 days ahead.
+- A booking can be cancelled by its owner before it starts.
+- Ghost bookings: the owner must check in at the room (a QR code on the door) within 10 minutes of the start, else the booking is released and the room becomes free. A check-in is also how a walk-in grabs a free room on the spot (ad hoc booking until the next booking or 1 hour, whichever is first).
+- A screen by each door shows the room's status now (free / booked by whom until when / next booking) and a floor screen lists every room's status.
+- Office management wants a monthly report: utilisation per room, no-show rate per team, peak hours.
+
+Out of scope: external guests, catering, recurring bookings, integration with calendar tools (maybe later). Sign-in uses the company SSO; the directory gives name and team. One office, one time zone.

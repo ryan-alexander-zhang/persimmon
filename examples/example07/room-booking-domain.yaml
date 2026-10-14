@@ -1,5 +1,5 @@
 # Meeting room booking: every artifact below was produced by the AI Native pack live (author-prd, domain-discovery,
-# spec-all, design-all, plan-all on claude-sonnet-5) except the Architecture, which the human wrote. See 23-pack-ai-native.md.
+# spec-all, design-all, plan-all on claude-sonnet-5) except the Architecture, which the human wrote. See README.md.
 apiVersion: sdd.persimmon.ai/v1
 kind: Prd
 metadata:

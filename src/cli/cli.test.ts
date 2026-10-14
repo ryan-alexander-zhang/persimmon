@@ -59,7 +59,7 @@ describe('persimmon CLI', () => {
     expect([await run('validate', 'docs/design/examples/ai-native-domain.yaml'), out.filter((l) => !l.startsWith('ok'))]).toEqual([0, []])
     expect(out.length).toBe(14)
     out = [] // the pack's own live output, meeting room booking, validates too
-    expect([await run('validate', 'docs/design/examples/room-booking-domain.yaml'), out.filter((l) => !l.startsWith('ok'))]).toEqual([0, []])
+    expect([await run('validate', 'examples/example07/room-booking-domain.yaml'), out.filter((l) => !l.startsWith('ok'))]).toEqual([0, []])
     expect(out.length).toBe(21)
     out = []
     const bad = example('workflow-prd-create')
