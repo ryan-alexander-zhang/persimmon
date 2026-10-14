@@ -66,7 +66,7 @@ when `artifacts.domainModel` is present; `passed` iff no error. Labels compare e
 | Rule | Enforcer |
 |---|---|
 | a phase's model has `meta.level` at least the phase's; the grammar Validator takes the level from the Gate | `storming-gate` |
-| the agent asks nothing: an unknown is a hotspot with kind and priority; the human gate is where questions are answered | Prompts; `confirm-storming` |
+| the agent asks nothing: an unknown is a hotspot with kind and priority; the human gate is where questions are answered, and an answer given there is modelled into that phase, so the next phase reads it off `base` and never raises the Prd question again; a Prd `Q-n` with a `resolution` is modelled, not raised | Prompts (`storming-dsl`); `confirm-storming` |
 | a derivation is a projection: every name a storming label, every relation an edge; `domain-consistency` refuses drift | `derived-gate` |
 | `glossary.context` and `domainModel.context` cite the storming context id, and the BoundedContext artifact the Task publishes carries that id (`outputs.context.id: inputs.contextId`, `12-task.md`), the Glossary `<context>-glossary`, the DomainModel `<context>-model`; a second derivation publishes their next revisions | `derive-domain` outputs; Validator later |
 | `allowedHosts` on the storming Executor is declarative: the shipped agent Adapters do not enforce `security` (`13-executor.md`) | convention; roadmap |
@@ -113,6 +113,14 @@ when `artifacts.domainModel` is present; `passed` iff no error. Labels compare e
   walk-in limit `BR-10` already stated, and the design-level agent modelled constraints from
   capability descriptions, then asked for the rule text in a hotspot. The human pasted the rules
   into a finding. Optional, so a Prd without rules still storms. Found in UAT.
+
+- A gate's answers reach the next phase through `base`, not through the Prd: the big-picture gate of
+  example08 answered all five Prd questions in findings and the confirmed model carried no hotspot,
+  yet the process phase raised four of them again from the Prd's `openQuestions`, since a loop's
+  `feedback` is its own and nothing wrote the answers anywhere. The DSL Prompt now says a question the
+  confirmed base no longer carries was settled there. The durable path is a Prd revision with
+  `openQuestions[].resolution` before storming; the Prompt models a resolved question. Found in UAT
+  (example08).
 
 ## Examples
 

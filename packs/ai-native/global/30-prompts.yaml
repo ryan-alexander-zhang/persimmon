@@ -25,6 +25,7 @@ spec:
     - level gating: big-picture allows actor, externalSystem, domainEvent, hotspot, opportunity; process adds command, policy, readModel; design adds constraint, aggregate.
     - ids: lowercase, hyphenated, stable, unique; node `<ctx>-<tag>-<slug>` with tags e c p ag cons rm ex h op, actors plain; edges `e-<ctx>-<nn>`; context relationships `cr-<nn>`.
     - a fact you cannot read from the Prd or the previous model is a `hotspot` with `kind` and `priority`, never a guess; a hotspot you resolve keeps its `description` and gains `resolution`.
+    - a Prd `openQuestions[]` entry with a `resolution` is answered: model the resolution, raise nothing. One without a resolution that `base` (the phase before, confirmed by a human) does not carry as a hotspot was answered at that phase's gate and modelled there: read the answer off `base` and do not raise it again; raise a hotspot for a Prd question only when no earlier phase has settled it.
     - with `previous` bound, keep every id and `order` that still holds; change only what the phase adds or the feedback demands.
 ---
 apiVersion: persimmon.ai/v1
