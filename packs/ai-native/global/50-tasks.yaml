@@ -245,3 +245,62 @@ spec:
     parameters: {effort: high}
   timeout: 30m
   sideEffects: none
+---
+# The Architecture of one product (31-architecture-process.md): the arc42 baseline over every context, and the Adrs it applies.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: write-architecture}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    contexts: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext}}, description: "every BoundedContext the Prd's capabilities name"}
+    domainModels: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
+    glossaries: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}, required: false}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+  outputs:
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}, id: {expression: "inputs.prd.id + '-architecture'"}}
+    adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}, id: {expression: "inputs.prd.id + '-adr'"}}
+  executorRef: {kind: Executor, name: architecture-agent}
+  action:
+    instructions: |
+      Write the Architecture of the product the Prd describes and the Adrs behind its strategy, following the
+      Architecture rules in your context. `introduction.prd` is the Prd's artifact id; `domainModels` and `glossaries`
+      list the artifact ids of every DomainModel and Glossary in your context; `buildingBlocks[].contexts` cite the
+      BoundedContexts by artifact id. `adrs` is one Adr per strategy decision, in order; `decisions` lists their ids,
+      `<prd>-adr-1`, `<prd>-adr-2`, ... With `previous` and `feedback` bound, fix what the findings name and change
+      nothing else; answer the whole Architecture and every Adr again.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: architecture-rules}}
+      - {kind: artifact, input: prd}
+      - {kind: artifact, input: rules}
+      - {kind: artifact, input: contexts}
+      - {kind: artifact, input: domainModels}
+      - {kind: artifact, input: glossaries}
+      - {kind: artifact, input: previous}
+    parameters: {effort: high}
+  timeout: 30m
+  sideEffects: none
+---
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: confirm-architecture}
+spec:
+  inputs:
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
+  executorRef: {kind: Executor, name: local-reviewer}
+  action:
+    instructions: |
+      Confirm the Architecture and the Adrs it applies. Judge the block cut, the strategy and its Adrs, the quality
+      goals and their order, and the constraints; the Validator checks ids and citations beside you. Approve, or
+      reject with one finding per BB-n, S-n, QG-n, C-n, QS-n or Adr id that must change, naming the id in the
+      finding's message.
+    context:
+      - {kind: artifact, input: architecture}
+      - {kind: artifact, input: adrs}
+  timeout: 72h
+  sideEffects: none

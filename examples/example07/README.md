@@ -3,13 +3,12 @@
 You give a one-page brief. The pack writes the Prd and its business rules, storms the domain in
 three levels, derives the bounded context, its glossary and domain model, writes one Spec per
 capability, one Design per building block and type, and one Plan per Spec. You sit at the Gates:
-approve, or reject with findings the next round must fix. Only one artifact is yours to write: the
-Architecture, which no process produces yet.
+approve, or reject with findings the next round must fix. Nothing is yours to write but the brief.
 
 ```text
-brief ─▶ author-prd ─▶ domain-discovery ─▶ [architecture.yaml] ─▶ spec-all ─▶ design-all ─▶ plan-all
-          Prd, rules    EventStorming ×3       Architecture        Spec ×6     Design ×2     Plan ×6
-          you confirm   you confirm each       you write
+brief ─▶ author-prd ─▶ domain-discovery ─▶ architect ─▶ spec-all ─▶ design-all ─▶ plan-all
+          Prd, rules    EventStorming ×3       Architecture,  Spec ×6     Design ×2     Plan ×6
+          you confirm   you confirm each       Adrs; you confirm
                         BoundedContext,
                         Glossary, DomainModel
 ```
@@ -23,7 +22,7 @@ load it into a project without running anything (step 8).
 - `persimmon` on your PATH: `npm install && npm install -g .` in the repository root
   ([Installation](../../README.md#installation))
 - `claude` CLI installed and logged in
-- about 45 minutes of wall clock and your attention at seven Gates
+- about 50 minutes of wall clock and your attention at eight Gates
 
 ## Steps
 
@@ -72,23 +71,28 @@ an edge or a context id. The derivation that follows has no human Gate. The run 
 `BoundedContext/room-booking.r1`, `Glossary/room-booking-glossary.r1`,
 `DomainModel/room-booking-model.r1`.
 
-### 4. The Architecture, by hand
+### 4. The Architecture and its Adrs
 
 ```sh
-persimmon validate architecture.yaml
-persimmon create architecture.yaml
+persimmon run architect --input 'prd={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: Prd, namespace: default, id: room-booking-prd, revision: <n>}}' \
+  --input 'rules={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules, namespace: default, id: room-booking-rules, revision: <n>}}' \
+  --input 'contexts=[{apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext, id: room-booking, revision: 1}]' \
+  --input 'domainModels=[{apiVersion: sdd.persimmon.ai/v1, kind: DomainModel, id: room-booking-model, revision: 1}]' \
+  --input 'glossaries=[{apiVersion: sdd.persimmon.ai/v1, kind: Glossary, id: room-booking-glossary, revision: 1}]' --follow
 ```
 
-The one in this directory is for this brief: three building blocks, the booking core (`BB-1`),
-the web client, the status screens. Edit it before creating it if your discovery came out
-differently; `introduction.prd`, `domainModels` and `glossaries` are the artifact ids above.
+One Gate: the Validator checks every citation, you judge the block cut, the strategy and its Adrs,
+the quality goals. A finding names a `BB-n`, `S-n`, `QG-n`, `C-n`, `QS-n` or an Adr id. The run
+ends with `Architecture/room-booking-prd-architecture.r1` and `Adr/room-booking-prd-adr-<k>.r1`,
+one per strategy decision. `architecture.yaml` in this directory is the hand-written one an earlier
+run of these steps used, kept for comparison; the one the loop wrote is in `room-booking-domain.yaml`.
 
 ### 5. One Spec per capability
 
 ```sh
 persimmon run spec-all --input 'prd={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: Prd, namespace: default, id: room-booking-prd, revision: <n>}}' \
   --input 'capabilities=[CAP-1, CAP-2, CAP-3, CAP-4, CAP-5, CAP-6]' \
-  --input 'architecture={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture, namespace: default, id: room-booking-architecture, revision: 1}}' \
+  --input 'architecture={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture, namespace: default, id: room-booking-prd-architecture, revision: 1}}' \
   --input 'domainModel={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel, namespace: default, id: room-booking-model, revision: 1}}' \
   --input 'glossary={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary, namespace: default, id: room-booking-glossary, revision: 1}}' \
   --input 'rules={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules, namespace: default, id: room-booking-rules, revision: <n>}}' --follow

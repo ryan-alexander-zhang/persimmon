@@ -522,6 +522,11 @@ The pack process from a **Spec** and its **Design**s to a **Plan**: one ReviewLo
 the Designs listed by the caller, checked by `plan-consistency`.
 _Avoid_: planning phase, task breakdown, plan-all
 
+**Architecture process**:
+The pack process from a **Prd** and the domain kinds of its contexts to the **Architecture** and its
+**Adr**s: ReviewLoop `architect`, once per product, checked by `architecture-consistency` and a human.
+_Avoid_: architecting phase, design phase, architecture pipeline
+
 **Prd**:
 **Artifact kind** of the AI Native pack: why, for whom, `CAP-n` capabilities, `SC-n` success
 criteria. No stories, requirements or technology; those are the **Spec**'s.

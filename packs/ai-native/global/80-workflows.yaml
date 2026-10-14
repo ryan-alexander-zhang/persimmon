@@ -465,3 +465,40 @@ spec:
         - {terminal: Failed, reason: plan_inconsistent}
       dispatch: first
   timeout: 12h
+---
+# The Architecture process (31-architecture-process.md): write the baseline and its Adrs, check, confirm at the terminal, up to three rounds.
+apiVersion: persimmon.ai/v1
+kind: ReviewLoop
+metadata: {name: architect}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    contexts: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext}}}
+    domainModels: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
+    glossaries: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
+  produce:
+    uses: {kind: Task, name: write-architecture}
+    inputs:
+      prd: {fromInput: prd}
+      rules: {fromInput: rules}
+      contexts: {fromInput: contexts}
+      domainModels: {fromInput: domainModels}
+      glossaries: {fromInput: glossaries}
+    timeout: 30m
+  review:
+    uses: {kind: Gate, name: architecture-gate}
+    inputs:
+      architecture: {fromStep: {stepRef: produce, output: architecture}}
+      adrs: {fromStep: {stepRef: produce, output: adrs}}
+      prd: {fromInput: prd}
+      rules: {fromInput: rules}
+      contexts: {fromInput: contexts}
+      domainModels: {fromInput: domainModels}
+      glossaries: {fromInput: glossaries}
+    timeout: 72h
+  subject: architecture
+  previous: previous
+  feedback: feedback
+  maxRounds: 3
+  timeout: 240h

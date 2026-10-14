@@ -132,3 +132,37 @@ spec:
         designs: {fromInput: designs}
   policy: {strategy: all}
   timeout: 5m
+---
+# An Architecture passes when its citations hold and a human confirmed the block cut and the strategy.
+apiVersion: persimmon.ai/v1
+kind: Gate
+metadata: {name: architecture-gate}
+spec:
+  inputs:
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}}
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    contexts: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext}}}
+    domainModels: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
+    glossaries: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
+  validators:
+    - name: consistency
+      ref: {kind: Validator, name: architecture-consistency}
+      inputs:
+        architecture: {fromInput: architecture}
+        prd: {fromInput: prd}
+        rules: {fromInput: rules}
+        contexts: {fromInput: contexts}
+        domainModels: {fromInput: domainModels}
+        glossaries: {fromInput: glossaries}
+        adrs: {fromInput: adrs}
+    - name: confirmed
+      ref: {kind: Validator, name: architecture-confirmed}
+      inputs:
+        architecture: {fromInput: architecture}
+        adrs: {fromInput: adrs}
+  policy: {strategy: all}
+  timeout: 72h

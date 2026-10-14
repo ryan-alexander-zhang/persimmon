@@ -59,6 +59,7 @@ Read top to bottom within a layer; a file depends only on files above it.
 | `docs/design/27-spec-process.md` | Prd capability to `Spec`: the writing Task, the consistency check `sdd/v1`, one ReviewLoop per capability, `spec-all` over a Prd | draft |
 | `docs/design/29-design-process.md` | Architecture block to `Design` assets: the writing Task per block and type, the `sdd/v1` Design check, `design-all` over blocks | draft |
 | `docs/design/30-plan-process.md` | Spec and Designs to `Plan`: the writing Task over an `artifacts` input, the `sdd/v1` Plan check, `plan-one` per Spec | draft |
+| `docs/design/31-architecture-process.md` | Prd and the domain kinds to `Architecture` and its `Adr`s: the writing Task with an `artifacts` output, the `sdd/v1` Architecture check, the human Gate, `architect` once per product | draft |
 | `docs/design/28-prd-process.md` | brief to `Prd`: the writing Task that also writes the rules, the `sdd/v1` Prd check, a human gate, `author-prd` | draft |
 
 ## Cross-cutting

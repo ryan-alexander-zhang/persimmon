@@ -224,3 +224,31 @@ spec:
     Ids `T-n`, `Q-n` unique and increasing; a revision keeps every id in place and never reuses one.
 
     With `previous` and `feedback` bound, the consistency check refused the last Plan: every finding names a task, a requirement, a scenario, a block or an element; fix those and change nothing else.
+---
+apiVersion: persimmon.ai/v1
+kind: Prompt
+metadata: {name: architecture-rules}
+spec:
+  mediaType: text/markdown
+  content: |
+    # Writing the Architecture of one product
+
+    You write the arc42 baseline of the product the Prd describes, once per product, over every bounded context the Prd's capabilities name. An Architecture says how the product is shaped; it cites the Prd, the contexts, their DomainModels and Glossaries and the rules, and restates none of them.
+
+    Sections, each short:
+    - `introduction`: `prd` is the Prd's artifact id, the requirements by reference. `qualityGoals` (`QG-n`, at most five, most important first): an ISO 25010:2023 characteristic each, `motivation` naming the Prd goal or success criterion it serves. `stakeholders`: the Prd's users plus whoever runs or audits the product, each with one expectation.
+    - `constraints` (`C-n`): what is fixed before design starts, from the brief and the Prd's assumptions (sign-in, hosting, who edits what without a release); `kind` technical, organizational or convention.
+    - `context`: `business` partners are the Prd's users and every external system, each with what crosses the boundary in Glossary words and its direction; a partner that is another bounded context names it in `context`. `technical` channels carry those exchanges.
+    - `strategy` (`S-n`): the few decisions that shape everything, each naming the `QG-n` and `C-n` it addresses.
+    - `buildingBlocks` (`BB-n`): one block per deployable or per clearly owned responsibility; `technology` as a C4 container label (runtime, framework, store); `interfaces` it provides and requires, by name; `contexts` the artifact ids of the BoundedContexts it realises, so that every context is realised by at least one level 1 block; a client block realises no context. `relations` (`REL-n`): every level 1 block and every partner has at least one; `interface` names an interface the `to` block provides, or the `from` block requires when `to` is a partner.
+    - `concepts` (`CC-n`): domain (where each context's model lives and its transaction boundary, from the DomainModel's aggregates), security, persistence, errors (a refused command names its `BR-n`), transactions, and whatever else cuts across blocks.
+    - `domainModels` and `glossaries`: the artifact ids of the inputs with those names, all of them. `decisions`: the ids of the Adrs you take (below).
+    - `qualityScenarios` (`QS-n`): at least one per `QG-n`: stimulus, response, a measurable `measure`. A Spec will hold its capability to these by id.
+    - `risks` (`RK-n`): what could break the strategy, with a mitigation; may be empty.
+    - `title`, `owner` from the brief or the Prd; `status: accepted`: the Gate's pass is what accepts it.
+
+    Adrs (`adrs`, a list): one per strategy decision `S-n`, in order, so the first Adr backs `S-1`. Each: `title` the decision as an imperative; `status: accepted`; `deciders`; `context` the forces in prose, naming `QG-n`, `C-n`, `BR-n`; `drivers` the ids it answers (`QG-n`, `C-n`, `QS-n` of this Architecture, `BR-n` of the rules, `G-n`, `CAP-n`, `SC-n` of the Prd); `decision`; `alternatives` with why each was rejected; `consequences`. The engine names the Adr artifacts for you; `decisions` in the Architecture lists them by those ids, which are `<prd>-adr-1`, `<prd>-adr-2`, ... in list order.
+
+    Ids `QG-n`, `C-n`, `S-n`, `BB-n`, `REL-n`, `CC-n`, `QS-n`, `RK-n` unique and increasing; a revision keeps every id in place and never reuses one. Prose uses Glossary term names.
+
+    An unknown fact is a risk or a constraint stated as an assumption, never a guess presented as fact. With `previous` and `feedback` bound, the last round was refused: a Validator finding names an id, a human finding names a block, a decision, a goal or an Adr; fix those and change nothing else. Answer the whole Architecture and every Adr again.

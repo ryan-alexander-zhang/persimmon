@@ -115,3 +115,36 @@ spec:
     adapter: sdd/v1
     configuration: {}
   timeout: 1m
+---
+# architecture-consistency: sdd/v1 checks an Architecture against the Prd, the contexts, models, glossaries, rules and Adrs (31-architecture-process.md).
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: architecture-consistency}
+spec:
+  inputs:
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    contexts: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext}}}
+    domainModels: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
+    glossaries: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
+    adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}}
+  evaluator:
+    type: adapter
+    adapter: sdd/v1
+    configuration: {}
+  timeout: 1m
+---
+# The human confirmation of an Architecture, as a Validator over the confirm-architecture Task.
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: architecture-confirmed}
+spec:
+  inputs:
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}}
+  evaluator:
+    type: task
+    taskRef: {kind: Task, name: confirm-architecture}
+    resultOutput: result
+  timeout: 72h
