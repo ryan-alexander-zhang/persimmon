@@ -85,3 +85,4 @@ later     eager joins · retention policy · policy resource · external event s
 | CEL library | decided: `@marcbachmann/cel-js`, checker covers static rule 11 (`10-ports.md`) |
 | canonical serialization | decided: JSON, sorted keys, UTF-8, no whitespace (`04-snapshot.md`) |
 | human Adapter for local mode | decided: `cli-human/v1` is a file drop in `.persimmon/inbox/`; `persimmon complete` prompts at the terminal, `--file` for scripts (`20-pack.md`) |
+| a compatible change to a revisioned KindDefinition (an optional property added, an enum widened) accepted by `apply`, so a pack upgrade reaches an existing project | `01-kind-definition.md`, `32-ui-design-process.md` | the KindDefinition never changes: the `ui` type and `designSystem` on the Design kind need a fresh project or a new kind name |

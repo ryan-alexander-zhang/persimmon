@@ -130,6 +130,19 @@ without `document.content` is `not-a-design-system`, the only finding then. No E
 - No human at `design-gate` for a `ui` Design, as for any Design (`27-spec-process.md`): the human
   confirmed the DesignSystem; a screen's layout follows from it and the block. Found in design review.
 
+- A revisioned KindDefinition never changes (`01-kind-definition.md`), so the `ui` type and `designSystem`
+  on the Design kind were refused by `apply` in the project that ran example07: `Design is revisioned;
+  its KindDefinition never changes`. The UAT moved to a fresh project loaded from the recorded output.
+  A compatible-change rule (optional property, widened enum) is on the roadmap; until then a pack
+  upgrade that touches a revisioned kind needs a fresh project. Found in UAT.
+
+- Live round one on `claude-sonnet-5`: the file came back whole and in order, twelve typography levels
+  and fifteen components, and the linter refused seven `border` sub-tokens (`broken-ref`: not in the
+  closed set `backgroundColor`, `textColor`, `typography`, `rounded`, `padding`, `size`, `height`,
+  `width`). The Prompt listed five and said "with", not "only"; it now names the set and says a
+  border or a shadow is prose. The human's findings beside the linter's: a report page no client block
+  shows, and a kiosk's stale state as a badge rather than a whole screen. Found in UAT.
+
 ## Examples
 
 - `examples/example07/`: `DesignSystem/room-booking-prd-design-system` and the `ui` Designs of
