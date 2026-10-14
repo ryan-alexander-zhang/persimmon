@@ -124,7 +124,7 @@ export function stageRevision(engine: Engine, req: PublishRequest, producer: Res
   const { store, kinds } = engine
   const c = kinds.get(req.kind.apiVersion, req.kind.kind)
   if (!c.definition.spec.revisioned) throw new WriteError(`${req.kind.kind} is not revisioned`)
-  if (!c.spec(req.content)) throw new WriteError(`${req.kind.kind} content: ${c.spec.errors?.map((e) => e.message).join('; ')}`)
+  if (!c.spec(req.content)) throw new WriteError(`${req.kind.kind} content: ${c.spec.errors?.map((e) => `${e.instancePath || '/'} ${e.message}`).join('; ')}`) // the path, so an agent's answer can be read against it
   for (const r of req.representations) if (!store.blobs.get(`blob://${r.digest.slice(7)}`)) throw new WriteError(`representation ${r.name}: blob ${r.digest} missing`)
   const namespace = producer.metadata.namespace
   if (!namespace) throw new WriteError(`${producer.kind} ${producer.metadata.name} is Global; revisioned kinds are Namespaced`)

@@ -170,7 +170,7 @@ export function taskHandler(deps: HandlerDeps): HandlerImpl {
         const outputs = Object.fromEntries(Object.entries(task.spec.outputs ?? {}).map(([port, o]) => [port, o.type.kind === 'value' && o.type.schema ? { ...o, type: { kind: 'value' as const, schema: inlineSchema(o.type.schema) } } : o]))
         const outputSchemas = Object.fromEntries(
           Object.entries(outputs)
-            .filter(([, o]) => o.type.kind === 'artifact')
+            .filter(([, o]) => o.type.kind === 'artifact' || o.type.kind === 'artifacts') // an artifacts port: the schema of one item
             .map(([port, o]) => {
               const ak = (o.type as { artifactKind: { apiVersion: string; kind: string } }).artifactKind
               const kd = loaded.closure.resources.find((r) => r.kind === 'KindDefinition' && (r.spec as { names: { kind: string } }).names.kind === ak.kind)

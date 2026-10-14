@@ -225,6 +225,7 @@ describe('task Handler', () => {
     let runM = base()
     const rm = handler.reconcile(input(runM, { type: 'Created', dedupeKey: 'created' })) as ReconcileResult
     expect((rm.actions[0] as { payload: { task: { outputIds: unknown } } }).payload.task.outputIds).toEqual({ many: 'checkout-adr' })
+    expect(Object.keys((rm.actions[0] as { payload: { task: { outputSchemas: object } } }).payload.task.outputSchemas)).toEqual(['report', 'many']) // the item schema rides along for the list port
     runM = apply(runM, rm)
     const refsOf = (ids: string[]) => ids.map((id) => ({ ...prd, namespace: 'demo', id, revision: 1 }))
     const report = { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ResearchReport', namespace: 'demo', id: 'prd-create-002-research-report', revision: 1 }
