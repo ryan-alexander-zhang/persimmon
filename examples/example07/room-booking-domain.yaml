@@ -129,7 +129,7 @@ spec:
     revision: 1
   content:
     title: Meeting Room Booking Business Rules
-    context: room-booking
+    contexts: [room-booking]
     owner: Office management
     rules:
       - id: BR-1

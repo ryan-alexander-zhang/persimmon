@@ -103,14 +103,20 @@ export function checkPrd({ prd, rules }) {
   const bad = (code, message) => findings.push({ severity: 'error', code, message })
 
   const status = new Map((rules?.rules ?? []).map((r) => [r.id, r.status]))
+  const ruleContext = new Map((rules?.rules ?? []).map((r) => [r.id, r.context]))
+  // one BusinessRules per product (33-multi-context-product.md): a capability lives in one of its contexts and cites rules
+  // of that context, or untagged ones; with several contexts every rule says which one enforces it
+  const contexts = rules?.contexts ?? []
+  if (contexts.length > 1) for (const r of rules.rules ?? []) if (!r.context) bad('context-mismatch', `${r.id}: a product over ${contexts.length} contexts tags every rule with the context that enforces it`)
+  for (const r of rules?.rules ?? []) if (r.context && !contexts.includes(r.context)) bad('context-mismatch', `${r.id}: context ${r.context} is not one the BusinessRules govern (${contexts.join(', ')})`)
   const capabilityIds = prd.capabilities.map((c) => c.id)
   for (const cap of prd.capabilities) {
     for (const r of cap.rules ?? []) {
       if (!status.has(r)) bad('unknown-rule', `${cap.id}: rule ${r} is not in the BusinessRules`)
       else if (status.get(r) !== 'active') bad('inactive-rule', `${cap.id}: rule ${r} is ${status.get(r)}, not active`)
+      else if (ruleContext.get(r) && ruleContext.get(r) !== cap.context) bad('context-mismatch', `${cap.id}: rule ${r} is enforced in ${ruleContext.get(r)}, not the capability's ${cap.context}`)
     }
-    // the BusinessRules artifact is one per context, and a run checks one context
-    if (cap.context !== rules?.context) bad('context-mismatch', `${cap.id}: context ${cap.context} is not ${rules?.context}, the context of the BusinessRules`)
+    if (!contexts.includes(cap.context)) bad('context-mismatch', `${cap.id}: context ${cap.context} is not one the BusinessRules govern (${contexts.join(', ')})`)
   }
   for (const sc of prd.successCriteria ?? []) {
     for (const c of sc.capabilities ?? []) if (!capabilityIds.includes(c)) bad('unknown-capability', `${sc.id}: capability ${c} is not in the Prd`)

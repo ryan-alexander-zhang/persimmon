@@ -158,6 +158,15 @@ describe('sdd/v1 over a Prd', () => {
 
   it('fails a capability in another context than the BusinessRules', async () => {
     expect(await prdCodes((a) => { a.prd.capabilities[1].context = 'payments' })).toEqual(['context-mismatch'])
+    // one BusinessRules per product (33-multi-context-product.md): with two contexts every rule is tagged, and a capability cites its own context's rules
+    expect(await prdCodes((a) => { a.rules.contexts = ['expenses', 'payments'] })).toEqual(Array(content('BusinessRules').rules.length).fill('context-mismatch')) // every rule untagged
+    const two = structuredClone(prdExample())
+    two.rules.contexts = ['expenses', 'payments']
+    for (const r of two.rules.rules) r.context = 'expenses'
+    expect((await adapter({ id: ++id, op: 'evaluate', payload: payload(two) })).result).toEqual({ passed: true, findings: [], evidence: [] })
+    // a rule of the other context: one finding per capability citing it; a tag outside contexts: the rule and every citation
+    expect(new Set(await prdCodes((a) => { a.rules.contexts = ['expenses', 'payments']; for (const r of a.rules.rules) r.context = 'expenses'; a.rules.rules[0].context = 'payments' }))).toEqual(new Set(['context-mismatch']))
+    expect(new Set(await prdCodes((a) => { a.rules.rules[0].context = 'ghost' }))).toEqual(new Set(['context-mismatch']))
   })
 
   it('fails a success criterion citing a capability the Prd does not have', async () => {

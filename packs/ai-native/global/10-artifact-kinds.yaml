@@ -112,11 +112,11 @@ spec:
     - name: v1
       schema:
         type: object
-        required: [title, context, owner, rules]
+        required: [title, contexts, owner, rules]
         additionalProperties: false
         properties:
           title: {type: string, minLength: 1}
-          context: {type: string, minLength: 1, description: "artifact id of the BoundedContext these rules govern"}
+          contexts: {type: array, minItems: 1, items: {type: string, minLength: 1}, description: "artifact ids of the BoundedContexts these rules govern: one product, one artifact, BR-n unique across it (33-multi-context-product.md)"}
           owner: {type: string, minLength: 1, description: "who signs these rules; a rule may name its own owner"}
           rules:
             type: array
@@ -127,6 +127,7 @@ spec:
               additionalProperties: false
               properties:
                 id: {type: string, pattern: "^BR-[0-9]+$", description: "never reused; a withdrawn rule stays with status deprecated"}
+                context: {type: string, minLength: 1, description: "the context that enforces the rule, one of contexts; required by the Validator when contexts has more than one"}
                 type: {enum: [fact, constraint, derivation, decision], description: "fact: a structural rule over one fact type (cardinality, necessity); constraint: a must or must not; derivation: a computed value; decision: an outcome"}
                 statement: {type: string, minLength: 1, description: "one RuleSpeak sentence in Glossary terms with a rule keyword: 'must', 'must not', 'may ... only', 'must be computed as', 'must be considered <outcome> if'"}
                 rationale: {type: string, minLength: 1, description: "an informal rule (no logic) says so here"}
