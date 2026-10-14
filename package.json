@@ -25,6 +25,7 @@
     "typecheck:tools": "tsc -p tools/eventstorming --noEmit"
   },
   "dependencies": {
+    "@google/design.md": "0.4.0",
     "@marcbachmann/cel-js": "8.0.0",
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",

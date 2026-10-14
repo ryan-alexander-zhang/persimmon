@@ -1,0 +1,9 @@
+# Evaluator Adapter for DesignSystem artifacts: the DESIGN.md linter (32-ui-design-process.md). persimmon init resolves the script path.
+apiVersion: persimmon.ai/v1
+kind: Adapter
+metadata: {name: designmd-v1}
+spec:
+  id: designmd/v1
+  roles: [evaluator]
+  transport: stdio
+  command: [node, adapters/designmd/index.mjs]
