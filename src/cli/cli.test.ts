@@ -53,6 +53,8 @@ describe('persimmon CLI', () => {
     expect([await run('validate', 'packs/sdlc/global/50-tasks.yaml', 'packs/sdlc/global/80-workflows.yaml', 'packs/sdlc/global/40-executors.yaml'), out.filter((l) => l.startsWith('error'))]).toEqual([0, []])
     expect(out.filter((l) => l.startsWith('ok')).length).toBeGreaterThanOrEqual(7)
     // the AI Native pack's kinds and its worked domain example validate (23-pack-ai-native.md)
+    out = [] // the pack validates as a file set before it is applied: a Workflow stepping into a ReviewLoop of the same files resolves
+    expect([await run('validate', ...['10-artifact-kinds', '30-prompts', '40-executors', '50-tasks', '60-validators', '70-gates', '80-workflows'].map((f) => `packs/ai-native/global/${f}.yaml`)), out.filter((l) => l.startsWith('error'))]).toEqual([0, []])
     out = []
     expect([await run('apply', ...['10-artifact-kinds', '30-prompts', '40-executors', '50-tasks', '60-validators', '70-gates', '80-workflows'].map((f) => `packs/ai-native/global/${f}.yaml`), '--global'), out.filter((l) => l.startsWith('error') || l.startsWith('warn'))]).toEqual([0, []])
     out = []

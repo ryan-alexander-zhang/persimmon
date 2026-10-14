@@ -21,18 +21,17 @@ export async function checkBatch(docs: unknown[], base?: Engine): Promise<Checke
     await engine.start()
     if (base) for (const kind of ['KindDefinition', 'Handler', 'Adapter']) for (const r of base.store.resources.list(kind)) copy(engine, r)
     if (base) for (const kd of engine.kinds.definitions()) if (kd.spec.snapshot === 'Definition') for (const r of base.store.resources.list(kd.spec.names.kind)) copy(engine, r)
-    const out: Checked[] = []
-    // definitions first, so Workflows see their Tasks whatever the file order
-    const ordered = [...docs].sort((a, b) => rank(a) - rank(b))
-    for (const doc of ordered) {
+    const out = new Map<unknown, Checked>()
+    const check = async (doc: unknown): Promise<boolean> => {
       let resource: Resource
       try {
         resource = validateEnvelope(doc)
       } catch (e) {
-        out.push({ resource: doc as Resource, findings: [{ severity: 'error', code: 'envelope', message: (e as Error).message }] })
-        continue
+        out.set(doc, { resource: doc as Resource, findings: [{ severity: 'error', code: 'envelope', message: (e as Error).message }] })
+        return true
       }
       const findings: Finding[] = []
+      let applied = true
       try {
         // the Namespace apply would stamp (cli/apply.ts placeDoc), so a Workflow in the file sees the project's Namespaced Tasks
         if (!resource.metadata.namespace && engine.kinds.lookup(resource.apiVersion, resource.kind)?.definition.spec.scope !== 'Global') resource.metadata.namespace = engine.dispatch.defaultNamespace
@@ -41,12 +40,20 @@ export async function checkBatch(docs: unknown[], base?: Engine): Promise<Checke
         const impl = engine.handlers.lookup(resource.apiVersion, resource.kind)?.impl
         if (impl) findings.push(...impl.validate(engine.store.resources.get({ kind: resource.kind, namespace: resource.metadata.namespace, name: resource.metadata.name }) ?? resource).findings)
       } catch (e) {
+        applied = false
         const f = (e as { findings?: Finding[] }).findings
         findings.push(...(f?.length ? f : [{ severity: 'error' as const, code: 'invalid', message: (e as Error).message }]))
       }
-      out.push({ resource, findings })
+      out.set(doc, { resource, findings })
+      return applied
     }
-    return out
+    // definitions first, so Workflows see their Tasks whatever the file order; what a kind's order cannot settle (a
+    // Workflow stepping into a ReviewLoop, a ReviewLoop producing with a Workflow) gets a second pass once everything else is in
+    const ordered = [...docs].sort((a, b) => rank(a) - rank(b))
+    const retry: unknown[] = []
+    for (const doc of ordered) if (!(await check(doc))) retry.push(doc)
+    for (const doc of retry) await check(doc)
+    return ordered.map((doc) => out.get(doc)!)
   } finally {
     await engine.close()
   }

@@ -93,7 +93,7 @@ A Namespaced Resource may bind only its own Namespace's names and Global names.
 
 | Verb | Effect |
 |---|---|
-| `persimmon validate <files>` | schema plus static rules; non-zero exit on `error` findings |
+| `persimmon validate <files>` | schema plus static rules against the batch and the stored definitions; the batch is applied to a throwaway engine in kind order, and a document that failed on a reference gets a second pass once the rest is in; non-zero exit on `error` findings |
 | `persimmon apply <files> [--skip-adapter-validation]` | write definitions: `created`, `updated`, or `unchanged` (equal spec, labels and annotations: no write, no version bump); fails on an unreachable Adapter unless skipped (`13-executor.md`) |
 | `persimmon adapter install <manifest>` · `adapter list` · `adapter test <id> [--config <file>] [--live]` | apply an Adapter, run `describe`, Ready; `test` runs the conformance suite (`22-conformance.md`) |
 | `persimmon create <file> [--follow]` | store any Resource; a revisioned one is stamped like a publish (`05-revisioned-kind.md`); `--follow` runs the engine until it reaches a `terminal.values` value or waits only on human Tasks, prints every phase change as `<labels from the root>   <Kind>   <Adapter>   <state>` (the root line is `<Kind>   <name>`), then the `tree` and the `complete` command for each parked Task; Ctrl-C leaves it resumable |
@@ -196,6 +196,10 @@ imports into a server unchanged.
 - `persimmon run --input <port>=<RevisionRef>` refuses a ref that is not in the store before the
   run exists; the run used to be created and fail inside its first Task with `getArtifact`. Found
   in UAT.
+- `validate` gives a document that failed on a reference a second pass after the whole batch is
+  applied: the kind order (Task before Workflow before ReviewLoop before Pipeline) cannot settle a
+  Workflow that steps into a ReviewLoop of the same files, so the AI Native pack validated only
+  after it was applied. Found in UAT.
 
 ## Examples
 
