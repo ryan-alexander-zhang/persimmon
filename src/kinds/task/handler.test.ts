@@ -235,6 +235,10 @@ describe('task Handler', () => {
     expect(clean(wrong.statusPatch)).toMatchObject({ phase: 'Failed', error: { code: 'schema_violation', message: 'many[1]: published checkout-adr-3, not the chosen id checkout-adr-2' } })
     const okM = handler.reconcile(input(runM, finishedMany(['checkout-adr-1', 'checkout-adr-2']), stagedMany(['checkout-adr-1', 'checkout-adr-2']))) as ReconcileResult
     expect(clean(okM.statusPatch)).toMatchObject({ phase: 'Succeeded', outputs: { many: { kind: 'artifacts', refs: [{ id: 'checkout-adr-1' }, { id: 'checkout-adr-2' }] } } })
+    // a sibling artifact of the same kind whose id reads as <prefix>-<n> collides
+    deps.closure = () => ({ ...closure, resources: closure.resources.map((r) => (r === research ? { ...r, spec: { ...r.spec, outputs: { ...(r.spec as TaskSpec).outputs, one: { type: { kind: 'artifact', artifactKind: prd }, id: { literal: 'checkout-adr-1' } }, many: { type: { kind: 'artifacts', artifactKind: prd }, id: { literal: 'checkout-adr' } } } } } : r)) })
+    const clash = handler.reconcile(input(base(), { type: 'Created', dedupeKey: 'created' })) as ReconcileResult
+    expect(clean(clash.statusPatch)).toMatchObject({ phase: 'Failed', error: { code: 'invalid_input', message: 'many and one: ids checkout-adr and checkout-adr-1 collide' } })
     // a value that is no Id fails the attempt before any call
     deps.closure = () => withId({ expression: 'inputs.repository.id' })
     const bad = handler.reconcile(input(base(), { type: 'Created', dedupeKey: 'created' })) as ReconcileResult
@@ -276,6 +280,11 @@ describe('task Handler', () => {
     task.spec.outputs.many = { type: { kind: 'artifacts', artifactKind: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement' } } }
     const findings = handler.validate(task).findings
     expect(findings.map((f) => f.message)).toEqual(['invalid_input in both retryOn and abortOn', 'invalid_input is never retried', 'many: an artifacts output names its id prefix', 'research is not an externalResource port', 'research is not an externalResource port'])
+    const prevGet = deps.getResource
+    deps.getResource = ((kind: string) => (kind === 'Executor' ? { apiVersion: 'persimmon.ai/v1', kind: 'Executor', metadata: { name: task.spec.executorRef.name }, spec: { type: 'human', adapter: 'cli-human/v1', configuration: {} } } : undefined)) as never
+    const onHuman = { ...task, spec: { ...task.spec, outputs: { many: { type: { kind: 'artifacts', artifactKind: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement' } }, id: { literal: 'x' } } } } }
+    expect(handler.validate(onHuman as never).findings.map((f) => f.message)).toContain('many: a human Executor answers no artifacts output')
+    deps.getResource = prevGet
   })
 
   it('action.workspace reaches the execute payload: a path as given, an input through its locator.path', () => {

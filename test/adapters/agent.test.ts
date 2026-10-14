@@ -127,7 +127,7 @@ describe('claude-code/v1', () => {
     expect(last(r)).toEqual({ id: 9, ok: true, result: { protocol: 'persimmon.result/v1', outputs: { adrs: { kind: 'artifacts', refs } } } })
     expect(calls.filter((c) => c.name === 'publishArtifact').map((c) => [c.args.id, c.args.content.title])).toEqual([['checkout-adr-1', 'One'], ['checkout-adr-2', 'Two']])
     const schema = JSON.parse(JSON.parse(readFileSync(join(stubs, 'claude.json'), 'utf8')).args.filter((_: string, i: number, a: string[]) => a[i - 1] === '--json-schema')[0])
-    expect(schema.properties.adrs).toEqual({ type: 'array', items: base.task.outputSchemas.prd })
+    expect(schema.properties.adrs).toEqual({ type: 'array', maxItems: 999, items: base.task.outputSchemas.prd })
   })
 
   it('builds the prompt in context order, publishes artifact outputs, passes credentials as env', async () => {
@@ -384,6 +384,6 @@ describe('outputSchema', () => {
     const { outputSchema } = await import('../../adapters/lib/agent.mjs')
     const note = { type: 'object', required: ['title'], properties: { title: { type: 'string' } } }
     const out = outputSchema({ outputs: { adrs: { type: { kind: 'artifacts' } } }, outputSchemas: { adrs: note } } as never) as { properties: Record<string, unknown> }
-    expect(out.properties.adrs).toEqual({ type: 'array', items: note })
+    expect(out.properties.adrs).toEqual({ type: 'array', maxItems: 999, items: note })
   })
 })

@@ -90,7 +90,8 @@ Anything else fails the attempt with `schema_violation`.
 | `action.workspace.input` names an `externalResource` input; at run time its `locator.path` is a string (task Handler) and a directory (Adapter), else `invalid_input` | static checker; task Handler; Adapter |
 | `file` context `path` resolves inside `action.workspace`; the entry's `ref` is provenance, not a root | none; stated |
 | every `context.kind` ∈ adapter `describe.contextKinds` | static checker |
-| `file.input` is an `externalResource` port; `artifact.input` is an `artifact` or `artifacts` port; an `artifacts` output names its `id` prefix | static checker |
+| `file.input` is an `externalResource` port; `artifact.input` is an `artifact` or `artifacts` port; an `artifacts` output names its `id` prefix and never sits on a human Executor (the form answers one artifact per port) | static checker |
+| two artifact outputs of one kind never resolve to one identity: equal ids, or an id that reads as a prefix's `<prefix>-<n>`, fail the attempt `invalid_input` | `task` handler |
 | the referenced Skill's `format` ∈ adapter `describe.skillFormats` | static checker |
 | `retryOn ∩ abortOn = ∅`; the three never-retried codes ∉ `retryOn` | static checker |
 | `outputs.<port>.id` only on an `artifact` or `artifacts` output; its Binding reads `inputs` only and yields a string (an `expression` type-checks against the inputs site; a `literal` is a string; a `fromInput` names a `value` input); at attempt start the value is an `Id` (at most 59 characters on an `artifacts` output, a prefix), else `invalid_input`; the published ref carries that id, and an `artifacts` output's refs are `<prefix>-1`, `<prefix>-2`, ... in list order, else `schema_violation` | static checker; `task` handler |
@@ -137,6 +138,11 @@ Anything else fails the attempt with `schema_violation`.
   leaves the tail at its last revision. One `id` per item was rejected: the engine resolves ids
   before the attempt, when the count is unknown. Needed by `write-architecture`, one Adr per
   strategy decision. Found in UAT.
+- Two outputs of one kind with ids that could stage one identity in one attempt (`x` beside the
+  prefix `x`, or `x-1` beside it) are refused at attempt start, where every id is resolved; a clash
+  with another Task's ids stays unguarded, as it is for a single `artifact`. A human Executor gets
+  no `artifacts` output: the inbox form answers one artifact per port and `--file` has no path to a
+  list. Found in audit.
 
 ## Examples
 

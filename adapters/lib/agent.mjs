@@ -204,7 +204,7 @@ export function outputSchema(task) {
   const $defs = {}
   for (const [port, spec] of Object.entries(task.outputs)) {
     const content = () => hoistDefs(task.outputSchemas[port] ?? { type: 'object' }, port, $defs)
-    properties[port] = spec.type.kind === 'artifact' ? content() : spec.type.kind === 'artifacts' ? { type: 'array', items: content() } : hoistDefs(spec.type.schema ?? {}, port, $defs)
+    properties[port] = spec.type.kind === 'artifact' ? content() : spec.type.kind === 'artifacts' ? { type: 'array', maxItems: 999, items: content() } : hoistDefs(spec.type.schema ?? {}, port, $defs) // 999: a 59-char prefix plus -<n> stays an Id
   }
   // flat: one top-level key per port, no wrapper and no summary; a nested `outputs` and a second `summary` made claude misplace keys (19-adapter-roles.md)
   return { type: 'object', required: Object.keys(properties), additionalProperties: false, properties, ...(Object.keys($defs).length ? { $defs } : {}) }

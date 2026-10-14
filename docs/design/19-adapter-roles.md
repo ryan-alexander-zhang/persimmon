@@ -33,7 +33,7 @@ Validator.evaluator.adapter ─▶ Adapter role evaluator: describe | evaluate
 | Payload field | Content |
 |---|---|
 | `taskRun` | `{ref: ObjectRef, logicalExecutionId, idempotencyKey, attempt}` |
-| `task` | `{instructions, parameters, sideEffects, outputs: {<port>: OutputSpec}, outputSchemas: {<port>: schema}, outputIds?: {<port>: Id}}`; `outputSchemas` holds the frozen content schema of every artifact output; `outputIds` the identity the Adapter publishes each named port under (`12-task.md`), the rest it names `<logicalExecutionId>-<port>`; an `artifacts` output answers a list of contents, published in order as `<prefix>-<n>` under its `outputIds` prefix |
+| `task` | `{instructions, parameters, sideEffects, outputs: {<port>: OutputSpec}, outputSchemas: {<port>: schema}, outputIds?: {<port>: Id}}`; `outputSchemas` holds the frozen content schema of every artifact output, the item schema of an `artifacts` output; `outputIds` the identity the Adapter publishes each named port under (`12-task.md`), the rest it names `<logicalExecutionId>-<port>`; an `artifacts` output answers a list of contents, published in order as `<prefix>-<n>` under its `outputIds` prefix |
 | `executor` | `{type, configuration, security}` |
 | `inputs` | `{<port>: RuntimeValue}` |
 | `context[]` | resolved entries, in order (`12-task.md`, `15-prompt-skill.md`) |

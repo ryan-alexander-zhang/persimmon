@@ -35,6 +35,15 @@ function outputIdsOf(task: Task, inputs: RuntimeValues): Record<string, string> 
     if (typeof id !== 'string' || id.length > max || !dnsLabel.test(id)) throw new PortError(`${port}: id ${JSON.stringify(id)} is not an Id${o.type.kind === 'artifacts' ? ' prefix' : ''}`)
     out[port] = id
   }
+  // two outputs of one kind never stage one identity in one attempt: equal ids, or an id that is a prefix's <prefix>-<n>
+  const kindOf = (port: string) => JSON.stringify((task.spec.outputs![port]!.type as { artifactKind: unknown }).artifactKind)
+  const ports = Object.keys(out)
+  for (const a of ports)
+    for (const b of ports) {
+      if (a >= b || kindOf(a) !== kindOf(b)) continue
+      const item = (p: string, q: string) => task.spec.outputs![p]!.type.kind === 'artifacts' && new RegExp(`^${out[p]}-[0-9]+$`).test(out[q]!)
+      if (out[a] === out[b] || item(a, b) || item(b, a)) throw new PortError(`${a} and ${b}: ids ${out[a]} and ${out[b]} collide`)
+    }
   return out
 }
 /** RFC 3339 without a fraction, as every design example writes times. */
@@ -102,7 +111,10 @@ export function taskHandler(deps: HandlerDeps): HandlerImpl {
           findings.push({ severity: 'warning', code: 'adapter_describe', path: '/spec/action/parameters', message: `${executor!.adapter} describe.parametersSchema is not a valid schema: ${(e as Error).message}` })
         }
       }
-      for (const [port, o] of Object.entries(spec.outputs ?? {})) if (o.type.kind === 'artifacts' && !o.id) bad(`/spec/outputs/${port}`, `${port}: an artifacts output names its id prefix`)
+      for (const [port, o] of Object.entries(spec.outputs ?? {})) {
+        if (o.type.kind === 'artifacts' && !o.id) bad(`/spec/outputs/${port}`, `${port}: an artifacts output names its id prefix`)
+        if (o.type.kind === 'artifacts' && executor?.type === 'human') bad(`/spec/outputs/${port}`, `${port}: a human Executor answers no artifacts output`) // the form answers one artifact per port (20-pack.md)
+      }
       const ws = spec.action.workspace
       if (ws && 'input' in ws && spec.inputs?.[ws.input]?.type.kind !== 'externalResource') bad('/spec/action/workspace/input', `${ws.input} is not an externalResource port`)
       for (const [i, e] of (spec.action.context ?? []).entries()) {
