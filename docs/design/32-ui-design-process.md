@@ -143,6 +143,26 @@ without `document.content` is `not-a-design-system`, the only finding then. No E
   border or a shadow is prose. The human's findings beside the linter's: a report page no client block
   shows, and a kiosk's stale state as a badge rather than a whole screen. Found in UAT.
 
+- Round two (3m49s) passed the linter first time and answered both human findings in place: the
+  report page became a sentence saying no client block shows it, and the kiosks got
+  `door-status-panel-offline` and `floor-room-tile-offline` with "last updated at HH:MM" as a
+  `label-sm` use. Dropping `border` made the agent redesign the secondary button and the input as
+  filled controls instead of saying the border in prose, so "change nothing else" bent where the
+  linter's finding reached into the look; the human approved at r2. Found in UAT.
+
+- `design-all` with `type: ui` over `BB-5`, `BB-6`, `BB-7` live on `claude-sonnet-5`: three Designs,
+  each round one (1m54s, 1m42s, 55s), `design-consistency` clean. Six elements for the booking app
+  (two screens, four actions, the rules on each action), one each for the kiosks. Their questions are
+  gaps upstream, not in the screens: the API Design has no operation to list rooms by fit, and the
+  DomainModel has no fact for a room's name, so a door screen cannot say which room it is. One Design
+  wrote its subsections as bold labels, another as `###` headings; the Prompt now says `###`. Found
+  in UAT.
+
+- `plan-all` rerun over `CAP-1` and `CAP-5` with the five Designs listed: both round one (1m23s, 35s).
+  The CAP-5 Plan now has a task per kiosk with the screen as its element and no open question; the
+  CAP-1 Plan gained a `BB-5` task realising the booking screen and its Book action. The question the
+  live chain raised twice ("No Design for BB-6 is in context") is closed. Found in UAT.
+
 ## Examples
 
 - `examples/example07/`: `DesignSystem/room-booking-prd-design-system` and the `ui` Designs of
