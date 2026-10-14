@@ -49,7 +49,7 @@ each list a YAML list of RevisionRefs (`08-store.md`), one entry per context in 
 | `unknown-relation-end`, `relation-no-block`, `unknown-interface` | a relation end neither a block nor a partner; neither end a block; `interface` not provided by the `to` block, or not required by the `from` block when `to` is a partner |
 | `block-unrelated`, `partner-unrelated` | a level 1 block or a partner with no relation |
 | `adr-status`, `unknown-adr-driver` | an Adr not `accepted`; a driver that resolves in neither the Architecture (`QG`, `C`, `QS`), the Prd (`G`, `CAP`, `SC`) nor the rules (`BR`) |
-| `adr-strategy` | an Adr's `strategy` is no `S-n` of the Architecture, or a second Adr names an `S-n` already backed (superseded ones skipped; an Adr without `strategy` is not checked) |
+| `adr-strategy` | the Adr at position n of `inputs.adrs` names a `strategy` other than `S-n`, or `S-n` is no strategy of the Architecture; a superseded Adr names a strategy the Architecture still has (an Adr without `strategy` is not checked) |
 | `id-sequence` | `QG-n`, `C-n`, `S-n`, `BB-n`, `REL-n`, `CC-n`, `QS-n`, `RK-n` not unique and increasing |
 
 The Adapter picks the mode from the payload: `artifacts.plan` first, else `artifacts.spec` (or
@@ -61,7 +61,7 @@ else `artifacts.prd`.
 | Rule | Enforcer |
 |---|---|
 | the Architecture rule row of `23-pack-ai-native.md`, except `deployment` and `runtime` references and `decisions[]` with status `accepted` being the only Adrs (they are: `adr-status`) | `architecture-consistency` |
-| the agent takes one Adr per `S-n`, each naming its `S-n` in `strategy`; the list order is the first round's, so `<prd>-adr-n` names one decision across rounds; a dropped `S-n` keeps its slot as a `superseded` Adr the Architecture does not list; the Validator checks status, drivers, the list and that a named strategy exists and is backed once, skips superseded entries, and does not count: the kind rule ("detail is an Adr") lets an Architecture apply fewer Adrs than it has strategies, as the worked example does | `architecture-rules`; `adr-mismatch`, `adr-status`, `adr-strategy` |
+| the slot rule: the n-th Adr backs `S-n` and says so in `strategy`, so `<prd>-adr-n` names one decision across rounds and the Architecture alone tells the agent which slots are live (round two never sees round one's Adrs); a dropped `S-n` keeps its slot as a `superseded` Adr still naming it, which the Architecture does not list; the Validator holds a named strategy to its slot and a superseded one to a dropped strategy, and does not count: the kind rule ("detail is an Adr") lets an Architecture apply fewer Adrs than it has strategies, and an Adr taken outside the loop names no strategy and sits in no slot | `architecture-rules`; `adr-mismatch`, `adr-status`, `adr-strategy` |
 | one BoundedContext per product today: `rules` is one BusinessRules, per context, and `checkPrd` holds every capability to it; a product over several contexts takes `rules` as a list with the query row of `10-ports.md` | convention; `91-roadmap.md` |
 | `status: accepted` on the Architecture and its Adrs is the author's claim; the Gate's pass is the fact, read from the run; a rejected round's artifacts are committed revisions all the same, as every produce output is | convention |
 | every context the Prd's capabilities name is in `contexts`, and the caller lists its model and glossary beside it | `prd-context-unread`; convention for the lists |
@@ -89,7 +89,7 @@ else `artifacts.prd`.
 - The n-th Adr backs `S-n` and a dropped strategy keeps its slot as a `superseded` Adr: the first
   live round two dropped `S-2` and `S-5` and republished five Adrs under `adr-1` to `adr-5`, so
   `adr-2` r2 backed `S-3` while r1 had backed `S-2`, one id for two decisions. Position equal to the
-  S-number keeps an id one decision for good; an Adr naming its `S-n` outright is the roadmap row.
+  S-number keeps an id one decision for good; the Adr now says its `S-n` outright, below.
   Found in audit.
 - An architect Adr cites `QG-n`, `C-n` and `QS-n` of the Architecture published in the same
   attempt, which its provenance does not pin: provenance pins the Task's inputs, and the
@@ -106,18 +106,21 @@ else `artifacts.prd`.
   Adrs republished as `r2`. The Validator passed both rounds; the human was the judge of size.
   Found in UAT.
 - "Adr n backs `S-n`" pairs by position, so once strategy ids gap (`S-1, S-3, S-4, S-6, S-7`) the
-  pairing is implicit: `adr-2` backs `S-3`. An Adr field naming its `S-n`, with a check, would make
-  it explicit; roadmap. Found in UAT.
+  pairing is implicit: `adr-2` backs `S-3`. The `strategy` field, below, makes it explicit and
+  checked. Found in UAT.
 
-- An Adr names the `S-n` it backs in `strategy`, checked by `adr-strategy`: the positional pairing
-  ("the n-th Adr backs `S-n`") went implicit as soon as strategy ids gapped, and a reader of
-  `adr-2` had to count. The slot rule stays, for the id: list order is the first round's, a dropped
-  strategy's Adr is superseded in place, a new one goes at the end. The field is optional on the kind
-  (an Adr taken outside the loop backs no strategy) and the Prompt requires it. The worked example and
-  example07 name theirs. A revisioned KindDefinition never changes, so an existing project takes the
-  field only as a fresh project (`91-roadmap.md`). Not rerun live: the check is pure and the Prompt
-  change is one sentence; the next end-to-end UAT exercises it. Found in UAT; the field built from
-  the roadmap.
+- An Adr names the `S-n` it backs in `strategy`, and `adr-strategy` holds it to its slot: the
+  positional pairing went implicit as soon as strategy ids gapped, and a reader of `adr-2` had to
+  count; now the Adr says it and the Validator checks position against the claim, so a slot that
+  changes decision between rounds is a finding, not a convention. The slot rule stays positional
+  because round two sees only the Architecture (`previous` carries the subject), and "slot n is
+  `S-n`" is the one order it can rebuild blind; "keep the first round's order" could not be followed,
+  found in audit of the first cut. The field is optional on the kind: an Adr taken outside the loop
+  (the worked example's two) backs no strategy and sits in no slot. A revisioned KindDefinition never
+  changes, so an existing project takes the field only as a fresh project (`91-roadmap.md`). Not
+  rerun live: the check is pure and the next end-to-end UAT records the first conformant Adrs;
+  example07's recording predates the slot rule (`adr-2` backs `S-3`) and names no strategy, said in
+  its README. Found in UAT; the field built from the roadmap.
 
 ## Examples
 

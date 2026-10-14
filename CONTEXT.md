@@ -446,7 +446,7 @@ _Avoid_: rule table, routing table, DRD
 
 **Adr**:
 **Artifact kind**, one per architecture decision (Nygard form, MADR alternatives); taken first, or
-by the `architect` loop beside its **Architecture**, naming in `strategy` the `S-n` it backs; listed by
+by the `architect` loop beside its **Architecture**, naming the strategy decision it backs; listed by
 the Architecture or Design revision that applies it; a status change is a revision.
 _Avoid_: decision record, decision log, design decision (bare)
 
