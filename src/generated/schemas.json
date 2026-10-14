@@ -1698,6 +1698,11 @@
        "required": [
         "fromEvent"
        ]
+      },
+      {
+       "required": [
+        "fromArtifact"
+       ]
       }
      ]
     }

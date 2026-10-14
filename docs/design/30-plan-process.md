@@ -26,7 +26,7 @@ ReviewLoop plan-one, run per Spec by ref or from plan-all, the Designs listed by
 | Validator `plan-consistency` | `sdd/v1` over `plan`, `spec`, `architecture`, `designs`; the Plan rule row of `23-pack-ai-native.md` as findings |
 | Gate `plan-gate` | consistency only |
 | ReviewLoop `plan-one` | `produce` `write-plan`, `review` `plan-gate`, `maxRounds: 2` |
-| Workflow `plan-all` | `repeat` over `capabilities` as `spec-all` does; each iteration binds `spec` by `fromArtifact` to `<prd>-cap-n` at its latest revision (`10-ports.md`), `designs` once for the product; a capability without a Spec ends the run `source absent`; a Plan the loop could not write ends it `plan_inconsistent`; output `written` |
+| Workflow `plan-all` | `repeat` over `capabilities` as `spec-all` does; each iteration binds `spec` by `fromArtifact` to `<prd>-cap-n` at its latest revision (`10-ports.md`), `designs` once for the product; a step that fails ends the run with reason `plan_inconsistent`, the step's error naming the cause (`spec: source absent` for a capability without a Spec, `iteration_limit` past twenty); output `written` |
 
 Run one: `persimmon run plan-one --input 'spec={kind: artifact, ref: {...}}' --input 'architecture={...}' --input designs=@designs.yaml`,
 where `designs.yaml` is a YAML list of RevisionRefs (`08-store.md`). Run all:

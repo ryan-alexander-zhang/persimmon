@@ -199,6 +199,32 @@ describe('Engine', () => {
     await expect(engine.apply({ ...loop, spec: { ...loop.spec, previous: undefined, feedback: undefined, produce: { uses: { kind: 'ReviewLoop', name: 'prd-loop-b' }, inputs: { research: { fromInput: 'research' } }, timeout: '1h' } } } as Resource)).rejects.toThrow(/expands through itself/)
   })
 
+  it('a fromArtifact step binds the latest committed revision, never a staged one, and the kind reaches the snapshot', async () => {
+    await engine.start()
+    await engine.apply(fakeAdapter('claude-code/v1'))
+    for (const n of ['kind-definition-productrequirement', 'kind-definition-researchreport']) await engine.apply(example(n))
+    for (const r of closure.resources.filter((r) => r.kind !== 'KindDefinition' && r.kind !== 'Workflow')) await engine.apply(fresh(r as Resource))
+    const kind = { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ResearchReport' }
+    const report = (revision: number): Resource => ({ ...kind, metadata: { name: `research-checkout-v2.r${revision}`, namespace: 'demo' }, spec: { identity: { id: 'research-checkout-v2', revision }, content: { title: `r${revision}`, findings: [] } } })
+    await engine.create(report(1))
+    await engine.create(report(2))
+    engine.store.resources.stage({ ...report(3), status: { contentDigest: 'sha256:' + '0'.repeat(64), representations: [] } }, { uid: 'someone', key: 'open' }) // reserved, not committed
+    const byId = { apiVersion: 'persimmon.ai/v1', kind: 'Workflow', metadata: { name: 'by-id', namespace: 'demo' }, spec: { entry: ['write-prd'], steps: [{ id: 'write-prd', uses: { kind: 'Task', name: 'write-prd' }, inputs: { research: { fromArtifact: { kind, id: '"research-checkout-v2"' } } }, timeout: '1h' }], transitions: [{ id: 'done', from: [{ stepRef: 'write-prd', outcomes: ['Succeeded'] }], to: [{ terminal: 'Succeeded' }] }], timeout: '2h' } } as Resource
+    await engine.apply(byId)
+    const { resource: run } = await engine.create({ apiVersion: 'persimmon.ai/v1', kind: 'WorkflowRun', metadata: { name: 'by-id-001', namespace: 'demo' }, spec: { workflowRef: { kind: 'Workflow', name: 'by-id' }, inputs: {}, origin: { kind: 'manual' } } } as Resource)
+    await engine.drain()
+    const task = engine.store.resources.get({ kind: 'TaskRun', namespace: 'demo', name: 'by-id-001-write-prd' })!
+    expect((task.spec as { inputs: { research: unknown } }).inputs.research).toEqual({ kind: 'artifact', ref: { ...kind, namespace: 'demo', id: 'research-checkout-v2', revision: 2 } })
+    const kinds = readClosure(run.metadata.snapshot!, engine.store.snapshots).resources.filter((r) => r.kind === 'KindDefinition').map((r) => (r.spec as { names: { kind: string } }).names.kind)
+    expect(kinds).toContain('ResearchReport') // x-persimmon-kind-ref on the binding's kind pulled it in
+    // no revision at all: the run fails at the step with source absent
+    const none = { ...byId, metadata: { ...byId.metadata, name: 'by-id-none' }, spec: { ...byId.spec, steps: [{ ...(byId.spec as { steps: object[] }).steps[0], inputs: { research: { fromArtifact: { kind, id: '"nope"' } } } }] } } as Resource
+    await engine.apply(none)
+    const { resource: noneRun } = await engine.create({ apiVersion: 'persimmon.ai/v1', kind: 'WorkflowRun', metadata: { name: 'by-id-002', namespace: 'demo' }, spec: { workflowRef: { kind: 'Workflow', name: 'by-id-none' }, inputs: {}, origin: { kind: 'manual' } } } as Resource)
+    await engine.drain()
+    expect(engine.store.resources.getByUid(noneRun.metadata.uid!)!.status).toMatchObject({ phase: 'Failed', error: { message: expect.stringMatching(/research: source absent/) } })
+  })
+
   it('runs prd-create end to end against the fake Adapter until the task fails validation', async () => {
     process.env.PERSIMMON_CRED_DEMO__GITHUB_TOKEN = 'ghp-test'
     await engine.start()

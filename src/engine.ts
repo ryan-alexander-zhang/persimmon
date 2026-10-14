@@ -77,8 +77,8 @@ export class Engine {
       random: Math.random,
       expand: (r, ns) => this.handlers.get(r.apiVersion, r.kind).impl?.expand?.(r, ns).resources ?? [],
       latestRevision: (kind, ns, id) => {
-        const revision = Math.max(0, ...this.store.resources.listRevisions(kind.kind, ns, id).map((r) => (r.spec as { identity: { revision: number } }).identity.revision))
-        return revision ? { apiVersion: kind.apiVersion, kind: kind.kind, namespace: ns, id, revision } : undefined
+        const last = this.store.resources.listRevisions(kind.kind, ns, id).filter((r) => r.apiVersion === kind.apiVersion).at(-1) // ascending; committed only
+        return last ? { apiVersion: kind.apiVersion, kind: kind.kind, namespace: ns, id, revision: (last.spec as { identity: { revision: number } }).identity.revision } : undefined
       },
     }
     const builtins = new Map<string, HandlerImpl>([

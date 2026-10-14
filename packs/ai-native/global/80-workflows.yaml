@@ -230,7 +230,7 @@ metadata: {name: spec-all}
 spec:
   inputs:
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
-    capabilities: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, pattern: "^CAP-[0-9]+$"}}}}
+    capabilities: {type: {kind: value, schema: {type: array, minItems: 1, maxItems: 20, items: {type: string, pattern: "^CAP-[0-9]+$"}}}}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
@@ -254,7 +254,7 @@ spec:
       repeat:
         state:
           index: {type: {kind: value, schema: {type: integer, minimum: 1}}}
-          capabilities: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, pattern: "^CAP-[0-9]+$"}}}}
+          capabilities: {type: {kind: value, schema: {type: array, minItems: 1, maxItems: 20, items: {type: string, pattern: "^CAP-[0-9]+$"}}}}
         initial:
           index: {literal: 1}
           capabilities: {fromInput: capabilities}
@@ -346,7 +346,7 @@ metadata: {name: design-all}
 spec:
   inputs:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
-    blocks: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, pattern: "^BB-[0-9]+$"}}}}
+    blocks: {type: {kind: value, schema: {type: array, minItems: 1, maxItems: 20, items: {type: string, pattern: "^BB-[0-9]+$"}}}}
     type: {type: {kind: value, schema: {type: string, enum: [http-api, async-api, data-schema]}}}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
@@ -370,7 +370,7 @@ spec:
       repeat:
         state:
           index: {type: {kind: value, schema: {type: integer, minimum: 1}}}
-          blocks: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, pattern: "^BB-[0-9]+$"}}}}
+          blocks: {type: {kind: value, schema: {type: array, minItems: 1, maxItems: 20, items: {type: string, pattern: "^BB-[0-9]+$"}}}}
         initial:
           index: {literal: 1}
           blocks: {fromInput: blocks}
@@ -427,7 +427,7 @@ metadata: {name: plan-all}
 spec:
   inputs:
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
-    capabilities: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, pattern: "^CAP-[0-9]+$"}}}}
+    capabilities: {type: {kind: value, schema: {type: array, minItems: 1, maxItems: 20, items: {type: string, pattern: "^CAP-[0-9]+$"}}}}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
   outputs:
@@ -446,7 +446,7 @@ spec:
       repeat:
         state:
           index: {type: {kind: value, schema: {type: integer, minimum: 1}}}
-          capabilities: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, pattern: "^CAP-[0-9]+$"}}}}
+          capabilities: {type: {kind: value, schema: {type: array, minItems: 1, maxItems: 20, items: {type: string, pattern: "^CAP-[0-9]+$"}}}}
         initial:
           index: {literal: 1}
           capabilities: {fromInput: capabilities}

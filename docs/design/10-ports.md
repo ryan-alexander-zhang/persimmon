@@ -54,7 +54,7 @@ Equality: `kind` and every field equal after expanding `$ref`. No subtyping.
 | `{fromIterationOutput: <port>}` | last iteration's output | `repeat.next` only |
 | `{expression: <cel>}` | CEL result, a `value` port | anywhere |
 | `{fromEvent: <root path>}` | engine projection of the Outbox event; roots per event kind in `16-trigger.md` | Trigger only |
-| `{fromArtifact: {kind: {apiVersion, kind}, id: <cel>}}` | the latest committed revision, in the run's Namespace, of the artifact whose id the expression yields; an `artifact` port of that kind; absent when no revision exists | Workflow steps and `repeat` bindings |
+| `{fromArtifact: {kind: {apiVersion, kind}, id: <cel>}}` | the latest committed revision, in the run's Namespace, of the artifact whose id the expression yields; an `artifact` port of that kind; absent when no revision exists | Workflow steps, `repeat` bindings, `outputBindings`; never a Gate, Trigger or Task output `id` |
 
 `onMissing: omit` on `fromInput`, `fromStep`, `fromState`, `fromIterationOutput`, `fromEvent`,
 `fromArtifact`: skip the port when the source is absent; optional inputs only.
