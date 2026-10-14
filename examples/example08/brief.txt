@@ -1,0 +1,36 @@
+Company car pool
+
+Our office in Rotterdam shares twelve company cars among about sixty employees who visit customers
+and sites. Today reservations go through a shared calendar and a key cabinet, and the fleet
+coordinator keeps service dates and damage notes in a spreadsheet. Cars get double-booked, a car
+goes out for a customer visit the day its service is due, and damage found on return is noticed
+weeks later by the next driver.
+
+We want one system for two jobs.
+
+Reservations. An employee reserves a car for a time slot, stating the trip's purpose and the number
+of passengers; the system offers only cars that fit (seats, a van for equipment, an automatic
+gearbox when asked) and are free for the slot. A reservation is for a specific car. The employee
+picks the car up at the start of the slot and returns it with the mileage read off the dashboard
+and a note of any new damage. A reservation not picked up within thirty minutes of its start is
+released so others can take the car. An employee may hold at most two future reservations at a
+time, each at most three days long; a longer trip needs the fleet coordinator's approval. A car
+that is out of service, or whose service is due before the end of the requested slot, is not
+offered. Cancellation is free until two hours before the start; later cancellations and no-shows
+are counted per employee and the coordinator sees the monthly count.
+
+Fleet care. The fleet coordinator keeps each car's record: plate, seats, gearbox, whether it is a
+van, current mileage, next service due by date or by mileage, and the car's state (in service, out
+of service). Each return updates the car's mileage; when the mileage or the date crosses the
+service threshold, the car becomes service-due and the coordinator books it with the garage and
+takes it out of service for the garage days. A damage note on return opens a damage report the
+coordinator reviews: minor damage is noted and the car stays in service; damage that makes the car
+unsafe takes it out of service at once, which cancels the car's future reservations and notifies
+those employees so they can reserve another car. When the garage returns the car, the coordinator
+puts it back in service with the new mileage and next service threshold.
+
+Everyone signs in with the company directory. Employees see their own reservations and the no-show
+count the coordinator sees. The coordinator is one person today; the office manager covers absences.
+
+Out of scope: fuel cards and expenses, private use of cars, pool cars at other offices, telematics
+or keyless entry (keys stay in the cabinet), insurance claims beyond the damage report.

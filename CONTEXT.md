@@ -534,6 +534,12 @@ The pack process from the Architecture's client blocks to the **DesignSystem** (
 (`design-all` with `type: ui`).
 _Avoid_: UX phase, frontend design, screen design process
 
+**Product**:
+What one **Prd** describes: one or more bounded contexts delivered together, named by a `productId`
+that stems the Prd's, the rules' and the Architecture's artifact ids. A one-context product's id is
+its context's.
+_Avoid_: project (the persimmon project is the store), system, initiative (for the id)
+
 **Prd**:
 **Artifact kind** of the AI Native pack: why, for whom, `CAP-n` capabilities, `SC-n` success
 criteria. No stories, requirements or technology; those are the **Spec**'s.
