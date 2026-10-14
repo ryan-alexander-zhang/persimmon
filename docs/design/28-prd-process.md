@@ -90,6 +90,13 @@ conformance suite's name) runs `checkSpec`; otherwise `artifacts.prd` runs `chec
   plain-text `--input brief=@file` was parsed as YAML and a colon broke it (`08-store.md`, fixed:
   a string port takes the text as is), and an optional loop input unbound on a run failed `source absent`
   (`21-composition.md`, fixed). Found in UAT.
+- The `draft-prd` instructions say the answered rules start as a verbatim copy of the given ones:
+  on `claude-sonnet-5` a round two that was told to "fix what the findings name and change nothing
+  else" rewrote the BusinessRules whole and renumbered `BR-1` to `BR-10`, the Prd's citations
+  surviving only because `CAP-1` cited them as a block. `prd-rules` already said a revision keeps
+  every id in place; the Task now says it where the model reads last. A Validator check against
+  the previous rules needs the ReviewLoop's `review` to see `previous`, which it does not; roadmap.
+  Found in UAT.
 
 ## Examples
 

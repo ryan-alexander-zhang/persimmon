@@ -147,7 +147,9 @@ spec:
       Write the Prd from `brief` for the context `contextId`, following the Prd rules in your context, and the
       BusinessRules artifact of that context with every rule the Prd cites: the input `rules` revised when bound,
       a new artifact otherwise. With `previous` and `feedback` bound, fix what the findings name and change
-      nothing else; answer both artifacts whole.
+      nothing else; answer both artifacts whole. The rules you answer start as a verbatim copy of the rules you were
+      given (`rules`, or the last round's): every `BR-n` keeps its id, statement and rationale; a finding that names a
+      `BR-n` changes that rule; a new policy takes the next number. Never renumber, reorder or reword a rule unasked.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: prd-rules}}
       - {kind: artifact, input: rules}
