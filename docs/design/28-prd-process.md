@@ -87,8 +87,8 @@ conformance suite's name) runs `checkSpec`; otherwise `artifacts.prd` runs `chec
   artifact held the brief's four policies plus retention as `BR-1` to `BR-5`, RuleSpeak statements,
   but its `logic.inputs[].factType` named invented fact types (`ClaimLine`) since no Glossary
   existed; the Prompt now forbids `logic` without a Glossary. Two Layer 1 findings on the way: a
-  plain-text `--input brief=@file` is parsed as YAML and a colon breaks it (the brief goes in as a
-  block scalar), and an optional loop input unbound on a run failed `source absent`
+  plain-text `--input brief=@file` was parsed as YAML and a colon broke it (`08-store.md`, fixed:
+  a string port takes the text as is), and an optional loop input unbound on a run failed `source absent`
   (`21-composition.md`, fixed). Found in UAT.
 
 ## Examples

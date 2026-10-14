@@ -97,7 +97,7 @@ A Namespaced Resource may bind only its own Namespace's names and Global names.
 | `persimmon apply <files> [--skip-adapter-validation]` | write definitions: `created`, `updated`, or `unchanged` (equal spec, labels and annotations: no write, no version bump); fails on an unreachable Adapter unless skipped (`13-executor.md`) |
 | `persimmon adapter install <manifest>` · `adapter list` · `adapter test <id> [--config <file>] [--live]` | apply an Adapter, run `describe`, Ready; `test` runs the conformance suite (`22-conformance.md`) |
 | `persimmon create <file> [--follow]` | store any Resource; a revisioned one is stamped like a publish (`05-revisioned-kind.md`); `--follow` runs the engine until it reaches a `terminal.values` value or waits only on human Tasks, prints every phase change as `<labels from the root>   <Kind>   <Adapter>   <state>` (the root line is `<Kind>   <name>`), then the `tree` and the `complete` command for each parked Task; Ctrl-C leaves it resumable |
-| `persimmon run <Workflow \| Pipeline \| ReviewLoop> [--input <port>=<yaml \| @file>]... [--timeout <d>] [--follow]` | a manual WorkflowRun named `<workflow>-<hex6>` without writing its YAML; `workflowRef.kind` is the kind found (`21-composition.md`); a scalar becomes `{kind: value, value}`, a RuntimeValue object passes through, a path on an `externalResource` port becomes a git ref, a revision document (`@spec.yaml`) on an `artifact` port is stored once and referenced, a list of documents or RevisionRefs on an `artifacts` port likewise; `timeout` absent means the Workflow's |
+| `persimmon run <Workflow \| Pipeline \| ReviewLoop> [--input <port>=<yaml \| @file>]... [--timeout <d>] [--follow]` | a manual WorkflowRun named `<workflow>-<hex6>` without writing its YAML; `workflowRef.kind` is the kind found (`21-composition.md`); a scalar becomes `{kind: value, value}`, a RuntimeValue object passes through, `@file` on a `value` port of `type: string` is the file's text as is, a path on an `externalResource` port becomes a git ref, a revision document (`@spec.yaml`) on an `artifact` port is stored once and referenced, a list of documents or RevisionRefs on an `artifacts` port likewise; `timeout` absent means the Workflow's |
 | `persimmon signal <kind>/<name> --payload <file> [--event-id <id>]` | Signal `{source: api}` as the local Actor; id generated when absent |
 | `persimmon resume` | redeliver unacked Events and outstanding calls, drain the Outbox |
 | `persimmon get` · `describe` · `logs` | read Resources, status, RunLog |
@@ -170,6 +170,10 @@ imports into a server unchanged.
   Resource with `spec.identity` and `spec.content`), stores it in the run's Namespace when absent,
   and passes its RevisionRef; a second run with the same file reuses the revision. One command
   instead of `create` then `run`. Found in UAT.
+- `--input <port>=@<file>` on a `value` port of `type: string` takes the file's text as is: a
+  brief in prose holds colons and dashes that YAML reads as a mapping or a list, or refuses
+  (`Nested mappings are not allowed in compact mappings`); the port type, not the file, decides.
+  Found in UAT.
 - `persimmon tree` prints the run tree that `--follow` reports flat; a Gate inside a repeat body
   makes nine runs for one command, and the flat list hid who owns whom. Found in UAT.
 - `--follow` speaks the tree's language: one line per change, labelled from the root

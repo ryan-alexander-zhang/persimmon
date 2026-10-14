@@ -140,6 +140,14 @@ describe('persimmon CLI', () => {
     out = []
     expect(await run('get', `WorkflowRun/${name}`)).toBe(0)
     expect(parse(out.join('\n')).spec.timeout).toBeUndefined() // the Workflow's 3h applies in the Handler
+    // a string port takes a file's text as is: prose with colons is not YAML
+    writeFileSync(join(dir, 'q.txt'), 'Title: a brief\nwith: colons, and a list:\n- not yaml\n')
+    out = []
+    expect(await run('run', 'ask-wf', '--input', 'q=@q.txt')).toBe(0)
+    const name2 = out[0]!.split('/')[1]!
+    out = []
+    expect(await run('get', `WorkflowRun/${name2}`)).toBe(0)
+    expect(parse(out.join('\n')).spec.inputs.q).toEqual({ kind: 'value', value: 'Title: a brief\nwith: colons, and a list:\n- not yaml\n' })
   })
 
   it('create --follow drives a run to its terminal value and logs show the RunLog', async () => {

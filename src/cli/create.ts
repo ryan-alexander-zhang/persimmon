@@ -42,32 +42,43 @@ export async function createRevision(engine: Engine, ref: { apiVersion: string; 
 
 /** `persimmon run <Workflow> [--input k=v]... [--timeout d] [--follow]`: a manual WorkflowRun without writing its YAML. */
 export async function run(cli: Cli, workflow: string, o: FollowOptions & { inputs?: string[]; timeout?: string } = {}): Promise<number> {
-  const inputs = Object.fromEntries((o.inputs ?? []).map((a) => parseInput(a, cli.cwd)))
+  const parsed = (o.inputs ?? []).map((a) => parseInput(a, cli.cwd))
+  const inputs = Object.fromEntries(parsed)
+  const texts = Object.fromEntries(parsed.flatMap((p) => (p.length === 3 ? [[p[0], p[2]]] : [])))
   const doc: Resource = {
     apiVersion: 'persimmon.ai/v1',
     kind: 'WorkflowRun',
     metadata: { name: `${workflow.slice(0, 56)}-${randomBytes(3).toString('hex')}` }, // stays a DNS label
     spec: { workflowRef: { kind: 'Workflow', name: workflow }, inputs, ...(o.timeout ? { timeout: o.timeout } : {}), origin: { kind: 'manual' } }, // timeout absent: the Workflow's (17-runs.md)
   }
-  return store(cli, doc, o)
+  return store(cli, doc, o, texts)
 }
 
-/** `k=v`: `v` is YAML; `@file` reads the file; a RuntimeValue object passes through, anything else becomes `{kind: value, value}`. */
-export function parseInput(arg: string, cwd = process.cwd()): [string, unknown] {
+/** `k=v`: `v` is YAML; `@file` reads the file (a third element carries its text, for a string port that takes it raw); a RuntimeValue object passes through, anything else becomes `{kind: value, value}`. */
+export function parseInput(arg: string, cwd = process.cwd()): [string, unknown] | [string, unknown, string] {
   const eq = arg.indexOf('=')
   if (eq < 1) throw new Error(`--input ${arg}: expected <port>=<value>`)
   const [port, raw] = [arg.slice(0, eq), arg.slice(eq + 1)]
-  const v: unknown = parse(raw.startsWith('@') ? readFileSync(resolve(cwd, raw.slice(1)), 'utf8') : raw)
+  const text = raw.startsWith('@') ? readFileSync(resolve(cwd, raw.slice(1)), 'utf8') : undefined
+  let v: unknown
+  try {
+    v = parse(text ?? raw)
+  } catch (e) {
+    if (text === undefined) throw e
+    v = text // prose that is not YAML: the text itself
+  }
   const kind = (v as { kind?: unknown } | null)?.kind
-  return [port, kind === 'value' || kind === 'artifact' || kind === 'artifacts' || kind === 'externalResource' ? v : { kind: 'value', value: v }]
+  const value = kind === 'value' || kind === 'artifact' || kind === 'artifacts' || kind === 'externalResource' ? v : { kind: 'value', value: v }
+  return text === undefined ? [port, value] : [port, value, text]
 }
 
-async function store(cli: Cli, doc: Resource, o: FollowOptions): Promise<number> {
+async function store(cli: Cli, doc: Resource, o: FollowOptions, texts: Record<string, string> = {}): Promise<number> {
   const engine = await openEngine(cli)
   try {
     placeDoc(engine, doc, o)
     if (doc.kind === 'WorkflowRun') {
       const wf = workflowOf(engine, doc)
+      textInputs(wf, doc, texts)
       pathInputs(engine, wf, cli.cwd, doc)
       await artifactInputs(engine, wf, doc)
     }
@@ -235,6 +246,13 @@ function workflowOf(engine: Engine, doc: Resource): Resource | undefined {
 }
 
 /** `--input repository=.`: a plain path on an externalResource port becomes a git repository ref, pinned to HEAD when it is a checkout. */
+/** `--input brief=@brief.txt` on a `value` port of `type: string`: the file's text as is, however YAML would read it. */
+function textInputs(wf: Resource | undefined, doc: Resource, texts: Record<string, string>): void {
+  const spec = doc.spec as { inputs: Record<string, unknown> }
+  const ports = (wf?.spec as { inputs?: Record<string, { type: { kind: string; schema?: { type?: unknown } } }> } | undefined)?.inputs ?? {}
+  for (const [port, text] of Object.entries(texts)) if (ports[port]?.type.kind === 'value' && ports[port].type.schema?.type === 'string') spec.inputs[port] = { kind: 'value', value: text }
+}
+
 function pathInputs(engine: Engine, wf: Resource | undefined, cwd: string, doc: Resource): void {
   const spec = doc.spec as { inputs: Record<string, { kind: string; value?: unknown }> }
   const ports = (wf?.spec as { inputs?: Record<string, { type: { kind: string } }> } | undefined)?.inputs ?? {}
