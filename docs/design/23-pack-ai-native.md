@@ -246,6 +246,6 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
 - [`examples/example07/room-booking-domain.yaml`](../../examples/example07/room-booking-domain.yaml): one domain, meeting room booking,
   produced by the pack live on `claude-sonnet-5`: `author-prd` (two rounds, the human decided two open
   questions), `domain-discovery` (five storming revisions, the human rejected one hotspot and merged an
-  aggregate), `spec-all` over six capabilities, `design-all` for the booking core's HTTP API and data
-  schema, `plan-all` over the six Specs; the `Architecture` is the human's. Twenty-one artifacts at
-  revision 1 (the rounds collapsed), validates after the pack is applied
+  aggregate), `architect` (two rounds, the human cut seven blocks to four), `spec-all` over six
+  capabilities, `design-all` for the booking core's HTTP API and data schema, `plan-all` over the six
+  Specs. Twenty-six artifacts at revision 1 (the rounds collapsed), validates after the pack is applied

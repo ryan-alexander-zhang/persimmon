@@ -14,7 +14,7 @@ brief ─▶ author-prd ─▶ domain-discovery ─▶ architect ─▶ spec-all
 ```
 
 [`room-booking-domain.yaml`](room-booking-domain.yaml) is what one run of these steps produced on
-`claude-sonnet-5`: twenty-one artifacts, the Architecture included. Read it to see the shapes, or
+`claude-sonnet-5`: twenty-six artifacts, the Architecture and its five Adrs included. Read it to see the shapes, or
 load it into a project without running anything (step 8).
 
 ## Prerequisites
@@ -107,7 +107,7 @@ persimmon run design-all --input 'blocks=[BB-1]' --input type=http-api <architec
 persimmon run design-all --input 'blocks=[BB-1]' --input type=data-schema <the same> --follow
 ```
 
-`Design/room-booking-architecture-bb-1-http-api.r1` and `...-bb-1-data-schema.r1`; `designs.yaml`
+`Design/room-booking-prd-architecture-bb-1-http-api.r1` and `...-bb-1-data-schema.r1`; `designs.yaml`
 lists both for the next step.
 
 ### 7. One Plan per Spec
