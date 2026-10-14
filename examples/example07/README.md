@@ -43,7 +43,7 @@ the project (`persimmon apply` is idempotent, the Global ones stay) to run on th
 ### 2. The Prd
 
 ```sh
-persimmon run author-prd --input brief=@brief.txt --input contextId=room-booking --follow
+persimmon run author-prd --input brief=@brief.txt --input productId=room-booking --input 'contextIds=[room-booking]' --follow
 ```
 
 The run parks on you:
@@ -156,5 +156,7 @@ persimmon validate room-booking-domain.yaml        # 26 lines `ok`
 ```
 
 `persimmon create` takes one document per file; split the file to load it, or read it as it is.
+The BusinessRules carry `contexts: [room-booking]`: the kind renamed `context` to `contexts` after this
+recording (`33-multi-context-product.md`), the one edit by hand.
 Every artifact in it is at revision 1: the rounds of the Prd (two) and the storming (five)
 collapsed into the revision that passed.

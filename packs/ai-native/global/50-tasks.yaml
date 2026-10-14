@@ -133,19 +133,20 @@ metadata: {name: draft-prd}
 spec:
   inputs:
     brief: {type: {kind: value, schema: {type: string, minLength: 1}}}
-    contextId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}
+    productId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}, description: "the id stem of the Prd and the rules; a one-context product's is its context's"}
+    contextIds: {type: {kind: value, schema: {type: array, minItems: 1, maxItems: 20, items: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}, description: "the BoundedContext ids the capabilities live in (33-multi-context-product.md)"}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: false}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
   outputs:
-    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, id: {expression: "inputs.contextId + '-prd'"}}
-    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, id: {expression: "inputs.contextId + '-rules'"}}
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, id: {expression: "inputs.productId + '-prd'"}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, id: {expression: "inputs.productId + '-rules'"}}
   executorRef: {kind: Executor, name: prd-agent}
   action:
     instructions: |
-      Write the Prd from `brief` for the context `contextId`, following the Prd rules in your context, and the
-      BusinessRules artifact of that context with every rule the Prd cites: the input `rules` revised when bound,
+      Write the Prd from `brief` for the product whose contexts are `contextIds`, following the Prd rules in your
+      context, and the product's one BusinessRules artifact with every rule the Prd cites: the input `rules` revised when bound,
       a new artifact otherwise. With `previous` and `feedback` bound, fix what the findings name and change
       nothing else; answer both artifacts whole. The rules you answer start as a verbatim copy of the rules you were
       given (`rules`, or the last round's): every `BR-n` keeps its id, statement and rationale; a finding that names a
