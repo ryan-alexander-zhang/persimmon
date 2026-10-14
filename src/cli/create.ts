@@ -234,6 +234,9 @@ async function artifactInputs(engine: Engine, wf: Resource | undefined, doc: Res
       spec.inputs[port] = { kind: 'artifacts', refs } as never
     }
   }
+  for (const [port, v] of Object.entries(spec.inputs as Record<string, { kind: string; ref?: RevisionRef; refs?: RevisionRef[] }>))
+    for (const ref of v.kind === 'artifact' && v.ref ? [v.ref] : v.kind === 'artifacts' ? (v.refs ?? []) : [])
+      if (!engine.store.resources.get({ kind: ref.kind, namespace: ref.namespace, name: `${ref.id}.r${ref.revision}` })) throw new Error(`--input ${port}: ${ref.kind} ${ref.id} revision ${ref.revision} is not in the store`) // refuse here, not inside the first Task
 }
 
 /** The run's Workflow, or a composition expanding to one (21-composition.md): its Namespace first, then Global. `workflowRef.kind` is set to what was found. */

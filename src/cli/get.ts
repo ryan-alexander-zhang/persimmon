@@ -57,8 +57,9 @@ export async function logs(cli: Cli, ref: string, o: Where = {}): Promise<number
 }
 
 /** `--global` or `-n` when given; else defaultNamespace, then Global: the LocalDefinitionRef order (00-resource.md). */
-export function find(engine: { store: { resources: { get(ref: { kind: string; namespace?: string; name: string }): Resource | undefined } }; dispatch: { defaultNamespace: string } }, kind: string, name: string, o: Where = {}): Resource | undefined {
+export function find(engine: { store: { resources: { get(ref: { kind: string; namespace?: string; name: string }): Resource | undefined; listRevisions(kind: string, namespace: string, id: string): Resource[] } }; dispatch: { defaultNamespace: string } }, kind: string, name: string, o: Where = {}): Resource | undefined {
+  const latest = (namespace: string) => engine.store.resources.listRevisions(kind, namespace, name).at(-1) // a bare artifact id: its latest committed revision
   if (o.global) return engine.store.resources.get({ kind, name })
-  if (o.namespace) return engine.store.resources.get({ kind, namespace: o.namespace, name })
-  return engine.store.resources.get({ kind, namespace: engine.dispatch.defaultNamespace, name }) ?? engine.store.resources.get({ kind, name })
+  if (o.namespace) return engine.store.resources.get({ kind, namespace: o.namespace, name }) ?? latest(o.namespace)
+  return engine.store.resources.get({ kind, namespace: engine.dispatch.defaultNamespace, name }) ?? engine.store.resources.get({ kind, name }) ?? latest(engine.dispatch.defaultNamespace)
 }

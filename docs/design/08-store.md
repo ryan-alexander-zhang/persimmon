@@ -97,10 +97,10 @@ A Namespaced Resource may bind only its own Namespace's names and Global names.
 | `persimmon apply <files> [--skip-adapter-validation]` | write definitions: `created`, `updated`, or `unchanged` (equal spec, labels and annotations: no write, no version bump); fails on an unreachable Adapter unless skipped (`13-executor.md`) |
 | `persimmon adapter install <manifest>` · `adapter list` · `adapter test <id> [--config <file>] [--live]` | apply an Adapter, run `describe`, Ready; `test` runs the conformance suite (`22-conformance.md`) |
 | `persimmon create <file> [--follow]` | store any Resource; a revisioned one is stamped like a publish (`05-revisioned-kind.md`); `--follow` runs the engine until it reaches a `terminal.values` value or waits only on human Tasks, prints every phase change as `<labels from the root>   <Kind>   <Adapter>   <state>` (the root line is `<Kind>   <name>`), then the `tree` and the `complete` command for each parked Task; Ctrl-C leaves it resumable |
-| `persimmon run <Workflow \| Pipeline \| ReviewLoop> [--input <port>=<yaml \| @file>]... [--timeout <d>] [--follow]` | a manual WorkflowRun named `<workflow>-<hex6>` without writing its YAML; `workflowRef.kind` is the kind found (`21-composition.md`); a scalar becomes `{kind: value, value}`, a RuntimeValue object passes through, `@file` on a `value` port of `type: string` is the file's text as is (less one final newline; a RuntimeValue document still passes through), a path on an `externalResource` port becomes a git ref, a revision document (`@spec.yaml`) on an `artifact` port is stored once and referenced, a list of documents or RevisionRefs on an `artifacts` port likewise; `timeout` absent means the Workflow's |
+| `persimmon run <Workflow \| Pipeline \| ReviewLoop> [--input <port>=<yaml \| @file>]... [--timeout <d>] [--follow]` | a manual WorkflowRun named `<workflow>-<hex6>` without writing its YAML; `workflowRef.kind` is the kind found (`21-composition.md`); a scalar becomes `{kind: value, value}`, a RuntimeValue object passes through, `@file` on a `value` port of `type: string` is the file's text as is (less one final newline; a RuntimeValue document still passes through), a path on an `externalResource` port becomes a git ref, a revision document (`@spec.yaml`) on an `artifact` port is stored once and referenced, a list of documents or RevisionRefs on an `artifacts` port likewise, and a ref that is not in the store is refused before the run exists; `timeout` absent means the Workflow's |
 | `persimmon signal <kind>/<name> --payload <file> [--event-id <id>]` | Signal `{source: api}` as the local Actor; id generated when absent |
 | `persimmon resume` | redeliver unacked Events and outstanding calls, drain the Outbox |
-| `persimmon get` · `describe` · `logs` | read Resources, status, RunLog |
+| `persimmon get` · `describe` · `logs` | read Resources, status, RunLog; `get <Kind>/<id>` with no `.r<n>` is the id's latest committed revision |
 | `persimmon skill install <name> --into <dir> [--for claude \| codex]` | fetch and verify a Skill, copy its bundle into the workspace's native skill directories (`15-prompt-skill.md`); replaces an earlier install, refuses a hand-made directory under that name unless `--force` |
 | `persimmon digest <dir>` | the Skill bundle digest of a directory (`15-prompt-skill.md`), to paste into `spec.digest` |
 | `persimmon tree <kind>/<name>` | a run and every run it owns, nested by `ownerReferences`, oldest first; a child is labelled by its name minus its owner's, then its kind, then a TaskRun's Adapter; right column: phase (`passed` \| `rejected` for a Gate or Validator verdict) and elapsed time (creation to the last attempt's `finishedAt` for a TaskRun, else to the last RunLog entry; to now while live); under a run: its error, the `complete` command it waits for, a rejected Validator's findings, the artifacts a TaskRun published as `<Kind>/<id>.r<n>`; a footer lists the root's outputs |
@@ -190,6 +190,12 @@ imports into a server unchanged.
 - `--follow` prints the lines of one tick in commit order, the latest applied RunLog entry of each
   run: one drain commits a child's finish and its parent's reaction together, and the walk order
   printed the parent first. Found in UAT.
+- `persimmon get <Kind>/<id>` with no `.r<n>` answers the id's latest committed revision: a human
+  reviewing a run's output knows the id from the tree and the chosen-id scheme, not the revision
+  number. Found in UAT.
+- `persimmon run --input <port>=<RevisionRef>` refuses a ref that is not in the store before the
+  run exists; the run used to be created and fail inside its first Task with `getArtifact`. Found
+  in UAT.
 
 ## Examples
 
