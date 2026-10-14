@@ -39,6 +39,7 @@ export type Binding = { onMissing?: 'omit' } & (
   | { fromIterationOutput: string }
   | { expression: string }
   | { fromEvent: string }
+  | { fromArtifact: { kind: { apiVersion: string; kind: string }; id: string } }
 )
 
 export type Bindings = Record<string, Binding>

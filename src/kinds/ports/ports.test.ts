@@ -85,16 +85,17 @@ describe('bindings', () => {
   const bindings = example('ports-bindings') as Binding[]
   const gateResult = { kind: 'value' as const, schema: { $ref: 'persimmon.ai/v1#/GateResult' } }
   const site = siteOf({
-    inputs: { maxRounds: { type: { kind: 'value', schema: { type: 'integer' } } }, research: task.inputs.research! },
+    inputs: { maxRounds: { type: { kind: 'value', schema: { type: 'integer' } } }, research: task.inputs.research!, prd: task.outputs.prd! },
     steps: { review: { result: { type: gateResult } }, research: { report: task.outputs.prd! } },
     state: { draft: { type: { kind: 'value' } } },
     iterationOutputs: { prd: task.outputs.prd! },
   })
   const sources = {
-    inputs: { maxRounds: { kind: 'value' as const, value: 3 }, research: report },
+    inputs: { maxRounds: { kind: 'value' as const, value: 3 }, research: report, prd: { kind: 'artifact' as const, ref: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement', namespace: 'demo', id: 'checkout-v2', revision: 1 } } },
     steps: { review: { phase: 'Succeeded', outputs: { result: { kind: 'value' as const, value: { passed: true, results: {} } } } }, research: { phase: 'Succeeded', outputs: { report } } },
     iteration: { index: 2, outputs: { prd: report } },
     event: { artifact: { id: 'checkout-v2' }, content: { targetPrd: 'x' } },
+    latest: (kind: { kind: string }, id: string) => (id === 'checkout-v2' ? { apiVersion: 'engineering.persimmon.ai/v1', kind: kind.kind, namespace: 'demo', id, revision: 3 } : undefined),
   }
 
   it('steps.<id>.iterations is typed at the site and read from a finished repeat step', () => {
@@ -114,7 +115,14 @@ describe('bindings', () => {
       p5: { kind: 'value', value: true },
       p6: { kind: 'value', value: { id: 'checkout-v2' } },
       p7: { kind: 'value', value: 'x' },
+      p8: { kind: 'artifact', ref: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement', namespace: 'demo', id: 'checkout-v2', revision: 3 } }, // the latest revision, not the input's r1
     })
+    // no revision of that id: absent; no lookup at the site: absent; an id that is no string: an error
+    const gone = { fromArtifact: { kind: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement' }, id: '"nope"' } }
+    expect(() => bind({ x: gone }, sources, site)).toThrow(/x: source absent/)
+    expect(bind({ x: { ...gone, onMissing: 'omit' } }, sources, site)).toEqual({})
+    expect(() => bind({ x: { fromArtifact: { ...gone.fromArtifact, id: '"checkout-v2"' } } }, { ...sources, latest: undefined }, site)).toThrow(/x: source absent/)
+    expect(() => bind({ x: { fromArtifact: { ...gone.fromArtifact, id: 'inputs.maxRounds' } } }, sources, site)).toThrow(/fromArtifact: id 3 is not a string/)
   })
 
   it('an absent source without onMissing is an error; an unfinished step is absent', () => {

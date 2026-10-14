@@ -7,3 +7,4 @@
 - {expression: 'steps.review.outputs.result.passed && inputs.maxRounds > 1'}   # Workflow site
 - {fromEvent: artifact}                                                         # artifactPublished root
 - {fromEvent: content.targetPrd}
+- {fromArtifact: {kind: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement}, id: "inputs.prd.id"}, onMissing: omit}  # the latest revision of that id

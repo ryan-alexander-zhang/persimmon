@@ -3258,6 +3258,47 @@
        "fromEvent"
       ],
       "additionalProperties": false
+     },
+     {
+      "properties": {
+       "fromArtifact": {
+        "type": "object",
+        "required": [
+         "kind",
+         "id"
+        ],
+        "additionalProperties": false,
+        "properties": {
+         "kind": {
+          "type": "object",
+          "required": [
+           "apiVersion",
+           "kind"
+          ],
+          "additionalProperties": false,
+          "x-persimmon-kind-ref": {},
+          "properties": {
+           "apiVersion": {
+            "$ref": "resource.yaml#/$defs/ApiVersion"
+           },
+           "kind": {
+            "$ref": "resource.yaml#/$defs/Kind"
+           }
+          }
+         },
+         "id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "a CEL expression over the site yielding the artifact id"
+         }
+        }
+       },
+       "onMissing": true
+      },
+      "required": [
+       "fromArtifact"
+      ],
+      "additionalProperties": false
      }
     ]
    },

@@ -10,7 +10,7 @@ definition                          run
   outputs: {port: OutputSpec} ───▶  outputs: {port: RuntimeValue}     produced by the executor
 
 PortType  value {schema?} | artifact {artifactKind} | artifacts {artifactKind} | externalResource {provider, type}
-Binding   literal | fromInput | fromStep | fromState | fromIterationOutput | expression | fromEvent
+Binding   literal | fromInput | fromStep | fromState | fromIterationOutput | expression | fromEvent | fromArtifact
 ```
 
 ## Names
@@ -54,9 +54,10 @@ Equality: `kind` and every field equal after expanding `$ref`. No subtyping.
 | `{fromIterationOutput: <port>}` | last iteration's output | `repeat.next` only |
 | `{expression: <cel>}` | CEL result, a `value` port | anywhere |
 | `{fromEvent: <root path>}` | engine projection of the Outbox event; roots per event kind in `16-trigger.md` | Trigger only |
+| `{fromArtifact: {kind: {apiVersion, kind}, id: <cel>}}` | the latest committed revision, in the run's Namespace, of the artifact whose id the expression yields; an `artifact` port of that kind; absent when no revision exists | Workflow steps, Gate validators |
 
-`onMissing: omit` on `fromInput`, `fromStep`, `fromState`, `fromIterationOutput`, `fromEvent`:
-skip the port when the source is absent; optional inputs only.
+`onMissing: omit` on `fromInput`, `fromStep`, `fromState`, `fromIterationOutput`, `fromEvent`,
+`fromArtifact`: skip the port when the source is absent; optional inputs only.
 
 ## Expression profile
 
@@ -99,7 +100,7 @@ Values enter CEL typed by the port schema: `integer` → `int`, `number` → `do
 | `default` only with `required: false` | schema |
 | `default.kind` equals `type.kind` | static checker |
 | `value.schema` carries no `$ref` outside the well-known set, at any depth | static checker |
-| producer type equals consumer type; `literal` and `expression` feed `value` ports only | static checker |
+| producer type equals consumer type; `literal` and `expression` feed `value` ports only; `fromArtifact` produces an `artifact` of its `kind`, and its `id` expression type-checks as a string at the site | static checker |
 | a Binding reads only causal predecessors in scope | static checker |
 | `fromState`, `fromIterationOutput` only inside `repeat`; `fromEvent` only in Trigger | static checker |
 | `onMissing: omit` only on optional inputs, never in output bindings | static checker |
@@ -126,6 +127,12 @@ Values enter CEL typed by the port schema: `integer` → `int`, `number` → `do
 - Port values bind to CEL by schema type, because a JSON integer bound as `double` makes
   `inputs.n + 1` a type error in every spec-conformant library.
 - `inputs` and `outputs` optional on a definition.
+- `fromArtifact` binds an artifact by id, not by ref, because a Workflow that repeats over a
+  Prd's capabilities knows the Spec of `CAP-n` by its chosen id (`12-task.md`) but not its
+  revision. "Latest committed revision at bind time" is the rule a run start follows for
+  definitions (`04-snapshot.md`): a run started after a Spec's second round plans `r2`, one
+  started before keeps `r1`; provenance pins whichever was bound. Bind reads the store, so the
+  Sources carry a lookup the Handler supplies. Found in design review.
 - `artifacts` is a PortType of its own, not a flag on `artifact`: one port holds any number
   of revisions of one kind, in the caller's order, because a Plan builds against every Design
   of its blocks and fixed slots cap the count. A `{kind: artifact, input}` context entry on it

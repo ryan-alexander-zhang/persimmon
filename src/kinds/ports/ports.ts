@@ -2,7 +2,7 @@ import { isDeepStrictEqual } from 'node:util'
 import { Site } from '../../expression/site.js'
 import type { Finding } from '../../handler/types.js'
 import type { JsonSchema } from '../../kind-definition/types.js'
-import type { Resource } from '../../resource/types.js'
+import type { Resource, RevisionRef } from '../../resource/types.js'
 import type { ValidateFunction } from 'ajv/dist/2020.js'
 import { ajv } from '../../resource/ajv.js'
 import { celTypeOf } from '../../expression/schema-type.js'
@@ -122,6 +122,8 @@ export interface Sources {
   iteration?: { index: number; outputs?: RuntimeValues }
   /** Engine projection of the Outbox event (16-trigger.md). */
   event?: Record<string, unknown>
+  /** The latest committed revision of an artifact id in the run's Namespace, for `fromArtifact`; absent where the site has no store. */
+  latest?: (kind: { apiVersion: string; kind: string }, id: string) => RevisionRef | undefined
 }
 
 /** Evaluates one Binding; `undefined` means the source is absent (caller applies `onMissing`). */
@@ -132,6 +134,12 @@ export function evaluateBinding(b: Binding, s: Sources, site: Site): RuntimeValu
   if ('fromState' in b) return s.state?.[b.fromState]
   if ('fromIterationOutput' in b) return s.iteration?.outputs?.[b.fromIterationOutput]
   if ('expression' in b) return { kind: 'value', value: site.evaluate(b.expression, celContext(s)) }
+  if ('fromArtifact' in b) {
+    const id = site.evaluate(b.fromArtifact.id, celContext(s))
+    if (typeof id !== 'string') throw new PortError(`fromArtifact: id ${JSON.stringify(id)} is not a string`)
+    const ref = s.latest?.(b.fromArtifact.kind, id)
+    return ref ? { kind: 'artifact', ref } : undefined
+  }
   const v = b.fromEvent.split('.').reduce<unknown>((o, k) => (o as Record<string, unknown> | undefined)?.[k], s.event)
   return v === undefined ? undefined : { kind: 'value', value: v }
 }
