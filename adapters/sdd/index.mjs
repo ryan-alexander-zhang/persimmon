@@ -2,10 +2,11 @@
 // Given a Spec, `evaluate` runs `checkSpec` on it and the Prd, DomainModel, Architecture and BusinessRules it cites;
 // given a Prd, it runs `checkPrd` on it and the BusinessRules of its context; given a Design, it runs `checkDesign` on
 // it and the Architecture, DomainModel and BusinessRules it cites; given a Plan, it runs `checkPlan` on it, the Spec,
-// the Architecture and the Designs (an artifacts port, paired with inputs.designs.refs by position). It answers a
-// ValidationResult (10-ports.md). No Engine callbacks.
+// the Architecture and the Designs (an artifacts port, paired with inputs.designs.refs by position); given an Architecture
+// and no Spec, Design or Plan, it runs `checkArchitecture` on it, the Prd, the rules, the contexts, models, glossaries and
+// Adrs (artifacts ports, paired the same way). It answers a ValidationResult (10-ports.md). No Engine callbacks.
 import { createInterface } from 'node:readline'
-import { checkDesign, checkPlan, checkPrd, checkSpec } from './check.mjs'
+import { checkArchitecture, checkDesign, checkPlan, checkPrd, checkSpec } from './check.mjs'
 
 const describe = {
   adapterId: 'sdd/v1',
@@ -33,10 +34,20 @@ function evaluate(payload) {
     const findings = checkPlan({ plan, spec: required(artifacts, 'spec'), architecture: required(artifacts, 'architecture'), designs, ids })
     return { passed: findings.length === 0, findings, evidence: [] }
   }
+  const idsOf = (port) => (payload.inputs?.[port]?.refs ?? []).map((r) => r.id)
   // the artifact under evaluation is artifacts.spec; the conformance suite names it artifacts.model (22-conformance.md)
   if (!(artifacts.spec ?? artifacts.model)) {
+    if (artifacts.architecture && !artifacts.design) {
+      const architecture = required(artifacts, 'architecture')
+      const notAnArchitecture = checkArchitecture({ architecture }).filter((f) => f.code === 'not-an-architecture')
+      if (notAnArchitecture.length) return { passed: false, findings: notAnArchitecture, evidence: [] }
+      const adrs = Object.fromEntries((artifacts.adrs ?? []).map((d, i) => [idsOf('adrs')[i], d.content]))
+      const ids = { prd: payload.inputs?.prd?.ref?.id, contexts: idsOf('contexts'), domainModels: idsOf('domainModels'), glossaries: idsOf('glossaries'), adrs: idsOf('adrs') }
+      const findings = checkArchitecture({ architecture, prd: required(artifacts, 'prd'), rules: required(artifacts, 'rules'), ids, adrs })
+      return { passed: findings.length === 0, findings, evidence: [] }
+    }
     if (!artifacts.prd) {
-      if (!artifacts.design) throw invalid('artifacts.spec, artifacts.prd, artifacts.design or artifacts.plan is required')
+      if (!artifacts.design) throw invalid('artifacts.spec, artifacts.prd, artifacts.design, artifacts.architecture or artifacts.plan is required')
       const design = required(artifacts, 'design')
       const notADesign = checkDesign({ design }).filter((f) => f.code === 'not-a-design')
       if (notADesign.length) return { passed: false, findings: notADesign, evidence: [] }

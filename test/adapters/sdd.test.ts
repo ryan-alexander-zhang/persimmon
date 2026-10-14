@@ -124,7 +124,7 @@ describe('sdd/v1', () => {
     const missing = await adapter({ id: 1004, op: 'evaluate', payload: payload(rest) })
     expect(missing).toEqual({ id: 1004, ok: false, error: { code: 'invalid_input', message: 'artifacts.rules is required', retryable: false } })
     const noSpec = await adapter({ id: 1005, op: 'evaluate', payload: { ...payload(example()), artifacts: {} } })
-    expect(noSpec).toEqual({ id: 1005, ok: false, error: { code: 'invalid_input', message: 'artifacts.spec, artifacts.prd, artifacts.design or artifacts.plan is required', retryable: false } })
+    expect(noSpec).toEqual({ id: 1005, ok: false, error: { code: 'invalid_input', message: 'artifacts.spec, artifacts.prd, artifacts.design, artifacts.architecture or artifacts.plan is required', retryable: false } })
     const unknown = await adapter({ id: 1006, op: 'nonsense', payload: {} })
     expect(unknown).toMatchObject({ id: 1006, ok: false, error: { code: 'invalid_input', retryable: false } })
   })
@@ -339,5 +339,81 @@ describe('sdd/v1 over a Plan', () => {
     expect(await adapter({ id: 4003, op: 'evaluate', payload: planPayload(noSpec as never) })).toMatchObject({ ok: false, error: { code: 'invalid_input', message: 'artifacts.spec is required' } })
     const { architecture, ...noArchitecture } = planExample()
     expect(await adapter({ id: 4004, op: 'evaluate', payload: planPayload(noArchitecture as never) })).toMatchObject({ ok: false, error: { code: 'invalid_input', message: 'artifacts.architecture is required' } })
+  })
+})
+
+describe('sdd/v1 over an Architecture', () => {
+  const adrIds = ['adr-receipts-as-blobs', 'adr-routing-in-core']
+  const adrs = () => docs.filter((d) => d.kind === 'Adr').map((d) => d.spec.content)
+  const archExample = () => ({ architecture: content('Architecture'), prd: content('Prd'), rules: content('BusinessRules'), contexts: [content('BoundedContext')], domainModels: [], glossaries: [content('Glossary')], adrs: adrs() })
+  const ref = (kind: string, id: string) => ({ apiVersion: 'sdd.persimmon.ai/v1', kind, namespace: 'demo', id, revision: 1 })
+  const inputs = () => ({
+    prd: { kind: 'artifact', ref: ref('Prd', 'expense-claims') },
+    contexts: { kind: 'artifacts', refs: [ref('BoundedContext', 'expenses')] },
+    domainModels: { kind: 'artifacts', refs: [] },
+    glossaries: { kind: 'artifacts', refs: [ref('Glossary', 'expenses-glossary')] },
+    adrs: { kind: 'artifacts', refs: adrIds.map((id) => ref('Adr', id)) },
+  })
+  const archPayload = (a: ReturnType<typeof archExample>, over: Record<string, unknown> = {}) => ({
+    ...payload({ architecture: a.architecture, prd: a.prd, rules: a.rules }),
+    inputs: { ...inputs(), ...over },
+    artifacts: {
+      architecture: { content: a.architecture, provenance },
+      prd: { content: a.prd, provenance },
+      rules: { content: a.rules, provenance },
+      contexts: a.contexts.map((c) => ({ content: c, provenance })),
+      domainModels: a.domainModels.map((c) => ({ content: c, provenance })),
+      glossaries: a.glossaries.map((c) => ({ content: c, provenance })),
+      adrs: a.adrs.map((c) => ({ content: c, provenance })),
+    },
+  })
+  const archCodes = async (mutate: (a: ReturnType<typeof archExample>) => void, over: Record<string, unknown> = {}) => {
+    const a = structuredClone(archExample())
+    mutate(a)
+    const r = await adapter({ id: ++id, op: 'evaluate', payload: archPayload(a, over) })
+    expect(r.result.passed).toBe(false)
+    return r.result.findings.map((f: { code: string }) => f.code)
+  }
+
+  it('passes the worked example: the Architecture against its Prd, context, glossary, rules and Adrs', async () => {
+    const r = await adapter({ id: ++id, op: 'evaluate', payload: archPayload(archExample()) })
+    expect(r.result).toEqual({ passed: true, findings: [], evidence: [] })
+  })
+  it('fails content that is not an Architecture, and reports nothing else', async () => {
+    const r = await adapter({ id: ++id, op: 'evaluate', payload: archPayload({ ...archExample(), architecture: { title: 'x' } as never }) })
+    expect(r.result).toEqual({ passed: false, findings: [{ severity: 'error', code: 'not-an-architecture', message: 'content is not an Architecture: it has no buildingBlocks array or no introduction' }], evidence: [] })
+  })
+  it('fails a Prd id other than the one evaluated', async () => {
+    expect(await archCodes((a) => (a.architecture.introduction.prd = 'other'))).toEqual(['prd-mismatch'])
+  })
+  it('fails a block context not evaluated, a context no level 1 block realises, a Prd capability context not evaluated', async () => {
+    expect(await archCodes((a) => (a.architecture.buildingBlocks[0].contexts = ['payroll']))).toEqual(['unknown-context']) // BB-3 and BB-4 still realise expenses
+    expect(await archCodes((a) => a.architecture.buildingBlocks.forEach((b: { contexts: string[] }) => (b.contexts = [])))).toEqual(['context-unrealised'])
+    expect(await archCodes((a) => (a.prd.capabilities[0].context = 'payroll'))).toEqual(['prd-context-unread'])
+    expect(await archCodes((a) => (a.architecture.buildingBlocks[0].parent = 'BB-9'))).toEqual(['unknown-parent'])
+  })
+  it('fails a listed model, glossary or Adr that was not evaluated, and one evaluated but not listed', async () => {
+    expect(await archCodes((a) => (a.architecture.domainModels = ['expenses-model']))).toEqual(['model-mismatch'])
+    expect(await archCodes((a) => (a.architecture.glossaries = []))).toEqual(['glossary-mismatch'])
+    expect(await archCodes((a) => (a.architecture.decisions = [adrIds[0]]))).toEqual(['adr-mismatch'])
+  })
+  it('fails a strategy driver, a scenario goal and a goal without a scenario', async () => {
+    expect(await archCodes((a) => (a.architecture.strategy[0].addresses = ['QG-9']))).toEqual(['unknown-driver'])
+    expect(await archCodes((a) => (a.architecture.qualityScenarios[0].qualityGoal = 'QG-9'))).toEqual(['unknown-quality-goal'])
+    expect(await archCodes((a) => (a.architecture.qualityScenarios = a.architecture.qualityScenarios.filter((q: { qualityGoal: string }) => q.qualityGoal !== 'QG-3')))).toEqual(['goal-unscenarioed'])
+  })
+  it('fails a relation end that resolves nowhere, one between two partners, a wrong interface, an unrelated block or partner', async () => {
+    expect(await archCodes((a) => (a.architecture.relations[0].from = 'nobody'))).toEqual(['unknown-relation-end', 'partner-unrelated']) // the employee lost its only relation
+    expect(await archCodes((a) => (a.architecture.relations[0].to = 'approver'))).toEqual(['relation-no-block'])
+    expect(await archCodes((a) => (a.architecture.relations[3].interface = 'blob API'))).toEqual(['unknown-interface'])
+    expect(await archCodes((a) => a.architecture.relations.splice(8, 1))).toEqual(['partner-unrelated'])
+    expect(await archCodes((a) => a.architecture.buildingBlocks.push({ id: 'BB-6', name: 'spare', responsibility: 'nothing yet', interfaces: [], contexts: [] }))).toEqual(['block-unrelated'])
+  })
+  it('fails an Adr that is not accepted, and a driver that resolves nowhere', async () => {
+    expect(await archCodes((a) => (a.adrs[0].status = 'proposed'))).toEqual(['adr-status'])
+    expect(await archCodes((a) => (a.adrs[0].drivers = ['BR-99']))).toEqual(['unknown-adr-driver'])
+  })
+  it('fails ids out of sequence', async () => {
+    expect(await archCodes((a) => (a.architecture.strategy[1].id = 'S-1'))).toEqual(['id-sequence'])
   })
 })

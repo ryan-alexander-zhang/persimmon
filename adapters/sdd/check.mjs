@@ -2,7 +2,8 @@
 // capability and its governing rules, the DomainModel's names, the Architecture's quality scenarios, the BusinessRules;
 // inside the Spec, stories cover requirements and requirements enforce rules. And one Prd against the BusinessRules of
 // its context. And one Design against the Architecture block it belongs to, the DomainModel its elements realise and the
-// BusinessRules it enforces. And one Plan against its Spec, the Architecture and the Designs it realises. Plain data in, findings out.
+// BusinessRules it enforces. And one Plan against its Spec, the Architecture and the Designs it realises. And one Architecture
+// against the Prd, the contexts, models and glossaries it lists and the Adrs it applies. Plain data in, findings out.
 // the document a Design of each type carries
 const mediaTypes = { 'http-api': ['application/openapi+yaml'], 'async-api': ['application/asyncapi+yaml'], 'data-schema': ['application/schema+json', 'application/sql'] }
 const keyword = { ubiquitous: 'The', 'event-driven': 'When', 'state-driven': 'While', 'unwanted-behaviour': 'If', optional: 'Where' }
@@ -221,5 +222,88 @@ export function checkPlan({ plan, spec, architecture, designs = {}, ids = {} }) 
 
   sequence(bad, 'T', taskIds)
   sequence(bad, 'Q', (plan.openQuestions ?? []).map((q) => q.id))
+  return findings
+}
+
+/** One Architecture against the Prd it serves, the BoundedContexts, DomainModels and Glossaries it lists (artifact ids given by
+ * `ids`, paired from the artifacts inputs), the BusinessRules the Prd cites and the Adrs it applies (31-architecture-process.md).
+ * `ids`: {prd, contexts[], domainModels[], glossaries[], adrs[]}; `adrs` maps an Adr id to its content. Every finding `error`. */
+export function checkArchitecture({ architecture, prd, rules, ids = {}, adrs = {} }) {
+  if (!architecture || !Array.isArray(architecture.buildingBlocks) || !architecture.introduction) {
+    return [{ severity: 'error', code: 'not-an-architecture', message: 'content is not an Architecture: it has no buildingBlocks array or no introduction' }]
+  }
+  const findings = []
+  const bad = (code, message) => findings.push({ severity: 'error', code, message })
+  const a = architecture
+
+  if (ids.prd && a.introduction.prd !== ids.prd) bad('prd-mismatch', `introduction.prd ${a.introduction.prd} is not ${ids.prd}, the Prd evaluated`)
+  const contexts = new Set(ids.contexts ?? [])
+  const blocks = new Map(a.buildingBlocks.map((b) => [b.id, b]))
+  const partners = new Set((a.context?.business ?? []).map((p) => p.partner))
+  const goals = new Set((a.introduction.qualityGoals ?? []).map((g) => g.id))
+  const constraints = new Set((a.constraints ?? []).map((c) => c.id))
+  const scenarios = new Set((a.qualityScenarios ?? []).map((q) => q.id))
+
+  // contexts: every block context is one given; every given context is realised by a level 1 block; the Prd names none outside them
+  const realised = new Set()
+  for (const b of a.buildingBlocks) {
+    if (b.parent && !blocks.has(b.parent)) bad('unknown-parent', `${b.id}: parent ${b.parent} is not a building block`)
+    for (const c of b.contexts ?? []) {
+      if (!contexts.has(c)) bad('unknown-context', `${b.id}: context ${c} is not among the BoundedContexts evaluated`)
+      else if (!b.parent) realised.add(c)
+    }
+  }
+  for (const c of contexts) if (!realised.has(c)) bad('context-unrealised', `context ${c} is realised by no level 1 building block`)
+  // context.business[].context may name a context of another Namespace or one not yet written (23-pack-ai-native.md): not checked
+  for (const cap of prd?.capabilities ?? []) if (cap.context && !contexts.has(cap.context)) bad('prd-context-unread', `capability ${cap.id}: context ${cap.context} is not among the BoundedContexts evaluated`)
+
+  // the lists of kinds applied equal what was evaluated
+  const same = (code, name, listed, given) => {
+    for (const id of listed) if (!given.includes(id)) bad(code, `${name} ${id} is not among the ${name}s evaluated`)
+    for (const id of given) if (!listed.includes(id)) bad(code, `${name} ${id} was evaluated but is not listed`)
+  }
+  same('model-mismatch', 'domainModel', a.domainModels ?? [], ids.domainModels ?? [])
+  same('glossary-mismatch', 'glossary', a.glossaries ?? [], ids.glossaries ?? [])
+  same('adr-mismatch', 'adr', a.decisions ?? [], ids.adrs ?? [])
+
+  // strategy, scenarios, relations resolve inside the document
+  for (const s of a.strategy ?? []) for (const id of s.addresses ?? []) if (!goals.has(id) && !constraints.has(id)) bad('unknown-driver', `${s.id}: addresses ${id}, neither a quality goal nor a constraint`)
+  const covered = new Set()
+  for (const q of a.qualityScenarios ?? []) {
+    covered.add(q.qualityGoal)
+    if (!goals.has(q.qualityGoal)) bad('unknown-quality-goal', `${q.id}: quality goal ${q.qualityGoal} is not in the introduction`)
+  }
+  for (const g of goals) if (!covered.has(g)) bad('goal-unscenarioed', `quality goal ${g} has no quality scenario`)
+  const related = new Set()
+  for (const r of a.relations ?? []) {
+    const ends = [r.from, r.to]
+    for (const e of ends) if (!blocks.has(e) && !partners.has(e)) bad('unknown-relation-end', `${r.id}: ${e} is neither a building block nor a partner`)
+    if (!ends.some((e) => blocks.has(e))) bad('relation-no-block', `${r.id}: neither end is a building block`)
+    for (const e of ends) related.add(e)
+    if (r.interface) {
+      const provider = blocks.has(r.to) ? blocks.get(r.to) : blocks.get(r.from)
+      const kind = blocks.has(r.to) ? 'provides' : 'requires'
+      if (provider && !(provider.interfaces ?? []).some((i) => i.name === r.interface && i.kind === kind)) bad('unknown-interface', `${r.id}: ${provider.id} ${kind} no interface ${r.interface}`)
+    }
+  }
+  for (const b of a.buildingBlocks) if (!b.parent && !related.has(b.id)) bad('block-unrelated', `${b.id} has no relation`)
+  for (const p of partners) if (!related.has(p)) bad('partner-unrelated', `partner ${p} has no relation`)
+
+  // the Adrs applied: accepted, their drivers resolve in what the Architecture, the Prd and the rules name
+  const ruleIds = new Set((rules?.rules ?? []).map((r) => r.id))
+  const prdIds = new Set([...(prd?.goals ?? []), ...(prd?.capabilities ?? []), ...(prd?.successCriteria ?? [])].map((x) => x.id))
+  for (const [id, adr] of Object.entries(adrs)) {
+    if (adr.status !== 'accepted') bad('adr-status', `adr ${id} is ${adr.status}, not accepted`)
+    for (const d of adr.drivers ?? []) if (!goals.has(d) && !constraints.has(d) && !scenarios.has(d) && !ruleIds.has(d) && !prdIds.has(d)) bad('unknown-adr-driver', `adr ${id}: driver ${d} resolves in neither the Architecture, the Prd nor the rules`)
+  }
+
+  sequence(bad, 'QG', [...goals])
+  sequence(bad, 'C', [...constraints])
+  sequence(bad, 'S', (a.strategy ?? []).map((s) => s.id))
+  sequence(bad, 'BB', [...blocks.keys()])
+  sequence(bad, 'REL', (a.relations ?? []).map((r) => r.id))
+  sequence(bad, 'CC', (a.concepts ?? []).map((c) => c.id))
+  sequence(bad, 'QS', [...scenarios])
+  sequence(bad, 'RK', (a.risks ?? []).map((r) => r.id))
   return findings
 }
