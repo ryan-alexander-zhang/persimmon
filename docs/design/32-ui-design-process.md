@@ -55,7 +55,7 @@ provides none.
 
 | Member | Content |
 |---|---|
-| Prompt `design-system-rules` | the DESIGN.md spec as the pack reads it: every section present and in order, `omitted` only with a reason; the Overview from the Prd's users and the client blocks' `technology` (a kiosk read at ten metres is not a phone); contrast WCAG AA; components for every control the client blocks need; nothing the product does not show |
+| Prompt `design-system-rules` | the DESIGN.md spec as the pack reads it: every section present and in order, `omitted` for token groups only, with a reason; the Overview from the Prd's users and the client blocks' `technology` (a kiosk read at ten metres is not a phone); contrast WCAG AA; components for every control the client blocks need; nothing the product does not show |
 | Executor `design-system-agent` | `claude-code/v1`, read-only, its own name for per-Namespace override |
 | Task `write-design-system` | inputs `prd`, `architecture`, `previous`, `feedback`; output `designSystem` (id `<prd>-design-system`) |
 | Task `confirm-design-system` | human on `cli-human/v1`: reads the DESIGN.md; approve, or one finding per section or token that must change |
@@ -64,12 +64,12 @@ provides none.
 | Gate `design-system-gate` | lint and confirmed, `all`, 72h |
 | ReviewLoop `design-system` | `produce` `write-design-system`, `review` `design-system-gate`, `maxRounds: 3` |
 | Prompt `design-rules` | gains the `ui` paragraph above |
-| Task `design-asset`, ReviewLoop `design-one`, Workflow `design-all` | `type` enum gains `ui`; inputs `designSystem` (optional) and `designs` (artifacts, optional: the `http-api` Designs of the interfaces the block requires) threaded through; `design-all` with `type: ui` runs over the client blocks listed |
+| Task `design-asset`, ReviewLoop `design-one`, Workflow `design-all` | `type` enum gains `ui`; inputs `designSystem` (optional) and `designs` (artifacts, optional: the `http-api` Designs of the interfaces the block requires) threaded through with `onMissing: omit` where the engine does not add it (a Workflow step, a Gate's Validator binding; the loop adds it to `produce` and `review`, `21-composition.md`); `design-all` with `type: ui` runs over the client blocks listed |
 | Validator `design-consistency`, Gate `design-gate` | `designSystem` (optional) threaded through |
 
 Run, after `architect` and the `http-api` Designs:
 `persimmon run design-system --input 'prd={...}' --input 'architecture={...}'`, then
-`persimmon run design-all --input 'blocks=[BB-5, BB-6, BB-7]' --input type=ui --input 'designSystem={...}' --input designs=@designs.yaml <architecture, domainModel, glossary, rules>`.
+`persimmon run design-all --input 'blocks=[BB-5, BB-6, BB-7]' --input type=ui --input 'designSystem={...}' --input designs=@api-designs.yaml <architecture, domainModel, glossary, rules>`, where `api-designs.yaml` lists the `http-api` Designs the client blocks call.
 `plan-all` then takes the `ui` Designs in its `designs` list like any other.
 
 ## `designmd/v1`
@@ -84,7 +84,7 @@ without `document.content` is `not-a-design-system`, the only finding then. No E
 | Code | Finding |
 |---|---|
 | `type-mediatype` | `ui` pairs with `text/markdown` only |
-| `designsystem-mismatch` | `designSystem` is not the id of the DesignSystem bound (`ids.designSystem`), or absent on a `ui` Design |
+| `designsystem-mismatch` | `designSystem` absent on a `ui` Design, no DesignSystem bound to the Validator, or the id is not the one bound (`ids.designSystem`) |
 | `client-block` | a `ui` Design's block realises a context (`contexts` non-empty): screens belong to clients |
 | the rest | as any Design: `unknown-block`, `unknown-realised` (read models and commands), rules both ways, `id-sequence` |
 
@@ -92,7 +92,7 @@ without `document.content` is `not-a-design-system`, the only finding then. No E
 
 | Rule | Enforcer |
 |---|---|
-| the DESIGN.md is the truth: the pack adds no field that restates a token or a section; what the file says, the linter checks | kind schema; `design-system-lint` |
+| the DESIGN.md is the truth: the pack adds no field that restates a token or a section; the linter checks the tokens (references, contrast, orphans, section order), the human checks the prose: that every section is present with something to say is not a linter rule | kind schema; `design-system-lint`; `confirm-design-system` |
 | one DesignSystem per product, confirmed by a human: taste is not a Validator's; the linter catches the format, the contrast and the broken reference | `design-system-gate` |
 | a `ui` Design cites the DesignSystem, the DomainModel and the block's API Designs; never a Spec: a screen serves every capability that reaches the block | `design-rules`; `checkDesign` |
 | the document's components and operations are not checked against the DesignSystem's tokens or the API Design's operations: the document is prose, the Design evaluator parses documents (`91-roadmap.md`) | convention; roadmap |
@@ -162,6 +162,19 @@ without `document.content` is `not-a-design-system`, the only finding then. No E
   The CAP-5 Plan now has a task per kiosk with the screen as its element and no open question; the
   CAP-1 Plan gained a `BB-5` task realising the booking screen and its Book action. The question the
   live chain raised twice ("No Design for BB-6 is in context") is closed. Found in UAT.
+
+- Found in audit: the optional `designSystem` and `designs` bindings had no `onMissing: omit` on the
+  Gate's Validator binding and on `design-all`'s step, and the ReviewLoop expansion added it to
+  `produce` but not to `review`; every `http-api` or `data-schema` run would have failed `source absent`
+  at bind, and the live UAT missed it because it bound both. The expansion now treats `review` like
+  `produce` (Layer 1), the pack binds the rest explicitly. Also from the audit: the Prompt told the
+  agent to list a prose section in `omitted` (the linter accepts token groups only, `unknown-omission`)
+  and counted prose as a token use (`orphaned-tokens` counts component references only); a `ui`
+  Design with no DesignSystem bound passed on its own claim; and the Adapter let a parser exception
+  end the round without feedback and a list-shaped front matter pass with no findings.
+- `checkDesign` on a `ui` Design refuses when no DesignSystem is bound: the Validator's `designSystem`
+  input is optional so the other types run without one, and the rule that a `ui` Design needs it lives
+  in the check, not the port. Found in audit.
 
 ## Examples
 

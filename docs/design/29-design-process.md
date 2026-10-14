@@ -40,7 +40,7 @@ Workflow design-all: repeat over `blocks` with one `type` ─▶ ReviewLoop desi
 | `unknown-rule`, `inactive-rule` | a `BR-n` at the root or on an element missing or not `active` |
 | `rules-incomplete`, `rules-unplaced` | an element's rule the root `rules[]` lacks; a root rule no element enforces (the root is the union, both ways) |
 | `type-mediatype` | `type` and `document.mediaType` do not pair (`http-api` OpenAPI, `async-api` AsyncAPI, `data-schema` JSON Schema or SQL, `ui` markdown) |
-| `designsystem-mismatch`, `client-block` | a `ui` Design: `designSystem` absent or not the id of the DesignSystem bound; its block realises a context (`32-ui-design-process.md`) |
+| `designsystem-mismatch`, `client-block` | a `ui` Design: `designSystem` absent, no DesignSystem bound, or not the id bound; its block realises a context (`32-ui-design-process.md`) |
 | `id-sequence` | `EL-n`, `Q-n` not unique and increasing |
 
 The Adapter picks the mode from the payload: `artifacts.spec` (or `artifacts.model`), else
