@@ -381,8 +381,8 @@ spec:
         domainModel: {fromInput: domainModel}
         glossary: {fromInput: glossary}
         rules: {fromInput: rules}
-        designSystem: {fromInput: designSystem}
-        designs: {fromInput: designs}
+        designSystem: {fromInput: designSystem, onMissing: omit}
+        designs: {fromInput: designs, onMissing: omit}
       timeout: 12h
       repeat:
         state:

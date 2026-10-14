@@ -109,7 +109,7 @@ spec:
         architecture: {fromInput: architecture}
         domainModel: {fromInput: domainModel}
         rules: {fromInput: rules}
-        designSystem: {fromInput: designSystem}
+        designSystem: {fromInput: designSystem, onMissing: omit}
   policy: {strategy: all}
   timeout: 5m
 ---
