@@ -224,6 +224,21 @@ async function artifactInputs(engine: Engine, wf: Resource | undefined, doc: Res
     if (v.kind !== 'value') continue
     if (kind === 'artifact' && isDoc(v.value)) spec.inputs[port] = { kind: 'artifact', ref: await store(port, v.value) } as never
     else if (kind === 'artifact' && (v.value as Partial<RevisionRef> | undefined)?.id) spec.inputs[port] = { kind: 'artifact', ref: { ...(v.value as RevisionRef), namespace: (v.value as RevisionRef).namespace ?? doc.metadata.namespace! } } as never // a bare ref is in the run's Namespace, as a list item is
+    // `kind:<Kind>`: every artifact of that kind in the run's Namespace at its latest committed revision, by id (33-multi-context-product.md)
+    if (typeof v.value === 'string' && v.value.startsWith('kind:')) {
+      if (kind !== 'artifacts') throw new Error(`--input ${port}: kind:<Kind> lists artifacts; ${port} is not an artifacts port`)
+      const want = v.value.slice('kind:'.length)
+      const ns = doc.metadata.namespace!
+      const latest = new Map<string, RevisionRef>()
+      for (const r of engine.store.resources.list(want, ns)) {
+        const identity = (r.spec as { identity?: { id: string; revision: number } }).identity
+        if (!identity || (latest.get(identity.id)?.revision ?? 0) >= identity.revision) continue
+        latest.set(identity.id, { apiVersion: r.apiVersion, kind: r.kind, namespace: ns, id: identity.id, revision: identity.revision })
+      }
+      if (!latest.size) throw new Error(`--input ${port}: no ${want} in Namespace ${ns}`)
+      spec.inputs[port] = { kind: 'artifacts', refs: [...latest.keys()].sort().map((id) => latest.get(id)!) } as never
+      continue
+    }
     if (kind === 'artifacts' && Array.isArray(v.value)) {
       const refs: RevisionRef[] = []
       for (const [i, item] of v.value.entries()) {

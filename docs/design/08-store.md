@@ -170,6 +170,10 @@ imports into a server unchanged.
   Resource with `spec.identity` and `spec.content`), stores it in the run's Namespace when absent,
   and passes its RevisionRef; a second run with the same file reuses the revision. One command
   instead of `create` then `run`. Found in UAT.
+- `--input <port>=kind:<Kind>` on an `artifacts` port lists every artifact of that kind in the
+  run's Namespace at its latest committed revision, by id: a local project is one product, so the
+  list is the product's (`33-multi-context-product.md`). Refused on any other port and when the
+  Namespace has none. Found in design review.
 - `--input <port>=@<file>` on a `value` port of `type: string` takes the file's text as is: a
   brief in prose holds colons and dashes that YAML reads as a mapping or a list, or refuses
   (`Nested mappings are not allowed in compact mappings`); the port type, not the file, decides.

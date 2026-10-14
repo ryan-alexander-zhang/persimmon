@@ -318,6 +318,17 @@ describe('persimmon CLI', () => {
     out = []
     expect(await run('get', `WorkflowRun/${pairRun}`)).toBe(0)
     expect(parse(out.join('\n')).spec.inputs.prds).toEqual({ kind: 'artifacts', refs: [{ ...r2, revision: 1 }, r2] })
+    // kind:<Kind> lists every artifact of the kind in the run's Namespace at its latest revision (33-multi-context-product.md)
+    expect(await run('run', 'pair-wf', '--input', 'prds=kind:Glossary')).toBe(1)
+    expect(err.at(-1)).toMatch(/--input prds: no Glossary in Namespace default/)
+    expect(await run('run', 'ask-wf', '--input', 'q=kind:ProductRequirement')).toBe(1)
+    expect(err.at(-1)).toMatch(/kind:<Kind> lists artifacts; q is not an artifacts port/)
+    out = []
+    expect(await run('run', 'pair-wf', '--input', 'prds=kind:ProductRequirement', '--follow')).toBe(0)
+    const kindRun = out[0]!.split('/')[1]!
+    out = []
+    expect(await run('get', `WorkflowRun/${kindRun}`)).toBe(0)
+    expect(parse(out.join('\n')).spec.inputs.prds).toEqual({ kind: 'artifacts', refs: [r2] })
     out = []
     expect(await run('get', `TaskRun/${pairRun}-pair`)).toBe(0)
     expect(parse(out.join('\n')).status.context.map((c: { ref: { revision: number } }) => c.ref.revision)).toEqual([1, 2]) // one context entry per ref, in order
