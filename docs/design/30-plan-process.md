@@ -88,6 +88,9 @@ The Adapter picks the mode from the payload: `artifacts.plan` first (a Plan payl
 - Run again after `write-plan` chose its id (`inputs.spec.id + '-plan'`): the output was
   `Plan/submit-a-claim-plan.r2`, the next revision of the example's `r1`, 1m07s, round one. Found
   in UAT.
+- `plan-all` live on `claude-sonnet-5` over `capabilities: [CAP-1]` with the Spec stored as
+  `expense-claims-cap-1`: `fromArtifact` bound it, the loop wrote `Plan/expense-claims-cap-1-plan.r1`,
+  29s, round one, `written 1`. Found in UAT.
 
 ## Examples
 
