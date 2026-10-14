@@ -448,6 +448,11 @@ describe('sdd/v1 over an Architecture', () => {
   it('fails an Adr that is not accepted, and a driver that resolves nowhere; a superseded slot is skipped', async () => {
     expect(await archCodes((a) => (a.adrs[0].status = 'proposed'))).toEqual(['adr-status'])
     expect(await archCodes((a) => (a.adrs[0].drivers = ['BR-99']))).toEqual(['unknown-adr-driver'])
+    expect(await archCodes((a) => (a.adrs[0].strategy = 'S-9'))).toEqual(['adr-strategy'])
+    expect(await archCodes((a) => (a.adrs[1].strategy = a.adrs[0].strategy))).toEqual(['adr-strategy']) // two Adrs on one S-n: the second is the finding
+    const unnamed = structuredClone(archExample())
+    delete (unnamed.adrs[0] as any).strategy // an Adr taken outside the loop names no strategy; nothing to check
+    expect((await adapter({ id: ++id, op: 'evaluate', payload: archPayload(unnamed) })).result.passed).toBe(true)
     // a dropped strategy's slot: superseded, evaluated, not listed, not refused
     const r = await adapter({ id: ++id, op: 'evaluate', payload: archPayload({ ...archExample(), architecture: { ...content('Architecture'), decisions: [adrIds[0]] }, adrs: [adrs()[0], { ...adrs()[1], status: 'superseded' }] }) })
     expect(r.result).toEqual({ passed: true, findings: [], evidence: [] })

@@ -302,9 +302,17 @@ export function checkArchitecture({ architecture, prd, rules, ids = {}, adrs = {
   // the Adrs applied: accepted, their drivers resolve in what the Architecture, the Prd and the rules name
   const ruleIds = new Set((rules?.rules ?? []).map((r) => r.id))
   const prdIds = new Set([...(prd?.goals ?? []), ...(prd?.capabilities ?? []), ...(prd?.successCriteria ?? [])].map((x) => x.id))
+  const strategies = new Set((a.strategy ?? []).map((s) => s.id))
+  const backed = new Map()
   for (const [id, adr] of Object.entries(adrs)) {
-    if (adr.status === 'superseded') continue
+    if (adr.status === 'superseded') continue // its strategy was dropped with it; the slot stays for the id
     if (adr.status !== 'accepted') bad('adr-status', `adr ${id} is ${adr.status}, not accepted`)
+    // an Adr names the S-n it backs; one Adr per strategy, no count check (an Architecture may apply fewer Adrs than it has strategies)
+    if (adr.strategy !== undefined) {
+      if (!strategies.has(adr.strategy)) bad('adr-strategy', `adr ${id}: strategy ${adr.strategy} is not a strategy decision of the Architecture`)
+      else if (backed.has(adr.strategy)) bad('adr-strategy', `adr ${id}: strategy ${adr.strategy} is already backed by ${backed.get(adr.strategy)}`)
+      else backed.set(adr.strategy, id)
+    }
     for (const d of adr.drivers ?? []) if (!goals.has(d) && !constraints.has(d) && !scenarios.has(d) && !ruleIds.has(d) && !prdIds.has(d)) bad('unknown-adr-driver', `adr ${id}: driver ${d} resolves in neither the Architecture, the Prd nor the rules`)
   }
 

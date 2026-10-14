@@ -1419,6 +1419,7 @@ spec:
   content:
     title: Serialize bookings through one Room Schedule aggregate per room
     status: accepted
+    strategy: S-1
     deciders:
       - Engineering Lead
       - Office Management
@@ -1453,6 +1454,7 @@ spec:
   content:
     title: Run no-show release and walk-in hold expiry on an internal timer
     status: accepted
+    strategy: S-3
     deciders:
       - Engineering Lead
       - Office Management
@@ -1490,6 +1492,7 @@ spec:
   content:
     title: Federate employee identity through the company SSO
     status: accepted
+    strategy: S-4
     deciders:
       - Engineering Lead
       - Office Management
@@ -1523,6 +1526,7 @@ spec:
   content:
     title: Serve room status and the monthly report as queries over the single store
     status: accepted
+    strategy: S-6
     deciders:
       - Engineering Lead
       - Office Management
@@ -1561,6 +1565,7 @@ spec:
   content:
     title: Hold room and booking-limit parameters as editable configuration
     status: accepted
+    strategy: S-7
     deciders:
       - Engineering Lead
       - Office Management
