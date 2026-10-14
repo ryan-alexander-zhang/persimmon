@@ -228,6 +228,11 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
   inside a `repeat` sees `inputs` as any step does, so the copy of the list into state (a second
   schema, `fromInput` in `initial`, `fromState` in `next`) said nothing the input did not. Found in
   audit.
+- A second example is the pack's own output, not a hand-written one: `examples/room-booking-domain.yaml`
+  is what `author-prd`, `domain-discovery`, `spec-all`, `design-all` and `plan-all` produced on a small
+  real brief with a human at the Gates, so a regression in a prompt, a Task context or a Validator shows
+  against artifacts the pack once wrote. The hand-written expense claims example stays: it covers `Adr`
+  and `DecisionTable`, which no process produces yet. Found in UAT.
 
 ## Examples
 
@@ -238,3 +243,9 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
   them, a design-level `EventStorming` and the `DomainModel` derived from it, the `Spec` of `CAP-1`, the
   `Design` of the claims API (OpenAPI, one asset for three capabilities), and the `Plan` of that Spec;
   validates after the pack is applied
+- [`examples/room-booking-domain.yaml`](examples/room-booking-domain.yaml): one domain, meeting room booking,
+  produced by the pack live on `claude-sonnet-5`: `author-prd` (two rounds, the human decided two open
+  questions), `domain-discovery` (five storming revisions, the human rejected one hotspot and merged an
+  aggregate), `spec-all` over six capabilities, `design-all` for the booking core's HTTP API and data
+  schema, `plan-all` over the six Specs; the `Architecture` is the human's. Twenty-one artifacts at
+  revision 1 (the rounds collapsed), validates after the pack is applied

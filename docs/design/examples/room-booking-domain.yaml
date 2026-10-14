@@ -1,0 +1,2685 @@
+# Meeting room booking: every artifact below was produced by the AI Native pack live (author-prd, domain-discovery,
+# spec-all, design-all, plan-all on claude-sonnet-5) except the Architecture, which the human wrote. See 23-pack-ai-native.md.
+apiVersion: sdd.persimmon.ai/v1
+kind: Prd
+metadata:
+  name: room-booking-prd.r1
+spec:
+  identity:
+    id: room-booking-prd
+    revision: 1
+  content:
+    title: Meeting Room Booking
+    problem: In this office of about 80 people sharing eight meeting rooms (seating 4, 6, 8 and 12, two with video conferencing), rooms are booked through a shared spreadsheet. This produces double bookings, "ghost bookings" where a room is reserved and never used, employees wandering the floor hunting for a free room, and no way for anyone to see which rooms are free right now.
+    users:
+      - name: Employee
+        description: Wants to find and book a free room that fits their meeting, and to see at a glance which rooms are available without walking the floor.
+      - name: Walk-in employee
+        description: Wants to grab an empty room on the spot for an unplanned meeting without making an advance booking.
+      - name: Office management
+        description: Wants a monthly view of how rooms are actually used, who leaves rooms unused, and when demand peaks.
+    goals:
+      - id: G-1
+        statement: An employee finds and books a free room that fits their meeting without wandering the floor.
+      - id: G-2
+        statement: A booked room that goes unused becomes available to others quickly.
+      - id: G-3
+        statement: Anyone can see which rooms are free right now without leaving their desk.
+      - id: G-4
+        statement: Office management can see how rooms are actually used.
+    nonGoals:
+      - Hosting or badging external guests
+      - Catering arrangements for meetings
+      - Recurring or repeating bookings
+      - Integration with external calendar tools
+      - Supporting more than one office or time zone
+      - Modifying an existing booking's time, attendees or video need; the owner cancels and books again instead
+    capabilities:
+      - id: CAP-1
+        name: Book a room
+        description: An employee requests a room for a day, a time slot, a number of attendees and optionally a need for video conferencing, and the tool offers only the rooms that both fit the party and are free for that slot so the employee can confirm a booking.
+        priority: P1
+        context: room-booking
+        rules:
+          - BR-1
+          - BR-2
+          - BR-3
+          - BR-4
+          - BR-5
+          - BR-6
+          - BR-7
+          - BR-11
+      - id: CAP-2
+        name: Cancel a booking
+        description: The owner of a booking releases it ahead of time so the room becomes available to others, instead of it sitting reserved and unused.
+        priority: P1
+        context: room-booking
+        rules:
+          - BR-8
+      - id: CAP-3
+        name: Check in to confirm a booking
+        description: The owner of a booking confirms their presence by checking in at the room's door within a short window of the start time; a booking nobody checks into is recognised as a no-show and the room is freed for others.
+        priority: P1
+        context: room-booking
+        rules:
+          - BR-9
+      - id: CAP-4
+        name: Walk-in ad hoc booking
+        description: An employee with no prior reservation claims an empty room on the spot by checking in at its door, holding the room for a bounded time until the next scheduled booking.
+        priority: P2
+        context: room-booking
+        rules:
+          - BR-9
+          - BR-10
+      - id: CAP-5
+        name: Room status screens
+        description: A screen at each room's door shows whether the room is free, who holds it and until when, and what comes next, while a floor-wide screen lists the current status of every room so anyone can see at a glance what is available.
+        priority: P1
+        context: room-booking
+        rules: []
+      - id: CAP-6
+        name: Monthly utilisation report
+        description: "Office management receives a monthly report summarising how each room is used: utilisation per room, no-show rate per team, and peak hours of demand."
+        priority: P2
+        context: room-booking
+        rules: []
+    successCriteria:
+      - id: SC-1
+        statement: Double-booking incidents on the room schedule drop to zero.
+        capabilities:
+          - CAP-1
+      - id: SC-2
+        statement: A cancelled booking's room shows as free to other employees within the same minute.
+        capabilities:
+          - CAP-2
+      - id: SC-3
+        statement: A booking with no check-in within 10 minutes of its start is released and the room shows as free within the same minute.
+        capabilities:
+          - CAP-3
+      - id: SC-4
+        statement: A walk-in employee can claim an empty room by checking in at the door with no prior booking.
+        capabilities:
+          - CAP-4
+      - id: SC-5
+        statement: Every room's current status is visible on its own door screen and on the floor screen without an employee walking to check.
+        capabilities:
+          - CAP-5
+      - id: SC-6
+        statement: Office management receives a monthly report covering utilisation per room, no-show rate per team, and peak hours.
+        capabilities:
+          - CAP-6
+    assumptions:
+      - Employees sign in through the company SSO, and the directory supplies each employee's name and team.
+      - Each meeting room has a fixed seating capacity and a known video-conferencing capability set up in advance.
+      - A scannable QR code is posted at each room's door for check-in.
+      - The office operates in a single time zone and all bookings are made within it.
+      - Door and floor screens have the connectivity needed to show live room status.
+    openQuestions:
+      - id: Q-2
+        question: "How does an employee check in at a room: by scanning the door's QR code with their own device, or via a reader at the door?"
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: BusinessRules
+metadata:
+  name: room-booking-rules.r1
+spec:
+  identity:
+    id: room-booking-rules
+    revision: 1
+  content:
+    title: Meeting Room Booking Business Rules
+    context: room-booking
+    owner: Office management
+    rules:
+      - id: BR-1
+        type: constraint
+        statement: A room offered for a booking must have a seating capacity at least as large as the requested number of attendees.
+        rationale: A room too small to seat the attendees cannot host the meeting.
+        source: brief
+        status: active
+      - id: BR-2
+        type: constraint
+        statement: A room offered for a booking that requires video conferencing must have video conferencing capability.
+        rationale: Only two of the eight rooms have video conferencing, so a video-conferencing meeting must not be placed in a room that lacks it.
+        source: brief
+        status: active
+      - id: BR-3
+        type: constraint
+        statement: A booking's time slot must begin and end on a 15-minute boundary.
+        rationale: The brief sets 15-minute granularity for booking slots.
+        source: brief
+        status: active
+      - id: BR-4
+        type: constraint
+        statement: A booking must start no earlier than 08:00 and end no later than 20:00.
+        rationale: The brief bounds bookable hours to 08:00-20:00.
+        source: brief
+        status: active
+      - id: BR-5
+        type: constraint
+        statement: A booking must not exceed 4 hours in duration.
+        rationale: The brief caps a single booking at 4 hours to limit monopolising a room.
+        source: brief
+        status: active
+      - id: BR-6
+        type: constraint
+        statement: A booking must not be made more than 30 days ahead of its start.
+        rationale: The brief bounds advance booking to 30 days.
+        source: brief
+        status: active
+      - id: BR-7
+        type: constraint
+        statement: A room must not be offered for a time slot that overlaps an existing active booking for that room.
+        rationale: This is the rule that eliminates the double bookings caused by the shared spreadsheet.
+        source: brief
+        status: active
+      - id: BR-8
+        type: constraint
+        statement: A booking may be cancelled only by its owner, and only before the booking's start time.
+        rationale: The brief allows the owner to cancel ahead of time so the room is released for others.
+        source: brief
+        status: active
+      - id: BR-9
+        type: decision
+        statement: A booking must be considered a no-show and released if the owner has not checked in at the room within 10 minutes of the booking's start time.
+        rationale: This is the rule that eliminates ghost bookings by freeing a room nobody actually uses.
+        source: brief
+        status: active
+      - id: BR-10
+        type: derivation
+        statement: "A walk-in booking must end at whichever is earlier: the start of the room's next scheduled booking, or one hour after the walk-in check-in."
+        rationale: The brief bounds a walk-in's hold on a room to the next booking or one hour, whichever comes first.
+        source: brief
+        status: active
+      - id: BR-11
+        type: constraint
+        statement: A booking may be made for a room's current 15-minute slot with no minimum advance notice, provided the room is free for that slot.
+        rationale: The brief states there is no minimum notice period; the next 15-minute slot can always be booked if the room is free.
+        source: brief
+        status: active
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: EventStorming
+metadata:
+  name: room-booking-prd-storming.r1
+spec:
+  identity:
+    id: room-booking-prd-storming
+    revision: 1
+  content:
+    version: "4.0"
+    meta:
+      name: Meeting Room Booking
+      level: design
+    contexts:
+      - id: room-booking
+        name: Room Booking
+        order: 0
+        classification: supporting
+    contextRelationships: []
+    nodes:
+      - id: employee
+        type: actor
+        label: Employee
+        properties:
+          description: Finds and books a free room that fits their meeting; also the role that cancels and checks in to its own bookings.
+      - id: walk-in-employee
+        type: actor
+        label: Walk-in Employee
+        properties:
+          description: Claims an empty room on the spot with no prior reservation.
+      - id: office-management
+        type: actor
+        label: Office Management
+        properties:
+          description: Receives the monthly utilisation report covering per-room usage, no-show rate per team, and peak hours.
+      - id: room-booking-e-room-booked
+        type: domainEvent
+        label: Room Booked
+        context: room-booking
+        order: 0
+        properties:
+          pivotal: true
+          alternativeSet: booking-decision
+          description: An employee requests a day, time slot, attendee count and optional video need; the tool offers rooms that fit and are free, and the employee confirms one (CAP-1, SC-1).
+      - id: room-booking-e-no-room-available
+        type: domainEvent
+        label: No Available Room Found
+        context: room-booking
+        order: 0
+        properties:
+          alternativeSet: booking-decision
+          description: No room both fits the party size/video need and is free for the requested slot, so no booking is made (unhappy path of CAP-1).
+      - id: room-booking-e-booking-cancelled
+        type: domainEvent
+        label: Booking Cancelled
+        context: room-booking
+        order: 1
+        properties:
+          pivotal: true
+          description: The booking's owner releases it ahead of time so the room becomes available to others instead of sitting reserved and unused (CAP-2, SC-2).
+      - id: room-booking-e-checked-in
+        type: domainEvent
+        label: Booking Checked In
+        context: room-booking
+        order: 2
+        properties:
+          pivotal: true
+          alternativeSet: start-time-outcome
+          description: The booking's owner confirms presence at the room's door within a short window of the start time (CAP-3).
+      - id: room-booking-e-no-show-released
+        type: domainEvent
+        label: Booking Released As No-Show
+        context: room-booking
+        order: 2
+        properties:
+          pivotal: true
+          alternativeSet: start-time-outcome
+          description: No check-in occurs within the check-in window of the start time; the No-Show Release Policy releases the booking and frees the room (CAP-3, BR-9, SC-3).
+      - id: room-booking-e-walk-in-claimed
+        type: domainEvent
+        label: Walk-In Room Claimed
+        context: room-booking
+        order: 3
+        properties:
+          pivotal: true
+          description: An employee with no prior reservation claims an empty room by checking in at its door, holding it for a bounded time (CAP-4, SC-4).
+      - id: room-booking-e-walk-in-hold-expired
+        type: domainEvent
+        label: Walk-In Hold Expired
+        context: room-booking
+        order: 4
+        properties:
+          description: The Walk-In Hold Expiry Policy ends the hold on a walk-in claimed room once the maximum duration elapses or the next scheduled booking begins, whichever comes first (CAP-4, BR-10).
+      - id: room-booking-e-monthly-report-generated
+        type: domainEvent
+        label: Monthly Utilisation Report Generated
+        context: room-booking
+        order: 5
+        properties:
+          temporal: true
+          description: Office management receives a monthly report summarising utilisation per room, no-show rate per team, and peak hours of demand (CAP-6, SC-6).
+      - id: room-booking-h-checkin-mechanism
+        type: hotspot
+        label: Check-in mechanism undecided
+        context: room-booking
+        properties:
+          kind: question
+          priority: high
+          state: open
+          description: "PRD open question Q-2: does an employee check in by scanning the door's QR code with their own device, or via a reader at the door? Affects both scheduled check-in (CAP-3) and walk-in claiming (CAP-4)."
+      - id: room-booking-h-report-delivery
+        type: hotspot
+        label: Report delivery channel unspecified
+        context: room-booking
+        properties:
+          kind: question
+          priority: low
+          state: open
+          description: CAP-6/SC-6 say office management 'receives' a monthly report but not through what channel (email, dashboard, export) or in what format.
+      - id: room-booking-h-room-schedule-aggregate-size
+        type: hotspot
+        label: Room Schedule aggregate exceeds size guideline
+        context: room-booking
+        properties:
+          kind: risk
+          priority: medium
+          state: open
+          description: Room Schedule now handles 6 commands (Book Room, Cancel Booking, Check In Booking, Release Booking As No-Show, Claim Walk-In Room, Expire Walk-In Hold) and emits 7 events, both above the five-each split guideline. Kept as one aggregate per explicit direction that a walk-in claim is a booking of the same room schedule, not a separate consistency boundary; flagged here as a risk to revisit if the aggregate becomes hard to reason about.
+      - id: room-booking-c-book-room
+        type: command
+        label: Book Room
+        context: room-booking
+        properties:
+          description: Employee requests a day, time slot, attendee count and optional video need; results in a confirmed booking when a fitting free room exists, or no match otherwise (CAP-1, BR-1 to BR-7, BR-11).
+      - id: room-booking-c-cancel-booking
+        type: command
+        label: Cancel Booking
+        context: room-booking
+        properties:
+          description: The booking's owner releases a booking ahead of time so the room becomes available to others (CAP-2, BR-8).
+      - id: room-booking-c-check-in-booking
+        type: command
+        label: Check In Booking
+        context: room-booking
+        properties:
+          alternativeSet: start-time-outcome
+          description: The booking's owner confirms presence at the room's door within the check-in window of the start time (CAP-3, BR-9).
+      - id: room-booking-c-claim-walk-in-room
+        type: command
+        label: Claim Walk-In Room
+        context: room-booking
+        properties:
+          description: An employee with no prior reservation claims an empty room by checking in at its door (CAP-4, BR-9, BR-10).
+      - id: room-booking-c-release-no-show
+        type: command
+        label: Release Booking As No-Show
+        context: room-booking
+        properties:
+          alternativeSet: start-time-outcome
+          description: System releases a booking recognised as a no-show after the check-in window elapses with no check-in (CAP-3, BR-9).
+      - id: room-booking-c-expire-walk-in-hold
+        type: command
+        label: Expire Walk-In Hold
+        context: room-booking
+        properties:
+          description: System ends a walk-in hold once the maximum hold duration elapses or the room's next scheduled booking begins (CAP-4, BR-10).
+      - id: room-booking-p-no-show-release
+        type: policy
+        label: No-Show Release Policy
+        context: room-booking
+        properties:
+          execution: automatic
+          condition: no check-in recorded within the check-in window after the booking's start time
+          parameters:
+            - name: checkInWindowMinutes
+              value: "10"
+          description: If the booking's owner has not checked in within the check-in window after the booking's start time, the booking is released and the room freed (CAP-3, BR-9, SC-3).
+      - id: room-booking-p-walk-in-hold-expiry
+        type: policy
+        label: Walk-In Hold Expiry Policy
+        context: room-booking
+        properties:
+          execution: automatic
+          condition: maximum hold duration elapsed since the walk-in claim, or the room's next scheduled booking start time reached
+          parameters:
+            - name: maxHoldDurationMinutes
+              value: "60"
+          description: A walk-in hold ends after the maximum hold duration or when the next scheduled booking for the room begins, whichever comes first (CAP-4, BR-10).
+      - id: room-booking-rm-room-status-view
+        type: readModel
+        label: Room Status View
+        context: room-booking
+        properties:
+          description: Shows, for every room, whether it is free, who holds it, until when, and what comes next; feeds both the booking decision and the door/floor screens (CAP-1, CAP-5, SC-5).
+      - id: room-booking-rm-monthly-utilisation-report-view
+        type: readModel
+        label: Monthly Utilisation Report View
+        context: room-booking
+        properties:
+          description: Monthly summary of utilisation per room, no-show rate per team, and peak hours of demand, delivered to office management (CAP-6, SC-6).
+      - id: room-booking-ag-room-schedule
+        type: aggregate
+        label: Room Schedule
+        context: room-booking
+        properties:
+          description: "Consistency boundary for the office's room schedule: decides which room fits and is free for a requested slot, creates and releases scheduled bookings, records check-in, and also owns walk-in claims and their expiry since a walk-in claim is itself a booking of the same schedule. Owns Book Room, Cancel Booking, Check In Booking, Release Booking As No-Show, Claim Walk-In Room and Expire Walk-In Hold so double-booking (SC-1) is prevented within one transactional boundary."
+      - id: room-booking-cons-room-capacity-fit
+        type: constraint
+        label: Room Capacity Fits Party
+        context: room-booking
+        properties:
+          rule: room's seating capacity >= requested attendee count
+          description: Only a room whose seating capacity fits the requested attendee count may be offered or booked (CAP-1, BR-1).
+      - id: room-booking-cons-video-capability
+        type: constraint
+        label: Video Capability Required When Requested
+        context: room-booking
+        properties:
+          rule: room has video-conferencing equipment if the booking requests it
+          description: A room can only be offered or booked for a request that needs video conferencing if the room has that capability (CAP-1, BR-2).
+      - id: room-booking-cons-slot-15-min-boundary
+        type: constraint
+        label: Slot On 15-Minute Boundary
+        context: room-booking
+        properties:
+          rule: requested slot's start and end times fall on 15-minute boundaries
+          description: A booking's requested slot must start and end on a 15-minute boundary (CAP-1, BR-3).
+      - id: room-booking-cons-slot-within-operating-hours
+        type: constraint
+        label: Slot Within Operating Hours
+        context: room-booking
+        properties:
+          rule: requested slot falls entirely between 08:00 and 20:00
+          description: A booking's requested slot must fall entirely within the office's 08:00-20:00 operating hours (CAP-1, BR-4).
+      - id: room-booking-cons-max-duration
+        type: constraint
+        label: Booking Duration At Most Four Hours
+        context: room-booking
+        properties:
+          rule: requested slot duration <= 4 hours
+          description: A single booking's requested slot may span at most 4 hours (CAP-1, BR-5).
+      - id: room-booking-cons-max-advance-notice
+        type: constraint
+        label: Booking At Most 30 Days Ahead
+        context: room-booking
+        properties:
+          rule: requested slot's date is at most 30 days after the date of booking
+          description: A room cannot be booked more than 30 days in advance (CAP-1, BR-6).
+      - id: room-booking-cons-slot-free
+        type: constraint
+        label: Slot Must Be Free
+        context: room-booking
+        properties:
+          rule: no existing active booking for the room overlaps the requested time slot
+          description: A room may only be booked for a slot with no overlapping active booking, so double bookings cannot occur (CAP-1, BR-7, SC-1).
+      - id: room-booking-cons-cancel-owner-only
+        type: constraint
+        label: Only Owner May Cancel Before Start
+        context: room-booking
+        properties:
+          rule: the command issuer is the booking's owner and the booking's start time has not yet passed
+          description: Only the booking's owner may cancel it, and only before the booking's start time (CAP-2, BR-8).
+      - id: room-booking-cons-checkin-owner-window
+        type: constraint
+        label: Check-In By Owner Within Window
+        context: room-booking
+        properties:
+          rule: the command issuer is the booking's owner and the check-in occurs within the check-in window after the booking's scheduled start time
+          description: Only the booking's owner can check in, and only within the check-in window (10 minutes, matching the No-Show Release Policy) after the start time; otherwise the booking is instead released as a no-show (CAP-3, BR-9).
+      - id: room-booking-cons-room-free-to-claim
+        type: constraint
+        label: Room Must Be Free To Claim
+        context: room-booking
+        properties:
+          rule: the room has no active booking or hold at the time of claim
+          description: A walk-in employee may only claim a room that is currently empty, with no active scheduled booking or existing hold (CAP-4).
+    edges:
+      - id: e-room-booking-01
+        source: room-booking-h-checkin-mechanism
+        target: room-booking-e-checked-in
+        relation: annotates
+      - id: e-room-booking-02
+        source: room-booking-h-checkin-mechanism
+        target: room-booking-e-walk-in-claimed
+        relation: annotates
+      - id: e-room-booking-04
+        source: room-booking-h-report-delivery
+        target: room-booking-e-monthly-report-generated
+        relation: annotates
+      - id: e-room-booking-05
+        source: employee
+        target: room-booking-c-book-room
+        relation: issues
+      - id: e-room-booking-06
+        source: room-booking-c-book-room
+        target: room-booking-e-room-booked
+        relation: produces
+      - id: e-room-booking-07
+        source: room-booking-c-book-room
+        target: room-booking-e-no-room-available
+        relation: produces
+      - id: e-room-booking-08
+        source: room-booking-rm-room-status-view
+        target: employee
+        relation: informs
+      - id: e-room-booking-09
+        source: room-booking-e-room-booked
+        target: room-booking-rm-room-status-view
+        relation: updates
+      - id: e-room-booking-10
+        source: employee
+        target: room-booking-c-cancel-booking
+        relation: issues
+      - id: e-room-booking-11
+        source: room-booking-c-cancel-booking
+        target: room-booking-e-booking-cancelled
+        relation: produces
+      - id: e-room-booking-12
+        source: room-booking-e-booking-cancelled
+        target: room-booking-rm-room-status-view
+        relation: updates
+      - id: e-room-booking-13
+        source: employee
+        target: room-booking-c-check-in-booking
+        relation: issues
+      - id: e-room-booking-14
+        source: room-booking-c-check-in-booking
+        target: room-booking-e-checked-in
+        relation: produces
+      - id: e-room-booking-15
+        source: room-booking-e-checked-in
+        target: room-booking-rm-room-status-view
+        relation: updates
+      - id: e-room-booking-16
+        source: room-booking-e-room-booked
+        target: room-booking-p-no-show-release
+        relation: triggers
+      - id: e-room-booking-17
+        source: room-booking-p-no-show-release
+        target: room-booking-c-release-no-show
+        relation: invokes
+      - id: e-room-booking-18
+        source: room-booking-c-release-no-show
+        target: room-booking-e-no-show-released
+        relation: produces
+      - id: e-room-booking-19
+        source: room-booking-e-no-show-released
+        target: room-booking-rm-room-status-view
+        relation: updates
+      - id: e-room-booking-20
+        source: walk-in-employee
+        target: room-booking-c-claim-walk-in-room
+        relation: issues
+      - id: e-room-booking-21
+        source: room-booking-c-claim-walk-in-room
+        target: room-booking-e-walk-in-claimed
+        relation: produces
+      - id: e-room-booking-22
+        source: room-booking-e-walk-in-claimed
+        target: room-booking-rm-room-status-view
+        relation: updates
+      - id: e-room-booking-23
+        source: room-booking-rm-room-status-view
+        target: walk-in-employee
+        relation: informs
+      - id: e-room-booking-24
+        source: room-booking-e-walk-in-claimed
+        target: room-booking-p-walk-in-hold-expiry
+        relation: triggers
+      - id: e-room-booking-25
+        source: room-booking-p-walk-in-hold-expiry
+        target: room-booking-c-expire-walk-in-hold
+        relation: invokes
+      - id: e-room-booking-26
+        source: room-booking-c-expire-walk-in-hold
+        target: room-booking-e-walk-in-hold-expired
+        relation: produces
+      - id: e-room-booking-27
+        source: room-booking-e-walk-in-hold-expired
+        target: room-booking-rm-room-status-view
+        relation: updates
+      - id: e-room-booking-28
+        source: room-booking-e-monthly-report-generated
+        target: room-booking-rm-monthly-utilisation-report-view
+        relation: updates
+      - id: e-room-booking-29
+        source: room-booking-rm-monthly-utilisation-report-view
+        target: office-management
+        relation: informs
+      - id: e-room-booking-30
+        source: room-booking-h-checkin-mechanism
+        target: room-booking-c-check-in-booking
+        relation: annotates
+      - id: e-room-booking-31
+        source: room-booking-h-checkin-mechanism
+        target: room-booking-c-claim-walk-in-room
+        relation: annotates
+      - id: e-room-booking-32
+        source: room-booking-h-report-delivery
+        target: room-booking-rm-monthly-utilisation-report-view
+        relation: annotates
+      - id: e-room-booking-33
+        source: room-booking-c-book-room
+        target: room-booking-ag-room-schedule
+        relation: handledBy
+      - id: e-room-booking-34
+        source: room-booking-c-cancel-booking
+        target: room-booking-ag-room-schedule
+        relation: handledBy
+      - id: e-room-booking-35
+        source: room-booking-c-check-in-booking
+        target: room-booking-ag-room-schedule
+        relation: handledBy
+      - id: e-room-booking-36
+        source: room-booking-c-release-no-show
+        target: room-booking-ag-room-schedule
+        relation: handledBy
+      - id: e-room-booking-37
+        source: room-booking-c-claim-walk-in-room
+        target: room-booking-ag-room-schedule
+        relation: handledBy
+      - id: e-room-booking-38
+        source: room-booking-c-expire-walk-in-hold
+        target: room-booking-ag-room-schedule
+        relation: handledBy
+      - id: e-room-booking-39
+        source: room-booking-ag-room-schedule
+        target: room-booking-e-room-booked
+        relation: emits
+      - id: e-room-booking-40
+        source: room-booking-ag-room-schedule
+        target: room-booking-e-no-room-available
+        relation: emits
+      - id: e-room-booking-41
+        source: room-booking-ag-room-schedule
+        target: room-booking-e-booking-cancelled
+        relation: emits
+      - id: e-room-booking-42
+        source: room-booking-ag-room-schedule
+        target: room-booking-e-checked-in
+        relation: emits
+      - id: e-room-booking-43
+        source: room-booking-ag-room-schedule
+        target: room-booking-e-no-show-released
+        relation: emits
+      - id: e-room-booking-44
+        source: room-booking-ag-room-schedule
+        target: room-booking-e-walk-in-claimed
+        relation: emits
+      - id: e-room-booking-45
+        source: room-booking-ag-room-schedule
+        target: room-booking-e-walk-in-hold-expired
+        relation: emits
+      - id: e-room-booking-46
+        source: room-booking-c-book-room
+        target: room-booking-cons-room-capacity-fit
+        relation: constrainedBy
+      - id: e-room-booking-47
+        source: room-booking-c-book-room
+        target: room-booking-cons-video-capability
+        relation: constrainedBy
+      - id: e-room-booking-48
+        source: room-booking-c-book-room
+        target: room-booking-cons-slot-free
+        relation: constrainedBy
+      - id: e-room-booking-49
+        source: room-booking-c-cancel-booking
+        target: room-booking-cons-cancel-owner-only
+        relation: constrainedBy
+      - id: e-room-booking-50
+        source: room-booking-c-check-in-booking
+        target: room-booking-cons-checkin-owner-window
+        relation: constrainedBy
+      - id: e-room-booking-51
+        source: room-booking-c-claim-walk-in-room
+        target: room-booking-cons-room-free-to-claim
+        relation: constrainedBy
+      - id: e-room-booking-53
+        source: room-booking-c-book-room
+        target: room-booking-cons-slot-15-min-boundary
+        relation: constrainedBy
+      - id: e-room-booking-54
+        source: room-booking-c-book-room
+        target: room-booking-cons-slot-within-operating-hours
+        relation: constrainedBy
+      - id: e-room-booking-55
+        source: room-booking-c-book-room
+        target: room-booking-cons-max-duration
+        relation: constrainedBy
+      - id: e-room-booking-56
+        source: room-booking-c-book-room
+        target: room-booking-cons-max-advance-notice
+        relation: constrainedBy
+      - id: e-room-booking-57
+        source: room-booking-h-room-schedule-aggregate-size
+        target: room-booking-ag-room-schedule
+        relation: annotates
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: BoundedContext
+metadata:
+  name: room-booking.r1
+spec:
+  identity:
+    id: room-booking
+    revision: 1
+  content:
+    name: Room Booking
+    purpose: "Room Booking manages the office's room schedule: it decides which room fits a requested party size and video need and is free for a given slot, creates and releases scheduled bookings, records check-in to confirm attendance, automatically releases bookings nobody checks into, and lets a walk-in employee claim and hold an empty room on the spot until the hold expires or the room's next scheduled booking begins. It also maintains a live view of every room's status for employees and door/floor screens, and produces a monthly utilisation report for office management."
+    inScope:
+      - Employee
+      - Walk-in Employee
+      - Office Management
+      - Room Schedule
+      - Booking
+      - Room
+      - Room Status View
+      - Monthly Utilisation Report View
+    outOfScope: []
+    classification: supporting
+    relationships: []
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: Glossary
+metadata:
+  name: room-booking-glossary.r1
+spec:
+  identity:
+    id: room-booking-glossary
+    revision: 1
+  content:
+    title: Room Booking Glossary
+    context: room-booking
+    terms:
+      - name: Employee
+        definition: Finds and books a free room that fits their meeting; also the role that cancels and checks in to its own bookings.
+        status: active
+        related:
+          - Booking
+          - Room Status View
+      - name: Walk-in Employee
+        definition: Claims an empty room on the spot with no prior reservation.
+        status: active
+        related:
+          - Booking
+          - Room Status View
+      - name: Office Management
+        definition: Receives the monthly utilisation report covering per-room usage, no-show rate per team, and peak hours.
+        status: active
+        related:
+          - Monthly Utilisation Report View
+      - name: Room Schedule
+        definition: "Consistency boundary for the office's room schedule: decides which room fits and is free for a requested slot, creates and releases scheduled bookings, records check-in, and also owns walk-in claims and their expiry since a walk-in claim is itself a booking of the same schedule. Owns Book Room, Cancel Booking, Check In Booking, Release Booking As No-Show, Claim Walk-In Room and Expire Walk-In Hold so double-booking (SC-1) is prevented within one transactional boundary."
+        status: active
+        related:
+          - Booking
+          - Room
+      - name: Booking
+        definition: A reservation that an employee makes for a room, day, time slot, attendee count and optional video need; once made it can be cancelled by its owner before the start time, checked into within a window after the start time to confirm attendance, or claimed on the spot by a walk-in employee as a booking of the same room schedule (CAP-1 to CAP-4).
+        status: active
+        related:
+          - Room
+          - Employee
+          - Walk-in Employee
+          - Room Schedule
+      - name: Room
+        definition: A meeting room with a fixed seating capacity and a known video-conferencing capability, set up in advance (CAP-1).
+        status: active
+        related:
+          - Booking
+      - name: Room Status View
+        definition: Shows, for every room, whether it is free, who holds it, until when, and what comes next; feeds both the booking decision and the door/floor screens (CAP-1, CAP-5, SC-5).
+        status: active
+        related:
+          - Room
+          - Booking
+          - Employee
+          - Walk-in Employee
+      - name: Monthly Utilisation Report View
+        definition: Monthly summary of utilisation per room, no-show rate per team, and peak hours of demand, delivered to office management (CAP-6, SC-6).
+        status: active
+        related:
+          - Office Management
+    factTypes:
+      - name: Booking has owner
+        subject: Booking
+        predicate: has
+        object: Employee
+        status: active
+      - name: Booking has room
+        subject: Booking
+        predicate: has
+        object: Room
+        status: active
+      - name: Booking has date
+        subject: Booking
+        predicate: has
+        object:
+          type: date
+        status: active
+      - name: Booking has created date
+        subject: Booking
+        predicate: has
+        object:
+          type: date
+        status: active
+      - name: Booking has start time
+        subject: Booking
+        predicate: has
+        object:
+          type: string
+        status: active
+      - name: Booking has end time
+        subject: Booking
+        predicate: has
+        object:
+          type: string
+        status: active
+      - name: Booking has attendee count
+        subject: Booking
+        predicate: has
+        object:
+          type: integer
+        status: active
+      - name: Booking has video need
+        subject: Booking
+        predicate: has
+        object:
+          type: boolean
+        status: active
+      - name: Booking has status
+        subject: Booking
+        predicate: has
+        object:
+          type: enum
+          values:
+            - active
+            - inactive
+        status: active
+      - name: Room has seating capacity
+        subject: Room
+        predicate: has
+        object:
+          type: integer
+        status: active
+      - name: Room has video capability
+        subject: Room
+        predicate: has
+        object:
+          type: boolean
+        status: active
+      - name: Room Status View has status
+        subject: Room Status View
+        predicate: has
+        object:
+          type: enum
+          values:
+            - free
+            - held
+            - booked
+        status: active
+      - name: Room Status View has holder
+        subject: Room Status View
+        predicate: has
+        object:
+          type: string
+        status: active
+      - name: Room Status View has held until
+        subject: Room Status View
+        predicate: has
+        object:
+          type: string
+        status: active
+      - name: Room Status View has next
+        subject: Room Status View
+        predicate: has
+        object:
+          type: string
+        status: active
+      - name: Monthly Utilisation Report View has room utilisation
+        subject: Monthly Utilisation Report View
+        predicate: has
+        object:
+          type: string
+        status: active
+      - name: Monthly Utilisation Report View has no-show rate per team
+        subject: Monthly Utilisation Report View
+        predicate: has
+        object:
+          type: string
+        status: active
+      - name: Monthly Utilisation Report View has peak hours
+        subject: Monthly Utilisation Report View
+        predicate: has
+        object:
+          type: string
+        status: active
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: DomainModel
+metadata:
+  name: room-booking-model.r1
+spec:
+  identity:
+    id: room-booking-model
+    revision: 1
+  content:
+    context: room-booking
+    source: room-booking-prd-storming
+    aggregates:
+      - id: AG-1
+        name: Room Schedule
+        root: Booking
+        entities:
+          - name: Booking
+            attributes:
+              - Booking has owner
+              - Booking has room
+              - Booking has date
+              - Booking has created date
+              - Booking has start time
+              - Booking has end time
+              - Booking has attendee count
+              - Booking has video need
+              - Booking has status
+          - name: Room
+            attributes:
+              - Room has seating capacity
+              - Room has video capability
+        valueObjects: []
+        commands:
+          - Book Room
+          - Cancel Booking
+          - Check In Booking
+          - Release Booking As No-Show
+          - Claim Walk-In Room
+          - Expire Walk-In Hold
+        events:
+          - Room Booked
+          - No Available Room Found
+          - Booking Cancelled
+          - Booking Checked In
+          - Booking Released As No-Show
+          - Walk-In Room Claimed
+          - Walk-In Hold Expired
+        invariants:
+          - statement: room's seating capacity >= requested attendee count
+            rules:
+              - BR-1
+          - statement: room has video-conferencing equipment if the booking requests it
+            rules:
+              - BR-2
+          - statement: requested slot's start and end times fall on 15-minute boundaries
+            rules:
+              - BR-3
+          - statement: requested slot falls entirely between 08:00 and 20:00
+            rules:
+              - BR-4
+          - statement: requested slot duration <= 4 hours
+            rules:
+              - BR-5
+          - statement: requested slot's date is at most 30 days after the date of booking
+            rules:
+              - BR-6
+          - statement: no existing active booking for the room overlaps the requested time slot
+            rules:
+              - BR-7
+          - statement: the command issuer is the booking's owner and the booking's start time has not yet passed
+            rules:
+              - BR-8
+          - statement: the command issuer is the booking's owner and the check-in occurs within the check-in window after the booking's scheduled start time
+            rules:
+              - BR-9
+          - statement: the room has no active booking or hold at the time of claim
+            rules: []
+    events:
+      - name: Room Booked
+        pivotal: true
+        attributes:
+          - Booking has owner
+          - Booking has room
+          - Booking has date
+          - Booking has start time
+          - Booking has end time
+          - Booking has attendee count
+          - Booking has video need
+      - name: No Available Room Found
+        attributes: []
+      - name: Booking Cancelled
+        pivotal: true
+        attributes:
+          - Booking has owner
+          - Booking has room
+      - name: Booking Checked In
+        pivotal: true
+        attributes:
+          - Booking has owner
+          - Booking has room
+      - name: Booking Released As No-Show
+        pivotal: true
+        attributes:
+          - Booking has owner
+          - Booking has room
+      - name: Walk-In Room Claimed
+        pivotal: true
+        attributes:
+          - Booking has owner
+          - Booking has room
+      - name: Walk-In Hold Expired
+        attributes:
+          - Booking has room
+      - name: Monthly Utilisation Report Generated
+        temporal: true
+        attributes:
+          - Monthly Utilisation Report View has room utilisation
+          - Monthly Utilisation Report View has no-show rate per team
+          - Monthly Utilisation Report View has peak hours
+    policies:
+      - id: POL-1
+        name: No-Show Release Policy
+        when:
+          - Room Booked
+        then:
+          - Release Booking As No-Show
+        execution: automatic
+        condition: no check-in recorded within the check-in window after the booking's start time
+        parameters:
+          - name: checkInWindowMinutes
+            value: "10"
+      - id: POL-2
+        name: Walk-In Hold Expiry Policy
+        when:
+          - Walk-In Room Claimed
+        then:
+          - Expire Walk-In Hold
+        execution: automatic
+        condition: maximum hold duration elapsed since the walk-in claim, or the room's next scheduled booking start time reached
+        parameters:
+          - name: maxHoldDurationMinutes
+            value: "60"
+    readModels:
+      - name: Room Status View
+        informs:
+          - Employee
+          - Walk-in Employee
+        fields:
+          - Room Status View has status
+          - Room Status View has holder
+          - Room Status View has held until
+          - Room Status View has next
+        updatedBy:
+          - Room Booked
+          - Booking Cancelled
+          - Booking Checked In
+          - Booking Released As No-Show
+          - Walk-In Room Claimed
+          - Walk-In Hold Expired
+      - name: Monthly Utilisation Report View
+        informs:
+          - Office Management
+        fields:
+          - Monthly Utilisation Report View has room utilisation
+          - Monthly Utilisation Report View has no-show rate per team
+          - Monthly Utilisation Report View has peak hours
+        updatedBy:
+          - Monthly Utilisation Report Generated
+    externalSystems: []
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: Architecture
+metadata:
+  name: room-booking-architecture.r1
+spec:
+  identity:
+    id: room-booking-architecture
+    revision: 1
+  content:
+    title: Meeting room booking architecture
+    owner: office IT
+    status: accepted
+    introduction:
+      prd: room-booking-prd
+      qualityGoals:
+        - id: QG-1
+          quality: reliability
+          motivation: One schedule is the truth; a double booking or a lost cancellation is the problem the tool exists to end (G-1, G-2).
+        - id: QG-2
+          quality: interaction-capability
+          motivation: Booking and check-in happen on a phone in a corridor; status must be readable from a screen across the floor (G-3).
+        - id: QG-3
+          quality: maintainability
+          motivation: One office IT person keeps it running beside other work; rules change by editing data, not code.
+      stakeholders:
+        - role: employee
+          expectations: the Prd's; plus a phone-first client and a check-in that takes one scan
+        - role: walk-in employee
+          expectations: the Prd's; plus a room claimed in one scan
+        - role: office management
+          expectations: the Prd's; plus the monthly report without asking IT
+        - role: office IT
+          expectations: one deployable, no local accounts, rules as data
+    constraints:
+      - id: C-1
+        kind: technical
+        statement: Sign-in is the company SSO; name and team come from the directory; no local accounts.
+        rationale: the brief
+      - id: C-2
+        kind: technical
+        statement: Door and floor screens are browsers in kiosk mode on the office network; they hold no credentials.
+        rationale: cheapest hardware IT already runs
+      - id: C-3
+        kind: organizational
+        statement: Room capacities, video capability and the booking limits (BR-2 to BR-6, BR-9, BR-10) are data office management edits; no release.
+        rationale: the limits were set by office management and will change
+    context:
+      business:
+        - partner: employee
+          exchanges: bookings, cancellations, check-ins
+          direction: both
+        - partner: walk-in employee
+          exchanges: walk-in claims at the door
+          direction: in
+        - partner: office management
+          exchanges: monthly utilisation report; room and limit data
+          direction: both
+        - partner: Directory
+          exchanges: employee name and team by id
+          direction: in
+      technical:
+        - channel: web
+          protocol: HTTPS
+          carries: everything employees exchange, on phone and desktop
+        - channel: door QR
+          protocol: HTTPS URL per room
+          carries: check-in and walk-in claim
+        - channel: screens
+          protocol: HTTPS
+          carries: room status to door and floor screens
+        - channel: directory API
+          protocol: HTTPS/JSON
+          carries: employee name and team lookups
+    strategy:
+      - id: S-1
+        decision: "One booking core owns the Room Booking context: the schedule, every rule, the status view and the report; clients are thin."
+        addresses:
+          - QG-1
+          - QG-3
+      - id: S-2
+        decision: Rooms and limits are data the core loads; office management edits them in the web client.
+        addresses:
+          - C-3
+          - QG-3
+      - id: S-3
+        decision: "A check-in and a walk-in claim are the same door URL: the QR code carries the room id, the core decides which it is."
+        addresses:
+          - QG-2
+      - id: S-4
+        decision: The core stores employee ids only; names and teams are read from the Directory when shown or reported.
+        addresses:
+          - C-1
+    buildingBlocks:
+      - id: BB-1
+        name: booking core
+        technology: Node service, SQLite
+        responsibility: "the Room Booking context: rooms, bookings, walk-in claims, check-in, no-show release, hold expiry, the room status view, the monthly report"
+        interfaces:
+          - name: booking API
+            kind: provides
+            description: book, cancel, check in, claim; room status now; monthly report; rooms and limits for office management
+          - name: directory
+            kind: requires
+            description: employee name and team by id
+        contexts:
+          - room-booking
+      - id: BB-2
+        name: web client
+        technology: browser app
+        responsibility: the employee's booking screens, the door URL that checks in or claims, office management's room and limit editing and the report
+        interfaces:
+          - name: booking API
+            kind: requires
+            description: everything shown comes from the core
+        contexts: []
+      - id: BB-3
+        name: status screens
+        technology: browser app in kiosk mode
+        responsibility: the door screen of one room and the floor screen of every room, refreshed from the status view
+        interfaces:
+          - name: booking API
+            kind: requires
+            description: room status now, read only
+        contexts: []
+    relations:
+      - id: REL-1
+        from: employee
+        to: BB-2
+        description: books, cancels, checks in; scans the door QR
+        technology: HTTPS
+      - id: REL-2
+        from: walk-in employee
+        to: BB-2
+        description: scans the door QR to claim the room
+        technology: HTTPS
+      - id: REL-3
+        from: office management
+        to: BB-2
+        description: edits rooms and limits; reads the monthly report
+        technology: HTTPS
+      - id: REL-4
+        from: BB-2
+        to: BB-1
+        description: every command and read of the schedule
+        interface: booking API
+        technology: HTTPS/JSON
+      - id: REL-5
+        from: BB-3
+        to: BB-1
+        description: room status now, every 30 seconds
+        interface: booking API
+        technology: HTTPS/JSON
+      - id: REL-6
+        from: BB-1
+        to: Directory
+        description: employee name and team by id
+        interface: directory
+        technology: HTTPS/JSON
+    concepts:
+      - id: CC-1
+        topic: domain
+        statement: The Room Booking context has one model in the booking core; the Room Schedule aggregate is one transaction per room and slot, so two bookings of the same slot cannot both commit.
+      - id: CC-2
+        topic: transactions
+        statement: No-show release and hold expiry run from a one-minute scheduler in the core; the policy parameters are data (C-3).
+      - id: CC-3
+        topic: security
+        statement: Every call carries the SSO identity; a booking's owner is the id that made it; screens read the status view with no identity.
+      - id: CC-4
+        topic: errors
+        statement: A refused command names the rule BR-n; no other error reaches an employee.
+      - id: CC-5
+        topic: persistence
+        statement: Bookings and their state changes are rows with a history table; the monthly report is a query over it.
+    domainModels:
+      - room-booking-model
+    decisions: []
+    qualityScenarios:
+      - id: QS-1
+        qualityGoal: QG-1
+        stimulus: two employees confirm the same room and slot within the same second
+        source: employees
+        response: one booking is made; the other sees No Available Room Found
+        measure: zero overlapping bookings in the history table
+      - id: QS-2
+        qualityGoal: QG-1
+        stimulus: the core restarts during the no-show window
+        response: the release still happens within one minute of the window's end
+        measure: release time minus window end under 60 seconds
+      - id: QS-3
+        qualityGoal: QG-2
+        stimulus: an employee scans the door QR
+        response: the booking is checked in or the room claimed with no further input beyond SSO
+        measure: under 5 seconds on the office network
+      - id: QS-4
+        qualityGoal: QG-2
+        stimulus: a booking is cancelled or released
+        response: the door and floor screens show the room free
+        measure: within 60 seconds
+      - id: QS-5
+        qualityGoal: QG-3
+        stimulus: office management changes the check-in window to 15 minutes
+        response: the next release uses it
+        measure: no deployment
+    risks:
+      - id: RK-1
+        kind: risk
+        statement: The scheduler misses a release while the core is down for longer than the window.
+        probability: low
+        impact: medium
+        mitigation: QS-2; the scheduler catches up on restart from the history table
+    glossaries:
+      - room-booking-glossary
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: Spec
+metadata:
+  name: room-booking-prd-cap-1.r1
+spec:
+  identity:
+    id: room-booking-prd-cap-1
+    revision: 1
+  content:
+    title: Book a Room
+    prd: room-booking-prd
+    capability: CAP-1
+    architecture: room-booking-architecture
+    domainModel: room-booking-model
+    stories:
+      - id: US-1
+        role: Employee
+        goal: book a free room that fits the meeting's attendee count and video need
+        benefit: the employee finds and books a free room without wandering the floor (G-1)
+        requirements:
+          - FR-1
+          - FR-2
+          - FR-3
+          - FR-4
+        commands:
+          - Book Room
+        events:
+          - Room Booked
+          - No Available Room Found
+        readModels:
+          - Room Status View
+        acceptance:
+          - id: AC-1
+            title: "Happy path: book a room that fits"
+            given:
+              - Room Oak seats 8, has no video conferencing capability, and is free on 2026-10-20 from 10:00 to 11:00
+            when:
+              - An employee books Room Oak for 2026-10-20 from 10:00 to 11:00 for 6 attendees with no video need
+            then:
+              - Room Booked is recorded for Room Oak, 2026-10-20, 10:00 to 11:00, 6 attendees, no video
+          - id: AC-2
+            title: Video need restricts eligible rooms (BR-2)
+            given:
+              - Room Oak seats 8, has no video conferencing capability, and is free on 2026-10-20 from 10:00 to 11:00
+              - Room Pine seats 8, has video conferencing capability, and is free on 2026-10-20 from 10:00 to 11:00
+            when:
+              - An employee requesting a room for 6 attendees on 2026-10-20 from 10:00 to 11:00 with video conferencing needed books Room Pine
+            then:
+              - Room Booked is recorded for Room Pine
+              - Room Oak is not offered because it lacks video conferencing capability
+          - id: AC-3
+            title: Room too small is not offered (BR-1)
+            given:
+              - Room Birch seats 4 and is free on 2026-10-20 from 10:00 to 11:00
+            when:
+              - An employee requesting a room for 12 attendees on 2026-10-20 from 10:00 to 11:00 attempts to book Room Birch
+            then:
+              - No Available Room Found is returned because Room Birch's seating capacity of 4 is below the requested 12 attendees
+          - id: AC-4
+            title: Slot off the 15-minute boundary is refused (BR-3)
+            given:
+              - Room Oak is free on 2026-10-20 from 10:00 onward
+            when:
+              - An employee attempts to book Room Oak for 2026-10-20 from 10:05 to 11:05
+            then:
+              - No Available Room Found is returned because the slot does not begin and end on a 15-minute boundary
+          - id: AC-5
+            title: Slot outside bookable hours is refused (BR-4)
+            given:
+              - Room Oak is free on 2026-10-20 from 19:00 to 20:00
+            when:
+              - An employee attempts to book Room Oak for 2026-10-20 from 19:30 to 20:30
+            then:
+              - No Available Room Found is returned because the slot ends after 20:00
+          - id: AC-6
+            title: Duration over 4 hours is refused (BR-5)
+            given:
+              - Room Oak is free all day on 2026-10-20
+            when:
+              - An employee attempts to book Room Oak for 2026-10-20 from 09:00 to 13:30
+            then:
+              - No Available Room Found is returned because the requested duration of 4.5 hours exceeds the 4-hour limit
+          - id: AC-7
+            title: Booking beyond the 30-day advance window is refused (BR-6)
+            given:
+              - Today is 2026-10-14
+              - Room Oak is free on 2026-11-20 from 10:00 to 11:00
+            when:
+              - An employee attempts to book Room Oak for 2026-11-20 from 10:00 to 11:00
+            then:
+              - No Available Room Found is returned because 2026-11-20 is more than 30 days after the date of booking, 2026-10-14
+          - id: AC-8
+            title: Overlapping slot is refused (BR-7)
+            given:
+              - Room Oak has an active booking on 2026-10-20 from 10:00 to 11:00
+            when:
+              - An employee attempts to book Room Oak for 2026-10-20 from 10:30 to 11:30
+            then:
+              - No Available Room Found is returned because the requested slot overlaps Room Oak's existing active booking
+          - id: AC-9
+            title: Current slot booked with no minimum notice (BR-11)
+            given:
+              - It is 2026-10-20 at 10:02
+              - Room Oak's current 15-minute slot of 10:00 to 10:15 is free
+            when:
+              - An employee books Room Oak for 2026-10-20 from 10:00 to 10:15 immediately, with no advance notice
+            then:
+              - Room Booked is recorded for Room Oak, 2026-10-20, 10:00 to 10:15, despite no advance notice
+          - id: AC-10
+            title: "Concurrent confirmations of the same room and slot: one wins (BR-7)"
+            given:
+              - Room Oak is free on 2026-10-20 from 14:00 to 15:00
+            when:
+              - Two employees each book Room Oak for 2026-10-20 from 14:00 to 15:00 within the same second
+            then:
+              - Room Booked is recorded for Room Oak for one of the two employees
+              - The other employee receives No Available Room Found
+    requirements:
+      - id: FR-1
+        pattern: event-driven
+        statement: When an employee requests a room for a day, a time slot, a number of attendees and optionally a need for video conferencing, the system shall present only the rooms that are free for that slot and satisfy BR-1 and BR-2.
+        rules:
+          - BR-1
+          - BR-2
+      - id: FR-2
+        pattern: event-driven
+        statement: When an employee confirms a presented room for a day and a time slot that satisfies BR-3, BR-4, BR-5, BR-6, BR-7 and BR-11, the system shall book the room.
+        rules:
+          - BR-3
+          - BR-4
+          - BR-5
+          - BR-6
+          - BR-7
+          - BR-11
+      - id: FR-3
+        pattern: unwanted-behaviour
+        statement: If the confirmed room is no longer free for the requested slot under BR-7, then the system shall refuse the booking and report that no available room was found.
+        rules:
+          - BR-7
+      - id: FR-4
+        pattern: unwanted-behaviour
+        statement: If the requested day, time slot, attendee count or video need violates BR-1, BR-2, BR-3, BR-4, BR-5 or BR-6, then the system shall report that no available room was found.
+        rules:
+          - BR-1
+          - BR-2
+          - BR-3
+          - BR-4
+          - BR-5
+          - BR-6
+    qualities:
+      - scenario: QS-1
+    openQuestions: []
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: Spec
+metadata:
+  name: room-booking-prd-cap-2.r1
+spec:
+  identity:
+    id: room-booking-prd-cap-2
+    revision: 1
+  content:
+    title: Cancel a booking
+    prd: room-booking-prd
+    capability: CAP-2
+    architecture: room-booking-architecture
+    domainModel: room-booking-model
+    stories:
+      - id: US-1
+        role: Employee
+        goal: cancel a booking they own before its start time
+        benefit: so that a room they no longer need becomes available to others quickly instead of sitting reserved and unused (G-2)
+        requirements:
+          - FR-1
+          - FR-2
+        commands:
+          - Cancel Booking
+        events:
+          - Booking Cancelled
+        readModels:
+          - Room Status View
+        acceptance:
+          - id: AC-1
+            title: Owner cancels before the start time
+            given:
+              - an active booking owned by Employee A for Room 3 on 2026-10-20 from 14:00 to 15:00
+              - the current time is 2026-10-20 10:00
+            when:
+              - Employee A cancels the booking
+            then:
+              - the booking is recorded as cancelled
+              - Room 3's Room Status View shows the 14:00-15:00 slot as free
+          - id: AC-2
+            title: Only the owner may cancel
+            given:
+              - an active booking owned by Employee A for Room 3 on 2026-10-20 from 14:00 to 15:00
+              - the current time is 2026-10-20 10:00
+            when:
+              - Employee B requests to cancel Employee A's booking
+            then:
+              - the cancellation is refused
+              - the refusal states that only the booking's owner may cancel it
+          - id: AC-3
+            title: Cannot cancel after the start time has passed
+            given:
+              - an active booking owned by Employee A for Room 5 on 2026-10-14 from 09:00 to 10:00
+              - the current time is 2026-10-14 09:05
+            when:
+              - Employee A requests to cancel the booking
+            then:
+              - the cancellation is refused
+              - the refusal states that a booking can no longer be cancelled once its start time has passed
+    requirements:
+      - id: FR-1
+        pattern: event-driven
+        statement: When a booking's owner cancels it in compliance with BR-8, the system shall cancel the booking and update the Room Status View to show the room's slot as free.
+        rules:
+          - BR-8
+      - id: FR-2
+        pattern: unwanted-behaviour
+        statement: If a cancellation request breaks BR-8, then the system shall refuse the cancellation and state the reason.
+        rules:
+          - BR-8
+    qualities:
+      - scenario: QS-4
+    openQuestions: []
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: Spec
+metadata:
+  name: room-booking-prd-cap-3.r1
+spec:
+  identity:
+    id: room-booking-prd-cap-3
+    revision: 1
+  content:
+    title: Check in to confirm a booking
+    prd: room-booking-prd
+    capability: CAP-3
+    architecture: room-booking-architecture
+    domainModel: room-booking-model
+    stories:
+      - id: US-1
+        role: Employee
+        goal: confirm their presence at a booked room
+        benefit: the room remains held for the meeting instead of being released as unused
+        requirements:
+          - FR-1
+          - FR-2
+          - FR-3
+        commands:
+          - Check In Booking
+        events:
+          - Booking Checked In
+        acceptance:
+          - id: AC-1
+            title: Owner checks in on time
+            given:
+              - a booking owned by Priya for Conference Room A from 10:00 to 11:00 today, status active with no check-in yet
+              - the current time is 10:05
+            when:
+              - Priya checks in at Conference Room A's door for her 10:00 booking
+            then:
+              - the booking is recorded as checked in
+              - the booking is no longer subject to no-show release
+          - id: AC-2
+            title: Check-in attempted by someone other than the owner
+            given:
+              - a booking owned by Priya for Conference Room A from 10:00 to 11:00 today, status active with no check-in yet
+              - the current time is 10:03
+            when:
+              - Daniel, who is not the booking's owner, attempts to check in at Conference Room A's door for Priya's booking
+            then:
+              - the check-in is refused
+              - the refusal states that only the booking's owner may check in
+              - the booking remains not checked in
+          - id: AC-3
+            title: Check-in attempted after the check-in window
+            given:
+              - a booking owned by Priya for Conference Room A from 10:00 to 11:00 today, status active with no check-in yet
+              - the current time is 10:11, 11 minutes after the booking's start time
+            when:
+              - Priya attempts to check in at Conference Room A's door for her 10:00 booking
+            then:
+              - the check-in is refused
+              - the refusal states that the check-in window has passed
+          - id: AC-4
+            title: Check-in at the edge of the check-in window
+            given:
+              - a booking owned by Priya for Conference Room A from 10:00 to 11:00 today, status active with no check-in yet
+              - the current time is 10:10, exactly 10 minutes after the booking's start time
+            when:
+              - Priya checks in at Conference Room A's door for her 10:00 booking
+            then:
+              - the booking is recorded as checked in
+      - id: US-2
+        role: Employee
+        goal: have a booking nobody checks into released automatically
+        benefit: a booked room that goes unused becomes available to others quickly (G-2)
+        requirements:
+          - FR-4
+        commands:
+          - Release Booking As No-Show
+        events:
+          - Booking Released As No-Show
+        acceptance:
+          - id: AC-5
+            title: Booking released as no-show when nobody checks in
+            given:
+              - a booking owned by Priya for Conference Room A from 10:00 to 11:00 today, status active with no check-in recorded
+              - the current time reaches 10:10, 10 minutes after the booking's start time, with no check-in recorded
+            when:
+              - the check-in window elapses with no check-in recorded for the booking
+            then:
+              - the booking is released as a no-show
+              - the booking's status becomes inactive
+              - the room becomes available for other bookings
+    requirements:
+      - id: FR-1
+        pattern: event-driven
+        statement: When the booking's owner checks in at the room within the check-in window set by BR-9, the system shall record the booking as checked in.
+        rules:
+          - BR-9
+      - id: FR-2
+        pattern: unwanted-behaviour
+        statement: If a check-in is attempted by someone other than the booking's owner, then the system shall refuse the check-in.
+        rules:
+          - BR-9
+      - id: FR-3
+        pattern: unwanted-behaviour
+        statement: If a check-in is attempted after the check-in window set by BR-9 has elapsed, then the system shall refuse the check-in.
+        rules:
+          - BR-9
+      - id: FR-4
+        pattern: event-driven
+        statement: When the check-in window set by BR-9 elapses with no check-in recorded for a booking, the system shall release the booking as a no-show.
+        rules:
+          - BR-9
+    qualities:
+      - scenario: QS-2
+      - scenario: QS-3
+    openQuestions: []
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: Spec
+metadata:
+  name: room-booking-prd-cap-4.r1
+spec:
+  identity:
+    id: room-booking-prd-cap-4
+    revision: 1
+  content:
+    title: Walk-in ad hoc booking
+    prd: room-booking-prd
+    capability: CAP-4
+    architecture: room-booking-architecture
+    domainModel: room-booking-model
+    stories:
+      - id: US-1
+        role: Walk-in employee
+        goal: claim an empty room on the spot and hold it until the next scheduled booking or a bounded time elapses
+        benefit: they can hold an unplanned meeting without wandering the floor looking for a free room (G-1)
+        requirements:
+          - FR-1
+          - FR-2
+          - FR-3
+          - FR-4
+          - FR-5
+        commands:
+          - Claim Walk-In Room
+          - Expire Walk-In Hold
+        events:
+          - Walk-In Room Claimed
+          - Walk-In Hold Expired
+        readModels:
+          - Room Status View
+        acceptance:
+          - id: AC-1
+            title: Walk-in employee claims a free room
+            given:
+              - Room Delta has no active booking or hold
+              - it is 14:05 on the booking day
+            when:
+              - the walk-in employee scans the door QR code of Room Delta to claim it at 14:05
+            then:
+              - a walk-in booking is created for Room Delta owned by the walk-in employee
+              - the booking is recorded with checked-in status at 14:05
+              - Walk-In Room Claimed is recorded for Room Delta
+          - id: AC-2
+            title: Walk-in claim refused when the room is already held
+            given:
+              - Room Delta has an active booking from 14:00 to 15:00
+            when:
+              - a walk-in employee scans the door QR code of Room Delta to claim it at 14:10
+            then:
+              - the claim is refused because Room Delta already has an active booking or hold
+              - Room Delta's status is unchanged
+          - id: AC-3
+            title: Walk-in hold ends at the next scheduled booking
+            given:
+              - Room Delta has a scheduled booking starting at 15:00
+              - a walk-in booking was claimed on Room Delta at 14:30
+            when:
+              - the system reaches Room Delta's next scheduled booking start time of 15:00 and executes Expire Walk-In Hold on the walk-in booking
+            then:
+              - the walk-in booking's end time is set to 15:00
+              - Walk-In Hold Expired is recorded for Room Delta
+              - Room Delta's status shows free for the 15:00 scheduled booking
+          - id: AC-4
+            title: Walk-in hold ends after one hour with no next booking
+            given:
+              - Room Delta has no scheduled booking after 14:30
+              - a walk-in booking was claimed on Room Delta at 14:30
+            when:
+              - the system reaches 15:30, one hour after the walk-in check-in, and executes Expire Walk-In Hold on the walk-in booking
+            then:
+              - the walk-in booking's end time is set to 15:30
+              - Walk-In Hold Expired is recorded for Room Delta
+              - Room Delta's status shows free
+    requirements:
+      - id: FR-1
+        pattern: event-driven
+        statement: When an employee claims a room that has no active booking or hold, the system shall create a walk-in booking for that room owned by the employee.
+        rules: []
+      - id: FR-2
+        pattern: unwanted-behaviour
+        statement: If an employee attempts to claim a room that has an active booking or hold, then the system shall refuse the claim.
+        rules: []
+      - id: FR-3
+        pattern: event-driven
+        statement: When a walk-in booking is created, the system shall record it as checked in at the moment of claim, satisfying BR-9.
+        rules:
+          - BR-9
+      - id: FR-4
+        pattern: event-driven
+        statement: When a walk-in booking is created, the system shall set the booking's end time according to BR-10.
+        rules:
+          - BR-10
+      - id: FR-5
+        pattern: event-driven
+        statement: When a walk-in booking's end time is reached, the system shall expire the walk-in hold and make the room available.
+        rules: []
+    qualities:
+      - scenario: QS-1
+      - scenario: QS-3
+      - scenario: QS-4
+    openQuestions: []
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: Spec
+metadata:
+  name: room-booking-prd-cap-5.r1
+spec:
+  identity:
+    id: room-booking-prd-cap-5
+    revision: 1
+  content:
+    title: Room Status Screens
+    prd: room-booking-prd
+    capability: CAP-5
+    architecture: room-booking-architecture
+    domainModel: room-booking-model
+    stories:
+      - id: US-1
+        role: Employee
+        goal: see, at a room's door and on a floor-wide screen, which rooms are free, who holds a room and until when, and what comes next
+        benefit: they can see at a glance which rooms are free without leaving their desk (G-3)
+        requirements:
+          - FR-1
+          - FR-2
+          - FR-3
+        commands: []
+        events:
+          - Room Booked
+          - Booking Cancelled
+          - Booking Checked In
+          - Booking Released As No-Show
+          - Walk-In Room Claimed
+          - Walk-In Hold Expired
+        readModels:
+          - Room Status View
+        acceptance:
+          - id: AC-1
+            title: Floor screen lists every room's status
+            given:
+              - Room 'Atlas' (capacity 6) is booked from 14:00 to 15:00 by Employee Dana
+              - Room 'Borealis' (capacity 4) has no active booking or hold
+              - Room 'Cassini' (capacity 8) is held by a walk-in claim until 15:30
+            when:
+              - An employee views the floor-wide room status screen
+            then:
+              - The screen shows Atlas as booked, held by Dana, until 15:00
+              - The screen shows Borealis as free
+              - The screen shows Cassini as held until 15:30
+          - id: AC-2
+            title: Door screen shows a room's status and what's next
+            given:
+              - Room 'Atlas' is booked from 14:00 to 15:00 by Employee Dana
+              - Atlas has a next booking from 15:30 to 16:00 by Employee Lee
+            when:
+              - An employee views Atlas's door screen
+            then:
+              - The screen shows Atlas as booked, held by Dana, until 15:00
+              - The screen shows the next booking as 15:30 to 16:00 by Lee
+          - id: AC-3
+            title: Door and floor screens show a cancelled booking's room as free
+            given:
+              - Room 'Borealis' was booked from 14:00 to 15:00 by Employee Dana
+              - Dana has cancelled the booking
+            when:
+              - An employee views Borealis's door screen and the floor-wide screen
+            then:
+              - Borealis's door screen shows free
+              - The floor-wide screen shows Borealis as free
+      - id: US-2
+        role: Walk-in employee
+        goal: see, at a room's door and on a floor-wide screen, which rooms are free right now
+        benefit: they can see at a glance which rooms are free without leaving their desk (G-3)
+        requirements:
+          - FR-1
+          - FR-2
+        commands: []
+        events: []
+        readModels:
+          - Room Status View
+        acceptance:
+          - id: AC-4
+            title: Floor screen helps a walk-in employee find a free room
+            given:
+              - Room 'Atlas' is booked until 15:00
+              - Room 'Borealis' has no active booking or hold
+              - Room 'Cassini' is held by a walk-in claim until 15:30
+            when:
+              - A walk-in employee views the floor-wide room status screen
+            then:
+              - The screen shows Borealis as free
+              - The screen shows Atlas and Cassini as unavailable, each with its held-until time
+          - id: AC-5
+            title: Door screen shows a room free for a walk-in claim
+            given:
+              - Room 'Borealis' has no active booking or hold
+            when:
+              - A walk-in employee views Borealis's door screen
+            then:
+              - The screen shows Borealis as free, with no holder and no held-until time
+    requirements:
+      - id: FR-1
+        pattern: ubiquitous
+        statement: The system shall show, at each room's door, the room's current status, its holder, the time it is held until, and the next booking.
+      - id: FR-2
+        pattern: ubiquitous
+        statement: The system shall show, in one floor-wide view, the current status of every room.
+      - id: FR-3
+        pattern: event-driven
+        statement: When a booking is made, cancelled, checked in, released as a no-show, claimed as a walk-in, or its walk-in hold expires, the system shall update the room status shown at the room's door and on the floor-wide view.
+    qualities:
+      - scenario: QS-4
+    openQuestions: []
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: Spec
+metadata:
+  name: room-booking-prd-cap-6.r1
+spec:
+  identity:
+    id: room-booking-prd-cap-6
+    revision: 1
+  content:
+    title: Monthly Utilisation Report
+    prd: room-booking-prd
+    capability: CAP-6
+    architecture: room-booking-architecture
+    domainModel: room-booking-model
+    stories:
+      - id: US-1
+        role: Office management
+        goal: see how each meeting room is actually used over a month
+        benefit: office management can see how rooms are actually used (G-4)
+        requirements:
+          - FR-1
+          - FR-2
+        events:
+          - Monthly Utilisation Report Generated
+        readModels:
+          - Monthly Utilisation Report View
+        acceptance:
+          - id: AC-1
+            title: Report generated at month end
+            given:
+              - the calendar month of October 2026 has ended
+              - bookings, cancellations, check-ins and no-shows were recorded across the eight rooms during October 2026
+            when:
+              - the calendar month ends
+            then:
+              - a Monthly Utilisation Report View for October 2026 is generated, recording room utilisation, no-show rate per team, and peak hours of demand
+          - id: AC-2
+            title: Office management views the report
+            given:
+              - a Monthly Utilisation Report View for October 2026 has been generated
+            when:
+              - Office Management views the Monthly Utilisation Report View for October 2026
+            then:
+              - Office Management sees utilisation per room for October 2026
+              - Office Management sees no-show rate per team for October 2026
+              - Office Management sees peak hours of demand for October 2026
+    requirements:
+      - id: FR-1
+        pattern: event-driven
+        statement: When a calendar month ends, the system shall generate the Monthly Utilisation Report View.
+      - id: FR-2
+        pattern: ubiquitous
+        statement: The system shall present the Monthly Utilisation Report View to Office Management.
+    qualities: []
+    openQuestions: []
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: Design
+metadata:
+  name: room-booking-architecture-bb-1-http-api.r1
+spec:
+  identity:
+    id: room-booking-architecture-bb-1-http-api
+    revision: 1
+  content:
+    title: Booking core API
+    type: http-api
+    architecture: room-booking-architecture
+    block: BB-1
+    domainModel: room-booking-model
+    interface: booking API
+    document:
+      mediaType: application/openapi+yaml
+      content: |
+        openapi: 3.1.0
+        info:
+          title: Booking core API
+          version: "1.0.0"
+          description: >
+            The booking API of the booking core (BB-1): rooms, bookings, walk-in
+            claims, check-in, no-show release, hold expiry, the room status view
+            and the monthly report. Every call carries the SSO identity as the
+            caller; a refused command names the BR-n it broke.
+        paths:
+          /bookings:
+            post:
+              operationId: bookRoom
+              summary: Book Room
+              requestBody:
+                required: true
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/BookRoomRequest'
+              responses:
+                '201':
+                  description: Room Booked
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Booking'
+                '409':
+                  description: No Available Room Found - no room satisfies the requested capacity, video need or free slot
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/NoAvailableRoom'
+                '422':
+                  description: The requested slot itself breaks a rule
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/RuleViolation'
+          /bookings/{bookingId}/cancel:
+            post:
+              operationId: cancelBooking
+              summary: Cancel Booking
+              parameters:
+                - name: bookingId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+              responses:
+                '200':
+                  description: Booking Cancelled
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Booking'
+                '403':
+                  description: Cancellation refused
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/RuleViolation'
+                '404':
+                  description: Booking not found
+          /rooms/{roomId}/check-in:
+            post:
+              operationId: checkInBooking
+              summary: Check In Booking
+              parameters:
+                - name: roomId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+              responses:
+                '200':
+                  description: Booking Checked In
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Booking'
+                '403':
+                  description: Check-in refused
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/RuleViolation'
+                '404':
+                  description: No active booking owned by the caller at this room
+          /bookings/{bookingId}/release-no-show:
+            post:
+              operationId: releaseBookingAsNoShow
+              summary: Release Booking As No-Show
+              description: Invoked by the core's one-minute scheduler (CC-2); refused if the check-in window has not yet elapsed.
+              parameters:
+                - name: bookingId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+              responses:
+                '200':
+                  description: Booking Released As No-Show
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Booking'
+                '409':
+                  description: Release refused, the check-in window has not yet elapsed
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/RuleViolation'
+                '404':
+                  description: Booking not found
+          /rooms/{roomId}/claim:
+            post:
+              operationId: claimWalkInRoom
+              summary: Claim Walk-In Room
+              parameters:
+                - name: roomId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+              responses:
+                '201':
+                  description: Walk-In Room Claimed
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Booking'
+                '409':
+                  description: Room is not free for a walk-in claim
+                '404':
+                  description: Room not found
+          /rooms/{roomId}/expire-hold:
+            post:
+              operationId: expireWalkInHold
+              summary: Expire Walk-In Hold
+              description: Invoked by the core's one-minute scheduler (CC-2); refused if neither bound of BR-10 has been reached.
+              parameters:
+                - name: roomId
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+              responses:
+                '200':
+                  description: Walk-In Hold Expired
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/Booking'
+                '409':
+                  description: Expiry refused, neither bound of the hold has been reached
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/RuleViolation'
+                '404':
+                  description: No active walk-in hold for this room
+          /rooms/status:
+            get:
+              operationId: getRoomStatusView
+              summary: Room Status View
+              responses:
+                '200':
+                  description: Current status of every room
+                  content:
+                    application/json:
+                      schema:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/RoomStatusEntry'
+          /reports/monthly:
+            get:
+              operationId: getMonthlyUtilisationReportView
+              summary: Monthly Utilisation Report View
+              responses:
+                '200':
+                  description: The monthly utilisation report
+                  content:
+                    application/json:
+                      schema:
+                        $ref: '#/components/schemas/MonthlyUtilisationReportView'
+        components:
+          schemas:
+            BookRoomRequest:
+              type: object
+              required: [date, startTime, endTime, attendeeCount]
+              properties:
+                date:
+                  type: string
+                  format: date
+                startTime:
+                  type: string
+                endTime:
+                  type: string
+                attendeeCount:
+                  type: integer
+                videoNeed:
+                  type: boolean
+                  default: false
+            Booking:
+              type: object
+              properties:
+                id:
+                  type: string
+                owner:
+                  type: string
+                room:
+                  type: string
+                date:
+                  type: string
+                  format: date
+                createdDate:
+                  type: string
+                  format: date
+                startTime:
+                  type: string
+                endTime:
+                  type: string
+                attendeeCount:
+                  type: integer
+                videoNeed:
+                  type: boolean
+                status:
+                  type: string
+                  enum: [active, inactive]
+            RoomStatusEntry:
+              type: object
+              properties:
+                room:
+                  type: string
+                status:
+                  type: string
+                  enum: [free, held, booked]
+                holder:
+                  type: string
+                heldUntil:
+                  type: string
+                next:
+                  type: string
+            MonthlyUtilisationReportView:
+              type: object
+              properties:
+                roomUtilisation:
+                  type: string
+                noShowRatePerTeam:
+                  type: string
+                peakHours:
+                  type: string
+            RuleViolation:
+              type: object
+              required: [rule, message]
+              properties:
+                rule:
+                  type: string
+                  pattern: '^BR-[0-9]+$'
+                message:
+                  type: string
+            NoAvailableRoom:
+              type: object
+              required: [event, rules]
+              properties:
+                event:
+                  type: string
+                  const: "No Available Room Found"
+                rules:
+                  type: array
+                  items:
+                    type: string
+                    pattern: '^BR-[0-9]+$'
+                message:
+                  type: string
+    elements:
+      - id: EL-1
+        name: POST /bookings
+        realises:
+          kind: command
+          name: Book Room
+        rules:
+          - BR-1
+          - BR-2
+          - BR-3
+          - BR-4
+          - BR-5
+          - BR-6
+          - BR-7
+      - id: EL-2
+        name: POST /bookings/{bookingId}/cancel
+        realises:
+          kind: command
+          name: Cancel Booking
+        rules:
+          - BR-8
+      - id: EL-3
+        name: POST /rooms/{roomId}/check-in
+        realises:
+          kind: command
+          name: Check In Booking
+        rules:
+          - BR-9
+      - id: EL-4
+        name: POST /bookings/{bookingId}/release-no-show
+        realises:
+          kind: command
+          name: Release Booking As No-Show
+        rules:
+          - BR-9
+      - id: EL-5
+        name: POST /rooms/{roomId}/claim
+        realises:
+          kind: command
+          name: Claim Walk-In Room
+        rules: []
+      - id: EL-6
+        name: POST /rooms/{roomId}/expire-hold
+        realises:
+          kind: command
+          name: Expire Walk-In Hold
+        rules:
+          - BR-10
+      - id: EL-7
+        name: GET /rooms/status
+        realises:
+          kind: readModel
+          name: Room Status View
+        rules: []
+      - id: EL-8
+        name: GET /reports/monthly
+        realises:
+          kind: readModel
+          name: Monthly Utilisation Report View
+        rules: []
+    rules:
+      - BR-1
+      - BR-2
+      - BR-3
+      - BR-4
+      - BR-5
+      - BR-6
+      - BR-7
+      - BR-8
+      - BR-9
+      - BR-10
+    decisions: []
+    openQuestions:
+      - id: Q-1
+        question: The Architecture's BB-1 responsibility and 'booking API' interface, strategy S-2 and constraint C-3 require office management to edit rooms (seating capacity, video capability) and the booking-limit policy parameters (e.g. the no-show check-in window, the walk-in hold duration) through this API without a release, but the DomainModel names no command for creating or editing a Room or for setting a policy parameter - only Room as a static entity of AG-1 and the parameters as fixed policy data. No operation can be added for this without inventing a command the DomainModel does not name.
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: Design
+metadata:
+  name: room-booking-architecture-bb-1-data-schema.r1
+spec:
+  identity:
+    id: room-booking-architecture-bb-1-data-schema
+    revision: 1
+  content:
+    title: Booking Core Data Schema
+    type: data-schema
+    architecture: room-booking-architecture
+    block: BB-1
+    domainModel: room-booking-model
+    document:
+      mediaType: application/sql
+      content: |
+        -- Room Schedule aggregate (AG-1): entities Room and Booking
+
+        CREATE TABLE room (
+          id TEXT PRIMARY KEY,
+          seating_capacity INTEGER NOT NULL,
+          video_capability BOOLEAN NOT NULL
+        );
+
+        CREATE TABLE booking (
+          id TEXT PRIMARY KEY,
+          owner_id TEXT NOT NULL,
+          room_id TEXT NOT NULL REFERENCES room(id),
+          date DATE NOT NULL,
+          created_date DATE NOT NULL,
+          start_time TIME NOT NULL,
+          end_time TIME NOT NULL,
+          attendee_count INTEGER NOT NULL,
+          video_need BOOLEAN NOT NULL,
+          status TEXT NOT NULL CHECK (status IN ('active', 'inactive')),
+          -- BR-3: slot boundaries fall on 15-minute marks
+          CHECK (CAST(EXTRACT(MINUTE FROM start_time) AS INTEGER) % 15 = 0
+             AND CAST(EXTRACT(MINUTE FROM end_time) AS INTEGER) % 15 = 0),
+          -- BR-4: slot falls entirely within 08:00-20:00
+          CHECK (start_time >= TIME '08:00' AND end_time <= TIME '20:00'),
+          -- BR-5: slot duration at most 4 hours
+          CHECK (end_time > start_time
+             AND (CAST(EXTRACT(EPOCH FROM (end_time - start_time)) AS INTEGER) / 3600.0) <= 4),
+          -- BR-6: booked at most 30 days ahead of the booking's own creation date
+          CHECK (date <= created_date + INTERVAL '30 days')
+        );
+    elements:
+      - id: EL-1
+        name: room
+        realises:
+          kind: aggregate
+          name: AG-1
+        rules: []
+      - id: EL-2
+        name: booking
+        realises:
+          kind: aggregate
+          name: AG-1
+        rules:
+          - BR-3
+          - BR-4
+          - BR-5
+          - BR-6
+    rules:
+      - BR-3
+      - BR-4
+      - BR-5
+      - BR-6
+    decisions: []
+    openQuestions:
+      - id: Q-1
+        question: "Architecture constraint C-3 requires the booking limits BR-2 to BR-6, BR-9 and BR-10 to be data office management edits with no release, but the DomainModel gives no aggregate or entity to hold these thresholds: BR-2's room video capability is already room data, and BR-9/BR-10 appear only as policy parameters (POL-1 checkInWindowMinutes, POL-2 maxHoldDurationMinutes) with no storage entity, while BR-3 to BR-6 have no parameter representation at all. Lacking a modelled store, this schema fixes BR-3 to BR-6 as literal CHECK constraints on booking and omits BR-2, BR-9 and BR-10 as structural constraints (they are cross-table or time-of-check conditions enforced by the application, not the schema). Should the DomainModel add an entity or aggregate for these limits so they can be edited as data without a release?"
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: Plan
+metadata:
+  name: room-booking-prd-cap-1-plan.r1
+spec:
+  identity:
+    id: room-booking-prd-cap-1-plan
+    revision: 1
+  content:
+    title: Book a Room
+    spec: room-booking-prd-cap-1
+    architecture: room-booking-architecture
+    designs:
+      - room-booking-architecture-bb-1-http-api
+      - room-booking-architecture-bb-1-data-schema
+    tasks:
+      - id: T-1
+        title: Model rooms and bookings with slot-shape constraints
+        block: BB-1
+        description: Store Room (seating capacity, video conferencing capability) and Booking (owner, room, date, start time, end time, attendee count, video need, status) so that a booking's slot is structurally limited to a 15-minute boundary, the 08:00-20:00 bookable hours, a duration of at most 4 hours, and a date at most 30 days after the booking's own creation date.
+        covers:
+          - FR-2
+          - FR-4
+        verifiedBy:
+          - AC-4
+          - AC-5
+          - AC-6
+          - AC-7
+        elements:
+          - design: room-booking-architecture-bb-1-data-schema
+            element: EL-1
+          - design: room-booking-architecture-bb-1-data-schema
+            element: EL-2
+        dependsOn: []
+      - id: T-2
+        title: Implement Book Room to validate the slot and record or refuse the booking
+        block: BB-1
+        description: On Book Room, check the requested day, time slot, attendee count and video need against the room's seating capacity and video conferencing capability, against the slot-shape rules held by the Room and Booking data, and against every active booking of the same room for an overlap, within one transaction per room and slot so two confirmations of the same slot cannot both succeed; record Room Booked when every check passes, otherwise report No Available Room Found.
+        covers:
+          - FR-1
+          - FR-2
+          - FR-3
+          - FR-4
+        verifiedBy:
+          - AC-1
+          - AC-2
+          - AC-3
+          - AC-8
+          - AC-9
+          - AC-10
+        elements:
+          - design: room-booking-architecture-bb-1-http-api
+            element: EL-1
+        dependsOn:
+          - T-1
+      - id: T-3
+        title: Serve the Room Status View showing each room's current availability
+        block: BB-1
+        description: Present the Room Status View over the stored rooms and bookings so an employee can see which rooms are free, holding only rooms that fit the requested attendee count and, when video conferencing is needed, that have the capability, ahead of confirming a booking.
+        covers:
+          - FR-1
+        verifiedBy: []
+        elements:
+          - design: room-booking-architecture-bb-1-http-api
+            element: EL-7
+        dependsOn:
+          - T-1
+    openQuestions: []
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: Plan
+metadata:
+  name: room-booking-prd-cap-2-plan.r1
+spec:
+  identity:
+    id: room-booking-prd-cap-2-plan
+    revision: 1
+  content:
+    title: Cancel a booking
+    spec: room-booking-prd-cap-2
+    architecture: room-booking-architecture
+    designs:
+      - room-booking-architecture-bb-1-http-api
+    tasks:
+      - id: T-1
+        title: Cancel Booking command enforcing BR-8
+        description: "On the booking core, implement the Cancel Booking command: when the caller is the booking's owner and the current time is before the booking's start time (BR-8), cancel the booking, emit Booking Cancelled, and update the Room Status View so the room's slot shows free. When the caller is not the owner, or the start time has passed, refuse the cancellation and state which rule (BR-8) it breaks, without changing the booking or the view."
+        block: BB-1
+        covers:
+          - FR-1
+          - FR-2
+        verifiedBy:
+          - AC-1
+          - AC-2
+          - AC-3
+        elements:
+          - design: room-booking-architecture-bb-1-http-api
+            element: EL-2
+        dependsOn: []
+    openQuestions: []
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: Plan
+metadata:
+  name: room-booking-prd-cap-3-plan.r1
+spec:
+  identity:
+    id: room-booking-prd-cap-3-plan
+    revision: 1
+  content:
+    title: Check in to confirm a booking
+    spec: room-booking-prd-cap-3
+    architecture: room-booking-architecture
+    designs:
+      - room-booking-architecture-bb-1-http-api
+      - room-booking-architecture-bb-1-data-schema
+    tasks:
+      - id: T-1
+        title: Persist a booking's check-in state
+        block: BB-1
+        covers: []
+        verifiedBy: []
+        elements:
+          - design: room-booking-architecture-bb-1-data-schema
+            element: EL-2
+        dependsOn: []
+        description: Extend the booking storage so a booking can record that it has been checked in, distinct from its active/inactive status, so a checked-in booking can be told apart from one still subject to no-show release.
+      - id: T-2
+        title: Check in a booking at the room
+        block: BB-1
+        covers:
+          - FR-1
+          - FR-2
+          - FR-3
+        verifiedBy:
+          - AC-1
+          - AC-2
+          - AC-3
+          - AC-4
+        elements:
+          - design: room-booking-architecture-bb-1-http-api
+            element: EL-3
+        dependsOn:
+          - T-1
+        description: "Handle Check In Booking: when the caller is the booking's owner and the check-in window set by BR-9 has not elapsed, record the booking as checked in; refuse a check-in by anyone else, and refuse a check-in attempted after the window has elapsed."
+      - id: T-3
+        title: Release an unchecked booking as a no-show
+        block: BB-1
+        covers:
+          - FR-4
+        verifiedBy:
+          - AC-5
+        elements:
+          - design: room-booking-architecture-bb-1-http-api
+            element: EL-4
+        dependsOn:
+          - T-1
+        description: "Handle Release Booking As No-Show, invoked by the core's one-minute scheduler once the check-in window set by BR-9 elapses with no check-in recorded: make the booking inactive and free the room for other bookings."
+    openQuestions:
+      - id: Q-1
+        question: Design room-booking-architecture-bb-1-data-schema's booking aggregate (EL-2) carries only a status of active/inactive and CHECK constraints for BR-3 to BR-6; it has no column recording that a booking was checked in (FR-1, AC-1) nor any representation of BR-9's check-in window. T-1 needs this storage extended before Check In Booking and Release Booking As No-Show can be built against it.
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: Plan
+metadata:
+  name: room-booking-prd-cap-4-plan.r1
+spec:
+  identity:
+    id: room-booking-prd-cap-4-plan
+    revision: 1
+  content:
+    title: Walk-in ad hoc booking
+    spec: room-booking-prd-cap-4
+    architecture: room-booking-architecture
+    designs:
+      - room-booking-architecture-bb-1-http-api
+      - room-booking-architecture-bb-1-data-schema
+    tasks:
+      - id: T-1
+        title: Store walk-in bookings in the booking schema
+        block: BB-1
+        covers:
+          - FR-1
+          - FR-3
+          - FR-4
+        verifiedBy:
+          - AC-1
+        elements:
+          - design: room-booking-architecture-bb-1-data-schema
+            element: EL-2
+        description: "Use the booking row to hold a walk-in booking: owner, room, checked-in status recorded at claim time, and an end time, alongside scheduled bookings."
+      - id: T-2
+        title: Claim Walk-In Room command
+        block: BB-1
+        covers:
+          - FR-1
+          - FR-2
+          - FR-3
+          - FR-4
+        verifiedBy:
+          - AC-1
+          - AC-2
+        dependsOn:
+          - T-1
+        elements:
+          - design: room-booking-architecture-bb-1-http-api
+            element: EL-5
+        description: On a claim, create a walk-in booking owned by the claiming employee when the room has no active booking or hold, record it checked in at the moment of claim with its end time set per BR-10, and refuse the claim when the room already has an active booking or hold.
+      - id: T-3
+        title: Expire Walk-In Hold command
+        block: BB-1
+        covers:
+          - FR-5
+        verifiedBy:
+          - AC-3
+          - AC-4
+        dependsOn:
+          - T-2
+        elements:
+          - design: room-booking-architecture-bb-1-http-api
+            element: EL-6
+        description: When a walk-in booking's end time is reached, whether because the room's next scheduled booking starts or because the bounded hold duration elapses, set the walk-in booking's end time accordingly and expire the hold.
+      - id: T-4
+        title: Reflect walk-in holds and their expiry in the Room Status View
+        block: BB-1
+        covers:
+          - FR-5
+        verifiedBy:
+          - AC-3
+          - AC-4
+        dependsOn:
+          - T-2
+          - T-3
+        elements:
+          - design: room-booking-architecture-bb-1-http-api
+            element: EL-7
+        description: Show a room held by a walk-in booking while the hold is active, and show it free once the hold has expired.
+    openQuestions:
+      - id: Q-1
+        question: FR-4 and FR-5 realise BR-10 (the walk-in hold's bounding end time), but both Designs in context flag that the DomainModel gives no entity to store this policy parameter as office-management-editable data (bb-1-http-api Q-1, bb-1-data-schema Q-1). T-2 and T-3 implement BR-10 as currently available, i.e. as fixed policy data, pending that resolution.
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: Plan
+metadata:
+  name: room-booking-prd-cap-5-plan.r1
+spec:
+  identity:
+    id: room-booking-prd-cap-5-plan
+    revision: 1
+  content:
+    title: Room Status Screens
+    spec: room-booking-prd-cap-5
+    architecture: room-booking-architecture
+    designs:
+      - room-booking-architecture-bb-1-http-api
+    tasks:
+      - id: T-1
+        title: Expose each room's status, holder, held-until time and next booking
+        block: BB-1
+        description: Build the Room Status View read model in the booking core, giving each room's current status (free, held or booked), its holder, the time it is held until, and the next booking, updated as a booking is made, cancelled, checked in, released as a no-show, claimed as a walk-in, or its walk-in hold expires.
+        covers:
+          - FR-1
+          - FR-2
+          - FR-3
+        verifiedBy: []
+        elements:
+          - design: room-booking-architecture-bb-1-http-api
+            element: EL-7
+        dependsOn: []
+      - id: T-2
+        title: Show a room's status and what's next at its door
+        block: BB-3
+        description: Build the door screen for one room, showing the room's current status, its holder, the time it is held until, and the next booking, refreshed from the Room Status View so a cancellation, check-in, no-show release, walk-in claim or hold expiry is reflected at the door.
+        covers:
+          - FR-1
+          - FR-3
+        verifiedBy:
+          - AC-2
+          - AC-3
+          - AC-5
+        elements: []
+        dependsOn:
+          - T-1
+      - id: T-3
+        title: Show every room's status on the floor-wide screen
+        block: BB-3
+        description: Build the floor-wide screen listing the current status of every room, refreshed from the Room Status View so a cancellation, check-in, no-show release, walk-in claim or hold expiry is reflected on the floor view.
+        covers:
+          - FR-2
+          - FR-3
+        verifiedBy:
+          - AC-1
+          - AC-3
+          - AC-4
+        elements: []
+        dependsOn:
+          - T-1
+    openQuestions:
+      - id: Q-1
+        question: T-2 and T-3 build against BB-3 (status screens), whose responsibility per the Architecture is exactly the door and floor screens of this Spec, but no Design for BB-3 is in context, so neither task can list the Design elements it realises. Which Design covers BB-3's door and floor screens?
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: Plan
+metadata:
+  name: room-booking-prd-cap-6-plan.r1
+spec:
+  identity:
+    id: room-booking-prd-cap-6-plan
+    revision: 1
+  content:
+    title: Monthly Utilisation Report
+    spec: room-booking-prd-cap-6
+    architecture: room-booking-architecture
+    designs:
+      - room-booking-architecture-bb-1-http-api
+    tasks:
+      - id: T-1
+        title: Generate the Monthly Utilisation Report View at month end
+        description: "In the booking core, when a calendar month ends, compute the Monthly Utilisation Report View for that month: room utilisation, no-show rate per team and peak hours of demand, and make it retrievable as the Monthly Utilisation Report View read model."
+        block: BB-1
+        covers:
+          - FR-1
+        elements:
+          - design: room-booking-architecture-bb-1-http-api
+            element: EL-8
+        dependsOn: []
+        verifiedBy:
+          - AC-1
+      - id: T-2
+        title: Present the Monthly Utilisation Report View to Office Management
+        description: In the web client, let Office Management view the Monthly Utilisation Report View for a month, showing utilisation per room, no-show rate per team and peak hours of demand.
+        block: BB-2
+        covers:
+          - FR-2
+        elements: []
+        dependsOn:
+          - T-1
+        verifiedBy:
+          - AC-2
+    openQuestions:
+      - id: Q-1
+        question: Building block BB-2 (web client) is responsible for office management's report screen, but no Design for BB-2 is in context, so T-2 (presenting the Monthly Utilisation Report View to Office Management, FR-2) lists no elements. Which Design covers BB-2's report presentation?
+      - id: Q-2
+        question: Architecture concept CC-5 states the monthly report is a query over a history table of bookings and their state changes, but the data-schema Design (room-booking-architecture-bb-1-data-schema) models only current room and booking rows with no history or state-change entity. Without a modelled store for past cancellations, check-ins and no-shows, T-1's generation of no-show rate per team and peak hours of demand (AC-1) has no Design element to realise. Should the data-schema Design add a history entity for this?
