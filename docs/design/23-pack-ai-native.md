@@ -16,6 +16,7 @@ Adr ──▶ Prd, rules (baseline) or Architecture (later)          taken with 
 Architecture ──▶ Prd, rules, BoundedContext (3, 5), Adr (9), Glossary (12), DomainModel (8)   arc42 baseline, once per product (31-architecture-process.md)
 Spec per CAP-n ──▶ Prd, Architecture, DomainModel, Glossary, rules
 Design per block and type ──▶ Architecture, DomainModel, Glossary, rules
+DesignSystem once ──▶ Prd, Architecture;  Design (ui) per client block ──▶ DesignSystem, the block's API Designs too
 Plan per Spec ──▶ Spec (by id, latest), Architecture, Design (many);  work (later) ──▶ Plan
 why, for whom: Prd · exactly what: Spec · how: Architecture, Design (reusable assets) · work: Plan
 ```
@@ -43,7 +44,8 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
 | `Prd` | why, for whom, what capabilities | `title`, `problem`, `users[]`, `goals[] G-n`, `nonGoals[]`, `capabilities[] {id CAP-n, name, description, priority, context, rules?}`, `successCriteria[] {id SC-n, statement, capabilities?}`, `assumptions[]`, `openQuestions[] {id Q-n, question, resolution?}` |
 | `Spec` | exactly what one capability does | `title`, `prd`, `capability` CAP-n, `architecture`, `domainModel`, `stories[] {id US-n, role, goal, benefit, requirements[] FR-n, commands?[], events?[], readModels?[], acceptance[] {id AC-n, title, given[], when[], then[]}}` (Connextra; Given/When/Then), `requirements[] {id FR-n, pattern: ubiquitous\|event-driven\|state-driven\|unwanted-behaviour\|optional\|complex, statement, rules?[] BR-n}` (EARS), `qualities[] {scenario QS-n, delta?}`, `openQuestions[] {id Q-n, question, resolution?}` |
 | `Plan` | the work that builds one Spec | `title`, `spec`, `architecture`, `designs[]` (Design ids), `tasks[] {id T-n, title, description?, block BB-n, covers[] FR-n, verifiedBy[] AC-n, elements?[] {design, element EL-n}, dependsOn?[] T-n}` in build order, `openQuestions[]` |
-| `Design` | one reusable contract or schema of one block | `title`, `type: http-api\|async-api\|data-schema`, `architecture`, `block` BB-n, `interface?`, `domainModel`, `document {mediaType, content}` (OpenAPI 3.1, AsyncAPI 3, JSON Schema or DDL, embedded whole), `elements[] {id EL-n, name, realises {kind: command\|event\|readModel\|aggregate, name}, rules?[] BR-n}`, `rules[] BR-n`, `decisions[]` (Adr ids), `openQuestions[]` |
+| `Design` | one reusable contract or schema of one block | `title`, `type: http-api\|async-api\|data-schema\|ui`, `architecture`, `block` BB-n, `interface?`, `domainModel`, `document {mediaType, content}` (OpenAPI 3.1, AsyncAPI 3, JSON Schema, DDL or a `ui` screen document, embedded whole), `elements[] {id EL-n, name, realises {kind: command\|event\|readModel\|aggregate, name}, rules?[] BR-n}`, `rules[] BR-n`, `decisions[]` (Adr ids), `openQuestions[]` |
+| `DesignSystem` | the product's visual language, once | `title`, `prd`, `document {mediaType: text/markdown, content}` (DESIGN.md verbatim, `32-ui-design-process.md`), `decisions[]` (Adr ids), `openQuestions[]` |
 
 ## Citation
 

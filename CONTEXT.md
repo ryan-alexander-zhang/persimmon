@@ -528,14 +528,31 @@ The pack process from a **Prd** and the domain kinds of its contexts to the **Ar
 **Adr**s: ReviewLoop `architect`, once per product, checked by `architecture-consistency` and a human.
 _Avoid_: architecting phase, design phase, architecture pipeline
 
+**UI design process**:
+The pack process from the Architecture's client blocks to the **DesignSystem** (ReviewLoop
+`design-system`, once per product, linted and confirmed by a human) and the `ui` **Design**s
+(`design-all` with `type: ui`).
+_Avoid_: UX phase, frontend design, screen design process
+
 **Prd**:
 **Artifact kind** of the AI Native pack: why, for whom, `CAP-n` capabilities, `SC-n` success
 criteria. No stories, requirements or technology; those are the **Spec**'s.
 _Avoid_: ProductRequirement (demo pack), EarsPrd (example06), product spec
 
+**DesignSystem**:
+**Artifact kind** of the AI Native pack, one per product: the visual language as a **DESIGN.md**
+file embedded whole in `document`, plus `prd`, `decisions` and `openQuestions`. Confirmed by a human.
+Always the capitalised kind name.
+_Avoid_: style guide, brand book, theme, design tokens (for the kind)
+
+**DESIGN.md**:
+Google Labs' open format for a design system: YAML front matter of tokens and eight ordered
+markdown sections. The `document` of a **DesignSystem**; linted by `designmd/v1`.
+_Avoid_: design.md (the package is `@google/design.md`), design spec
+
 **Design**:
-**Artifact kind** of the AI Native pack: one reusable contract or schema (`type` http-api, async-api,
-data-schema) of one **Architecture** building block, its `document` embedded whole and indexed by
+**Artifact kind** of the AI Native pack: one reusable contract, schema or screen document (`type`
+http-api, async-api, data-schema, ui) of one **Architecture** building block, its `document` embedded whole and indexed by
 `elements` that name what in the **DomainModel** each realises. Shared by every capability of the
 block; a **Spec** never cites one, the Plan does. Always the capitalised kind name.
 _Avoid_: design doc, technical design, design asset, design per capability, API spec (for the kind)
