@@ -1,7 +1,7 @@
 // designmd/v1: the evaluator Role (19-adapter-roles.md) over a DesignSystem's DESIGN.md (32-ui-design-process.md).
 // `evaluate` runs the official linter (`@google/design.md`) on `artifacts.designSystem.content.document.content` and
 // answers a ValidationResult (10-ports.md): an error fails, a warning too when `configuration.failOnWarning`, an info
-// passes through. No Engine callbacks. The only shipped Adapter with an npm dependency; nothing in src/ imports it.
+// passes through. No Engine callbacks. The only shipped Adapter with a dependency beyond `yaml`; nothing in src/ imports it.
 import { createInterface } from 'node:readline'
 import { lint } from '@google/design.md/linter'
 
@@ -20,7 +20,20 @@ function evaluate(payload) {
   const text = artifact.content?.document?.content
   // content that is not a DesignSystem is a finding, never an Adapter error
   if (typeof text !== 'string') return { passed: false, findings: [{ severity: 'error', code: 'not-a-design-system', message: 'content is not a DesignSystem: it has no document.content' }], evidence: [] }
-  const findings = lint(text).findings.map((f) => ({ severity: f.severity, code: f.rule, message: f.path ? `${f.path}: ${f.message}` : f.message }))
+  let report
+  try {
+    report = lint(text)
+  } catch (e) {
+    // the parser gave up: a finding on the document, not an Adapter failure, so the round gets feedback
+    return { passed: false, findings: [{ severity: 'error', code: 'parse', message: e.message }], evidence: [] }
+  }
+  const system = report.designSystem ?? {}
+  // a file whose front matter yields no design system (absent, a list, a scalar) is not a DesignSystem, whatever the linter's severity
+  if (!system.name && !Object.keys(system.colors ?? {}).length) {
+    return { passed: false, findings: [{ severity: 'error', code: 'not-a-design-system', message: 'content is not a DesignSystem: its front matter defines no name and no colors' }], evidence: [] }
+  }
+  // a parse finding has no rule; the model-building findings carry one
+  const findings = report.findings.map((f) => ({ severity: f.severity, code: f.rule ?? 'parse', message: f.path ? `${f.path}: ${f.message}` : f.message }))
   const fail = payload.validator?.configuration?.failOnWarning ? ['error', 'warning'] : ['error']
   return { passed: !findings.some((f) => fail.includes(f.severity)), findings, evidence: [] }
 }

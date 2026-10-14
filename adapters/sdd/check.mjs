@@ -126,8 +126,8 @@ export function checkPrd({ prd, rules }) {
   return findings
 }
 
-// `ids.designSystem` is the bound DesignSystem's artifact id, which a content never carries; a ui Design must cite it
-// (32-ui-design-process.md).
+// `ids.designSystem` is the bound DesignSystem's artifact id, which a content never carries; a ui Design must cite it and
+// the Validator must have it bound, or the citation is unchecked (32-ui-design-process.md).
 export function checkDesign({ design, architecture, domainModel, rules, ids = {} }) {
   if (!design || !Array.isArray(design.elements) || !design.type) {
     return [{ severity: 'error', code: 'not-a-design', message: 'content is not a Design: it has no elements array or no type' }]
@@ -144,7 +144,8 @@ export function checkDesign({ design, architecture, domainModel, rules, ids = {}
   if (!mediaTypes[design.type]?.includes(mediaType)) bad('type-mediatype', `type ${design.type} does not carry a document of mediaType ${mediaType}`)
   if (design.type === 'ui') {
     if (design.designSystem === undefined) bad('designsystem-mismatch', 'a ui Design names the DesignSystem its screens follow; designSystem is absent')
-    else if (ids.designSystem && design.designSystem !== ids.designSystem) bad('designsystem-mismatch', `designSystem ${design.designSystem} is not ${ids.designSystem}, the DesignSystem evaluated`)
+    else if (!ids.designSystem) bad('designsystem-mismatch', `designSystem ${design.designSystem} cannot be checked: no DesignSystem is bound to the Validator`)
+    else if (design.designSystem !== ids.designSystem) bad('designsystem-mismatch', `designSystem ${design.designSystem} is not ${ids.designSystem}, the DesignSystem evaluated`)
     if (block && (block.contexts ?? []).length) bad('client-block', `block ${design.block} realises a context; a ui Design belongs to a client block`)
   }
 

@@ -111,6 +111,17 @@ describe('designmd/v1', () => {
     expect(strict.result.passed).toBe(false)
   })
 
+  it('fails front matter that is absent, not a mapping, or unparsable, and keeps a code on every finding', async () => {
+    const none = await adapter({ id: 8, op: 'evaluate', payload: payload(system('## Overview\n\nNo tokens.\n')) })
+    expect(none.result).toEqual({ passed: false, findings: [{ severity: 'error', code: 'not-a-design-system', message: 'content is not a DesignSystem: its front matter defines no name and no colors' }], evidence: [] })
+    const list = await adapter({ id: 9, op: 'evaluate', payload: payload(system('---\n- a\n---\n\n## Overview\n')) })
+    expect(list.result.passed).toBe(false)
+    expect(list.result.findings.map((f: any) => f.code)).toEqual(['not-a-design-system'])
+    const bad = await adapter({ id: 10, op: 'evaluate', payload: payload(system(designMd.replace('primary: "#1A1C1E"', 'primary: notacolor'))) })
+    expect(bad.result.findings.every((f: any) => typeof f.code === 'string' && f.code.length > 0)).toBe(true)
+    expect(bad.result.findings.some((f: any) => f.message.includes('notacolor'))).toBe(true)
+  })
+
   it('fails content that is not a DesignSystem, and reports nothing else', async () => {
     const r = await adapter({ id: 6, op: 'evaluate', payload: payload({ title: 'not a DesignSystem' }) })
     expect(r.result).toEqual({ passed: false, findings: [{ severity: 'error', code: 'not-a-design-system', message: 'content is not a DesignSystem: it has no document.content' }], evidence: [] })

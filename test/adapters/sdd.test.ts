@@ -280,8 +280,8 @@ describe('sdd/v1 over a Design', () => {
 
   it('passes a ui Design of a client block against the DesignSystem bound', async () => {
     expect(await uiCodes(() => {})).toEqual([])
-    const r = await adapter({ id: ++id, op: 'evaluate', payload: payload({ ...designExample(), design: uiDesign() }) }) // no DesignSystem bound: the id is the author's claim
-    expect(r.result).toEqual({ passed: true, findings: [], evidence: [] })
+    const r = await adapter({ id: ++id, op: 'evaluate', payload: payload({ ...designExample(), design: uiDesign() }) }) // no DesignSystem bound: the citation cannot be checked
+    expect(r.result).toMatchObject({ passed: false, findings: [{ code: 'designsystem-mismatch', message: expect.stringContaining('no DesignSystem is bound') }] })
   })
 
   it('fails a ui Design whose document is not markdown, that names no DesignSystem or another, or sits on a block with a context', async () => {
