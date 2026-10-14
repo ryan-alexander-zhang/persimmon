@@ -95,6 +95,11 @@ nothing: the schema refuses those (`minItems: 1`).
   model's `updatedBy` may name another context's event, so the agent stops asking about `Claim
   Paid`. A `delta` that restates a scenario's scope instead of tightening it is not decidable by the
   Validator; it stays with the author. Found in UAT.
+- `spec-rules` says a refusal is its own outcome, naming the `BR-n`, never a domain event and never
+  the empty answer of a search; `storming-design` says a refused command produces no event. The
+  live Spec of a booking capability answered five rule violations with the model's one unhappy
+  event, "no available room found", because nothing had said the two differ and the model had no
+  other shape to reach for. Found in UAT.
 
 ## Examples
 
