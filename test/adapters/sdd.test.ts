@@ -257,6 +257,41 @@ describe('sdd/v1 over a Design', () => {
     expect(await designCodes((a) => { a.design.elements[0].rules = ['BR-11'] })).toEqual(['rules-incomplete']) // BR-11 is active and in no list
   })
 
+  // a ui Design of the web client (32-ui-design-process.md): screens realise read models, actions realise commands
+  const uiDesign = () => ({
+    title: 'web client screens', type: 'ui', architecture: 'expense-claims-architecture', block: 'BB-5', domainModel: 'expenses-model', designSystem: 'expense-claims-design-system',
+    document: { mediaType: 'text/markdown', content: '## My Claims\n\nPurpose: the employee sees their claims.\n\n## Submit a Claim\n' },
+    elements: [
+      { id: 'EL-1', name: 'My Claims', realises: { kind: 'readModel', name: 'My Claims View' } },
+      { id: 'EL-2', name: 'Submit a Claim: Submit', realises: { kind: 'command', name: 'Submit Claim' }, rules: ['BR-1'] },
+    ],
+    rules: ['BR-1'], decisions: [], openQuestions: [],
+  })
+  const uiPayload = (design: any, designSystem = 'expense-claims-design-system') => {
+    const base = payload({ ...designExample(), design })
+    return { ...base, inputs: { designSystem: { kind: 'artifact', ref: { apiVersion: 'sdd.persimmon.ai/v1', kind: 'DesignSystem', namespace: 'demo', id: designSystem, revision: 1 } } } }
+  }
+  const uiCodes = async (mutate: (d: any) => void, designSystem?: string) => {
+    const design = uiDesign()
+    mutate(design)
+    const r = await adapter({ id: ++id, op: 'evaluate', payload: uiPayload(design, designSystem) })
+    return r.result.findings.map((f: { code: string }) => f.code)
+  }
+
+  it('passes a ui Design of a client block against the DesignSystem bound', async () => {
+    expect(await uiCodes(() => {})).toEqual([])
+    const r = await adapter({ id: ++id, op: 'evaluate', payload: payload({ ...designExample(), design: uiDesign() }) }) // no DesignSystem bound: the id is the author's claim
+    expect(r.result).toEqual({ passed: true, findings: [], evidence: [] })
+  })
+
+  it('fails a ui Design whose document is not markdown, that names no DesignSystem or another, or sits on a block with a context', async () => {
+    expect(await uiCodes((d) => { d.document.mediaType = 'application/openapi+yaml' })).toEqual(['type-mediatype'])
+    expect(await uiCodes((d) => { delete d.designSystem })).toEqual(['designsystem-mismatch'])
+    expect(await uiCodes(() => {}, 'other-design-system')).toEqual(['designsystem-mismatch'])
+    expect(await uiCodes((d) => { d.block = 'BB-1' })).toEqual(['client-block'])
+    expect(await uiCodes((d) => { d.elements[0].realises.name = 'Ghost View' })).toEqual(['unknown-realised'])
+  })
+
   it('fails ids that are not unique and increasing', async () => {
     expect(await designCodes((a) => { a.design.elements[2].id = 'EL-2' })).toEqual(['id-sequence'])
     expect(await designCodes((a) => { a.design.openQuestions[0].id = 'Q-0' })).toEqual(['id-sequence'])

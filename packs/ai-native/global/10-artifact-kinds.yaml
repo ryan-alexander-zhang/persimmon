@@ -949,29 +949,30 @@ spec:
         additionalProperties: false
         properties:
           title: {type: string, minLength: 1}
-          type: {enum: [http-api, async-api, data-schema]}
+          type: {enum: [http-api, async-api, data-schema, ui]}
           architecture: {type: string, minLength: 1, description: "artifact id of the Architecture the block is in"}
           block: {type: string, pattern: "^BB-[0-9]+$", description: "the building block this asset belongs to"}
           interface: {type: string, minLength: 1, description: "for an API: the name of the interface the block provides (Architecture buildingBlocks[].interfaces[].name)"}
           domainModel: {type: string, minLength: 1, description: "artifact id of the DomainModel the elements realise"}
+          designSystem: {type: string, minLength: 1, description: "for a ui Design: artifact id of the DesignSystem its screens follow (32-ui-design-process.md)"}
           document:
             type: object
             required: [mediaType, content]
             additionalProperties: false
             properties:
-              mediaType: {enum: [application/openapi+yaml, application/asyncapi+yaml, application/schema+json, application/sql]}
-              content: {type: string, minLength: 1, description: "the contract whole: OpenAPI 3.1, AsyncAPI 3, JSON Schema or DDL"}
+              mediaType: {enum: [application/openapi+yaml, application/asyncapi+yaml, application/schema+json, application/sql, text/markdown]}
+              content: {type: string, minLength: 1, description: "the contract whole: OpenAPI 3.1, AsyncAPI 3, JSON Schema, DDL, or a ui Design's screen sections"}
           elements:
             type: array
             minItems: 1
-            description: "the index of the document: one per operation, channel, message or table; what the Validator checks against the DomainModel"
+            description: "the index of the document: one per operation, channel, message or table, or per screen and action of a ui Design; what the Validator checks against the DomainModel"
             items:
               type: object
               required: [id, name, realises]
               additionalProperties: false
               properties:
                 id: {type: string, pattern: "^EL-[0-9]+$"}
-                name: {type: string, minLength: 1, description: "as the document names it: 'POST /claims', 'claim.submitted', 'claim_line'"}
+                name: {type: string, minLength: 1, description: "as the document names it: 'POST /claims', 'claim.submitted', 'claim_line', 'Door Status', 'Book a Room: Book'"}
                 realises:
                   type: object
                   required: [kind, name]
@@ -982,6 +983,47 @@ spec:
                 rules: {type: array, items: {type: string, pattern: "^BR-[0-9]+$"}, description: "the rules this element's refusals or constraints enforce"}
           rules: {type: array, items: {type: string, pattern: "^BR-[0-9]+$"}, description: "every rule the document enforces; the union of the elements'"}
           decisions: {type: array, items: {type: string, minLength: 1}, description: "Adr artifact ids taken for this asset"}
+          openQuestions:
+            type: array
+            items:
+              type: object
+              required: [id, question]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^Q-[0-9]+$"}
+                question: {type: string, minLength: 1}
+                resolution: {type: string}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"
+---
+# The product's visual language, once per product, as a DESIGN.md file (Google Labs' open format) embedded whole:
+# tokens in YAML front matter, eight ordered sections of rationale. The pack adds its links only; the file is the truth
+# and the official linter checks it (32-ui-design-process.md). A ui Design cites it by id.
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata: {name: designsystems.sdd.persimmon.ai}
+spec:
+  group: sdd.persimmon.ai
+  names: {kind: DesignSystem, plural: designsystems}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [title, prd, document, decisions, openQuestions]
+        additionalProperties: false
+        properties:
+          title: {type: string, minLength: 1}
+          prd: {type: string, minLength: 1, description: "artifact id of the Prd of the product"}
+          document:
+            type: object
+            required: [mediaType, content]
+            additionalProperties: false
+            properties:
+              mediaType: {enum: [text/markdown]}
+              content: {type: string, minLength: 1, description: "the DESIGN.md whole: YAML front matter of tokens, then the sections Overview, Colors, Typography, Layout, Elevation & Depth, Shapes, Components, Do's and Don'ts"}
+          decisions: {type: array, items: {type: string, minLength: 1}, description: "Adr artifact ids taken for the visual language"}
           openQuestions:
             type: array
             items:

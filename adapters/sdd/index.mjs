@@ -1,7 +1,7 @@
 // sdd/v1: the evaluator Role (19-adapter-roles.md) over the AI Native pack (23-pack-ai-native.md), in four modes.
 // Given a Spec, `evaluate` runs `checkSpec` on it and the Prd, DomainModel, Architecture and BusinessRules it cites;
 // given a Prd, it runs `checkPrd` on it and the BusinessRules of its context; given a Design, it runs `checkDesign` on
-// it and the Architecture, DomainModel and BusinessRules it cites; given a Plan, it runs `checkPlan` on it, the Spec,
+// it and the Architecture, DomainModel and BusinessRules it cites (a ui Design also the DesignSystem bound); given a Plan, it runs `checkPlan` on it, the Spec,
 // the Architecture and the Designs (an artifacts port, paired with inputs.designs.refs by position); given an Architecture
 // and no Spec, Design or Plan, it runs `checkArchitecture` on it, the Prd, the rules, the contexts, models, glossaries and
 // Adrs (artifacts ports, paired the same way). It answers a ValidationResult (10-ports.md). No Engine callbacks.
@@ -56,6 +56,7 @@ function evaluate(payload) {
         architecture: required(artifacts, 'architecture'),
         domainModel: required(artifacts, 'domainModel'),
         rules: required(artifacts, 'rules'),
+        ids: { designSystem: payload.inputs?.designSystem?.ref?.id },
       })
       return { passed: findings.length === 0, findings, evidence: [] }
     }
