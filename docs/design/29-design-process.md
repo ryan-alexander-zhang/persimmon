@@ -51,7 +51,7 @@ The Adapter picks the mode from the payload: `artifacts.spec` (or `artifacts.mod
 | Rule | Enforcer |
 |---|---|
 | the document is the truth, the index its checked view: a Validator never parses the contract today, so an operation without an element, or an element without an operation, is not a finding until the contract evaluator lands (`91-roadmap.md`) | convention; roadmap |
-| one Design per block and type by `design-all`; a block with two provided interfaces gets the second from a direct `design-one` run with `interface` bound; the two are told apart by `interface` | `design-rules`; `design-all` runs once per type |
+| one Design per block and type by `design-all`, id `<architecture>-<block>-<type>`; a block with two provided interfaces, or realising two contexts, gets its second Design of a type from a run with `qualifier` bound (`interface` beside it for an API), which the id carries: `<architecture>-<block>-<qualifier>-<type>` | `design-rules`; `design-asset` output id |
 | `decisions[]` is not checked: no Adr is in the Validator's payload; the Architecture lists its Adrs and the Prompt picks from that list | convention; Validator later |
 | a `data-schema` asset realises aggregates (`AG-n`), an `http-api` commands and read models, an `async-api` events; an asset of one type may still index the other kinds (an API that also serves an event feed) | `design-rules` |
 | a Design cites Architecture, DomainModel, Glossary, BusinessRules and Adrs; never a Spec or a Prd: the contract follows from the domain and the block, not from one capability | `design-rules`; convention |
@@ -81,6 +81,14 @@ The Adapter picks the mode from the payload: `artifacts.spec` (or `artifacts.mod
   block declared "Node service, SQLite" was PostgreSQL DDL (`EXTRACT`, `INTERVAL`), and nothing in
   `checkDesign` reads `technology`. A dialect check is the Design evaluator's job (roadmap); the
   prompt says it now. Found in UAT.
+
+- `qualifier` in the Design id: the id was `<architecture>-<block>-<type>`, so the second API of a
+  block, or the schema of its second context, published revision 2 of the first Design instead of a
+  second one; example07's `BB-1` provided four interfaces and only one was designed, so it never
+  showed, and example08's one service block realises two contexts. The caller names the qualifier
+  (an interface or a context as a label), as every id stem in the pack is caller-named; the id stays
+  unchanged when no qualifier is bound. `design-all` takes `interface` and `qualifier` too, so a run
+  over blocks can bind one interface. Found in UAT (example08).
 
 ## Examples
 

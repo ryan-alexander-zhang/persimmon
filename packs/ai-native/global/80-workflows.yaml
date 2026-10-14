@@ -322,6 +322,7 @@ spec:
     blockId: {type: {kind: value, schema: {type: string, pattern: "^BB-[0-9]+$"}}}
     type: {type: {kind: value, schema: {type: string, enum: [http-api, async-api, data-schema, ui]}}}
     interface: {type: {kind: value, schema: {type: string, minLength: 1}}, required: false}
+    qualifier: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}, required: false}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
@@ -334,6 +335,7 @@ spec:
       blockId: {fromInput: blockId}
       type: {fromInput: type}
       interface: {fromInput: interface}
+      qualifier: {fromInput: qualifier}
       domainModel: {fromInput: domainModel}
       glossary: {fromInput: glossary}
       rules: {fromInput: rules}
@@ -363,6 +365,8 @@ spec:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     blocks: {type: {kind: value, schema: {type: array, minItems: 1, maxItems: 20, items: {type: string, pattern: "^BB-[0-9]+$"}}}}
     type: {type: {kind: value, schema: {type: string, enum: [http-api, async-api, data-schema, ui]}}}
+    interface: {type: {kind: value, schema: {type: string, minLength: 1}}, required: false, description: "one block, one interface: bind it to design a second API of a block"}
+    qualifier: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}, required: false, description: "a label in the Design id when a block gets two Designs of one type"}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
@@ -380,6 +384,8 @@ spec:
         architecture: {fromInput: architecture}
         blockId: {expression: "inputs.blocks[state.index - 1]"}
         type: {fromInput: type}
+        interface: {fromInput: interface, onMissing: omit}
+        qualifier: {fromInput: qualifier, onMissing: omit}
         domainModel: {fromInput: domainModel}
         glossary: {fromInput: glossary}
         rules: {fromInput: rules}

@@ -191,6 +191,7 @@ spec:
     blockId: {type: {kind: value, schema: {type: string, pattern: "^BB-[0-9]+$"}}}
     type: {type: {kind: value, schema: {type: string, enum: [http-api, async-api, data-schema, ui]}}}
     interface: {type: {kind: value, schema: {type: string, minLength: 1}}, required: false}
+    qualifier: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}, required: false, description: "tells two Designs of one block and type apart in the id (a block with two APIs, or realising two contexts): the interface or the context, as a label (29-design-process.md)"}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
@@ -199,7 +200,7 @@ spec:
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
   outputs:
-    design: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, id: {expression: "inputs.architecture.id + '-' + inputs.blockId.lowerAscii() + '-' + inputs.type"}}
+    design: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, id: {expression: "inputs.architecture.id + '-' + inputs.blockId.lowerAscii() + (has(inputs.qualifier) ? '-' + inputs.qualifier : '') + '-' + inputs.type"}}
   executorRef: {kind: Executor, name: design-agent}
   action:
     instructions: |
