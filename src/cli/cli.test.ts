@@ -282,6 +282,10 @@ describe('persimmon CLI', () => {
     // a ref on an artifact port must be in the store before the run exists
     expect(await run('run', 'prd-approval', '--input', 'prd={kind: artifact, ref: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement, namespace: default, id: spec-1, revision: 9}}')).toBe(1)
     expect(err.at(-1)).toMatch(/--input prd: ProductRequirement spec-1 revision 9 is not in the store/)
+    expect(await run('run', 'prd-approval', '--input', 'prd={kind: artifact, ref: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement, namespace: other, id: spec-1, revision: 1}}')).toBe(1)
+    expect(err.at(-1)).toMatch(/--input prd: ProductRequirement spec-1 is in Namespace other, not the run's/)
+    out = []
+    expect(await run('run', 'prd-approval', '--input', 'prd={kind: artifact, ref: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement, id: spec-1, revision: 1}}')).toBe(0) // a bare ref is in the run's Namespace
     const wrong = { ...prdDoc, metadata: { name: 'spec-1.r3' }, spec: { ...prdDoc.spec, identity: { id: 'spec-1', revision: 3 } } }
     expect(await run('create', file('prd3.yaml', [wrong]))).toBe(1)
     expect(err.at(-1)).toMatch(/revision 3 is not the next one \(2\)/)
@@ -297,6 +301,9 @@ describe('persimmon CLI', () => {
     expect(await run('get', 'ProductRequirement/spec-1')).toBe(0) // a bare id: the latest revision
     expect(parse(out.join('\n')).metadata.name).toBe('spec-1.r2')
     expect(await run('get', 'ProductRequirement/spec-9')).toBe(1)
+    expect(await run('delete', 'ProductRequirement/spec-1')).toBe(1) // delete never falls back to a revision
+    expect(err.at(-1)).toMatch(/not found/)
+    expect(await run('get', 'Task/write')).toBe(1) // a non-revisioned kind: no glob over write-prd
     // an artifacts port takes a list: a revision document is stored, a RevisionRef is taken as is
     const pk = { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement' }
     const pair = { apiVersion: 'persimmon.ai/v1', kind: 'Task', metadata: { name: 'pair' }, spec: { inputs: { prds: { type: { kind: 'artifacts', artifactKind: pk } } }, outputs: { result: { type: { kind: 'value', schema: { $ref: 'persimmon.ai/v1#/ValidationResult' } } } }, executorRef: { kind: 'Executor', name: 'local-reviewer' }, action: { instructions: 'Compare', context: [{ kind: 'artifact', input: 'prds' }] }, timeout: '1h', sideEffects: 'none' } }

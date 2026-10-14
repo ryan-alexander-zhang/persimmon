@@ -50,9 +50,14 @@ export async function checkBatch(docs: unknown[], base?: Engine): Promise<Checke
     // definitions first, so Workflows see their Tasks whatever the file order; what a kind's order cannot settle (a
     // Workflow stepping into a ReviewLoop, a ReviewLoop producing with a Workflow) gets a second pass once everything else is in
     const ordered = [...docs].sort((a, b) => rank(a) - rank(b))
-    const retry: unknown[] = []
+    let retry: unknown[] = []
     for (const doc of ordered) if (!(await check(doc))) retry.push(doc)
-    for (const doc of retry) await check(doc)
+    for (let before = retry.length + 1; retry.length && retry.length < before; ) {
+      before = retry.length
+      const again: unknown[] = []
+      for (const doc of retry) if (!(await check(doc))) again.push(doc)
+      retry = again // a pass that settled nothing ends it: what is left is a real error
+    }
     return ordered.map((doc) => out.get(doc)!)
   } finally {
     await engine.close()

@@ -223,6 +223,7 @@ async function artifactInputs(engine: Engine, wf: Resource | undefined, doc: Res
     const kind = ports[port]?.type.kind
     if (v.kind !== 'value') continue
     if (kind === 'artifact' && isDoc(v.value)) spec.inputs[port] = { kind: 'artifact', ref: await store(port, v.value) } as never
+    else if (kind === 'artifact' && (v.value as Partial<RevisionRef> | undefined)?.id) spec.inputs[port] = { kind: 'artifact', ref: { ...(v.value as RevisionRef), namespace: (v.value as RevisionRef).namespace ?? doc.metadata.namespace! } } as never // a bare ref is in the run's Namespace, as a list item is
     if (kind === 'artifacts' && Array.isArray(v.value)) {
       const refs: RevisionRef[] = []
       for (const [i, item] of v.value.entries()) {
@@ -235,8 +236,11 @@ async function artifactInputs(engine: Engine, wf: Resource | undefined, doc: Res
     }
   }
   for (const [port, v] of Object.entries(spec.inputs as Record<string, { kind: string; ref?: RevisionRef; refs?: RevisionRef[] }>))
-    for (const ref of v.kind === 'artifact' && v.ref ? [v.ref] : v.kind === 'artifacts' ? (v.refs ?? []) : [])
+    for (const ref of v.kind === 'artifact' && v.ref ? [v.ref] : v.kind === 'artifacts' ? (v.refs ?? []) : []) {
+      if (!ref.namespace) ref.namespace = doc.metadata.namespace! // a RuntimeValue given whole, without a Namespace
+      if (ref.namespace !== doc.metadata.namespace) throw new Error(`--input ${port}: ${ref.kind} ${ref.id} is in Namespace ${ref.namespace}, not the run's (00-resource.md)`)
       if (!engine.store.resources.get({ kind: ref.kind, namespace: ref.namespace, name: `${ref.id}.r${ref.revision}` })) throw new Error(`--input ${port}: ${ref.kind} ${ref.id} revision ${ref.revision} is not in the store`) // refuse here, not inside the first Task
+    }
 }
 
 /** The run's Workflow, or a composition expanding to one (21-composition.md): its Namespace first, then Global. `workflowRef.kind` is set to what was found. */

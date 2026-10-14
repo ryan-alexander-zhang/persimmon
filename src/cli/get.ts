@@ -16,7 +16,7 @@ export async function get(cli: Cli, ref: string, o: Where = {}): Promise<number>
     async (engine) => {
       const { kind, name } = parseRef(ref)
       if (name) {
-        const r = find(engine, kind, name, o)
+        const r = findOrLatest(engine, kind, name, o)
         if (!r) {
           cli.err(`${kind}/${name} not found`)
           return 1
@@ -40,7 +40,7 @@ export async function logs(cli: Cli, ref: string, o: Where = {}): Promise<number
     cli,
     async (engine) => {
       const { kind, name } = parseRef(ref)
-      const r = name && find(engine, kind, name, o)
+      const r = name && findOrLatest(engine, kind, name, o)
       if (!r) {
         cli.err(`${ref} not found`)
         return 1
@@ -57,9 +57,24 @@ export async function logs(cli: Cli, ref: string, o: Where = {}): Promise<number
 }
 
 /** `--global` or `-n` when given; else defaultNamespace, then Global: the LocalDefinitionRef order (00-resource.md). */
-export function find(engine: { store: { resources: { get(ref: { kind: string; namespace?: string; name: string }): Resource | undefined; listRevisions(kind: string, namespace: string, id: string): Resource[] } }; dispatch: { defaultNamespace: string } }, kind: string, name: string, o: Where = {}): Resource | undefined {
-  const latest = (namespace: string) => engine.store.resources.listRevisions(kind, namespace, name).at(-1) // a bare artifact id: its latest committed revision
+export function find(engine: Finder, kind: string, name: string, o: Where = {}): Resource | undefined {
   if (o.global) return engine.store.resources.get({ kind, name })
-  if (o.namespace) return engine.store.resources.get({ kind, namespace: o.namespace, name }) ?? latest(o.namespace)
-  return engine.store.resources.get({ kind, namespace: engine.dispatch.defaultNamespace, name }) ?? engine.store.resources.get({ kind, name }) ?? latest(engine.dispatch.defaultNamespace)
+  if (o.namespace) return engine.store.resources.get({ kind, namespace: o.namespace, name })
+  return engine.store.resources.get({ kind, namespace: engine.dispatch.defaultNamespace, name }) ?? engine.store.resources.get({ kind, name })
+}
+
+/** `find`, and for a revisioned kind a bare artifact id answers its latest committed revision; `get`, `describe`, `logs` and `tree` read this way, `delete` never does. */
+export function findOrLatest(engine: Finder, kind: string, name: string, o: Where = {}): Resource | undefined {
+  const found = find(engine, kind, name, o)
+  if (found || o.global || !engine.kinds.byKind(kind)?.definition.spec.revisioned) return found
+  return engine.store.resources
+    .listRevisions(kind, o.namespace ?? engine.dispatch.defaultNamespace, name)
+    .filter((r) => (r.spec as { identity?: { id?: string } }).identity?.id === name) // the glob also matches a longer name
+    .at(-1)
+}
+
+interface Finder {
+  store: { resources: { get(ref: { kind: string; namespace?: string; name: string }): Resource | undefined; listRevisions(kind: string, namespace: string, id: string): Resource[] } }
+  dispatch: { defaultNamespace: string }
+  kinds: { byKind(kind: string): { definition: { spec: { revisioned?: boolean } } } | undefined }
 }
