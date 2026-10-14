@@ -6,10 +6,12 @@ metadata: {name: storm-big-picture}
 spec:
   inputs:
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
   produce:
     uses: {kind: Task, name: event-storm}
     inputs:
       prd: {fromInput: prd}
+      rules: {fromInput: rules}
       level: {literal: big-picture}
     timeout: 30m
   review:
@@ -30,11 +32,13 @@ metadata: {name: storm-process}
 spec:
   inputs:
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
   produce:
     uses: {kind: Task, name: event-storm}
     inputs:
       prd: {fromInput: prd}
+      rules: {fromInput: rules}
       base: {fromInput: base}
       level: {literal: process}
     timeout: 30m
@@ -56,11 +60,13 @@ metadata: {name: storm-design}
 spec:
   inputs:
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
   produce:
     uses: {kind: Task, name: event-storm}
     inputs:
       prd: {fromInput: prd}
+      rules: {fromInput: rules}
       base: {fromInput: base}
       level: {literal: design}
     timeout: 30m
@@ -84,12 +90,14 @@ spec:
   inputs:
     model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
     contextId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}
   produce:
     uses: {kind: Task, name: derive-domain}
     inputs:
       model: {fromInput: model}
       prd: {fromInput: prd}
+      rules: {fromInput: rules}
       contextId: {fromInput: contextId}
     timeout: 30m
   review:
@@ -113,6 +121,7 @@ spec:
   inputs:
     model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
     contexts: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}}
   outputs:
     derived: {type: {kind: value, schema: {type: integer}}}
@@ -125,6 +134,7 @@ spec:
       inputs:
         model: {fromInput: model}
         prd: {fromInput: prd}
+        rules: {fromInput: rules}
         contextId: {expression: "inputs.contexts[state.index - 1]"}
       timeout: 12h
       repeat:
@@ -145,13 +155,14 @@ spec:
       dispatch: first
   timeout: 12h
 ---
-# Prd in, a design-level model and one derived context per storming context out.
+# Prd and its rules in, a design-level model and one derived context per storming context out.
 apiVersion: persimmon.ai/v1
 kind: Pipeline
 metadata: {name: domain-discovery}
 spec:
   inputs:
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
   outputs:
     model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
     derived: {type: {kind: value, schema: {type: integer}}}
@@ -161,18 +172,20 @@ spec:
   phases:
     - id: big-picture
       uses: {kind: ReviewLoop, name: storm-big-picture}
-      inputs: {prd: {fromInput: prd}}
+      inputs: {prd: {fromInput: prd}, rules: {fromInput: rules}}
       timeout: 240h
     - id: process
       uses: {kind: ReviewLoop, name: storm-process}
       inputs:
         prd: {fromInput: prd}
+        rules: {fromInput: rules}
         base: {fromStep: {stepRef: big-picture, output: model}}
       timeout: 240h
     - id: design
       uses: {kind: ReviewLoop, name: storm-design}
       inputs:
         prd: {fromInput: prd}
+        rules: {fromInput: rules}
         base: {fromStep: {stepRef: process, output: model}}
       timeout: 240h
     - id: derive
@@ -180,6 +193,7 @@ spec:
       inputs:
         model: {fromStep: {stepRef: design, output: model}}
         prd: {fromInput: prd}
+        rules: {fromInput: rules}
         contexts: {fromStep: {stepRef: design, output: contexts}}
       timeout: 12h
   timeout: 800h

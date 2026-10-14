@@ -37,15 +37,15 @@ thing is defined.
 | Member | Content |
 |---|---|
 | Prompts `storming-dsl`, `storming-big-picture`, `storming-process`, `storming-design`, `derive-domain-rules` | the old tool's skill references as Prompt text; the design Prompt carries the context map |
-| Task `event-storm` | inputs `prd`, `level`, `base` (the phase before), `previous` (this phase's last round), `feedback`; outputs `model`, `contexts` (the ids in order); an unknown is a hotspot, never a question |
+| Task `event-storm` | inputs `prd`, `rules` (optional, the BusinessRules the Prd cites), `level`, `base` (the phase before), `previous` (this phase's last round), `feedback`; outputs `model`, `contexts` (the ids in order); an unknown is a hotspot, never a question |
 | Task `confirm-storming` | human on `cli-human/v1`: open the model in `persimmon ui`, approve or reject with one finding per node, edge or context |
 | Validators | `eventstorming-grammar` with `level`; `storming-confirmed` over `confirm-storming`; `domain-consistency`: `eventstorming/v1` with `model`, `domainModel` and `context`, the grammar's `checkDerived` |
 | Gates | `storming-gate` (grammar and confirmed, `all`); `derived-gate` (consistency) |
-| ReviewLoops `storm-big-picture`, `storm-process`, `storm-design` | `produce` `event-storm` with the level as a literal, `review` `storming-gate`, `maxRounds: 3`; `process` and `design` take `base` from the phase before |
-| Task `derive-domain` | inputs `model`, `contextId`, `prd`; outputs `context`, `glossary`, `domainModel`; a projection, invents nothing |
+| ReviewLoops `storm-big-picture`, `storm-process`, `storm-design` | `produce` `event-storm` with the level as a literal, `review` `storming-gate`, `maxRounds: 3`; `process` and `design` take `base` from the phase before; all three take `rules` (optional) |
+| Task `derive-domain` | inputs `model`, `contextId`, `prd`, `rules` (optional); outputs `context`, `glossary`, `domainModel`; a projection, invents nothing |
 | ReviewLoop `derive-one` | `produce` `derive-domain`, `review` `derived-gate`, `maxRounds: 2`; the consistency findings go back as `feedback` with the last `domainModel` as `previous` |
 | Workflow `derive-all` | `repeat` over `contexts`: state `index` only, body `contextId: {expression: "inputs.contexts[state.index - 1]"}`, `until: !iteration.outputs.passed || iteration.index >= inputs.contexts.size()`; a context the loop could not derive ends the run `derivation_inconsistent` |
-| Pipeline `domain-discovery` | the three loops then `derive-all`; a loop phase routes on its `passed` (`21-composition.md`), so an exhausted phase ends the run `<phase>_rejected`; outputs `model` and `derived` |
+| Pipeline `domain-discovery` | inputs `prd` and `rules` (optional), handed to every phase; the three loops then `derive-all`; a loop phase routes on its `passed` (`21-composition.md`), so an exhausted phase ends the run `<phase>_rejected`; outputs `model` and `derived` |
 
 Two Layer 1 changes this needed, each its own unit: `state.<var>` readable in expressions inside
 `repeat` (`10-ports.md`, `11-workflow.md`), and a ReviewLoop surfacing every `produce` output
@@ -108,6 +108,11 @@ when `artifacts.domainModel` is present; `passed` iff no error. Labels compare e
   of human gating, with no word to the agent; the consistency findings name the labels, so they are the
   feedback. A design-level policy without `execution` is a grammar error, since the DomainModel
   requires it and the gate must refuse what the derivation cannot carry. Found in audit.
+- The storming and derivation Tasks take the Prd's `BusinessRules` as context, optional: a Prd
+  carries no rule text, only `BR-n` citations, so the big-picture agent raised a hotspot on a
+  walk-in limit `BR-10` already stated, and the design-level agent modelled constraints from
+  capability descriptions, then asked for the rule text in a hotspot. The human pasted the rules
+  into a finding. Optional, so a Prd without rules still storms. Found in UAT.
 
 ## Examples
 

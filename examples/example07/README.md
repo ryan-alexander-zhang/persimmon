@@ -62,7 +62,8 @@ A rejection starts round two with your findings; three rounds at most. The outpu
 ### 3. Domain discovery
 
 ```sh
-persimmon run domain-discovery --input 'prd={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: Prd, namespace: default, id: room-booking-prd, revision: <n>}}' --follow
+persimmon run domain-discovery --input 'prd={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: Prd, namespace: default, id: room-booking-prd, revision: <n>}}' \\
+  --input 'rules={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules, namespace: default, id: room-booking-rules, revision: <n>}}' --follow
 ```
 
 Three Gates in a row, one per storming level: big picture, process, design. Each parks on you

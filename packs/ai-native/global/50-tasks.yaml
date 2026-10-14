@@ -7,6 +7,7 @@ spec:
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
     level: {type: {kind: value, schema: {type: string, enum: [big-picture, process, design]}}}
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}, required: false}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
   outputs:
@@ -19,13 +20,16 @@ spec:
       the phase prompt in your context. Start from `previous` (this phase's last round) when bound, else from `base`
       (the phase before), else from the Prd alone: keep every id and order that still holds, add what the phase adds,
       and fix what `feedback` found (each finding names a node, an edge or a context). Publish the whole model as `model` with `meta.level` equal to `level`, and
-      answer `contexts` with the ids of `contexts[]` in order. Ask nothing: an unknown is a hotspot.
+      answer `contexts` with the ids of `contexts[]` in order. Ask nothing: an unknown is a hotspot. The BusinessRules
+      in your context are the rules the Prd cites by `BR-n`: a limit, a window or a permission a rule states is a
+      constraint or a policy parameter, never a hotspot.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: storming-dsl}}
       - {kind: prompt, ref: {kind: Prompt, name: storming-big-picture}}
       - {kind: prompt, ref: {kind: Prompt, name: storming-process}}
       - {kind: prompt, ref: {kind: Prompt, name: storming-design}}
       - {kind: artifact, input: prd}
+      - {kind: artifact, input: rules}
       - {kind: artifact, input: base}
       - {kind: artifact, input: previous}
     parameters: {effort: high}
@@ -60,6 +64,7 @@ spec:
     model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
     contextId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
   outputs:
@@ -70,7 +75,7 @@ spec:
   action:
     instructions: |
       Derive the BoundedContext, the Glossary and the DomainModel of the storming context whose id is `contextId`,
-      from the design-level model and the Prd, following the derivation rules in your context. Cite the storming
+      from the design-level model, the Prd and its rules, following the derivation rules in your context. Cite the storming
       context id in `glossary.context` and `domainModel.context` (the engine names the BoundedContext artifact it
       publishes for you); `source` is the model's artifact id. Invent nothing; leave empty what the model does not say.
       With `previous` and `feedback` bound, the consistency check refused the last derivation: every finding names
@@ -79,6 +84,7 @@ spec:
       - {kind: prompt, ref: {kind: Prompt, name: derive-domain-rules}}
       - {kind: artifact, input: model}
       - {kind: artifact, input: prd}
+      - {kind: artifact, input: rules}
       - {kind: artifact, input: previous}
     parameters: {effort: high}
   timeout: 30m
