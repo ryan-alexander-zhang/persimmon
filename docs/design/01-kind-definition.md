@@ -107,8 +107,10 @@ the target's rules, and the snapshot walk stores the expansion in place of the R
   is "what is stored still validates"; a list of allowed edits (an optional property, a wider enum)
   approximates it and misses cases both ways, and checking the revisions is exact and cheap in local
   mode. Nothing is rewritten: a migration stays roadmap. A run in flight keeps the definition its
-  snapshot froze (`04-snapshot.md`) and may still commit under it; the next change to the kind then
-  stops on that revision. Two UATs in one week moved to a fresh project because the AI Native pack
+  snapshot froze (`04-snapshot.md`): its publishes validate against the frozen schema, so it may
+  still commit a revision the live one refuses, and the next change to the kind then stops on that
+  revision. A revision staged before the apply and committed after it is the same case. The
+  definition is found by name, so a renamed kind or version is the same change and refused. Two UATs in one week moved to a fresh project because the AI Native pack
   changed the Design kind (`32-ui-design-process.md`). Found in UAT.
 
 

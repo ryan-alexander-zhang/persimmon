@@ -8,6 +8,7 @@ import { KindRegistry } from '../kind-definition/registry.js'
 import type { OutboxEvent } from '../outbox/event.js'
 import type { Resource } from '../resource/types.js'
 import { liveResolver } from '../snapshot/resolver.js'
+import { storeClosure } from '../snapshot/snapshot.js'
 import type { Closure } from '../snapshot/walk.js'
 import { SqliteStore } from '../store/sqlite.js'
 import { memoryBlobs } from '../store/test-util.js'
@@ -38,7 +39,8 @@ describe('commit', () => {
     adapters.register(example('adapter-claude-code'))
     for (const r of closure.resources.filter((r) => r.kind !== 'KindDefinition')) store.resources.put(fresh(r as Resource))
     engine = { store, kinds, handlers, adapters, resolver: liveResolver(kinds, store, adapters), defaultNamespace: 'default', now: () => new Date('2026-09-21T10:00:00Z'), maxCausationDepth: 32, defaultCallDeadlineMs: 3_600_000 }
-    owner = store.resources.put({ ...fresh(example('resource-namespaced')), metadata: { ...fresh(example('resource-namespaced')).metadata, snapshot: example('resource-namespaced').metadata.snapshot } })
+    const snapshot = storeClosure(closure, store.snapshots) // the closure the runs' snapshot names, so a publish reads its frozen schema
+    owner = store.resources.put({ ...fresh(example('resource-namespaced')), metadata: { ...fresh(example('resource-namespaced')).metadata, snapshot } })
     const c = fresh(example('resource-child'))
     c.metadata.ownerReferences = [{ apiVersion: 'persimmon.ai/v1', kind: 'WorkflowRun', namespace: 'demo', name: owner.metadata.name, uid: owner.metadata.uid! }]
     c.metadata.snapshot = owner.metadata.snapshot!
@@ -113,6 +115,18 @@ describe('commit', () => {
     expect((rev.status as { contentDigest: string }).contentDigest).toMatch(/^sha256:/)
     expect(outbox()[0]).toMatchObject({ type: 'artifact.published', subject: { id: 'research-checkout-v2', revision: 1 } })
     expect(store.audit.read(rev.metadata.uid!)[0]?.change).toBe('create')
+  })
+
+  it('a publish validates against the schema the producer\'s snapshot froze, not the live one', async () => {
+    const narrowed = example('kind-definition-researchreport')
+    narrowed.spec.versions[0].schema.required = [...narrowed.spec.versions[0].schema.required, 'nope']
+    engine.kinds.register(narrowed, { replace: true, committed: () => [] }) // the live schema now refuses what the run's closure allows
+    const blob = store.blobs.put(Buffer.from('# research'), 'text/markdown')
+    const publish = { ...(example('reconcile-actions')[2] as Action), representations: [{ name: 'markdown', mediaType: 'text/markdown', digest: blob.digest }] }
+    await commit(engine, commitOf(child, { type: 'Created', sequence: 1, dedupeKey: 'created' }, { actions: [publish] }))
+    expect(store.resources.get({ kind: 'ResearchReport', namespace: 'demo', name: 'research-checkout-v2.r1' })).toBeDefined()
+    const bare = { ...child, metadata: { ...child.metadata, snapshot: undefined } } as Resource // no snapshot: the live schema
+    await expect(commit(engine, commitOf(bare, { type: 'Created', sequence: 2, dedupeKey: 'created-2' }, { actions: [publish] }))).rejects.toThrow(/nope/)
   })
 
   it('reaching a terminal value abandons every open Publication scope', async () => {

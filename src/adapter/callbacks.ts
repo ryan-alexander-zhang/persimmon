@@ -3,7 +3,7 @@ import type { KindRegistry } from '../kind-definition/registry.js'
 import type { HandlerRegistry } from '../handler/registry.js'
 import { type Engine as CommitEngine, reconcileScope, stageRevision } from '../reconcile/apply.js'
 import type { Actor, ObjectRef, Resource, RevisionRef } from '../resource/types.js'
-import { readClosure } from '../snapshot/snapshot.js'
+import { frozenKindVersion, readClosure } from '../snapshot/snapshot.js'
 import type { PublishRequest } from '../reconcile/types.js'
 
 export class CallbackError extends Error {
@@ -103,14 +103,10 @@ export function callback(engine: CallbackEngine, token: string, name: string, ar
 
 /** From the caller's snapshot when it has one, else the live registration. */
 function kindSchema(kinds: KindRegistry, caller: Resource | undefined, apiVersion: string, kind: string, engine: CallbackEngine): { name: string; schema: unknown } {
-  const version = apiVersion.split('/')[1] as string
   if (caller?.metadata.snapshot) {
-    const closure = readClosure(caller.metadata.snapshot, engine.store.snapshots)
-    const kd = closure.resources.find((r) => r.kind === 'KindDefinition' && `${(r.spec as { group: string }).group}/${version}` === apiVersion && (r.spec as { names: { kind: string } }).names.kind === kind)
-    if (!kd) throw new CallbackError('not_found', `${apiVersion} ${kind} not in the caller's snapshot`)
-    const v = (kd.spec as { versions: { name: string; schema: unknown }[] }).versions.find((v) => v.name === version)
-    if (!v) throw new CallbackError('not_found', `${apiVersion} ${kind}: no version ${version}`)
-    return { name: v.name, schema: v.schema }
+    const v = frozenKindVersion(readClosure(caller.metadata.snapshot, engine.store.snapshots), apiVersion, kind)
+    if (!v) throw new CallbackError('not_found', `${apiVersion} ${kind} not in the caller's snapshot`)
+    return v
   }
   const c = kinds.lookup(apiVersion, kind)
   if (!c) throw new CallbackError('not_found', `${apiVersion} ${kind} not registered`)
