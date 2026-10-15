@@ -94,6 +94,12 @@ The Adapter picks the mode from the payload: `artifacts.spec` (or `artifacts.mod
   stay unread, a dialect check is a word list beside this. The first run over the examples found
   example08's fleet API document declared `components` twice, invalid YAML that every earlier gate
   had passed; merged by hand. Found in implementation.
+- Proven live on `claude-sonnet-5`: `design-all` for the Reservation API of example08's `BB-1`
+  passed round one under the contract check, a 283-line OpenAPI document declaring ten operations
+  and an index of ten, none unbacked, none unindexed, two open questions. The run's `qualifier`
+  carried the type by mistake (`reservations-http-api`, so the id ended `-http-api-http-api`): the
+  id template appends `-<type>` itself, and the caller gives the label alone. Found in UAT
+  (example08).
 - `qualifier` in the Design id: the id was `<architecture>-<block>-<type>`, so the second API of a
   block, or the schema of its second context, published revision 2 of the first Design instead of a
   second one; example07's `BB-1` provided four interfaces and only one was designed, so it never
