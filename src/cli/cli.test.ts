@@ -348,7 +348,15 @@ describe('persimmon CLI', () => {
     narrowed.spec.versions[0].schema.required = [...narrowed.spec.versions[0].schema.required, 'tagline']
     out = []
     expect(await run('apply', file('prd-kind-narrow.yaml', [narrowed]))).toBe(1)
-    expect(err.at(-1)).toMatch(/^error KindDefinition\/productrequirements.engineering.persimmon.ai: ProductRequirement\/spec-1.r1 fails the new schema: .*tagline/)
+    expect(err.at(-1)).toMatch(/^error KindDefinition\/productrequirements.engineering.persimmon.ai: ProductRequirement\/default\/spec-1.r1 fails the new schema: .*tagline/)
+    expect(await run('validate', file('prd-kind-narrow.yaml', [narrowed]))).toBe(1) // validate sees the project's revisions too
+    expect(out.some((l) => l.includes('ProductRequirement/default/spec-1.r1 fails the new schema'))).toBe(true)
+    const tagged = { ...prdDoc, metadata: { name: 'spec-1.r1', namespace: 'other' }, spec: { ...prdDoc.spec, content: { ...prdDoc.spec.content, tagline: 'x' } } }
+    expect(await run('create', file('prd-other.yaml', [tagged]))).toBe(0) // a second Namespace; its revision alone fails the next change
+    const typed = structuredClone(widened)
+    typed.spec.versions[0].schema.properties.tagline = { type: 'integer' }
+    expect(await run('apply', file('prd-kind-typed.yaml', [typed]))).toBe(1)
+    expect(err.at(-1)).toMatch(/ProductRequirement\/other\/spec-1.r1 fails the new schema: .*tagline/)
     expect(parseInput('n=12')).toEqual(['n', { kind: 'value', value: 12 }])
     expect(parseInput('s=hello world')).toEqual(['s', { kind: 'value', value: 'hello world' }])
     expect(parseInput('a={kind: artifact, ref: {id: x}}')).toEqual(['a', { kind: 'artifact', ref: { id: 'x' } }])

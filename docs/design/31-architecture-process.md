@@ -116,8 +116,8 @@ else `artifacts.prd`.
   because round two sees only the Architecture (`previous` carries the subject), and "slot n is
   `S-n`" is the one order it can rebuild blind; "keep the first round's order" could not be followed,
   found in audit of the first cut. The field is optional on the kind: an Adr taken outside the loop
-  (the worked example's two) backs no strategy and sits in no slot. A revisioned KindDefinition never
-  changes, so an existing project takes the field only as a fresh project (`91-roadmap.md`). Not
+  (the worked example's two) backs no strategy and sits in no slot. An existing project takes the
+  field on `apply`, an optional property every committed Adr validates under (`01-kind-definition.md`). Not
   rerun live: the check is pure and the next end-to-end UAT records the first conformant Adrs;
   example07's recording predates the slot rule (`adr-2` backs `S-3`) and names no strategy, said in
   its README. Found in UAT; the field built from the roadmap.

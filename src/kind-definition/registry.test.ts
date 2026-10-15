@@ -63,10 +63,14 @@ describe('KindRegistry', () => {
     const narrowed = kd()
     narrowed.spec.versions[0].schema.required = [...narrowed.spec.versions[0].schema.required, 'tagline']
     expect(() => reg.register(narrowed, { replace: true, committed: () => [stored] })).toThrow(/ProductRequirement\/.* fails the new schema: .*tagline/)
+    expect(() => reg.register(narrowed, { replace: true, committed: () => [{ ...stored, metadata: { ...stored.metadata, namespace: 'other' } }] })).toThrow(/ProductRequirement\/other\/.* fails the new schema/)
     expect(() => reg.register(narrowed, { replace: true, committed: () => [] })).not.toThrow() // a fresh project
-    const renamed = kd()
-    renamed.spec.snapshotOnCreate = true
-    expect(() => reg.register(renamed, { replace: true, committed: () => [] })).toThrow(/changes in versions\[\].schema only/)
+    const reshaped = kd()
+    reshaped.spec.snapshotOnCreate = true
+    expect(() => reg.register(reshaped, { replace: true, committed: () => [] })).toThrow(/changes in versions\[\].schema only/)
+    const rebumped = kd()
+    rebumped.spec.versions[0].name = 'v2' // a renamed version: the same definition by name, so the same rule
+    expect(() => reg.register(rebumped, { replace: true, committed: () => [] })).toThrow(/changes in versions\[\].schema only/)
   })
 
   it('validates a WorkflowRun spec and status', () => {

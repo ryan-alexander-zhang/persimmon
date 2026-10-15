@@ -176,7 +176,7 @@ export class Engine {
       const committed = (kind: string) => this.store.resources.list(kind)
       const stagedKd = this.kinds.register(input, { replace: true, dryRun: true, committed }) // validates without touching the registry
       const out = await this.#upsert(stagedKd as unknown as Resource, actor)
-      this.kinds.register(out.resource, { replace: true, committed })
+      this.kinds.register(out.resource, { replace: true, committed: () => [] }) // the dry run checked the revisions; nothing commits between
       return out
     }
     if (input.kind === 'Adapter') {

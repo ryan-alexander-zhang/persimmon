@@ -20,7 +20,8 @@ export async function checkBatch(docs: unknown[], base?: Engine): Promise<Checke
   try {
     await engine.start()
     if (base) for (const kind of ['KindDefinition', 'Handler', 'Adapter']) for (const r of base.store.resources.list(kind)) copy(engine, r)
-    if (base) for (const kd of engine.kinds.definitions()) if (kd.spec.snapshot === 'Definition') for (const r of base.store.resources.list(kd.spec.names.kind)) copy(engine, r)
+    // definitions, so a Workflow sees its Tasks; revisions, so a changed revisioned kind is checked against them (01-kind-definition.md)
+    if (base) for (const kd of engine.kinds.definitions()) if (kd.spec.snapshot === 'Definition' || kd.spec.revisioned) for (const r of base.store.resources.list(kd.spec.names.kind)) copy(engine, r)
     const out = new Map<unknown, Checked>()
     const check = async (doc: unknown): Promise<boolean> => {
       let resource: Resource

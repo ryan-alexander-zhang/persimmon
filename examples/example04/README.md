@@ -36,8 +36,9 @@ $EDITOR templates.yaml
 persimmon apply templates.yaml             # updated Prompt/spec-template; the next run uses it
 ```
 
-The kinds change the same way, in `sdlc.yaml`, with one rule: a revisioned kind never changes
-after registration, so rename it or bump its version, or reset the project.
+The kinds change the same way, in `sdlc.yaml`, with one rule: a revisioned kind's schema may change
+only where every artifact already in the project still validates under it; `apply` names the first
+that does not. A change they cannot pass needs a new kind name or a reset project.
 
 ## Skills
 

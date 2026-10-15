@@ -61,6 +61,9 @@ describe('Engine', () => {
     await expect(engine.apply(prd)).resolves.toMatchObject({ changed: true })
     const moved = { ...prd, spec: { ...prd.spec, snapshotOnCreate: true } }
     await expect(engine.apply(moved)).rejects.toThrow(/changes in versions\[\].schema only/)
+    const report = example('kind-definition-researchreport') // a SpecMutable definition kind re-applies freely
+    report.spec.versions[0].schema.properties.summary = { type: 'string' }
+    await expect(engine.apply(report)).resolves.toMatchObject({ changed: true })
   })
 
   it('a missing Executor credential fails the attempt with permission_denied', async () => {
