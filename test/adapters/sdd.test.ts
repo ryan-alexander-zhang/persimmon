@@ -374,6 +374,24 @@ describe('sdd/v1 over a Design', () => {
     expect(await uiCodes((d) => { d.elements[2].name = 'Ghost: Submit' })).toEqual(['element-unbacked'])
   })
 
+  it('warns on a DDL word the block\'s store lacks, and a warning fails nothing', async () => {
+    const ddl = async (technology: string | undefined, content: string) => {
+      const a = structuredClone(designExample()) as any
+      a.architecture.buildingBlocks[0].technology = technology
+      a.design.type = 'data-schema'
+      a.design.document = { mediaType: 'application/sql', content }
+      a.design.elements = [{ id: 'EL-1', name: 'claim', realises: { kind: 'aggregate', name: 'AG-1' } }]
+      a.design.rules = []
+      return (await adapter({ id: ++id, op: 'evaluate', payload: payload(a) })).result
+    }
+    expect(await ddl('Node service, SQLite', 'CREATE TABLE claim (id TEXT, due TEXT);')).toEqual({ passed: true, findings: [], evidence: [] })
+    expect(await ddl('Node service, SQLite', "CREATE TABLE claim (id TEXT, due TEXT CHECK (due > now() - INTERVAL '1 day'));")).toEqual({ passed: true, findings: [{ severity: 'warning', code: 'dialect', message: expect.stringContaining('INTERVAL is not SQLite') }], evidence: [] })
+    expect(await ddl('Node service, SQLite', '-- INTERVAL in a comment\nCREATE TABLE claim (id TEXT, interval_days INTEGER);')).toEqual({ passed: true, findings: [], evidence: [] }) // a comment, and a word inside an identifier
+    expect(await ddl('PostgreSQL 16', 'CREATE TABLE claim (id INTEGER PRIMARY KEY AUTOINCREMENT);')).toMatchObject({ passed: true, findings: [{ severity: 'warning', code: 'dialect' }] })
+    expect(await ddl(undefined, "CREATE TABLE claim (due TEXT CHECK (due > now() - INTERVAL '1 day'));")).toEqual({ passed: true, findings: [], evidence: [] }) // no store named: no check
+    expect((await ddl('SQLite', "CREATE TABLE claim (due INTERVAL); CREATE TABLE ghost (id TEXT);")).findings.map((f: { code: string; severity: string }) => `${f.severity}:${f.code}`)).toEqual(['error:document-unindexed', 'warning:dialect'])
+  })
+
   it('every example Design indexes exactly what its document declares', () => {
     const files = ['docs/design/examples/ai-native-domain.yaml', 'examples/example07/room-booking-domain.yaml', 'examples/example08/car-pool-domain.yaml']
     for (const f of files) for (const d of parseAllDocuments(readFileSync(join(root, f), 'utf8')).map((x) => x.toJS())) {

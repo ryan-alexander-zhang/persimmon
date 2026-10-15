@@ -16,6 +16,7 @@ const describe = {
   configurationSchema: { type: 'object', additionalProperties: false, properties: {} },
 }
 
+// a warning rides in the result and fails nothing: passed is no error finding (14-gate.md)
 const invalid = (message) => Object.assign(new Error(message), { code: 'invalid_input' })
 const required = (artifacts, name) => {
   const artifact = artifacts[name]
@@ -38,7 +39,7 @@ function evaluate(payload) {
     const designs = boundDesigns(payload, artifacts)
     const ids = { spec: payload.inputs?.spec?.ref?.id, architecture: payload.inputs?.architecture?.ref?.id }
     const findings = checkPlan({ plan, spec: required(artifacts, 'spec'), architecture: required(artifacts, 'architecture'), designs, ids })
-    return { passed: findings.length === 0, findings, evidence: [] }
+    return { passed: !findings.some((f) => f.severity === 'error'), findings, evidence: [] }
   }
   const idsOf = (port) => (payload.inputs?.[port]?.refs ?? []).map((r) => r.id)
   // the artifact under evaluation is artifacts.spec; the conformance suite names it artifacts.model (22-conformance.md)
@@ -50,7 +51,7 @@ function evaluate(payload) {
       const adrs = Object.fromEntries((artifacts.adrs ?? []).map((d, i) => [idsOf('adrs')[i], d.content]))
       const ids = { prd: payload.inputs?.prd?.ref?.id, contexts: idsOf('contexts'), domainModels: idsOf('domainModels'), glossaries: idsOf('glossaries'), adrs: idsOf('adrs') }
       const findings = checkArchitecture({ architecture, prd: required(artifacts, 'prd'), rules: required(artifacts, 'rules'), ids, adrs })
-      return { passed: findings.length === 0, findings, evidence: [] }
+      return { passed: !findings.some((f) => f.severity === 'error'), findings, evidence: [] }
     }
     if (!artifacts.prd) {
       if (!artifacts.design) throw invalid('artifacts.spec, artifacts.prd, artifacts.design, artifacts.architecture or artifacts.plan is required')
@@ -65,14 +66,14 @@ function evaluate(payload) {
         designs: boundDesigns(payload, artifacts),
         ids: { designSystem: payload.inputs?.designSystem?.ref?.id },
       })
-      return { passed: findings.length === 0, findings, evidence: [] }
+      return { passed: !findings.some((f) => f.severity === 'error'), findings, evidence: [] }
     }
     const prd = required(artifacts, 'prd')
     // same stance as not-a-spec: content that is not a Prd is a finding, before the rules are required
     const notAPrd = checkPrd({ prd }).filter((f) => f.code === 'not-a-prd')
     if (notAPrd.length) return { passed: false, findings: notAPrd, evidence: [] }
     const findings = checkPrd({ prd, rules: required(artifacts, 'rules'), previousRules: artifacts.previousRules?.content, feedback: payload.inputs?.feedback?.value })
-    return { passed: findings.length === 0, findings, evidence: [] }
+    return { passed: !findings.some((f) => f.severity === 'error'), findings, evidence: [] }
   }
   const spec = required({ spec: artifacts.spec ?? artifacts.model }, 'spec')
   // content that is not a Spec is a not-a-spec finding, never an Adapter error; nothing it cites can be read off it
@@ -86,7 +87,7 @@ function evaluate(payload) {
     rules: required(artifacts, 'rules'),
   })
   // the payload carries each artifact as {content, provenance}: no RevisionRef, so no evidence (19-adapter-roles.md)
-  return { passed: findings.length === 0, findings, evidence: [] }
+  return { passed: !findings.some((f) => f.severity === 'error'), findings, evidence: [] }
 }
 
 const out = (o) => process.stdout.write(JSON.stringify(o) + '\n')

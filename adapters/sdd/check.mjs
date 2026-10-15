@@ -147,6 +147,20 @@ export function checkPrd({ prd, rules, previousRules, feedback }) {
 }
 
 // The `## <screen>` headings of a ui document: outside fenced code, closing hashes dropped (32-ui-design-process.md).
+// The document's dialect is the block's technology (29-design-process.md): a word the named store lacks is a warning, never
+// an error, since a word list is a heuristic. Only DDL, only stores the list knows; comments are stripped first.
+const foreign = {
+  sqlite: { words: ['INTERVAL', 'EXTRACT', 'SERIAL', 'BIGSERIAL', 'CREATE SCHEMA', '::'], store: 'SQLite' },
+  postgres: { words: ['AUTOINCREMENT', 'WITHOUT ROWID', 'DATETIME', 'NVARCHAR'], store: 'PostgreSQL' },
+}
+const dialectMisses = (mediaType, sql, technology = '') => {
+  if (mediaType !== 'application/sql') return []
+  const key = /sqlite/i.test(technology) ? 'sqlite' : /postgres/i.test(technology) ? 'postgres' : undefined
+  if (!key) return []
+  const bare = sql.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/--[^\n]*/g, ' ')
+  return foreign[key].words.filter((w) => new RegExp(`(^|[^\\w])${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w])`, 'i').test(bare)).map((w) => `${w} is not ${foreign[key].store}, the store the block's technology names`)
+}
+
 // `ids.designSystem` is the bound DesignSystem's artifact id, which a content never carries; a ui Design must cite it and
 // the Validator must have it bound, or the citation is unchecked. A ui Design realises operations, not DomainModel labels:
 // `designs` is artifact id → content of the API Designs bound, and their element names are what its elements may realise
@@ -157,6 +171,7 @@ export function checkDesign({ design, architecture, domainModel, rules, designs 
   }
   const findings = []
   const bad = (code, message) => findings.push({ severity: 'error', code, message })
+  const warn = (code, message) => findings.push({ severity: 'warning', code, message })
 
   const block = (architecture?.buildingBlocks ?? []).find((b) => b.id === design.block)
   if (!block) bad('unknown-block', `block ${design.block} is not a building block of the Architecture`)
@@ -184,6 +199,7 @@ export function checkDesign({ design, architecture, domainModel, rules, designs 
     const backed = (name) => declared.has(name) || (design.type === 'ui' && name.includes(': ') && declared.has(name.slice(0, name.indexOf(': '))))
     for (const el of design.elements) if (!backed(el.name)) bad('element-unbacked', `${el.id}: ${el.name} is not in the document`)
     for (const name of declared) if (!indexed.has(name)) bad('document-unindexed', `${name} is in the document and has no element`)
+    for (const m of dialectMisses(mediaType, design.document?.content ?? '', block?.technology)) warn('dialect', m)
   }
 
   const ui = design.type === 'ui'

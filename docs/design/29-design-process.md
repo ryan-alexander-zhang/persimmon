@@ -29,7 +29,7 @@ Workflow design-all: repeat over `blocks` with one `type` ─▶ ReviewLoop desi
 
 ## `checkDesign`
 
-`adapters/sdd/check.mjs`, pure, `checkDesign({design, architecture, domainModel, rules, designs, ids})` with `ids.designSystem` the bound DesignSystem's id and `designs` the bound API Designs by id (a `ui` Design realises their operations, `32-ui-design-process.md`), every finding `error`:
+`adapters/sdd/check.mjs`, pure, `checkDesign({design, architecture, domainModel, rules, designs, ids})` with `ids.designSystem` the bound DesignSystem's id and `designs` the bound API Designs by id (a `ui` Design realises their operations, `32-ui-design-process.md`), every finding `error` but `dialect`; the Adapter's `passed` is "no `error` finding":
 
 | Code | Finding |
 |---|---|
@@ -45,6 +45,7 @@ Workflow design-all: repeat over `blocks` with one `type` ─▶ ReviewLoop desi
 | `designsystem-mismatch`, `client-block`, `ui-domainmodel`, `designs-unbound` | a `ui` Design: `designSystem` absent, no DesignSystem bound, or not the id bound; its block realises a context; it names a `domainModel`; no Design is bound to realise (`32-ui-design-process.md`) |
 | `domainmodel-unbound` | a Design of another type with no DomainModel bound; one finding, the elements unchecked |
 | `id-sequence` | `EL-n`, `Q-n` not unique and increasing |
+| `dialect` | `warning`: a DDL word the store the block's `technology` names lacks (`sqlite`: `INTERVAL`, `EXTRACT`, `SERIAL`, `CREATE SCHEMA`, `::`; `postgres`: `AUTOINCREMENT`, `WITHOUT ROWID`, `DATETIME`); comments stripped, whole words only; no store named, no check |
 
 The Adapter picks the mode from the payload: `artifacts.spec` (or `artifacts.model`), else
 `artifacts.prd`, else `artifacts.design`.
