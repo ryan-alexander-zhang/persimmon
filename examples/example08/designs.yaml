@@ -1,0 +1,5 @@
+- {apiVersion: sdd.persimmon.ai/v1, kind: Design, id: car-pool-prd-architecture-bb-1-reservations-http-api, revision: 1}
+- {apiVersion: sdd.persimmon.ai/v1, kind: Design, id: car-pool-prd-architecture-bb-1-car-reservations-data-schema, revision: 1}
+- {apiVersion: sdd.persimmon.ai/v1, kind: Design, id: car-pool-prd-architecture-bb-1-fleet-http-api, revision: 1}
+- {apiVersion: sdd.persimmon.ai/v1, kind: Design, id: car-pool-prd-architecture-bb-1-fleet-care-data-schema, revision: 1}
+- {apiVersion: sdd.persimmon.ai/v1, kind: Design, id: car-pool-prd-architecture-bb-3-ui, revision: 1}

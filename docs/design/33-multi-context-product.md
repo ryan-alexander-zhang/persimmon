@@ -83,8 +83,24 @@ Workflow consumes a list it could not be given at `run`.
 - `spec-all` and `design-all` stay per context: a Workflow reads no artifact content, so it cannot
   map a capability to its context's model; two runs with explicit ids are honest and cheap. Found in
   design review.
+- Live on `claude-sonnet-5` (example08, `uat3`): the Prd came back with nine capabilities over the
+  two contexts and the rules tagged; the human rejected round one on a capability's name and one
+  rule. Each storming phase passed at round two after one human rejection; the derivation of both
+  contexts passed first time. The Architecture's round one cut two services and a gateway; the
+  rejection asked for one deployable realising both contexts, which `kind:` queries bound the lists
+  for. Nine Specs, four Designs of `BB-1` (two APIs, two schemas, told apart by `qualifier`), the
+  DesignSystem and the `ui` Design each passed round one. Found in UAT.
+- A storming phase re-raised Prd questions a previous Gate had settled: a Gate's answers live in
+  that loop's `feedback` only. The Prompt now reads a settled question off the confirmed `base` and
+  never raises it again (`26-domain-discovery-process.md`). Found in UAT.
+- A client block over two contexts showed the `ui` Design's `domainModel` was the wrong layer: a
+  Design binds one model, the web application serves two. The `ui` Design now realises operations of
+  the block's API Designs and binds no model (`32-ui-design-process.md`). Found in UAT.
 
 ## Examples
 
 - `examples/example08/`: a company car pool over two contexts, `car-reservations` and `fleet-care`,
-  every artifact produced live; the first recording under the Adr slot rule (`31-architecture-process.md`).
+  thirty-eight artifacts produced live: one Prd and rules, one storming, two of each context kind,
+  the Architecture and four Adrs, nine Specs, four Designs of one block, the DesignSystem, one `ui`
+  Design over both APIs, nine Plans; the first recording under the Adr slot rule
+  (`31-architecture-process.md`) and the `ui` index over operations (`32-ui-design-process.md`).
