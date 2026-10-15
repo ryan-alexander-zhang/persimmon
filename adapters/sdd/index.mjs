@@ -65,6 +65,7 @@ function evaluate(payload) {
         domainModel: artifacts.domainModel?.content,
         rules: required(artifacts, 'rules'),
         designs: boundDesigns(payload, artifacts),
+        designSystem: artifacts.designSystem?.content,
         ids: { designSystem: payload.inputs?.designSystem?.ref?.id, rules: payload.inputs?.rules?.ref?.id },
       })
       return { passed: passes(findings), findings, evidence: [] }

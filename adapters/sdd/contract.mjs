@@ -17,6 +17,47 @@ export const screens = (markdown) => {
   return out
 }
 
+/** The parts of a ui Design's screens (32-ui-design-process.md): `### <Part>` or a `**<Part>.**` line opens one under the current
+ * `## <screen>`, its text runs to the next part or screen; fenced code is skipped. `[{screen, part, text}]`, in document order. */
+export const uiParts = (markdown) => {
+  const out = []
+  let fence
+  let screen
+  let cur
+  for (const line of markdown.split('\n')) {
+    const m = /^ {0,3}(`{3,}|~{3,})/.exec(line)
+    if (m && !fence) fence = m[1]
+    else if (m && m[1][0] === fence[0] && m[1].length >= fence.length) fence = undefined
+    else if (fence) continue
+    else if (/^ {0,3}## /.test(line)) {
+      screen = line.replace(/^ {0,3}## /, '').replace(/\s+#+\s*$/, '').trim()
+      cur = undefined
+    } else if (/^ {0,3}### /.test(line) || /^\*\*[A-Z][a-z]+\.\*\*/.test(line)) {
+      const part = /^ {0,3}### /.test(line) ? line.replace(/^ {0,3}### /, '').replace(/\s+#+\s*$/, '').trim() : /^\*\*([A-Z][a-z]+)\.\*\*/.exec(line)[1]
+      cur = { screen, part, text: line.replace(/^\*\*[A-Z][a-z]+\.\*\*/, '') }
+      out.push(cur)
+    } else if (cur) cur.text += `\n${line}`
+  }
+  return out
+}
+
+/** The names a DESIGN.md front matter declares (32-ui-design-process.md): every `components` key, and every key of `colors`,
+ * `typography`, `spacing` and `rounded` bare and as `<group>.<key>`; undefined when the text has no front matter it can read. */
+export const designSystemNames = (markdown) => {
+  const m = /^---\n([\s\S]*?)\n---(\n|$)/.exec(markdown ?? '')
+  if (!m) return undefined
+  let fm
+  try {
+    fm = parse(m[1])
+  } catch {
+    return undefined
+  }
+  if (!fm || typeof fm !== 'object') return undefined
+  const names = new Set(Object.keys(fm.components ?? {}))
+  for (const g of ['colors', 'typography', 'spacing', 'rounded']) for (const k of Object.keys(fm[g] ?? {})) names.add(k).add(`${g}.${k}`)
+  return names
+}
+
 /** SQL without its string literals and comments, one pass left to right: a `--` inside a literal is text, an apostrophe inside a comment is prose. */
 export const bareSql = (sql) => sql.replace(/'(?:[^']|'')*'|\/\*[\s\S]*?\*\/|--[^\n]*/g, (m) => (m[0] === "'" ? "''" : ' '))
 

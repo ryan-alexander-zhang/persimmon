@@ -292,7 +292,7 @@ describe('sdd/v1 over a Design', () => {
   // a ui Design: no domainModel, elements realise operations of the API Design bound on `designs` (32-ui-design-process.md)
   const uiDesign = () => ({
     title: 'web client screens', type: 'ui', architecture: 'expense-claims-architecture', businessRules: 'expenses-rules', block: 'BB-5', designSystem: 'expense-claims-design-system',
-    document: { mediaType: 'text/markdown', content: '## My Claims\n\nPurpose: the employee sees their claims.\n\n## Submit a Claim\n' },
+    document: { mediaType: 'text/markdown', content: '## My Claims\n\nPurpose: the employee sees their claims.\n\n### Layout\n\nA list of `card`s at `spacing.md`, titles in `typography.title-md`.\n\n## Submit a Claim\n\n### Actions\n\n- Submit: submits `POST /claims/{claimId}/submission`.\n\n**Layout.** One `button-primary`.\n' },
     elements: [
       { id: 'EL-1', name: 'My Claims', realises: { kind: 'operation', name: 'GET /claims/mine' } },
       { id: 'EL-2', name: 'Submit a Claim', realises: { kind: 'operation', name: 'POST /claims/{claimId}/submission' } }, // a form screen: the operation its action submits
@@ -300,9 +300,10 @@ describe('sdd/v1 over a Design', () => {
     ],
     rules: ['BR-1'], decisions: [], openQuestions: [],
   })
-  const uiPayload = (design: any, designSystem = 'expense-claims-design-system', designs: unknown[] = [content('Design')]) => {
+  const designMd = '---\nname: Expenses\ncolors: {primary: "#1D4ED8"}\ntypography: {title-md: {fontSize: 16px}}\nspacing: {md: 16px}\nrounded: {sm: 4px}\ncomponents: {card: {}, button-primary: {}}\n---\n# Expenses\n'
+  const uiPayload = (design: any, designSystem = 'expense-claims-design-system', designs: unknown[] = [content('Design')], designSystemContent: unknown = { title: 'Expenses', prd: 'expense-claims', document: { mediaType: 'text/markdown', content: designMd } }) => {
     const { domainModel, ...rest } = designExample()
-    const base = payload({ ...rest, design })
+    const base = payload({ ...rest, design, ...(designSystemContent ? { designSystem: designSystemContent } : {}) })
     const ref = (kind: string, id: string) => ({ apiVersion: 'sdd.persimmon.ai/v1', kind, namespace: 'demo', id, revision: 1 })
     return {
       ...base,
@@ -328,6 +329,17 @@ describe('sdd/v1 over a Design', () => {
     expect(await uiCodes((d) => { delete d.designSystem })).toEqual(['designsystem-mismatch'])
     expect(await uiCodes(() => {}, 'other-design-system')).toEqual(['designsystem-mismatch'])
     expect(await uiCodes((d) => { d.block = 'BB-1' })).toEqual(['client-block'])
+  })
+
+  it('reads a ui screen past its index: Actions name operations of the API Designs bound and back the action elements; Layout names the DesignSystem', async () => {
+    const r = await adapter({ id: ++id, op: 'evaluate', payload: uiPayload({ ...uiDesign(), document: { mediaType: 'text/markdown', content: uiDesign().document.content.replace('`card`', '`button-tertiary`').replace('`spacing.md`', '`spacing.hero`').replace('`typography.title-md`', '`title-md`') } }) })
+    expect(r.result).toMatchObject({ passed: true, findings: [{ severity: 'warning', code: 'layout-unknown', message: 'My Claims: `button-tertiary` is not a component or token of the DesignSystem' }, { severity: 'warning', code: 'layout-unknown', message: expect.stringContaining('spacing.hero') }] }) // a bare token key passes; advice, not failure
+    expect(await uiCodes((d) => { d.document.content = d.document.content.replace('`POST /claims/{claimId}/submission`', '`POST /claims/{claimId}/submit`') })).toEqual(['action-unknown', 'action-unbacked']) // the prose names a ghost operation, and the action element's is no longer there
+    expect(await uiCodes((d) => { d.document.content = d.document.content.replace('### Actions\n\n- Submit: submits `POST /claims/{claimId}/submission`.\n\n', '') })).toEqual(['action-unbacked']) // no Actions part at all
+    expect(await uiCodes((d) => { d.document.content += '\n```\n### Layout\n`ghost`\n### Actions\n`POST /ghost`\n```\n' })).toEqual([]) // fenced code is not prose
+    expect(await uiCodes((d) => { d.document.content = d.document.content.replace('`POST /claims/{claimId}/submission`', '`POST /claims/{claimId}/submission` after `GET /claims/mine`') })).toEqual([]) // a second, real operation in the prose is fine
+    expect(await uiCodes(() => {}, undefined, undefined, { title: 'x', prd: 'p', document: { mediaType: 'text/markdown', content: '# no front matter\n' } })).toEqual([]) // nothing to read Layout against: the lint owns that
+    expect(await uiCodes(() => {}, undefined, [])).toEqual(['designs-unbound']) // operations unresolvable: one finding, the prose is not checked either
   })
 
   it('a ui Design realises operations of the API Designs bound, names no DomainModel, and indexes every screen', async () => {
@@ -374,7 +386,7 @@ describe('sdd/v1 over a Design', () => {
     expect(await schema('{"title": "Claim", "$defs": {}}', ['Claim'], 'application/schema+json')).toEqual([]) // empty defs: the title
     // a ui action is prose: only its screen must be a heading
     expect(await uiCodes((d) => { d.elements[2].name = 'Ghost: Submit' })).toEqual(['element-unbacked'])
-    expect(await uiCodes((d) => { d.document.content += '\n## Claims: Detail\n'; d.elements.push({ id: 'EL-4', name: 'Claims: Detail', realises: { kind: 'operation', name: 'GET /claims/mine' } }, { id: 'EL-5', name: 'Claims: Detail: Submit', realises: { kind: 'operation', name: 'GET /claims/mine' } }) })).toEqual([]) // a screen name with a colon backs its action
+    expect(await uiCodes((d) => { d.document.content += '\n## Claims: Detail\n\n### Actions\n\n- Submit: `GET /claims/mine`\n'; d.elements.push({ id: 'EL-4', name: 'Claims: Detail', realises: { kind: 'operation', name: 'GET /claims/mine' } }, { id: 'EL-5', name: 'Claims: Detail: Submit', realises: { kind: 'operation', name: 'GET /claims/mine' } }) })).toEqual([]) // a screen name with a colon backs its action
     expect(await uiCodes((d) => { delete d.elements[2].name })).toEqual(['element-unbacked']) // no name: a finding, not a throw
   })
 
@@ -411,7 +423,7 @@ describe('sdd/v1 over a Design', () => {
         const architecture = byKind('Architecture').find((a) => a.spec.identity.id === c.architecture)?.spec.content
         const domainModel = byKind('DomainModel').find((m) => m.spec.identity.id === c.domainModel)?.spec.content
         const rules = byKind('BusinessRules')[0]?.spec.content
-        const found = checkDesign({ design: c, architecture, domainModel, rules, designs, ids: { designSystem: c.designSystem } }).filter((x: { code: string }) => /^(document-|element-unbacked|dialect)/.test(x.code))
+        const found = checkDesign({ design: c, architecture, domainModel, rules, designs, ids: { designSystem: c.designSystem } }).filter((x: { code: string }) => /^(document-|element-unbacked|dialect|action-)/.test(x.code))
         expect({ file: f, id: d.spec.identity.id, found }).toEqual({ file: f, id: d.spec.identity.id, found: [] })
       }
       const rulesId = byKind('BusinessRules')[0]?.spec.identity.id

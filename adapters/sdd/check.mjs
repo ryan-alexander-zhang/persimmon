@@ -5,7 +5,7 @@
 // BusinessRules it enforces. And one Plan against its Spec, the Architecture and the Designs it realises. And one Architecture
 // against the Prd, the contexts, models and glossaries it lists and the Adrs it applies. Plain data in, findings out.
 // the document a Design of each type carries
-import { bareSql, contractNames } from './contract.mjs'
+import { bareSql, contractNames, designSystemNames, uiParts } from './contract.mjs'
 
 const mediaTypes = { 'http-api': ['application/openapi+yaml'], 'async-api': ['application/asyncapi+yaml'], 'data-schema': ['application/schema+json', 'application/sql'], ui: ['text/markdown'] }
 const keyword = { ubiquitous: 'The', 'event-driven': 'When', 'state-driven': 'While', 'unwanted-behaviour': 'If', optional: 'Where' }
@@ -181,9 +181,12 @@ const dialectMisses = (mediaType, sql, technology = '') => {
 
 // `ids.designSystem` is the bound DesignSystem's artifact id, which a content never carries; a ui Design must cite it and
 // the Validator must have it bound, or the citation is unchecked. A ui Design realises operations, not DomainModel labels:
-// `designs` is artifact id → content of the API Designs bound, and their element names are what its elements may realise
+// `designs` is artifact id → content of the API Designs bound, and their element names are what its elements may realise;
+// `designSystem` is the bound DesignSystem's content, whose front matter names what a screen's Layout may use
 // (32-ui-design-process.md).
-export function checkDesign({ design, architecture, domainModel, rules, designs = {}, ids = {} }) {
+const isOperation = (name) => /^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS) \//.test(name)
+const backticked = (text) => [...text.matchAll(/`([^`\n]+)`/g)].map((m) => m[1])
+export function checkDesign({ design, architecture, domainModel, rules, designs = {}, designSystem, ids = {} }) {
   if (!design || !Array.isArray(design.elements) || !design.type) {
     return [{ severity: 'error', code: 'not-a-design', message: 'content is not a Design: it has no elements array or no type' }]
   }
@@ -235,6 +238,25 @@ export function checkDesign({ design, architecture, domainModel, rules, designs 
   }
   const union = new Set(design.rules ?? [])
   const placed = new Set(design.elements.flatMap((el) => el.rules ?? []))
+
+  // a ui screen's prose, read past the index (32-ui-design-process.md): a `METHOD /path` in backticks under Actions is an operation
+  // of the API Designs bound; an action element's operation is in its screen's Actions; a backticked name under Layout is a
+  // component or token of the DesignSystem, as advice, since a live Layout also names fields in backticks
+  if (ui && contract && !contract.error) {
+    const parts = uiParts(design.document.content)
+    const actionsOf = (screen) => parts.filter((p) => p.screen === screen && p.part === 'Actions').map((p) => p.text).join('\n')
+    for (const p of parts.filter((p) => p.part === 'Actions')) {
+      for (const op of new Set(backticked(p.text).filter(isOperation))) if (realisable && !known.operation.has(op)) bad('action-unknown', `${p.screen}: ${op} is not an operation of the API Designs bound`)
+    }
+    const declared = new Set(contract.names)
+    for (const el of design.elements) {
+      const screen = [...declared].find((s) => typeof el.name === 'string' && el.name.startsWith(`${s}: `))
+      const op = el.realises?.name
+      if (screen && typeof op === 'string' && !backticked(actionsOf(screen)).includes(op)) bad('action-unbacked', `${el.id}: ${op} is not in the Actions of ${screen}`)
+    }
+    const names = designSystemNames(designSystem?.document?.content)
+    if (names) for (const p of parts.filter((p) => p.part === 'Layout')) for (const t of new Set(backticked(p.text))) if (!names.has(t)) warn('layout-unknown', `${p.screen}: \`${t}\` is not a component or token of the DesignSystem`)
+  }
 
   for (const el of design.elements) {
     const { kind, name } = el.realises ?? {}
