@@ -170,6 +170,11 @@ Result: a ValidationResult (`10-ports.md`). No `credentials`, no `security` (`14
   the engine's cwd. Found in UAT.
 - `claude-code/v1` answers `permission_denied`, not retryable, when the CLI reports a login or API
   key failure; retrying a dead login burned attempts. Found in UAT.
+- `claude-code/v1` answers `agent_failed`, retryable, when the CLI's result carries an API status
+  (`API Error: 403`, `429`, `5xx`, `overloaded`, `rate limit`), checked before the login phrasing:
+  the live `Failed to authenticate. API Error: 403 Request not allowed` answered a minute later, and
+  `permission_denied` is never retried, so the Task's `retryPolicy` could not take it. A dead login
+  says `not logged in` or `session expired` and stays `permission_denied`. Found in UAT (example08).
 - `claude-code/v1` configuration `allowedTools[]` passes `--allowedTools`, so a `workspace-write`
   Executor can run named commands (`Bash(npm test:*)`) headlessly without the `full` sandbox;
   `-p` has nobody to answer a permission prompt. Found in UAT.

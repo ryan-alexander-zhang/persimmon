@@ -27,7 +27,8 @@ function result(stdout) {
   if (!r) throw new AdapterError('agent_failed', 'claude printed no JSON result', true)
   if (r.is_error || r.subtype !== 'success') {
     const message = typeof r.result === 'string' ? r.result : String(r.subtype)
-    if (/not logged in|failed to authenticate|authentication_error|invalid api key|invalid x-api-key/i.test(message)) throw new AdapterError('permission_denied', message, false) // the CLI's own login phrasing, not the agent's prose
+    if (/API Error: (403|429|5\d\d)\b|overloaded|rate limit/i.test(message)) throw new AdapterError('agent_failed', message, true) // the API refused this call, not this login: the Task's retry policy decides
+    if (/not logged in|failed to authenticate|authentication_error|session expired|invalid api key|invalid x-api-key/i.test(message)) throw new AdapterError('permission_denied', message, false) // the CLI's own login phrasing, not the agent's prose
     throw new AdapterError(r.subtype === 'error_max_turns' ? 'timeout' : 'agent_failed', message, true)
   }
   return r

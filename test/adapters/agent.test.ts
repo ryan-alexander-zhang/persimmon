@@ -30,7 +30,7 @@ beforeAll(async () => {
       fs.writeFileSync(process.env.STUB_OUT + '/claude.json', JSON.stringify({ args: process.argv.slice(2), prompt: p, cwd: process.cwd(), note: fs.existsSync('NOTE.md'), skill: fs.existsSync('.claude/skills/prd-writer/SKILL.md'), env: { GITHUB_TOKEN: process.env.GITHUB_TOKEN ?? null, token: process.env.PERSIMMON_ADAPTER_TOKEN ?? null } }))
       if (process.env.STUB_SLEEP) return setTimeout(() => {}, Number(process.env.STUB_SLEEP))
       if (process.env.STUB_FAIL) { process.stderr.write('boom ' + process.env.GITHUB_TOKEN + '\\n' + (process.env.DEPLOY_KEY ?? '') + '\\n'); process.exit(1) }
-      if (process.env.STUB_AUTH) { process.stdout.write(JSON.stringify({ type: 'result', subtype: 'success', is_error: true, result: 'Failed to authenticate' })); process.exit(1) }
+      if (process.env.STUB_AUTH) { process.stdout.write(JSON.stringify({ type: 'result', subtype: 'success', is_error: true, result: process.env.STUB_AUTH === '1' ? 'Failed to authenticate' : process.env.STUB_AUTH })); process.exit(1) }
       process.stderr.write('\\x1b[1mthinking\\x1b[0m about ' + (process.env.GITHUB_TOKEN ?? '') + '\\n')
       const ev = (o) => process.stdout.write(JSON.stringify(o) + '\\n')
       ev({ type: 'system', subtype: 'init', tools: ['Bash'] })
@@ -227,6 +227,13 @@ describe('claude-code/v1', () => {
   it('reports the agent error text when claude exits 1 with a JSON result', async () => {
     const r = await adapter('claude-code', { id: 9, op: 'execute', payload: payload() }, { STUB_AUTH: '1' })
     expect(last(r)).toMatchObject({ ok: false, error: { code: 'permission_denied', message: 'Failed to authenticate', retryable: false } }) // a dead login is not retried
+  })
+
+  it('an API status the CLI reports is the call refused, retryable; an expired session is the login, not', async () => {
+    const r = await adapter('claude-code', { id: 9, op: 'execute', payload: payload() }, { STUB_AUTH: 'Failed to authenticate. API Error: 403 Request not allowed' })
+    expect(last(r)).toMatchObject({ ok: false, error: { code: 'agent_failed', message: 'Failed to authenticate. API Error: 403 Request not allowed', retryable: true } })
+    for (const m of ['API Error: 429 rate_limit_error', 'API Error: 529 Overloaded']) expect(last(await adapter('claude-code', { id: 9, op: 'execute', payload: payload() }, { STUB_AUTH: m }))).toMatchObject({ ok: false, error: { code: 'agent_failed', retryable: true } })
+    expect(last(await adapter('claude-code', { id: 9, op: 'execute', payload: payload() }, { STUB_AUTH: 'OAuth session expired and could not be refreshed' }))).toMatchObject({ ok: false, error: { code: 'permission_denied', retryable: false } })
   })
 
   it('a publish the engine refuses is schema_violation, not retryable', async () => {

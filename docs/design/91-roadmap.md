@@ -85,4 +85,3 @@ later     eager joins · retention policy · policy resource · external event s
 | canonical serialization | decided: JSON, sorted keys, UTF-8, no whitespace (`04-snapshot.md`) |
 | human Adapter for local mode | decided: `cli-human/v1` is a file drop in `.persimmon/inbox/`; `persimmon complete` prompts at the terminal, `--file` for scripts (`20-pack.md`) |
 | a migration of committed revisions when a revisioned kind's schema changes incompatibly | `01-kind-definition.md` | `apply` takes a schema change only where every committed revision still validates; an incompatible one still needs a fresh project |
-| an agent Adapter marks a transient CLI failure (`403`, `429`, `5xx`) `retryable: true` so the Task's retry policy takes it | `19-adapter-roles.md`, `adapters/claude-code/` | today `permission_denied`, not retryable, right for an expired login and wrong for a hiccup |
