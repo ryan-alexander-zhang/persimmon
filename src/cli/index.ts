@@ -21,7 +21,7 @@ const usage = `usage: persimmon <verb> [args]
   signal <kind>/<name> --payload <file> [--event-id <id>]
   complete <taskRun> [--file <result.yaml>]         no file: answer the inbox form at the terminal
   resume
-  get <kind>[/<name>] [-n ns | --global]
+  get <kind>[/<name>] [-n ns | --global] [--behind]   --behind: latest revisions whose pinned inputs have a newer revision
   describe <kind>/<name> [-n ns]
   logs <kind>/<name> [-n ns | --global]
   tree <kind>/<name> [-n ns]                        a run, what it produced, and every run it owns, nested
@@ -74,6 +74,7 @@ function parseCliArgs(argv: string[]) {
       into: { type: 'string' },
       for: { type: 'string' },
       force: { type: 'boolean' },
+      behind: { type: 'boolean' },
       server: { type: 'string' },
       help: { type: 'boolean', short: 'h' },
     },
@@ -110,7 +111,7 @@ async function dispatchVerb(cli: Cli, verb: string, rest: string[], values: Retu
       case 'get':
       case 'describe':
         need(1, '<kind>[/<name>]')
-        return await get(cli, rest[0]!, where)
+        return await get(cli, rest[0]!, { ...where, ...(values.behind ? { behind: true } : {}) })
       case 'logs':
         need(1, '<kind>/<name>')
         return await logs(cli, rest[0]!, where)

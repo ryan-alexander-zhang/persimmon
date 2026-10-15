@@ -7,6 +7,8 @@ import { parseInput } from './create.js'
 import { askForm, example as template, type Form } from './signal.js'
 import { runCli } from './index.js'
 import { init } from './init.js'
+import { loadConfig } from '../config.js'
+import { Engine } from '../engine.js'
 
 const example = (n: string) => parse(readFileSync(`docs/design/examples/${n}.yaml`, 'utf8'))
 const demoPack = ['10-artifact-kinds', '20-relation-types', '30-prompts', '40-executors', '50-tasks', '60-validators', '70-gates', '80-workflows'].map((f) => `packs/demo/global/${f}.yaml`)
@@ -171,6 +173,37 @@ describe('persimmon CLI', () => {
     out = [] // so a Workflow stepping into a ReviewLoop of the same files resolves on validate's second pass only (08-store.md)
     expect([await run('validate', ...sdlcPack), out.filter((l) => !l.startsWith('ok'))]).toEqual([0, []])
     expect(out.length).toBe(79)
+  })
+
+  it('get --behind lists the latest revision whose pinned inputs moved on; a carried previous input and a run\'s own later output are not drift', async () => {
+    await run('init')
+    const engine = new Engine({ config: loadConfig(join(dir, 'persimmon.yaml')), cwd: dir })
+    await engine.start()
+    const ref = (kind: string, id: string, revision: number) => ({ apiVersion: 'sdd.persimmon.ai/v1', kind, namespace: 'default', id, revision })
+    const rev = (kind: string, id: string, revision: number, producer: string, inputs: object[] = []) => ({
+      apiVersion: 'sdd.persimmon.ai/v1',
+      kind,
+      metadata: { name: `${id}.r${revision}`, namespace: 'default' },
+      spec: { identity: { id, revision }, content: {}, provenance: { producerRef: { apiVersion: 'persimmon.ai/v1', kind: 'TaskRun', namespace: 'default', name: producer }, inputs, actor: { kind: 'user', id: 'local' } } },
+      status: { contentDigest: 'sha256:' + '0'.repeat(64), representations: [] },
+    })
+    const scope = { uid: 'test', key: 'k' }
+    engine.store.resources.stage(rev('BusinessRules', 'rules', 1, 'rules-run-1'), scope)
+    engine.store.resources.stage(rev('Spec', 'cap-1', 1, 'spec-run-1', [ref('BusinessRules', 'rules', 1)]), scope) // behind once rules r2 lands
+    engine.store.resources.stage(rev('BusinessRules', 'rules', 2, 'rules-run-2'), scope)
+    engine.store.resources.stage(rev('Spec', 'cap-2', 1, 'spec-run-2', [ref('BusinessRules', 'rules', 2), ref('BusinessRules', 'rules', 1)]), scope) // previousRules r1 beside rules r2: current
+    engine.store.resources.stage(rev('Prd', 'prd', 2, 'prd-run-2', [ref('Prd', 'prd', 1), ref('BusinessRules', 'rules', 2)]), scope) // read rules r2, and wrote r3 in the same run
+    engine.store.resources.stage(rev('BusinessRules', 'rules', 3, 'prd-run-2'), scope)
+    engine.store.resources.stage(rev('Spec', 'cap-3', 1, 'spec-run-3', [ref('BusinessRules', 'rules', 3)]), scope)
+    engine.store.resources.stage(rev('Spec', 'cap-3', 2, 'spec-run-4', [ref('BusinessRules', 'rules', 3)]), scope) // only the latest revision of an id is looked at
+    engine.store.resources.commitScope(scope)
+    await engine.close()
+    out = []
+    expect([await run('get', 'Spec', '--behind'), out]).toEqual([0, ['Spec/cap-1.r1  -n default  behind BusinessRules/rules r1 → r3', 'Spec/cap-2.r1  -n default  behind BusinessRules/rules r2 → r3']])
+    out = []
+    expect([await run('get', 'Prd', '--behind'), out]).toEqual([0, []]) // rules r3 came from the Prd's own run
+    expect(await run('get', 'Workflow', '--behind')).toBe(1)
+    expect(err.at(-1)).toBe('Workflow is not revisioned')
   })
 
   it('run --follow returns when the run is parked on a human Task', async () => {
