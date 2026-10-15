@@ -1,4 +1,4 @@
-// One Spec of the AI Native pack against the artifacts it cites (23-pack-ai-native.md, 27-spec-process.md): the Prd
+// One Spec of the SDLC pack against the artifacts it cites (23-pack-sdlc.md, 27-spec-process.md): the Prd
 // capability and its governing rules, the DomainModel's names, the Architecture's quality scenarios, the BusinessRules;
 // inside the Spec, stories cover requirements and requirements enforce rules. And one Prd against the BusinessRules of
 // its context. And one Design against the Architecture block it belongs to, the DomainModel its elements realise and the
@@ -340,7 +340,7 @@ export function checkArchitecture({ architecture, prd, rules, ids = {}, adrs = {
     }
   }
   for (const c of contexts) if (!realised.has(c)) bad('context-unrealised', `context ${c} is realised by no level 1 building block`)
-  // context.business[].context may name a context of another Namespace or one not yet written (23-pack-ai-native.md): not checked
+  // context.business[].context may name a context of another Namespace or one not yet written (23-pack-sdlc.md): not checked
   for (const cap of prd?.capabilities ?? []) if (cap.context && !contexts.has(cap.context)) bad('prd-context-unread', `capability ${cap.id}: context ${cap.context} is not among the BoundedContexts evaluated`)
 
   // the lists of kinds applied equal what was evaluated

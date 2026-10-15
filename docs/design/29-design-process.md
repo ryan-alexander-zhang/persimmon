@@ -1,6 +1,6 @@
 # Design process
 
-status: draft · layer: 2 (`23-pack-ai-native.md`, `27-spec-process.md`) · schema: the `Design` kind in `packs/ai-native/global/10-artifact-kinds.yaml`
+status: draft · layer: 2 (`23-pack-sdlc.md`, `27-spec-process.md`) · schema: the `Design` kind in `packs/sdlc/global/10-artifact-kinds.yaml`
 
 From an Architecture block to its Designs: an agent writes one contract or schema per block
 and type (an OpenAPI document for the interface a block provides, an AsyncAPI document for the
@@ -22,7 +22,7 @@ Workflow design-all: repeat over `blocks` with one `type` ─▶ ReviewLoop desi
 | Prompt `design-rules` | one asset per block and type; the contract whole and standard; the index names what each operation, channel or table realises in the DomainModel; refusals name the rule; field names are Glossary terms; nothing the DomainModel lacks is invented |
 | Executor `design-agent` | `claude-code/v1`, read-only, its own name for per-Namespace override |
 | Task `design-asset` | inputs `architecture`, `blockId`, `type`, `interface` (optional: which provided interface, else the block's first), `domainModel` and `glossary` (required unless `type` is `ui`), `rules`, `designSystem` and `designs` (required when it is), `previous`, `feedback`; output `design` |
-| Validator `design-consistency` | `sdd/v1` over `design`, `architecture`, `domainModel` (optional), `rules`, and for a `ui` Design `designSystem` and `designs`; the Design rule row of `23-pack-ai-native.md` as findings |
+| Validator `design-consistency` | `sdd/v1` over `design`, `architecture`, `domainModel` (optional), `rules`, and for a `ui` Design `designSystem` and `designs`; the Design rule row of `23-pack-sdlc.md` as findings |
 | Gate `design-gate` | consistency only |
 | ReviewLoop `design-one` | `produce` `design-asset`, `review` `design-gate`, `maxRounds: 2`; takes `interface` too, so a block with two provided interfaces gets its second Design from a direct run |
 | Workflow `design-all` | `repeat` over `blocks` (BB-n ids) for one `type`, as `spec-all` repeats over capabilities; a block the loop could not design ends the run `design_inconsistent`, an iteration that died before its Gate ran `step_failed`; output `written` |
@@ -119,6 +119,6 @@ The Adapter picks the mode from the payload: `artifacts.spec` (or `artifacts.mod
 
 ## Examples
 
-- `docs/design/examples/ai-native-domain.yaml`: `Design/claims-api`, the OpenAPI contract of `BB-1`'s
+- `docs/design/examples/sdlc-domain.yaml`: `Design/claims-api`, the OpenAPI contract of `BB-1`'s
   `claims API` with nine elements, one per command and read model of the block; passes `checkDesign`
   (`test/adapters/sdd.test.ts`).

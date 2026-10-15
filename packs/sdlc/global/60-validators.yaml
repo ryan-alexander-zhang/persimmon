@@ -1,4 +1,4 @@
-# Validators of the AI Native pack (14-gate.md). eventstorming-grammar runs the grammar over a model (24-eventstorming.md).
+# Validators of the SDLC pack (14-gate.md). eventstorming-grammar runs the grammar over a model (24-eventstorming.md).
 apiVersion: persimmon.ai/v1
 kind: Validator
 metadata: {name: eventstorming-grammar}

@@ -1,6 +1,6 @@
 # Prd process
 
-status: draft · layer: 2 (`23-pack-ai-native.md`, `27-spec-process.md`) · schema: the `Prd` and `BusinessRules` kinds in `packs/ai-native/global/10-artifact-kinds.yaml`
+status: draft · layer: 2 (`23-pack-sdlc.md`, `27-spec-process.md`) · schema: the `Prd` and `BusinessRules` kinds in `packs/sdlc/global/10-artifact-kinds.yaml`
 
 From a brief to a `Prd`: an agent writes the problem, users, goals, capabilities and success criteria
 from a brief and the context's rules and glossary when they exist, writing every rule a capability
@@ -58,7 +58,7 @@ conformance suite's name) runs `checkSpec`; otherwise `artifacts.prd` runs `chec
 |---|---|
 | a Prd process runs over one product: `rules` is one artifact listing the product's contexts, every capability's `context` is one of them, and with several contexts every rule is tagged with the one that enforces it (`33-multi-context-product.md`) | `prd-consistency` (`context-mismatch`) |
 | the `rules` output is `<productId>-rules` and the Prd `<productId>-prd` (`outputs.<port>.id`, `12-task.md`): a second run with the same `productId` publishes their next revisions, so the rules a Prd run writes are revision n+1 of the context's rules when the input was named the same way | `draft-prd` outputs |
-| `author-prd` writes the first Prd of a product: `contextIds` are the ids the BoundedContexts will carry, chosen by the author before domain discovery derives them, and `productId` stems the Prd's and the rules' ids (a one-context product's is its context's); `23-pack-ai-native.md` allows a cited context not yet written | convention |
+| `author-prd` writes the first Prd of a product: `contextIds` are the ids the BoundedContexts will carry, chosen by the author before domain discovery derives them, and `productId` stems the Prd's and the rules' ids (a one-context product's is its context's); `23-pack-sdlc.md` allows a cited context not yet written | convention |
 | the Task writes the whole `BusinessRules` artifact each round, from `previousRules` when the loop carries them and from the input `rules` in round one; a `BR-n` keeps its id, statement and status unless a finding of the last verdict names it, a new policy takes the next number; `prd-consistency` refuses a Prd citing a rule the produced artifact lacks, and `rule-drift` a rule changed or dropped unasked | `prd-consistency`; `21-composition.md` |
 | a new rule carries `status: active`, `source` naming the brief, and `logic` only when the brief states the condition; a rule the brief implies but does not state is a `Q-n`, not a rule | `prd-rules` |
 | the human gate is the Prd's reviewer: `prd-consistency` decides form and citations, the human decides scope, goals and whether the capabilities are the right cut | `prd-gate` |
@@ -67,17 +67,17 @@ conformance suite's name) runs `checkSpec`; otherwise `artifacts.prd` runs `chec
 
 - The agent writes rules into `BusinessRules` while writing the Prd, and the Prd cites them: the rules
   surface when the Prd does ("over the limit needs a director"), the Prd must name what governs each
-  capability (`23-pack-ai-native.md`), and the rule text has one home. The Task has two outputs for
+  capability (`23-pack-sdlc.md`), and the rule text has one home. The Task has two outputs for
   that reason. Found in design review.
 - A human gate from the first round, unlike the Spec: a Prd is where scope, users and goals are
   decided, and no Validator decides those. The storming phases have the same gate for the same
   reason. Found in design review.
-- The Task is `draft-prd`, not `write-prd`: the demo SDLC pack `persimmon init` installs owns a Global
+- The Task is `draft-prd`, not `write-prd`: the demo pack, which `persimmon init` installed then, owns a Global
   `write-prd`, and a Global name is one per project. Found in implementation.
 - `brief` is text, not a kind: the input to a Prd is a conversation, a document, a ticket; a kind for
   it would be a Prd with fewer fields. The brief is recorded in the TaskRun's inputs. Found in design
   review.
-- `goal-with-number` is decidable and cheap: a digit in a goal is the one rule of `23-pack-ai-native.md`
+- `goal-with-number` is decidable and cheap: a digit in a goal is the one rule of `23-pack-sdlc.md`
   ("goals give direction without a number") a regular expression can hold. Found in design review.
 
 - Proven live on `claude-sonnet-5` from a one-paragraph brief, no rules or Glossary bound: one round,
@@ -112,5 +112,5 @@ conformance suite's name) runs `checkSpec`; otherwise `artifacts.prd` runs `chec
 
 ## Examples
 
-- `docs/design/examples/ai-native-domain.yaml`: `Prd/expense-claims` passes `checkPrd` against
+- `docs/design/examples/sdlc-domain.yaml`: `Prd/expense-claims` passes `checkPrd` against
   `BusinessRules/expenses-rules` beside it (`test/adapters/sdd.test.ts`).

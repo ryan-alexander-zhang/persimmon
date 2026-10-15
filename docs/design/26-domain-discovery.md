@@ -1,6 +1,6 @@
 # Domain discovery
 
-status: draft · layer: 2 (`23-pack-ai-native.md`, `24-eventstorming.md`) · schema: the `DomainModel` kind in `packs/ai-native/global/10-artifact-kinds.yaml`
+status: draft · layer: 2 (`23-pack-sdlc.md`, `24-eventstorming.md`) · schema: the `DomainModel` kind in `packs/sdlc/global/10-artifact-kinds.yaml`
 
 From a Prd to the domain kinds: an agent runs the event storming session phase by phase, a
 human confirms each phase in the editor, and the design-level model is projected into one
@@ -130,8 +130,8 @@ when `artifacts.domainModel` is present; `passed` iff no error. Labels compare e
 
 ## Examples
 
-- [`examples/ai-native-domain.yaml`](examples/ai-native-domain.yaml): `expense-claims-storming.r2`,
+- [`examples/sdlc-domain.yaml`](examples/sdlc-domain.yaml): `expense-claims-storming.r2`,
   the model at design level with three aggregates, three constraints, two policies and three read
   models, and `expenses-model`, its DomainModel; `domain-consistency` passes on the pair
-- the pack files under `packs/ai-native/global/`: `30-prompts.yaml`, `40-executors.yaml`,
+- the pack files under `packs/sdlc/global/`: `30-prompts.yaml`, `40-executors.yaml`,
   `50-tasks.yaml`, `60-validators.yaml`, `70-gates.yaml`, `80-workflows.yaml`

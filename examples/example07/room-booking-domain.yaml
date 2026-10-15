@@ -1,4 +1,4 @@
-# Meeting room booking: every artifact below was produced by the AI Native pack live (author-prd, domain-discovery, architect,
+# Meeting room booking: every artifact below was produced by the SDLC pack live (author-prd, domain-discovery, architect,
 # spec-all, design-all (http-api, data-schema, ui), design-system, plan-all on claude-sonnet-5), nothing by hand but the brief. See README.md. Every artifact is at
 # revision 1: the rounds collapsed into the revision that passed.
 apiVersion: sdd.persimmon.ai/v1

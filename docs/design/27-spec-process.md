@@ -1,6 +1,6 @@
 # Spec process
 
-status: draft · layer: 2 (`23-pack-ai-native.md`, `26-domain-discovery.md`) · schema: the `Spec` kind in `packs/ai-native/global/10-artifact-kinds.yaml`
+status: draft · layer: 2 (`23-pack-sdlc.md`, `26-domain-discovery.md`) · schema: the `Spec` kind in `packs/sdlc/global/10-artifact-kinds.yaml`
 
 From a Prd capability to its `Spec`: an agent writes stories, requirements and acceptance scenarios
 from the Prd, the Architecture, the DomainModel, the Glossary and the rules of the capability's
@@ -23,7 +23,7 @@ Workflow spec-all: repeat over `capabilities` ─▶ ReviewLoop spec-one per CAP
 | Prompt `spec-rules` | how a Spec is written: cite, never restate; Connextra stories covering EARS requirements enforcing rules; Given/When/Then scenarios with values; an unknown is a `Q-n` |
 | Executor `spec-agent` | `claude-code/v1`, read-only, the same configuration as `storming-agent` under its own name, so a Namespace overrides the model per Task |
 | Task `write-spec` | inputs `prd`, `capabilityId`, `architecture`, `domainModel`, `glossary`, `rules`, `previous`, `feedback`; output `spec` |
-| Validator `spec-consistency` | `sdd/v1` over `spec`, `prd`, `domainModel`, `architecture`, `rules`; the rule row of `23-pack-ai-native.md` as findings, `rules-mismatch` when the Spec's `businessRules` is not the artifact bound |
+| Validator `spec-consistency` | `sdd/v1` over `spec`, `prd`, `domainModel`, `architecture`, `rules`; the rule row of `23-pack-sdlc.md` as findings, `rules-mismatch` when the Spec's `businessRules` is not the artifact bound |
 | Gate `spec-gate` | consistency only; a human sign-off is an Approval the project adds |
 | ReviewLoop `spec-one` | `produce` `write-spec`, `review` `spec-gate`, `maxRounds: 2`; the findings go back as `feedback` with the last `spec` as `previous` |
 | Workflow `spec-all` | `repeat` over `capabilities` as `derive-all` repeats over contexts; one DomainModel, Glossary and rules artifact, so one context per run; a capability the loop could not write ends the run `spec_inconsistent`, an iteration that died before its Gate ran `step_failed`; output `written` |
@@ -86,7 +86,7 @@ nothing: the schema refuses those (`minItems: 1`).
 - The three forms (Connextra, EARS, Given/When/Then) replaced one: the first live run wrote EARS
   criteria under stories, and the user's review showed the standard split: a requirement is the
   system's behaviour in general form, a scenario is one concrete case of it, a story is why someone
-  needs it. `23-pack-ai-native.md` records the shape. Repeated live under it on `claude-sonnet-5`,
+  needs it. `23-pack-sdlc.md` records the shape. Repeated live under it on `claude-sonnet-5`,
   `CAP-1` and `CAP-4`, 3m21s, both passed round one: scenarios carry values and boundaries (a 24.99
   EUR line under BR-2's 25 EUR, a justified over-limit line with a director), requirements are one
   EARS sentence each with the rule id in the sentence, and the open questions are real gaps (no
@@ -103,6 +103,6 @@ nothing: the schema refuses those (`minItems: 1`).
 
 ## Examples
 
-- `docs/design/examples/ai-native-domain.yaml`: the `Spec` of `CAP-1`: three stories, six
+- `docs/design/examples/sdlc-domain.yaml`: the `Spec` of `CAP-1`: three stories, six
   requirements, seven scenarios; passes `checkSpec` against the Prd, DomainModel, Architecture and
   BusinessRules beside it (`test/adapters/sdd.test.ts`).

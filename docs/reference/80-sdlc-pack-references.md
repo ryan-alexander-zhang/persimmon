@@ -1,8 +1,7 @@
-# AI Native Pack: References
+# SDLC Pack: References
 
 Status: survey, collected 2026-10-10. Star counts are GitHub, read that day. Input to the
-design of the built-in AI Native Pack (`docs/design/2x-*`, pack of its own beside the demo
-`packs/sdlc/`). Nothing here is a decision; each row says what the pack may take from it.
+design of the built-in SDLC pack (`docs/design/2x-*`, beside the demo pack `packs/demo/`). Nothing here is a decision; each row says what the pack may take from it.
 
 ## 1. Spec-driven development tools
 

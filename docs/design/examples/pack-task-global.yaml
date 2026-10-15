@@ -1,4 +1,4 @@
-# Global pack Task (packs/sdlc/global/30-tasks.yaml); a WorkflowRun in a Namespace without an override resolves to this.
+# Global pack Task (packs/demo/global/30-tasks.yaml); a WorkflowRun in a Namespace without an override resolves to this.
 apiVersion: persimmon.ai/v1
 kind: Task
 metadata:

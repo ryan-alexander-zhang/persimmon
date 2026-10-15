@@ -1,4 +1,4 @@
-# Artifact kinds of the AI Native pack (23-pack-ai-native.md). Domain first: a BoundedContext, its Glossary, its
+# Artifact kinds of the SDLC pack (23-pack-sdlc.md). Domain first: a BoundedContext, its Glossary, its
 # BusinessRules and DecisionTables are cited by every later document; the Prd answers why and for whom; the Spec (later)
 # answers exactly what. Every object closes with additionalProperties: false so a misspelt field is refused, not ignored.
 apiVersion: persimmon.ai/v1

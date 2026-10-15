@@ -1,4 +1,4 @@
-# Evaluator Adapter for Spec artifacts (19-adapter-roles.md, 23-pack-ai-native.md). persimmon init resolves the script path.
+# Evaluator Adapter for Spec artifacts (19-adapter-roles.md, 23-pack-sdlc.md). persimmon init resolves the script path.
 apiVersion: persimmon.ai/v1
 kind: Adapter
 metadata: {name: sdd-v1}

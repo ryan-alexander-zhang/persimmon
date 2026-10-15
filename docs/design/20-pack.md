@@ -3,12 +3,14 @@
 status: active · layer: 2 · schema: none; a Pack is a directory of ordinary Resource files
 
 A Pack is a directory of Global definitions applied together and overridden by name in a
-Namespace. The SDLC pack ships a working lifecycle built only from Layer 1 kinds; it adds no
-kind, no manifest, no verb.
+Namespace. Two ship: the SDLC pack (`packs/sdlc/`, `23-pack-sdlc.md`), the default flow
+`persimmon init` applies, and the demo pack (`packs/demo/`), a PRD lifecycle applied by hand that
+proves the mechanics below. Both are built only from Layer 1 kinds; a pack adds no kind, no
+manifest, no verb.
 
 ```text
-packs/sdlc/global/*.yaml ──persimmon apply──▶ Global Resources (scope Any or Global)
-packs/sdlc/namespaced/*.yaml ──persimmon apply -n demo──▶ Namespaced Resources (Triggers)
+packs/demo/global/*.yaml ──persimmon apply──▶ Global Resources (scope Any or Global)
+packs/demo/namespaced/*.yaml ──persimmon apply -n demo──▶ Namespaced Resources (Triggers)
                                                              │
 Namespace demo: Task research (override) ── shadows ──▶ Global Task research
 WorkflowRun in demo ── snapshot walk resolves Namespace, then Global ──▶ closure holds the override
@@ -25,7 +27,7 @@ WorkflowRun in demo ── snapshot walk resolves Namespace, then Global ──�
 
 | Action | Rule |
 |---|---|
-| install | `persimmon apply packs/sdlc/global/*.yaml --global` then `namespaced/*.yaml -n <namespace>`; needs the `admin` grant; local mode runs both at `persimmon init` |
+| install | `persimmon apply packs/demo/global/*.yaml --global` then `namespaced/*.yaml -n <namespace>`; needs the `admin` grant; local mode runs both for the SDLC pack at `persimmon init` |
 | upgrade | `apply` again; SpecMutable definitions change in place, running runs keep their snapshot |
 | Immutable members (artifact kinds, RelationTypes) | never change; a new version is a new name (`derived-from-v2`) |
 | uninstall | `persimmon delete` per file in reverse order; refused while referenced (`00-resource.md`) |
@@ -40,9 +42,9 @@ snapshot walk rooted in that Namespace (`04-snapshot.md`). Overrides are ordinar
 | an override's input and output port names and types equal the shadowed definition's | static checker at admission |
 | a Namespace that needs its own credentials overrides the Executor (`13-executor.md`) | convention |
 
-## SDLC pack v1 content
+## Demo pack content
 
-| Kind | Shipped (`packs/sdlc/`) | Not yet |
+| Kind | Shipped (`packs/demo/`) | Not yet |
 |---|---|---|
 | Executor | `claude-agent`, `local-reviewer` on `cli-human/v1` | `product-reviewers` |
 | Prompt | `write-prd-template` | `code-agent` |
@@ -66,6 +68,10 @@ Credentials the pack Executors bind are Global names resolved at run time.
   never stores a definition create would refuse. Every UAT project since the Spec unit was a fresh
   one because of this. Found in UAT.
 
+- The spec-driven pack is `packs/sdlc`, the default flow `persimmon init` applies; the PRD
+  lifecycle it was built beside is `packs/demo`, applied by hand by the examples that drive
+  `prd-create`. Until then `init` installed the demo lifecycle and the real process was applied
+  by hand under the name AI Native pack. Found in UAT.
 - No pack manifest, version, dependency resolution or `pack` verb: reference roadmap excluded
   a pack format from v1. A Pack is a directory and `apply`.
 - Composition kinds `Pipeline`, `ReviewLoop`, `Approval` ship with the engine, not the pack
@@ -116,4 +122,4 @@ Credentials the pack Executors bind are Global names resolved at run time.
 - [`examples/pack-task-global.yaml`](examples/pack-task-global.yaml) and
   [`examples/pack-task-override.yaml`](examples/pack-task-override.yaml): a Global pack Task
   and its port-compatible Namespace override; both validate against `schemas/task.yaml`
-- pack members: the files under `packs/sdlc/`, the Shipped column of the content table
+- pack members: the files under `packs/demo/`, the Shipped column of the content table

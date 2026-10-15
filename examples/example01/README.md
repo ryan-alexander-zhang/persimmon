@@ -27,11 +27,12 @@ Run every command inside this directory.
 ```sh
 cd examples/example01
 persimmon init
+persimmon apply ../../packs/demo/global/*.yaml --global
 ```
 
 Expected: `wrote persimmon.yaml`, then one `created ...` line per shipped Adapter and pack
-definition. `init` also installs the built-in SDLC pack; this example reuses three of its
-definitions: the `local-reviewer` Executor (you, at the terminal) and the `ResearchReport` and
+definition. `init` installs the built-in SDLC pack; the demo pack adds the three definitions
+this example reuses: the `local-reviewer` Executor (you, at the terminal) and the `ResearchReport` and
 `ReviewReport` artifact kinds.
 
 ### 2. Install the workflow

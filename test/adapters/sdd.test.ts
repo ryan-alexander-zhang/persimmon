@@ -1,5 +1,5 @@
 // The evaluator Adapter over stdio (19-adapter-roles.md): the Spec of the worked example against the artifacts it
-// cites (23-pack-ai-native.md), and one mutation per finding code.
+// cites (23-pack-sdlc.md), and one mutation per finding code.
 import { spawn } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest'
 import { checkDesign } from '../../adapters/sdd/check.mjs'
 
 const root = join(import.meta.dirname, '..', '..')
-const docs = parseAllDocuments(readFileSync(join(root, 'docs/design/examples/ai-native-domain.yaml'), 'utf8')).map((d) => d.toJS())
+const docs = parseAllDocuments(readFileSync(join(root, 'docs/design/examples/sdlc-domain.yaml'), 'utf8')).map((d) => d.toJS())
 const content = (kind: string) => docs.find((d) => d.kind === kind).spec.content
 const example = () => ({ spec: content('Spec'), prd: content('Prd'), domainModel: content('DomainModel'), architecture: content('Architecture'), rules: content('BusinessRules') })
 
@@ -401,7 +401,7 @@ describe('sdd/v1 over a Design', () => {
   })
 
   it('every example Design passes the document checks of checkDesign', () => {
-    const files = ['docs/design/examples/ai-native-domain.yaml', 'examples/example07/room-booking-domain.yaml', 'examples/example08/car-pool-domain.yaml']
+    const files = ['docs/design/examples/sdlc-domain.yaml', 'examples/example07/room-booking-domain.yaml', 'examples/example08/car-pool-domain.yaml']
     for (const f of files) {
       const all = parseAllDocuments(readFileSync(join(root, f), 'utf8')).map((x) => x.toJS()).filter(Boolean)
       const byKind = (kind: string) => all.filter((d) => d.kind === kind)

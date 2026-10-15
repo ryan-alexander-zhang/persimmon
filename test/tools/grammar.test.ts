@@ -289,7 +289,7 @@ describe('checkDerived', () => {
 // The design example's pair is the derivation's worked case (26-domain-discovery.md): the model is clean and the
 // DomainModel agrees with it, so a schema or rule change that breaks either shows here.
 describe('the design example', () => {
-  const docs = parseAllDocuments(readFileSync(join(import.meta.dirname, '..', '..', 'docs', 'design', 'examples', 'ai-native-domain.yaml'), 'utf8')).map((d) => d.toJS() as { kind: string; spec: { identity: { revision: number }; content: unknown } })
+  const docs = parseAllDocuments(readFileSync(join(import.meta.dirname, '..', '..', 'docs', 'design', 'examples', 'sdlc-domain.yaml'), 'utf8')).map((d) => d.toJS() as { kind: string; spec: { identity: { revision: number }; content: unknown } })
   const model = docs.find((d) => d.kind === 'EventStorming' && d.spec.identity.revision === 2)!.spec.content
   const domainModel = docs.find((d) => d.kind === 'DomainModel')!.spec.content
   it('expense-claims-storming r2 has no error and expenses-model agrees with it', () => {

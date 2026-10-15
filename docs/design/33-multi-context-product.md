@@ -1,6 +1,6 @@
 # Multi-context product
 
-status: draft · layer: 2 (`23-pack-ai-native.md`, `26-domain-discovery.md`, `28-prd-process.md`, `31-architecture-process.md`) and one CLI convenience (`08-store.md`) · schema: the `BusinessRules` kind in `packs/ai-native/global/10-artifact-kinds.yaml`
+status: draft · layer: 2 (`23-pack-sdlc.md`, `26-domain-discovery.md`, `28-prd-process.md`, `31-architecture-process.md`) and one CLI convenience (`08-store.md`) · schema: the `BusinessRules` kind in `packs/sdlc/global/10-artifact-kinds.yaml`
 
 One product, several bounded contexts, through the whole chain. Today the Prd process runs over
 one context (`28-prd-process.md`: "a product spanning contexts runs it once per context and the
@@ -19,7 +19,7 @@ brief ─▶ author-prd (productId, contextIds) ─▶ Prd <product>-prd, Busine
 
 ## Why product-level rules
 
-A Spec, a Design and an Adr cite a rule as `BR-n` with no artifact id (`23-pack-ai-native.md`,
+A Spec, a Design and an Adr cite a rule as `BR-n` with no artifact id (`23-pack-sdlc.md`,
 relation rows). Two rules artifacts would number from `BR-1` each, so a citation would be ambiguous
 the moment a product had two contexts. One artifact per product keeps `BR-n` unique everywhere a
 rule is cited; the context a rule governs is a tag on the rule, which is where it belongs (a rule is

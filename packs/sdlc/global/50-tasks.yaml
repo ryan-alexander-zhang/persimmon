@@ -1,4 +1,4 @@
-# Tasks of the AI Native pack (12-task.md): the storming session, the human confirmation, the derivation.
+# Tasks of the SDLC pack (12-task.md): the storming session, the human confirmation, the derivation.
 apiVersion: persimmon.ai/v1
 kind: Task
 metadata: {name: event-storm}

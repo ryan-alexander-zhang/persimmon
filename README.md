@@ -89,8 +89,15 @@ errors.
 
 ## Example: from idea to approved PRD
 
-`persimmon init` installs the SDLC pack and its Trigger `on-prd-published` in Namespace
-`default`. The pack binds `claude-agent` to the `claude-code/v1` Adapter.
+`persimmon init` installs the SDLC pack (`docs/design/23-pack-sdlc.md`, example07). This
+example drives the smaller demo pack, applied by hand from the persimmon checkout: its
+`claude-agent` binds the `claude-code/v1` Adapter and its Trigger `on-prd-published` listens
+in Namespace `default`.
+
+```sh
+persimmon apply <persimmon>/packs/demo/global/*.yaml --global
+persimmon apply <persimmon>/packs/demo/namespaced/on-prd-published.yaml -n default
+```
 
 1. Choose a model and sandbox with a Namespaced Executor override:
 
@@ -143,7 +150,7 @@ More scenarios, each with step-by-step instructions, are in [`examples/`](exampl
 | [`example02`](examples/example02/) | Spec to tested code, behind a Gate that loops rejected rounds back |
 | [`example03`](examples/example03/) | Event-driven release chain with Triggers, no agents |
 | [`example04`](examples/example04/) | Your own SDLC with templates you edit |
-| [`example07`](examples/example07/) | Brief to Plan with the AI Native pack: Prd, domain, Specs, Designs, Plans, a human at every Gate |
+| [`example07`](examples/example07/) | Brief to Plan with the SDLC pack: Prd, domain, Specs, Designs, Plans, a human at every Gate |
 
 ## Core concepts
 

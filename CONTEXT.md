@@ -406,17 +406,22 @@ _Avoid_: API, engine API, SDK
 **Pack**:
 A directory of definitions applied together: `global/` as **Global**, `namespaced/` into
 `defaultNamespace` (the Trigger). Overridable by name in a **Namespace**.
-The SDLC pack ships Workflows, Tasks, Gates, Validators, Executors, Prompts, Triggers,
-artifact kinds and RelationTypes; no kinds of its own.
+Two ship: the **SDLC pack** `persimmon init` applies and the **Demo pack** applied by hand.
+A pack is Layer 1 instances only; no kinds of its own.
 _Avoid_: bundle, library, preset, plugin
 
-**AI Native pack**:
-The second shipped **Pack** (`packs/ai-native/`, `23-pack-ai-native.md`): a spec-driven delivery
-process, domain artifacts first. Group `sdd.persimmon.ai`.
-_Avoid_: SDD pack, real SDLC pack, process pack
+**SDLC pack**:
+The built-in default flow (`packs/sdlc/`, `23-pack-sdlc.md`), applied by `persimmon init`: a
+spec-driven delivery process, domain artifacts first. Group `sdd.persimmon.ai`.
+_Avoid_: AI Native pack (its name before the rename), SDD pack, process pack
+
+**Demo pack**:
+The PRD lifecycle (`packs/demo/`, `20-pack.md`): research, write-prd, reviews behind a Gate, a
+Trigger. Proves the engine's mechanics; applied by hand. Group `engineering.persimmon.ai`.
+_Avoid_: SDLC pack (its name before the rename), sample pack
 
 **BoundedContext**:
-**Artifact kind** of the AI Native pack: where one domain model holds; `inScope`, `outOfScope`,
+**Artifact kind** of the SDLC pack: where one domain model holds; `inScope`, `outOfScope`,
 `relationships` (its own view of the context map). Cited by artifact id.
 _Avoid_: domain, module, subsystem, context (bare)
 
@@ -545,12 +550,12 @@ its context's.
 _Avoid_: project (the persimmon project is the store), system, initiative (for the id)
 
 **Prd**:
-**Artifact kind** of the AI Native pack: why, for whom, `CAP-n` capabilities, `SC-n` success
+**Artifact kind** of the SDLC pack: why, for whom, `CAP-n` capabilities, `SC-n` success
 criteria. No stories, requirements or technology; those are the **Spec**'s.
 _Avoid_: ProductRequirement (demo pack), EarsPrd (example06), product spec
 
 **DesignSystem**:
-**Artifact kind** of the AI Native pack, one per product: the visual language as a **DESIGN.md**
+**Artifact kind** of the SDLC pack, one per product: the visual language as a **DESIGN.md**
 file embedded whole in `document`, plus `prd`, `decisions` and `openQuestions`. Confirmed by a human.
 Always the capitalised kind name.
 _Avoid_: style guide, brand book, theme, design tokens (for the kind)
@@ -561,7 +566,7 @@ markdown sections. The `document` of a **DesignSystem**; linted by `designmd/v1`
 _Avoid_: design.md (the package is `@google/design.md`), design spec
 
 **Design**:
-**Artifact kind** of the AI Native pack: one reusable contract, schema or screen document (`type`
+**Artifact kind** of the SDLC pack: one reusable contract, schema or screen document (`type`
 http-api, async-api, data-schema, ui) of one **Architecture** building block, its `document` embedded whole and indexed by
 `elements` that name what in the **DomainModel** each realises (a `ui` Design: which operation of the block's API Designs
 each screen or action calls; it names no DomainModel). Shared by every capability of the
@@ -569,13 +574,13 @@ block; a **Spec** never cites one, the Plan does. Always the capitalised kind na
 _Avoid_: design doc, technical design, design asset, design per capability, API spec (for the kind)
 
 **Plan**:
-**Artifact kind** of the AI Native pack, one per **Spec**: tasks `T-n` in build order, each on one
+**Artifact kind** of the SDLC pack, one per **Spec**: tasks `T-n` in build order, each on one
 **Architecture** block, covering the Spec's `FR-n`, verified by its `AC-n`, realising `EL-n` of the
 **Design**s it lists. The only artifact that links a Spec to Designs. Always the capitalised kind name.
 _Avoid_: tasks.md, work breakdown, implementation plan, task (for the kind; a Task is the engine's)
 
 **Spec**:
-**Artifact kind** of the AI Native pack, one per `CAP-n` of a **Prd**: stories `US-n` (Connextra)
+**Artifact kind** of the SDLC pack, one per `CAP-n` of a **Prd**: stories `US-n` (Connextra)
 covering requirements `FR-n` (EARS) that enforce rules `BR-n`, acceptance scenarios `AC-n`
 (Given/When/Then) under each story, `qualities` citing Architecture `QS-n`, open questions. Names
 are the **DomainModel**'s; no NFR text or entity of its own. Always the capitalised kind name; the
@@ -586,7 +591,7 @@ _Avoid_: feature spec, requirements doc, spec.md
 
 - **Tool vs `tool`.** A web surface under `tools/` and the Executor type. Resolution: the surface is
   capitalised **Tool** or "the event storming tool"; the Executor type is always `tool` in code font.
-- **Spec vs `spec`.** The AI Native pack's kind and every Resource's envelope field. Resolution: the
+- **Spec vs `spec`.** The SDLC pack's kind and every Resource's envelope field. Resolution: the
   kind is always `Spec` or "a Spec"; the field is always `spec` in code font or `spec.content`.
 
 - **ArtifactRef vs RevisionRef.** Same shape. Framework says RevisionRef; reference well-known

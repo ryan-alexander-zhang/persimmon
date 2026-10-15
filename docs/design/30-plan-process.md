@@ -1,6 +1,6 @@
 # Plan process
 
-status: draft · layer: 2 (`23-pack-ai-native.md`, `27-spec-process.md`, `29-design-process.md`) · schema: the `Plan` kind in `packs/ai-native/global/10-artifact-kinds.yaml`
+status: draft · layer: 2 (`23-pack-sdlc.md`, `27-spec-process.md`, `29-design-process.md`) · schema: the `Plan` kind in `packs/sdlc/global/10-artifact-kinds.yaml`
 
 From a Spec and the Designs it will be built against to its Plan: an agent writes the tasks in
 build order, each on one Architecture block, covering the Spec's requirements, verified by its
@@ -23,7 +23,7 @@ ReviewLoop plan-one, run per Spec by ref or from plan-all, the Designs listed by
 | Prompt `plan-rules` | one block per task; tasks cover every `FR-n` and verify every `AC-n`; elements only of Designs in context, of the task's block; earlier tasks only; no estimate, owner, path or technology |
 | Executor `plan-agent` | `claude-code/v1`, read-only, its own name for per-Namespace override |
 | Task `write-plan` | inputs `spec`, `architecture`, `designs` (artifacts), `previous`, `feedback`; output `plan` |
-| Validator `plan-consistency` | `sdd/v1` over `plan`, `spec`, `architecture`, `designs`; the Plan rule row of `23-pack-ai-native.md` as findings |
+| Validator `plan-consistency` | `sdd/v1` over `plan`, `spec`, `architecture`, `designs`; the Plan rule row of `23-pack-sdlc.md` as findings |
 | Gate `plan-gate` | consistency only |
 | ReviewLoop `plan-one` | `produce` `write-plan`, `review` `plan-gate`, `maxRounds: 2` |
 | Workflow `plan-all` | `repeat` over `capabilities` as `spec-all` does; each iteration binds `spec` by `fromArtifact` to `<prd>-cap-n` at its latest revision (`10-ports.md`), `designs` once for the product; a Spec the loop could not plan ends the run `plan_inconsistent`; a step that fails ends it `step_failed`, `steps.each.error` naming the cause (`spec: source absent` for a capability without a Spec, `iteration_limit` past twenty); output `written` |
@@ -94,6 +94,6 @@ The Adapter picks the mode from the payload: `artifacts.plan` first (a Plan payl
 
 ## Examples
 
-- `docs/design/examples/ai-native-domain.yaml`: `Plan/submit-a-claim-plan`, four tasks over `BB-1`
+- `docs/design/examples/sdlc-domain.yaml`: `Plan/submit-a-claim-plan`, four tasks over `BB-1`
   and `BB-2` covering `FR-1`..`FR-6`, verified by `AC-1`..`AC-7`, realising `EL-1`..`EL-4` of
   `claims-api`; passes `checkPlan` (`test/adapters/sdd.test.ts`).

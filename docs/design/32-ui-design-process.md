@@ -1,6 +1,6 @@
 # UI design process
 
-status: draft · layer: 2 (`23-pack-ai-native.md`, `29-design-process.md`, `31-architecture-process.md`) · schema: the `DesignSystem` kind and the `ui` type of the `Design` kind in `packs/ai-native/global/10-artifact-kinds.yaml`
+status: draft · layer: 2 (`23-pack-sdlc.md`, `29-design-process.md`, `31-architecture-process.md`) · schema: the `DesignSystem` kind and the `ui` type of the `Design` kind in `packs/sdlc/global/10-artifact-kinds.yaml`
 
 From the Architecture's client blocks to what a build agent needs to make their screens: one
 `DesignSystem` per product in the DESIGN.md format, confirmed by a human, and one `ui` Design per

@@ -1,6 +1,6 @@
 # Event storming
 
-status: draft · layer: 2 (`23-pack-ai-native.md`) · schema: the `EventStorming` kind in `packs/ai-native/global/10-artifact-kinds.yaml`
+status: draft · layer: 2 (`23-pack-sdlc.md`) · schema: the `EventStorming` kind in `packs/sdlc/global/10-artifact-kinds.yaml`
 
 The event storming tool, built in: its DSL as an artifact kind, its grammar as a module, its
 validator as the first shipped evaluator Adapter. The editor (`tools/eventstorming/`, later) and
@@ -119,6 +119,6 @@ executor".
 
 ## Examples
 
-- [`examples/ai-native-domain.yaml`](examples/ai-native-domain.yaml): `expense-claims-storming`, a
+- [`examples/sdlc-domain.yaml`](examples/sdlc-domain.yaml): `expense-claims-storming`, a
   big-picture model with three contexts, nine events, two alternative sets and one open hotspot
 - `test/tools/*.json`: two of the tool's example models, the grammar's regression fixtures

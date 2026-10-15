@@ -67,7 +67,7 @@ describe('persimmon CLI', () => {
     out = [] // the pack validates as a file set in a fresh project: a Workflow stepping into a ReviewLoop of the same files resolves
     expect([await run('validate', ...['10-artifact-kinds', '30-prompts', '40-executors', '50-tasks', '60-validators', '70-gates', '80-workflows'].map((f) => `packs/sdlc/global/${f}.yaml`)), out.filter((l) => l.startsWith('error'))]).toEqual([0, []])
     out = []
-    expect([await run('validate', 'docs/design/examples/ai-native-domain.yaml'), out.filter((l) => !l.startsWith('ok'))]).toEqual([0, []])
+    expect([await run('validate', 'docs/design/examples/sdlc-domain.yaml'), out.filter((l) => !l.startsWith('ok'))]).toEqual([0, []])
     expect(out.length).toBe(14)
     out = [] // the pack's own live output, meeting room booking, validates too
     expect([await run('validate', 'examples/example07/room-booking-domain.yaml'), out.filter((l) => !l.startsWith('ok'))]).toEqual([0, []])

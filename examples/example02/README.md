@@ -44,7 +44,7 @@ Run every command inside `examples/example02`.
 ### 1. Create the project and install the definitions
 
 ```sh
-persimmon init                             # wrote persimmon.yaml, then the shipped Adapters and the built-in SDLC pack (23 created; unused here)
+persimmon init                             # wrote persimmon.yaml, then the shipped Adapters and the built-in SDLC pack (unused here)
 persimmon validate spec-to-code.yaml       # every line ok
 persimmon apply spec-to-code.yaml          # 16 created
 ```

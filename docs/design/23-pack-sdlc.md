@@ -1,10 +1,11 @@
-# AI Native pack
+# SDLC pack
 
 status: draft · layer: 2 · schema: none; the pack is a directory of ordinary Resource files (`20-pack.md`)
 
 A delivery process built on the engine's Layer 1 kinds, borrowed from the spec-driven tools and
-skills collections people already run (`docs/reference/80-ai-native-pack-references.md`). This
-file grows one artifact kind at a time; the demo pack `packs/sdlc/` is untouched.
+skills collections people already run (`docs/reference/80-sdlc-pack-references.md`). `persimmon init`
+applies it (`20-pack.md`). This file grows one artifact kind at a time; the demo pack
+`packs/demo/` is untouched.
 
 ```text
 every arrow: "cites", downstream ──▶ upstream; the arrow's head is a Task input of its tail
@@ -30,7 +31,7 @@ elements of, and "which Designs serve this Spec" is read off it.
 ## Artifact kinds
 
 All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "None"`
-(`18-artifact.md`). Schemas in `packs/ai-native/global/10-artifact-kinds.yaml`.
+(`18-artifact.md`). Schemas in `packs/sdlc/global/10-artifact-kinds.yaml`.
 
 | Kind | Answers | Content |
 |---|---|---|
@@ -272,7 +273,7 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
 
 ## Examples
 
-- [`examples/ai-native-domain.yaml`](examples/ai-native-domain.yaml): one domain, expense claims, as a big-picture
+- [`examples/sdlc-domain.yaml`](examples/sdlc-domain.yaml): one domain, expense claims, as a big-picture
   `EventStorming` model, a
   `BoundedContext`, its `Glossary` with fact types, `BusinessRules` with logic, the `DecisionTable`
   that routes a claim, the `Prd` that cites them, two `Adr`s and the `Architecture` that applies

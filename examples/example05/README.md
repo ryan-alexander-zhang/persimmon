@@ -16,7 +16,7 @@ Everything is in [`prd-review.yaml`](prd-review.yaml): two artifact kinds (`Ears
 `Judgement`, what the judge decided about every finding), two Prompts (the PRD template, the
 review rules both reviewers follow), three Executors, four Tasks, the round Workflow
 `review-round` and the outer Workflow `idea-to-reviewed-prd`. The `ReviewReport` kind comes from
-the built-in pack.
+the demo pack.
 
 ## Prerequisites
 
@@ -33,6 +33,7 @@ Run every command inside this directory.
 ```sh
 cd examples/example05
 persimmon init
+persimmon apply ../../packs/demo/global/*.yaml --global   # the ReviewReport kind
 persimmon validate prd-review.yaml     # every line `ok`
 persimmon apply prd-review.yaml
 ```

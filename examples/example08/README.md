@@ -35,8 +35,7 @@ Run every command inside this directory. `<ref>` below stands for
 
 ```sh
 cd examples/example08
-persimmon init
-persimmon apply ../../packs/ai-native/global/*.yaml --global
+persimmon init                          # the SDLC pack comes with it
 persimmon apply overrides.yaml          # the seven agent Executors on claude-sonnet-5
 ```
 
@@ -145,7 +144,6 @@ relay for notifications, a mileage update the Fleet record API has no operation 
 
 ```sh
 persimmon init
-persimmon apply ../../packs/ai-native/global/10-artifact-kinds.yaml --global
 persimmon validate car-pool-domain.yaml        # 38 lines `ok`
 ```
 

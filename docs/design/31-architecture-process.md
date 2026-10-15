@@ -1,6 +1,6 @@
 # Architecture process
 
-status: draft · layer: 2 (`23-pack-ai-native.md`, `26-domain-discovery.md`, `28-prd-process.md`) · schema: the `Architecture` and `Adr` kinds in `packs/ai-native/global/10-artifact-kinds.yaml`
+status: draft · layer: 2 (`23-pack-sdlc.md`, `26-domain-discovery.md`, `28-prd-process.md`) · schema: the `Architecture` and `Adr` kinds in `packs/sdlc/global/10-artifact-kinds.yaml`
 
 From a Prd, its rules and the derived domain kinds of every context to the product's Architecture:
 an agent writes the arc42 baseline and one Adr per strategy decision; a Validator checks every
@@ -60,7 +60,7 @@ else `artifacts.prd`.
 
 | Rule | Enforcer |
 |---|---|
-| the Architecture rule row of `23-pack-ai-native.md`, except `deployment` and `runtime` references and `decisions[]` with status `accepted` being the only Adrs (they are: `adr-status`) | `architecture-consistency` |
+| the Architecture rule row of `23-pack-sdlc.md`, except `deployment` and `runtime` references and `decisions[]` with status `accepted` being the only Adrs (they are: `adr-status`) | `architecture-consistency` |
 | the slot rule: the n-th Adr backs `S-n` and says so in `strategy`, so `<prd>-adr-n` names one decision across rounds and the Architecture alone tells the agent which slots are live (round two never sees round one's Adrs); a dropped `S-n` keeps its slot as a `superseded` Adr still naming it, which the Architecture does not list; the Validator holds a named strategy to its slot and a superseded one to a dropped strategy, and does not count: the kind rule ("detail is an Adr") lets an Architecture apply fewer Adrs than it has strategies, and an Adr taken outside the loop names no strategy and sits in no slot | `architecture-rules`; `adr-mismatch`, `adr-status`, `adr-strategy` |
 | one BoundedContext per product today: `rules` is one BusinessRules, per context, and `checkPrd` holds every capability to it; a product over several contexts takes `rules` as a list with the query row of `10-ports.md` | convention; `91-roadmap.md` |
 | `status: accepted` on the Architecture and its Adrs is the author's claim; the Gate's pass is the fact, read from the run; a rejected round's artifacts are committed revisions all the same, as every produce output is | convention |
@@ -127,7 +127,7 @@ else `artifacts.prd`.
 
 ## Examples
 
-- `docs/design/examples/ai-native-domain.yaml`: `Architecture/expense-claims-architecture` with its
+- `docs/design/examples/sdlc-domain.yaml`: `Architecture/expense-claims-architecture` with its
   two Adrs; passes `checkArchitecture` against the Prd, the `expenses` context, its Glossary and the
   rules (`test/adapters/sdd.test.ts`).
 - `examples/example07/room-booking-domain.yaml`: the Architecture the `architect` loop wrote for

@@ -1,4 +1,4 @@
-# Artifact kinds the SDLC pack produces (18-artifact.md).
+# Artifact kinds the demo pack produces (18-artifact.md).
 apiVersion: persimmon.ai/v1
 kind: KindDefinition
 metadata:

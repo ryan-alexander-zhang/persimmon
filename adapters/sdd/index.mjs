@@ -1,4 +1,4 @@
-// sdd/v1: the evaluator Role (19-adapter-roles.md) over the AI Native pack (23-pack-ai-native.md), in four modes.
+// sdd/v1: the evaluator Role (19-adapter-roles.md) over the SDLC pack (23-pack-sdlc.md), in four modes.
 // Given a Spec, `evaluate` runs `checkSpec` on it and the Prd, DomainModel, Architecture and BusinessRules it cites;
 // given a Prd, it runs `checkPrd` on it and the BusinessRules of its context; given a Design, it runs `checkDesign` on
 // it and the Architecture, DomainModel and BusinessRules it cites (a ui Design: the DesignSystem bound and the API Designs

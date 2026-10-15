@@ -1,4 +1,4 @@
-# Prompts of the AI Native pack (15-prompt-skill.md). The event storming session, one Prompt per phase plus the DSL,
+# Prompts of the SDLC pack (15-prompt-skill.md). The event storming session, one Prompt per phase plus the DSL,
 # ported from the old tool's skill references (26-domain-discovery.md); the agent writes the whole model at the phase's level.
 apiVersion: persimmon.ai/v1
 kind: Prompt

@@ -1,4 +1,4 @@
-# example07: brief to Plan with the AI Native pack, a human at every Gate
+# example07: brief to Plan with the SDLC pack, a human at every Gate
 
 You give a one-page brief. The pack writes the Prd and its business rules, storms the domain in
 three levels, derives the bounded context, its glossary and domain model, writes one Spec per
@@ -32,8 +32,7 @@ Run every command inside this directory.
 
 ```sh
 cd examples/example07
-persimmon init
-persimmon apply ../../packs/ai-native/global/*.yaml --global
+persimmon init                          # the SDLC pack comes with it
 persimmon apply overrides.yaml          # the seven agent Executors on claude-sonnet-5
 ```
 
@@ -152,7 +151,6 @@ persimmon run plan-all --input 'prd=...' --input 'capabilities=[CAP-1, CAP-2, CA
 
 ```sh
 persimmon init
-persimmon apply ../../packs/ai-native/global/10-artifact-kinds.yaml --global
 persimmon validate room-booking-domain.yaml        # 26 lines `ok`
 ```
 

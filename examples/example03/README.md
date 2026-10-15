@@ -36,7 +36,7 @@ Run every command inside `examples/example03`.
 persimmon init
 persimmon validate release.yaml            # every line ok
 persimmon apply release.yaml               # 9 created
-persimmon get Trigger                      # on-notes-published, on-package-built (and the pack's on-prd-published)
+persimmon get Trigger                      # on-notes-published, on-package-built
 ```
 
 Triggers are Namespaced: `apply` put these in `default`. A Trigger listens to events in its own
