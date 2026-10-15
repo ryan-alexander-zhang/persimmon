@@ -45,7 +45,7 @@ The execute payload carries the resolved ids as `task.outputIds: {<port>: Id}` (
 | `skill` | `ref` | `{kind, name, source, digest, format}` | LocalDefinitionRef to a Skill; `format` ∈ adapter `describe.skillFormats` |
 
 Adapters receive entries in order, then value inputs, then `instructions`, then the answer schema. An entry on an absent optional input
-is dropped; on an absent required input the attempt fails with `invalid_input`. Inputs not
+is dropped (an input a `required` expression left unbound counts as optional, `10-ports.md`); on an absent required input the attempt fails with `invalid_input`. Inputs not
 listed stay fetchable through `getArtifact`, not injected.
 
 ## RetryPolicy

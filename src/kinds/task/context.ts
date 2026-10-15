@@ -3,6 +3,7 @@ import type { ExternalResourceRef } from '../../resource/types.js'
 import type { Closure } from '../../snapshot/walk.js'
 import { fromClosure } from '../deps.js'
 import type { InputSpec, RuntimeValues } from '../ports/types.js'
+import { optional } from '../ports/ports.js'
 import type { ContextEntry, ResolvedContextEntry } from './types.js'
 
 export class ContextError extends Error {
@@ -29,7 +30,7 @@ export function resolveContext(
       case 'artifact': {
         const v = values[e.input]
         if (!v) {
-          if (inputs[e.input]?.required === false) continue // optional and unbound: dropped
+          if (inputs[e.input] && optional(inputs[e.input]!)) continue // optional and unbound: dropped
           throw new ContextError('invalid_input', `context ${e.kind}: input ${e.input} absent`)
         }
         if (e.kind === 'file') {

@@ -60,7 +60,7 @@ function evaluate(payload) {
       const findings = checkDesign({
         design,
         architecture: required(artifacts, 'architecture'),
-        domainModel: design.type === 'ui' ? undefined : required(artifacts, 'domainModel'),
+        domainModel: artifacts.domainModel?.content,
         rules: required(artifacts, 'rules'),
         designs: boundDesigns(payload, artifacts),
         ids: { designSystem: payload.inputs?.designSystem?.ref?.id },

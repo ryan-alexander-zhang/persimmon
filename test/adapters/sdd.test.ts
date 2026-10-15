@@ -321,17 +321,19 @@ describe('sdd/v1 over a Design', () => {
     expect(await designCodes((a) => { a.design.openQuestions[0].id = 'Q-0' })).toEqual(['id-sequence'])
   })
 
+  it('a Design of any type but ui with no DomainModel bound is one finding, not an Adapter error', async () => {
+    expect(await designCodes((a) => { delete (a as { domainModel?: unknown }).domainModel })).toEqual(['domainmodel-unbound'])
+  })
+
   it('is invalid_input without the BusinessRules beside a Design', async () => {
     const { rules, ...rest } = designExample()
     const r = await adapter({ id: 3005, op: 'evaluate', payload: payload(rest) })
     expect(r).toEqual({ id: 3005, ok: false, error: { code: 'invalid_input', message: 'artifacts.rules is required', retryable: false } })
   })
 
-  it('is invalid_input without the Architecture or the DomainModel beside a Design', async () => {
+  it('is invalid_input without the Architecture beside a Design', async () => {
     const { architecture, ...noArchitecture } = designExample()
     expect(await adapter({ id: 3006, op: 'evaluate', payload: payload(noArchitecture) })).toEqual({ id: 3006, ok: false, error: { code: 'invalid_input', message: 'artifacts.architecture is required', retryable: false } })
-    const { domainModel, ...noDomainModel } = designExample()
-    expect(await adapter({ id: 3007, op: 'evaluate', payload: payload(noDomainModel) })).toEqual({ id: 3007, ok: false, error: { code: 'invalid_input', message: 'artifacts.domainModel is required', retryable: false } })
   })
 })
 

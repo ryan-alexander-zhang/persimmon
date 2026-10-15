@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { parse } from 'yaml'
 import { describe, expect, it } from 'vitest'
 import { ExpressionError } from '../../expression/site.js'
-import { bind, checkInputs, checkOutputs, expandSchema, inlineSchema, overrideFindings, PortError, sameType, siteOf, unwrap } from './ports.js'
+import { bind, checkInputs, checkOutputs, expandSchema, inlineSchema, optional, overrideFindings, PortError, requiredFindings, sameType, siteOf, unwrap } from './ports.js'
 import type { Binding, InputSpec, OutputSpec, RuntimeValue } from './types.js'
 
 const example = (n: string) => parse(readFileSync(`docs/design/examples/${n}.yaml`, 'utf8'))
@@ -50,6 +50,26 @@ describe('port types', () => {
     g2.spec.inputs.repository.required = false
     expect(overrideFindings(() => g2, stricter).map((f) => f.message)).toEqual(['override inputs.repository changes whether the input is required'])
     expect(overrideFindings(lookup, g)).toEqual([]) // Global itself
+    const g3 = structuredClone(g)
+    g3.spec.inputs.repository.required = { expression: 'inputs.maxRequirements > 3' }
+    const same = structuredClone(o)
+    same.spec.inputs.repository.required = { expression: 'inputs.maxRequirements > 3' }
+    expect(overrideFindings(() => g3, same)).toEqual([]) // the expression compares by value
+    expect(overrideFindings(() => g3, o).map((f) => f.message)).toEqual(['override inputs.repository changes whether the input is required'])
+  })
+
+  it('a required expression decides at bind from the inputs present, and type-checks as bool statically', () => {
+    const inputs: Record<string, InputSpec> = { type: { type: { kind: 'value', schema: { type: 'string' } } }, research: { ...task.inputs.research!, required: { expression: "inputs.type != 'ui'" } }, repository: { ...task.inputs.repository!, required: { expression: "inputs.type == 'ui' && !has(inputs.research)" } } }
+    const ui = { kind: 'value', value: 'ui' } as RuntimeValue
+    const api = { kind: 'value', value: 'http-api' } as RuntimeValue
+    expect(() => checkInputs(inputs, { type: api })).toThrow(/research: required input missing \(inputs.type != 'ui'\)/)
+    expect(checkInputs(inputs, { type: api, research: report })).toEqual({ type: api, research: report })
+    expect(() => checkInputs(inputs, { type: ui })).toThrow(/repository: required input missing/)
+    expect(checkInputs(inputs, { type: ui, repository: repo })).toEqual({ type: ui, repository: repo })
+    expect([optional(inputs.research!), optional(inputs.type!), optional({ ...inputs.type!, required: false })]).toEqual([true, false, true])
+    expect(requiredFindings(inputs)).toEqual([])
+    const bad = { ...inputs, research: { ...inputs.research!, required: { expression: 'inputs.nope == 1' } }, repository: { ...inputs.repository!, required: { expression: 'inputs.type' } } }
+    expect(requiredFindings(bad).map((f) => [f.path, f.message.split(':')[0], f.message.includes('not bool')])).toEqual([['/spec/inputs/research/required', 'research', false], ['/spec/inputs/repository/required', 'repository', true]])
   })
 
   it('checks inputs: required, defaults, kinds, schemas, unknown ports', () => {

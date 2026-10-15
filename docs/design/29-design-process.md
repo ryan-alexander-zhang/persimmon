@@ -21,7 +21,7 @@ Workflow design-all: repeat over `blocks` with one `type` ─▶ ReviewLoop desi
 |---|---|
 | Prompt `design-rules` | one asset per block and type; the contract whole and standard; the index names what each operation, channel or table realises in the DomainModel; refusals name the rule; field names are Glossary terms; nothing the DomainModel lacks is invented |
 | Executor `design-agent` | `claude-code/v1`, read-only, its own name for per-Namespace override |
-| Task `design-asset` | inputs `architecture`, `blockId`, `type`, `interface` (optional: which provided interface, else the block's first), `domainModel` and `glossary` (optional: not for `ui`), `rules`, `previous`, `feedback`; output `design` |
+| Task `design-asset` | inputs `architecture`, `blockId`, `type`, `interface` (optional: which provided interface, else the block's first), `domainModel` and `glossary` (required unless `type` is `ui`), `rules`, `designSystem` and `designs` (required when it is), `previous`, `feedback`; output `design` |
 | Validator `design-consistency` | `sdd/v1` over `design`, `architecture`, `domainModel` (optional), `rules`, and for a `ui` Design `designSystem` and `designs`; the Design rule row of `23-pack-ai-native.md` as findings |
 | Gate `design-gate` | consistency only |
 | ReviewLoop `design-one` | `produce` `design-asset`, `review` `design-gate`, `maxRounds: 2`; takes `interface` too, so a block with two provided interfaces gets its second Design from a direct run |
@@ -41,6 +41,7 @@ Workflow design-all: repeat over `blocks` with one `type` ─▶ ReviewLoop desi
 | `rules-incomplete`, `rules-unplaced` | an element's rule the root `rules[]` lacks; a root rule no element enforces (the root is the union, both ways) |
 | `type-mediatype` | `type` and `document.mediaType` do not pair (`http-api` OpenAPI, `async-api` AsyncAPI, `data-schema` JSON Schema or SQL, `ui` markdown) |
 | `designsystem-mismatch`, `client-block`, `ui-domainmodel`, `designs-unbound`, `screen-unindexed` | a `ui` Design: `designSystem` absent, no DesignSystem bound, or not the id bound; its block realises a context; it names a `domainModel`; no Design is bound to realise; a `## <screen>` heading with no element (`32-ui-design-process.md`) |
+| `domainmodel-unbound` | a Design of another type with no DomainModel bound; one finding, the elements unchecked |
 | `id-sequence` | `EL-n`, `Q-n` not unique and increasing |
 
 The Adapter picks the mode from the payload: `artifacts.spec` (or `artifacts.model`), else

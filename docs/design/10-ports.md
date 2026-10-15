@@ -37,8 +37,8 @@ Equality: `kind` and every field equal after expanding `$ref`. No subtyping.
 | Field | InputSpec | OutputSpec |
 |---|---|---|
 | `type` | PortType | PortType |
-| `required` | default true | — |
-| `default` | RuntimeValue of the port's kind; optional inputs only; applied when the binding omits | — |
+| `required` | default true; or `{expression: <cel>}` over `inputs.<port>` of the same definition, `bool`: the input is required when it holds, decided at bind from the inputs present (`has(inputs.x)` for presence) | — |
+| `default` | RuntimeValue of the port's kind; `required: false` only; applied when the binding omits | — |
 | `description` | text | text |
 
 `inputs` and `outputs` maps default to `{}`.
@@ -57,7 +57,9 @@ Equality: `kind` and every field equal after expanding `$ref`. No subtyping.
 | `{fromArtifact: {kind: {apiVersion, kind}, id: <cel>}}` | the latest committed revision, in the run's Namespace, of the artifact whose id the expression yields; an `artifact` port of that kind; absent when no revision exists | Workflow steps, `repeat` bindings, `outputBindings`; never a Gate, Trigger or Task output `id` |
 
 `onMissing: omit` on `fromInput`, `fromStep`, `fromState`, `fromIterationOutput`, `fromEvent`,
-`fromArtifact`: skip the port when the source is absent; optional inputs only.
+`fromArtifact`: skip the port when the source is absent; optional inputs only. An input is optional
+when `required` is `false` or an expression: what the expression decides, only the run's values can
+tell, so every static rule on required inputs treats it as optional and the bind refuses the run.
 
 ## Expression profile
 
@@ -104,7 +106,8 @@ Values enter CEL typed by the port schema: `integer` → `int`, `number` → `do
 | a Binding reads only causal predecessors in scope | static checker |
 | `fromState`, `fromIterationOutput` only inside `repeat`; `fromEvent` only in Trigger | static checker |
 | `onMissing: omit` only on optional inputs, never in output bindings | static checker |
-| every `expression` parses and type-checks against its site's environment | static checker |
+| every `expression` parses and type-checks against its site's environment; a `required` expression against the definition's own `inputs`, as `bool` | static checker |
+| an input whose `required` expression holds and is unbound fails the bind (`required input missing`), where a plainly required one does: at `run` for a Workflow, at the step for a Task, Gate or Validator | bind |
 | `artifactKind` resolves to a registered revisioned kind at snapshot time; admission warns | walk (`04-snapshot.md`) |
 
 ## Decisions
@@ -127,6 +130,13 @@ Values enter CEL typed by the port schema: `integer` → `int`, `number` → `do
 - Port values bind to CEL by schema type, because a JSON integer bound as `double` makes
   `inputs.n + 1` a type error in every spec-conformant library.
 - `inputs` and `outputs` optional on a definition.
+- `required` takes an expression over the definition's own inputs, so one Task serves a value input
+  that decides what else it needs: the pack's `design-asset` takes a DomainModel for an API or a
+  schema and the API Designs for a `ui` Design, and without the rule it had to make all four optional
+  and let a run that lacked one fail minutes later at review. The expression reads `inputs` only: the
+  other roots are a step's business, and a port's requirement is the definition's. The override
+  check compares `required` by value, so a Namespace override keeps the Global expression. Found in
+  UAT.
 - `fromArtifact` binds an artifact by id, not by ref, because a Workflow that repeats over a
   Prd's capabilities knows the Spec of `CAP-n` by its chosen id (`12-task.md`) but not its
   revision. "Latest committed revision at bind time" is the rule a run start follows for

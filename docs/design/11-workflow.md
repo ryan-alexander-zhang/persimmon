@@ -30,7 +30,7 @@ Step uses any kind with a stepContract: Task, Workflow, Gate, pack and user kind
 |---|---|
 | `id` | step id (`10-ports.md`); unique among steps |
 | `uses` | LocalDefinitionRef to a kind declaring a `stepContract` (`x-persimmon-ref`) |
-| `inputs` | `{<port>: Binding}`; every required input of `uses` bound |
+| `inputs` | `{<port>: Binding}`; every required input of `uses` bound (one with a `required` expression may stay unbound, the bind decides, `10-ports.md`) |
 | `timeout` | Duration; covers queueing, attempts, backoff, and every `repeat` iteration |
 | `repeat` | optional RepeatPolicy |
 

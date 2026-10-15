@@ -68,7 +68,7 @@ an invented one. No `interface`: a client block provides none.
 | Gate `design-system-gate` | lint and confirmed, `all`, 72h |
 | ReviewLoop `design-system` | `produce` `write-design-system`, `review` `design-system-gate`, `maxRounds: 3` |
 | Prompt `design-rules` | gains the `ui` paragraph above |
-| Task `design-asset`, ReviewLoop `design-one`, Workflow `design-all` | `type` enum gains `ui`; inputs `designSystem` (optional) and `designs` (artifacts, optional: the `http-api` Designs of the interfaces the block requires) threaded through with `onMissing: omit` where the engine does not add it (a Workflow step, a Gate's Validator binding; the loop adds it to `produce` and `review`, `21-composition.md`); `domainModel` and `glossary` optional, unbound for a `ui` run; `design-all` with `type: ui` runs over the client blocks listed |
+| Task `design-asset`, ReviewLoop `design-one`, Workflow `design-all` | `type` enum gains `ui`; inputs `designSystem` and `designs` (artifacts: the `http-api` Designs of the interfaces the block requires) `required: {expression: "inputs.type == 'ui'"}`, `domainModel` and `glossary` `required: {expression: "inputs.type != 'ui'"}` (`10-ports.md`): a run that lacks what its `type` needs is refused at `run`; threaded through with `onMissing: omit` where the engine does not add it (a Workflow step, a Gate's Validator binding; the loop adds it to `produce` and `review`, `21-composition.md`); `design-all` with `type: ui` runs over the client blocks listed |
 | Validator `design-consistency`, Gate `design-gate` | `designSystem` and `designs` (optional) threaded through; `domainModel` optional |
 
 Run, after `architect` and the `http-api` Designs:
@@ -91,6 +91,7 @@ without `document.content` is `not-a-design-system`, the only finding then. No E
 | `designsystem-mismatch` | `designSystem` absent on a `ui` Design, no DesignSystem bound to the Validator, or the id is not the one bound (`ids.designSystem`) |
 | `client-block` | a `ui` Design's block realises a context (`contexts` non-empty): screens belong to clients |
 | `ui-domainmodel` | a `ui` Design names a `domainModel`: its elements realise operations, not model labels |
+| `domainmodel-unbound` | a Design of another type with no DomainModel bound to the Validator (its port is optional so a `ui` run binds none): one finding, the elements are not checked |
 | `designs-unbound` | no Design is bound to the Validator's `designs`: nothing to realise; one finding, the elements are not checked |
 | `unknown-realised` | an element's `realises` is not `{kind: operation, name}` with `name` an element name of a bound Design |
 | `screen-unindexed` | a `## <screen>` heading of the document with no element named like it: a screen a Plan cannot realise |

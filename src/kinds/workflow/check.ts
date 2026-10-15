@@ -2,7 +2,7 @@
 import type { Finding } from '../../handler/types.js'
 import { ExpressionError } from '../../expression/site.js'
 import { readPath } from '../../reconcile/merge-patch.js'
-import { sameType, siteOf } from '../ports/ports.js'
+import { optional, requiredFindings, sameType, siteOf } from '../ports/ports.js'
 import type { Binding, InputSpec, OutputSpec, PortType } from '../ports/types.js'
 import type { Step, StepContract, WorkflowSpec } from './types.js'
 
@@ -16,7 +16,7 @@ export interface Used {
 export type Resolve = (ref: { kind: string; name: string }) => Used | undefined
 
 export function checkWorkflow(spec: WorkflowSpec, resolve: Resolve): Finding[] {
-  const f: Finding[] = []
+  const f: Finding[] = requiredFindings(spec.inputs)
   const bad = (path: string, message: string, code = 'invalid_workflow') => f.push({ severity: 'error', code, path, message })
 
   const steps = new Map<string, Step>()
@@ -147,9 +147,9 @@ export function checkWorkflow(spec: WorkflowSpec, resolve: Resolve): Finding[] {
       if (t === 'value') {
         if (spec.type.kind !== 'value') bad(`${path}/${port}`, 'literal and expression feed value ports only')
       } else if (t && !sameType(t, spec.type)) bad(`${path}/${port}`, 'producer type differs from consumer type')
-      if (b.onMissing === 'omit' && (!requiredCheck || (spec as InputSpec).required !== false)) bad(`${path}/${port}`, 'onMissing: omit only on optional inputs')
+      if (b.onMissing === 'omit' && (!requiredCheck || !optional(spec as InputSpec))) bad(`${path}/${port}`, 'onMissing: omit only on optional inputs')
     }
-    if (requiredCheck) for (const [port, s] of Object.entries(consumer)) if ((s as InputSpec).required !== false && !bindings[port]) bad(path, `required input ${port} unbound`)
+    if (requiredCheck) for (const [port, s] of Object.entries(consumer)) if (!optional(s as InputSpec) && !bindings[port]) bad(path, `required input ${port} unbound`)
   }
   for (const [i, s] of spec.steps.entries()) {
     const u = used.get(s.id)

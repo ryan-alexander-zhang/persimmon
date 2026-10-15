@@ -4,6 +4,7 @@ import type { Target, Transition, Workflow } from '../workflow/types.js'
 import type { Gate, Validator } from '../gate/types.js'
 import type { Approval, Pipeline, ReviewLoop } from './types.js'
 import type { Binding, InputSpec, OutputSpec, PortType } from '../ports/types.js'
+import { optional } from '../ports/ports.js'
 import type { Step } from '../workflow/types.js'
 
 /** Whether a step's `uses` runs as a GateRun (Gate, Approval): its phase routes on `passed`. */
@@ -76,7 +77,7 @@ export function expandReviewLoop(r: ReviewLoop, ports: Ports): [Workflow, Workfl
   const surfaced = Object.fromEntries(Object.keys(produced.outputs).filter((p) => !loopOutputs.includes(p)).map((p) => [p, { type: produced.outputs[p]!.type }]))
   const carried: Record<string, InputSpec> = { ...(previous ? { previous: { type: subjectType, required: false } } : {}), ...(feedback ? { feedback: { type: gateResult, required: false } } : {}) }
   // an optional loop input may be unbound on a run; a binding from it omits instead of failing with source absent
-  const omitOptional = (b: Binding): Binding => ('fromInput' in b && inputs[b.fromInput]?.required === false && !b.onMissing ? { ...b, onMissing: 'omit' } : b)
+  const omitOptional = (b: Binding): Binding => ('fromInput' in b && inputs[b.fromInput] && optional(inputs[b.fromInput]!) && !b.onMissing ? { ...b, onMissing: 'omit' } : b)
   const produceStep: Step = {
     id: 'produce',
     uses: produce.uses,

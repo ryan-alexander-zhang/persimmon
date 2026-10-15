@@ -7,6 +7,7 @@ import { workflowHandler } from '../workflow/handler.js'
 import { expandApproval, expandPipeline, expandReviewLoop, type IsGate, type Ports } from './expand.js'
 import type { Approval, Pipeline, ReviewLoop } from './types.js'
 import type { InputSpec, OutputSpec } from '../ports/types.js'
+import { optional } from '../ports/ports.js'
 
 export function compositionHandler(deps: HandlerDeps): HandlerImpl {
   const isGate: IsGate = (ref) => deps.kinds.byKind(ref.kind)?.definition.spec.stepContract?.runKind.kind === 'GateRun'
@@ -37,7 +38,7 @@ export function compositionHandler(deps: HandlerDeps): HandlerImpl {
         if (!task.inputs[taskPort]) bad(`/spec/approvers/${i}/inputs/${taskPort}`, `${taskPort} is not an input of Task ${ap.uses.name}`)
         if (!a.spec.inputs[port]) bad(`/spec/approvers/${i}/inputs/${taskPort}`, `${port} is not an input of this Approval`)
       }
-      for (const [taskPort, spec] of Object.entries(task.inputs)) if (spec.required !== false && !(taskPort in mapping)) bad(`/spec/approvers/${i}/inputs`, `required input ${taskPort} of Task ${ap.uses.name} is not mapped`)
+      for (const [taskPort, spec] of Object.entries(task.inputs)) if (!optional(spec) && !(taskPort in mapping)) bad(`/spec/approvers/${i}/inputs`, `required input ${taskPort} of Task ${ap.uses.name} is not mapped`)
     }
     return f
   }

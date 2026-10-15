@@ -164,11 +164,12 @@ export function checkDesign({ design, architecture, domainModel, rules, designs 
   }
 
   const ui = design.type === 'ui'
+  if (!ui && !domainModel) bad('domainmodel-unbound', 'a Design realises labels of the DomainModel bound to the Validator; none is bound')
   const { commands, events, readModels } = domainNames(domainModel)
   const known = ui
     ? { operation: new Set(Object.values(designs).flatMap((d) => (d?.elements ?? []).map((e) => e.name))) }
     : { command: commands, event: events, readModel: readModels, aggregate: new Set((domainModel?.aggregates ?? []).map((a) => a.id)) }
-  const realisable = !ui || Object.keys(designs).length > 0 // unbound API Designs are one finding, not one per element
+  const realisable = ui ? Object.keys(designs).length > 0 : !!domainModel // an unbound source is one finding, not one per element
   const status = new Map((rules?.rules ?? []).map((r) => [r.id, r.status]))
   const ruleCheck = (owner, r) => {
     if (!status.has(r)) bad('unknown-rule', `${owner}: rule ${r} is not in the BusinessRules`)

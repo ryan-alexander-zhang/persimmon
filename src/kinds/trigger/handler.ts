@@ -4,7 +4,7 @@ import type { OutboxEvent } from '../../outbox/event.js'
 import type { Action, ReconcileError } from '../../reconcile/types.js'
 import type { LocalDefinitionRef, ObjectRef, Resource, RevisionRef } from '../../resource/types.js'
 import type { HandlerDeps } from '../deps.js'
-import { checkInputs, PortError, sameType } from '../ports/ports.js'
+import { checkInputs, optional, PortError, sameType } from '../ports/ports.js'
 import type { Binding, InputSpec, PortType, RuntimeValue, RuntimeValues } from '../ports/types.js'
 import { rfc3339 } from '../task/handler.js'
 import type { WorkflowSpec } from '../workflow/types.js'
@@ -97,7 +97,7 @@ export function triggerHandler(deps: HandlerDeps): HandlerImpl {
           else if (ty === 'value' ? target.type.kind !== 'value' : !sameType(ty, target.type)) bad(`/spec/run/inputs/${port}`, 'event root type differs from the port type')
         }
       }
-      for (const [port, s] of Object.entries(wf.inputs ?? {})) if (s.required !== false && !t.spec.run.inputs?.[port]) bad('/spec/run/inputs', `required input ${port} unbound`)
+      for (const [port, s] of Object.entries(wf.inputs ?? {})) if (!optional(s) && !t.spec.run.inputs?.[port]) bad('/spec/run/inputs', `required input ${port} unbound`)
       if (t.spec.event.kind === 'artifactPublished') {
         const ak = t.spec.event.artifactKind
         if (Object.values(wf.outputs ?? {}).some((o) => (o.type.kind === 'artifact' || o.type.kind === 'artifacts') && sameType(o.type, { kind: o.type.kind, artifactKind: ak }))) bad('/spec/run/workflowRef', 'target Workflow outputs the triggering artifact kind')

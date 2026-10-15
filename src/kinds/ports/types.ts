@@ -16,7 +16,8 @@ export type RuntimeValue =
 
 export interface InputSpec {
   type: PortType
-  required?: boolean
+  /** default true; an expression over `inputs` of the same definition makes the port required when it holds (10-ports.md) */
+  required?: boolean | { expression: string }
   default?: RuntimeValue
   description?: string
 }

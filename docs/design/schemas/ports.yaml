@@ -82,7 +82,15 @@ $defs:
     additionalProperties: false
     properties:
       type: {$ref: "#/$defs/PortType"}
-      required: {type: boolean, default: true}
+      required:
+        default: true
+        oneOf:
+          - {type: boolean}
+          - type: object
+            required: [expression]
+            additionalProperties: false
+            properties:
+              expression: {type: string, minLength: 1, description: "CEL over inputs.<port> of the same definition, bool: the input is required when it holds (10-ports.md)"}
       default: {$ref: "#/$defs/RuntimeValue"}
       description: {type: string}
     if: {properties: {required: {const: false}}, required: [required]}

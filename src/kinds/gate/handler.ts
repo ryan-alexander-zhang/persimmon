@@ -7,7 +7,7 @@ import { ajv } from '../../resource/ajv.js'
 import type { ObjectRef, Resource, RevisionRef } from '../../resource/types.js'
 import type { Closure, Entry } from '../../snapshot/walk.js'
 import { fromClosure, type HandlerDeps } from '../deps.js'
-import { bind, celContext, checkInputs, overrideFindings, PortError, sameType, siteOf } from '../ports/ports.js'
+import { bind, celContext, checkInputs, optional, overrideFindings, PortError, requiredFindings, sameType, siteOf } from '../ports/ports.js'
 import type { InputSpec, RuntimeValues } from '../ports/types.js'
 import { rfc3339 } from '../task/handler.js'
 import type { Gate, GateResult, GateRun, GateSpec, ValidationResult, ValidationRun, Validator, ValidatorSpec } from './types.js'
@@ -30,7 +30,7 @@ export function gateHandler(deps: HandlerDeps): HandlerImpl {
     validate(resource: Resource): { findings: Finding[] } {
       if (resource.kind !== 'Gate') return { findings: [] }
       const spec = resource.spec as unknown as GateSpec
-      const f: Finding[] = overrideFindings(deps.getResource, resource)
+      const f: Finding[] = [...overrideFindings(deps.getResource, resource), ...requiredFindings(spec.inputs)]
       const bad = (path: string, message: string) => f.push({ severity: 'error', code: 'invalid_gate', path, message })
       const names = new Set<string>()
       for (const [i, v] of spec.validators.entries()) {
@@ -44,7 +44,7 @@ export function gateHandler(deps: HandlerDeps): HandlerImpl {
         for (const [port, spec2] of Object.entries(def.spec.inputs ?? {})) {
           const b = v.inputs?.[port]
           if (!b) {
-            if (spec2.required !== false) bad(`/spec/validators/${i}/inputs`, `required input ${port} unbound`)
+            if (!optional(spec2)) bad(`/spec/validators/${i}/inputs`, `required input ${port} unbound`)
             continue
           }
           if ('fromInput' in b) {
@@ -52,7 +52,7 @@ export function gateHandler(deps: HandlerDeps): HandlerImpl {
             if (!src) bad(`/spec/validators/${i}/inputs/${port}`, `unknown Gate input ${b.fromInput}`)
             else {
               if (!sameType(src.type, spec2.type)) bad(`/spec/validators/${i}/inputs/${port}`, 'producer type differs from consumer type')
-              if (src.required === false && !src.default && spec2.required !== false) bad(`/spec/validators/${i}/inputs/${port}`, `optional Gate input ${b.fromInput} feeds a required input without a default`)
+              if (optional(src) && !src.default && !optional(spec2)) bad(`/spec/validators/${i}/inputs/${port}`, `optional Gate input ${b.fromInput} feeds a required input without a default`)
             }
           } else if ('expression' in b) {
             try {
@@ -167,7 +167,7 @@ export function validatorHandler(deps: HandlerDeps): HandlerImpl {
     validate(resource: Resource): { findings: Finding[] } {
       if (resource.kind !== 'Validator') return { findings: [] }
       const spec = resource.spec as unknown as ValidatorSpec
-      const f: Finding[] = overrideFindings(deps.getResource, resource)
+      const f: Finding[] = [...overrideFindings(deps.getResource, resource), ...requiredFindings(spec.inputs)]
       if (spec.evaluator.type === 'cel') {
         try {
           celSite(spec.inputs ?? {}, () => undefined).check(spec.evaluator.expression)

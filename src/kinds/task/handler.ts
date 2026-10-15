@@ -8,7 +8,7 @@ import type { Action, AdapterFinishedPayload, ReconcileError, PublishRequest } f
 import type { Resource, RevisionRef } from '../../resource/types.js'
 import type { Closure } from '../../snapshot/walk.js'
 import { fromClosure, type HandlerDeps } from '../deps.js'
-import { celTypeOf, checkInputs, checkOutputs, evaluateBinding, expandSchema, inlineSchema, overrideFindings, PortError, siteOf } from '../ports/ports.js'
+import { celTypeOf, checkInputs, checkOutputs, evaluateBinding, expandSchema, inlineSchema, overrideFindings, PortError, requiredFindings, siteOf } from '../ports/ports.js'
 import type { RuntimeValues } from '../ports/types.js'
 import { ContextError, resolveContext } from './context.js'
 import { backoffMs, shouldRetry } from './retry.js'
@@ -73,7 +73,7 @@ export function taskHandler(deps: HandlerDeps): HandlerImpl {
     validate(resource: Resource): { findings: Finding[] } {
       if (resource.kind !== 'Task') return { findings: [] }
       const spec = resource.spec as unknown as TaskSpec
-      const findings: Finding[] = overrideFindings(deps.getResource, resource)
+      const findings: Finding[] = [...overrideFindings(deps.getResource, resource), ...requiredFindings(spec.inputs)]
       const bad = (path: string, message: string, code = 'invalid_input') => findings.push({ severity: 'error', code, path, message })
       const retryOn = new Set(spec.retryPolicy?.retryOn ?? [])
       for (const c of spec.retryPolicy?.abortOn ?? []) if (retryOn.has(c)) bad('/spec/retryPolicy', `${c} in both retryOn and abortOn`)

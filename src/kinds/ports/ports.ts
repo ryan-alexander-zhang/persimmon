@@ -87,19 +87,44 @@ export function checkValue(port: string, type: PortType, v: RuntimeValue): void 
   }
 }
 
+/** May the port be unbound: `required: false`, or an expression, which only the values present at bind decide (10-ports.md). */
+export const optional = (spec: InputSpec): boolean => spec.required === false || typeof spec.required === 'object'
+
+/** Static rule: every `required` expression type-checks as bool against the definition's own inputs. */
+export function requiredFindings(inputs: Record<string, InputSpec> = {}, path = '/spec/inputs'): Finding[] {
+  const f: Finding[] = []
+  for (const [port, spec] of Object.entries(inputs)) {
+    if (typeof spec.required !== 'object') continue
+    try {
+      const type = siteOf({ inputs }).check(spec.required.expression)
+      if (type !== 'bool') f.push({ severity: 'error', code: 'invalid_expression', path: `${path}/${port}/required`, message: `${port}: required expression is ${type}, not bool` })
+    } catch (e) {
+      f.push({ severity: 'error', code: 'invalid_expression', path: `${path}/${port}/required`, message: `${port}: required expression: ${(e as Error).message}` })
+    }
+  }
+  return f
+}
+
 /** Every required input present, every value of its port's type, defaults applied, no unknown ports. */
 export function checkInputs(specs: Record<string, InputSpec>, values: RuntimeValues): RuntimeValues {
   const out: RuntimeValues = {}
   for (const [port, spec] of Object.entries(specs)) {
     const v = values[port] ?? spec.default
-    if (!v) {
-      if (spec.required !== false) throw new PortError(`${port}: required input missing`)
-      continue
-    }
+    if (!v) continue
     checkValue(port, spec.type, v)
     out[port] = v
   }
   for (const port of Object.keys(values)) if (!(port in specs)) throw new PortError(`${port}: not an input`)
+  let site: Site | undefined // one environment for every expression-required port, the inputs present as its context
+  for (const [port, spec] of Object.entries(specs)) {
+    if (port in out || spec.required === false) continue
+    if (typeof spec.required === 'object') {
+      site ??= siteOf({ inputs: specs })
+      if (site.evaluate(spec.required.expression, celContext({ inputs: out })) !== true) continue
+      throw new PortError(`${port}: required input missing (${spec.required.expression})`)
+    }
+    throw new PortError(`${port}: required input missing`)
+  }
   return out
 }
 
@@ -210,7 +235,7 @@ export function overrideFindings(lookup: (kind: string, namespace: string | unde
     const [ga, na] = [a[side] ?? {}, b[side] ?? {}]
     for (const name of new Set([...Object.keys(ga), ...Object.keys(na)])) {
       const [g, n] = [ga[name], na[name]]
-      const why = !g ? 'is not a port of the Global definition' : !n ? 'is missing' : !sameType(g.type, n.type) ? 'has a different type' : side === 'inputs' && ((g as InputSpec).required !== false) !== ((n as InputSpec).required !== false) ? 'changes whether the input is required' : undefined
+      const why = !g ? 'is not a port of the Global definition' : !n ? 'is missing' : !sameType(g.type, n.type) ? 'has a different type' : side === 'inputs' && !isDeepStrictEqual((g as InputSpec).required ?? true, (n as InputSpec).required ?? true) ? 'changes whether the input is required' : undefined
       if (why) out.push({ severity: 'error', code: 'override_incompatible', path: `/spec/${side}/${name}`, message: `override ${side}.${name} ${why}` })
     }
   }
