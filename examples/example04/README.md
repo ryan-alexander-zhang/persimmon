@@ -38,7 +38,9 @@ persimmon apply templates.yaml             # updated Prompt/spec-template; the n
 
 The kinds change the same way, in `sdlc.yaml`, with one rule: a revisioned kind's schema may change
 only where every artifact already in the project still validates under it; `apply` names the first
-that does not. A change they cannot pass needs a new kind name or a reset project.
+that does not. A change they cannot pass needs a new kind name or a reset project. A run started
+before the change still publishes under the schema its snapshot froze, so it may commit an artifact
+the new schema refuses; the change after that one stops on it.
 
 ## Skills
 

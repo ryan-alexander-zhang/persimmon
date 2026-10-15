@@ -44,7 +44,7 @@ export class KindRegistry {
   compile(schema: unknown): ValidateFunction {
     const key = JSON.stringify(schema)
     let v = this.#frozen.get(key)
-    if (!v) this.#frozen.set(key, (v = this.#ajv.compile(schema as object)))
+    if (!v) this.#frozen.set(key, (v = this.#ajv.compile({ ...(schema as object), $id: undefined }))) // the live compile already registered its $id
     return v
   }
 
@@ -60,6 +60,9 @@ export class KindRegistry {
     if (target && definition.spec.stepContract && !isDeepStrictEqual(definition.spec.stepContract, target.spec.stepContract)) throw new KindError(`${definition.metadata.name}: stepContract differs from ${target.spec.names.kind}'s`)
     // a revisioned kind's definition, found by name so a renamed kind or version cannot slip past: its schema may change
     // only where the committed revisions still validate (05-revisioned-kind.md)
+    const keys = definition.spec.versions.map((v) => `${definition.spec.group}/${v.name}/${definition.spec.names.kind}`)
+    const owner = keys.map((k) => this.#kinds.get(k)?.definition).find(Boolean) // a definition under another name that owns one of these kinds
+    if (owner?.spec.revisioned && owner.metadata.name !== definition.metadata.name) throw new KindError(`${definition.metadata.name}: ${owner.spec.names.kind} is revisioned and defined by ${owner.metadata.name}`)
     const prior = this.definitions().find((d) => d.metadata.name === definition.metadata.name)
     const changed = prior?.spec.revisioned && !isDeepStrictEqual(prior.spec, definition.spec)
     if (changed && !(o.committed && schemaOnly(prior!, definition))) throw new KindError(`${definition.metadata.name} is revisioned; its KindDefinition changes in versions[].schema only`)

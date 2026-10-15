@@ -71,6 +71,19 @@ describe('KindRegistry', () => {
     const rebumped = kd()
     rebumped.spec.versions[0].name = 'v2' // a renamed version: the same definition by name, so the same rule
     expect(() => reg.register(rebumped, { replace: true, committed: () => [] })).toThrow(/changes in versions\[\].schema only/)
+    const replural = kd() // a new plural is a new definition name owning the same kind: the prior would be missed, so it is refused by the kind
+    replural.spec.names.plural = 'prodreqs'
+    replural.metadata.name = `prodreqs.${replural.spec.group}`
+    replural.spec.versions[0].schema.required = [...replural.spec.versions[0].schema.required, 'tagline']
+    expect(() => reg.register(replural, { replace: true, committed: () => [stored] })).toThrow(/ProductRequirement is revisioned and defined by productrequirements/)
+  })
+
+  it('compiles a frozen schema that carries the $id the live one registered', () => {
+    const live = example('kind-definition-productrequirement')
+    live.spec.versions[0].schema.$id = 'https://example.test/prd'
+    const r = new KindRegistry()
+    r.register(live)
+    expect(r.compile(live.spec.versions[0].schema)(example('revisioned-instance').spec.content)).toBe(true)
   })
 
   it('validates a WorkflowRun spec and status', () => {
