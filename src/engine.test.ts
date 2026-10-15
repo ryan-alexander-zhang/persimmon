@@ -144,13 +144,19 @@ describe('Engine', () => {
     await engine.apply({ ...fakeAdapter('review-ui/v1'), spec: { ...(fakeAdapter('review-ui/v1').spec as object), env: { FAKE_ID: 'review-ui/v1', FAKE_ROLES: 'executor', FAKE_TYPES: 'human' } } } as Resource)
     for (const n of ['kind-definition-productrequirement', 'kind-definition-researchreport']) await engine.apply(example(n))
     for (const r of closure.resources.filter((r) => r.kind !== 'KindDefinition')) await engine.apply(fresh(r as Resource))
-    for (const n of ['executor-product-reviewers', 'task-approve-prd']) await engine.apply(example(n))
     const prd = { type: { kind: 'artifact', artifactKind: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement' } } }
+    await engine.apply(example('executor-product-reviewers'))
+    const approve = example('task-approve-prd')
+    approve.spec.inputs.before = { ...prd, required: false } // the approver may see the last round's PRD
+    await engine.apply(approve)
     const writePrd = closure.resources.find((r) => r.kind === 'Task' && r.metadata.name === 'write-prd')!
     const revise = { ...writePrd, metadata: { name: 'revise-prd', namespace: 'demo' }, spec: { ...(writePrd.spec as object), inputs: { ...(writePrd.spec as { inputs: object }).inputs, last: { ...prd, required: false }, verdict: { type: { kind: 'value', schema: { $ref: 'persimmon.ai/v1#/GateResult' } }, required: false } } } } as Resource
     await engine.apply(revise)
-    await engine.apply({ apiVersion: 'persimmon.ai/v1', kind: 'Approval', metadata: { name: 'prd-approval', namespace: 'demo' }, spec: { inputs: { prd }, approvers: [{ name: 'human', uses: { kind: 'Task', name: 'approve-prd' } }], timeout: '72h' } } as Resource)
-    const loop = { apiVersion: 'persimmon.ai/v1', kind: 'ReviewLoop', metadata: { name: 'prd-loop', namespace: 'demo' }, spec: { inputs: { research: { type: { kind: 'artifact', artifactKind: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ResearchReport' } } } }, produce: { uses: { kind: 'Task', name: 'revise-prd' }, inputs: { research: { fromInput: 'research' } }, timeout: '35m' }, review: { uses: { kind: 'Approval', name: 'prd-approval' }, inputs: { prd: { fromStep: { stepRef: 'produce', output: 'prd' } } }, timeout: '72h' }, subject: 'prd', previous: 'last', feedback: 'verdict', maxRounds: 2, timeout: '24h' } } as Resource
+    await engine.apply({ apiVersion: 'persimmon.ai/v1', kind: 'Approval', metadata: { name: 'prd-approval', namespace: 'demo' }, spec: { inputs: { prd, before: { ...prd, required: false } }, approvers: [{ name: 'human', uses: { kind: 'Task', name: 'approve-prd' } }], timeout: '72h' } } as Resource)
+    const loop = { apiVersion: 'persimmon.ai/v1', kind: 'ReviewLoop', metadata: { name: 'prd-loop', namespace: 'demo' }, spec: { inputs: { research: { type: { kind: 'artifact', artifactKind: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ResearchReport' } } } }, produce: { uses: { kind: 'Task', name: 'revise-prd' }, inputs: { research: { fromInput: 'research' } }, timeout: '35m' }, review: { uses: { kind: 'Approval', name: 'prd-approval' }, inputs: { prd: { fromStep: { stepRef: 'produce', output: 'prd' } }, before: { fromInput: 'previous' } }, timeout: '72h' }, subject: 'prd', previous: 'last', feedback: 'verdict', maxRounds: 2, timeout: '24h' } } as Resource
+    // review may read previous and feedback: into an optional Gate port, and only when the loop declares them
+    await expect(engine.apply({ ...loop, spec: { ...loop.spec, review: { ...(loop.spec as { review: object }).review, inputs: { prd: { fromInput: 'previous' } } } } } as Resource)).rejects.toThrow(/prd must be an optional input of Approval prd-approval: round 1 has no previous/)
+    await expect(engine.apply({ ...loop, spec: { ...loop.spec, feedback: undefined, review: { ...(loop.spec as { review: object }).review, inputs: { prd: { fromStep: { stepRef: 'produce', output: 'prd' } }, before: { fromInput: 'feedback' } } } } } as Resource)).rejects.toThrow(/feedback is not declared on the loop/)
     await expect(engine.apply({ ...loop, spec: { ...loop.spec, feedback: 'research' } } as Resource)).rejects.toThrow(/research must be an optional input/)
     await expect(engine.apply({ ...loop, spec: { ...loop.spec, review: { ...(loop.spec as { review: object }).review, uses: { kind: 'Task', name: 'approve-prd' } } } } as Resource)).rejects.toThrow(/does not run as a GateRun/)
     await expect(engine.apply({ ...loop, spec: { ...loop.spec, subject: 'passed' } } as Resource)).rejects.toThrow(/passed is a name the loop reserves/)
@@ -182,7 +188,9 @@ describe('Engine', () => {
       engine.signal(tr!.metadata.uid as string, `v-${runName}-${n}`, localActor, verdict(passed), 'api')
       await engine.drain()
     }
+    expect((engine.store.resources.get({ kind: 'GateRun', namespace: 'demo', name: 'prd-loop-001-rounds-1-review' })!.spec as { inputs: object }).inputs).not.toHaveProperty('before') // round one has no previous
     await answer('prd-loop-001', 1, false)
+    expect((engine.store.resources.get({ kind: 'GateRun', namespace: 'demo', name: 'prd-loop-001-rounds-2-review' })!.spec as { inputs: { before?: unknown } }).inputs.before).toMatchObject({ kind: 'artifact', ref: { kind: 'ProductRequirement', revision: 1 } }) // the review of round two sees round one's subject
     const produce2 = engine.store.resources.get({ kind: 'TaskRun', namespace: 'demo', name: 'prd-loop-001-rounds-2-produce' })
     expect(produce2).toBeDefined()
     const inputs2 = (produce2!.spec as { inputs: Record<string, { kind: string; ref?: { id: string }; value?: { passed: boolean } }> }).inputs
@@ -231,9 +239,10 @@ describe('Engine', () => {
     expect(errors).toEqual([])
 
     // a cycle through produce (A produces with B, B with A) is refused at apply, since an update runs the Handler validate as create does; never a stack overflow
-    const loopB = { ...loop, metadata: { name: 'prd-loop-b', namespace: 'demo' }, spec: { ...loop.spec, previous: undefined, feedback: undefined, produce: { uses: { kind: 'ReviewLoop', name: 'prd-loop' }, inputs: { research: { fromInput: 'research' } }, timeout: '1h' } } } as Resource
+    const plainReview = { ...(loop.spec as { review: { inputs: object } }).review, inputs: { prd: { fromStep: { stepRef: 'produce', output: 'prd' } } } } // without previous, review cannot read it
+    const loopB = { ...loop, metadata: { name: 'prd-loop-b', namespace: 'demo' }, spec: { ...loop.spec, review: plainReview, previous: undefined, feedback: undefined, produce: { uses: { kind: 'ReviewLoop', name: 'prd-loop' }, inputs: { research: { fromInput: 'research' } }, timeout: '1h' } } } as Resource
     await engine.apply(loopB)
-    await expect(engine.apply({ ...loop, spec: { ...loop.spec, previous: undefined, feedback: undefined, produce: { uses: { kind: 'ReviewLoop', name: 'prd-loop-b' }, inputs: { research: { fromInput: 'research' } }, timeout: '1h' } } } as Resource)).rejects.toThrow(/expands through itself/)
+    await expect(engine.apply({ ...loop, spec: { ...loop.spec, review: plainReview, previous: undefined, feedback: undefined, produce: { uses: { kind: 'ReviewLoop', name: 'prd-loop-b' }, inputs: { research: { fromInput: 'research' } }, timeout: '1h' } } } as Resource)).rejects.toThrow(/expands through itself/)
   })
 
   it('a fromArtifact step binds the latest committed revision, never a staged one, and the kind reaches the snapshot', async () => {

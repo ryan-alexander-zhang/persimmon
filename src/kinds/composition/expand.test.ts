@@ -87,6 +87,13 @@ describe('expandApproval', () => {
     expect(validators[0]!.spec).toEqual({ inputs: { prd }, evaluator: { type: 'task', taskRef: { kind: 'Task', name: 'approve-prd' }, resultOutput: 'result' }, timeout: '72h' })
     expect(validators[1]!.spec).toEqual({ inputs: { document: prd }, evaluator: { type: 'task', taskRef: { kind: 'Task', name: 'security-review' }, resultOutput: 'verdict' }, timeout: '72h' })
   })
+
+  it('an optional Approval input omits in the Validator bindings when unbound', () => {
+    const optionalBefore = { ...approval, spec: { ...approval.spec, inputs: { ...approval.spec.inputs, before: { ...approval.spec.inputs.prd!, required: false } } } }
+    const [gate] = expandApproval(optionalBefore)
+    expect(gate.spec.validators[0]!.inputs).toMatchObject({ prd: { fromInput: 'prd' }, before: { fromInput: 'before', onMissing: 'omit' } })
+    expect(gate.spec.validators[0]!.inputs!.prd).not.toHaveProperty('onMissing')
+  })
 })
 
 describe('expandReviewLoop', () => {
@@ -164,6 +171,12 @@ describe('expandReviewLoop', () => {
     expect(body.spec.steps[0]!.inputs).toMatchObject({ research: { fromInput: 'research' }, glossary: { fromInput: 'glossary', onMissing: 'omit' } })
     // the review step's bindings from an optional loop input omit too: a Gate input bound from an unbound optional must not fail source absent
     expect(body.spec.steps[1]!.inputs).toMatchObject({ glossary: { fromInput: 'glossary', onMissing: 'omit' } })
+  })
+
+  it('review may read previous and feedback, the reserved names, absent in round one', () => {
+    const seeing: ReviewLoop = { ...loop, spec: { ...loop.spec, review: { ...loop.spec.review, inputs: { ...loop.spec.review.inputs, before: { fromInput: 'previous' }, verdict: { fromInput: 'feedback' } } } } }
+    const [, body] = expandReviewLoop(seeing, ports)
+    expect(body.spec.steps[1]!.inputs).toMatchObject({ before: { fromInput: 'previous', onMissing: 'omit' }, verdict: { fromInput: 'feedback', onMissing: 'omit' } })
   })
 
   it('names the missing produce or subject', () => {

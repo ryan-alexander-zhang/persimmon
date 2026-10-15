@@ -46,7 +46,7 @@ export function expandApproval(a: Approval): [Gate, ...Validator[]] {
       validators: approvers.map((ap, i) => ({
         name: ap.name,
         ref: { kind: 'Validator', name: validators[i]!.metadata.name },
-        inputs: Object.fromEntries(Object.entries(ap.inputs ?? Object.fromEntries(Object.keys(inputs).map((p) => [p, p]))).map(([taskPort, port]) => [taskPort, { fromInput: port }])),
+        inputs: Object.fromEntries(Object.entries(ap.inputs ?? Object.fromEntries(Object.keys(inputs).map((p) => [p, p]))).map(([taskPort, port]) => [taskPort, { fromInput: port, ...(inputs[port] && optional(inputs[port]!) ? { onMissing: 'omit' as const } : {}) }])), // an optional Approval input may be unbound on a run
       })),
       ...(policy ? { policy } : {}),
       timeout,
@@ -76,8 +76,9 @@ export function expandReviewLoop(r: ReviewLoop, ports: Ports): [Workflow, Workfl
   // the loop surfaces every produce output, so a Pipeline phase can read any of them; one named like an output of the loop's own is shadowed
   const surfaced = Object.fromEntries(Object.keys(produced.outputs).filter((p) => !loopOutputs.includes(p)).map((p) => [p, { type: produced.outputs[p]!.type }]))
   const carried: Record<string, InputSpec> = { ...(previous ? { previous: { type: subjectType, required: false } } : {}), ...(feedback ? { feedback: { type: gateResult, required: false } } : {}) }
-  // an optional loop input may be unbound on a run; a binding from it omits instead of failing with source absent
-  const omitOptional = (b: Binding): Binding => ('fromInput' in b && inputs[b.fromInput] && optional(inputs[b.fromInput]!) && !b.onMissing ? { ...b, onMissing: 'omit' } : b)
+  // an optional loop input may be unbound on a run, and `previous`/`feedback` are absent in round one: a binding from one omits instead of failing with source absent
+  const bodyInputs = { ...inputs, ...carried }
+  const omitOptional = (b: Binding): Binding => ('fromInput' in b && bodyInputs[b.fromInput] && optional(bodyInputs[b.fromInput]!) && !b.onMissing ? { ...b, onMissing: 'omit' } : b)
   const produceStep: Step = {
     id: 'produce',
     uses: produce.uses,

@@ -88,7 +88,7 @@ export function gateHandler(deps: HandlerDeps): HandlerImpl {
           try {
             inputs = checkInputs(gate.spec.inputs ?? {}, run.spec.inputs)
           } catch (e) {
-            if (e instanceof PortError) return done({ phase: 'Failed', error: err('invalid_input', e.message) })
+            if (e instanceof PortError) return done({ phase: 'Failed', error: err('invalid_input', e.message), validationRuns: {} }) // the status schema requires validationRuns
             throw e
           }
           const site = siteOf({ inputs: gate.spec.inputs ?? {} })
@@ -101,7 +101,7 @@ export function gateHandler(deps: HandlerDeps): HandlerImpl {
             try {
               bound = checkInputs(validator.spec.inputs ?? {}, bind(v.inputs ?? {}, { inputs }, site))
             } catch (e) {
-              if (e instanceof PortError) return done({ phase: 'Failed', error: err('invalid_input', `validator ${v.name}: ${e.message}`) })
+              if (e instanceof PortError) return done({ phase: 'Failed', error: err('invalid_input', `validator ${v.name}: ${e.message}`), validationRuns: {} })
               throw e
             }
             const name = `${run.metadata.name}-${v.name.toLowerCase()}`

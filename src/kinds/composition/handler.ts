@@ -62,6 +62,13 @@ export function compositionHandler(deps: HandlerDeps): HandlerImpl {
       }
     }
     if (['passed', 'rounds', 'verdict'].includes(subject)) bad('/spec/subject', `${subject} is a name the loop reserves for its own outputs`) // shadowed, so it could never carry the subject
+    // review may read the loop's previous and feedback (the reserved names), into an optional Gate port: round one has neither
+    const g = ports(ns)(review.uses)
+    for (const [port, b] of Object.entries(review.inputs ?? {})) {
+      if (!('fromInput' in b) || !['previous', 'feedback'].includes(b.fromInput)) continue
+      if (!(b.fromInput === 'previous' ? previous : feedback)) bad(`/spec/review/inputs/${port}`, `${b.fromInput} is not declared on the loop`)
+      else if (g?.inputs[port] && !optional(g.inputs[port]!)) bad(`/spec/review/inputs/${port}`, `${port} must be an optional input of ${review.uses.kind} ${review.uses.name}: round 1 has no ${b.fromInput}`)
+    }
     if ('maxRounds' in inputs) bad('/spec/inputs/maxRounds', 'maxRounds is the input the loop adds itself; set spec.maxRounds for the ceiling')
     if (!deps.kinds.byKind(review.uses.kind)) bad('/spec/review/uses', `unregistered kind ${review.uses.kind}`)
     else if (!isGate(review.uses)) bad('/spec/review/uses', `${review.uses.kind} ${review.uses.name} does not run as a GateRun`)
