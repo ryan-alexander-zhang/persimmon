@@ -273,7 +273,7 @@ describe('sdd/v1 over a Design', () => {
     document: { mediaType: 'text/markdown', content: '## My Claims\n\nPurpose: the employee sees their claims.\n\n## Submit a Claim\n' },
     elements: [
       { id: 'EL-1', name: 'My Claims', realises: { kind: 'operation', name: 'GET /claims/mine' } },
-      { id: 'EL-2', name: 'Submit a Claim', realises: { kind: 'operation', name: 'GET /claims/mine' } },
+      { id: 'EL-2', name: 'Submit a Claim', realises: { kind: 'operation', name: 'POST /claims/{claimId}/submission' } }, // a form screen: the operation its action submits
       { id: 'EL-3', name: 'Submit a Claim: Submit', realises: { kind: 'operation', name: 'POST /claims/{claimId}/submission' }, rules: ['BR-1'] },
     ],
     rules: ['BR-1'], decisions: [], openQuestions: [],
@@ -314,6 +314,7 @@ describe('sdd/v1 over a Design', () => {
     expect(await uiCodes((d) => { d.domainModel = 'expenses-model' })).toEqual(['ui-domainmodel'])
     expect(await uiCodes(() => {}, undefined, [])).toEqual(['designs-unbound']) // one finding, not one per element
     expect(await uiCodes((d) => { d.elements.splice(1, 1); d.elements[1].id = 'EL-2' })).toEqual(['screen-unindexed'])
+    expect(await uiCodes((d) => { d.document.content += '\n```md\n## Not a screen\n```\n## Submit a Claim ##\n' })).toEqual([]) // fenced code skipped, closing hashes dropped
   })
 
   it('fails ids that are not unique and increasing', async () => {

@@ -50,7 +50,8 @@ loading, refused naming the `BR-n`), Layout (the DESIGN.md components and tokens
 `designSystem` is the DesignSystem artifact id. No `domainModel`: a client knows the operations it
 calls, not the model behind them, so it cites the API Designs and no Glossary. `elements` index the
 document: one per screen, `realises: {kind: operation, name}` the operation whose response it
-shows, and one per action, the operation it submits, `name` as the API Design's element names it
+shows (a form screen that reads nothing: the operation its action submits), and one per action, the
+operation it submits, `name` as the API Design's element names it
 ("`GET /rooms/{roomId}/status`"); the element `name` is the section heading or
 "`<screen>`: `<control>`". An operation a screen needs that no API Design offers is a `Q-n`, never
 an invented one. No `interface`: a client block provides none.

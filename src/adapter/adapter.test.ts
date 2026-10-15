@@ -66,10 +66,11 @@ suite('stdio calls', () => {
 
   it('streams log lines, then succeeds with credentials and token in the environment', async () => {
     process.env.PERSIMMON_CRED_LEAK_TEST = 'must-not-reach-the-adapter'
+    const proxy = process.env.https_proxy
     process.env.https_proxy = 'http://127.0.0.1:7890'
     const reg = await ready()
     const lines: StreamLine[] = []
-    const out = await reg.call('fake/v1', 'execute', { attempt: 1 }, { adapterToken: 'at-1', onStream: (l) => lines.push(l) })
+    const out = await reg.call('fake/v1', 'execute', { attempt: 1 }, { adapterToken: 'at-1', onStream: (l) => lines.push(l) }).finally(() => (proxy === undefined ? delete process.env.https_proxy : (process.env.https_proxy = proxy)))
     expect(lines.map((l) => l.event)).toEqual(['log', 'waiting'])
     expect(out).toEqual({ state: 'succeeded', result: { echo: { attempt: 1 }, env: { token: 'at-1', cred: 'sk-test', leaked: null, proxy: 'http://127.0.0.1:7890' } } })
     // a credential or env named like the engine's own variables never reaches the process (22-conformance.md)

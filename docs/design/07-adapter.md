@@ -132,8 +132,11 @@ Adapters reach the engine only here, at `engine.endpoint`, with a token.
   `USER` is needed for macOS keychain logins. Found in implementation.
 - The proxy variables pass through: an agent CLI refreshes its login over the network, and on a
   machine that reaches the network only through a proxy the refresh fails without them, so every
-  step fails `403` once the cached token expires. They are network configuration, not
-  credentials. Found in UAT.
+  step fails `403` once the cached token expires. They are the operator's network configuration,
+  as `NODE_OPTIONS` is (`22-conformance.md`): a proxy URL with a username and password reaches every
+  stdio Adapter and every CLI it runs, unbound; the operator who set it in the engine's environment
+  owns that, and the engine does not strip it, since an authenticated proxy needs it. Found in UAT;
+  the credential case found in audit.
 - Stream `log` lines are appended to the RunLog entry that issued the call, beside the `log`
   callback; `waiting` lines are not stored, the Handler owns `waitingReason`. Found in
   implementation.

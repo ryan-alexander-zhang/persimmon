@@ -132,6 +132,17 @@ export function checkPrd({ prd, rules }) {
   return findings
 }
 
+// The `## <screen>` headings of a ui document: outside fenced code, closing hashes dropped (32-ui-design-process.md).
+const screens = (markdown) => {
+  const out = []
+  let fenced = false
+  for (const line of markdown.split('\n')) {
+    if (/^\s*(```|~~~)/.test(line)) fenced = !fenced
+    else if (!fenced && /^## /.test(line)) out.push(line.slice(3).replace(/\s+#+\s*$/, '').trim())
+  }
+  return out
+}
+
 // `ids.designSystem` is the bound DesignSystem's artifact id, which a content never carries; a ui Design must cite it and
 // the Validator must have it bound, or the citation is unchecked. A ui Design realises operations, not DomainModel labels:
 // `designs` is artifact id → content of the API Designs bound, and their element names are what its elements may realise
@@ -157,8 +168,7 @@ export function checkDesign({ design, architecture, domainModel, rules, designs 
     if (block && (block.contexts ?? []).length) bad('client-block', `block ${design.block} realises a context; a ui Design belongs to a client block`)
     if (design.domainModel !== undefined) bad('ui-domainmodel', `a ui Design realises operations of its block's API Designs, not a DomainModel; domainModel ${design.domainModel} is set`)
     if (!Object.keys(designs).length) bad('designs-unbound', 'a ui Design realises operations of the API Designs bound to the Validator; none is bound')
-    for (const heading of (design.document?.content ?? '').match(/^## .+$/gm) ?? []) {
-      const screen = heading.slice(3).trim()
+    for (const screen of screens(design.document?.content ?? '')) {
       if (!design.elements.some((el) => el.name === screen)) bad('screen-unindexed', `screen ${screen} has no element named like it`)
     }
   }
