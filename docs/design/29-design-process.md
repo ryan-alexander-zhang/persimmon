@@ -35,7 +35,7 @@ Workflow design-all: repeat over `blocks` with one `type` ─▶ ReviewLoop desi
 |---|---|
 | `not-a-design` | content without `elements` or `type`; the only finding then |
 | `document-unparsed` | the document does not read as its `mediaType` (YAML or JSON error, a duplicate key); the index is not checked against it |
-| `element-unbacked`, `document-unindexed` | the index against the document, both ways, from `contract.mjs`: an element whose `name` the document does not declare; a name the document declares with no element. Names per mediaType: OpenAPI `METHOD /path` per `paths` entry, AsyncAPI channel keys and their `messages` keys, JSON Schema `$defs`/`definitions` keys or the root `title`, DDL `CREATE TABLE [schema.]name` (last segment, comments stripped), markdown `## <screen>` headings. A `ui` action element (`<screen>: <control>`) is backed by its screen |
+| `element-unbacked`, `document-unindexed` | the index against the document, both ways, from `contract.mjs`: an element whose `name` the document does not declare; a name the document declares with no element. Names per mediaType: OpenAPI `METHOD /path` per `paths` entry (a local `$ref` path item resolved; `webhooks` are not paths), AsyncAPI 3 channel keys and their `messages` keys (a local `$ref` channel resolved; AsyncAPI 2 is `document-unparsed`), JSON Schema `$defs`/`definitions` keys or, with none, the root `title`, DDL `CREATE [OR REPLACE] [TEMP|VIRTUAL] TABLE [schema.]name` (the last identifier; string literals and comments stripped; a view is not a table), markdown `## <screen>` headings. A `ui` action element (`<screen>: <control>`) is backed by any declared screen it starts with |
 | `unknown-block` | `block` is no `BB-n` of the Architecture |
 | `unknown-interface` | `interface` is no interface the block provides |
 | `unknown-realised` | an element's `realises` is no command, event, read model label or `AG-n` of the DomainModel (the same name sets as `checkSpec`); for a `ui` Design, no `operation` named as an element of a bound Design |
@@ -45,7 +45,7 @@ Workflow design-all: repeat over `blocks` with one `type` ─▶ ReviewLoop desi
 | `designsystem-mismatch`, `client-block`, `ui-domainmodel`, `designs-unbound` | a `ui` Design: `designSystem` absent, no DesignSystem bound, or not the id bound; its block realises a context; it names a `domainModel`; no Design is bound to realise (`32-ui-design-process.md`) |
 | `domainmodel-unbound` | a Design of another type with no DomainModel bound; one finding, the elements unchecked |
 | `id-sequence` | `EL-n`, `Q-n` not unique and increasing |
-| `dialect` | `warning`: a DDL word the store the block's `technology` names lacks (`sqlite`: `INTERVAL`, `EXTRACT`, `SERIAL`, `CREATE SCHEMA`, `::`; `postgres`: `AUTOINCREMENT`, `WITHOUT ROWID`, `DATETIME`); comments stripped, whole words only; no store named, no check |
+| `dialect` | `warning`: a DDL word the store the block's `technology` names lacks (`sqlite`: `INTERVAL`, `EXTRACT(`, `SERIAL`, `BIGSERIAL`, `CREATE SCHEMA`, `::`; `postgres`: `AUTOINCREMENT`, `WITHOUT ROWID`, `DATETIME`, `NVARCHAR`); string literals and comments stripped, whole words with any whitespace inside; no store named, or two, no check |
 
 The Adapter picks the mode from the payload: `artifacts.spec` (or `artifacts.model`), else
 `artifacts.prd`, else `artifacts.design`.

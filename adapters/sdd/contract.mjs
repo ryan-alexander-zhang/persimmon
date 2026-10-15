@@ -17,16 +17,24 @@ export const screens = (markdown) => {
   return out
 }
 
+/** SQL without its string literals and comments, one pass left to right: a `--` inside a literal is text, an apostrophe inside a comment is prose. */
+export const bareSql = (sql) => sql.replace(/'(?:[^']|'')*'|\/\*[\s\S]*?\*\/|--[^\n]*/g, (m) => (m[0] === "'" ? "''" : ' '))
+
+const ident = '(?:"[^"]+"|`[^`]+`|\\[[^\\]]+\\]|[\\w$]+)'
 const unquote = (s) => s.trim().replace(/^["`[]|["`\]]$/g, '')
 
-/** `CREATE TABLE [IF NOT EXISTS] [schema.]name`, the last segment unquoted; comments stripped first. */
+/** `CREATE [OR REPLACE] [TEMP|VIRTUAL|...] TABLE [IF NOT EXISTS] [schema.]name`: the last identifier, unquoted. Views and indexes are not tables. */
 const tables = (sql) => {
-  const bare = sql.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/--[^\n]*/g, ' ')
-  const ident = '(?:"[^"]+"|`[^`]+`|\\[[^\\]]+\\]|[\\w$]+)'
-  const re = new RegExp(`\\bcreate\\s+(?:(?:temp|temporary|unlogged)\\s+)?table\\s+(?:if\\s+not\\s+exists\\s+)?(${ident}(?:\\s*\\.\\s*${ident})*)`, 'gi')
+  const re = new RegExp(`\\bcreate\\s+(?:or\\s+replace\\s+)?(?:(?:global\\s+|local\\s+)?(?:temp|temporary|unlogged|virtual)\\s+)?table\\s+(?:if\\s+not\\s+exists\\s+)?(${ident}(?:\\s*\\.\\s*${ident})*)`, 'gi')
   const out = []
-  for (const m of bare.matchAll(re)) out.push(unquote(m[1].split('.').pop()))
+  for (const m of bareSql(sql).matchAll(re)) out.push(unquote(m[1].match(new RegExp(ident, 'g')).pop()))
   return out
+}
+
+/** A local `$ref` (`#/a/b`) resolved against the document, else the node itself. */
+const deref = (doc, node) => {
+  const ref = node && typeof node === 'object' && typeof node.$ref === 'string' && node.$ref.startsWith('#/') ? node.$ref : undefined
+  return ref ? ref.slice(2).split('/').reduce((o, k) => (o && typeof o === 'object' ? o[k.replace(/~1/g, '/').replace(/~0/g, '~')] : undefined), doc) : node
 }
 
 /** `{names}` the document declares, or `{error}` when it cannot be read; `undefined` for a mediaType this reads nothing from. */
@@ -36,16 +44,18 @@ export function contractNames(document) {
     switch (mediaType) {
       case 'application/openapi+yaml': {
         const doc = parse(content) ?? {}
-        return { names: Object.entries(doc.paths ?? {}).flatMap(([path, item]) => methods.filter((m) => item && typeof item === 'object' && m in item).map((m) => `${m.toUpperCase()} ${path}`)) }
+        return { names: Object.entries(doc.paths ?? {}).flatMap(([path, raw]) => { const item = deref(doc, raw); return methods.filter((m) => item && typeof item === 'object' && m in item).map((m) => `${m.toUpperCase()} ${path}`) }) } // webhooks are not paths
       }
       case 'application/asyncapi+yaml': {
         const doc = parse(content) ?? {}
-        return { names: Object.entries(doc.channels ?? {}).flatMap(([name, ch]) => [name, ...Object.keys(ch?.messages ?? {})]) }
+        if (!/^3\./.test(String(doc.asyncapi ?? ''))) return { error: `asyncapi ${doc.asyncapi ?? 'absent'}: AsyncAPI 3 only` }
+        return { names: Object.entries(doc.channels ?? {}).flatMap(([name, raw]) => [name, ...Object.keys(deref(doc, raw)?.messages ?? {})]) }
       }
       case 'application/schema+json': {
         const doc = JSON.parse(content)
         const defs = doc?.$defs ?? doc?.definitions
-        return { names: defs && typeof defs === 'object' ? Object.keys(defs) : typeof doc?.title === 'string' ? [doc.title] : [] }
+        const keys = defs && typeof defs === 'object' ? Object.keys(defs) : []
+        return { names: keys.length ? keys : typeof doc?.title === 'string' ? [doc.title] : [] }
       }
       case 'application/sql':
         return { names: tables(content) }

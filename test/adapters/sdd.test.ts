@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseAllDocuments } from 'yaml'
 import { describe, expect, it } from 'vitest'
-import { contractNames } from '../../adapters/sdd/contract.mjs'
+import { checkDesign } from '../../adapters/sdd/check.mjs'
 
 const root = join(import.meta.dirname, '..', '..')
 const docs = parseAllDocuments(readFileSync(join(root, 'docs/design/examples/ai-native-domain.yaml'), 'utf8')).map((d) => d.toJS())
@@ -220,11 +220,11 @@ describe('sdd/v1 over a Prd', () => {
 
 describe('sdd/v1 over a Design', () => {
   const designExample = () => ({ design: content('Design'), architecture: content('Architecture'), domainModel: content('DomainModel'), rules: content('BusinessRules') })
-  const designCodes = async (mutate: (a: ReturnType<typeof designExample>) => void) => {
+  const designCodes = async (mutate: (a: ReturnType<typeof designExample>) => void, passed: boolean | null = false) => { // null: passing allowed
     const artifacts = structuredClone(designExample())
     mutate(artifacts)
     const r = await adapter({ id: ++id, op: 'evaluate', payload: payload(artifacts) })
-    expect(r.result.passed).toBe(false)
+    if (passed !== null) expect(r.result.passed).toBe(passed)
     return r.result.findings.map((f: { code: string }) => f.code)
   }
 
@@ -344,12 +344,9 @@ describe('sdd/v1 over a Design', () => {
   it('checks the index against the document both ways, per mediaType', async () => {
     expect(await designCodes((a) => { a.design.elements[0].name = 'POST /ghosts' })).toEqual(['element-unbacked', 'document-unindexed']) // the renamed element is unbacked, its path unindexed
     expect(await designCodes((a) => { a.design.document.content += '\n  /extra:\n    get: {responses: {"200": {description: ok}}}\n' })).toEqual(['document-unindexed'])
-    expect(await designCodes((a) => { a.design.document.content = 'openapi: [unclosed' })).toEqual([expect.stringMatching(/document-unparsed/)].map(() => 'document-unparsed'))
-    const findings = async (mutate: (a: ReturnType<typeof designExample>) => void) => { // like designCodes, a passing case allowed
-      const artifacts = structuredClone(designExample())
-      mutate(artifacts)
-      return (await adapter({ id: ++id, op: 'evaluate', payload: payload(artifacts) })).result.findings.map((f: { code: string }) => f.code)
-    }
+    expect(await designCodes((a) => { a.design.document.content = 'openapi: [unclosed' })).toEqual(['document-unparsed'])
+    expect(await designCodes((a) => { a.design.document.content = a.design.document.content.replace(/\n  \/claims:\n    post:/, '\n  /claims:\n    $ref: "#/components/pathItems/claims"\n') + '\n  pathItems:\n    claims:\n      post: {responses: {"200": {description: ok}}}\n' }, null)).not.toContain('element-unbacked') // a $ref path item resolves
+    const findings = (mutate: (a: ReturnType<typeof designExample>) => void) => designCodes(mutate, null)
     const schema = (content: string, names: string[], mediaType = 'application/sql') => findings((a) => {
       a.design.type = 'data-schema'
       a.design.document = { mediaType, content }
@@ -359,6 +356,8 @@ describe('sdd/v1 over a Design', () => {
     expect(await schema('-- create table in_a_comment (x int);\nCREATE SCHEMA s;\nCREATE TABLE IF NOT EXISTS s."claim" (id TEXT PRIMARY KEY);\ncreate temp table claim_line(id int);\n/* create table nope (x) */', ['claim', 'claim_line'])).toEqual([])
     expect(await schema('CREATE TABLE claim (id TEXT);', ['claim', 'claim_line'])).toEqual(['element-unbacked'])
     expect(await schema('CREATE TABLE claim (id TEXT); CREATE TABLE receipt (id TEXT);', ['claim'])).toEqual(['document-unindexed'])
+    expect(await schema("CREATE TABLE claim (note TEXT DEFAULT '--'); CREATE TABLE claim_line (x INT); -- a line that isn't a literal\nCREATE TABLE receipt (x INT); INSERT INTO claim VALUES ('create table fake (x)');", ['claim', 'claim_line', 'receipt'])).toEqual([]) // literals and comments in one pass
+    expect(await schema('CREATE VIRTUAL TABLE docs USING fts5(body); CREATE OR REPLACE TABLE "my.tbl" (x INT); CREATE GLOBAL TEMPORARY TABLE tmp (x INT); CREATE VIEW v AS SELECT 1;', ['docs', 'my.tbl', 'tmp'])).toEqual([]) // a view is not a table
     expect(await schema('{"$defs": {"Claim": {"type": "object"}, "ClaimLine": {"type": "object"}}}', ['Claim', 'ClaimLine'], 'application/schema+json')).toEqual([])
     expect(await schema('{"title": "Claim", "type": "object"}', ['Claim'], 'application/schema+json')).toEqual([])
     expect(await schema('{"title": "Claim"', ['Claim'], 'application/schema+json')).toEqual(['document-unparsed'])
@@ -370,8 +369,13 @@ describe('sdd/v1 over a Design', () => {
     })
     expect(await events('asyncapi: 3.0.0\nchannels:\n  claim.events:\n    address: claims\n    messages:\n      claim.submitted: {payload: {type: object}}\n', ['claim.events', 'claim.submitted'])).toEqual([])
     expect(await events('asyncapi: 3.0.0\nchannels:\n  claim.events:\n    messages:\n      claim.submitted: {}\n', ['claim.events'])).toEqual(['document-unindexed'])
+    expect(await events('asyncapi: 3.0.0\nchannels:\n  claim.events: {$ref: "#/components/channels/events"}\ncomponents:\n  channels:\n    events:\n      messages:\n        claim.submitted: {}\n', ['claim.events', 'claim.submitted'])).toEqual([]) // a $ref channel resolves
+    expect(await events('asyncapi: 2.6.0\nchannels:\n  claim.events:\n    publish: {}\n', ['claim.events'])).toEqual(['document-unparsed']) // AsyncAPI 3 only
+    expect(await schema('{"title": "Claim", "$defs": {}}', ['Claim'], 'application/schema+json')).toEqual([]) // empty defs: the title
     // a ui action is prose: only its screen must be a heading
     expect(await uiCodes((d) => { d.elements[2].name = 'Ghost: Submit' })).toEqual(['element-unbacked'])
+    expect(await uiCodes((d) => { d.document.content += '\n## Claims: Detail\n'; d.elements.push({ id: 'EL-4', name: 'Claims: Detail', realises: { kind: 'operation', name: 'GET /claims/mine' } }, { id: 'EL-5', name: 'Claims: Detail: Submit', realises: { kind: 'operation', name: 'GET /claims/mine' } }) })).toEqual([]) // a screen name with a colon backs its action
+    expect(await uiCodes((d) => { delete d.elements[2].name })).toEqual(['element-unbacked']) // no name: a finding, not a throw
   })
 
   it('warns on a DDL word the block\'s store lacks, and a warning fails nothing', async () => {
@@ -386,20 +390,30 @@ describe('sdd/v1 over a Design', () => {
     }
     expect(await ddl('Node service, SQLite', 'CREATE TABLE claim (id TEXT, due TEXT);')).toEqual({ passed: true, findings: [], evidence: [] })
     expect(await ddl('Node service, SQLite', "CREATE TABLE claim (id TEXT, due TEXT CHECK (due > now() - INTERVAL '1 day'));")).toEqual({ passed: true, findings: [{ severity: 'warning', code: 'dialect', message: expect.stringContaining('INTERVAL is not SQLite') }], evidence: [] })
+    expect((await ddl('SQLite', "CREATE TABLE claim (id TEXT, d DATE DEFAULT '2020-01-01'::date);")).findings.map((f: { code: string }) => f.code)).toEqual(['dialect']) // a bare cast
+    expect((await ddl('SQLite', 'CREATE\n  SCHEMA s; CREATE TABLE claim (id TEXT);')).findings.map((f: { code: string }) => f.code)).toEqual(['dialect']) // any whitespace inside a word
+    expect(await ddl('SQLite', "CREATE TABLE claim (kind TEXT CHECK (kind IN ('interval', 'serial')), extract TEXT, d TEXT CHECK (EXTRACT (year FROM d) > 2000));")).toMatchObject({ passed: true, findings: [{ code: 'dialect', message: expect.stringContaining('EXTRACT(') }] }) // literals stripped; `extract` the column is not the function
+    expect(await ddl('PostgreSQL in prod, SQLite in tests', 'CREATE TABLE claim (id SERIAL);')).toEqual({ passed: true, findings: [], evidence: [] }) // two stores named: nothing to hold the DDL to
     expect(await ddl('Node service, SQLite', '-- INTERVAL in a comment\nCREATE TABLE claim (id TEXT, interval_days INTEGER);')).toEqual({ passed: true, findings: [], evidence: [] }) // a comment, and a word inside an identifier
     expect(await ddl('PostgreSQL 16', 'CREATE TABLE claim (id INTEGER PRIMARY KEY AUTOINCREMENT);')).toMatchObject({ passed: true, findings: [{ severity: 'warning', code: 'dialect' }] })
     expect(await ddl(undefined, "CREATE TABLE claim (due TEXT CHECK (due > now() - INTERVAL '1 day'));")).toEqual({ passed: true, findings: [], evidence: [] }) // no store named: no check
     expect((await ddl('SQLite', "CREATE TABLE claim (due INTERVAL); CREATE TABLE ghost (id TEXT);")).findings.map((f: { code: string; severity: string }) => `${f.severity}:${f.code}`)).toEqual(['error:document-unindexed', 'warning:dialect'])
   })
 
-  it('every example Design indexes exactly what its document declares', () => {
+  it('every example Design passes the document checks of checkDesign', () => {
     const files = ['docs/design/examples/ai-native-domain.yaml', 'examples/example07/room-booking-domain.yaml', 'examples/example08/car-pool-domain.yaml']
-    for (const f of files) for (const d of parseAllDocuments(readFileSync(join(root, f), 'utf8')).map((x) => x.toJS())) {
-      if (d?.kind !== 'Design') continue
-      const c = d.spec.content
-      const names = contractNames(c.document)!.names!
-      const screensOf = (n: string) => (c.type === 'ui' && n.includes(': ') ? n.slice(0, n.indexOf(': ')) : n)
-      expect({ file: f, id: d.spec.identity.id, unbacked: c.elements.map((e: { name: string }) => e.name).filter((n: string) => !names.includes(screensOf(n))), unindexed: names.filter((n) => !c.elements.some((e: { name: string }) => e.name === n)) }).toEqual({ file: f, id: d.spec.identity.id, unbacked: [], unindexed: [] })
+    for (const f of files) {
+      const all = parseAllDocuments(readFileSync(join(root, f), 'utf8')).map((x) => x.toJS()).filter(Boolean)
+      const byKind = (kind: string) => all.filter((d) => d.kind === kind)
+      const designs = Object.fromEntries(byKind('Design').map((d) => [d.spec.identity.id, d.spec.content]))
+      for (const d of byKind('Design')) {
+        const c = d.spec.content
+        const architecture = byKind('Architecture').find((a) => a.spec.identity.id === c.architecture)?.spec.content
+        const domainModel = byKind('DomainModel').find((m) => m.spec.identity.id === c.domainModel)?.spec.content
+        const rules = byKind('BusinessRules')[0]?.spec.content
+        const found = checkDesign({ design: c, architecture, domainModel, rules, designs, ids: { designSystem: c.designSystem } }).filter((x: { code: string }) => /^(document-|element-unbacked|dialect)/.test(x.code))
+        expect({ file: f, id: d.spec.identity.id, found }).toEqual({ file: f, id: d.spec.identity.id, found: [] })
+      }
     }
   })
 

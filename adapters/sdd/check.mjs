@@ -5,7 +5,7 @@
 // BusinessRules it enforces. And one Plan against its Spec, the Architecture and the Designs it realises. And one Architecture
 // against the Prd, the contexts, models and glossaries it lists and the Adrs it applies. Plain data in, findings out.
 // the document a Design of each type carries
-import { contractNames } from './contract.mjs'
+import { bareSql, contractNames } from './contract.mjs'
 
 const mediaTypes = { 'http-api': ['application/openapi+yaml'], 'async-api': ['application/asyncapi+yaml'], 'data-schema': ['application/schema+json', 'application/sql'], ui: ['text/markdown'] }
 const keyword = { ubiquitous: 'The', 'event-driven': 'When', 'state-driven': 'While', 'unwanted-behaviour': 'If', optional: 'Where' }
@@ -150,15 +150,21 @@ export function checkPrd({ prd, rules, previousRules, feedback }) {
 // The document's dialect is the block's technology (29-design-process.md): a word the named store lacks is a warning, never
 // an error, since a word list is a heuristic. Only DDL, only stores the list knows; comments are stripped first.
 const foreign = {
-  sqlite: { words: ['INTERVAL', 'EXTRACT', 'SERIAL', 'BIGSERIAL', 'CREATE SCHEMA', '::'], store: 'SQLite' },
+  sqlite: { words: ['INTERVAL', 'EXTRACT(', 'SERIAL', 'BIGSERIAL', 'CREATE SCHEMA', '::'], store: 'SQLite' },
   postgres: { words: ['AUTOINCREMENT', 'WITHOUT ROWID', 'DATETIME', 'NVARCHAR'], store: 'PostgreSQL' },
+}
+// a word matches whole (not inside an identifier), any whitespace between its parts, a `(` with any before it (`EXTRACT(` is the
+// function, `extract` alone may be a column); `::` is a cast and sits between word characters
+const wordRe = (w) => {
+  const src = w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/ /g, '\\s+').replace(/\\\(/g, '\\s*\\(')
+  return /^\w/.test(w) ? new RegExp(`(^|[^\\w])${src}${/\w$/.test(w) ? '(?![\\w])' : ''}`, 'i') : new RegExp(src)
 }
 const dialectMisses = (mediaType, sql, technology = '') => {
   if (mediaType !== 'application/sql') return []
-  const key = /sqlite/i.test(technology) ? 'sqlite' : /postgres/i.test(technology) ? 'postgres' : undefined
-  if (!key) return []
-  const bare = sql.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/--[^\n]*/g, ' ')
-  return foreign[key].words.filter((w) => new RegExp(`(^|[^\\w])${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w])`, 'i').test(bare)).map((w) => `${w} is not ${foreign[key].store}, the store the block's technology names`)
+  const named = Object.keys(foreign).filter((k) => new RegExp(k, 'i').test(technology))
+  if (named.length !== 1) return [] // no store named, or two: nothing to hold the DDL to
+  const bare = bareSql(sql)
+  return foreign[named[0]].words.filter((w) => wordRe(w).test(bare)).map((w) => `${w} is not ${foreign[named[0]].store}, the store the block's technology names`)
 }
 
 // `ids.designSystem` is the bound DesignSystem's artifact id, which a content never carries; a ui Design must cite it and
@@ -196,7 +202,7 @@ export function checkDesign({ design, architecture, domainModel, rules, designs 
   else if (contract) {
     const declared = new Set(contract.names)
     const indexed = new Set(design.elements.map((el) => el.name))
-    const backed = (name) => declared.has(name) || (design.type === 'ui' && name.includes(': ') && declared.has(name.slice(0, name.indexOf(': '))))
+    const backed = (name) => typeof name === 'string' && (declared.has(name) || (design.type === 'ui' && [...declared].some((s) => name.startsWith(`${s}: `)))) // a ui action is `<screen>: <control>`, whichever screen that is
     for (const el of design.elements) if (!backed(el.name)) bad('element-unbacked', `${el.id}: ${el.name} is not in the document`)
     for (const name of declared) if (!indexed.has(name)) bad('document-unindexed', `${name} is in the document and has no element`)
     for (const m of dialectMisses(mediaType, design.document?.content ?? '', block?.technology)) warn('dialect', m)
