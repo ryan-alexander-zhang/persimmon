@@ -36,7 +36,7 @@ spec:
   timeout: 30m
   retryPolicy: # a transient API refusal (19-adapter-roles.md) gets another attempt within the step deadline; a dead login is permission_denied and never retried
     maxAttempts: 3
-    backoff: {strategy: exponential, initial: 30s, max: 5m, jitter: full}
+    backoff: {strategy: exponential, initial: 1m, max: 5m, jitter: none}
   sideEffects: none
 ---
 # The human gate of a phase: open the model in `persimmon ui`, then approve or reject here with findings.
@@ -93,7 +93,7 @@ spec:
   timeout: 30m
   retryPolicy: # a transient API refusal (19-adapter-roles.md) gets another attempt within the step deadline; a dead login is permission_denied and never retried
     maxAttempts: 3
-    backoff: {strategy: exponential, initial: 30s, max: 5m, jitter: full}
+    backoff: {strategy: exponential, initial: 1m, max: 5m, jitter: none}
   sideEffects: none
 ---
 # The Spec of one capability (27-spec-process.md): stories, requirements and acceptance scenarios that cite the kinds beside them.
@@ -132,7 +132,7 @@ spec:
   timeout: 30m
   retryPolicy: # a transient API refusal (19-adapter-roles.md) gets another attempt within the step deadline; a dead login is permission_denied and never retried
     maxAttempts: 3
-    backoff: {strategy: exponential, initial: 30s, max: 5m, jitter: full}
+    backoff: {strategy: exponential, initial: 1m, max: 5m, jitter: none}
   sideEffects: none
 ---
 # The Prd of one product from a brief (28-prd-process.md); the rules it cites are written beside it.
@@ -169,7 +169,7 @@ spec:
   timeout: 30m
   retryPolicy: # a transient API refusal (19-adapter-roles.md) gets another attempt within the step deadline; a dead login is permission_denied and never retried
     maxAttempts: 3
-    backoff: {strategy: exponential, initial: 30s, max: 5m, jitter: full}
+    backoff: {strategy: exponential, initial: 1m, max: 5m, jitter: none}
   sideEffects: none
 ---
 apiVersion: persimmon.ai/v1
@@ -237,7 +237,7 @@ spec:
   timeout: 30m
   retryPolicy: # a transient API refusal (19-adapter-roles.md) gets another attempt within the step deadline; a dead login is permission_denied and never retried
     maxAttempts: 3
-    backoff: {strategy: exponential, initial: 30s, max: 5m, jitter: full}
+    backoff: {strategy: exponential, initial: 1m, max: 5m, jitter: none}
   sideEffects: none
 ---
 apiVersion: persimmon.ai/v1
@@ -270,7 +270,7 @@ spec:
   timeout: 30m
   retryPolicy: # a transient API refusal (19-adapter-roles.md) gets another attempt within the step deadline; a dead login is permission_denied and never retried
     maxAttempts: 3
-    backoff: {strategy: exponential, initial: 30s, max: 5m, jitter: full}
+    backoff: {strategy: exponential, initial: 1m, max: 5m, jitter: none}
   sideEffects: none
 ---
 # The Architecture of one product (31-architecture-process.md): the arc42 baseline over every context, and the Adrs it applies.
@@ -310,7 +310,7 @@ spec:
   timeout: 30m
   retryPolicy: # a transient API refusal (19-adapter-roles.md) gets another attempt within the step deadline; a dead login is permission_denied and never retried
     maxAttempts: 3
-    backoff: {strategy: exponential, initial: 30s, max: 5m, jitter: full}
+    backoff: {strategy: exponential, initial: 1m, max: 5m, jitter: none}
   sideEffects: none
 ---
 apiVersion: persimmon.ai/v1
@@ -363,7 +363,7 @@ spec:
   timeout: 30m
   retryPolicy: # a transient API refusal (19-adapter-roles.md) gets another attempt within the step deadline; a dead login is permission_denied and never retried
     maxAttempts: 3
-    backoff: {strategy: exponential, initial: 30s, max: 5m, jitter: full}
+    backoff: {strategy: exponential, initial: 1m, max: 5m, jitter: none}
   sideEffects: none
 ---
 apiVersion: persimmon.ai/v1

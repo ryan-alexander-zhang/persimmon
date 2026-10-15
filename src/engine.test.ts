@@ -220,6 +220,12 @@ describe('Engine', () => {
     const { resource: died } = await engine.create({ apiVersion: 'persimmon.ai/v1', kind: 'WorkflowRun', metadata: { name: 'prd-all-002', namespace: 'demo' }, spec: { workflowRef: { kind: 'Workflow', name: 'prd-all-none' }, inputs: { items }, origin: { kind: 'manual' } } } as Resource)
     await engine.drain()
     expect(engine.store.resources.getByUid(died.metadata.uid as string)?.status).toMatchObject({ phase: 'Failed', error: { code: 'step_failed' }, steps: { each: { phase: 'Failed', error: { message: expect.stringMatching(/research: source absent/) } } } })
+    // the UAT case: the agent dies inside an iteration, two runs down; the loop's child run fails, the outer step with it
+    delete process.env.PERSIMMON_CRED_DEMO__GITHUB_TOKEN
+    const { resource: agentDied } = await engine.create({ apiVersion: 'persimmon.ai/v1', kind: 'WorkflowRun', metadata: { name: 'prd-all-003', namespace: 'demo' }, spec: { workflowRef: { kind: 'Workflow', name: 'prd-all' }, inputs: { items, research }, origin: { kind: 'manual' } } } as Resource)
+    await engine.drain()
+    expect(engine.store.resources.get({ kind: 'TaskRun', namespace: 'demo', name: 'prd-all-003-each-1-rounds-1-produce' })?.status).toMatchObject({ phase: 'Failed', error: { code: 'permission_denied' } })
+    expect(engine.store.resources.getByUid(agentDied.metadata.uid as string)?.status).toMatchObject({ phase: 'Failed', error: { code: 'step_failed' }, steps: { each: { phase: 'Failed', error: { code: 'permission_denied', message: expect.stringMatching(/^step rounds: step produce: credential demo\/github-token not found/) } } } })
     expect(errors).toEqual([])
 
     // a cycle through produce (A produces with B, B with A) is refused at apply, since an update runs the Handler validate as create does; never a stack overflow

@@ -236,13 +236,16 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
   said `design_inconsistent`, the one Failed reason the loop had; the cause sat two levels down in
   `steps.each.error`, where it still is. No engine change: a `when` already reads a finished step's
   phase. Found in UAT (example08).
-- Every agent Task carries `retryPolicy: {maxAttempts: 3, backoff: {exponential, 30s, 5m, jitter: full}}`
+- Every agent Task carries `retryPolicy: {maxAttempts: 3, backoff: {exponential, 1m, 5m, jitter: none}}`
   with no `retryOn` or `abortOn`, so the Adapter's `retryable` decides: a `403`/`429`/`5xx` the CLI
-  reports is retried, a dead login (`permission_denied`) is not. Absent `retryPolicy` meant one
-  attempt, so the Adapter's honesty changed nothing. The attempt deadline is bounded by the step's
-  (`12-task.md`), and every agent step in the pack gives 30m, the Task's own `timeout`: a retry after
-  a fast refusal gets nearly the whole budget, a retry after a 30m timeout gets none, which is the
-  intent. The human `confirm-*` Tasks keep one attempt. Found in UAT (example08).
+  reports is retried, and so is every other failure the Adapter calls retryable (`error_max_turns` as
+  `timeout`, an unparsed answer, an API `400` as `agent_failed`), which costs up to three agent runs
+  where the failure repeats; a dead login (`permission_denied`) is not. The waits are 1m and 2m,
+  the recovery the live 403 showed. Absent `retryPolicy` meant one attempt, so the Adapter's honesty
+  changed nothing. The attempt deadline is bounded by the step's (`12-task.md`), and every agent
+  step in the pack gives 30m, the Task's own `timeout`: a retry after a fast refusal gets nearly the
+  whole budget, a retry after a 30m timeout gets none, which is the intent. The human `confirm-*`
+  Tasks keep one attempt. Found in UAT (example08).
 - A second example is the pack's own output, not a hand-written one: `examples/example07/room-booking-domain.yaml`
   is what `author-prd`, `domain-discovery`, `spec-all`, `design-all` and `plan-all` produced on a small
   real brief with a human at the Gates, so a regression in a prompt, a Task context or a Validator shows
