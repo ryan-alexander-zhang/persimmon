@@ -126,9 +126,14 @@ Adapters reach the engine only here, at `engine.endpoint`, with a token.
 - One process per call, so a resident process with liveness handling is roadmap.
 - Conformance suite: the executor Role is `22-conformance.md`; the handler Role is roadmap (`91-roadmap.md`).
 - stdio environment is an allowlist: `PATH`, `HOME`, `USER`, `LOGNAME`, `TMPDIR`, `LANG`,
-  `NODE_PATH`, `NODE_OPTIONS`, then `spec.env`, bound credentials, minus any `PERSIMMON_*` name
-  they carry, then the adapter token.
+  `NODE_PATH`, `NODE_OPTIONS`, the proxy variables (`HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`,
+  `ALL_PROXY` and their lowercase forms), then `spec.env`, bound credentials, minus any
+  `PERSIMMON_*` name they carry, then the adapter token.
   `USER` is needed for macOS keychain logins. Found in implementation.
+- The proxy variables pass through: an agent CLI refreshes its login over the network, and on a
+  machine that reaches the network only through a proxy the refresh fails without them, so every
+  step fails `403` once the cached token expires. They are network configuration, not
+  credentials. Found in UAT.
 - Stream `log` lines are appended to the RunLog entry that issued the call, beside the `log`
   callback; `waiting` lines are not stored, the Handler owns `waitingReason`. Found in
   implementation.
