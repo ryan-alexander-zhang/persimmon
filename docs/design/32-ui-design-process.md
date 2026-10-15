@@ -99,7 +99,7 @@ without `document.content` is `not-a-design-system`, the only finding then. No E
 | the rest | as any Design: `unknown-block`, rules both ways, `id-sequence` |
 
 A `ui` Design drawn in a design tool names it in `references[]` (`29-design-process.md`): the
-markdown stays the document the screens are read from; the Figma file, pinned by version, is where
+markdown stays the document the screens are read from; the Figma file, pinned by version when the tool has one, is where
 the pixels are (example07's `bb-5-ui`).
 
 ## Rules

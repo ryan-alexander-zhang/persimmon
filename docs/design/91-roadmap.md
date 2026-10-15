@@ -55,6 +55,7 @@ later     eager joins · retention policy · policy resource · external event s
 |---|---|---|
 | pack format: manifest, version, dependency resolution, `pack` verb | `20-pack.md` | v1: directory and `apply` |
 | tester as its own Task, apart from the coder | `examples/example04` | v1: the coder writes its tests; a Validator reads them |
+| the SDLC pack on `codex/v1`: an open object with no `properties` (`references[].locator`, the DMN `decision` map) is not closed by the codex Adapter's strict rewrite, and OpenAI strict mode refuses it | `29-design-process.md` | the pack binds claude-code Executors only; close property-less objects in the rewrite when a codex Executor is bound |
 
 ## Layer 3
 

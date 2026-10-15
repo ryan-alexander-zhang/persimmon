@@ -71,7 +71,7 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
 | `Design` | `domainModel`, `elements[].realises` | one `DomainModel` and its names; a `ui` Design: no `domainModel`, the block's API Designs bound to the Validator | artifact id; a command, event or read model label, or `AG-n`; a `ui` Design: `{kind: operation, name}`, an element name of a bound Design |
 | `Design` | `rules[]`, `elements[].rules[]` | `BusinessRules` rules | `BR-n`, "enforces"; the root list is the union of the elements' |
 | `Design` | `decisions[]` | `Adr` | artifact ids |
-| `Design` | `references[]` | something outside the engine | `ExternalResourceRef {provider, type, id, locator, version?, url?}` (`00-resource.md`); not checked, never fetched |
+| `Design` | `references[]` | something outside the engine | `ExternalResourceRef {provider, type, id, locator, version?, url?}` (`00-resource.md`); shape by schema; the Validator neither checks nor fetches one |
 | `Plan` | `spec`, `tasks[].covers`, `verifiedBy` | one `Spec`, its `FR-n` and `AC-n` | artifact id; every requirement and scenario of the Spec is covered or verified by a task |
 | `Plan` | `architecture`, `tasks[].block` | one `Architecture` and its blocks | artifact id, `BB-n`; one block per task |
 | `Plan` | `designs[]`, `tasks[].elements[]` | the `Design`s and their `EL-n` | artifact ids, listed in `designs`; the Design's `block` is the task's. The Spec-to-Design link lives here only |
