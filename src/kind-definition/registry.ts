@@ -16,6 +16,7 @@ export function validateKindDefinition(value: unknown): KindDefinition {
   if (metadata.name !== expected) throw new KindError(`metadata.name must be ${expected}, got ${metadata.name}`)
   const names = spec.versions.map((v) => v.name)
   if (new Set(names).size !== names.length) throw new KindError(`versions[].name not unique: ${names.join(', ')}`)
+  for (const v of spec.versions) for (const s of [v.schema, v.statusSchema]) if (s && typeof s === 'object' && '$id' in s) throw new KindError(`${metadata.name}: versions[].schema carries no $id; $ref is relative to the schema root`) // one ajv holds every kind; an id registered twice throws, and a frozen copy would resolve into the live one
   return value
 }
 
@@ -44,10 +45,7 @@ export class KindRegistry {
   compile(schema: unknown): ValidateFunction {
     const key = JSON.stringify(schema)
     let v = this.#frozen.get(key)
-    if (!v) {
-      const { $id: _id, ...rest } = schema as Record<string, unknown> // the live compile already registered its $id
-      this.#frozen.set(key, (v = this.#ajv.compile(rest)))
-    }
+    if (!v) this.#frozen.set(key, (v = this.#ajv.compile(schema as object)))
     return v
   }
 
@@ -61,11 +59,11 @@ export class KindRegistry {
     const target = definition.spec.expansion && this.byKind(definition.spec.expansion.kind)?.definition // registration order is free; an unregistered target fails at expand time
     if (target?.spec.expansion) throw new KindError(`${definition.metadata.name}: expansion kind ${target.spec.names.kind} is itself a composition`)
     if (target && definition.spec.stepContract && !isDeepStrictEqual(definition.spec.stepContract, target.spec.stepContract)) throw new KindError(`${definition.metadata.name}: stepContract differs from ${target.spec.names.kind}'s`)
-    // a revisioned kind's definition, found by name so a renamed kind or version cannot slip past: its schema may change
-    // only where the committed revisions still validate (05-revisioned-kind.md)
-    const keys = definition.spec.versions.map((v) => `${definition.spec.group}/${v.name}/${definition.spec.names.kind}`)
-    const owner = keys.map((k) => this.#kinds.get(k)?.definition).find(Boolean) // a definition under another name that owns one of these kinds
-    if (owner?.spec.revisioned && owner.metadata.name !== definition.metadata.name) throw new KindError(`${definition.metadata.name}: ${owner.spec.names.kind} is revisioned and defined by ${owner.metadata.name}`)
+    // a kind has one definition, found by name: a second definition of the kind under another name (a new plural, group or
+    // version) is refused, else it would take the kind over with no check. A revisioned kind's schema may change only
+    // where the committed revisions still validate (05-revisioned-kind.md)
+    const owner = this.byKind(definition.spec.names.kind)?.definition
+    if (owner && owner.metadata.name !== definition.metadata.name) throw new KindError(`${definition.metadata.name}: ${owner.spec.names.kind} is defined by ${owner.metadata.name}`)
     const prior = this.definitions().find((d) => d.metadata.name === definition.metadata.name)
     const changed = prior?.spec.revisioned && !isDeepStrictEqual(prior.spec, definition.spec)
     if (changed && !(o.committed && schemaOnly(prior!, definition))) throw new KindError(`${definition.metadata.name} is revisioned; its KindDefinition changes in versions[].schema only`)

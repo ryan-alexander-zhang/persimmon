@@ -81,6 +81,8 @@ the target's rules, and the snapshot walk stores the expansion in place of the R
 | `metadata.name` = `<names.plural>.<group>` | static checker |
 | `stepContract.runKind` is registered and has `terminal` | static checker |
 | `versions[].name` unique; Resources keep the version they were written in | static checker; store |
+| a kind has one definition: a second under another name (a new plural, group or version name) is refused | registry |
+| `versions[].schema` and `statusSchema` carry no `$id`; `$ref` is relative to the schema root | registry |
 | Global: no `namespace`; write needs `admin` grant | write path (`00-resource.md`) |
 
 ## Decisions
@@ -110,14 +112,16 @@ the target's rules, and the snapshot walk stores the expansion in place of the R
   snapshot froze (`04-snapshot.md`): its publishes validate against the frozen schema, so it may
   still commit a revision the live one refuses, and the next change to the kind then stops on that
   revision. A revision staged before the apply and committed after it is the same case. The
-  definition is found by name, so a renamed kind or version is the same change and refused; a new
-  `names.plural` is a new name owning the same kind, refused by the kind it owns, else the prior
-  would be missed and the schema swapped unchecked. Two UATs in one week moved to a fresh project because the AI Native pack
+  definition is found by name, so a renamed kind or version is the same change and refused; a
+  definition under another name (a new plural, group or version name) that names the same kind is
+  refused by the kind, whether or not it is revisioned, else the prior would be missed and the kind
+  taken over unchecked. Two UATs in one week moved to a fresh project because the AI Native pack
   changed the Design kind (`32-ui-design-process.md`). Found in UAT.
 - `validate` copies the project's committed revisions into its throwaway engine only when the batch
   holds a KindDefinition: the copy costs every artifact in the project and nothing else in the batch
-  reads them. A frozen schema is compiled without its `$id`: the live compile registered it, and ajv
-  refuses the same id twice. Found in audit.
+  reads them. A kind schema carries no `$id`: one ajv holds every kind, an id registered twice throws
+  (the dry run of `apply` compiles before the real registration), and a frozen copy compiled without
+  its id would resolve an absolute `$ref` into the live schema. Found in audit.
 
 
 ## Examples

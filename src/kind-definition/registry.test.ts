@@ -75,15 +75,19 @@ describe('KindRegistry', () => {
     replural.spec.names.plural = 'prodreqs'
     replural.metadata.name = `prodreqs.${replural.spec.group}`
     replural.spec.versions[0].schema.required = [...replural.spec.versions[0].schema.required, 'tagline']
-    expect(() => reg.register(replural, { replace: true, committed: () => [stored] })).toThrow(/ProductRequirement is revisioned and defined by productrequirements/)
+    expect(() => reg.register(replural, { replace: true, committed: () => [stored] })).toThrow(/ProductRequirement is defined by productrequirements/)
+    replural.spec.versions[0].name = 'v2' // a new version name beside the new plural: no key in common, the same kind
+    expect(() => reg.register(replural, { replace: true, committed: () => [stored] })).toThrow(/ProductRequirement is defined by productrequirements/)
+    const takeover = example('kind-definition-researchreport') // a non-revisioned kind cannot be taken over under another name either
+    takeover.spec.names.plural = 'reports'
+    takeover.metadata.name = `reports.${takeover.spec.group}`
+    expect(() => reg.register(takeover, { replace: true })).toThrow(/ResearchReport is defined by researchreports/)
   })
 
-  it('compiles a frozen schema that carries the $id the live one registered', () => {
+  it('a version schema with an $id is refused: one ajv holds every kind', () => {
     const live = example('kind-definition-productrequirement')
     live.spec.versions[0].schema.$id = 'https://example.test/prd'
-    const r = new KindRegistry()
-    r.register(live)
-    expect(r.compile(live.spec.versions[0].schema)(example('revisioned-instance').spec.content)).toBe(true)
+    expect(() => new KindRegistry().register(live)).toThrow(/carries no \$id/)
   })
 
   it('validates a WorkflowRun spec and status', () => {
