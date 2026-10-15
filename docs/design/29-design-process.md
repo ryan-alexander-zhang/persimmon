@@ -26,6 +26,8 @@ Workflow design-all: repeat over `blocks` with one `type` ─▶ ReviewLoop desi
 | Gate `design-gate` | consistency only |
 | ReviewLoop `design-one` | `produce` `design-asset`, `review` `design-gate`, `maxRounds: 2`; takes `interface` too, so a block with two provided interfaces gets its second Design from a direct run |
 | Workflow `design-all` | `repeat` over `blocks` (BB-n ids) for one `type`, as `spec-all` repeats over capabilities; a block the loop could not design ends the run `design_inconsistent`, an iteration that died before its Gate ran `step_failed`; output `written` |
+| Validator `domain-coverage` | `sdd/v1` over `domainModel` and `designs` (every Design; the ones naming the model are read): each name the model owns with no element realising it is `unrealised`, a warning |
+| Gate `coverage-gate`, Workflow `design-coverage` | the Gate alone, no Task: `persimmon run design-coverage --input domainModel=<ref> --input designs=kind:Design --follow`; output `passed`, the tree lists every gap |
 
 ## `checkDesign`
 
@@ -50,6 +52,13 @@ Workflow design-all: repeat over `blocks` with one `type` ─▶ ReviewLoop desi
 
 The Adapter picks the mode from the payload: `artifacts.spec` (or `artifacts.model`), else
 `artifacts.prd`, else `artifacts.design`.
+
+## `checkCoverage`
+
+| Code | Finding |
+|---|---|
+| `not-a-domainmodel` | content without `aggregates`; the only finding then |
+| `unrealised` (warning) | an aggregate's command, an `events[]` name, a read model or an `AG-n` of the model that no element of a Design naming this model realises; external systems' commands and other contexts' events are not the model's own; a Design of another model, or a `ui` Design, is not read |
 
 ## Rules
 
@@ -120,6 +129,17 @@ The Adapter picks the mode from the payload: `artifacts.spec` (or `artifacts.mod
   (an interface or a context as a label), as every id stem in the pack is caller-named; the id stays
   unchanged when no qualifier is bound. `design-all` takes `interface` and `qualifier` too, so a run
   over blocks can bind one interface. Found in UAT (example08).
+- Coverage is a report, not a refusal: `unrealised` is a warning and `design-coverage` Succeeds.
+  A stormed command no contract exposes, an aggregate no schema holds, an event with no
+  `async-api` Design yet are gaps of the product, not defects of the Designs that exist, and a
+  Gate that refused would blame the last Design written. It is its own Workflow, not the last
+  step of `design-all`: a fan-out over blocks of one type cannot see the other types' Designs, and
+  the report is wanted after every type is in. It lives in the pack and the sdd Adapter, not in a
+  CLI verb as `get --behind` does: what a Design realises is the pack's semantics, not the
+  engine's. Proven live on the car pool's `car-reservations-model` against seven Designs: five
+  commands (`Reject reservation request`, `Release unclaimed reservation`, ...), every event (no
+  `async-api` Design), and `AG-3` unrealised; every read model and `AG-1`, `AG-2` realised. Found
+  in UAT.
 
 ## Examples
 

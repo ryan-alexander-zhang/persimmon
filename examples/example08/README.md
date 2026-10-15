@@ -128,6 +128,16 @@ which car was offered. An earlier run of this step with the `car-reservations` m
 on the four fleet screens and, at round two, kept them in prose without elements; that is why the
 index moved to operations.
 
+### 8b. What no Design realises yet
+
+```sh
+persimmon run design-coverage --input 'domainModel=<ref>' --input designs=kind:Design --follow
+persimmon tree WorkflowRun/design-coverage-<hex>     # one `unrealised` warning per stormed name without a Design element: commands the APIs skipped, every event (no async-api Design), an aggregate no schema holds
+```
+
+The run Succeeds: a gap is the product's, not a defect of the Designs that exist. Run it again
+after the next `design-all`.
+
 ### 9. One Plan per Spec
 
 ```sh
