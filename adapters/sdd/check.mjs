@@ -295,7 +295,8 @@ export function checkCoverage({ domainModel, designs = {}, ids = {} }) {
     ...(domainModel.readModels ?? []).map((r) => ['readModel', r.name]),
     ...domainModel.aggregates.map((a) => ['aggregate', a.id]),
   ]
-  return want.filter(([kind, name]) => !realised[kind].has(name)).map(([kind, name]) => ({ severity: 'warning', code: 'unrealised', message: `${kind} ${name}: no Design of ${ids.domainModel} realises it` }))
+  const seen = new Set()
+  return want.filter(([kind, name]) => !realised[kind].has(name) && !seen.has(`${kind}/${name}`) && seen.add(`${kind}/${name}`)).map(([kind, name]) => ({ severity: 'warning', code: 'unrealised', message: `${kind} ${name}: no Design of ${ids.domainModel} realises it` }))
 }
 
 // One Plan against the Spec it builds, the Architecture its tasks name blocks of, and the Designs it realises elements

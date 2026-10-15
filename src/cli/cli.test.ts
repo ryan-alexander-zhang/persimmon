@@ -1,7 +1,7 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { parse, stringify } from 'yaml'
+import { parse, parseAllDocuments, stringify } from 'yaml'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { parseInput } from './create.js'
 import { askForm, example as template, type Form } from './signal.js'
@@ -216,6 +216,24 @@ describe('persimmon CLI', () => {
     expect(err.at(-1)).toBe('unknown kind Nope')
     expect(await run('get', 'Spec/cap-1', '--behind')).toBe(1)
     expect(err.at(-1)).toBe('--behind takes a Kind, not a name')
+  })
+
+  it('design-coverage runs the Gate alone over a stored model and every Design, and the tree names what is unrealised', async () => {
+    await run('init')
+    const docs = parseAllDocuments(readFileSync('docs/design/examples/sdlc-domain.yaml', 'utf8')).map((d) => d.toJS()).filter(Boolean)
+    for (const kind of ['DomainModel', 'Design']) expect(await run('create', file(`${kind}.yaml`, [docs.find((d) => d.kind === kind)]))).toBe(0)
+    out = []
+    expect(await run('run', 'design-coverage', '--input', 'domainModel={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel, id: expenses-model, revision: 1}}', '--input', 'designs=kind:Design', '--follow')).toBe(0)
+    expect(out.some((l) => /^WorkflowRun\s+design-coverage-[0-9a-f]{6}\s+Succeeded/.test(l))).toBe(true)
+    expect(out).toContain('  passed  true') // a report: warnings on a pass
+    const name = out.find((l) => l.startsWith('created WorkflowRun/'))!.slice('created '.length)
+    out = []
+    expect(await run('tree', name)).toBe(0)
+    const warnings = out.map((l) => l.trim()).filter((l) => l.startsWith('warning unrealised: '))
+    expect(warnings).toContain('warning unrealised: command Set Risk Flag: no Design of expenses-model realises it')
+    expect(warnings.some((l) => l.includes('readModel My Claims View'))).toBe(false) // GET /claims/mine realises it
+    expect(await run('run', 'design-coverage', '--input', 'domainModel={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel, id: expenses-model, revision: 1}}', '--input', 'designs=kind:Plan')).toBe(1)
+    expect(err.at(-1)).toMatch(/--input designs: no Plan in Namespace default/) // kind:<Kind> needs one in the store
   })
 
   it('run --follow returns when the run is parked on a human Task', async () => {

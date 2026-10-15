@@ -686,12 +686,15 @@ describe('sdd/v1 over a DomainModel: coverage', () => {
 
   it('reads only the Designs that name the model: a ui Design and a Design of another model add nothing', async () => {
     const other = { ...content('Design'), domainModel: 'other-model' }
-    const ui = { title: 'screens', type: 'ui', elements: [{ id: 'EL-1', name: 'My Claims', realises: { kind: 'operation', name: 'GET /claims/mine' } }] }
+    const ui = { title: 'screens', type: 'ui', elements: [{ id: 'EL-1', name: 'My Claims', realises: { kind: 'command', name: 'Set Risk Flag' } }] } // no domainModel: not read, whatever it realises
     const all = await findings(content('DomainModel'), [])
     const same = await findings(content('DomainModel'), [{ id: 'other', content: other }, { id: 'ui', content: ui }])
     expect(same.findings).toEqual(all.findings)
     const full = { ...content('Design'), elements: [...content('Design').elements, { id: 'EL-10', name: 'POST /x', realises: { kind: 'command', name: 'Set Risk Flag' } }] }
     expect((await findings(content('DomainModel'), [{ id: 'claims-api', content: full }])).findings.map((f) => f.message)).not.toContain('command Set Risk Flag: no Design of expenses-model realises it')
+    const twice = structuredClone(content('DomainModel'))
+    twice.aggregates[1].commands.push('Export Claim') // one label on two aggregates: one warning
+    expect((await findings(twice, [])).findings.filter((f) => f.message.startsWith('command Export Claim')).length).toBe(1)
   })
 
   it('fails content that is not a DomainModel', async () => {
