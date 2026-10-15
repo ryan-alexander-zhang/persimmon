@@ -2,7 +2,7 @@
 // Nothing deeper is read: a parse failure is one finding, and the index is checked against names alone.
 import { parse } from 'yaml'
 
-const methods = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace']
+export const methods = ['get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace']
 
 /** `## <screen>` headings of a ui Design's markdown, fenced code skipped (CommonMark: a fence closes on its own marker, at least as long). */
 export const screens = (markdown) => {
@@ -17,8 +17,10 @@ export const screens = (markdown) => {
   return out
 }
 
-/** The parts of a ui Design's screens (32-ui-design-process.md): `### <Part>` or a `**<Part>.**` line opens one under the current
- * `## <screen>`, its text runs to the next part or screen; fenced code is skipped. `[{screen, part, text}]`, in document order. */
+/** The parts of a ui Design's screens (32-ui-design-process.md): `### <Part>` or a `**<Part>.**` line, `Part` one of the five the
+ * process names, opens one under the current `## <screen>`, its text runs to the next part or screen; fenced code is skipped, a
+ * part before any screen too. `[{screen, part, text}]`, in document order. */
+const partRe = /^ {0,3}(?:### (Purpose|Data|Actions|States|Layout)\s*#*\s*$|\*\*(Purpose|Data|Actions|States|Layout)\.\*\*)/
 export const uiParts = (markdown) => {
   const out = []
   let fence
@@ -32,10 +34,10 @@ export const uiParts = (markdown) => {
     else if (/^ {0,3}## /.test(line)) {
       screen = line.replace(/^ {0,3}## /, '').replace(/\s+#+\s*$/, '').trim()
       cur = undefined
-    } else if (/^ {0,3}### /.test(line) || /^\*\*[A-Z][a-z]+\.\*\*/.test(line)) {
-      const part = /^ {0,3}### /.test(line) ? line.replace(/^ {0,3}### /, '').replace(/\s+#+\s*$/, '').trim() : /^\*\*([A-Z][a-z]+)\.\*\*/.exec(line)[1]
-      cur = { screen, part, text: line.replace(/^\*\*[A-Z][a-z]+\.\*\*/, '') }
-      out.push(cur)
+    } else if (partRe.test(line)) {
+      const p = partRe.exec(line)
+      cur = screen === undefined ? undefined : { screen, part: p[1] ?? p[2], text: line.slice(p[0].length) }
+      if (cur) out.push(cur)
     } else if (cur) cur.text += `\n${line}`
   }
   return out
@@ -44,7 +46,7 @@ export const uiParts = (markdown) => {
 /** The names a DESIGN.md front matter declares (32-ui-design-process.md): every `components` key, and every key of `colors`,
  * `typography`, `spacing` and `rounded` bare and as `<group>.<key>`; undefined when the text has no front matter it can read. */
 export const designSystemNames = (markdown) => {
-  const m = /^---\n([\s\S]*?)\n---(\n|$)/.exec(markdown ?? '')
+  const m = /^---\r?\n([\s\S]*?)\r?\n---(\r?\n|$)/.exec(markdown ?? '')
   if (!m) return undefined
   let fm
   try {
@@ -53,8 +55,9 @@ export const designSystemNames = (markdown) => {
     return undefined
   }
   if (!fm || typeof fm !== 'object') return undefined
-  const names = new Set(Object.keys(fm.components ?? {}))
-  for (const g of ['colors', 'typography', 'spacing', 'rounded']) for (const k of Object.keys(fm[g] ?? {})) names.add(k).add(`${g}.${k}`)
+  const keys = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? Object.keys(v) : []) // a list or a scalar declares no name
+  const names = new Set(keys(fm.components))
+  for (const g of ['colors', 'typography', 'spacing', 'rounded']) for (const k of keys(fm[g])) names.add(k).add(`${g}.${k}`)
   return names
 }
 

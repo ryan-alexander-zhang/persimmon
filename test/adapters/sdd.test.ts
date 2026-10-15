@@ -311,10 +311,10 @@ describe('sdd/v1 over a Design', () => {
       artifacts: { ...base.artifacts, designs: designs.map((c) => ({ content: c, provenance })) },
     }
   }
-  const uiCodes = async (mutate: (d: any) => void, designSystem?: string, designs?: unknown[]) => {
+  const uiCodes = async (mutate: (d: any) => void, designSystem?: string, designs?: unknown[], designSystemContent?: unknown) => {
     const design = uiDesign()
     mutate(design)
-    const r = await adapter({ id: ++id, op: 'evaluate', payload: uiPayload(design, designSystem, designs) })
+    const r = await adapter({ id: ++id, op: 'evaluate', payload: uiPayload(design, designSystem, designs, designSystemContent) })
     return r.result.findings.map((f: { code: string }) => f.code)
   }
 
@@ -338,8 +338,14 @@ describe('sdd/v1 over a Design', () => {
     expect(await uiCodes((d) => { d.document.content = d.document.content.replace('### Actions\n\n- Submit: submits `POST /claims/{claimId}/submission`.\n\n', '') })).toEqual(['action-unbacked']) // no Actions part at all
     expect(await uiCodes((d) => { d.document.content += '\n```\n### Layout\n`ghost`\n### Actions\n`POST /ghost`\n```\n' })).toEqual([]) // fenced code is not prose
     expect(await uiCodes((d) => { d.document.content = d.document.content.replace('`POST /claims/{claimId}/submission`', '`POST /claims/{claimId}/submission` after `GET /claims/mine`') })).toEqual([]) // a second, real operation in the prose is fine
-    expect(await uiCodes(() => {}, undefined, undefined, { title: 'x', prd: 'p', document: { mediaType: 'text/markdown', content: '# no front matter\n' } })).toEqual([]) // nothing to read Layout against: the lint owns that
-    expect(await uiCodes(() => {}, undefined, [])).toEqual(['designs-unbound']) // operations unresolvable: one finding, the prose is not checked either
+    expect(await uiCodes((d) => { d.document.content = d.document.content.replace('`card`', '`ghost`') }, undefined, undefined, { title: 'x', prd: 'p', document: { mediaType: 'text/markdown', content: '# no front matter\n' } })).toEqual([]) // nothing to read Layout against: the lint owns that
+    expect(await uiCodes((d) => { d.document.content = d.document.content.replace('`card`', '`ghost`') }, undefined, undefined, { title: 'x', prd: 'p', document: { mediaType: 'text/markdown', content: designMd.replace(/\n/g, '\r\n') } })).toEqual(['layout-unknown']) // CRLF front matter reads the same
+    expect(await uiCodes((d) => { d.document.content = d.document.content.replace('`card`', '`ghost`').replace('`spacing.md`', '`ghost`') })).toEqual(['layout-unknown']) // one warning per name, not per mention
+    expect(await uiCodes((d) => { d.document.content = d.document.content.replace('- Submit:', '**Note.** reads twice\n- Submit:') })).toEqual([]) // a bold label that is not a part does not end Actions
+    expect(await uiCodes((d) => { d.document.content = d.document.content.replace('### Actions', '**Empty state.**\n### Actions') })).toEqual([]) // nor open one
+    expect(await uiCodes((d) => { d.document.content = '### Layout\n`ghost`\n' + d.document.content })).toEqual([]) // a part before any screen is skipped
+    expect(await uiCodes((d) => { d.document.content += '\n## Submit\n\n### Actions\n\n- Go: `GET /claims/mine`\n'; d.elements.push({ id: 'EL-4', name: 'Submit', realises: { kind: 'operation', name: 'GET /claims/mine' } }) })).toEqual([]) // a screen element whose name prefixes another screen's action is not an action; `Submit a Claim: Submit` still backs on the longest screen
+    expect(await uiCodes(() => {}, undefined, [])).toEqual(['designs-unbound']) // operations unresolvable: one finding; action-unknown is skipped, action-unbacked still reads the prose
   })
 
   it('a ui Design realises operations of the API Designs bound, names no DomainModel, and indexes every screen', async () => {
@@ -423,8 +429,12 @@ describe('sdd/v1 over a Design', () => {
         const architecture = byKind('Architecture').find((a) => a.spec.identity.id === c.architecture)?.spec.content
         const domainModel = byKind('DomainModel').find((m) => m.spec.identity.id === c.domainModel)?.spec.content
         const rules = byKind('BusinessRules')[0]?.spec.content
-        const found = checkDesign({ design: c, architecture, domainModel, rules, designs, ids: { designSystem: c.designSystem } }).filter((x: { code: string }) => /^(document-|element-unbacked|dialect|action-)/.test(x.code))
+        const designSystem = byKind('DesignSystem').find((s) => s.spec.identity.id === c.designSystem)?.spec.content
+        const all = checkDesign({ design: c, architecture, domainModel, rules, designs, designSystem, ids: { designSystem: c.designSystem } })
+        const found = all.filter((x: { code: string }) => /^(document-|element-unbacked|dialect|action-)/.test(x.code))
         expect({ file: f, id: d.spec.identity.id, found }).toEqual({ file: f, id: d.spec.identity.id, found: [] })
+        const layout = all.filter((x: { code: string }) => x.code === 'layout-unknown').length
+        if (c.type === 'ui') expect({ file: f, id: d.spec.identity.id, layoutWarnings: layout > 0 }).toEqual({ file: f, id: d.spec.identity.id, layoutWarnings: f.includes('example08') }) // example07's Layouts name the DesignSystem only; example08's name fields too (32-ui-design-process.md)
       }
       const rulesId = byKind('BusinessRules')[0]?.spec.identity.id
       for (const d of all.filter((x) => ['Prd', 'Spec', 'Design', 'Architecture'].includes(x.kind))) expect({ file: f, id: d.spec.identity.id, businessRules: d.spec.content.businessRules }).toEqual({ file: f, id: d.spec.identity.id, businessRules: rulesId })

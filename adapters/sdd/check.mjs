@@ -5,7 +5,7 @@
 // BusinessRules it enforces. And one Plan against its Spec, the Architecture and the Designs it realises. And one Architecture
 // against the Prd, the contexts, models and glossaries it lists and the Adrs it applies. Plain data in, findings out.
 // the document a Design of each type carries
-import { bareSql, contractNames, designSystemNames, uiParts } from './contract.mjs'
+import { bareSql, contractNames, designSystemNames, methods, uiParts } from './contract.mjs'
 
 const mediaTypes = { 'http-api': ['application/openapi+yaml'], 'async-api': ['application/asyncapi+yaml'], 'data-schema': ['application/schema+json', 'application/sql'], ui: ['text/markdown'] }
 const keyword = { ubiquitous: 'The', 'event-driven': 'When', 'state-driven': 'While', 'unwanted-behaviour': 'If', optional: 'Where' }
@@ -184,7 +184,7 @@ const dialectMisses = (mediaType, sql, technology = '') => {
 // `designs` is artifact id → content of the API Designs bound, and their element names are what its elements may realise;
 // `designSystem` is the bound DesignSystem's content, whose front matter names what a screen's Layout may use
 // (32-ui-design-process.md).
-const isOperation = (name) => /^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS) \//.test(name)
+const isOperation = (name) => new RegExp(`^(${methods.map((m) => m.toUpperCase()).join('|')}) /`).test(name) // the methods contract.mjs names, as it spells them
 const backticked = (text) => [...text.matchAll(/`([^`\n]+)`/g)].map((m) => m[1])
 export function checkDesign({ design, architecture, domainModel, rules, designs = {}, designSystem, ids = {} }) {
   if (!design || !Array.isArray(design.elements) || !design.type) {
@@ -250,12 +250,14 @@ export function checkDesign({ design, architecture, domainModel, rules, designs 
     }
     const declared = new Set(contract.names)
     for (const el of design.elements) {
-      const screen = [...declared].find((s) => typeof el.name === 'string' && el.name.startsWith(`${s}: `))
+      if (typeof el.name !== 'string' || declared.has(el.name)) continue // a screen element, not an action
+      const screen = [...declared].filter((s) => el.name.startsWith(`${s}: `)).sort((a, b) => b.length - a.length)[0] // the longest: `Claims: Detail` over `Claims`
       const op = el.realises?.name
       if (screen && typeof op === 'string' && !backticked(actionsOf(screen)).includes(op)) bad('action-unbacked', `${el.id}: ${op} is not in the Actions of ${screen}`)
     }
     const names = designSystemNames(designSystem?.document?.content)
-    if (names) for (const p of parts.filter((p) => p.part === 'Layout')) for (const t of new Set(backticked(p.text))) if (!names.has(t)) warn('layout-unknown', `${p.screen}: \`${t}\` is not a component or token of the DesignSystem`)
+    const seen = new Set()
+    if (names) for (const p of parts.filter((p) => p.part === 'Layout')) for (const t of backticked(p.text)) if (!names.has(t) && !seen.has(t) && seen.add(t)) warn('layout-unknown', `${p.screen}: \`${t}\` is not a component or token of the DesignSystem`)
   }
 
   for (const el of design.elements) {
