@@ -131,12 +131,12 @@ index moved to operations.
 ### 8b. What no Design realises yet
 
 ```sh
-persimmon run design-coverage --input 'domainModel=<ref>' --input designs=kind:Design --follow
+persimmon run design-coverage --input 'domainModel=<ref>' --input designs=kind:Design --follow   # <ref>: car-reservations-model, then once more for fleet-care-model
 persimmon tree WorkflowRun/design-coverage-<hex>     # one `unrealised` warning per stormed name without a Design element: commands the APIs skipped, every event (no async-api Design), an aggregate no schema holds
 ```
 
-The run Succeeds: a gap is the product's, not a defect of the Designs that exist. Run it again
-after the next `design-all`.
+The run Succeeds: an unrealised name is the product's gap, not a defect of the Designs that
+exist. Run it again, once per DomainModel, after the next `design-all`.
 
 ### 9. One Plan per Spec
 

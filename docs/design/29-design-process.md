@@ -58,7 +58,7 @@ The Adapter picks the mode from the payload: `artifacts.spec` (or `artifacts.mod
 | Code | Finding |
 |---|---|
 | `not-a-domainmodel` | content without `aggregates`; the only finding then |
-| `unrealised` (warning) | an aggregate's command, an `events[]` name, a read model or an `AG-n` of the model that no element of a Design naming this model realises; external systems' commands and other contexts' events are not the model's own; a Design of another model, or a `ui` Design, is not read |
+| `unrealised` (warning) | an aggregate's command, an `events[]` name, a read model or an `AG-n` of the model that no element of a Design naming this model realises; external systems' commands and other contexts' events are not the model's own: realisable by a Design (`domainNames`), never required; a Design of another model, or a `ui` Design, is not read |
 
 ## Rules
 
@@ -136,7 +136,7 @@ The Adapter picks the mode from the payload: `artifacts.spec` (or `artifacts.mod
   step of `design-all`: a fan-out over blocks of one type cannot see the other types' Designs, and
   the report is wanted after every type is in. It lives in the pack and the sdd Adapter, not in a
   CLI verb as `get --behind` does: what a Design realises is the pack's semantics, not the
-  engine's. Proven live on the car pool's `car-reservations-model` against seven Designs: five
+  engine's. Proven live on the car pool's `car-reservations-model`, seven Designs bound and the four naming it read: five
   commands (`Reject reservation request`, `Release unclaimed reservation`, ...), every event (no
   `async-api` Design), and `AG-3` unrealised; every read model and `AG-1`, `AG-2` realised. Found
   in UAT.

@@ -504,7 +504,7 @@ _Avoid_: domain object model, class model, entity model, aggregate list
 **Unrealised**:
 A name a **DomainModel** owns (an aggregate's command, an event, a read model, an `AG-n`) that no
 element of a **Design** naming the model realises; `design-coverage` reports each as a warning.
-_Avoid_: uncovered, missing endpoint, gap (in prose; `unrealised` is the finding code)
+_Avoid_: uncovered, missing endpoint, unimplemented
 
 **Story**:
 A **Spec** element `US-n` in Connextra form: `role` (a Prd user), `goal`, `benefit`; covers
