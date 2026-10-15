@@ -404,10 +404,10 @@ _Avoid_: API, engine API, SDK
 ### Layer 2
 
 **Pack**:
-A directory of definitions applied together: `global/` as **Global**, `namespaced/` into
-`defaultNamespace` (the Trigger). Overridable by name in a **Namespace**.
-Two ship: the **SDLC pack** `persimmon init` applies and the **Demo pack** applied by hand.
-A pack is Layer 1 instances only; no kinds of its own.
+A directory of definitions applied together: `global/` as **Global**, `namespaced/` (Triggers)
+into a **Namespace**. Overridable by name in a Namespace. Two ship: the **SDLC pack**
+`persimmon init` applies and the **Demo pack** applied by hand. A pack ships artifact kinds as
+KindDefinitions and adds no Resource kind of its own.
 _Avoid_: bundle, library, preset, plugin
 
 **SDLC pack**:
@@ -418,7 +418,7 @@ _Avoid_: AI Native pack (its name before the rename), SDD pack, process pack
 **Demo pack**:
 The PRD lifecycle (`packs/demo/`, `20-pack.md`): research, write-prd, reviews behind a Gate, a
 Trigger. Proves the engine's mechanics; applied by hand. Group `engineering.persimmon.ai`.
-_Avoid_: SDLC pack (its name before the rename), sample pack
+_Avoid_: sample pack, PRD pack
 
 **BoundedContext**:
 **Artifact kind** of the SDLC pack: where one domain model holds; `inScope`, `outOfScope`,

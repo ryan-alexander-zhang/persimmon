@@ -10,10 +10,10 @@ manifest, no verb.
 
 ```text
 packs/demo/global/*.yaml ──persimmon apply──▶ Global Resources (scope Any or Global)
-packs/demo/namespaced/*.yaml ──persimmon apply -n demo──▶ Namespaced Resources (Triggers)
+packs/demo/namespaced/*.yaml ──persimmon apply -n team-a──▶ Namespaced Resources (Triggers)
                                                              │
-Namespace demo: Task research (override) ── shadows ──▶ Global Task research
-WorkflowRun in demo ── snapshot walk resolves Namespace, then Global ──▶ closure holds the override
+Namespace team-a: Task research (override) ── shadows ──▶ Global Task research
+WorkflowRun in team-a ── snapshot walk resolves Namespace, then Global ──▶ closure holds the override
 ```
 
 ## Layout
@@ -21,13 +21,13 @@ WorkflowRun in demo ── snapshot walk resolves Namespace, then Global ──�
 | Path | Content |
 |---|---|
 | `global/NN-*.yaml` | Global definitions, multi-document files, applied in file-name order; the author orders dependencies |
-| `namespaced/*.yaml` | Namespaced kinds (Triggers); `persimmon init` applies them in `defaultNamespace`, another Namespace applies them with `-n <namespace>` |
+| `namespaced/*.yaml` | Namespaced kinds (Triggers); applied with `-n <namespace>`; `persimmon init` does this into `defaultNamespace` only for the pack it installs |
 
 ## Lifecycle
 
 | Action | Rule |
 |---|---|
-| install | `persimmon apply packs/demo/global/*.yaml --global` then `namespaced/*.yaml -n <namespace>`; needs the `admin` grant; local mode runs both for the SDLC pack at `persimmon init` |
+| install | `persimmon apply packs/demo/global/*.yaml --global` then `namespaced/*.yaml -n <namespace>`; needs the `admin` grant; local mode runs this for the SDLC pack at `persimmon init` (`global/` only, it has no `namespaced/`) |
 | upgrade | `apply` again; SpecMutable definitions change in place, running runs keep their snapshot |
 | Immutable members (artifact kinds, RelationTypes) | never change; a new version is a new name (`derived-from-v2`) |
 | uninstall | `persimmon delete` per file in reverse order; refused while referenced (`00-resource.md`) |
@@ -101,7 +101,8 @@ Credentials the pack Executors bind are Global names resolved at run time.
   reviews, a failed one omitted. The `cli-human/v1` form carries `reading[]`: every context
   entry with its content, fetched with the call token, so the form stands alone. Found in UAT.
 - `persimmon init` also applies `namespaced/` into `defaultNamespace`: a user who ran `init` has a
-  working loop without a path into the persimmon checkout. Found in UAT.
+  working loop without a path into the persimmon checkout. Found in UAT. Superseded by the rename
+  below: `init` installs the SDLC pack, and the demo loop is applied from the checkout.
 - `cli-human/v1` is the file drop; the terminal prompt is `persimmon complete <taskRun>` without
   `--file`, which reads the inbox form and, per output port, asks y/n then findings for a
   ValidationResult port and edits a YAML example for any other, validated against the port
@@ -110,8 +111,8 @@ Credentials the pack Executors bind are Global names resolved at run time.
   Executors bind Global credential names (`github-token`, `registry-token`). Found in
   implementation.
 - `examples/<nn>/` are projects, not packs: hand-written definitions plus a `README.md` the user
-  follows, `persimmon init` run inside the directory, generated state ignored. A pack is
-  installed by `init`; an example is applied by the user, one scenario each. Found in UAT.
+  follows, `persimmon init` run inside the directory, generated state ignored. The SDLC pack is
+  installed by `init`; the demo pack and the examples are applied by the user, one scenario each. Found in UAT.
 - Pack content matches the shipped Adapters: `retryOn` names `timeout`, `agent_failed`,
   `transient_network` (no Adapter emits `rate_limit`); `lint-script` is dropped, its
   `./scripts/lint.sh` never shipped; `research` declares `workspace: {input: repository}`, else its

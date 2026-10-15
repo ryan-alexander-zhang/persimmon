@@ -4,8 +4,7 @@ status: draft · layer: 2 · schema: none; the pack is a directory of ordinary R
 
 A delivery process built on the engine's Layer 1 kinds, borrowed from the spec-driven tools and
 skills collections people already run (`docs/reference/80-sdlc-pack-references.md`). `persimmon init`
-applies it (`20-pack.md`). This file grows one artifact kind at a time; the demo pack
-`packs/demo/` is untouched.
+applies it (`20-pack.md`). This file grows one artifact kind at a time.
 
 ```text
 every arrow: "cites", downstream ──▶ upstream; the arrow's head is a Task input of its tail

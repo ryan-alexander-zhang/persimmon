@@ -31,9 +31,9 @@ persimmon apply ../../packs/demo/global/*.yaml --global
 ```
 
 Expected: `wrote persimmon.yaml`, then one `created ...` line per shipped Adapter and pack
-definition. `init` installs the built-in SDLC pack; the demo pack adds the three definitions
-this example reuses: the `local-reviewer` Executor (you, at the terminal) and the `ResearchReport` and
-`ReviewReport` artifact kinds.
+definition. `init` installs the built-in SDLC pack, with the `local-reviewer` Executor (you, at the
+terminal) this example reuses; the demo pack adds the `ResearchReport` and `ReviewReport`
+artifact kinds it also needs.
 
 ### 2. Install the workflow
 
