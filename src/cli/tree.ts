@@ -102,7 +102,8 @@ function extraLines(node: Resource, s: Status): string[] {
   const lines: string[] = []
   if (s.error) lines.push(`${s.error.code}: ${s.error.message}`)
   if (s.phase === 'Waiting' && s.waitingReason === 'human' && node.kind === 'TaskRun') lines.push(`persimmon complete ${node.metadata.name}`)
-  if (node.kind === 'ValidationRun' && s.result && !s.result.passed) for (const f of s.result.findings ?? []) if (f.severity !== 'info') lines.push(`${f.code ? `${f.code}: ` : ''}${f.message}`)
+  // a rejection's findings, and a warning on a pass: a warning rides along and fails nothing (29-design-process.md), so it is labelled
+  if (node.kind === 'ValidationRun' && s.result) for (const f of s.result.findings ?? []) if (f.severity === 'error' ? !s.result.passed : f.severity === 'warning') lines.push(`${f.severity === 'warning' ? 'warning ' : ''}${f.code ? `${f.code}: ` : ''}${f.message}`)
   if (node.kind === 'TaskRun') for (const v of Object.values(s.outputs ?? {})) for (const ref of refsOf(v)) lines.push(`${ref.kind}/${ref.id}.r${ref.revision}`)
   return lines
 }

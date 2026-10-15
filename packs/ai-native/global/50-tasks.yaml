@@ -226,7 +226,8 @@ spec:
       interface. Every element realises a label the DomainModel names; every rule id is in `rules`. For a `ui` Design,
       `designSystem` is the artifact id of the DesignSystem in your context, there is no `domainModel`, and every
       element realises an operation of the Designs in your context.
-      With `previous` and `feedback` bound, fix what the findings name and change nothing else.
+      With `previous` and `feedback` bound, fix what the error findings name and change nothing else; a warning
+      (a `dialect` word the block's store lacks) is advice you may take without changing anything else.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: design-rules}}
       - {kind: artifact, input: architecture}
