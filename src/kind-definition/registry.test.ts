@@ -53,6 +53,22 @@ describe('KindRegistry', () => {
     expect(() => reg.register(example('kind-definition-workflow'))).toThrow(/already registered/)
   })
 
+  it('a revisioned kind changes in versions[].schema only, and only where every committed revision still validates', () => {
+    const kd = () => example('kind-definition-productrequirement')
+    const stored = example('revisioned-instance')
+    const widened = kd()
+    widened.spec.versions[0].schema.properties.tagline = { type: 'string' }
+    expect(() => reg.register(widened, { replace: true })).toThrow(/changes in versions\[\].schema only/) // no committed revisions to check: never
+    expect(() => reg.register(widened, { replace: true, committed: () => [stored] })).not.toThrow()
+    const narrowed = kd()
+    narrowed.spec.versions[0].schema.required = [...narrowed.spec.versions[0].schema.required, 'tagline']
+    expect(() => reg.register(narrowed, { replace: true, committed: () => [stored] })).toThrow(/ProductRequirement\/.* fails the new schema: .*tagline/)
+    expect(() => reg.register(narrowed, { replace: true, committed: () => [] })).not.toThrow() // a fresh project
+    const renamed = kd()
+    renamed.spec.snapshotOnCreate = true
+    expect(() => reg.register(renamed, { replace: true, committed: () => [] })).toThrow(/changes in versions\[\].schema only/)
+  })
+
   it('validates a WorkflowRun spec and status', () => {
     expect(() => reg.validateResource(example('resource-namespaced'))).not.toThrow()
   })

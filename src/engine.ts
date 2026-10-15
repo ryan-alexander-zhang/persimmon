@@ -172,9 +172,11 @@ export class Engine {
   /** API write as the local Actor (00-resource.md write order). Adapters are described on apply. */
   async apply(input: Resource, actor: Actor = localActor): Promise<{ resource: Resource; created: boolean; changed: boolean }> {
     if (input.kind === 'KindDefinition') {
-      const stagedKd = this.kinds.register(input, { replace: true, dryRun: true }) // validates without touching the registry
+      // a revisioned kind's schema may change when every committed revision still validates (01-kind-definition.md)
+      const committed = (kind: string) => this.store.resources.list(kind)
+      const stagedKd = this.kinds.register(input, { replace: true, dryRun: true, committed }) // validates without touching the registry
       const out = await this.#upsert(stagedKd as unknown as Resource, actor)
-      this.kinds.register(out.resource, { replace: true })
+      this.kinds.register(out.resource, { replace: true, committed })
       return out
     }
     if (input.kind === 'Adapter') {

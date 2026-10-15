@@ -75,7 +75,8 @@ revisions are retained flagged, excluded from get and list, and leave a gap.
   adapter path without an Actor.
 - Revisioned kinds are `Namespaced` with `snapshot: None`; the schema is frozen through
   `x-persimmon-kind-ref` (`04-snapshot.md`), not by making revisions closure members.
-  Recorded in `01-kind-definition.md`.
+  Recorded in `01-kind-definition.md`. The live schema may still change on `apply`, where every
+  committed revision validates under the new one (`01-kind-definition.md`).
 - Engine supplies the status schema for revisioned kinds; `versions[].statusSchema` is
   forbidden on them.
 - A revision written through the API (`persimmon create spec.yaml`) is stamped like a published

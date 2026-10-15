@@ -86,7 +86,9 @@ fail the read. No fallback to live definitions.
 - Adapter must answer `describe` at resolution and match its cached digest. Local mode
   adapters are local subprocesses, so offline still works.
 - `stepContract.runKind` KindDefinitions are frozen too, so a child created mid-run validates
-  against the schema the run was admitted with.
+  against the schema the run was admitted with. The same holds for a revisioned kind whose live
+  definition changed on `apply` (`01-kind-definition.md`): the run publishes under the schema it
+  started with.
 - Every hop resolves in the root's Namespace, so a Namespaced override of a Global pack
   definition applies through the whole closure.
 - At resolution the walk checks the Adapter is Ready and records its cached `describeDigest`; it

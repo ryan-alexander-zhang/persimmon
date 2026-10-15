@@ -154,8 +154,10 @@ without `document.content` is `not-a-design-system`, the only finding then. No E
 - A revisioned KindDefinition never changes (`01-kind-definition.md`), so the `ui` type and `designSystem`
   on the Design kind were refused by `apply` in the project that ran example07: `Design is revisioned;
   its KindDefinition never changes`. The UAT moved to a fresh project loaded from the recorded output.
-  A compatible-change rule (optional property, widened enum) is on the roadmap; until then a pack
-  upgrade that touches a revisioned kind needs a fresh project. Found in UAT.
+  `apply` now takes a schema change where every committed revision still validates
+  (`01-kind-definition.md`); example08's project (`uat3`) still refuses this pack's Design kind,
+  its two `ui` Designs written against the DomainModel fail the new schema, which is the rule
+  working. Found in UAT.
 
 - Live round one on `claude-sonnet-5`: the file came back whole and in order, twelve typography levels
   and fifteen components, and the linter refused seven `border` sub-tokens (`broken-ref`: not in the

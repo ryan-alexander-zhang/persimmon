@@ -335,6 +335,20 @@ describe('persimmon CLI', () => {
     out = []
     expect(await run('get', `TaskRun/${pairRun}-pair`)).toBe(0)
     expect(parse(out.join('\n')).status.context.map((c: { ref: { revision: number } }) => c.ref.revision)).toEqual([1, 2]) // one context entry per ref, in order
+    // a revisioned kind's schema may change where every committed revision still validates (01-kind-definition.md)
+    out = []
+    expect(await run('get', 'KindDefinition/productrequirements.engineering.persimmon.ai')).toBe(0)
+    const prdKind = parse(out.join('\n'))
+    const widened = structuredClone(prdKind)
+    widened.spec.versions[0].schema.properties.tagline = { type: 'string' }
+    out = []
+    expect(await run('apply', file('prd-kind-wide.yaml', [widened]))).toBe(0)
+    expect(out).toEqual(['updated KindDefinition/productrequirements.engineering.persimmon.ai'])
+    const narrowed = structuredClone(prdKind)
+    narrowed.spec.versions[0].schema.required = [...narrowed.spec.versions[0].schema.required, 'tagline']
+    out = []
+    expect(await run('apply', file('prd-kind-narrow.yaml', [narrowed]))).toBe(1)
+    expect(err.at(-1)).toMatch(/^error KindDefinition\/productrequirements.engineering.persimmon.ai: ProductRequirement\/spec-1.r1 fails the new schema: .*tagline/)
     expect(parseInput('n=12')).toEqual(['n', { kind: 'value', value: 12 }])
     expect(parseInput('s=hello world')).toEqual(['s', { kind: 'value', value: 'hello world' }])
     expect(parseInput('a={kind: artifact, ref: {id: x}}')).toEqual(['a', { kind: 'artifact', ref: { id: 'x' } }])

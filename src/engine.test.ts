@@ -55,10 +55,12 @@ describe('Engine', () => {
     const { resource } = await engine.apply(wf)
     expect(resource.metadata.generation).toBe(2)
     expect(engine.store.runLog.read(resource.metadata.uid!).map((e) => e.event.type)).toEqual(['Created', 'SpecUpdated'])
-    // Immutable kinds refuse a changed spec
+    // a revisioned kind changes in versions[].schema only, where every committed revision still validates (01-kind-definition.md)
     const prd = example('kind-definition-productrequirement')
     prd.spec.versions[0].schema.required = ['title']
-    await expect(engine.apply(prd)).rejects.toThrow()
+    await expect(engine.apply(prd)).resolves.toMatchObject({ changed: true })
+    const moved = { ...prd, spec: { ...prd.spec, snapshotOnCreate: true } }
+    await expect(engine.apply(moved)).rejects.toThrow(/changes in versions\[\].schema only/)
   })
 
   it('a missing Executor credential fails the attempt with permission_denied', async () => {

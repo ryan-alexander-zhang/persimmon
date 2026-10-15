@@ -19,6 +19,12 @@ export function validateKindDefinition(value: unknown): KindDefinition {
   return value
 }
 
+/** The two definitions differ in `versions[].schema` alone. */
+const schemaOnly = (a: KindDefinition, b: KindDefinition): boolean => {
+  const bare = (d: KindDefinition) => ({ ...d.spec, versions: d.spec.versions.map(({ schema: _s, ...v }) => v) })
+  return isDeepStrictEqual(bare(a), bare(b))
+}
+
 interface Compiled {
   definition: KindDefinition
   version: KindVersion
@@ -33,8 +39,12 @@ export class KindRegistry {
   readonly #ajv = createAjv({ strict: false })
   readonly #kinds = new Map<string, Compiled>()
 
-  /** Registers a KindDefinition; `replace` re-registers a SpecMutable one (apply again). */
-  register(value: unknown, o: { replace?: boolean; dryRun?: boolean } = {}): KindDefinition {
+  /**
+   * Registers a KindDefinition; `replace` re-registers one (apply again). A revisioned kind's definition changes in
+   * `versions[].schema` only, and only when every committed revision `committed(kind)` returns still validates under the
+   * new schema (01-kind-definition.md); without `committed` it never changes.
+   */
+  register(value: unknown, o: { replace?: boolean; dryRun?: boolean; committed?: (kind: string) => Resource[] } = {}): KindDefinition {
     const definition = validateKindDefinition(value)
     const target = definition.spec.expansion && this.byKind(definition.spec.expansion.kind)?.definition // registration order is free; an unregistered target fails at expand time
     if (target?.spec.expansion) throw new KindError(`${definition.metadata.name}: expansion kind ${target.spec.names.kind} is itself a composition`)
@@ -44,10 +54,17 @@ export class KindRegistry {
       const key = `${definition.spec.group}/${version.name}/${definition.spec.names.kind}`
       const existing = this.#kinds.get(key)
       if (existing && !o.replace) throw new KindError(`already registered: ${key}`)
-      // a revisioned kind's schema is frozen: committed revisions were validated against it (05-revisioned-kind.md)
-      if (existing?.definition.spec.revisioned && !isDeepStrictEqual(existing.definition.spec, definition.spec)) throw new KindError(`${key} is revisioned; its KindDefinition never changes`)
+      // a revisioned kind's schema may change only where the committed revisions still validate (05-revisioned-kind.md)
+      const changed = existing?.definition.spec.revisioned && !isDeepStrictEqual(existing.definition.spec, definition.spec)
+      if (changed && !(o.committed && schemaOnly(existing!.definition, definition))) throw new KindError(`${key} is revisioned; its KindDefinition changes in versions[].schema only`)
       const compiled: Compiled = { definition, version, spec: this.#ajv.compile(version.schema) }
       if (version.statusSchema) compiled.status = this.#ajv.compile(version.statusSchema)
+      if (changed) {
+        for (const r of o.committed!(definition.spec.names.kind)) {
+          if (r.apiVersion !== `${definition.spec.group}/${version.name}`) continue
+          if (!compiled.spec((r.spec as { content?: unknown }).content)) throw new KindError(`${r.kind}/${r.metadata.name} fails the new schema: ${formatErrors(compiled.spec.errors)}`)
+        }
+      }
       staged.set(key, compiled)
     }
     if (!o.dryRun) for (const [key, compiled] of staged) this.#kinds.set(key, compiled)

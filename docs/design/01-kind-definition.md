@@ -25,7 +25,7 @@ KindDefinition workflows.persimmon.ai
 | `scope` | `Namespaced` \| `Global` \| `Any`; Any: a Resource may carry a Namespace or not, and a Namespaced one shadows the Global one by name |
 | `versions[]` | `{name: v<n>, schema, statusSchema?}`; JSON Schema 2020-12 for `spec` and `status`; no conversion; Handlers declare accepted versions (`02-handler.md`) |
 | `mutability` | `SpecMutable` \| `Immutable`; Immutable freezes `spec` after create |
-| `revisioned` | default false; true forces `Immutable`, `Namespaced`, `snapshot: None`, no `statusSchema`; `schema` then validates `spec.content` (`05-revisioned-kind.md`) |
+| `revisioned` | default false; true forces `Immutable`, `Namespaced`, `snapshot: None`, no `statusSchema`; `schema` then validates `spec.content` (`05-revisioned-kind.md`); after registration the definition changes in `versions[].schema` only, and `apply` takes the change only when every committed revision of the kind still validates under it |
 | `snapshot` | `Definition` \| `None`; Definition Resources join snapshot closures |
 | `snapshotOnCreate` | default false; true resolves a closure on every create |
 | `handlerRef` | `{name}` of a Handler; absent for pure-data kinds |
@@ -101,6 +101,15 @@ the target's rules, and the snapshot walk stores the expansion in place of the R
   branch whose `const` discriminators match. Found in implementation.
 - A `revisioned: true` KindDefinition never changes after registration; committed revisions were
   validated against it. Found in implementation.
+- Superseded: it changes in `versions[].schema` alone, and `apply` accepts the new schema when
+  every committed revision of the kind, in every Namespace, validates under it; the first that
+  does not refuses the apply by name (`Design/x.r1 fails the new schema: ...`). The safety property
+  is "what is stored still validates"; a list of allowed edits (an optional property, a wider enum)
+  approximates it and misses cases both ways, and checking the revisions is exact and cheap in local
+  mode. Nothing is rewritten: a migration stays roadmap. A run in flight keeps the definition its
+  snapshot froze (`04-snapshot.md`) and may still commit under it; the next change to the kind then
+  stops on that revision. Two UATs in one week moved to a fresh project because the AI Native pack
+  changed the Design kind (`32-ui-design-process.md`). Found in UAT.
 
 
 ## Examples
