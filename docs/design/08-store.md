@@ -101,6 +101,7 @@ A Namespaced Resource may bind only its own Namespace's names and Global names.
 | `persimmon signal <kind>/<name> --payload <file> [--event-id <id>]` | Signal `{source: api}` as the local Actor; id generated when absent |
 | `persimmon resume` | redeliver unacked Events and outstanding calls, drain the Outbox |
 | `persimmon get` · `describe` · `logs` | read Resources, status, RunLog; `get <Kind>/<id>` with no `.r<n>` is the id's latest committed revision, revisioned kinds only, never for `delete` |
+| `persimmon get <Kind> --behind` | revisioned kinds only: the latest revision of each id with an input in `provenance.inputs` that has a newer revision, one line per input (`behind <Kind>/<id> r<pinned> → r<current>`); per input id the highest revision pinned counts, and a newer revision whose `producerRef` is the document's own run does not; a hand-loaded revision pins nothing |
 | `persimmon skill install <name> --into <dir> [--for claude \| codex]` | fetch and verify a Skill, copy its bundle into the workspace's native skill directories (`15-prompt-skill.md`); replaces an earlier install, refuses a hand-made directory under that name unless `--force` |
 | `persimmon digest <dir>` | the Skill bundle digest of a directory (`15-prompt-skill.md`), to paste into `spec.digest` |
 | `persimmon tree <kind>/<name>` | a run and every run it owns, nested by `ownerReferences`, oldest first; a child is labelled by its name minus its owner's, then its kind, then a TaskRun's Adapter; right column: phase (`passed` \| `rejected` for a Gate or Validator verdict) and elapsed time (creation to the last attempt's `finishedAt` for a TaskRun, else to the last RunLog entry; to now while live); under a run: its error, the `complete` command it waits for, a rejected Validator's findings, the artifacts a TaskRun published as `<Kind>/<id>.r<n>`; a footer lists the root's outputs |
@@ -204,6 +205,15 @@ imports into a server unchanged.
   applied: the kind order (Task before Workflow before ReviewLoop before Pipeline) cannot settle a
   Workflow that steps into a ReviewLoop of the same files, so the AI Native pack validated only
   after it was applied. Found in UAT.
+- `get <Kind> --behind` is a read verb over provenance, not a Gate finding: at gate time the
+  revision bound is the one the document pins, so drift is never visible there. It reads every
+  revisioned kind the same way, so a Spec behind its BusinessRules, a Plan behind a redesigned
+  Design and a DomainModel behind the Prd it was derived from are one query. Two traps from a live
+  project: a Prd pinned `rules` r3 and `previousRules` r1, and the run that read r3 wrote r4; the
+  highest revision pinned per input id counts, and a newer revision from the document's own
+  producer does not. Proven on the car pool: both DomainModels behind Prd r4 and rules r4, every
+  Plan behind the two Designs revised after it, the Prd not behind the rules its own round wrote.
+  Found in design review.
 
 ## Examples
 

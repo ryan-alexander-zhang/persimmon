@@ -366,6 +366,12 @@ _Avoid_: version, generation, edition
 never kept from the writer; `actor` is the committing reconcile's **Actor**.
 _Avoid_: lineage, metadata, source
 
+**Behind**:
+A latest **Revision** whose `provenance.inputs` pins an artifact that has a newer revision;
+`persimmon get <Kind> --behind` lists them. Not behind: a `previous*` input beside the current one,
+or a newer revision the document's own run wrote.
+_Avoid_: stale, outdated, drift (drift is `rule-drift`, a Gate finding within one loop)
+
 **Representation**:
 Bytes of an **Artifact** in a media type (Markdown, HTML, bundle), stored in BlobStore at
 `blob://<digest>`.

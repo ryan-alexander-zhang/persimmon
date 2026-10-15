@@ -56,7 +56,7 @@ nothing: the schema refuses those (`minItems: 1`).
 | Rule | Enforcer |
 |---|---|
 | a Spec cites and never restates: a name the DomainModel lacks is a finding, fixed upstream, never invented in the Spec | `spec-consistency` |
-| a scenario's values ("25 EUR") are example data of the revision the Spec read, never the rule's authority; provenance pins the BusinessRules revision, and a Spec whose pinned revision is behind is a Relation query, not a field (`91-roadmap.md`) | convention |
+| a scenario's values ("25 EUR") are example data of the revision the Spec read, never the rule's authority; provenance pins the BusinessRules revision, and `persimmon get Spec --behind` lists the Specs whose pinned revision is behind (`08-store.md`), a query, not a field | convention; `get --behind` |
 | the Spec's `prd`, `architecture`, `domainModel` artifact ids are not checked against the inputs: the evaluator payload carries content and provenance, no RevisionRef (`19-adapter-roles.md`); provenance pins what was read | convention; Validator later |
 | `domainModel.context` is the capability's `context` (`context-mismatch`): `derive-domain` names the BoundedContext after the storming context (`26-domain-discovery.md`), so the two ids agree | `spec-consistency` |
 | `spec-all` runs over one context: its `domainModel`, `glossary` and `rules` are one artifact each; a Prd spanning contexts runs it once per context with that context's capability ids | convention |
