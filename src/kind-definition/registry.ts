@@ -44,7 +44,10 @@ export class KindRegistry {
   compile(schema: unknown): ValidateFunction {
     const key = JSON.stringify(schema)
     let v = this.#frozen.get(key)
-    if (!v) this.#frozen.set(key, (v = this.#ajv.compile({ ...(schema as object), $id: undefined }))) // the live compile already registered its $id
+    if (!v) {
+      const { $id: _id, ...rest } = schema as Record<string, unknown> // the live compile already registered its $id
+      this.#frozen.set(key, (v = this.#ajv.compile(rest)))
+    }
     return v
   }
 
