@@ -116,7 +116,8 @@ spec:
   action:
     instructions: |
       Write the Spec of the Prd capability whose id is `capabilityId`, following the Spec rules in your context.
-      `prd`, `architecture` and `domainModel` in the Spec are the artifact ids of the inputs with those names.
+      `prd`, `architecture`, `domainModel` and `businessRules` in the Spec are the artifact ids of the inputs with those
+      names (`businessRules` is the input `rules`: the artifact every `BR-n` you cite belongs to).
       Every command, event and read model label is the DomainModel's; every rule id is in `rules`; every quality
       scenario id is in `architecture`. With `previous` and `feedback` bound, fix what the findings name and
       change nothing else.
@@ -157,7 +158,7 @@ spec:
     instructions: |
       Write the Prd from `brief` for the product whose contexts are `contextIds`, following the Prd rules in your
       context, and the product's one BusinessRules artifact with every rule the Prd cites: the input `rules` revised when bound,
-      a new artifact otherwise. With `previous` and `feedback` bound, fix what the findings name and change
+      a new artifact otherwise. The Prd's `businessRules` is that artifact's id, `<productId>-rules`. With `previous` and `feedback` bound, fix what the findings name and change
       nothing else; answer both artifacts whole. The rules you answer start as a verbatim copy of the rules you were
       given (`previousRules` when bound, the last round's answer; else `rules`): every `BR-n` keeps its id, statement and
       rationale; a finding that names a `BR-n` changes that rule; a new policy takes the next number. Never renumber,
@@ -221,8 +222,8 @@ spec:
   action:
     instructions: |
       Write the Design of `type` for the building block `blockId` of the Architecture, following the Design rules in
-      your context. `architecture` and `domainModel` in the Design are the artifact ids of the inputs with those
-      names; `block` is `blockId`; for an API, `interface` is the input `interface` when bound, else the block's first provided
+      your context. `architecture`, `domainModel` and `businessRules` in the Design are the artifact ids of the inputs
+      `architecture`, `domainModel` and `rules`; `block` is `blockId`; for an API, `interface` is the input `interface` when bound, else the block's first provided
       interface. Every element realises a label the DomainModel names; every rule id is in `rules`. For a `ui` Design,
       `designSystem` is the artifact id of the DesignSystem in your context, there is no `domainModel`, and every
       element realises an operation of the Designs in your context.
@@ -298,7 +299,7 @@ spec:
   action:
     instructions: |
       Write the Architecture of the product the Prd describes and the Adrs behind its strategy, following the
-      Architecture rules in your context. `introduction.prd` is the Prd's artifact id; `domainModels` and `glossaries`
+      Architecture rules in your context. `introduction.prd` is the Prd's artifact id, `businessRules` the input `rules`'s; `domainModels` and `glossaries`
       list the artifact ids of every DomainModel and Glossary in your context; `buildingBlocks[].contexts` cite the
       BoundedContexts by artifact id. `adrs` is one Adr per strategy decision, in order; `decisions` lists their ids,
       `<prd>-adr-1`, `<prd>-adr-2`, ... With `previous` and `feedback` bound, fix what the findings name and change

@@ -88,7 +88,7 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
 | a `unique` table's rows never overlap (DMN) and, as a pack rule, cover every combination of its inputs' types; `first` and `priority` rows are ordered | Validator later |
 | `expression` and unary tests are a FEEL subset: literals, `- + * /`, `if then else`, comparisons, `[a..b]`, `a, b`, `-` for any; nothing in the pack evaluates them yet | convention; evaluator later |
 | a withdrawn rule or term stays with `status: deprecated` (`replacedBy` for a term) so no citation dangles | author Prompt; Validator later |
-| cited `context` exists, except `relationships[].context` and `Architecture.context.business[].context`, which may name a context in another Namespace or not yet written; cited `BR-n` exists and is active in the input revision; `related` and `replacedBy` resolve | `prd-consistency` for a Prd's `capabilities[].rules[]`, `spec-consistency` for a Spec's `requirements[].rules[]`; Validator later for the rest; schema cannot see across documents or entries |
+| cited `context` exists, except `relationships[].context` and `Architecture.context.business[].context`, which may name a context in another Namespace or not yet written; cited `BR-n` exists and is active in the BusinessRules the document names in `businessRules`, which is the artifact bound (`rules-mismatch`); `related` and `replacedBy` resolve | `prd-consistency` for a Prd's `capabilities[].rules[]`, `spec-consistency` for a Spec's `requirements[].rules[]`; Validator later for the rest; schema cannot see across documents or entries |
 | an unknown fact is a `Q-n`, never a guess; a Prd with open questions is valid and gated later | author Prompt |
 | inside an `Architecture`: `strategy[].addresses`, `qualityScenarios[].qualityGoal`, `buildingBlocks[].parent`, `deployment.nodes[].hosts`, `deployment.channels[].from/to` (nodes), `runtime[].steps[].from/to` and `relations[].from/to` (a `BB-n` or a `context.business[].partner`, at least one end a block) resolve; `relations[].interface` is an interface the `to` block provides, or the `from` block requires when `to` is a partner; every level 1 block and every partner has a relation; every `QG-n` has at least one `QS-n`; level 1 blocks' `contexts` cover every `BoundedContext` the Prd's capabilities name; `decisions[]` name Adrs with status `accepted` | `architecture-consistency` (`31-architecture-process.md`), except `deployment` and `runtime` |
 | a Spec never cites a Design, a Design never cites a Plan, an Architecture never names a Spec story: every artifact cites upstream only; downstream is a Relation query | author Prompt; convention |
@@ -230,6 +230,12 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
   inside a `repeat` sees `inputs` as any step does, so the copy of the list into state (a second
   schema, `fromInput` in `initial`, `fromState` in `next`) said nothing the input did not. Found in
   audit.
+- A citing document (Prd, Spec, Design, Architecture) names its BusinessRules artifact in
+  `businessRules`: a `BR-n` is a bare id, so which artifact it means lived only in the run's binding
+  and the publisher's provenance; two products in one Namespace each have a `BR-11`, and a Spec that
+  names `prd` and `domainModel` by id named no rules. The id is the qualifier, as `CAP-1` is the
+  Prd's; the Validator holds the name to the artifact bound (`rules-mismatch`) and refuses a document
+  without it. Optional on the kinds, so committed revisions still validate. Found in design review.
 - The four `-all` loops end `step_failed` when an iteration died before its Gate ran, and
   `<x>_inconsistent` only when the Gate rejected the last round (`when: steps.each.phase ==
   "Succeeded"`, `dispatch: first`): four `design-all` runs died in the agent CLI and every WorkflowRun

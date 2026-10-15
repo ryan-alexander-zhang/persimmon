@@ -31,7 +31,7 @@ form is refused by the engine when wrong and the method is a Prompt a Namespace 
 | Executor `prd-agent` | `claude-code/v1`, read-only, its own name so a Namespace picks the model per Task |
 | Task `draft-prd` | inputs `brief` (text), `productId` (the id stem), `contextIds` (the BoundedContexts the capabilities live in, one or more), `rules` and `glossary` (optional, the product's current ones), `previous` (the last Prd), `previousRules` (the last round's rules, carried by the loop), `feedback`; outputs `prd` and `rules` (the context's BusinessRules: the input artifact's rules carried forward plus the brief's) |
 | Task `confirm-prd` | human on `cli-human/v1`: reads the Prd and the rules at the terminal, approves or rejects with one finding per id |
-| Validators | `prd-consistency`: `sdd/v1` over `prd` and `rules`, and from round two `previousRules` and `feedback` (`rule-drift`: a rule dropped, or changed in statement or status, that no finding of the last verdict names); `prd-confirmed`: over `confirm-prd` |
+| Validators | `prd-consistency`: `sdd/v1` over `prd` and `rules` (`rules-mismatch` when the Prd's `businessRules` is not the artifact bound), and from round two `previousRules` and `feedback` (`rule-drift`: a rule dropped, or changed in statement or status, that no finding of the last verdict names); `prd-confirmed`: over `confirm-prd` |
 | Gate `prd-gate` | both, `all` |
 | ReviewLoop `author-prd` | `produce` `draft-prd`, `review` `prd-gate`, `maxRounds: 3`; the subject is the Prd; `carry: {rules: previousRules}`, and the review reads `previousRules` and `feedback` (`21-composition.md`) |
 

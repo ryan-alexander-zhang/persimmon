@@ -16,7 +16,7 @@ const provenance = { producerRef: { apiVersion: 'persimmon.ai/v1', kind: 'TaskRu
 const payload = (artifacts: Record<string, unknown>) => ({
   validationRun: { ref: { apiVersion: 'persimmon.ai/v1', kind: 'ValidationRun', name: 'sdd-001' }, logicalExecutionId: 'sdd-001//spec', idempotencyKey: 'sdd-001//spec/1' },
   validator: { configuration: {} },
-  inputs: {},
+  inputs: { rules: { kind: 'artifact', ref: { apiVersion: 'sdd.persimmon.ai/v1', kind: 'BusinessRules', namespace: 'demo', id: 'expenses-rules', revision: 1 } } }, // what every citing document names in businessRules
   artifacts: Object.fromEntries(Object.entries(artifacts).map(([name, c]) => [name, { content: c, provenance }])),
   deadline: new Date(Date.now() + 60_000).toISOString(),
   engine: { endpoint: 'unix:///nowhere.sock', token: 'ct-1' },
@@ -291,7 +291,7 @@ describe('sdd/v1 over a Design', () => {
   // a ui Design of the web client (32-ui-design-process.md): screens realise read models, actions realise commands
   // a ui Design: no domainModel, elements realise operations of the API Design bound on `designs` (32-ui-design-process.md)
   const uiDesign = () => ({
-    title: 'web client screens', type: 'ui', architecture: 'expense-claims-architecture', block: 'BB-5', designSystem: 'expense-claims-design-system',
+    title: 'web client screens', type: 'ui', architecture: 'expense-claims-architecture', businessRules: 'expenses-rules', block: 'BB-5', designSystem: 'expense-claims-design-system',
     document: { mediaType: 'text/markdown', content: '## My Claims\n\nPurpose: the employee sees their claims.\n\n## Submit a Claim\n' },
     elements: [
       { id: 'EL-1', name: 'My Claims', realises: { kind: 'operation', name: 'GET /claims/mine' } },
@@ -306,7 +306,7 @@ describe('sdd/v1 over a Design', () => {
     const ref = (kind: string, id: string) => ({ apiVersion: 'sdd.persimmon.ai/v1', kind, namespace: 'demo', id, revision: 1 })
     return {
       ...base,
-      inputs: { designSystem: { kind: 'artifact', ref: ref('DesignSystem', designSystem) }, designs: { kind: 'artifacts', refs: designs.map(() => ref('Design', 'claims-api')) } },
+      inputs: { ...base.inputs, designSystem: { kind: 'artifact', ref: ref('DesignSystem', designSystem) }, designs: { kind: 'artifacts', refs: designs.map(() => ref('Design', 'claims-api')) } },
       artifacts: { ...base.artifacts, designs: designs.map((c) => ({ content: c, provenance })) },
     }
   }
@@ -415,6 +415,22 @@ describe('sdd/v1 over a Design', () => {
         expect({ file: f, id: d.spec.identity.id, found }).toEqual({ file: f, id: d.spec.identity.id, found: [] })
       }
     }
+  })
+
+  // a BR-n is a pair with the artifact the document names (33-multi-context-product.md)
+  it('refuses a document that names no BusinessRules artifact, or another than the one bound', async () => {
+    expect(await designCodes((a) => { delete (a.design as any).businessRules })).toEqual(['rules-mismatch'])
+    expect(await designCodes((a) => { (a.design as any).businessRules = 'other-rules' })).toEqual(['rules-mismatch'])
+    expect(await codes((a) => { (a.spec as any).businessRules = 'other-rules' })).toEqual(['rules-mismatch'])
+    const prd = structuredClone({ prd: content('Prd'), rules: content('BusinessRules') }) as any
+    delete prd.prd.businessRules
+    expect((await adapter({ id: ++id, op: 'evaluate', payload: payload(prd) })).result.findings.map((f: { code: string }) => f.code)).toEqual(['rules-mismatch'])
+    const arch = structuredClone({ architecture: content('Architecture'), prd: content('Prd'), rules: content('BusinessRules') }) as any
+    arch.architecture.businessRules = 'other-rules'
+    expect((await adapter({ id: ++id, op: 'evaluate', payload: payload(arch) })).result.findings.map((f: { code: string }) => f.code)).toContain('rules-mismatch')
+    const unbound = payload(structuredClone(example())) as any
+    delete unbound.inputs.rules // no rules input bound: the name stands unchecked
+    expect((await adapter({ id: ++id, op: 'evaluate', payload: unbound })).result.passed).toBe(true)
   })
 
   it('fails ids that are not unique and increasing', async () => {

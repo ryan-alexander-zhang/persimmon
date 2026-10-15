@@ -296,6 +296,7 @@ spec:
         additionalProperties: false
         properties:
           title: {type: string, minLength: 1}
+          businessRules: {type: string, minLength: 1, description: "artifact id of the BusinessRules every BR-n here cites; the Validator refuses a document whose bound rules are another artifact (rules-mismatch)"}
           problem: {type: string, minLength: 1, description: "who hurts, how, today; prose"}
           users:
             type: array
@@ -417,6 +418,7 @@ spec:
         additionalProperties: false
         properties:
           title: {type: string, minLength: 1}
+          businessRules: {type: string, minLength: 1, description: "artifact id of the BusinessRules every BR-n here cites; the Validator refuses a document whose bound rules are another artifact (rules-mismatch)"}
           owner: {type: string, minLength: 1}
           status: {enum: [draft, accepted, superseded]}
           introduction:
@@ -859,6 +861,7 @@ spec:
         additionalProperties: false
         properties:
           title: {type: string, minLength: 1}
+          businessRules: {type: string, minLength: 1, description: "artifact id of the BusinessRules every BR-n here cites; the Validator refuses a document whose bound rules are another artifact (rules-mismatch)"}
           prd: {type: string, minLength: 1, description: "artifact id of the Prd"}
           capability: {type: string, pattern: "^CAP-[0-9]+$", description: "the one capability of the Prd this Spec is"}
           architecture: {type: string, minLength: 1, description: "artifact id of the Architecture the qualities cite"}
@@ -956,6 +959,7 @@ spec:
         additionalProperties: false
         properties:
           title: {type: string, minLength: 1}
+          businessRules: {type: string, minLength: 1, description: "artifact id of the BusinessRules every BR-n here cites; the Validator refuses a document whose bound rules are another artifact (rules-mismatch)"}
           type: {enum: [http-api, async-api, data-schema, ui]}
           architecture: {type: string, minLength: 1, description: "artifact id of the Architecture the block is in"}
           block: {type: string, pattern: "^BB-[0-9]+$", description: "the building block this asset belongs to"}

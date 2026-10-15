@@ -32,12 +32,20 @@ const domainNames = (domainModel) => {
   return { commands, events, readModels }
 }
 
-export function checkSpec({ spec, prd, domainModel, architecture, rules }) {
+// Every BR-n is a pair with the BusinessRules artifact the document names in `businessRules` (33-multi-context-product.md):
+// the citation is unqualified, so the document says which artifact, and the Validator holds it to the one bound.
+const rulesSource = (bad, doc, ids) => {
+  if (doc.businessRules === undefined) bad('rules-mismatch', 'businessRules is absent: the artifact id of the BusinessRules the BR-n cite')
+  else if (ids.rules && doc.businessRules !== ids.rules) bad('rules-mismatch', `businessRules ${doc.businessRules} is not ${ids.rules}, the BusinessRules bound`)
+}
+
+export function checkSpec({ spec, prd, domainModel, architecture, rules, ids = {} }) {
   if (!spec || !Array.isArray(spec.stories) || !Array.isArray(spec.requirements) || !spec.capability) {
     return [{ severity: 'error', code: 'not-a-spec', message: 'content is not a Spec: it has no stories array, no requirements array or no capability' }]
   }
   const findings = []
   const bad = (code, message) => findings.push({ severity: 'error', code, message })
+  rulesSource(bad, spec, ids)
 
   const capability = (prd?.capabilities ?? []).find((c) => c.id === spec.capability)
   if (!capability) bad('unknown-capability', `capability ${spec.capability} is not a capability of the Prd`)
@@ -97,12 +105,13 @@ export function checkSpec({ spec, prd, domainModel, architecture, rules }) {
   return findings
 }
 
-export function checkPrd({ prd, rules, previousRules, feedback }) {
+export function checkPrd({ prd, rules, previousRules, feedback, ids = {} }) {
   if (!prd || !Array.isArray(prd.capabilities) || !prd.title) {
     return [{ severity: 'error', code: 'not-a-prd', message: 'content is not a Prd: it has no capabilities array or no title' }]
   }
   const findings = []
   const bad = (code, message) => findings.push({ severity: 'error', code, message })
+  rulesSource(bad, prd, ids)
 
   const status = new Map((rules?.rules ?? []).map((r) => [r.id, r.status]))
   const ruleContext = new Map((rules?.rules ?? []).map((r) => [r.id, r.context]))
@@ -177,6 +186,7 @@ export function checkDesign({ design, architecture, domainModel, rules, designs 
   }
   const findings = []
   const bad = (code, message) => findings.push({ severity: 'error', code, message })
+  rulesSource(bad, design, ids)
   const warn = (code, message) => findings.push({ severity: 'warning', code, message })
 
   const block = (architecture?.buildingBlocks ?? []).find((b) => b.id === design.block)
@@ -306,6 +316,7 @@ export function checkArchitecture({ architecture, prd, rules, ids = {}, adrs = {
   }
   const findings = []
   const bad = (code, message) => findings.push({ severity: 'error', code, message })
+  rulesSource(bad, architecture, ids)
   const a = architecture
 
   if (ids.prd && a.introduction.prd !== ids.prd) bad('prd-mismatch', `introduction.prd ${a.introduction.prd} is not ${ids.prd}, the Prd evaluated`)

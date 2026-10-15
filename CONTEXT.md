@@ -431,7 +431,8 @@ object is a term or a typed value. The typed input of a rule's logic and of a **
 _Avoid_: attribute, field, property, relation
 
 **BusinessRules**:
-**Artifact kind**, one per **BoundedContext**: `BR-n` facts, constraints, derivations, decisions that outlive
+**Artifact kind**, one per product (`BR-n` unique across it); every citing document names it in
+`businessRules`, so a `BR-n` is a pair with that artifact id: `BR-n` facts, constraints, derivations, decisions that outlive
 any **Prd** or **Spec**; one RuleSpeak `statement` each, optional typed `logic` over **Fact types**;
 withdrawn rules stay `deprecated`.
 _Avoid_: policies, domain rules, constraints (bare)

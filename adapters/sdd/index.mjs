@@ -50,7 +50,7 @@ function evaluate(payload) {
       const notAnArchitecture = checkArchitecture({ architecture }).filter((f) => f.code === 'not-an-architecture')
       if (notAnArchitecture.length) return { passed: false, findings: notAnArchitecture, evidence: [] }
       const adrs = Object.fromEntries((artifacts.adrs ?? []).map((d, i) => [idsOf('adrs')[i], d.content]))
-      const ids = { prd: payload.inputs?.prd?.ref?.id, contexts: idsOf('contexts'), domainModels: idsOf('domainModels'), glossaries: idsOf('glossaries'), adrs: idsOf('adrs') }
+      const ids = { prd: payload.inputs?.prd?.ref?.id, rules: payload.inputs?.rules?.ref?.id, contexts: idsOf('contexts'), domainModels: idsOf('domainModels'), glossaries: idsOf('glossaries'), adrs: idsOf('adrs') }
       const findings = checkArchitecture({ architecture, prd: required(artifacts, 'prd'), rules: required(artifacts, 'rules'), ids, adrs })
       return { passed: passes(findings), findings, evidence: [] }
     }
@@ -65,7 +65,7 @@ function evaluate(payload) {
         domainModel: artifacts.domainModel?.content,
         rules: required(artifacts, 'rules'),
         designs: boundDesigns(payload, artifacts),
-        ids: { designSystem: payload.inputs?.designSystem?.ref?.id },
+        ids: { designSystem: payload.inputs?.designSystem?.ref?.id, rules: payload.inputs?.rules?.ref?.id },
       })
       return { passed: passes(findings), findings, evidence: [] }
     }
@@ -73,7 +73,7 @@ function evaluate(payload) {
     // same stance as not-a-spec: content that is not a Prd is a finding, before the rules are required
     const notAPrd = checkPrd({ prd }).filter((f) => f.code === 'not-a-prd')
     if (notAPrd.length) return { passed: false, findings: notAPrd, evidence: [] }
-    const findings = checkPrd({ prd, rules: required(artifacts, 'rules'), previousRules: artifacts.previousRules?.content, feedback: payload.inputs?.feedback?.value })
+    const findings = checkPrd({ prd, rules: required(artifacts, 'rules'), previousRules: artifacts.previousRules?.content, feedback: payload.inputs?.feedback?.value, ids: { rules: payload.inputs?.rules?.ref?.id } })
     return { passed: passes(findings), findings, evidence: [] }
   }
   const spec = required({ spec: artifacts.spec ?? artifacts.model }, 'spec')
@@ -86,6 +86,7 @@ function evaluate(payload) {
     domainModel: required(artifacts, 'domainModel'),
     architecture: required(artifacts, 'architecture'),
     rules: required(artifacts, 'rules'),
+    ids: { rules: payload.inputs?.rules?.ref?.id },
   })
   // the payload carries each artifact as {content, provenance}: no RevisionRef, so no evidence (19-adapter-roles.md)
   return { passed: passes(findings), findings, evidence: [] }

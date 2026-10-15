@@ -10,6 +10,7 @@ spec:
     id: room-booking-prd
     revision: 1
   content:
+    businessRules: room-booking-rules
     title: Meeting Room Booking
     problem: In this office of about 80 people sharing eight meeting rooms (seating 4, 6, 8 and 12, two with video conferencing), rooms are booked through a shared spreadsheet. This produces double bookings, "ghost bookings" where a room is reserved and never used, employees wandering the floor hunting for a free room, and no way for anyone to see which rooms are free right now.
     users:
@@ -1106,6 +1107,7 @@ spec:
     id: room-booking-prd-architecture
     revision: 1
   content:
+    businessRules: room-booking-rules
     title: Meeting Room Booking Architecture
     owner: Office management
     status: accepted
@@ -1598,6 +1600,7 @@ spec:
     id: room-booking-prd-cap-1
     revision: 1
   content:
+    businessRules: room-booking-rules
     title: Book a Room
     prd: room-booking-prd
     capability: CAP-1
@@ -1829,6 +1832,7 @@ spec:
     id: room-booking-prd-cap-2
     revision: 1
   content:
+    businessRules: room-booking-rules
     title: Cancel a Booking
     prd: room-booking-prd
     capability: CAP-2
@@ -1903,6 +1907,7 @@ spec:
     id: room-booking-prd-cap-3
     revision: 1
   content:
+    businessRules: room-booking-rules
     title: Check In to Confirm a Booking
     prd: room-booking-prd
     capability: CAP-3
@@ -2021,6 +2026,7 @@ spec:
     id: room-booking-prd-cap-4
     revision: 1
   content:
+    businessRules: room-booking-rules
     title: Walk-in Ad Hoc Booking
     prd: room-booking-prd
     capability: CAP-4
@@ -2136,6 +2142,7 @@ spec:
     id: room-booking-prd-cap-5
     revision: 1
   content:
+    businessRules: room-booking-rules
     title: Room status screens
     prd: room-booking-prd
     capability: CAP-5
@@ -2248,6 +2255,7 @@ spec:
     id: room-booking-prd-cap-6
     revision: 1
   content:
+    businessRules: room-booking-rules
     title: Monthly Utilisation Report
     prd: room-booking-prd
     capability: CAP-6
@@ -2318,6 +2326,7 @@ spec:
     id: room-booking-prd-architecture-bb-1-http-api
     revision: 1
   content:
+    businessRules: room-booking-rules
     title: Room Booking Service — Booking Commands API
     type: http-api
     architecture: room-booking-prd-architecture
@@ -2695,6 +2704,7 @@ spec:
     id: room-booking-prd-architecture-bb-1-data-schema
     revision: 1
   content:
+    businessRules: room-booking-rules
     title: Room Booking Service Data Schema
     type: data-schema
     architecture: room-booking-prd-architecture
@@ -3099,6 +3109,7 @@ spec:
     id: room-booking-prd-architecture-bb-5-ui
     revision: 1
   content:
+    businessRules: room-booking-rules
     title: Employee Booking App — Screens
     type: ui
     architecture: room-booking-prd-architecture
@@ -3217,6 +3228,7 @@ spec:
     id: room-booking-prd-architecture-bb-6-ui
     revision: 1
   content:
+    businessRules: room-booking-rules
     title: Door Status Screen — Door Status Design
     type: ui
     architecture: room-booking-prd-architecture
@@ -3282,6 +3294,7 @@ spec:
     id: room-booking-prd-architecture-bb-7-ui
     revision: 1
   content:
+    businessRules: room-booking-rules
     title: Floor Status Screen
     type: ui
     architecture: room-booking-prd-architecture

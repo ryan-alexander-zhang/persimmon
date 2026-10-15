@@ -23,7 +23,7 @@ Workflow spec-all: repeat over `capabilities` ─▶ ReviewLoop spec-one per CAP
 | Prompt `spec-rules` | how a Spec is written: cite, never restate; Connextra stories covering EARS requirements enforcing rules; Given/When/Then scenarios with values; an unknown is a `Q-n` |
 | Executor `spec-agent` | `claude-code/v1`, read-only, the same configuration as `storming-agent` under its own name, so a Namespace overrides the model per Task |
 | Task `write-spec` | inputs `prd`, `capabilityId`, `architecture`, `domainModel`, `glossary`, `rules`, `previous`, `feedback`; output `spec` |
-| Validator `spec-consistency` | `sdd/v1` over `spec`, `prd`, `domainModel`, `architecture`, `rules`; the rule row of `23-pack-ai-native.md` as findings |
+| Validator `spec-consistency` | `sdd/v1` over `spec`, `prd`, `domainModel`, `architecture`, `rules`; the rule row of `23-pack-ai-native.md` as findings, `rules-mismatch` when the Spec's `businessRules` is not the artifact bound |
 | Gate `spec-gate` | consistency only; a human sign-off is an Approval the project adds |
 | ReviewLoop `spec-one` | `produce` `write-spec`, `review` `spec-gate`, `maxRounds: 2`; the findings go back as `feedback` with the last `spec` as `previous` |
 | Workflow `spec-all` | `repeat` over `capabilities` as `derive-all` repeats over contexts; one DomainModel, Glossary and rules artifact, so one context per run; a capability the loop could not write ends the run `spec_inconsistent`, an iteration that died before its Gate ran `step_failed`; output `written` |

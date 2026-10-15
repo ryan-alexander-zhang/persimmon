@@ -10,6 +10,7 @@ spec:
     id: car-pool-prd
     revision: 1
   content:
+    businessRules: car-pool-rules
     title: Company Car Pool
     problem: About sixty employees at the Rotterdam office share twelve company cars by booking a shared calendar and taking keys from a cabinet, while the fleet coordinator tracks service dates and damage notes in a spreadsheet. Cars get double-booked, a car goes out for a customer visit on the day its service is due, and damage found on return is noticed only weeks later by the next driver, because no single record ties reservations, service state, and damage together.
     users:
@@ -2406,6 +2407,7 @@ spec:
     id: car-pool-prd-architecture
     revision: 1
   content:
+    businessRules: car-pool-rules
     title: Company Car Pool
     owner: Fleet coordinator
     status: accepted
@@ -2835,6 +2837,7 @@ spec:
     id: car-pool-prd-cap-1
     revision: 1
   content:
+    businessRules: car-pool-rules
     title: Reserve a Car
     prd: car-pool-prd
     capability: CAP-1
@@ -3010,6 +3013,7 @@ spec:
     id: car-pool-prd-cap-2
     revision: 1
   content:
+    businessRules: car-pool-rules
     title: Pick up and return a car
     prd: car-pool-prd
     capability: CAP-2
@@ -3139,6 +3143,7 @@ spec:
     id: car-pool-prd-cap-3
     revision: 1
   content:
+    businessRules: car-pool-rules
     title: Cancel a Reservation
     prd: car-pool-prd
     capability: CAP-3
@@ -3221,6 +3226,7 @@ spec:
     id: car-pool-prd-cap-4
     revision: 1
   content:
+    businessRules: car-pool-rules
     title: Track Reservation Reliability
     prd: car-pool-prd
     capability: CAP-4
@@ -3315,6 +3321,7 @@ spec:
     id: car-pool-prd-cap-5
     revision: 1
   content:
+    businessRules: car-pool-rules
     title: Approve Extended Reservations
     prd: car-pool-prd
     capability: CAP-5
@@ -3470,6 +3477,7 @@ spec:
     id: car-pool-prd-cap-6
     revision: 1
   content:
+    businessRules: car-pool-rules
     title: Cancel Reservations When a Car Leaves Service
     prd: car-pool-prd
     capability: CAP-6
@@ -3546,6 +3554,7 @@ spec:
     id: car-pool-prd-cap-7
     revision: 1
   content:
+    businessRules: car-pool-rules
     title: Maintain Fleet Record
     prd: car-pool-prd
     capability: CAP-7
@@ -3641,6 +3650,7 @@ spec:
     id: car-pool-prd-cap-8
     revision: 1
   content:
+    businessRules: car-pool-rules
     title: Manage Scheduled Service
     prd: car-pool-prd
     capability: CAP-8
@@ -3777,6 +3787,7 @@ spec:
     id: car-pool-prd-cap-9
     revision: 1
   content:
+    businessRules: car-pool-rules
     title: Review damage reports
     prd: car-pool-prd
     capability: CAP-9
@@ -3859,6 +3870,7 @@ spec:
     id: car-pool-prd-architecture-bb-1-reservations-http-api
     revision: 1
   content:
+    businessRules: car-pool-rules
     title: Reservation API
     type: http-api
     architecture: car-pool-prd-architecture
@@ -4375,6 +4387,7 @@ spec:
     id: car-pool-prd-architecture-bb-1-car-reservations-data-schema
     revision: 1
   content:
+    businessRules: car-pool-rules
     title: Car Reservations Module Data Schema
     type: data-schema
     architecture: car-pool-prd-architecture
@@ -4448,6 +4461,7 @@ spec:
     id: car-pool-prd-architecture-bb-1-fleet-http-api
     revision: 1
   content:
+    businessRules: car-pool-rules
     title: Car Pool Service — Fleet record API
     type: http-api
     architecture: car-pool-prd-architecture
@@ -4861,6 +4875,7 @@ spec:
     id: car-pool-prd-architecture-bb-1-fleet-care-data-schema
     revision: 1
   content:
+    businessRules: car-pool-rules
     title: Car Pool Service Fleet Care Data Schema
     type: data-schema
     architecture: car-pool-prd-architecture
@@ -5155,6 +5170,7 @@ spec:
     id: car-pool-prd-architecture-bb-3-ui
     revision: 1
   content:
+    businessRules: car-pool-rules
     title: Pool Web Application
     type: ui
     architecture: car-pool-prd-architecture

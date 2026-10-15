@@ -303,6 +303,7 @@ metadata: {name: expense-claims.r1}
 spec:
   identity: {id: expense-claims, revision: 1}
   content:
+    businessRules: expenses-rules
     title: Expense claims without the spreadsheet
     problem: >-
       Employees file claims as spreadsheets mailed to their approver with receipts as separate attachments. Finance
@@ -434,6 +435,7 @@ metadata: {name: expense-claims-architecture.r1}
 spec:
   identity: {id: expense-claims-architecture, revision: 1}
   content:
+    businessRules: expenses-rules
     title: Expense claims architecture
     owner: platform team
     status: accepted
@@ -793,6 +795,7 @@ metadata: {name: submit-a-claim.r1}
 spec:
   identity: {id: submit-a-claim, revision: 1}
   content:
+    businessRules: expenses-rules
     title: Submit a claim
     prd: expense-claims
     capability: CAP-1
@@ -885,6 +888,7 @@ metadata: {name: claims-api.r1}
 spec:
   identity: {id: claims-api, revision: 1}
   content:
+    businessRules: expenses-rules
     title: Claims API
     type: http-api
     architecture: expense-claims-architecture
