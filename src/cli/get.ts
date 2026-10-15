@@ -15,6 +15,19 @@ export async function get(cli: Cli, ref: string, o: Where & { behind?: boolean }
     cli,
     async (engine) => {
       const { kind, name } = parseRef(ref)
+      if (o.behind) {
+        if (name) {
+          cli.err('--behind takes a Kind, not a name')
+          return 1
+        }
+        const kd = engine.kinds.byKind(kind)
+        if (!kd?.definition.spec.revisioned) {
+          cli.err(kd ? `${kind} is not revisioned` : `unknown kind ${kind}`)
+          return 1
+        }
+        for (const l of behind(engine, kind, o.global ? undefined : (o.namespace ?? engine.dispatch.defaultNamespace))) cli.out(l)
+        return 0
+      }
       if (name) {
         const r = findOrLatest(engine, kind, name, o)
         if (!r) {
@@ -22,14 +35,6 @@ export async function get(cli: Cli, ref: string, o: Where & { behind?: boolean }
           return 1
         }
         cli.out(toYaml(r))
-        return 0
-      }
-      if (o.behind) {
-        if (!engine.kinds.byKind(kind)?.definition.spec.revisioned) {
-          cli.err(`${kind} is not revisioned`)
-          return 1
-        }
-        for (const l of behind(engine, kind, o.namespace ?? engine.dispatch.defaultNamespace)) cli.out(l)
         return 0
       }
       for (const r of engine.store.resources.list(kind, o.global ? '' : o.namespace)) {
@@ -64,15 +69,19 @@ export async function logs(cli: Cli, ref: string, o: Where = {}): Promise<number
   )
 }
 
-type Revision = Resource & { spec: { identity: { id: string; revision: number }; provenance: { producerRef: { kind: string; name: string }; inputs: { kind: string; namespace: string; id: string; revision: number }[] } } }
+type Revision = Resource & { spec: { identity: { id: string; revision: number }; provenance: { producerRef: { kind: string; namespace?: string; name: string; uid?: string }; inputs: { kind: string; namespace: string; id: string; revision: number }[] } } }
 
-/** `get <Kind> --behind` (27-spec-process.md): the latest revision of each id whose pinned inputs have moved on.
- * Per input id the highest pinned revision counts, so a carried `previous*` input is not drift; a later revision the same
- * run produced is not either. A hand-loaded revision pins nothing and is never behind. */
-export function behind(engine: Finder, kind: string, namespace: string): string[] {
+/** The engine stamps a producer's uid; a ref with none is compared by Namespace, kind and name. */
+const sameProducer = (a: Revision['spec']['provenance']['producerRef'], b: Revision['spec']['provenance']['producerRef']): boolean =>
+  a.uid && b.uid ? a.uid === b.uid : a.namespace === b.namespace && a.kind === b.kind && a.name === b.name
+
+/** `get <Kind> --behind [-n ns | --global]` (08-store.md): the latest revision of each id whose pinned inputs have moved on, in one
+ * Namespace or every one. Per input id the highest pinned revision counts, so a carried `previous*` input is not behind; a later
+ * revision the same run produced is not either. A hand-loaded revision pins nothing and is never behind. */
+export function behind(engine: Finder, kind: string, namespace: string | undefined): string[] {
   const latest = new Map<string, Revision>()
   for (const r of engine.store.resources.list(kind, namespace) as Revision[]) {
-    const id = r.spec.identity.id
+    const id = `${r.metadata.namespace}/${r.spec.identity.id}`
     if ((latest.get(id)?.spec.identity.revision ?? 0) < r.spec.identity.revision) latest.set(id, r)
   }
   const lines: string[] = []
@@ -85,9 +94,9 @@ export function behind(engine: Finder, kind: string, namespace: string): string[
     for (const i of pinned.values()) {
       const current = engine.store.resources.listRevisions(i.kind, i.namespace, i.id).filter((c) => (c as Revision).spec.identity.id === i.id).at(-1) as Revision | undefined
       if (!current || current.spec.identity.revision <= i.revision) continue
-      const p = current.spec.provenance.producerRef
-      if (p.kind === r.spec.provenance.producerRef.kind && p.name === r.spec.provenance.producerRef.name) continue
-      lines.push(`${r.kind}/${r.metadata.name}  -n ${namespace}  behind ${i.kind}/${i.id} r${i.revision} → r${current.spec.identity.revision}`)
+      if (sameProducer(current.spec.provenance.producerRef, r.spec.provenance.producerRef)) continue
+      const where = i.namespace === r.metadata.namespace ? '' : ` -n ${i.namespace}`
+      lines.push(`${r.kind}/${r.metadata.name}  -n ${r.metadata.namespace}  behind ${i.kind}/${i.id}${where} r${i.revision} → r${current.spec.identity.revision}`)
     }
   }
   return lines

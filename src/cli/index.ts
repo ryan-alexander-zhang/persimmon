@@ -21,7 +21,7 @@ const usage = `usage: persimmon <verb> [args]
   signal <kind>/<name> --payload <file> [--event-id <id>]
   complete <taskRun> [--file <result.yaml>]         no file: answer the inbox form at the terminal
   resume
-  get <kind>[/<name>] [-n ns | --global] [--behind]   --behind: latest revisions whose pinned inputs have a newer revision
+  get <kind>[/<name>] [-n ns | --global] [--behind]  --behind: the latest revisions whose pinned inputs have a newer one
   describe <kind>/<name> [-n ns]
   logs <kind>/<name> [-n ns | --global]
   tree <kind>/<name> [-n ns]                        a run, what it produced, and every run it owns, nested
