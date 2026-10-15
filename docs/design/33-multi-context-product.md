@@ -63,7 +63,7 @@ Workflow consumes a list it could not be given at `run`.
 
 | Rule | Enforcer |
 |---|---|
-| one BusinessRules per product, `BR-n` unique across the product, each rule tagged with the context that enforces it when the product has more than one; every citing document names the artifact in `businessRules`, so a `BR-n` is a pair (artifact id, `BR-n`) and two products' `BR-11` never meet | `prd-consistency` |
+| one BusinessRules per product, `BR-n` unique across the product, each rule tagged with the context that enforces it when the product has more than one; a Prd, Spec, Design or Architecture names the artifact in `businessRules`, the Validator holds it to the one bound and to what the upstream document names (a Spec's Prd, a Design's Architecture, an Architecture's Prd), so a `BR-n` is a pair (artifact id, `BR-n`) and two products' `BR-11` never meet | `prd-consistency`, `spec-consistency`, `design-consistency`, `architecture-consistency` (`rules-mismatch`) `prd-consistency` |
 | a capability lives in one context and cites rules of its context (or untagged ones) | `prd-consistency` |
 | `spec-all` and `design-all` run once per context: the caller passes that context's capability ids or block ids with its DomainModel and Glossary | convention; roadmap for a per-item pick |
 | a `ui` Design of a client block that reads two contexts takes the DomainModel of the one it reads most; its other read models are `Q-n` until `design-asset` takes a list of models | convention; roadmap |

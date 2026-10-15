@@ -158,7 +158,7 @@ spec:
     instructions: |
       Write the Prd from `brief` for the product whose contexts are `contextIds`, following the Prd rules in your
       context, and the product's one BusinessRules artifact with every rule the Prd cites: the input `rules` revised when bound,
-      a new artifact otherwise. The Prd's `businessRules` is that artifact's id, `<productId>-rules`. With `previous` and `feedback` bound, fix what the findings name and change
+      a new artifact otherwise. The Prd's `businessRules` is `<productId>-rules`, the id the rules you answer are published under. With `previous` and `feedback` bound, fix what the findings name and change
       nothing else; answer both artifacts whole. The rules you answer start as a verbatim copy of the rules you were
       given (`previousRules` when bound, the last round's answer; else `rules`): every `BR-n` keeps its id, statement and
       rationale; a finding that names a `BR-n` changes that rule; a new policy takes the next number. Never renumber,

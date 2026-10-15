@@ -414,6 +414,8 @@ describe('sdd/v1 over a Design', () => {
         const found = checkDesign({ design: c, architecture, domainModel, rules, designs, ids: { designSystem: c.designSystem } }).filter((x: { code: string }) => /^(document-|element-unbacked|dialect)/.test(x.code))
         expect({ file: f, id: d.spec.identity.id, found }).toEqual({ file: f, id: d.spec.identity.id, found: [] })
       }
+      const rulesId = byKind('BusinessRules')[0]?.spec.identity.id
+      for (const d of all.filter((x) => ['Prd', 'Spec', 'Design', 'Architecture'].includes(x.kind))) expect({ file: f, id: d.spec.identity.id, businessRules: d.spec.content.businessRules }).toEqual({ file: f, id: d.spec.identity.id, businessRules: rulesId })
     }
   })
 
@@ -422,12 +424,26 @@ describe('sdd/v1 over a Design', () => {
     expect(await designCodes((a) => { delete (a.design as any).businessRules })).toEqual(['rules-mismatch'])
     expect(await designCodes((a) => { (a.design as any).businessRules = 'other-rules' })).toEqual(['rules-mismatch'])
     expect(await codes((a) => { (a.spec as any).businessRules = 'other-rules' })).toEqual(['rules-mismatch'])
-    const prd = structuredClone({ prd: content('Prd'), rules: content('BusinessRules') }) as any
-    delete prd.prd.businessRules
-    expect((await adapter({ id: ++id, op: 'evaluate', payload: payload(prd) })).result.findings.map((f: { code: string }) => f.code)).toEqual(['rules-mismatch'])
-    const arch = structuredClone({ architecture: content('Architecture'), prd: content('Prd'), rules: content('BusinessRules') }) as any
-    arch.architecture.businessRules = 'other-rules'
-    expect((await adapter({ id: ++id, op: 'evaluate', payload: payload(arch) })).result.findings.map((f: { code: string }) => f.code)).toContain('rules-mismatch')
+    expect(await codes((a) => { delete (a.spec as any).businessRules })).toEqual(['rules-mismatch'])
+    const prdCase = async (mutate: (a: any) => void) => {
+      const a = structuredClone({ prd: content('Prd'), rules: content('BusinessRules') }) as any
+      mutate(a)
+      return (await adapter({ id: ++id, op: 'evaluate', payload: payload(a) })).result.findings.map((f: { code: string }) => f.code)
+    }
+    expect(await prdCase((a) => { delete a.prd.businessRules })).toEqual(['rules-mismatch'])
+    expect(await prdCase((a) => { a.prd.businessRules = 'other-rules' })).toEqual(['rules-mismatch'])
+    const archCase = async (mutate: (a: any) => void) => {
+      const a = structuredClone({ architecture: content('Architecture'), prd: content('Prd'), rules: content('BusinessRules') }) as any
+      mutate(a)
+      return (await adapter({ id: ++id, op: 'evaluate', payload: payload(a) })).result.findings.map((f: { code: string }) => f.code).filter((c: string) => c === 'rules-mismatch') // the bare payload binds no contexts or Adrs; those findings are another test's
+    }
+    expect(await archCase((a) => { a.architecture.businessRules = 'other-rules' })).toEqual(['rules-mismatch'])
+    expect(await archCase((a) => { delete a.architecture.businessRules })).toEqual(['rules-mismatch'])
+    // the upstream document must name the rules bound too: a document bound to another product's rules does not pass by copying the id
+    const foreign = (p: any) => { p.inputs.rules.ref.id = 'other-rules'; return p }
+    expect((await adapter({ id: ++id, op: 'evaluate', payload: foreign(payload(structuredClone({ ...example(), spec: { ...content('Spec'), businessRules: 'other-rules' } }))) })).result.findings.map((f: { code: string }) => f.code)).toEqual(['rules-mismatch']) // the Prd names expenses-rules
+    expect((await adapter({ id: ++id, op: 'evaluate', payload: foreign(payload(structuredClone({ ...designExample(), design: { ...content('Design'), businessRules: 'other-rules' } }))) })).result.findings.map((f: { code: string }) => f.code)).toEqual(['rules-mismatch']) // the Architecture names expenses-rules
+    expect(await archCase((a) => { a.architecture.businessRules = 'other-rules'; a.prd.businessRules = 'other-rules' })).toEqual(['rules-mismatch', 'rules-mismatch']) // both foreign to the bound: the document's own, then the Prd's
     const unbound = payload(structuredClone(example())) as any
     delete unbound.inputs.rules // no rules input bound: the name stands unchecked
     expect((await adapter({ id: ++id, op: 'evaluate', payload: unbound })).result.passed).toBe(true)

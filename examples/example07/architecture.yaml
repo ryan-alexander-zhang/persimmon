@@ -4,6 +4,7 @@ metadata: {name: room-booking-architecture.r1}
 spec:
   identity: {id: room-booking-architecture, revision: 1}
   content:
+    businessRules: room-booking-rules
     title: Meeting room booking architecture
     owner: office IT
     status: accepted

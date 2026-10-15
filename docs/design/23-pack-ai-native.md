@@ -235,7 +235,12 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
   and the publisher's provenance; two products in one Namespace each have a `BR-11`, and a Spec that
   names `prd` and `domainModel` by id named no rules. The id is the qualifier, as `CAP-1` is the
   Prd's; the Validator holds the name to the artifact bound (`rules-mismatch`) and refuses a document
-  without it. Optional on the kinds, so committed revisions still validate. Found in design review.
+  without it; and to what the upstream document names (a Spec's Prd, a Design's Architecture, an
+  Architecture's Prd), else a document bound to another product's rules passes by copying the id it
+  was bound with. A DomainModel, DecisionTable or Adr cites `BR-n` through the artifact it hangs off
+  and carries no field. Optional on the kinds, so committed revisions still validate; a gate run by
+  hand over an old revision reports the field absent, which is what the pack asks for now. Found in
+  design review.
   Proven live: `design-all` for example08's Reservation API wrote `businessRules: car-pool-rules`
   from the `rules` input and passed `design-consistency` in round one (3m24s). Found in UAT
   (example08).

@@ -34,9 +34,12 @@ const domainNames = (domainModel) => {
 
 // Every BR-n is a pair with the BusinessRules artifact the document names in `businessRules` (33-multi-context-product.md):
 // the citation is unqualified, so the document says which artifact, and the Validator holds it to the one bound.
-const rulesSource = (bad, doc, ids) => {
+// `upstream` is the document this one follows from (a Spec's Prd, a Design's Architecture, an Architecture's Prd): the
+// rules bound must be the ones it names too, else a document copies the id it was bound with and two products' rules meet.
+const rulesSource = (bad, doc, ids, upstream) => {
   if (doc.businessRules === undefined) bad('rules-mismatch', 'businessRules is absent: the artifact id of the BusinessRules the BR-n cite')
   else if (ids.rules && doc.businessRules !== ids.rules) bad('rules-mismatch', `businessRules ${doc.businessRules} is not ${ids.rules}, the BusinessRules bound`)
+  if (upstream?.doc?.businessRules !== undefined && ids.rules && upstream.doc.businessRules !== ids.rules) bad('rules-mismatch', `${upstream.name} names businessRules ${upstream.doc.businessRules}, not ${ids.rules}, the BusinessRules bound`)
 }
 
 export function checkSpec({ spec, prd, domainModel, architecture, rules, ids = {} }) {
@@ -45,7 +48,7 @@ export function checkSpec({ spec, prd, domainModel, architecture, rules, ids = {
   }
   const findings = []
   const bad = (code, message) => findings.push({ severity: 'error', code, message })
-  rulesSource(bad, spec, ids)
+  rulesSource(bad, spec, ids, { name: 'the Prd', doc: prd })
 
   const capability = (prd?.capabilities ?? []).find((c) => c.id === spec.capability)
   if (!capability) bad('unknown-capability', `capability ${spec.capability} is not a capability of the Prd`)
@@ -186,7 +189,7 @@ export function checkDesign({ design, architecture, domainModel, rules, designs 
   }
   const findings = []
   const bad = (code, message) => findings.push({ severity: 'error', code, message })
-  rulesSource(bad, design, ids)
+  rulesSource(bad, design, ids, { name: 'the Architecture', doc: architecture })
   const warn = (code, message) => findings.push({ severity: 'warning', code, message })
 
   const block = (architecture?.buildingBlocks ?? []).find((b) => b.id === design.block)
@@ -316,7 +319,7 @@ export function checkArchitecture({ architecture, prd, rules, ids = {}, adrs = {
   }
   const findings = []
   const bad = (code, message) => findings.push({ severity: 'error', code, message })
-  rulesSource(bad, architecture, ids)
+  rulesSource(bad, architecture, ids, { name: 'the Prd', doc: prd })
   const a = architecture
 
   if (ids.prd && a.introduction.prd !== ids.prd) bad('prd-mismatch', `introduction.prd ${a.introduction.prd} is not ${ids.prd}, the Prd evaluated`)
