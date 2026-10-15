@@ -65,5 +65,10 @@ $defs:
       subject: {$ref: "ports.yaml#/$defs/PortName"}
       previous: {$ref: "ports.yaml#/$defs/PortName"}
       feedback: {$ref: "ports.yaml#/$defs/PortName"}
+      carry:
+        type: object
+        description: "produce output -> optional produce input of the same type that receives it next round, as previous receives the subject"
+        propertyNames: {$ref: "ports.yaml#/$defs/PortName"}
+        additionalProperties: {$ref: "ports.yaml#/$defs/PortName"}
       maxRounds: {type: integer, minimum: 1, default: 3}
       timeout: {$ref: "ports.yaml#/$defs/Duration"}

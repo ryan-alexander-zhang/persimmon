@@ -68,21 +68,22 @@ const loopOutputs = ['verdict', 'passed', 'rounds']
  * The subject's type is read from `produce`'s definition: the loop names the port, the definition owns the type.
  */
 export function expandReviewLoop(r: ReviewLoop, ports: Ports): [Workflow, Workflow] {
-  const { inputs = {}, produce, review, subject, previous, feedback, maxRounds = 3, timeout } = r.spec
+  const { inputs = {}, produce, review, subject, previous, feedback, carry = {}, maxRounds = 3, timeout } = r.spec
   const produced = ports(produce.uses)
   if (!produced) throw new Error(`produce: ${produce.uses.kind} ${produce.uses.name} not found`)
   const subjectType = produced.outputs[subject]?.type
   if (!subjectType) throw new Error(`subject ${subject} is not an output of ${produce.uses.kind} ${produce.uses.name}`)
   // the loop surfaces every produce output, so a Pipeline phase can read any of them; one named like an output of the loop's own is shadowed
   const surfaced = Object.fromEntries(Object.keys(produced.outputs).filter((p) => !loopOutputs.includes(p)).map((p) => [p, { type: produced.outputs[p]!.type }]))
-  const carried: Record<string, InputSpec> = { ...(previous ? { previous: { type: subjectType, required: false } } : {}), ...(feedback ? { feedback: { type: gateResult, required: false } } : {}) }
+  // what comes back next round: the subject as `previous`, the verdict as `feedback`, and every carried output under the produce input it feeds
+  const carried: Record<string, InputSpec> = { ...(previous ? { previous: { type: subjectType, required: false } } : {}), ...(feedback ? { feedback: { type: gateResult, required: false } } : {}), ...Object.fromEntries(Object.entries(carry).map(([out, inp]) => [inp, { type: produced.outputs[out]!.type, required: false }])) }
   // an optional loop input may be unbound on a run, and `previous`/`feedback` are absent in round one: a binding from one omits instead of failing with source absent
   const bodyInputs = { ...inputs, ...carried }
   const omitOptional = (b: Binding): Binding => ('fromInput' in b && bodyInputs[b.fromInput] && optional(bodyInputs[b.fromInput]!) && !b.onMissing ? { ...b, onMissing: 'omit' } : b)
   const produceStep: Step = {
     id: 'produce',
     uses: produce.uses,
-    inputs: { ...Object.fromEntries(Object.entries(produce.inputs ?? {}).map(([p, b]) => [p, omitOptional(b)])), ...(previous ? { [previous]: { fromInput: 'previous', onMissing: 'omit' } } : {}), ...(feedback ? { [feedback]: { fromInput: 'feedback', onMissing: 'omit' } } : {}) },
+    inputs: { ...Object.fromEntries(Object.entries(produce.inputs ?? {}).map(([p, b]) => [p, omitOptional(b)])), ...(previous ? { [previous]: { fromInput: 'previous', onMissing: 'omit' } } : {}), ...(feedback ? { [feedback]: { fromInput: 'feedback', onMissing: 'omit' } } : {}), ...Object.fromEntries(Object.values(carry).map((inp) => [inp, { fromInput: inp, onMissing: 'omit' }])) },
     timeout: produce.timeout,
   }
   const reviewStep: Step = { id: 'review', uses: review.uses, ...(review.inputs ? { inputs: Object.fromEntries(Object.entries(review.inputs).map(([p, b]) => [p, omitOptional(b)])) } : {}), timeout: review.timeout }
@@ -122,7 +123,7 @@ export function expandReviewLoop(r: ReviewLoop, ports: Ports): [Workflow, Workfl
           repeat: {
             state: carried,
             initial: {},
-            next: { ...(previous ? { previous: { fromIterationOutput: subject } } : {}), ...(feedback ? { feedback: { fromIterationOutput: 'verdict' } } : {}) },
+            next: { ...(previous ? { previous: { fromIterationOutput: subject } } : {}), ...(feedback ? { feedback: { fromIterationOutput: 'verdict' } } : {}), ...Object.fromEntries(Object.entries(carry).map(([out, inp]) => [inp, { fromIterationOutput: out }])) },
             until: `iteration.outputs.passed || iteration.index >= (inputs.maxRounds < ${maxRounds} ? inputs.maxRounds : ${maxRounds})`,
             maxIterations: maxRounds,
           },

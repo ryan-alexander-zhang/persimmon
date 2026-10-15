@@ -7,7 +7,7 @@ import { workflowHandler } from '../workflow/handler.js'
 import { expandApproval, expandPipeline, expandReviewLoop, type IsGate, type Ports } from './expand.js'
 import type { Approval, Pipeline, ReviewLoop } from './types.js'
 import type { InputSpec, OutputSpec } from '../ports/types.js'
-import { optional } from '../ports/ports.js'
+import { optional, sameType } from '../ports/ports.js'
 
 export function compositionHandler(deps: HandlerDeps): HandlerImpl {
   const isGate: IsGate = (ref) => deps.kinds.byKind(ref.kind)?.definition.spec.stepContract?.runKind.kind === 'GateRun'
@@ -47,7 +47,7 @@ export function compositionHandler(deps: HandlerDeps): HandlerImpl {
   const loopFindings = (r: ReviewLoop, ns: string | undefined): Finding[] => {
     const f: Finding[] = []
     const bad = (path: string, message: string) => f.push({ severity: 'error', code: 'invalid_loop', path, message })
-    const { produce, review, subject, previous, feedback, inputs = {} } = r.spec
+    const { produce, review, subject, previous, feedback, carry = {}, inputs = {} } = r.spec
     const p = ports(ns)(produce.uses)
     if (!p) bad('/spec/produce/uses', `${produce.uses.kind} ${produce.uses.name} not found`)
     else {
@@ -60,13 +60,30 @@ export function compositionHandler(deps: HandlerDeps): HandlerImpl {
         if (produce.inputs?.[port]) bad(`/spec/produce/inputs/${port}`, `${port} is fed by the loop (${field}); do not bind it`)
         if (field in inputs) bad(`/spec/inputs/${field}`, `${field} is a name the loop reserves for its state`)
       }
+      // carry: a produce output fed back into an optional produce input of its type, named by that input in the round body
+      const fed = new Set([previous, feedback].filter(Boolean))
+      for (const [out, inp] of Object.entries(carry)) {
+        const o = p.outputs[out]
+        const i = p.inputs[inp]
+        if (!o) bad(`/spec/carry/${out}`, `${out} is not an output of ${produce.uses.kind} ${produce.uses.name}`)
+        if (!i) bad(`/spec/carry/${out}`, `${inp} is not an input of ${produce.uses.kind} ${produce.uses.name}`)
+        else {
+          if (i.required !== false) bad(`/spec/carry/${out}`, `${inp} must be an optional input (required: false): round 1 has nothing to carry`)
+          if (o && !sameType(i.type, o.type)) bad(`/spec/carry/${out}`, `${inp} is not of ${out}'s type`)
+        }
+        if (fed.has(inp)) bad(`/spec/carry/${out}`, `${inp} is fed twice`)
+        fed.add(inp)
+        if (produce.inputs?.[inp]) bad(`/spec/produce/inputs/${inp}`, `${inp} is fed by the loop (carry); do not bind it`)
+        if (inp in inputs || ['previous', 'feedback', 'maxRounds'].includes(inp)) bad(`/spec/carry/${out}`, `${inp} is a loop input or a reserved name; the carried input is named in the round body`)
+      }
     }
     if (['passed', 'rounds', 'verdict'].includes(subject)) bad('/spec/subject', `${subject} is a name the loop reserves for its own outputs`) // shadowed, so it could never carry the subject
-    // review may read the loop's previous and feedback (the reserved names), into an optional Gate port: round one has neither
+    // review may read what the loop carries (previous, feedback, a carried input) into an optional Gate port: round one has none
     const g = ports(ns)(review.uses)
+    const carriedNames = new Set([...(previous ? ['previous'] : []), ...(feedback ? ['feedback'] : []), ...Object.values(carry)])
     for (const [port, b] of Object.entries(review.inputs ?? {})) {
-      if (!('fromInput' in b) || !['previous', 'feedback'].includes(b.fromInput)) continue
-      if (!(b.fromInput === 'previous' ? previous : feedback)) bad(`/spec/review/inputs/${port}`, `${b.fromInput} is not declared on the loop`)
+      if (!('fromInput' in b) || b.fromInput in inputs) continue
+      if (!carriedNames.has(b.fromInput)) bad(`/spec/review/inputs/${port}`, `${b.fromInput} is not declared on the loop`)
       else if (g?.inputs[port] && !optional(g.inputs[port]!)) bad(`/spec/review/inputs/${port}`, `${port} must be an optional input of ${review.uses.kind} ${review.uses.name}: round 1 has no ${b.fromInput}`)
     }
     if ('maxRounds' in inputs) bad('/spec/inputs/maxRounds', 'maxRounds is the input the loop adds itself; set spec.maxRounds for the ceiling')

@@ -173,6 +173,17 @@ describe('expandReviewLoop', () => {
     expect(body.spec.steps[1]!.inputs).toMatchObject({ glossary: { fromInput: 'glossary', onMissing: 'omit' } })
   })
 
+  it('carry feeds a produce output back into the produce input it names, beside previous and feedback', () => {
+    const carrying: ReviewLoop = { ...loop, spec: { ...loop.spec, carry: { notes: 'lastNotes' }, review: { ...loop.spec.review, inputs: { ...loop.spec.review.inputs, notes: { fromInput: 'lastNotes' } } } } }
+    const lastNotes = { ...notes, required: false }
+    const [outer, body] = expandReviewLoop(carrying, () => ({ ...ports(), inputs: { ...ports().inputs, lastNotes } }))
+    expect(body.spec.inputs).toMatchObject({ lastNotes })
+    expect(body.spec.steps[0]!.inputs).toMatchObject({ lastNotes: { fromInput: 'lastNotes', onMissing: 'omit' } })
+    expect(body.spec.steps[1]!.inputs).toMatchObject({ notes: { fromInput: 'lastNotes', onMissing: 'omit' } })
+    expect(outer.spec.steps[0]!.inputs).toMatchObject({ lastNotes: { fromState: 'lastNotes', onMissing: 'omit' } })
+    expect(outer.spec.steps[0]!.repeat).toMatchObject({ state: { lastNotes }, next: { lastNotes: { fromIterationOutput: 'notes' } } })
+  })
+
   it('review may read previous and feedback, the reserved names, absent in round one', () => {
     const seeing: ReviewLoop = { ...loop, spec: { ...loop.spec, review: { ...loop.spec.review, inputs: { ...loop.spec.review.inputs, before: { fromInput: 'previous' }, verdict: { fromInput: 'feedback' } } } } }
     const [, body] = expandReviewLoop(seeing, ports)

@@ -80,6 +80,7 @@ Produce, review, feed the verdict back, repeat.
 | `subject` | an output port of `produce`; carried as the loop's result |
 | `previous` | optional input port of `produce`, `required: false`, type of `subject`; receives the last round's subject |
 | `feedback` | optional input port of `produce`, `required: false`, type `GateResult`; receives the last round's verdict |
+| `carry` | `{<produce output>: <produce input>}`; each input optional, of the output's type, not fed otherwise, not a loop input or reserved name; receives that output from the last round, as `previous` receives the subject. `previous: last` is `carry: {<subject>: last}` with the reserved name |
 | `maxRounds` | integer ≥ 1; default 3: the ceiling. The expansion adds an optional loop input `maxRounds` (default the ceiling), so a run asks for fewer rounds, never more |
 
 Outputs: every output of `produce` (its type), plus `passed` (boolean) and `rounds` (integer).
@@ -90,8 +91,8 @@ Expansion:
 
 | Resource | Content |
 |---|---|
-| Workflow `<name>-round` | inputs: the loop's, plus `previous` and `feedback` as declared, `required: false`; steps `produce` (its bindings, plus `previous: {fromInput: previous, onMissing: omit}` and the same for `feedback`) and `review`; Transitions `produce Succeeded → review`, `review Succeeded → terminal Succeeded`; outputs: every `produce` output, each `fromStep: {stepRef: produce, output: <port>}`, plus `verdict` (GateResult) from `review.result` and `passed` from `steps.review.outputs.result.passed` |
-| Workflow `<name>` | inputs: the loop's plus `maxRounds` (integer, `required: false`, default `<maxRounds>`); one step `rounds` using `<name>-round`, every input `fromInput` (with `onMissing: omit` when the loop input is `required: false`, in the round body's `produce` and `review` bindings too), `previous: {fromState: previous, onMissing: omit}`, `feedback: {fromState: feedback, onMissing: omit}`; `repeat: {state: {previous?, feedback?}, initial: {}, next: {previous: {fromIterationOutput: <subject>}, feedback: {fromIterationOutput: verdict}}, until: 'iteration.outputs.passed \|\| iteration.index >= (inputs.maxRounds < <maxRounds> ? inputs.maxRounds : <maxRounds>)', maxIterations: <maxRounds>}`; `timeout`; Transition `rounds Succeeded → terminal Succeeded`; outputs: every `produce` output and `passed`, each `fromStep: {stepRef: rounds, output: <port>}`, plus `rounds: {expression: 'steps.rounds.iterations'}` |
+| Workflow `<name>-round` | inputs: the loop's, plus `previous` and `feedback` as declared and every `carry` input under its own name, `required: false`; steps `produce` (its bindings, plus `previous: {fromInput: previous, onMissing: omit}`, the same for `feedback` and for each carried input) and `review`; Transitions `produce Succeeded → review`, `review Succeeded → terminal Succeeded`; outputs: every `produce` output, each `fromStep: {stepRef: produce, output: <port>}`, plus `verdict` (GateResult) from `review.result` and `passed` from `steps.review.outputs.result.passed` |
+| Workflow `<name>` | inputs: the loop's plus `maxRounds` (integer, `required: false`, default `<maxRounds>`); one step `rounds` using `<name>-round`, every input `fromInput` (with `onMissing: omit` when the loop input is `required: false`, in the round body's `produce` and `review` bindings too), `previous: {fromState: previous, onMissing: omit}`, `feedback: {fromState: feedback, onMissing: omit}`, each carried input `fromState` the same; `repeat: {state: {previous?, feedback?, <carried>...}, initial: {}, next: {previous: {fromIterationOutput: <subject>}, feedback: {fromIterationOutput: verdict}, <carried input>: {fromIterationOutput: <output>}}, until: 'iteration.outputs.passed \|\| iteration.index >= (inputs.maxRounds < <maxRounds> ? inputs.maxRounds : <maxRounds>)', maxIterations: <maxRounds>}`; `timeout`; Transition `rounds Succeeded → terminal Succeeded`; outputs: every `produce` output and `passed`, each `fromStep: {stepRef: rounds, output: <port>}`, plus `rounds: {expression: 'steps.rounds.iterations'}` |
 
 `passed: false` after `maxRounds` is a verdict: the run Succeeds with `passed false`, as
 `workflow-review-loop.yaml` does by hand today.
@@ -102,7 +103,7 @@ Expansion:
 |---|---|
 | every Pipeline phase id unique; `outputBindings` keys equal `outputs` | expansion + Workflow checker |
 | Approval: approver names unique; every mapped Task port and Approval port exists; every required Task input is mapped; `uses` Task has output `resultOutput` of `value` type with the ValidationResult `$ref` | composition Handler, then the Validator rules on the expansion |
-| ReviewLoop: `subject` ∈ produce outputs and not `passed`, `rounds`, `verdict` (the loop's own shadow a produce output of that name, so `subject` could never carry it); `previous`, `feedback` ∈ produce inputs, optional, of the stated types, not bound by `produce.inputs`, and no loop input named `previous`, `feedback` or `maxRounds`; a `review` binding `fromInput: previous` or `fromInput: feedback` names one the loop declares and lands on an optional Gate input; `review.uses` runKind is GateRun | composition Handler |
+| ReviewLoop: `subject` ∈ produce outputs and not `passed`, `rounds`, `verdict` (the loop's own shadow a produce output of that name, so `subject` could never carry it); `previous`, `feedback` ∈ produce inputs, optional, of the stated types, not bound by `produce.inputs`, and no loop input named `previous`, `feedback` or `maxRounds`; `carry` entries name a produce output and an optional produce input of its type, each input fed once and neither a loop input nor a reserved name; a `review` binding `fromInput` of a name that is not a loop input is `previous`, `feedback` or a carried input the loop declares, and lands on an optional Gate input; `review.uses` runKind is GateRun | composition Handler |
 | no composition expands through itself (a ReviewLoop producing with a ReviewLoop that produces with it) | expansion; refused at write when visible, at snapshot otherwise |
 | everything else | the Workflow and Gate rules on the expansion; a finding's path is rebased onto what the user wrote (a Pipeline phase; a ReviewLoop's `produce`, `review`, `inputs` or `maxRounds`, else `/spec`), its message names the expanded Resource |
 
@@ -163,6 +164,11 @@ Expansion:
   the findings did not ask for (`28-prd-process.md`: a round two renumbered every rule). The Gate
   port must be optional, round one has nothing; the expansion adds `onMissing: omit` as it does for
   an optional loop input. Found in UAT (example08).
+- `carry` brings any produce output back, not the subject alone: `write-architecture` publishes
+  Adrs beside the Architecture and round two rewrote them blind (`31-architecture-process.md`),
+  `draft-prd` publishes the BusinessRules beside the Prd and renumbered them
+  (`28-prd-process.md`). The carried value lands under the produce input it feeds, the author's
+  name, so nothing new is reserved; `previous` stays the subject's sugar. Found in UAT (example08).
 
 
 ## Examples

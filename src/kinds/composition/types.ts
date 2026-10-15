@@ -35,6 +35,7 @@ export interface ReviewLoopSpec {
   subject: string
   previous?: string
   feedback?: string
+  carry?: Record<string, string>
   maxRounds?: number
   timeout: string
 }
