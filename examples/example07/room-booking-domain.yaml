@@ -3103,7 +3103,6 @@ spec:
     type: ui
     architecture: room-booking-prd-architecture
     block: BB-5
-    domainModel: room-booking-model
     designSystem: room-booking-prd-design-system
     document:
       mediaType: text/markdown
@@ -3145,14 +3144,14 @@ spec:
       - id: EL-1
         name: Book a Room
         realises:
-          kind: readModel
-          name: Room Status View
+          kind: operation
+          name: GET /rooms/{roomId}/status
         rules: []
       - id: EL-2
         name: "Book a Room: Book"
         realises:
-          kind: command
-          name: Book Room
+          kind: operation
+          name: POST /bookings
         rules:
           - BR-1
           - BR-2
@@ -3164,28 +3163,28 @@ spec:
       - id: EL-3
         name: Room Status
         realises:
-          kind: readModel
-          name: Room Status View
+          kind: operation
+          name: GET /rooms/{roomId}/status
         rules: []
       - id: EL-4
         name: "Room Status: Cancel"
         realises:
-          kind: command
-          name: Cancel Booking
+          kind: operation
+          name: POST /bookings/{bookingId}/cancel
         rules:
           - BR-8
       - id: EL-5
         name: "Room Status: Check In"
         realises:
-          kind: command
-          name: Check In Booking
+          kind: operation
+          name: POST /bookings/{bookingId}/check-in
         rules:
           - BR-9
       - id: EL-6
         name: "Room Status: Claim Walk-In"
         realises:
-          kind: command
-          name: Claim Walk-In Room
+          kind: operation
+          name: POST /rooms/{roomId}/walk-in-claims
         rules: []
     rules:
       - BR-1
@@ -3222,7 +3221,6 @@ spec:
     type: ui
     architecture: room-booking-prd-architecture
     block: BB-6
-    domainModel: room-booking-model
     designSystem: room-booking-prd-design-system
     document:
       mediaType: text/markdown
@@ -3262,8 +3260,8 @@ spec:
       - id: EL-1
         name: Door Status
         realises:
-          kind: readModel
-          name: Room Status View
+          kind: operation
+          name: GET /rooms/{roomId}/status
         rules: []
     rules: []
     decisions: []
@@ -3288,7 +3286,6 @@ spec:
     type: ui
     architecture: room-booking-prd-architecture
     block: BB-7
-    domainModel: room-booking-model
     designSystem: room-booking-prd-design-system
     document:
       mediaType: text/markdown
@@ -3325,8 +3322,8 @@ spec:
       - id: EL-1
         name: Floor Status
         realises:
-          kind: readModel
-          name: Room Status View
+          kind: operation
+          name: GET /rooms/{roomId}/status
         rules: []
     rules: []
     decisions: []

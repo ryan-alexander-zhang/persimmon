@@ -267,30 +267,38 @@ describe('sdd/v1 over a Design', () => {
   })
 
   // a ui Design of the web client (32-ui-design-process.md): screens realise read models, actions realise commands
+  // a ui Design: no domainModel, elements realise operations of the API Design bound on `designs` (32-ui-design-process.md)
   const uiDesign = () => ({
-    title: 'web client screens', type: 'ui', architecture: 'expense-claims-architecture', block: 'BB-5', domainModel: 'expenses-model', designSystem: 'expense-claims-design-system',
+    title: 'web client screens', type: 'ui', architecture: 'expense-claims-architecture', block: 'BB-5', designSystem: 'expense-claims-design-system',
     document: { mediaType: 'text/markdown', content: '## My Claims\n\nPurpose: the employee sees their claims.\n\n## Submit a Claim\n' },
     elements: [
-      { id: 'EL-1', name: 'My Claims', realises: { kind: 'readModel', name: 'My Claims View' } },
-      { id: 'EL-2', name: 'Submit a Claim: Submit', realises: { kind: 'command', name: 'Submit Claim' }, rules: ['BR-1'] },
+      { id: 'EL-1', name: 'My Claims', realises: { kind: 'operation', name: 'GET /claims/mine' } },
+      { id: 'EL-2', name: 'Submit a Claim', realises: { kind: 'operation', name: 'GET /claims/mine' } },
+      { id: 'EL-3', name: 'Submit a Claim: Submit', realises: { kind: 'operation', name: 'POST /claims/{claimId}/submission' }, rules: ['BR-1'] },
     ],
     rules: ['BR-1'], decisions: [], openQuestions: [],
   })
-  const uiPayload = (design: any, designSystem = 'expense-claims-design-system') => {
-    const base = payload({ ...designExample(), design })
-    return { ...base, inputs: { designSystem: { kind: 'artifact', ref: { apiVersion: 'sdd.persimmon.ai/v1', kind: 'DesignSystem', namespace: 'demo', id: designSystem, revision: 1 } } } }
+  const uiPayload = (design: any, designSystem = 'expense-claims-design-system', designs: unknown[] = [content('Design')]) => {
+    const { domainModel, ...rest } = designExample()
+    const base = payload({ ...rest, design })
+    const ref = (kind: string, id: string) => ({ apiVersion: 'sdd.persimmon.ai/v1', kind, namespace: 'demo', id, revision: 1 })
+    return {
+      ...base,
+      inputs: { designSystem: { kind: 'artifact', ref: ref('DesignSystem', designSystem) }, designs: { kind: 'artifacts', refs: designs.map(() => ref('Design', 'claims-api')) } },
+      artifacts: { ...base.artifacts, designs: designs.map((c) => ({ content: c, provenance })) },
+    }
   }
-  const uiCodes = async (mutate: (d: any) => void, designSystem?: string) => {
+  const uiCodes = async (mutate: (d: any) => void, designSystem?: string, designs?: unknown[]) => {
     const design = uiDesign()
     mutate(design)
-    const r = await adapter({ id: ++id, op: 'evaluate', payload: uiPayload(design, designSystem) })
+    const r = await adapter({ id: ++id, op: 'evaluate', payload: uiPayload(design, designSystem, designs) })
     return r.result.findings.map((f: { code: string }) => f.code)
   }
 
   it('passes a ui Design of a client block against the DesignSystem bound', async () => {
     expect(await uiCodes(() => {})).toEqual([])
     const r = await adapter({ id: ++id, op: 'evaluate', payload: payload({ ...designExample(), design: uiDesign() }) }) // no DesignSystem bound: the citation cannot be checked
-    expect(r.result).toMatchObject({ passed: false, findings: [{ code: 'designsystem-mismatch', message: expect.stringContaining('no DesignSystem is bound') }] })
+    expect(r.result).toMatchObject({ passed: false, findings: [{ code: 'designsystem-mismatch', message: expect.stringContaining('no DesignSystem is bound') }, { code: 'designs-unbound' }] })
   })
 
   it('fails a ui Design whose document is not markdown, that names no DesignSystem or another, or sits on a block with a context', async () => {
@@ -298,7 +306,14 @@ describe('sdd/v1 over a Design', () => {
     expect(await uiCodes((d) => { delete d.designSystem })).toEqual(['designsystem-mismatch'])
     expect(await uiCodes(() => {}, 'other-design-system')).toEqual(['designsystem-mismatch'])
     expect(await uiCodes((d) => { d.block = 'BB-1' })).toEqual(['client-block'])
-    expect(await uiCodes((d) => { d.elements[0].realises.name = 'Ghost View' })).toEqual(['unknown-realised'])
+  })
+
+  it('a ui Design realises operations of the API Designs bound, names no DomainModel, and indexes every screen', async () => {
+    expect(await uiCodes((d) => { d.elements[0].realises.name = 'GET /ghost' })).toEqual(['unknown-realised'])
+    expect(await uiCodes((d) => { d.elements[0].realises = { kind: 'readModel', name: 'My Claims View' } })).toEqual(['unknown-realised']) // a model label is not an operation
+    expect(await uiCodes((d) => { d.domainModel = 'expenses-model' })).toEqual(['ui-domainmodel'])
+    expect(await uiCodes(() => {}, undefined, [])).toEqual(['designs-unbound']) // one finding, not one per element
+    expect(await uiCodes((d) => { d.elements.splice(1, 1); d.elements[1].id = 'EL-2' })).toEqual(['screen-unindexed'])
   })
 
   it('fails ids that are not unique and increasing', async () => {

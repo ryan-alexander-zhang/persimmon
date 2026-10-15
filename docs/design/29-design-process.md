@@ -29,18 +29,18 @@ Workflow design-all: repeat over `blocks` with one `type` ─▶ ReviewLoop desi
 
 ## `checkDesign`
 
-`adapters/sdd/check.mjs`, pure, `checkDesign({design, architecture, domainModel, rules, ids})` with `ids.designSystem` the bound DesignSystem's id, every finding `error`:
+`adapters/sdd/check.mjs`, pure, `checkDesign({design, architecture, domainModel, rules, designs, ids})` with `ids.designSystem` the bound DesignSystem's id and `designs` the bound API Designs by id (a `ui` Design realises their operations, `32-ui-design-process.md`), every finding `error`:
 
 | Code | Finding |
 |---|---|
 | `not-a-design` | content without `elements` or `type`; the only finding then |
 | `unknown-block` | `block` is no `BB-n` of the Architecture |
 | `unknown-interface` | `interface` is no interface the block provides |
-| `unknown-realised` | an element's `realises` is no command, event, read model label or `AG-n` of the DomainModel (the same name sets as `checkSpec`) |
+| `unknown-realised` | an element's `realises` is no command, event, read model label or `AG-n` of the DomainModel (the same name sets as `checkSpec`); for a `ui` Design, no `operation` named as an element of a bound Design |
 | `unknown-rule`, `inactive-rule` | a `BR-n` at the root or on an element missing or not `active` |
 | `rules-incomplete`, `rules-unplaced` | an element's rule the root `rules[]` lacks; a root rule no element enforces (the root is the union, both ways) |
 | `type-mediatype` | `type` and `document.mediaType` do not pair (`http-api` OpenAPI, `async-api` AsyncAPI, `data-schema` JSON Schema or SQL, `ui` markdown) |
-| `designsystem-mismatch`, `client-block` | a `ui` Design: `designSystem` absent, no DesignSystem bound, or not the id bound; its block realises a context (`32-ui-design-process.md`) |
+| `designsystem-mismatch`, `client-block`, `ui-domainmodel`, `designs-unbound`, `screen-unindexed` | a `ui` Design: `designSystem` absent, no DesignSystem bound, or not the id bound; its block realises a context; it names a `domainModel`; no Design is bound to realise; a `## <screen>` heading with no element (`32-ui-design-process.md`) |
 | `id-sequence` | `EL-n`, `Q-n` not unique and increasing |
 
 The Adapter picks the mode from the payload: `artifacts.spec` (or `artifacts.model`), else
@@ -54,7 +54,7 @@ The Adapter picks the mode from the payload: `artifacts.spec` (or `artifacts.mod
 | one Design per block and type by `design-all`, id `<architecture>-<block>-<type>`; a block with two provided interfaces, or realising two contexts, gets its second Design of a type from a run with `qualifier` bound (`interface` beside it for an API), which the id carries: `<architecture>-<block>-<qualifier>-<type>` | `design-rules`; `design-asset` output id |
 | `decisions[]` is not checked: no Adr is in the Validator's payload; the Architecture lists its Adrs and the Prompt picks from that list | convention; Validator later |
 | a `data-schema` asset realises aggregates (`AG-n`), an `http-api` commands and read models, an `async-api` events; an asset of one type may still index the other kinds (an API that also serves an event feed) | `design-rules` |
-| a Design cites Architecture, DomainModel, Glossary, BusinessRules and Adrs; never a Spec or a Prd: the contract follows from the domain and the block, not from one capability | `design-rules`; convention |
+| a Design cites Architecture, DomainModel, Glossary, BusinessRules and Adrs; never a Spec or a Prd: the contract follows from the domain and the block, not from one capability. A `ui` Design cites the DesignSystem and the block's API Designs in place of the DomainModel and Glossary (`32-ui-design-process.md`) | `design-rules`; convention; `ui-domainmodel` |
 
 ## Decisions
 

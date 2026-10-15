@@ -934,7 +934,8 @@ spec:
 ---
 # One reusable Design: an HTTP or async API contract or a data schema, for one Architecture building block,
 # shared by every capability that uses it. The document is embedded whole and never parsed here; `elements[]` is the
-# index a Validator reads: what in the DomainModel each operation, channel or table realises. A Spec never cites a
+# index a Validator reads: what in the DomainModel each operation, channel or table realises, or for a ui Design which
+# operation of the block's API Designs each screen and action calls. A Spec never cites a
 # Design; the Plan (later) says which assets realise which capability.
 apiVersion: persimmon.ai/v1
 kind: KindDefinition
@@ -947,7 +948,11 @@ spec:
     - name: v1
       schema:
         type: object
-        required: [title, type, architecture, block, domainModel, document, elements, rules, decisions, openQuestions]
+        required: [title, type, architecture, block, document, elements, rules, decisions, openQuestions]
+        # a ui Design indexes its block's API Designs, never a DomainModel (32-ui-design-process.md)
+        if: {properties: {type: {const: ui}}}
+        then: {not: {required: [domainModel]}}
+        else: {required: [domainModel]}
         additionalProperties: false
         properties:
           title: {type: string, minLength: 1}
@@ -955,7 +960,7 @@ spec:
           architecture: {type: string, minLength: 1, description: "artifact id of the Architecture the block is in"}
           block: {type: string, pattern: "^BB-[0-9]+$", description: "the building block this asset belongs to"}
           interface: {type: string, minLength: 1, description: "for an API: the name of the interface the block provides (Architecture buildingBlocks[].interfaces[].name)"}
-          domainModel: {type: string, minLength: 1, description: "artifact id of the DomainModel the elements realise"}
+          domainModel: {type: string, minLength: 1, description: "artifact id of the DomainModel the elements realise; absent on a ui Design, whose elements realise operations of the block's API Designs"}
           designSystem: {type: string, minLength: 1, description: "for a ui Design: artifact id of the DesignSystem its screens follow (32-ui-design-process.md)"}
           document:
             type: object
@@ -980,8 +985,8 @@ spec:
                   required: [kind, name]
                   additionalProperties: false
                   properties:
-                    kind: {enum: [command, event, readModel, aggregate]}
-                    name: {type: string, minLength: 1, description: "the DomainModel label, or AG-n for an aggregate"}
+                    kind: {enum: [command, event, readModel, aggregate, operation]}
+                    name: {type: string, minLength: 1, description: "the DomainModel label, AG-n for an aggregate, or for a ui Design the operation as the API Design's element names it ('GET /rooms/{roomId}/status')"}
                 rules: {type: array, items: {type: string, pattern: "^BR-[0-9]+$"}, description: "the rules this element's refusals or constraints enforce"}
           rules: {type: array, items: {type: string, pattern: "^BR-[0-9]+$"}, description: "every rule the document enforces; the union of the elements'"}
           decisions: {type: array, items: {type: string, minLength: 1}, description: "Adr artifact ids taken for this asset"}

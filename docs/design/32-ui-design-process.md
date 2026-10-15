@@ -4,7 +4,7 @@ status: draft · layer: 2 (`23-pack-ai-native.md`, `29-design-process.md`, `31-a
 
 From the Architecture's client blocks to what a build agent needs to make their screens: one
 `DesignSystem` per product in the DESIGN.md format, confirmed by a human, and one `ui` Design per
-client block, its screens indexed against the DomainModel like any other Design. Closes the gap the
+client block, its screens indexed against the block's API Designs. Closes the gap the
 live Plans showed ("No Design for BB-6 (Door Status Screen) is in context", example07).
 
 ```text
@@ -14,7 +14,7 @@ ReviewLoop design-system, once per product
   previous and feedback fed back; maxRounds 3
 Workflow design-all with type ui, over the client blocks ─▶ ReviewLoop design-one per block, designSystem and the block's API Designs bound
   produce: Task design-asset (design-agent) ─▶ Design <architecture>-bb-n-ui
-  review:  Gate design-gate = Validator design-consistency (sdd/v1), designSystem added
+  review:  Gate design-gate = Validator design-consistency (sdd/v1), designSystem and designs added
 ```
 
 ## DESIGN.md
@@ -43,13 +43,17 @@ One per product, id `<prd>-design-system`.
 
 A `Design` of `type: ui` for one client block (a block with `contexts: []` that requires an
 interface): `document.mediaType: text/markdown`, one `## <screen>` section per screen the block
-shows, each with Purpose, Data (the read model and its fields, Glossary names), Actions (the command
-each control submits and the API operation that carries it, as the block's `http-api` Design names
-it), States (empty, loading, refused naming the `BR-n`), Layout (the DESIGN.md components and
-tokens by name). `designSystem` is the DesignSystem artifact id. `elements` index the document:
-one per screen, `realises` the read model it shows, and one per action, `realises` the command it
-submits; `name` is the section heading or "`<screen>`: `<control>`". No `interface`: a client block
-provides none.
+shows, whichever context serves it, each with Purpose, Data (the operation whose response the
+screen shows and the fields it renders, as that operation's schema names them), Actions (each
+control and the operation it submits, as the block's `http-api` Designs name it), States (empty,
+loading, refused naming the `BR-n`), Layout (the DESIGN.md components and tokens by name).
+`designSystem` is the DesignSystem artifact id. No `domainModel`: a client knows the operations it
+calls, not the model behind them, so it cites the API Designs and no Glossary. `elements` index the
+document: one per screen, `realises: {kind: operation, name}` the operation whose response it
+shows, and one per action, the operation it submits, `name` as the API Design's element names it
+("`GET /rooms/{roomId}/status`"); the element `name` is the section heading or
+"`<screen>`: `<control>`". An operation a screen needs that no API Design offers is a `Q-n`, never
+an invented one. No `interface`: a client block provides none.
 
 ## Process
 
@@ -86,7 +90,11 @@ without `document.content` is `not-a-design-system`, the only finding then. No E
 | `type-mediatype` | `ui` pairs with `text/markdown` only |
 | `designsystem-mismatch` | `designSystem` absent on a `ui` Design, no DesignSystem bound to the Validator, or the id is not the one bound (`ids.designSystem`) |
 | `client-block` | a `ui` Design's block realises a context (`contexts` non-empty): screens belong to clients |
-| the rest | as any Design: `unknown-block`, `unknown-realised` (read models and commands), rules both ways, `id-sequence` |
+| `ui-domainmodel` | a `ui` Design names a `domainModel`: its elements realise operations, not model labels |
+| `designs-unbound` | no Design is bound to the Validator's `designs`: nothing to realise; one finding, the elements are not checked |
+| `unknown-realised` | an element's `realises` is not `{kind: operation, name}` with `name` an element name of a bound Design |
+| `screen-unindexed` | a `## <screen>` heading of the document with no element named like it: a screen a Plan cannot realise |
+| the rest | as any Design: `unknown-block`, rules both ways, `id-sequence` |
 
 ## Rules
 
@@ -94,8 +102,8 @@ without `document.content` is `not-a-design-system`, the only finding then. No E
 |---|---|
 | the DESIGN.md is the truth: the pack adds no field that restates a token or a section; the linter checks the tokens (references, contrast, orphans, section order), the human checks the prose: that every section is present with something to say is not a linter rule | kind schema; `design-system-lint`; `confirm-design-system` |
 | one DesignSystem per product, confirmed by a human: taste is not a Validator's; the linter catches the format, the contrast and the broken reference | `design-system-gate` |
-| a `ui` Design cites the DesignSystem, the DomainModel and the block's API Designs; never a Spec: a screen serves every capability that reaches the block | `design-rules`; `checkDesign` |
-| the document's components and operations are not checked against the DesignSystem's tokens or the API Design's operations: the document is prose, the Design evaluator parses documents (`91-roadmap.md`) | convention; roadmap |
+| a `ui` Design cites the DesignSystem and the block's API Designs; never a DomainModel, a Glossary or a Spec: a client knows the operations it calls, not the model behind them, and a screen serves every capability that reaches the block | `design-rules`; `checkDesign` (`ui-domainmodel`, `unknown-realised`) |
+| the document's components are not checked against the DesignSystem's tokens, nor its prose against the API Designs beyond the index: the document is prose, the Design evaluator parses documents (`91-roadmap.md`); the index is checked: every `## <screen>` has an element, every element an operation of a bound Design | convention; roadmap; `checkDesign` |
 | a `ui` Design is per block, as every Design: the Architecture already cut one block per client surface | `design-all` |
 
 ## Decisions
@@ -124,6 +132,17 @@ without `document.content` is `not-a-design-system`, the only finding then. No E
   each): a Plan task names the screen it builds as an element, and the screen's read model is the
   label a consistency check can hold it to; a second shape for UI elements would give the Plan two
   grammars. Found in design review.
+- A `ui` Design realises operations of the block's API Designs (`realises.kind: operation`, `name`
+  the API Design's element name) and carries no `domainModel`, replacing the read-model and command
+  labels above. example08's web application serves two contexts, and a Design binds one model: round
+  one indexed every screen and failed `unknown-realised` on the second context's nine elements; round
+  two kept those four screens in the document and dropped their elements, so no Plan could realise
+  them. The model was the wrong layer: a client knows the operations it calls, not the model behind
+  them; the API Design already holds each operation to the model. One `ui` Design per client block
+  stays, whatever contexts it shows; `screen-unindexed` holds every `## <screen>` to an element,
+  which is what round two slipped past. The same `realises` shape with a fifth kind keeps the Plan's
+  one grammar. example07's three `ui` Designs re-realised by hand (five operations of the booking
+  API). Found in UAT.
 - The `ui` Design is a Design, not a fourth kind: it has a block, a document, an index against the
   DomainModel and rules, and `design-all`, `design-one`, `plan-all` and `checkDesign` take it without
   a new loop. Found in design review.
@@ -179,4 +198,5 @@ without `document.content` is `not-a-design-system`, the only finding then. No E
 ## Examples
 
 - `examples/example07/`: `DesignSystem/room-booking-prd-design-system` and the `ui` Designs of
-  `BB-5`, `BB-6` and `BB-7`, written live; the CAP-5 Plan rerun names their elements.
+  `BB-5`, `BB-6` and `BB-7`, written live against the DomainModel and re-realised by hand to the
+  booking API's operations; the CAP-5 Plan rerun names their elements.

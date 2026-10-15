@@ -1,7 +1,8 @@
 // sdd/v1: the evaluator Role (19-adapter-roles.md) over the AI Native pack (23-pack-ai-native.md), in four modes.
 // Given a Spec, `evaluate` runs `checkSpec` on it and the Prd, DomainModel, Architecture and BusinessRules it cites;
 // given a Prd, it runs `checkPrd` on it and the BusinessRules of its context; given a Design, it runs `checkDesign` on
-// it and the Architecture, DomainModel and BusinessRules it cites (a ui Design also the DesignSystem bound); given a Plan, it runs `checkPlan` on it, the Spec,
+// it and the Architecture, DomainModel and BusinessRules it cites (a ui Design: the DesignSystem bound and the API Designs
+// instead of the DomainModel); given a Plan, it runs `checkPlan` on it, the Spec,
 // the Architecture and the Designs (an artifacts port, paired with inputs.designs.refs by position); given an Architecture
 // and no Spec, Design or Plan, it runs `checkArchitecture` on it, the Prd, the rules, the contexts, models, glossaries and
 // Adrs (artifacts ports, paired the same way). It answers a ValidationResult (10-ports.md). No Engine callbacks.
@@ -22,14 +23,19 @@ const required = (artifacts, name) => {
   return artifact.content
 }
 
+// the `designs` artifacts port: artifact id → content, paired with inputs.designs.refs by position
+const boundDesigns = (payload, artifacts) => {
+  const refs = payload.inputs?.designs?.refs ?? []
+  return Object.fromEntries((artifacts.designs ?? []).map((d, i) => [refs[i]?.id, d.content]))
+}
+
 function evaluate(payload) {
   const artifacts = payload?.artifacts ?? {}
   if (artifacts.plan) {
     const plan = required(artifacts, 'plan')
     const notAPlan = checkPlan({ plan }).filter((f) => f.code === 'not-a-plan')
     if (notAPlan.length) return { passed: false, findings: notAPlan, evidence: [] }
-    const refs = payload.inputs?.designs?.refs ?? []
-    const designs = Object.fromEntries((artifacts.designs ?? []).map((d, i) => [refs[i]?.id, d.content]))
+    const designs = boundDesigns(payload, artifacts)
     const ids = { spec: payload.inputs?.spec?.ref?.id, architecture: payload.inputs?.architecture?.ref?.id }
     const findings = checkPlan({ plan, spec: required(artifacts, 'spec'), architecture: required(artifacts, 'architecture'), designs, ids })
     return { passed: findings.length === 0, findings, evidence: [] }
@@ -54,8 +60,9 @@ function evaluate(payload) {
       const findings = checkDesign({
         design,
         architecture: required(artifacts, 'architecture'),
-        domainModel: required(artifacts, 'domainModel'),
+        domainModel: design.type === 'ui' ? undefined : required(artifacts, 'domainModel'),
         rules: required(artifacts, 'rules'),
+        designs: boundDesigns(payload, artifacts),
         ids: { designSystem: payload.inputs?.designSystem?.ref?.id },
       })
       return { passed: findings.length === 0, findings, evidence: [] }

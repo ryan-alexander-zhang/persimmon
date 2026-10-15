@@ -133,8 +133,10 @@ export function checkPrd({ prd, rules }) {
 }
 
 // `ids.designSystem` is the bound DesignSystem's artifact id, which a content never carries; a ui Design must cite it and
-// the Validator must have it bound, or the citation is unchecked (32-ui-design-process.md).
-export function checkDesign({ design, architecture, domainModel, rules, ids = {} }) {
+// the Validator must have it bound, or the citation is unchecked. A ui Design realises operations, not DomainModel labels:
+// `designs` is artifact id → content of the API Designs bound, and their element names are what its elements may realise
+// (32-ui-design-process.md).
+export function checkDesign({ design, architecture, domainModel, rules, designs = {}, ids = {} }) {
   if (!design || !Array.isArray(design.elements) || !design.type) {
     return [{ severity: 'error', code: 'not-a-design', message: 'content is not a Design: it has no elements array or no type' }]
   }
@@ -153,10 +155,20 @@ export function checkDesign({ design, architecture, domainModel, rules, ids = {}
     else if (!ids.designSystem) bad('designsystem-mismatch', `designSystem ${design.designSystem} cannot be checked: no DesignSystem is bound to the Validator`)
     else if (design.designSystem !== ids.designSystem) bad('designsystem-mismatch', `designSystem ${design.designSystem} is not ${ids.designSystem}, the DesignSystem evaluated`)
     if (block && (block.contexts ?? []).length) bad('client-block', `block ${design.block} realises a context; a ui Design belongs to a client block`)
+    if (design.domainModel !== undefined) bad('ui-domainmodel', `a ui Design realises operations of its block's API Designs, not a DomainModel; domainModel ${design.domainModel} is set`)
+    if (!Object.keys(designs).length) bad('designs-unbound', 'a ui Design realises operations of the API Designs bound to the Validator; none is bound')
+    for (const heading of (design.document?.content ?? '').match(/^## .+$/gm) ?? []) {
+      const screen = heading.slice(3).trim()
+      if (!design.elements.some((el) => el.name === screen)) bad('screen-unindexed', `screen ${screen} has no element named like it`)
+    }
   }
 
+  const ui = design.type === 'ui'
   const { commands, events, readModels } = domainNames(domainModel)
-  const known = { command: commands, event: events, readModel: readModels, aggregate: new Set((domainModel?.aggregates ?? []).map((a) => a.id)) }
+  const known = ui
+    ? { operation: new Set(Object.values(designs).flatMap((d) => (d?.elements ?? []).map((e) => e.name))) }
+    : { command: commands, event: events, readModel: readModels, aggregate: new Set((domainModel?.aggregates ?? []).map((a) => a.id)) }
+  const realisable = !ui || Object.keys(designs).length > 0 // unbound API Designs are one finding, not one per element
   const status = new Map((rules?.rules ?? []).map((r) => [r.id, r.status]))
   const ruleCheck = (owner, r) => {
     if (!status.has(r)) bad('unknown-rule', `${owner}: rule ${r} is not in the BusinessRules`)
@@ -167,7 +179,7 @@ export function checkDesign({ design, architecture, domainModel, rules, ids = {}
 
   for (const el of design.elements) {
     const { kind, name } = el.realises ?? {}
-    if (!known[kind]?.has(name)) bad('unknown-realised', `${el.id}: ${kind} ${name} is not in the DomainModel`)
+    if (realisable && !known[kind]?.has(name)) bad('unknown-realised', `${el.id}: ${kind} ${name} is not in ${ui ? 'the API Designs bound' : 'the DomainModel'}`)
     for (const r of el.rules ?? []) {
       ruleCheck(el.id, r)
       if (!union.has(r)) bad('rules-incomplete', `${el.id}: rule ${r} is not in the Design's rules, the union of the elements'`)

@@ -559,7 +559,8 @@ _Avoid_: design.md (the package is `@google/design.md`), design spec
 **Design**:
 **Artifact kind** of the AI Native pack: one reusable contract, schema or screen document (`type`
 http-api, async-api, data-schema, ui) of one **Architecture** building block, its `document` embedded whole and indexed by
-`elements` that name what in the **DomainModel** each realises. Shared by every capability of the
+`elements` that name what in the **DomainModel** each realises (a `ui` Design: which operation of the block's API Designs
+each screen or action calls; it names no DomainModel). Shared by every capability of the
 block; a **Spec** never cites one, the Plan does. Always the capitalised kind name.
 _Avoid_: design doc, technical design, design asset, design per capability, API spec (for the kind)
 
