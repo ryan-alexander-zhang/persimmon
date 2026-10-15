@@ -27,8 +27,7 @@ describe('persimmon ui server', () => {
     writeFileSync(join(tools, 'demo', 'index.html'), '<!doctype html><title>demo</title>')
     writeFileSync(join(tools, 'demo', 'app.js'), 'export const x = 1\n')
     const cli = { cwd: dir, out: () => {}, err: () => {} }
-    expect(await runCli(['init'], cli)).toBe(0)
-    expect(await runCli(['apply', 'packs/ai-native/global/10-artifact-kinds.yaml', '--global'], cli)).toBe(0)
+    expect(await runCli(['init'], cli)).toBe(0) // the SDLC pack's kinds come with init
     engine = await openEngine(cli)
     server = await serve(engine, { port: 0, toolsDir: tools })
   })

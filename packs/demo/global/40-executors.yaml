@@ -1,0 +1,22 @@
+# Executors (13-executor.md). Global; a Namespace overrides one by name to bind its own credentials.
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: claude-agent}
+spec:
+  type: agent
+  adapter: claude-code/v1
+  configuration:
+    model: claude-opus-5
+    sandbox: workspace-write
+  security:
+    networkAccess: allowlist
+    allowedHosts: [api.anthropic.com, github.com]
+    credentialBindings: [github-token]   # Global name; a Namespace overrides this Executor to bind its own
+---
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: local-reviewer}
+spec:
+  type: human
+  adapter: cli-human/v1
+  configuration: {}

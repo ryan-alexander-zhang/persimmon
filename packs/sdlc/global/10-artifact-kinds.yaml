@@ -1,84 +1,1125 @@
-# Artifact kinds the SDLC pack produces (18-artifact.md).
+# Artifact kinds of the AI Native pack (23-pack-ai-native.md). Domain first: a BoundedContext, its Glossary, its
+# BusinessRules and DecisionTables are cited by every later document; the Prd answers why and for whom; the Spec (later)
+# answers exactly what. Every object closes with additionalProperties: false so a misspelt field is refused, not ignored.
 apiVersion: persimmon.ai/v1
 kind: KindDefinition
-metadata:
-  name: researchreports.engineering.persimmon.ai
+metadata: {name: boundedcontexts.sdd.persimmon.ai}
 spec:
-  group: engineering.persimmon.ai
-  names: {kind: ResearchReport, plural: researchreports}
+  group: sdd.persimmon.ai
+  names: {kind: BoundedContext, plural: boundedcontexts}
   scope: Namespaced
   versions:
     - name: v1
       schema:
         type: object
-        required: [title, findings]
+        required: [name, purpose, inScope, outOfScope, relationships]
+        additionalProperties: false
         properties:
-          title: {type: string}
-          findings:
+          name: {type: string, minLength: 1}
+          purpose: {type: string, minLength: 1, description: "what this context is responsible for, one paragraph"}
+          inScope: {type: array, minItems: 1, items: {type: string}, description: "the Glossary's term names this context owns"}
+          outOfScope: {type: array, items: {type: string}, description: "concepts that look like ours but belong elsewhere; name the context"}
+          owner: {type: string, description: "team or role that owns the model"}
+          classification: {enum: [core, supporting, generic], description: "the storming's strategic classification"}
+          bigBallOfMud: {type: boolean, description: "a recognised mess, boundary drawn so its model does not propagate"}
+          relationships:
             type: array
+            description: "this context's own view of the context map; the other side keeps its own"
             items:
               type: object
-              required: [id, statement, sources]
+              required: [context, role, pattern]
+              additionalProperties: false
               properties:
-                id: {type: string}
-                statement: {type: string}
-                sources: {type: array, items: {type: string, format: uri}}
+                context: {type: string, minLength: 1, description: "artifact id of the other BoundedContext; may live in another Namespace or not exist yet"}
+                role: {enum: [upstream, downstream, peer], description: "this context's role toward `context`"}
+                pattern: {enum: [shared-kernel, customer-supplier, conformist, anticorruption-layer, open-host-service, published-language, partnership, separate-ways], description: "conformist and anticorruption-layer are downstream; open-host-service and published-language upstream; shared-kernel, partnership and separate-ways peer; customer-supplier either way"}
+                note: {type: string}
   mutability: Immutable
   revisioned: true
   snapshot: "None"
 ---
+# The ubiquitous language of one BoundedContext: terms and fact types (SBVR). Documents cite a term by using it;
+# rule logic cites a fact type by name. Name is the identity of both.
 apiVersion: persimmon.ai/v1
 kind: KindDefinition
-metadata:
-  name: productrequirements.engineering.persimmon.ai
+metadata: {name: glossaries.sdd.persimmon.ai}
 spec:
-  group: engineering.persimmon.ai
-  names: {kind: ProductRequirement, plural: productrequirements}
+  group: sdd.persimmon.ai
+  names: {kind: Glossary, plural: glossaries}
   scope: Namespaced
   versions:
     - name: v1
       schema:
         type: object
-        required: [title, problem, requirements]
+        required: [title, context, terms, factTypes]
+        additionalProperties: false
         properties:
-          title: {type: string}
-          problem: {type: string}
-          requirements:
+          title: {type: string, minLength: 1}
+          context: {type: string, minLength: 1, description: "artifact id of the BoundedContext; one Glossary per context"}
+          terms:
             type: array
+            minItems: 1
+            items:
+              type: object
+              required: [name, definition, status]
+              additionalProperties: false
+              properties:
+                name: {type: string, minLength: 1, description: "the term as written in documents; unique in this Glossary, never reused"}
+                definition: {type: string, minLength: 1, description: "a term borrowed from another context says so: 'as in <context>: ...'"}
+                aliases: {type: array, items: {type: string}, description: "words people use for it; documents use name, never an alias; never another term's name"}
+                related: {type: array, items: {type: string}, description: "names of other terms in this Glossary"}
+                status: {enum: [active, deprecated]}
+                replacedBy: {type: string, description: "name of the term that supersedes a deprecated one"}
+          factTypes:
+            type: array
+            description: "SBVR fact types: what can be said about a term; the typed inputs rule logic and decision tables read"
+            items:
+              type: object
+              required: [name, subject, predicate, object, status]
+              additionalProperties: false
+              properties:
+                name: {type: string, minLength: 1, description: "the sentence form '<subject> <predicate> <object>', e.g. 'claim line has amount'; unique, never reused"}
+                subject: {type: string, minLength: 1, description: "a term name"}
+                predicate: {type: string, minLength: 1, description: "has, is, belongs to ..."}
+                object:
+                  description: "a term name (a relation between terms; equality is identity, no ordering) or a typed value (an attribute)"
+                  oneOf:
+                    - {type: string, minLength: 1}
+                    - type: object
+                      required: [type]
+                      additionalProperties: false
+                      properties:
+                        type: {enum: [boolean, integer, decimal, string, date, enum]}
+                        unit: {type: string, description: "EUR, days, kg ..."}
+                        values: {type: array, items: {type: string}, description: "the enum's values"}
+                description: {type: string}
+                status: {enum: [active, deprecated]}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"
+---
+# Rules of one BoundedContext that outlive any Prd or Spec: facts, constraints, derivations, decisions (Business Rules
+# Group). Every rule is one RuleSpeak sentence in Glossary terms; a rule with `logic` is also a typed condition tree over
+# the Glossary's fact types, so a Validator can check it and a test can be derived from it. Cited as BR-n.
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata: {name: businessrules.sdd.persimmon.ai}
+spec:
+  group: sdd.persimmon.ai
+  names: {kind: BusinessRules, plural: businessrules}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [title, contexts, owner, rules]
+        additionalProperties: false
+        properties:
+          title: {type: string, minLength: 1}
+          contexts: {type: array, minItems: 1, items: {type: string, minLength: 1}, description: "artifact ids of the BoundedContexts these rules govern: one product, one artifact, BR-n unique across it (33-multi-context-product.md)"}
+          owner: {type: string, minLength: 1, description: "who signs these rules; a rule may name its own owner"}
+          rules:
+            type: array
+            description: "may be empty: a context whose brief states no policy yet"
+            items:
+              type: object
+              required: [id, type, statement, rationale, status]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^BR-[0-9]+$", description: "never reused; a withdrawn rule stays with status deprecated"}
+                context: {type: string, minLength: 1, description: "the context that enforces the rule, one of contexts; required by the Validator when contexts has more than one"}
+                type: {enum: [fact, constraint, derivation, decision], description: "fact: a structural rule over one fact type (cardinality, necessity); constraint: a must or must not; derivation: a computed value; decision: an outcome"}
+                statement: {type: string, minLength: 1, description: "one RuleSpeak sentence in Glossary terms with a rule keyword: 'must', 'must not', 'may ... only', 'must be computed as', 'must be considered <outcome> if'"}
+                rationale: {type: string, minLength: 1, description: "an informal rule (no logic) says so here"}
+                source: {type: string, description: "law, policy, contract, decision"}
+                owner: {type: string}
+                effectiveFrom: {type: string, format: date}
+                effectiveTo: {type: string, format: date}
+                status: {enum: [active, deprecated]}
+                examples: {type: array, items: {type: string}}
+                factType: {type: string, minLength: 1, description: "a fact rule: the Glossary fact type it constrains"}
+                logic:
+                  description: "the machine form; absent on an informal rule"
+                  type: object
+                  required: [inputs, then]
+                  additionalProperties: false
+                  properties:
+                    inputs:
+                      type: array
+                      minItems: 1
+                      items:
+                        type: object
+                        required: [name, factType]
+                        additionalProperties: false
+                        properties:
+                          name: {type: string, pattern: "^[a-z][a-zA-Z0-9]*$", description: "the field name conditions use"}
+                          factType: {type: string, minLength: 1, description: "a Glossary fact type name"}
+                    when: {$ref: "#/$defs/Condition", description: "absent means always"}
+                    then:
+                      description: "a fact or constraint names the violation; a derivation names the derived input and its expression; a decision names the outcome per output of the DecisionTable that cites it"
+                      oneOf:
+                        - type: object
+                          required: [violation]
+                          properties: {violation: {type: string, minLength: 1}}
+                          additionalProperties: false
+                        - type: object
+                          required: [derive, expression]
+                          properties:
+                            derive: {type: string, description: "an input name the expression computes"}
+                            expression: {type: string, minLength: 1, description: "arithmetic over input names; FEEL subset"}
+                          additionalProperties: false
+                        - type: object
+                          required: [decision]
+                          properties:
+                            decision: {type: object, minProperties: 1, additionalProperties: {type: [string, number, boolean]}, description: "one literal per output name"}
+                          additionalProperties: false
+        $defs:
+          Condition:
+            oneOf:
+              - type: object
+                required: [all]
+                properties: {all: {type: array, minItems: 1, items: {$ref: "#/$defs/Condition"}}}
+                additionalProperties: false
+              - type: object
+                required: [any]
+                properties: {any: {type: array, minItems: 1, items: {$ref: "#/$defs/Condition"}}}
+                additionalProperties: false
+              - type: object
+                required: [not]
+                properties: {not: {$ref: "#/$defs/Condition"}}
+                additionalProperties: false
+              - type: object
+                required: [field, op]
+                properties:
+                  field: {type: string, minLength: 1, description: "an input name"}
+                  op: {enum: [eq, ne, lt, lte, gt, gte, in, notIn, present, absent]}
+                  value:
+                    description: "a literal, a list for in/notIn, or another input as {field: name}; absent only for present/absent"
+                    oneOf:
+                      - {type: [string, number, boolean]}
+                      - {type: array, minItems: 1, items: {type: [string, number, boolean]}}
+                      - {type: object, required: [field], properties: {field: {type: string, minLength: 1}}, additionalProperties: false}
+                additionalProperties: false
+                if: {properties: {op: {enum: [present, absent]}}}
+                then: {not: {required: [value]}}
+                else: {required: [value]}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"
+---
+# One decision (DMN subset): typed inputs over fact types, outputs, hit policy, rows with DMN unary tests.
+# Implements the BusinessRules it cites; a Validator checks overlap and, as a pack rule, completeness.
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata: {name: decisiontables.sdd.persimmon.ai}
+spec:
+  group: sdd.persimmon.ai
+  names: {kind: DecisionTable, plural: decisiontables}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [title, context, decision, owner, status, cites, inputs, outputs, hitPolicy, rows]
+        additionalProperties: false
+        properties:
+          title: {type: string, minLength: 1}
+          context: {type: string, minLength: 1, description: "artifact id of the BoundedContext"}
+          decision: {type: string, minLength: 1, description: "the question this table answers, one line"}
+          owner: {type: string, minLength: 1}
+          source: {type: string}
+          effectiveFrom: {type: string, format: date}
+          effectiveTo: {type: string, format: date}
+          status: {enum: [active, deprecated]}
+          cites: {type: array, items: {type: string, pattern: "^BR-[0-9]+$"}, description: "every rule the table as a whole implements: the decision rules its rows own and the constraints behind its inputs; a row's cites are a subset"}
+          inputs:
+            type: array
+            minItems: 1
+            items:
+              type: object
+              required: [name, factType]
+              additionalProperties: false
+              properties:
+                name: {type: string, pattern: "^[a-z][a-zA-Z0-9]*$"}
+                factType: {type: string, minLength: 1, description: "a Glossary fact type name; its object gives the type"}
+          outputs:
+            type: array
+            minItems: 1
+            items:
+              type: object
+              required: [name, type]
+              additionalProperties: false
+              properties:
+                name: {type: string, pattern: "^[a-z][a-zA-Z0-9]*$"}
+                type: {enum: [boolean, integer, decimal, string, date, enum]}
+                values: {type: array, items: {type: string}}
+          hitPolicy: {enum: [unique, first, priority, any, collect], description: "DMN: unique rows never overlap; first takes the first matching row in order. Completeness (every input combination hits a row) is a pack rule for unique, not DMN"}
+          rows:
+            type: array
+            minItems: 1
+            items:
+              type: object
+              required: [id, when, then]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^R-[0-9]+$"}
+                when:
+                  type: object
+                  minProperties: 1
+                  description: "one DMN unary test per input name: '-' any, a literal, '<= 5000', '[1..90]', 'a, b'"
+                  additionalProperties: {type: string, minLength: 1}
+                then:
+                  type: object
+                  minProperties: 1
+                  description: "one literal per output name"
+                  additionalProperties: {type: [string, number, boolean]}
+                cites: {type: array, items: {type: string, pattern: "^BR-[0-9]+$"}, description: "the one decision rule this row is; a subset of the table's cites"}
+                note: {type: string}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"
+---
+# Product requirements: why, for whom, what capabilities, how success is measured. No stories, no requirements,
+# no acceptance scenarios, no technology: those are the Spec's, one per capability.
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata: {name: prds.sdd.persimmon.ai}
+spec:
+  group: sdd.persimmon.ai
+  names: {kind: Prd, plural: prds}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [title, problem, users, goals, nonGoals, capabilities, successCriteria, assumptions, openQuestions]
+        additionalProperties: false
+        properties:
+          title: {type: string, minLength: 1}
+          businessRules: {type: string, minLength: 1, description: "artifact id of the BusinessRules every BR-n here cites; the Validator refuses a document whose bound rules are another artifact (rules-mismatch)"}
+          problem: {type: string, minLength: 1, description: "who hurts, how, today; prose"}
+          users:
+            type: array
+            minItems: 1
+            items: {type: object, required: [name, description], additionalProperties: false, properties: {name: {type: string, minLength: 1}, description: {type: string, minLength: 1}}}
+          goals:
+            type: array
+            minItems: 1
+            description: "the direction, without a number: what should be true for users when this works; a number belongs to a success criterion"
+            items: {type: object, required: [id, statement], additionalProperties: false, properties: {id: {type: string, pattern: "^G-[0-9]+$"}, statement: {type: string, minLength: 1}}}
+          nonGoals: {type: array, items: {type: string}, description: "what this Prd refuses; may be empty"}
+          capabilities:
+            type: array
+            minItems: 1
+            description: "the feature list; each becomes one Spec"
+            items:
+              type: object
+              required: [id, name, description, priority, context]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^CAP-[0-9]+$"}
+                name: {type: string, minLength: 1}
+                description: {type: string, minLength: 1, description: "one paragraph, no stories, no acceptance scenarios"}
+                priority: {enum: [P1, P2, P3]}
+                context: {type: string, minLength: 1, description: "artifact id of the BoundedContext the capability lives in"}
+                rules: {type: array, items: {type: string, pattern: "^BR-[0-9]+$"}, description: "BusinessRules ids the capability must honour"}
+          successCriteria:
+            type: array
+            minItems: 1
+            description: "outcomes measured in production over time, each with a number or an observable fact; a story's acceptance scenarios are the Spec's"
             items:
               type: object
               required: [id, statement]
+              additionalProperties: false
               properties:
-                id: {type: string}
-                statement: {type: string}
+                id: {type: string, pattern: "^SC-[0-9]+$"}
+                statement: {type: string, minLength: 1, description: "a number or an observable fact, never a technology"}
+                capabilities: {type: array, items: {type: string, pattern: "^CAP-[0-9]+$"}, description: "the capabilities this outcome measures; absent means the product as a whole"}
+          assumptions: {type: array, items: {type: string}}
+          openQuestions:
+            type: array
+            description: "an unknown fact is a question here, never a guess elsewhere"
+            items:
+              type: object
+              required: [id, question]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^Q-[0-9]+$"}
+                question: {type: string, minLength: 1}
+                resolution: {type: string}
   mutability: Immutable
   revisioned: true
   snapshot: "None"
 ---
+# One architecture decision (Nygard form with MADR alternatives). Taken first, against the revisions its drivers live in
+# (a Prd and its rules before any Architecture exists, an Architecture afterwards), pinned by provenance; the Architecture
+# or Design revision that applies it lists it. A status change is a new revision of the same id.
 apiVersion: persimmon.ai/v1
 kind: KindDefinition
-metadata:
-  name: reviewreports.engineering.persimmon.ai
+metadata: {name: adrs.sdd.persimmon.ai}
 spec:
-  group: engineering.persimmon.ai
-  names: {kind: ReviewReport, plural: reviewreports}
+  group: sdd.persimmon.ai
+  names: {kind: Adr, plural: adrs}
   scope: Namespaced
   versions:
     - name: v1
       schema:
         type: object
-        required: [subject, verdict, findings]
+        required: [title, status, deciders, context, drivers, decision, alternatives, consequences]
+        additionalProperties: false
         properties:
-          subject: {type: string}
-          verdict: {enum: [approve, reject, revise]}
-          findings:
+          title: {type: string, minLength: 1, description: "the decision as a short imperative or noun phrase"}
+          status: {enum: [proposed, accepted, rejected, superseded, deprecated]}
+          deciders: {type: array, minItems: 1, items: {type: string, minLength: 1}}
+          context: {type: string, minLength: 1, description: "the forces; names QG-n, C-n, BR-n in prose"}
+          drivers: {type: array, minItems: 1, items: {type: string, pattern: "^(QG|C|QS|BR|CAP|SC|G)-[0-9]+$"}, description: "the ids the decision answers, in the revisions provenance pins; a force against the decision is context prose, not a driver"}
+          decision: {type: string, minLength: 1}
+          alternatives:
+            type: array
+            minItems: 1
+            items:
+              type: object
+              required: [option, rejectedBecause]
+              additionalProperties: false
+              properties:
+                option: {type: string, minLength: 1}
+                rejectedBecause: {type: string, minLength: 1}
+          consequences:
+            type: array
+            minItems: 1
+            items:
+              type: object
+              required: [kind, statement]
+              additionalProperties: false
+              properties:
+                kind: {enum: [positive, negative, neutral]}
+                statement: {type: string, minLength: 1}
+          supersedes: {type: string, minLength: 1, description: "artifact id of the Adr this one replaces"}
+          strategy: {type: string, pattern: "^S-[0-9]+$", description: "for an Adr the architect loop takes: the strategy decision of the Architecture it backs (31-architecture-process.md)"}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"
+---
+# The product-level architecture, arc42's twelve sections as fields. Section 8's domain model and section 12 are by
+# reference; section 9 lists Adr artifacts. Written once from the Prd, revised when a Design breaks a constraint or a
+# quality scenario. A capability Design (later) adds detail in its own document and cites this one.
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata: {name: architectures.sdd.persimmon.ai}
+spec:
+  group: sdd.persimmon.ai
+  names: {kind: Architecture, plural: architectures}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [title, owner, status, introduction, constraints, context, strategy, buildingBlocks, relations, concepts, domainModels, decisions, qualityScenarios, glossaries]
+        additionalProperties: false
+        properties:
+          title: {type: string, minLength: 1}
+          businessRules: {type: string, minLength: 1, description: "artifact id of the BusinessRules every BR-n here cites; the Validator refuses a document whose bound rules are another artifact (rules-mismatch)"}
+          owner: {type: string, minLength: 1}
+          status: {enum: [draft, accepted, superseded]}
+          introduction:
+            description: "arc42 1: the Prd is the requirements, by reference; the goals and stakeholders are the architecture's own"
+            type: object
+            required: [prd, qualityGoals, stakeholders]
+            additionalProperties: false
+            properties:
+              prd: {type: string, minLength: 1, description: "artifact id of the Prd"}
+              qualityGoals:
+                type: array
+                minItems: 1
+                maxItems: 5
+                description: "ordered, most important first"
+                items:
+                  type: object
+                  required: [id, quality, motivation]
+                  additionalProperties: false
+                  properties:
+                    id: {type: string, pattern: "^QG-[0-9]+$"}
+                    quality: {enum: [functional-suitability, performance-efficiency, compatibility, interaction-capability, reliability, security, maintainability, flexibility, safety], description: "ISO/IEC 25010:2023 characteristic"}
+                    motivation: {type: string, minLength: 1}
+              stakeholders:
+                type: array
+                minItems: 1
+                items:
+                  type: object
+                  required: [role, expectations]
+                  additionalProperties: false
+                  properties:
+                    role: {type: string, minLength: 1}
+                    expectations: {type: string, minLength: 1}
+          constraints:
+            type: array
+            description: "arc42 2; may be empty"
+            items:
+              type: object
+              required: [id, kind, statement]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^C-[0-9]+$"}
+                kind: {enum: [technical, organizational, convention]}
+                statement: {type: string, minLength: 1}
+                rationale: {type: string}
+          context:
+            description: "arc42 3"
+            type: object
+            required: [business, technical]
+            additionalProperties: false
+            properties:
+              business:
+                type: array
+                minItems: 1
+                items:
+                  type: object
+                  required: [partner, exchanges, direction]
+                  additionalProperties: false
+                  properties:
+                    partner: {type: string, minLength: 1, description: "a user role, an external system, or a neighbouring context"}
+                    context: {type: string, minLength: 1, description: "artifact id of the BoundedContext when the partner is one"}
+                    exchanges: {type: string, minLength: 1, description: "what crosses the boundary, in Glossary terms"}
+                    direction: {enum: [in, out, both], description: "seen from this system"}
+              technical:
+                type: array
+                items:
+                  type: object
+                  required: [channel, protocol, carries]
+                  additionalProperties: false
+                  properties:
+                    channel: {type: string, minLength: 1}
+                    protocol: {type: string, minLength: 1}
+                    carries: {type: string, minLength: 1, description: "which business exchanges travel on it"}
+          strategy:
+            type: array
+            minItems: 1
+            description: "arc42 4: the few decisions that shape everything; detail is an Adr"
+            items:
+              type: object
+              required: [id, decision, addresses]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^S-[0-9]+$"}
+                decision: {type: string, minLength: 1}
+                addresses: {type: array, minItems: 1, items: {type: string, pattern: "^(QG|C)-[0-9]+$"}}
+                note: {type: string}
+          buildingBlocks:
+            type: array
+            minItems: 1
+            description: "arc42 5: blocks without parent are level 1; a child names its parent"
+            items:
+              type: object
+              required: [id, name, responsibility, interfaces, contexts]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^BB-[0-9]+$"}
+                name: {type: string, minLength: 1}
+                parent: {type: string, pattern: "^BB-[0-9]+$"}
+                technology: {type: string, description: "the C4 container label: runtime, framework, store"}
+                responsibility: {type: string, minLength: 1}
+                interfaces:
+                  type: array
+                  items:
+                    type: object
+                    required: [name, kind, description]
+                    additionalProperties: false
+                    properties:
+                      name: {type: string, minLength: 1}
+                      kind: {enum: [provides, requires]}
+                      description: {type: string, minLength: 1}
+                contexts: {type: array, items: {type: string, minLength: 1}, description: "artifact ids of the BoundedContexts this block realises; empty for a purely technical block"}
+          relations:
+            type: array
+            minItems: 1
+            description: "arc42 5: the arrows of the building block view; a C4 container diagram is blocks plus these"
+            items:
+              type: object
+              required: [id, from, to, description]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^REL-[0-9]+$"}
+                from: {type: string, minLength: 1, description: "a BB-n or a context.business[].partner; at least one end is a block"}
+                to: {type: string, minLength: 1}
+                description: {type: string, minLength: 1, description: "what flows or is called, in Glossary terms"}
+                interface: {type: string, description: "an interface the `to` block provides, or the `from` block requires when `to` is a partner"}
+                technology: {type: string, description: "HTTPS/JSON, SCIM, file ..."}
+          runtime:
+            type: array
+            description: "arc42 6, optional at baseline"
+            items:
+              type: object
+              required: [id, scenario, steps]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^RT-[0-9]+$"}
+                scenario: {type: string, minLength: 1}
+                steps:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required: [from, to, message]
+                    additionalProperties: false
+                    properties:
+                      from: {type: string, minLength: 1, description: "a BB-n or a partner name"}
+                      to: {type: string, minLength: 1}
+                      message: {type: string, minLength: 1}
+          deployment:
+            description: "arc42 7, optional at baseline"
+            type: object
+            required: [nodes, channels]
+            additionalProperties: false
+            properties:
+              nodes:
+                type: array
+                minItems: 1
+                items:
+                  type: object
+                  required: [name, hosts]
+                  additionalProperties: false
+                  properties:
+                    name: {type: string, minLength: 1}
+                    technology: {type: string}
+                    hosts: {type: array, items: {type: string, pattern: "^BB-[0-9]+$"}}
+              channels:
+                type: array
+                items:
+                  type: object
+                  required: [from, to, protocol]
+                  additionalProperties: false
+                  properties:
+                    from: {type: string, minLength: 1}
+                    to: {type: string, minLength: 1}
+                    protocol: {type: string, minLength: 1}
+          concepts:
+            type: array
+            minItems: 1
+            description: "arc42 8, the domain model by reference below"
+            items:
+              type: object
+              required: [id, topic, statement]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^CC-[0-9]+$"}
+                topic: {enum: [domain, ux, security, persistence, errors, logging, transactions, i18n, build, testing, other]}
+                statement: {type: string, minLength: 1}
+          domainModels: {type: array, items: {type: string, minLength: 1}, description: "artifact ids of the DomainModels; empty until one exists"}
+          decisions: {type: array, items: {type: string, minLength: 1}, description: "arc42 9: artifact ids of the Adrs this revision applies; may be empty"}
+          qualityScenarios:
+            type: array
+            minItems: 1
+            description: "arc42 10: at least one per quality goal"
+            items:
+              type: object
+              required: [id, qualityGoal, stimulus, response, measure]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^QS-[0-9]+$"}
+                qualityGoal: {type: string, pattern: "^QG-[0-9]+$"}
+                stimulus: {type: string, minLength: 1}
+                source: {type: string}
+                environment: {type: string}
+                response: {type: string, minLength: 1}
+                measure: {type: string, minLength: 1, description: "a number or an observable fact"}
+          risks:
+            type: array
+            description: "arc42 11, risks and technical debt, optional"
+            items:
+              type: object
+              required: [id, kind, statement]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^RK-[0-9]+$"}
+                kind: {enum: [risk, debt]}
+                statement: {type: string, minLength: 1}
+                probability: {enum: [low, medium, high], description: "a risk"}
+                impact: {enum: [low, medium, high]}
+                mitigation: {type: string, description: "a risk's mitigation or a debt's repayment"}
+          glossaries: {type: array, minItems: 1, items: {type: string, minLength: 1}, description: "arc42 12: artifact ids of the Glossaries; no terms of its own"}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"
+---
+# An event storming model, DSL v4.0 of the event storming tool (24-eventstorming.md) without meta.createdAt: the
+# revision carries time. The schema is the shape only; per-type properties, level gating, edge rules and smells are the
+# grammar's (tools/eventstorming/grammar), run by the evaluator Adapter eventstorming/v1.
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata: {name: eventstormings.sdd.persimmon.ai}
+spec:
+  group: sdd.persimmon.ai
+  names: {kind: EventStorming, plural: eventstormings}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [version, meta, contexts, contextRelationships, nodes, edges]
+        additionalProperties: false
+        properties:
+          version: {const: "4.0", description: "the grammar version"}
+          meta:
+            type: object
+            required: [name, level]
+            additionalProperties: false
+            properties:
+              name: {type: string, minLength: 1}
+              level: {enum: [big-picture, process, design], description: "raised as phases complete; gates which node types may appear"}
+          contexts:
             type: array
             items:
               type: object
-              required: [severity, message]
+              required: [id, name, order]
+              additionalProperties: false
               properties:
-                severity: {enum: [error, warning, info]}
-                message: {type: string}
+                id: {type: string, minLength: 1}
+                name: {type: string, minLength: 1}
+                order: {type: integer, minimum: 0, description: "left-to-right reading order of the map"}
+                classification: {enum: [core, supporting, generic]}
+                bigBallOfMud: {type: boolean, description: "a recognised mess, boundary drawn so its model does not propagate"}
+          contextRelationships:
+            type: array
+            items:
+              type: object
+              required: [id, source, target, type]
+              additionalProperties: false
+              properties:
+                id: {type: string, minLength: 1}
+                source: {type: string, minLength: 1, description: "upstream context id"}
+                target: {type: string, minLength: 1, description: "downstream context id"}
+                type: {enum: [partnership, sharedKernel, customerSupplier, conformist, acl, openHostService, publishedLanguage, separateWays]}
+          nodes:
+            type: array
+            items:
+              type: object
+              required: [id, type, label, properties]
+              additionalProperties: false
+              properties:
+                id: {type: string, minLength: 1, description: "<ctx>-<tag>-<slug>; unique across nodes"}
+                type: {enum: [domainEvent, command, actor, readModel, policy, aggregate, constraint, externalSystem, hotspot, opportunity]}
+                label: {type: string, minLength: 1}
+                context: {type: string, minLength: 1, description: "a declared context id; absent is ungrouped"}
+                order: {type: integer, minimum: 0, description: "global timeline index; domainEvent only"}
+                properties:
+                  type: object
+                  additionalProperties: false
+                  description: "each key legal on its own type only; the grammar enforces which"
+                  properties:
+                    description: {type: string}
+                    pivotal: {type: boolean}
+                    temporal: {type: boolean, description: "raised by time passing; needs no producer"}
+                    state: {enum: [open, resolved]}
+                    kind: {enum: [conflict, question, risk]}
+                    priority: {enum: [low, medium, high]}
+                    resolution: {type: string}
+                    resolvedAt: {type: string}
+                    condition: {type: string, description: "a policy's guard, no 'if'"}
+                    execution: {enum: [automatic, manual]}
+                    parameters:
+                      type: array
+                      items: {type: object, required: [name, value], additionalProperties: false, properties: {name: {type: string, minLength: 1}, value: {type: string}}}
+                    alternativeSet: {type: string, minLength: 1, description: "members happen instead of each other; domainEvent and command only"}
+                    rule: {type: string, description: "a constraint's invariant"}
+          edges:
+            type: array
+            items:
+              type: object
+              required: [id, source, target, relation]
+              additionalProperties: false
+              properties:
+                id: {type: string, minLength: 1}
+                source: {type: string, minLength: 1}
+                target: {type: string, minLength: 1}
+                relation: {enum: [issues, produces, constrainedBy, handledBy, emits, triggers, invokes, updates, informs, annotates, highlights]}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"
+---
+# The domain model of one BoundedContext, derived from a design-level EventStorming (26-domain-discovery.md): aggregates with
+# the commands they handle and the events they emit, policies, read models, external systems. Names are the storming
+# labels; attributes are Glossary fact type names, so the Glossary stays the only place a thing is defined.
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata: {name: domainmodels.sdd.persimmon.ai}
+spec:
+  group: sdd.persimmon.ai
+  names: {kind: DomainModel, plural: domainmodels}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [context, source, aggregates, events, policies, readModels, externalSystems]
+        additionalProperties: false
+        properties:
+          context: {type: string, minLength: 1, description: "artifact id of the BoundedContext"}
+          source: {type: string, minLength: 1, description: "artifact id of the EventStorming it was derived from; the revision is provenance"}
+          aggregates:
+            type: array
+            items:
+              type: object
+              required: [id, name, root, entities, valueObjects, commands, events, invariants]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^AG-[0-9]+$"}
+                name: {type: string, minLength: 1, description: "the storming aggregate label"}
+                root: {type: string, minLength: 1, description: "the root entity's name"}
+                entities:
+                  type: array
+                  minItems: 1
+                  items: {$ref: "#/$defs/Entity"}
+                valueObjects:
+                  type: array
+                  items: {$ref: "#/$defs/Entity"}
+                commands: {type: array, items: {type: string, minLength: 1}, description: "storming command labels this aggregate handles"}
+                events: {type: array, items: {type: string, minLength: 1}, description: "storming domain event labels this aggregate emits"}
+                invariants:
+                  type: array
+                  items:
+                    type: object
+                    required: [statement]
+                    additionalProperties: false
+                    properties:
+                      statement: {type: string, minLength: 1, description: "a storming constraint's rule, or one written here"}
+                      rules: {type: array, items: {type: string, pattern: "^BR-[0-9]+$"}}
+          events:
+            type: array
+            items:
+              type: object
+              required: [name]
+              additionalProperties: false
+              properties:
+                name: {type: string, minLength: 1, description: "the storming domain event label"}
+                pivotal: {type: boolean}
+                temporal: {type: boolean}
+                attributes: {type: array, items: {type: string, minLength: 1}, description: "Glossary fact type names the event carries"}
+          policies:
+            type: array
+            items:
+              type: object
+              required: [id, name, when, then, execution]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^POL-[0-9]+$"}
+                name: {type: string, minLength: 1}
+                when: {type: array, minItems: 1, items: {type: string, minLength: 1}, description: "domain event labels that trigger it"}
+                then: {type: array, minItems: 1, items: {type: string, minLength: 1}, description: "command labels it invokes"}
+                condition: {type: string}
+                execution: {enum: [automatic, manual]}
+                parameters: {type: array, items: {type: object, required: [name, value], additionalProperties: false, properties: {name: {type: string, minLength: 1}, value: {type: string}}}}
+          readModels:
+            type: array
+            items:
+              type: object
+              required: [name, informs, fields]
+              additionalProperties: false
+              properties:
+                name: {type: string, minLength: 1}
+                informs: {type: array, items: {type: string, minLength: 1}, description: "actor labels"}
+                updatedBy: {type: array, items: {type: string, minLength: 1}, description: "domain event labels, of this context or of another one whose event updates it; events[] lists this context's only"}
+                fields: {type: array, items: {type: string, minLength: 1}, description: "Glossary fact type names"}
+          externalSystems:
+            type: array
+            items:
+              type: object
+              required: [name]
+              additionalProperties: false
+              properties:
+                name: {type: string, minLength: 1}
+                issues: {type: array, items: {type: string, minLength: 1}, description: "command labels"}
+                handles: {type: array, items: {type: string, minLength: 1}, description: "command labels"}
+                emits: {type: array, items: {type: string, minLength: 1}, description: "domain event labels"}
+        $defs:
+          Entity:
+            type: object
+            required: [name, attributes]
+            additionalProperties: false
+            properties:
+              name: {type: string, minLength: 1}
+              attributes: {type: array, items: {type: string, minLength: 1}, description: "Glossary fact type names"}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"
+---
+# Exactly what one capability does: one Spec per CAP-n of a Prd. Three forms joined by citation: stories (Connextra)
+# cover requirements (EARS), requirements enforce rules, acceptance scenarios (Given/When/Then) belong to a story; every
+# name is the DomainModel's, every rule the BusinessRules', every quality an Architecture scenario. A Spec adds behaviour
+# and cites everything else; it never names a Design or a Plan.
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata: {name: specs.sdd.persimmon.ai}
+spec:
+  group: sdd.persimmon.ai
+  names: {kind: Spec, plural: specs}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [title, prd, capability, architecture, domainModel, stories, requirements, qualities, openQuestions]
+        additionalProperties: false
+        properties:
+          title: {type: string, minLength: 1}
+          businessRules: {type: string, minLength: 1, description: "artifact id of the BusinessRules every BR-n here cites; the Validator refuses a document whose bound rules are another artifact (rules-mismatch)"}
+          prd: {type: string, minLength: 1, description: "artifact id of the Prd"}
+          capability: {type: string, pattern: "^CAP-[0-9]+$", description: "the one capability of the Prd this Spec is"}
+          architecture: {type: string, minLength: 1, description: "artifact id of the Architecture the qualities cite"}
+          domainModel: {type: string, minLength: 1, description: "artifact id of the DomainModel of the capability's context; every command, event and read model name is its"}
+          stories:
+            type: array
+            minItems: 1
+            description: "the user's side (Connextra): who wants what, why; covers requirements, owns acceptance scenarios"
+            items:
+              type: object
+              required: [id, role, goal, benefit, requirements, acceptance]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^US-[0-9]+$"}
+                role: {type: string, minLength: 1, description: "As a <role>: a Prd user name"}
+                goal: {type: string, minLength: 1, description: "I want <goal>: infinitive, in Glossary terms, no solution"}
+                benefit: {type: string, minLength: 1, description: "so that <benefit>: names a G-n in prose when one applies"}
+                requirements: {type: array, minItems: 1, items: {type: string, pattern: "^FR-[0-9]+$"}, description: "the requirements this story covers"}
+                commands: {type: array, items: {type: string, minLength: 1}, description: "DomainModel command labels the story invokes"}
+                events: {type: array, items: {type: string, minLength: 1}, description: "DomainModel domain event labels the story observes or causes"}
+                readModels: {type: array, items: {type: string, minLength: 1}, description: "DomainModel read model names the story reads"}
+                acceptance:
+                  type: array
+                  minItems: 1
+                  description: "acceptance scenarios (Given/When/Then) with concrete values; one test decides each on one run; an outcome measured over time is a Prd success criterion"
+                  items:
+                    type: object
+                    required: [id, title, given, when, then]
+                    additionalProperties: false
+                    properties:
+                      id: {type: string, pattern: "^AC-[0-9]+$", description: "unique in the Spec, not per story"}
+                      title: {type: string, minLength: 1}
+                      given: {type: array, minItems: 1, items: {type: string, minLength: 1}, description: "the state before, with values and units"}
+                      when: {type: array, minItems: 1, items: {type: string, minLength: 1}, description: "what the role does; a DomainModel command in prose"}
+                      then: {type: array, minItems: 1, items: {type: string, minLength: 1}, description: "observable outcomes: a recorded fact, a shown value, a refusal with its reason"}
+          requirements:
+            type: array
+            minItems: 1
+            description: "the system's side (EARS): what the system does under which trigger or state; enforces rules"
+            items:
+              type: object
+              required: [id, pattern, statement]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^FR-[0-9]+$"}
+                pattern: {enum: [ubiquitous, event-driven, state-driven, unwanted-behaviour, optional, complex]}
+                statement: {type: string, minLength: 1, description: "one EARS sentence of the declared pattern over 'the system'; names a rule by BR-n instead of copying its condition; a quantity names a unit"}
+                rules: {type: array, items: {type: string, pattern: "^BR-[0-9]+$"}, description: "the rules this requirement enforces"}
+          qualities:
+            type: array
+            description: "Architecture quality scenarios the capability is held to; a delta only tightens"
+            items:
+              type: object
+              required: [scenario]
+              additionalProperties: false
+              properties:
+                scenario: {type: string, pattern: "^QS-[0-9]+$"}
+                delta: {type: string, minLength: 1, description: "a stricter measure or response for this capability; absent means the scenario as written"}
+          openQuestions:
+            type: array
+            description: "an unknown fact is a question here, never a guess in a story"
+            items:
+              type: object
+              required: [id, question]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^Q-[0-9]+$"}
+                question: {type: string, minLength: 1}
+                resolution: {type: string}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"
+---
+# One reusable Design: an HTTP or async API contract or a data schema, for one Architecture building block,
+# shared by every capability that uses it. The document is embedded whole and never parsed here; `elements[]` is the
+# index a Validator reads: what in the DomainModel each operation, channel or table realises, or for a ui Design which
+# operation of the block's API Designs each screen and action calls. A Spec never cites a
+# Design; the Plan (later) says which assets realise which capability.
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata: {name: designs.sdd.persimmon.ai}
+spec:
+  group: sdd.persimmon.ai
+  names: {kind: Design, plural: designs}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [title, type, architecture, block, document, elements, rules, decisions, openQuestions]
+        # a ui Design indexes its block's API Designs, never a DomainModel (32-ui-design-process.md)
+        if: {properties: {type: {const: ui}}}
+        then: {not: {required: [domainModel]}}
+        else: {required: [domainModel]}
+        additionalProperties: false
+        properties:
+          title: {type: string, minLength: 1}
+          businessRules: {type: string, minLength: 1, description: "artifact id of the BusinessRules every BR-n here cites; the Validator refuses a document whose bound rules are another artifact (rules-mismatch)"}
+          type: {enum: [http-api, async-api, data-schema, ui]}
+          architecture: {type: string, minLength: 1, description: "artifact id of the Architecture the block is in"}
+          block: {type: string, pattern: "^BB-[0-9]+$", description: "the building block this asset belongs to"}
+          interface: {type: string, minLength: 1, description: "for an API: the name of the interface the block provides (Architecture buildingBlocks[].interfaces[].name)"}
+          domainModel: {type: string, minLength: 1, description: "artifact id of the DomainModel the elements realise; absent on a ui Design, whose elements realise operations of the block's API Designs"}
+          designSystem: {type: string, minLength: 1, description: "for a ui Design: artifact id of the DesignSystem its screens follow (32-ui-design-process.md)"}
+          document:
+            type: object
+            required: [mediaType, content]
+            additionalProperties: false
+            properties:
+              mediaType: {enum: [application/openapi+yaml, application/asyncapi+yaml, application/schema+json, application/sql, text/markdown]}
+              content: {type: string, minLength: 1, description: "the contract whole: OpenAPI 3.1, AsyncAPI 3, JSON Schema, DDL, or a ui Design's screen sections"}
+          elements:
+            type: array
+            minItems: 1
+            description: "the index of the document: one per operation, channel, message or table, or per screen and action of a ui Design; what the Validator checks against the DomainModel"
+            items:
+              type: object
+              required: [id, name, realises]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^EL-[0-9]+$"}
+                name: {type: string, minLength: 1, description: "as the document names it: 'POST /claims', 'claim.submitted', 'claim_line', 'Door Status', 'Book a Room: Book'"}
+                realises:
+                  type: object
+                  required: [kind, name]
+                  additionalProperties: false
+                  properties:
+                    kind: {enum: [command, event, readModel, aggregate, operation]}
+                    name: {type: string, minLength: 1, description: "the DomainModel label, AG-n for an aggregate, or for a ui Design the operation as the API Design's element names it ('GET /rooms/{roomId}/status')"}
+                rules: {type: array, items: {type: string, pattern: "^BR-[0-9]+$"}, description: "the rules this element's refusals or constraints enforce"}
+          rules: {type: array, items: {type: string, pattern: "^BR-[0-9]+$"}, description: "every rule the document enforces; the union of the elements'"}
+          decisions: {type: array, items: {type: string, minLength: 1}, description: "Adr artifact ids taken for this asset"}
+          references:
+            type: array
+            description: "what outside the engine this Design follows or is drawn in (a Figma file, a design tool's share link, a git path): ExternalResourceRefs (00-resource.md), version pinned when the tool has one; a pointer the Validator never fetches, never the document itself"
+            items:
+              type: object
+              required: [provider, type, id, locator]
+              additionalProperties: false
+              properties:
+                provider: {type: string, minLength: 1, description: "figma, claude-design, git, ..."}
+                type: {type: string, minLength: 1, description: "the provider's kind of thing: file, frame, repository"}
+                id: {type: string, minLength: 1, description: "the provider's id of it"}
+                locator: {type: object, description: "how to reach it, in the provider's terms: a node id, a path, a branch"}
+                version: {type: string, description: "the tool's version or revision of it at the time of this Design"}
+                url: {type: string, format: uri}
+          openQuestions:
+            type: array
+            items:
+              type: object
+              required: [id, question]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^Q-[0-9]+$"}
+                question: {type: string, minLength: 1}
+                resolution: {type: string}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"
+---
+# The product's visual language, once per product, as a DESIGN.md file (Google Labs' open format) embedded whole:
+# tokens in YAML front matter, eight ordered sections of rationale. The pack adds its links only; the file is the truth
+# and the official linter checks it (32-ui-design-process.md). A ui Design cites it by id.
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata: {name: designsystems.sdd.persimmon.ai}
+spec:
+  group: sdd.persimmon.ai
+  names: {kind: DesignSystem, plural: designsystems}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [title, prd, document, decisions, openQuestions]
+        additionalProperties: false
+        properties:
+          title: {type: string, minLength: 1}
+          prd: {type: string, minLength: 1, description: "artifact id of the Prd of the product"}
+          document:
+            type: object
+            required: [mediaType, content]
+            additionalProperties: false
+            properties:
+              mediaType: {enum: [text/markdown]}
+              content: {type: string, minLength: 1, description: "the DESIGN.md whole: YAML front matter of tokens, then the sections Overview, Colors, Typography, Layout, Elevation & Depth, Shapes, Components, Do's and Don'ts"}
+          decisions: {type: array, items: {type: string, minLength: 1}, description: "Adr artifact ids taken for the visual language"}
+          openQuestions:
+            type: array
+            items:
+              type: object
+              required: [id, question]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^Q-[0-9]+$"}
+                question: {type: string, minLength: 1}
+                resolution: {type: string}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"
+---
+# The Plan of one Spec: the work that builds its capability, as tasks on one building block each, covering the Spec's
+# requirements, verified by its acceptance scenarios, realising elements of the Designs it builds against. The Plan
+# carries the Spec-to-Design link; a Spec never cites a Design. No estimates, owners or status: status is run state.
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata: {name: plans.sdd.persimmon.ai}
+spec:
+  group: sdd.persimmon.ai
+  names: {kind: Plan, plural: plans}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [title, spec, architecture, designs, tasks, openQuestions]
+        additionalProperties: false
+        properties:
+          title: {type: string, minLength: 1}
+          spec: {type: string, minLength: 1, description: "artifact id of the Spec this plan builds"}
+          architecture: {type: string, minLength: 1, description: "artifact id of the Architecture whose blocks the tasks name"}
+          designs: {type: array, items: {type: string, minLength: 1}, description: "artifact ids of every Design a task realises an element of"}
+          tasks:
+            type: array
+            minItems: 1
+            description: "in build order: a task depends on earlier tasks only"
+            items:
+              type: object
+              required: [id, title, block, covers, verifiedBy]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^T-[0-9]+$"}
+                title: {type: string, minLength: 1}
+                description: {type: string}
+                block: {type: string, pattern: "^BB-[0-9]+$", description: "the one building block this task changes; work on two blocks is two tasks"}
+                covers: {type: array, items: {type: string, pattern: "^FR-[0-9]+$"}, description: "Spec requirements this task implements"}
+                verifiedBy: {type: array, items: {type: string, pattern: "^AC-[0-9]+$"}, description: "Spec acceptance scenarios that pass once this task is done"}
+                elements:
+                  type: array
+                  description: "what of which Design this task realises"
+                  items:
+                    type: object
+                    required: [design, element]
+                    additionalProperties: false
+                    properties:
+                      design: {type: string, minLength: 1, description: "a Design artifact id listed in designs"}
+                      element: {type: string, pattern: "^EL-[0-9]+$"}
+                dependsOn: {type: array, items: {type: string, pattern: "^T-[0-9]+$"}, description: "earlier tasks this one needs finished"}
+          openQuestions:
+            type: array
+            items:
+              type: object
+              required: [id, question]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^Q-[0-9]+$"}
+                question: {type: string, minLength: 1}
+                resolution: {type: string}
   mutability: Immutable
   revisioned: true
   snapshot: "None"

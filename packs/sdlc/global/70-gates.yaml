@@ -1,26 +1,197 @@
-# Gates (14-gate.md). Structure check and human review; both must pass.
+# Gates (14-gate.md). A storming phase passes when the grammar is clean at the phase's level and a human confirmed it.
 apiVersion: persimmon.ai/v1
 kind: Gate
-metadata: {name: prd-approval-gate}
+metadata: {name: storming-gate}
 spec:
   inputs:
-    prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement}}}
-    minRequirements: {type: {kind: value, schema: {type: integer}}, required: false, default: {kind: value, value: 3}}
-    security: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ReviewReport}}, required: false}
-    product: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ReviewReport}}, required: false}
+    model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
+    level: {type: {kind: value, schema: {type: string, enum: [big-picture, process, design]}}}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
   validators:
-    - name: structure
-      ref: {kind: Validator, name: prd-structure}
+    - name: grammar
+      ref: {kind: Validator, name: eventstorming-grammar}
+      inputs:
+        model: {fromInput: model}
+        level: {fromInput: level}
+    - name: confirmed
+      ref: {kind: Validator, name: storming-confirmed}
+      inputs:
+        model: {fromInput: model}
+  policy: {strategy: all}
+  timeout: 72h
+---
+# A derived context passes when its DomainModel agrees with the model.
+apiVersion: persimmon.ai/v1
+kind: Gate
+metadata: {name: derived-gate}
+spec:
+  inputs:
+    model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
+    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
+    contextId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
+  validators:
+    - name: consistency
+      ref: {kind: Validator, name: domain-consistency}
+      inputs:
+        model: {fromInput: model}
+        domainModel: {fromInput: domainModel}
+        context: {fromInput: contextId}
+  policy: {strategy: all}
+  timeout: 5m
+---
+apiVersion: persimmon.ai/v1
+kind: Gate
+metadata: {name: spec-gate}
+spec:
+  inputs:
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
+  validators:
+    - name: consistency
+      ref: {kind: Validator, name: spec-consistency}
+      inputs:
+        spec: {fromInput: spec}
+        prd: {fromInput: prd}
+        domainModel: {fromInput: domainModel}
+        architecture: {fromInput: architecture}
+        rules: {fromInput: rules}
+  policy: {strategy: all}
+  timeout: 5m
+---
+apiVersion: persimmon.ai/v1
+kind: Gate
+metadata: {name: prd-gate}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    previousRules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false, description: "the last round's rules (28-prd-process.md); round one has none"}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict: the findings that may change a rule"}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
+  validators:
+    - name: consistency
+      ref: {kind: Validator, name: prd-consistency}
       inputs:
         prd: {fromInput: prd}
-        minRequirements: {fromInput: minRequirements}      # optional producer with a default feeds a required input
-    - name: humanReview
-      ref: {kind: Validator, name: prd-human-review}
+        rules: {fromInput: rules}
+        previousRules: {fromInput: previousRules, onMissing: omit}
+        feedback: {fromInput: feedback, onMissing: omit}
+    - name: confirmed
+      ref: {kind: Validator, name: prd-confirmed}
       inputs:
         prd: {fromInput: prd}
-        security: {fromInput: security, onMissing: omit}
-        product: {fromInput: product, onMissing: omit}
+        rules: {fromInput: rules}
+  policy: {strategy: all}
+  timeout: 72h
+---
+apiVersion: persimmon.ai/v1
+kind: Gate
+metadata: {name: design-gate}
+spec:
+  inputs:
+    design: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: false}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: false}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
+  validators:
+    - name: consistency
+      ref: {kind: Validator, name: design-consistency}
+      inputs:
+        design: {fromInput: design}
+        architecture: {fromInput: architecture}
+        domainModel: {fromInput: domainModel, onMissing: omit}
+        rules: {fromInput: rules}
+        designSystem: {fromInput: designSystem, onMissing: omit}
+        designs: {fromInput: designs, onMissing: omit}
+  policy: {strategy: all}
+  timeout: 5m
+---
+apiVersion: persimmon.ai/v1
+kind: Gate
+metadata: {name: plan-gate}
+spec:
+  inputs:
+    plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}}
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
+  validators:
+    - name: consistency
+      ref: {kind: Validator, name: plan-consistency}
+      inputs:
+        plan: {fromInput: plan}
+        spec: {fromInput: spec}
+        architecture: {fromInput: architecture}
+        designs: {fromInput: designs}
+  policy: {strategy: all}
+  timeout: 5m
+---
+# An Architecture passes when its citations hold and a human confirmed the block cut and the strategy.
+apiVersion: persimmon.ai/v1
+kind: Gate
+metadata: {name: architecture-gate}
+spec:
+  inputs:
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}}
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    contexts: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext}}}
+    domainModels: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
+    glossaries: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
+  validators:
+    - name: consistency
+      ref: {kind: Validator, name: architecture-consistency}
+      inputs:
+        architecture: {fromInput: architecture}
+        prd: {fromInput: prd}
+        rules: {fromInput: rules}
+        contexts: {fromInput: contexts}
+        domainModels: {fromInput: domainModels}
+        glossaries: {fromInput: glossaries}
+        adrs: {fromInput: adrs}
+    - name: confirmed
+      ref: {kind: Validator, name: architecture-confirmed}
+      inputs:
+        architecture: {fromInput: architecture}
+        adrs: {fromInput: adrs}
+  policy: {strategy: all}
+  timeout: 72h
+---
+# design-system-gate: the linter and the human, both (32-ui-design-process.md).
+apiVersion: persimmon.ai/v1
+kind: Gate
+metadata: {name: design-system-gate}
+spec:
+  inputs:
+    designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
+  validators:
+    - name: lint
+      ref: {kind: Validator, name: design-system-lint}
+      inputs:
+        designSystem: {fromInput: designSystem}
+    - name: confirmed
+      ref: {kind: Validator, name: design-system-confirmed}
+      inputs:
+        designSystem: {fromInput: designSystem}
   policy: {strategy: all}
   timeout: 72h

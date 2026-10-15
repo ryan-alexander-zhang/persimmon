@@ -1,17 +1,16 @@
-# Executors (13-executor.md). Global; a Namespace overrides one by name to bind its own credentials.
+# Executors (13-executor.md). Global; a Namespace overrides one by name to bind its own credentials or pick a model.
 apiVersion: persimmon.ai/v1
 kind: Executor
-metadata: {name: claude-agent}
+metadata: {name: storming-agent}
 spec:
   type: agent
   adapter: claude-code/v1
   configuration:
     model: claude-opus-5
-    sandbox: workspace-write
+    sandbox: read-only      # the storming and derive Tasks answer JSON and write no file
   security:
     networkAccess: allowlist
-    allowedHosts: [api.anthropic.com, github.com]
-    credentialBindings: [github-token]   # Global name; a Namespace overrides this Executor to bind its own
+    allowedHosts: [api.anthropic.com]   # declarative on claude-code/v1 (13-executor.md decisions)
 ---
 apiVersion: persimmon.ai/v1
 kind: Executor
@@ -20,3 +19,81 @@ spec:
   type: human
   adapter: cli-human/v1
   configuration: {}
+---
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: spec-agent}
+spec:
+  type: agent
+  adapter: claude-code/v1
+  configuration:
+    model: claude-opus-5
+    sandbox: read-only      # write-spec answers JSON and writes no file
+  security:
+    networkAccess: allowlist
+    allowedHosts: [api.anthropic.com]
+---
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: prd-agent}
+spec:
+  type: agent
+  adapter: claude-code/v1
+  configuration:
+    model: claude-opus-5
+    sandbox: read-only      # draft-prd answers JSON and writes no file
+  security:
+    networkAccess: allowlist
+    allowedHosts: [api.anthropic.com]
+---
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: design-agent}
+spec:
+  type: agent
+  adapter: claude-code/v1
+  configuration:
+    model: claude-opus-5
+    sandbox: read-only      # design-asset answers JSON and writes no file
+  security:
+    networkAccess: allowlist
+    allowedHosts: [api.anthropic.com]
+---
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: plan-agent}
+spec:
+  type: agent
+  adapter: claude-code/v1
+  configuration:
+    model: claude-opus-5
+    sandbox: read-only      # write-plan answers JSON and writes no file
+  security:
+    networkAccess: allowlist
+    allowedHosts: [api.anthropic.com]
+---
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: architecture-agent}
+spec:
+  type: agent
+  adapter: claude-code/v1
+  configuration:
+    model: claude-opus-5
+    sandbox: read-only      # write-architecture answers JSON and writes no file
+  security:
+    networkAccess: allowlist
+    allowedHosts: [api.anthropic.com]
+---
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: design-system-agent}
+spec:
+  type: agent
+  adapter: claude-code/v1
+  configuration:
+    model: claude-opus-5
+    sandbox: read-only      # write-design-system answers JSON and writes no file
+  security:
+    networkAccess: allowlist
+    allowedHosts: [api.anthropic.com]

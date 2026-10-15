@@ -1,0 +1,10 @@
+# Prompts (15-prompt-skill.md).
+apiVersion: persimmon.ai/v1
+kind: Prompt
+metadata: {name: write-prd-template}
+spec:
+  mediaType: text/markdown
+  content: |
+    You are writing a product requirement document.
+    Preserve entity ids from the research report.
+    One requirement per line, each with an id and a testable statement.

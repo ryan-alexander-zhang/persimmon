@@ -1,33 +1,181 @@
-# Validators (14-gate.md). The adapter Validator prd-security-scan needs threat-model/v1 and is not in the local pack.
+# Validators of the AI Native pack (14-gate.md). eventstorming-grammar runs the grammar over a model (24-eventstorming.md).
 apiVersion: persimmon.ai/v1
 kind: Validator
-metadata: {name: prd-structure}
+metadata: {name: eventstorming-grammar}
 spec:
   inputs:
-    prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement}}}
-    minRequirements: {type: {kind: value, schema: {type: integer}}}
+    model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
+    level: {type: {kind: value, schema: {type: string, enum: [big-picture, process, design]}}, required: false}
   evaluator:
-    type: cel
-    expression: |
-      {
-        "passed": artifacts.prd.content.requirements.size() >= inputs.minRequirements
-                  && artifacts.prd.content.requirements.all(r, r.statement != ""),
-        "findings": artifacts.prd.content.requirements.size() < inputs.minRequirements
-                  ? [{"severity": "error", "code": "too_few", "message": "fewer than minRequirements"}] : [],
-        "evidence": [inputs.prd]
-      }
+    type: adapter
+    adapter: eventstorming/v1
+    configuration: {}
+  timeout: 1m
+---
+# The human confirmation of a storming phase, as a Validator over the confirm-storming Task.
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: storming-confirmed}
+spec:
+  inputs:
+    model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
+  evaluator:
+    type: task
+    taskRef: {kind: Task, name: confirm-storming}
+    resultOutput: result
+  timeout: 72h
+---
+# A DomainModel agrees with the design-level model it was derived from (26-domain-discovery.md).
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: domain-consistency}
+spec:
+  inputs:
+    model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
+    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
+    context: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}
+  evaluator:
+    type: adapter
+    adapter: eventstorming/v1
+    configuration: {}
+  timeout: 1m
+---
+# spec-consistency: sdd/v1 checks a Spec against the artifacts it cites (27-spec-process.md).
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: spec-consistency}
+spec:
+  inputs:
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+  evaluator:
+    type: adapter
+    adapter: sdd/v1
+    configuration: {}
+  timeout: 1m
+---
+# prd-consistency: sdd/v1 checks a Prd against the BusinessRules it cites (28-prd-process.md); prd-confirmed is the human.
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: prd-consistency}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    previousRules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false, description: "with feedback: a rule changed or dropped since, unnamed by any finding, is rule-drift"}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+  evaluator:
+    type: adapter
+    adapter: sdd/v1
+    configuration: {}
   timeout: 1m
 ---
 apiVersion: persimmon.ai/v1
 kind: Validator
-metadata: {name: prd-human-review}
+metadata: {name: prd-confirmed}
 spec:
   inputs:
-    prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement}}}
-    security: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ReviewReport}}, required: false}
-    product: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ReviewReport}}, required: false}
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
   evaluator:
     type: task
-    taskRef: {kind: Task, name: approve-prd}
+    taskRef: {kind: Task, name: confirm-prd}
     resultOutput: result
-  timeout: 48h
+  timeout: 72h
+---
+# design-consistency: sdd/v1 checks a Design's index against the Architecture, DomainModel and rules (29-design-process.md);
+# a ui Design's against the API Designs bound on `designs` instead of the DomainModel (32-ui-design-process.md).
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: design-consistency}
+spec:
+  inputs:
+    design: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: false, description: "what the elements realise; not for a ui Design"}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: false, description: "for a ui Design: the DesignSystem it must cite"}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "for a ui Design: the API Designs whose operations its elements realise"}
+  evaluator:
+    type: adapter
+    adapter: sdd/v1
+    configuration: {}
+  timeout: 1m
+---
+# plan-consistency: sdd/v1 checks a Plan's coverage of its Spec and its elements against the Designs (30-plan-process.md).
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: plan-consistency}
+spec:
+  inputs:
+    plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}}
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
+  evaluator:
+    type: adapter
+    adapter: sdd/v1
+    configuration: {}
+  timeout: 1m
+---
+# architecture-consistency: sdd/v1 checks an Architecture against the Prd, the contexts, models, glossaries, rules and Adrs (31-architecture-process.md).
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: architecture-consistency}
+spec:
+  inputs:
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    contexts: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext}}}
+    domainModels: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
+    glossaries: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
+    adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}}
+  evaluator:
+    type: adapter
+    adapter: sdd/v1
+    configuration: {}
+  timeout: 1m
+---
+# The human confirmation of an Architecture, as a Validator over the confirm-architecture Task.
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: architecture-confirmed}
+spec:
+  inputs:
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}}
+  evaluator:
+    type: task
+    taskRef: {kind: Task, name: confirm-architecture}
+    resultOutput: result
+  timeout: 72h
+---
+# design-system-lint: designmd/v1 runs the official DESIGN.md linter; its warnings are defects here (32-ui-design-process.md).
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: design-system-lint}
+spec:
+  inputs:
+    designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}}
+  evaluator:
+    type: adapter
+    adapter: designmd/v1
+    configuration: {failOnWarning: true}
+  timeout: 1m
+---
+# The human confirmation of a DesignSystem, as a Validator over the confirm-design-system Task.
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: design-system-confirmed}
+spec:
+  inputs:
+    designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}}
+  evaluator:
+    type: task
+    taskRef: {kind: Task, name: confirm-design-system}
+    resultOutput: result
+  timeout: 72h

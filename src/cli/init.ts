@@ -9,7 +9,7 @@ import { loadDocs } from './io.js'
 
 const root = () => join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
-/** `packs/sdlc` next to the package root, wherever the binary runs from. */
+/** `packs/sdlc` next to the package root, wherever the binary runs from; `packs/demo` is applied by hand. */
 export function packDir(): string {
   return join(root(), 'packs', 'sdlc')
 }

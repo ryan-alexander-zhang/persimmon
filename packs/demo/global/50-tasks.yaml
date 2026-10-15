@@ -1,0 +1,99 @@
+# Tasks (12-task.md).
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: research}
+spec:
+  inputs:
+    repository: {type: {kind: externalResource, provider: git, type: repository}}
+  outputs:
+    report: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport}}}
+  executorRef: {kind: Executor, name: claude-agent}
+  action:
+    instructions: "Research the problem space of the repository. Publish a ResearchReport with titled findings."
+    context:
+      - {kind: file, input: repository, path: README.md}
+    workspace: {input: repository}   # README.md is the repository's, and the agent works there
+  timeout: 20m
+  retryPolicy:
+    maxAttempts: 3
+    backoff: {strategy: exponential, initial: 30s, max: 5m, jitter: none}
+    retryOn: [timeout, agent_failed, transient_network]
+  sideEffects: none
+---
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: write-prd}
+spec:
+  inputs:
+    research: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ResearchReport}}}
+    repository: {type: {kind: externalResource, provider: git, type: repository}, required: false}
+    maxRequirements: {type: {kind: value, schema: {type: integer, minimum: 1}}, required: false, default: {kind: value, value: 12}}
+  outputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement}}}
+  executorRef: {kind: Executor, name: claude-agent}
+  action:
+    instructions: "Write the PRD. Preserve entity ids. Respect the maxRequirements input."
+    context:
+      - {kind: file, input: repository, path: AGENTS.md}
+      - {kind: artifact, input: research}
+      - {kind: prompt, ref: {kind: Prompt, name: write-prd-template}}
+    parameters: {effort: high}
+  timeout: 30m
+  retryPolicy:
+    maxAttempts: 3
+    backoff: {strategy: exponential, initial: 30s, max: 5m, jitter: full}
+    retryOn: [timeout, agent_failed, transient_network]
+    abortOn: [permission_denied, invalid_input, schema_violation]
+  sideEffects: none
+---
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: approve-prd}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement}}}
+    security: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ReviewReport}}, required: false}
+    product: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ReviewReport}}, required: false}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
+  executorRef: {kind: Executor, name: local-reviewer}
+  action:
+    instructions: "Approve or reject this PRD. The security and product reviews are attached when they finished. List blocking findings."
+    context:
+      - {kind: artifact, input: prd}
+      - {kind: artifact, input: security}     # dropped when the review did not finish (12-task.md)
+      - {kind: artifact, input: product}
+  timeout: 48h
+  sideEffects: none
+---
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: security-review}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement}}}
+  outputs:
+    report: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ReviewReport}}}
+  executorRef: {kind: Executor, name: claude-agent}
+  action:
+    instructions: "Review the PRD for security and privacy risks. Publish a ReviewReport with a verdict."
+    context:
+      - {kind: artifact, input: prd}
+  timeout: 2h
+  sideEffects: none
+---
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: product-review}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement}}}
+  outputs:
+    report: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ReviewReport}}}
+  executorRef: {kind: Executor, name: claude-agent}
+  action:
+    instructions: "Review the PRD for product fit and completeness. Publish a ReviewReport with a verdict."
+    context:
+      - {kind: artifact, input: prd}
+  timeout: 2h
+  sideEffects: none

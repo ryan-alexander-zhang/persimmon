@@ -8,6 +8,7 @@ import { askForm, example as template, type Form } from './signal.js'
 import { runCli } from './index.js'
 
 const example = (n: string) => parse(readFileSync(`docs/design/examples/${n}.yaml`, 'utf8'))
+const demoPack = ['10-artifact-kinds', '20-relation-types', '30-prompts', '40-executors', '50-tasks', '60-validators', '70-gates', '80-workflows'].map((f) => `packs/demo/global/${f}.yaml`)
 const fakeAdapter = (id: string, types = 'agent,script') => ({
   apiVersion: 'persimmon.ai/v1', kind: 'Adapter', metadata: { name: id.replace('/', '-') },
   spec: { id, roles: ['executor'], transport: 'stdio', command: ['node', join(process.cwd(), 'test/fixtures/fake-adapter.mjs')], env: { FAKE_ID: id, FAKE_TYPES: types } },
@@ -23,6 +24,12 @@ describe('persimmon CLI', () => {
     writeFileSync(p, docs.map((d) => stringify(d)).join('---\n'))
     return p
   }
+  /** init, then the demo pack by hand: its prd-create and Trigger are what the run tests drive */
+  const initDemo = async () => {
+    await run('init')
+    await run('apply', ...demoPack, '--global')
+    await run('apply', 'packs/demo/namespaced/on-prd-published.yaml', '-n', 'default')
+  }
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), 'persimmon-cli-'))
     out = []
@@ -31,15 +38,19 @@ describe('persimmon CLI', () => {
   })
   afterEach(() => rmSync(dir, { recursive: true, force: true }))
 
-  it('init writes config and applies the SDLC pack; validate and apply report per Resource', async () => {
+  it('init writes config and applies the SDLC pack; the demo pack applies by hand; validate and apply report per Resource', async () => {
     expect([await run('init'), err]).toEqual([0, []])
     expect(out[0]).toBe('wrote persimmon.yaml')
     expect(out.filter((l) => l.startsWith('created')).length).toBeGreaterThanOrEqual(14)
     expect(out.filter((l) => l.startsWith('warn'))).toEqual([]) // every pack Executor's Adapter ships
-    expect(out).toContain('created Trigger/on-prd-published') // the pack's Trigger listens in defaultNamespace
+    expect(out).toContain('created Pipeline/domain-discovery') // the SDLC pack (23-pack-sdlc.md) is the default flow
     out = []
     expect(await run('get', 'Workflow')).toBe(0)
-    expect(out).toEqual(['Workflow/prd-approval', 'Workflow/prd-create']) // the pack is Global (20-pack.md)
+    expect(out).toEqual(['Workflow/derive-all', 'Workflow/design-all', 'Workflow/plan-all', 'Workflow/spec-all']) // the pack is Global (20-pack.md)
+    out = [] // the demo pack (20-pack.md) applies like any user definitions: global/ as Global, its Trigger into the default Namespace
+    expect([await run('apply', ...demoPack, '--global'), out.filter((l) => !l.startsWith('created'))]).toEqual([0, ['unchanged Executor/local-reviewer']]) // same definition in both packs
+    out = []
+    expect([await run('apply', 'packs/demo/namespaced/on-prd-published.yaml', '-n', 'default'), out]).toEqual([0, ['created Trigger/on-prd-published']]) // the pack's Trigger listens in defaultNamespace
     out = []
     expect([await run('init'), err]).toEqual([0, []]) // idempotent
     expect(out.every((l) => !l.startsWith('created'))).toBe(true)
@@ -50,13 +61,11 @@ describe('persimmon CLI', () => {
     expect(out).toEqual(['claude-code/v1  Ready  roles: executor', 'cli-human/v1  Ready  roles: executor', 'codex/v1  Ready  roles: executor', 'designmd/v1  Ready  roles: evaluator', 'eventstorming/v1  Ready  roles: evaluator', 'sdd/v1  Ready  roles: evaluator', 'subprocess/v1  Ready  roles: executor'])
 
     out = []
-    expect([await run('validate', 'packs/sdlc/global/50-tasks.yaml', 'packs/sdlc/global/80-workflows.yaml', 'packs/sdlc/global/40-executors.yaml'), out.filter((l) => l.startsWith('error'))]).toEqual([0, []])
+    expect([await run('validate', 'packs/demo/global/50-tasks.yaml', 'packs/demo/global/80-workflows.yaml', 'packs/demo/global/40-executors.yaml'), out.filter((l) => l.startsWith('error'))]).toEqual([0, []])
     expect(out.filter((l) => l.startsWith('ok')).length).toBeGreaterThanOrEqual(7)
-    // the AI Native pack's kinds and its worked domain example validate (23-pack-ai-native.md)
-    out = [] // the pack validates as a file set before it is applied: a Workflow stepping into a ReviewLoop of the same files resolves
-    expect([await run('validate', ...['10-artifact-kinds', '30-prompts', '40-executors', '50-tasks', '60-validators', '70-gates', '80-workflows'].map((f) => `packs/ai-native/global/${f}.yaml`)), out.filter((l) => l.startsWith('error'))]).toEqual([0, []])
-    out = []
-    expect([await run('apply', ...['10-artifact-kinds', '30-prompts', '40-executors', '50-tasks', '60-validators', '70-gates', '80-workflows'].map((f) => `packs/ai-native/global/${f}.yaml`), '--global'), out.filter((l) => l.startsWith('error') || l.startsWith('warn'))]).toEqual([0, []])
+    // the SDLC pack's kinds and its worked domain example validate (23-pack-sdlc.md)
+    out = [] // the pack validates as a file set in a fresh project: a Workflow stepping into a ReviewLoop of the same files resolves
+    expect([await run('validate', ...['10-artifact-kinds', '30-prompts', '40-executors', '50-tasks', '60-validators', '70-gates', '80-workflows'].map((f) => `packs/sdlc/global/${f}.yaml`)), out.filter((l) => l.startsWith('error'))]).toEqual([0, []])
     out = []
     expect([await run('validate', 'docs/design/examples/ai-native-domain.yaml'), out.filter((l) => !l.startsWith('ok'))]).toEqual([0, []])
     expect(out.length).toBe(14)
@@ -72,7 +81,7 @@ describe('persimmon CLI', () => {
     expect(await run('validate', file('bad.yaml', [bad]))).toBe(1)
     expect(out.some((l) => l.startsWith('error Workflow/prd-create') && l.includes('entry must equal'))).toBe(true)
     // a Workflow in a file sees the project's Namespaced Tasks, as apply would place it (checker stamps the default Namespace)
-    const nsTask = { ...parse(readFileSync('packs/sdlc/global/50-tasks.yaml', 'utf8').split('---')[0]!), metadata: { name: 'research-local' } }
+    const nsTask = { ...parse(readFileSync('packs/demo/global/50-tasks.yaml', 'utf8').split('---')[0]!), metadata: { name: 'research-local' } }
     expect(await run('apply', file('ns-task.yaml', [nsTask]))).toBe(0)
     const local = { ...example('workflow-prd-create'), metadata: { name: 'local-create' } }
     local.spec.steps[0].uses = { kind: 'Task', name: 'research-local' }
@@ -97,12 +106,12 @@ describe('persimmon CLI', () => {
 
     out = []
     expect(await run('get', 'Task')).toBe(0)
-    expect(out.length).toBe(17) // the demo pack's five and the AI Native pack's twelve
+    expect(out.length).toBe(17) // the SDLC pack's twelve and the demo pack's five
     expect(await run('delete', 'Task/write-prd')).toBe(1) // referenced by prd-create
     expect(err.at(-1)).toMatch(/referenced/)
 
     // a Namespaced override shadows the Global pack Task; refs resolve Namespace first, --global reaches the shadowed one
-    const override = { apiVersion: 'persimmon.ai/v1', kind: 'Task', metadata: { name: 'write-prd' }, spec: { ...(parse(readFileSync('packs/sdlc/global/50-tasks.yaml', 'utf8').split('---')[1]!).spec as object), timeout: '5m' } }
+    const override = { apiVersion: 'persimmon.ai/v1', kind: 'Task', metadata: { name: 'write-prd' }, spec: { ...(parse(readFileSync('packs/demo/global/50-tasks.yaml', 'utf8').split('---')[1]!).spec as object), timeout: '5m' } }
     const incompatible = structuredClone(override) as { spec: { outputs: Record<string, unknown> } }
     incompatible.spec.outputs = { other: { type: { kind: 'value', schema: { type: 'string' } } } }
     err = []
@@ -190,7 +199,7 @@ describe('persimmon CLI', () => {
   })
 
   it('create --follow drives a run to its terminal value and logs show the RunLog', async () => {
-    await run('init')
+    await initDemo()
     await run('adapter', 'install', file('a.yaml', [fakeAdapter('claude-code/v1')]))
     const wr = example('run-workflowrun')
     const repoRef = wr.spec.inputs.repository.ref
@@ -227,7 +236,7 @@ describe('persimmon CLI', () => {
   })
 
   it('run builds a manual WorkflowRun from --input values and follows it', async () => {
-    await run('init')
+    await initDemo()
     await run('adapter', 'install', file('a.yaml', [fakeAdapter('claude-code/v1')]))
     const repo = example('resource-refs').externalResourceRef
     writeFileSync(join(dir, 'repo.yaml'), stringify({ kind: 'externalResource', ref: repo }))
@@ -243,7 +252,7 @@ describe('persimmon CLI', () => {
     expect(shown.metadata.namespace).toBe('default')
 
     // a Pipeline runs by name too; the run records the kind it named (21-composition.md)
-    const prdCreate = parse(readFileSync('packs/sdlc/global/80-workflows.yaml', 'utf8').split('---').find((d) => d.includes('name: prd-create'))!).spec
+    const prdCreate = parse(readFileSync('packs/demo/global/80-workflows.yaml', 'utf8').split('---').find((d) => d.includes('name: prd-create'))!).spec
     const pipeline = { apiVersion: 'persimmon.ai/v1', kind: 'Pipeline', metadata: { name: 'prd-pipe' }, spec: { inputs: prdCreate.inputs, outputs: prdCreate.outputs, outputBindings: prdCreate.outputBindings, phases: prdCreate.steps, timeout: '3h' } }
     expect(await run('apply', file('pipe.yaml', [pipeline]))).toBe(0)
     out = []
@@ -370,7 +379,7 @@ describe('persimmon CLI', () => {
   })
 
   it('complete refuses a TaskRun that is not waiting for a human, and stops at EOF keeping the form', async () => {
-    await run('init')
+    await initDemo()
     await run('adapter', 'install', file('a.yaml', [fakeAdapter('claude-code/v1')]))
     const wr = example('run-workflowrun')
     await runCli(['create', file('run.yaml', [{ apiVersion: wr.apiVersion, kind: wr.kind, metadata: { name: 'demo-002' }, spec: { ...wr.spec, timeout: '1h' } }]), '--follow'], { cwd: dir, out: (l) => out.push(l), err: (l) => err.push(l) })
