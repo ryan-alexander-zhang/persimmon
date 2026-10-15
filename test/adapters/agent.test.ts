@@ -232,8 +232,8 @@ describe('claude-code/v1', () => {
   it('an API status the CLI reports is the call refused, retryable; an expired session is the login, not', async () => {
     const r = await adapter('claude-code', { id: 9, op: 'execute', payload: payload() }, { STUB_AUTH: 'Failed to authenticate. API Error: 403 Request not allowed' })
     expect(last(r)).toMatchObject({ ok: false, error: { code: 'agent_failed', message: 'Failed to authenticate. API Error: 403 Request not allowed', retryable: true } })
-    for (const m of ['API Error: 429 rate_limit_error', 'API Error: 529 Overloaded']) expect(last(await adapter('claude-code', { id: 9, op: 'execute', payload: payload() }, { STUB_AUTH: m }))).toMatchObject({ ok: false, error: { code: 'agent_failed', retryable: true } })
-    expect(last(await adapter('claude-code', { id: 9, op: 'execute', payload: payload() }, { STUB_AUTH: 'OAuth session expired and could not be refreshed' }))).toMatchObject({ ok: false, error: { code: 'permission_denied', retryable: false } })
+    for (const m of ['Failed to authenticate. API Error: 429 rate_limit_error', 'authentication_error: API Error: 529 Overloaded']) expect(last(await adapter('claude-code', { id: 9, op: 'execute', payload: payload() }, { STUB_AUTH: m }))).toMatchObject({ ok: false, error: { code: 'agent_failed', retryable: true } })
+    for (const m of ['OAuth session expired and could not be refreshed', 'API Error: 403 {"type":"permission_error","message":"OAuth token has been revoked"}']) expect(last(await adapter('claude-code', { id: 9, op: 'execute', payload: payload() }, { STUB_AUTH: m }))).toMatchObject({ ok: false, error: { code: 'permission_denied', retryable: false } })
   })
 
   it('a publish the engine refuses is schema_violation, not retryable', async () => {
