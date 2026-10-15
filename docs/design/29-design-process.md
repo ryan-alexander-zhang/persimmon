@@ -58,6 +58,7 @@ The Adapter picks the mode from the payload: `artifacts.spec` (or `artifacts.mod
 | the document is the truth, the index its checked view: `contract.mjs` reads the names the document declares and `checkDesign` holds the index to them both ways (`element-unbacked`, `document-unindexed`); a document that does not parse is `document-unparsed`. Nothing deeper is read: schemas, fields and a `ui` action's prose are the agent's (`91-roadmap.md`) | `design-consistency` |
 | one Design per block and type by `design-all`, id `<architecture>-<block>-<type>`; a block with two provided interfaces, or realising two contexts, gets its second Design of a type from a run with `qualifier` bound (`interface` beside it for an API), which the id carries: `<architecture>-<block>-<qualifier>-<type>` | `design-rules`; `design-asset` output id |
 | `decisions[]` is not checked: no Adr is in the Validator's payload; the Architecture lists its Adrs and the Prompt picks from that list | convention; Validator later |
+| `references[]` point outside the engine (a Figma file, a design tool's share link, a git path) as `ExternalResourceRef`s with the tool's version pinned; the Validator never fetches one, and the document stays whole in `document.content`: a reference is never a stand-in for it | schema; `design-rules` |
 | a `data-schema` asset realises aggregates (`AG-n`), an `http-api` commands and read models, an `async-api` events; an asset of one type may still index the other kinds (an API that also serves an event feed) | `design-rules` |
 | a Design cites Architecture, DomainModel, Glossary, BusinessRules and Adrs; never a Spec or a Prd: the contract follows from the domain and the block, not from one capability. A `ui` Design cites the DesignSystem and the block's API Designs in place of the DomainModel and Glossary (`32-ui-design-process.md`) | `design-rules`; convention; `ui-domainmodel` |
 
@@ -95,6 +96,13 @@ The Adapter picks the mode from the payload: `artifacts.spec` (or `artifacts.mod
   stay unread, a dialect check is a word list beside this. The first run over the examples found
   example08's fleet API document declared `components` twice, invalid YAML that every earlier gate
   had passed; merged by hand. Found in implementation.
+- A Design may link what lives outside the engine, never replace its document with a link: the
+  content is digested, frozen in the snapshot, pinned by provenance and parsed by the Validator, and a
+  Figma file changes under its link. `references[]` carries `ExternalResourceRef`s, the engine's one
+  shape for an outside thing (`00-resource.md`), inlined in the kind schema because the agent's output
+  schema cannot resolve a cross-file `$ref` (`26-domain-discovery.md`). Files beside the document (a
+  rendered HTML, mockup images, a design directory) are `representations` of the revision, a roadmap
+  row until the agent `publish` carries files. Found in design review.
 - Proven live on `claude-sonnet-5`: `design-all` for the Reservation API of example08's `BB-1`
   passed round one under the contract check, a 283-line OpenAPI document declaring ten operations
   and an index of ten, none unbacked, none unindexed, two open questions. The run's `qualifier`

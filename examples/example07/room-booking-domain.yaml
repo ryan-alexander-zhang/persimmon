@@ -3213,6 +3213,8 @@ spec:
       - room-booking-prd-adr-3
       - room-booking-prd-adr-4
       - room-booking-prd-adr-5
+    references:
+      - {provider: figma, type: file, id: 7Qk2BookARoom, locator: {page: Screens, node: "12:40"}, version: "2026-10-01T09:00Z", url: "https://www.figma.com/design/7Qk2BookARoom/Room-booking"}
     openQuestions:
       - id: Q-1
         question: The Room Booking Service's Booking Commands API (room-booking-prd-architecture-bb-1-http-api) exposes only GET /rooms/{roomId}/status for a single, already-known room; it names no operation to list or search rooms by fitting/free criteria. Architecture REL-3 requires the booking app to query which rooms are currently free before offering them for a slot (BR-1, BR-2, BR-7) — what operation does the Book a Room screen actually call to enumerate candidate rooms, and is it missing from that Design or out of scope for BB-1's interface as specified?

@@ -98,6 +98,10 @@ without `document.content` is `not-a-design-system`, the only finding then. No E
 | `document-unindexed`, `element-unbacked` | a `## <screen>` heading of the document with no element named like it, a screen a Plan cannot realise; an element whose screen is no heading (`29-design-process.md`, every type) |
 | the rest | as any Design: `unknown-block`, rules both ways, `id-sequence` |
 
+A `ui` Design drawn in a design tool names it in `references[]` (`29-design-process.md`): the
+markdown stays the document the screens are read from; the Figma file, pinned by version, is where
+the pixels are (example07's `bb-5-ui`).
+
 ## Rules
 
 | Rule | Enforcer |

@@ -994,6 +994,20 @@ spec:
                 rules: {type: array, items: {type: string, pattern: "^BR-[0-9]+$"}, description: "the rules this element's refusals or constraints enforce"}
           rules: {type: array, items: {type: string, pattern: "^BR-[0-9]+$"}, description: "every rule the document enforces; the union of the elements'"}
           decisions: {type: array, items: {type: string, minLength: 1}, description: "Adr artifact ids taken for this asset"}
+          references:
+            type: array
+            description: "what outside the engine this Design follows or is drawn in (a Figma file, a design tool's share link, a git path): ExternalResourceRefs (00-resource.md), version pinned when the tool has one; a pointer the Validator never fetches, never the document itself"
+            items:
+              type: object
+              required: [provider, type, id, locator]
+              additionalProperties: false
+              properties:
+                provider: {type: string, minLength: 1, description: "figma, claude-design, git, ..."}
+                type: {type: string, minLength: 1, description: "the provider's kind of thing: file, frame, repository"}
+                id: {type: string, minLength: 1, description: "the provider's id of it"}
+                locator: {type: object, description: "how to reach it, in the provider's terms: a node id, a path, a branch"}
+                version: {type: string, description: "the tool's version or revision of it at the time of this Design"}
+                url: {type: string, format: uri}
           openQuestions:
             type: array
             items:
