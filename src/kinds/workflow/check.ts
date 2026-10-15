@@ -157,6 +157,7 @@ export function checkWorkflow(spec: WorkflowSpec, resolve: Resolve): Finding[] {
     const visible = preds.get(s.id) ?? new Set()
     checkBindings(s.inputs ?? {}, u.inputs, s, visible, `/spec/steps/${i}/inputs`, true)
     if (s.repeat) {
+      for (const [v, st] of Object.entries(s.repeat.state)) if (typeof st.required === 'object') bad(`/spec/steps/${i}/repeat/state/${v}/required`, `${v}: a state var is required or not; nothing evaluates an expression there`)
       checkBindings(s.repeat.initial, s.repeat.state, undefined, visible, `/spec/steps/${i}/repeat/initial`, true)
       checkBindings(s.repeat.next, s.repeat.state, s, visible, `/spec/steps/${i}/repeat/next`, true)
       try {

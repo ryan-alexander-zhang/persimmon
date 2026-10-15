@@ -100,6 +100,9 @@ describe('checkWorkflow', () => {
     expect(checkWorkflow(perItem('state.items[state.index - 1]', false), resolve).map((f) => f.message)[0]).toMatch(/^expression: Unknown variable: state/)
     expect(checkWorkflow(perItem("state.index + 'x'", true), resolve).map((f) => f.message)[0]).toMatch(/^expression: /) // state carries its declared InputSpec type
     expect(checkWorkflow(perItem('state.items[state.index - 1]', true, 'state.index >= 2'), resolve).map((f) => f.message)[0]).toMatch(/^until: Unknown variable: state/)
+    const byExpression = perItem('state.items[state.index - 1]', true)
+    ;(byExpression.steps[0]!.repeat!.state.index as { required?: unknown }).required = { expression: 'true' }
+    expect(checkWorkflow(byExpression, resolve).map((f) => f.path)).toEqual(['/spec/steps/0/repeat/state/index/required']) // a state var is required or not
   })
 
   it('type-checks when and until expressions', () => {

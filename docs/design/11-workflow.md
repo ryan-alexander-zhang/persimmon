@@ -78,7 +78,7 @@ Per-step phase, recorded in `WorkflowRun.status.steps.<id>` (`17-runs.md`):
 
 | Field | Rule |
 |---|---|
-| `state` | `{<var>: InputSpec}`; readable as `state.<var>` in the step's `inputs` and in `next`, nowhere else |
+| `state` | `{<var>: InputSpec}`, `required` a boolean (an expression has no site to evaluate at, `10-ports.md`); readable as `state.<var>` in the step's `inputs` and in `next`, nowhere else |
 | `initial` | `{<var>: Binding}`; outer scope, no `state`; every required var bound |
 | `next` | `{<var>: Binding}`; `fromState`, `fromIterationOutput` and `state.<var>` read the state and outputs of the iteration that just finished; every required var bound; keys ⊆ `state` |
 | `until` | CEL over `iteration.outputs`, `iteration.index`, `inputs`; no `state`; boolean |

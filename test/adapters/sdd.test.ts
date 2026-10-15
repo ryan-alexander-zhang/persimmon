@@ -315,6 +315,7 @@ describe('sdd/v1 over a Design', () => {
     expect(await uiCodes(() => {}, undefined, [])).toEqual(['designs-unbound']) // one finding, not one per element
     expect(await uiCodes((d) => { d.elements.splice(1, 1); d.elements[1].id = 'EL-2' })).toEqual(['screen-unindexed'])
     expect(await uiCodes((d) => { d.document.content += '\n```md\n## Not a screen\n```\n## Submit a Claim ##\n' })).toEqual([]) // fenced code skipped, closing hashes dropped
+    expect(await uiCodes((d) => { d.document.content += '\n~~~\n```\n## Not a screen\n~~~\n  ## Indented\n' })).toEqual(['screen-unindexed']) // a ``` line does not close a ~~~ fence; an indented heading counts
   })
 
   it('fails ids that are not unique and increasing', async () => {

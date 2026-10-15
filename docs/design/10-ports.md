@@ -106,8 +106,8 @@ Values enter CEL typed by the port schema: `integer` → `int`, `number` → `do
 | a Binding reads only causal predecessors in scope | static checker |
 | `fromState`, `fromIterationOutput` only inside `repeat`; `fromEvent` only in Trigger | static checker |
 | `onMissing: omit` only on optional inputs, never in output bindings | static checker |
-| every `expression` parses and type-checks against its site's environment; a `required` expression against the definition's own `inputs`, as `bool` | static checker |
-| an input whose `required` expression holds and is unbound fails the bind (`required input missing`), where a plainly required one does: at `run` for a Workflow, at the step for a Task, Gate or Validator | bind |
+| every `expression` parses and type-checks against its site's environment; a `required` expression against the definition's own `inputs`, as `bool`; never on a `repeat` state var (`11-workflow.md`) | static checker |
+| an input whose `required` expression holds and is unbound fails the bind (`required input missing`), where a plainly required one does: at `run` for a Workflow, at the step for a Task, Gate or Validator; plainly required ports are checked first, and an expression that fails to evaluate is the same bind error | bind |
 | `artifactKind` resolves to a registered revisioned kind at snapshot time; admission warns | walk (`04-snapshot.md`) |
 
 ## Decisions

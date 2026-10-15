@@ -115,15 +115,20 @@ export function checkInputs(specs: Record<string, InputSpec>, values: RuntimeVal
     out[port] = v
   }
   for (const port of Object.keys(values)) if (!(port in specs)) throw new PortError(`${port}: not an input`)
+  const absent = Object.entries(specs).filter(([port]) => !(port in out))
+  for (const [port, spec] of absent) if (spec.required === undefined || spec.required === true) throw new PortError(`${port}: required input missing`)
+  // plainly required ports first: an expression may read one, and its absence is the clearer message
   let site: Site | undefined // one environment for every expression-required port, the inputs present as its context
-  for (const [port, spec] of Object.entries(specs)) {
-    if (port in out || spec.required === false) continue
-    if (typeof spec.required === 'object') {
-      site ??= siteOf({ inputs: specs })
-      if (site.evaluate(spec.required.expression, celContext({ inputs: out })) !== true) continue
-      throw new PortError(`${port}: required input missing (${spec.required.expression})`)
+  for (const [port, spec] of absent) {
+    if (typeof spec.required !== 'object') continue
+    site ??= siteOf({ inputs: specs })
+    let holds: unknown
+    try {
+      holds = site.evaluate(spec.required.expression, celContext({ inputs: out }))
+    } catch (e) {
+      throw new PortError(`${port}: required expression: ${(e as Error).message}`)
     }
-    throw new PortError(`${port}: required input missing`)
+    if (holds === true) throw new PortError(`${port}: required input missing (${spec.required.expression})`)
   }
   return out
 }

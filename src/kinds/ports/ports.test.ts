@@ -67,6 +67,8 @@ describe('port types', () => {
     expect(() => checkInputs(inputs, { type: ui })).toThrow(/repository: required input missing/)
     expect(checkInputs(inputs, { type: ui, repository: repo })).toEqual({ type: ui, repository: repo })
     expect([optional(inputs.research!), optional(inputs.type!), optional({ ...inputs.type!, required: false })]).toEqual([true, false, true])
+    expect(() => checkInputs({ ...inputs, type: { ...inputs.type!, required: { expression: 'inputs.research == null' } } }, {})).toThrow(/type: required expression: /) // a CEL error is a bind error, not a crash
+    expect(() => checkInputs({ designs: { ...inputs.repository!, required: { expression: "inputs.type == 'ui'" } }, type: inputs.type! }, {})).toThrow(/type: required input missing$/) // the plain port first, whatever the order
     expect(requiredFindings(inputs)).toEqual([])
     const bad = { ...inputs, research: { ...inputs.research!, required: { expression: 'inputs.nope == 1' } }, repository: { ...inputs.repository!, required: { expression: 'inputs.type' } } }
     expect(requiredFindings(bad).map((f) => [f.path, f.message.split(':')[0], f.message.includes('not bool')])).toEqual([['/spec/inputs/research/required', 'research', false], ['/spec/inputs/repository/required', 'repository', true]])

@@ -135,10 +135,12 @@ export function checkPrd({ prd, rules }) {
 // The `## <screen>` headings of a ui document: outside fenced code, closing hashes dropped (32-ui-design-process.md).
 const screens = (markdown) => {
   const out = []
-  let fenced = false
+  let fence // the opener's marker (char and length); only a fence of that char at least that long closes it (CommonMark)
   for (const line of markdown.split('\n')) {
-    if (/^\s*(```|~~~)/.test(line)) fenced = !fenced
-    else if (!fenced && /^## /.test(line)) out.push(line.slice(3).replace(/\s+#+\s*$/, '').trim())
+    const m = /^ {0,3}(`{3,}|~{3,})/.exec(line)
+    if (m && !fence) fence = m[1]
+    else if (m && m[1][0] === fence[0] && m[1].length >= fence.length) fence = undefined
+    else if (!fence && /^ {0,3}## /.test(line)) out.push(line.replace(/^ {0,3}## /, '').replace(/\s+#+\s*$/, '').trim())
   }
   return out
 }
