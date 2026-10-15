@@ -6,9 +6,11 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { parseInput } from './create.js'
 import { askForm, example as template, type Form } from './signal.js'
 import { runCli } from './index.js'
+import { init } from './init.js'
 
 const example = (n: string) => parse(readFileSync(`docs/design/examples/${n}.yaml`, 'utf8'))
 const demoPack = ['10-artifact-kinds', '20-relation-types', '30-prompts', '40-executors', '50-tasks', '60-validators', '70-gates', '80-workflows'].map((f) => `packs/demo/global/${f}.yaml`)
+const sdlcPack = ['10-artifact-kinds', '30-prompts', '40-executors', '50-tasks', '60-validators', '70-gates', '80-workflows'].map((f) => `packs/sdlc/global/${f}.yaml`)
 const fakeAdapter = (id: string, types = 'agent,script') => ({
   apiVersion: 'persimmon.ai/v1', kind: 'Adapter', metadata: { name: id.replace('/', '-') },
   spec: { id, roles: ['executor'], transport: 'stdio', command: ['node', join(process.cwd(), 'test/fixtures/fake-adapter.mjs')], env: { FAKE_ID: id, FAKE_TYPES: types } },
@@ -63,10 +65,7 @@ describe('persimmon CLI', () => {
     out = []
     expect([await run('validate', 'packs/demo/global/50-tasks.yaml', 'packs/demo/global/80-workflows.yaml', 'packs/demo/global/40-executors.yaml'), out.filter((l) => l.startsWith('error'))]).toEqual([0, []])
     expect(out.filter((l) => l.startsWith('ok')).length).toBeGreaterThanOrEqual(7)
-    // the SDLC pack's kinds and its worked domain example validate (23-pack-sdlc.md)
-    out = [] // the pack validates as a file set in a fresh project: a Workflow stepping into a ReviewLoop of the same files resolves
-    expect([await run('validate', ...['10-artifact-kinds', '30-prompts', '40-executors', '50-tasks', '60-validators', '70-gates', '80-workflows'].map((f) => `packs/sdlc/global/${f}.yaml`)), out.filter((l) => l.startsWith('error'))]).toEqual([0, []])
-    out = []
+    out = [] // the SDLC pack's worked domain example validates (23-pack-sdlc.md)
     expect([await run('validate', 'docs/design/examples/sdlc-domain.yaml'), out.filter((l) => !l.startsWith('ok'))]).toEqual([0, []])
     expect(out.length).toBe(14)
     out = [] // the pack's own live output, meeting room booking, validates too
@@ -162,6 +161,17 @@ describe('persimmon CLI', () => {
     expect(await run('apply', file('run.yaml', [run1]), '--global')).toBe(1) // Namespaced kind
     expect(err.at(-1)).toMatch(/--global does not apply/)
   }, 30_000)
+
+  it('init with another pack applies its namespaced/ Triggers; the SDLC pack validates as a file set before any of it is stored', async () => {
+    expect([await init({ cwd: dir, out: (l) => out.push(l), err: (l) => err.push(l) }, { pack: 'packs/demo' }), err]).toEqual([0, []])
+    expect(out).toContain('created Trigger/on-prd-published') // the pack's Triggers listen in defaultNamespace
+    out = []
+    expect(await run('get', 'Workflow')).toBe(0)
+    expect(out).toEqual(['Workflow/prd-approval', 'Workflow/prd-create']) // the SDLC pack is not in this store
+    out = [] // so a Workflow stepping into a ReviewLoop of the same files resolves on validate's second pass only (08-store.md)
+    expect([await run('validate', ...sdlcPack), out.filter((l) => !l.startsWith('ok'))]).toEqual([0, []])
+    expect(out.length).toBe(79)
+  })
 
   it('run --follow returns when the run is parked on a human Task', async () => {
     await run('init')
