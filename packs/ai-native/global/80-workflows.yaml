@@ -151,7 +151,8 @@ spec:
       from: [{stepRef: each, outcomes: [Succeeded, Failed]}]
       to:
         - {terminal: Succeeded, when: 'steps.each.phase == "Succeeded" && steps.each.outputs.passed'}
-        - {terminal: Failed, reason: derivation_inconsistent}
+        - {terminal: Failed, reason: derivation_inconsistent, when: 'steps.each.phase == "Succeeded"'} # the Gate rejected the last round
+        - {terminal: Failed, reason: step_failed} # the iteration died before its Gate ran; steps.each.error names the cause
       dispatch: first
   timeout: 12h
 ---
@@ -276,7 +277,8 @@ spec:
       from: [{stepRef: each, outcomes: [Succeeded, Failed]}]
       to:
         - {terminal: Succeeded, when: 'steps.each.phase == "Succeeded" && steps.each.outputs.passed'}
-        - {terminal: Failed, reason: spec_inconsistent}
+        - {terminal: Failed, reason: spec_inconsistent, when: 'steps.each.phase == "Succeeded"'} # the Gate rejected the last round
+        - {terminal: Failed, reason: step_failed} # the iteration died before its Gate ran; steps.each.error names the cause
       dispatch: first
   timeout: 12h
 ---
@@ -407,7 +409,8 @@ spec:
       from: [{stepRef: each, outcomes: [Succeeded, Failed]}]
       to:
         - {terminal: Succeeded, when: 'steps.each.phase == "Succeeded" && steps.each.outputs.passed'}
-        - {terminal: Failed, reason: design_inconsistent}
+        - {terminal: Failed, reason: design_inconsistent, when: 'steps.each.phase == "Succeeded"'} # the Gate rejected the last round
+        - {terminal: Failed, reason: step_failed} # the iteration died before its Gate ran; steps.each.error names the cause
       dispatch: first
   timeout: 12h
 ---
@@ -480,7 +483,8 @@ spec:
       from: [{stepRef: each, outcomes: [Succeeded, Failed]}]
       to:
         - {terminal: Succeeded, when: 'steps.each.phase == "Succeeded" && steps.each.outputs.passed'}
-        - {terminal: Failed, reason: plan_inconsistent}
+        - {terminal: Failed, reason: plan_inconsistent, when: 'steps.each.phase == "Succeeded"'} # the Gate rejected the last round
+        - {terminal: Failed, reason: step_failed} # the iteration died before its Gate ran; steps.each.error names the cause
       dispatch: first
   timeout: 12h
 ---

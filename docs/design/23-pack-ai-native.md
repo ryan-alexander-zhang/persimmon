@@ -230,6 +230,12 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
   inside a `repeat` sees `inputs` as any step does, so the copy of the list into state (a second
   schema, `fromInput` in `initial`, `fromState` in `next`) said nothing the input did not. Found in
   audit.
+- The four `-all` loops end `step_failed` when an iteration died before its Gate ran, and
+  `<x>_inconsistent` only when the Gate rejected the last round (`when: steps.each.phase ==
+  "Succeeded"`, `dispatch: first`): four `design-all` runs died in the agent CLI and every WorkflowRun
+  said `design_inconsistent`, the one Failed reason the loop had; the cause sat two levels down in
+  `steps.each.error`, where it still is. No engine change: a `when` already reads a finished step's
+  phase. Found in UAT (example08).
 - A second example is the pack's own output, not a hand-written one: `examples/example07/room-booking-domain.yaml`
   is what `author-prd`, `domain-discovery`, `spec-all`, `design-all` and `plan-all` produced on a small
   real brief with a human at the Gates, so a regression in a prompt, a Task context or a Validator shows

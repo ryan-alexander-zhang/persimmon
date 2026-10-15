@@ -26,7 +26,7 @@ Workflow spec-all: repeat over `capabilities` ─▶ ReviewLoop spec-one per CAP
 | Validator `spec-consistency` | `sdd/v1` over `spec`, `prd`, `domainModel`, `architecture`, `rules`; the rule row of `23-pack-ai-native.md` as findings |
 | Gate `spec-gate` | consistency only; a human sign-off is an Approval the project adds |
 | ReviewLoop `spec-one` | `produce` `write-spec`, `review` `spec-gate`, `maxRounds: 2`; the findings go back as `feedback` with the last `spec` as `previous` |
-| Workflow `spec-all` | `repeat` over `capabilities` as `derive-all` repeats over contexts; one DomainModel, Glossary and rules artifact, so one context per run; a capability the loop could not write ends the run `spec_inconsistent`; output `written` |
+| Workflow `spec-all` | `repeat` over `capabilities` as `derive-all` repeats over contexts; one DomainModel, Glossary and rules artifact, so one context per run; a capability the loop could not write ends the run `spec_inconsistent`, an iteration that died before its Gate ran `step_failed`; output `written` |
 
 ## `checkSpec`
 

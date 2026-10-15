@@ -25,7 +25,7 @@ Workflow design-all: repeat over `blocks` with one `type` ─▶ ReviewLoop desi
 | Validator `design-consistency` | `sdd/v1` over `design`, `architecture`, `domainModel` (optional), `rules`, and for a `ui` Design `designSystem` and `designs`; the Design rule row of `23-pack-ai-native.md` as findings |
 | Gate `design-gate` | consistency only |
 | ReviewLoop `design-one` | `produce` `design-asset`, `review` `design-gate`, `maxRounds: 2`; takes `interface` too, so a block with two provided interfaces gets its second Design from a direct run |
-| Workflow `design-all` | `repeat` over `blocks` (BB-n ids) for one `type`, as `spec-all` repeats over capabilities; a block the loop could not design ends the run `design_inconsistent`; output `written` |
+| Workflow `design-all` | `repeat` over `blocks` (BB-n ids) for one `type`, as `spec-all` repeats over capabilities; a block the loop could not design ends the run `design_inconsistent`, an iteration that died before its Gate ran `step_failed`; output `written` |
 
 ## `checkDesign`
 

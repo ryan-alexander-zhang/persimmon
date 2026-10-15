@@ -198,6 +198,30 @@ describe('Engine', () => {
     expect(engine.store.resources.getByUid(short.metadata.uid as string)?.status).toMatchObject({ phase: 'Succeeded', outputs: { passed: { value: false }, rounds: { value: 1 } } })
     expect(errors).toEqual([])
 
+    // an `-all` loop over the ReviewLoop (the pack's shape): a Gate rejection after maxRounds is <x>_inconsistent; an iteration that died before its Gate ran is step_failed, the step's error naming the cause
+    const kindRef = { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ResearchReport' }
+    const all = (name: string, research: object): Resource => ({ apiVersion: 'persimmon.ai/v1', kind: 'Workflow', metadata: { name, namespace: 'demo' }, spec: {
+      inputs: { items: { type: { kind: 'value', schema: { type: 'array', items: { type: 'string' } } } }, research: { type: { kind: 'artifact', artifactKind: kindRef }, required: false } },
+      entry: ['each'],
+      steps: [{ id: 'each', uses: { kind: 'ReviewLoop', name: 'prd-loop' }, inputs: { research, maxRounds: { literal: 1 } }, timeout: '2h', repeat: { state: { index: { type: { kind: 'value', schema: { type: 'integer' } } } }, initial: { index: { literal: 1 } }, next: { index: { expression: 'state.index + 1' } }, until: '!iteration.outputs.passed || iteration.index >= inputs.items.size()', maxIterations: 5 } }],
+      transitions: [{ id: 'done', from: [{ stepRef: 'each', outcomes: ['Succeeded', 'Failed'] }], to: [
+        { terminal: 'Succeeded', when: 'steps.each.phase == "Succeeded" && steps.each.outputs.passed' },
+        { terminal: 'Failed', reason: 'prd_inconsistent', when: 'steps.each.phase == "Succeeded"' },
+        { terminal: 'Failed', reason: 'step_failed' },
+      ], dispatch: 'first' }],
+      timeout: '3h' } } as Resource)
+    await engine.apply(all('prd-all', { fromInput: 'research' }))
+    await engine.apply(all('prd-all-none', { fromArtifact: { kind: kindRef, id: '"nope"' } }))
+    const items = { kind: 'value', value: ['a'] }
+    const { resource: rejected } = await engine.create({ apiVersion: 'persimmon.ai/v1', kind: 'WorkflowRun', metadata: { name: 'prd-all-001', namespace: 'demo' }, spec: { workflowRef: { kind: 'Workflow', name: 'prd-all' }, inputs: { items, research }, origin: { kind: 'manual' } } } as Resource)
+    await engine.drain()
+    await answer('prd-all-001-each-1', 1, false)
+    expect(engine.store.resources.getByUid(rejected.metadata.uid as string)?.status).toMatchObject({ phase: 'Failed', error: { code: 'prd_inconsistent' } })
+    const { resource: died } = await engine.create({ apiVersion: 'persimmon.ai/v1', kind: 'WorkflowRun', metadata: { name: 'prd-all-002', namespace: 'demo' }, spec: { workflowRef: { kind: 'Workflow', name: 'prd-all-none' }, inputs: { items }, origin: { kind: 'manual' } } } as Resource)
+    await engine.drain()
+    expect(engine.store.resources.getByUid(died.metadata.uid as string)?.status).toMatchObject({ phase: 'Failed', error: { code: 'step_failed' }, steps: { each: { phase: 'Failed', error: { message: expect.stringMatching(/research: source absent/) } } } })
+    expect(errors).toEqual([])
+
     // a cycle through produce (A produces with B, B with A) is refused at apply, since an update runs the Handler validate as create does; never a stack overflow
     const loopB = { ...loop, metadata: { name: 'prd-loop-b', namespace: 'demo' }, spec: { ...loop.spec, previous: undefined, feedback: undefined, produce: { uses: { kind: 'ReviewLoop', name: 'prd-loop' }, inputs: { research: { fromInput: 'research' } }, timeout: '1h' } } } as Resource
     await engine.apply(loopB)
