@@ -174,8 +174,9 @@ Result: a ValidationResult (`10-ports.md`). No `credentials`, no `security` (`14
   (`API Error: 403`, `429`, `5xx`, `overloaded`, `rate limit`), checked before the login phrasing:
   the live `Failed to authenticate. API Error: 403 Request not allowed` answered a minute later, and
   `permission_denied` is never retried, so the Task's `retryPolicy` could not take it. A dead login
-  says `not logged in`, `session expired`, `permission_error` or `revoked` and stays
-  `permission_denied`, a 403 that carries one of those too. Found in UAT (example08).
+  says `not logged in` or `session expired` and stays `permission_denied`; so does a 403 whose body
+  is the API's `"type": "permission_error"` or `token has been revoked`, matched as the API writes
+  them, since the agent's own prose may say `revoked`. Found in UAT (example08).
 - `claude-code/v1` configuration `allowedTools[]` passes `--allowedTools`, so a `workspace-write`
   Executor can run named commands (`Bash(npm test:*)`) headlessly without the `full` sandbox;
   `-p` has nobody to answer a permission prompt. Found in UAT.
