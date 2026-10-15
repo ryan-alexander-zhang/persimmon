@@ -128,14 +128,15 @@ the file it is; `npx @google/design.md export --format css-tailwind` turns it in
 ### 6c. Screens of the three client blocks
 
 ```sh
-persimmon run design-all --input 'blocks=[BB-5, BB-6, BB-7]' --input type=ui <architecture, domainModel, glossary, rules as above> \
+persimmon run design-all --input 'blocks=[BB-5, BB-6, BB-7]' --input type=ui <architecture, rules as above; no domainModel, no glossary> \
   --input 'designSystem={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem, namespace: default, id: room-booking-prd-design-system, revision: <n>}}' \
   --input designs=@api-designs.yaml --follow
 ```
 
 `written 3`, each round one: `Design/room-booking-prd-architecture-bb-5-ui.r1`, `-bb-6-ui.r1`, `-bb-7-ui.r1`, one
-`## <screen>` section per screen, elements per screen (the read model shown) and per action (the command
-submitted). Their open questions are real: the API has no operation to list rooms by fit, and the
+`## <screen>` section per screen, elements per screen and per action, each realising an operation of the
+booking API (they were written against the DomainModel and re-realised by hand when the index moved to
+operations, `32-ui-design-process.md`). Their open questions are real: the API has no operation to list rooms by fit, and the
 DomainModel has no fact for a room's name, so a door screen cannot say which room it is.
 
 ### 7. One Plan per Spec

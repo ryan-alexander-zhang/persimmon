@@ -21,8 +21,8 @@ Workflow design-all: repeat over `blocks` with one `type` ─▶ ReviewLoop desi
 |---|---|
 | Prompt `design-rules` | one asset per block and type; the contract whole and standard; the index names what each operation, channel or table realises in the DomainModel; refusals name the rule; field names are Glossary terms; nothing the DomainModel lacks is invented |
 | Executor `design-agent` | `claude-code/v1`, read-only, its own name for per-Namespace override |
-| Task `design-asset` | inputs `architecture`, `blockId`, `type`, `interface` (optional: which provided interface, else the block's first), `domainModel`, `glossary`, `rules`, `previous`, `feedback`; output `design` |
-| Validator `design-consistency` | `sdd/v1` over `design`, `architecture`, `domainModel`, `rules`; the Design rule row of `23-pack-ai-native.md` as findings |
+| Task `design-asset` | inputs `architecture`, `blockId`, `type`, `interface` (optional: which provided interface, else the block's first), `domainModel` and `glossary` (optional: not for `ui`), `rules`, `previous`, `feedback`; output `design` |
+| Validator `design-consistency` | `sdd/v1` over `design`, `architecture`, `domainModel` (optional), `rules`, and for a `ui` Design `designSystem` and `designs`; the Design rule row of `23-pack-ai-native.md` as findings |
 | Gate `design-gate` | consistency only |
 | ReviewLoop `design-one` | `produce` `design-asset`, `review` `design-gate`, `maxRounds: 2`; takes `interface` too, so a block with two provided interfaces gets its second Design from a direct run |
 | Workflow `design-all` | `repeat` over `blocks` (BB-n ids) for one `type`, as `spec-all` repeats over capabilities; a block the loop could not design ends the run `design_inconsistent`; output `written` |

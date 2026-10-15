@@ -181,7 +181,8 @@ spec:
   timeout: 72h
   sideEffects: none
 ---
-# One Design of one block (29-design-process.md): the contract whole, indexed against the DomainModel.
+# One Design of one block (29-design-process.md): the contract whole, indexed against the DomainModel; a ui Design
+# against the block's API Designs, no DomainModel or Glossary bound (32-ui-design-process.md).
 apiVersion: persimmon.ai/v1
 kind: Task
 metadata: {name: design-asset}
@@ -192,11 +193,11 @@ spec:
     type: {type: {kind: value, schema: {type: string, enum: [http-api, async-api, data-schema, ui]}}}
     interface: {type: {kind: value, schema: {type: string, minLength: 1}}, required: false}
     qualifier: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}, required: false, description: "tells two Designs of one block and type apart in the id (a block with two APIs, or realising two contexts): the interface or the context, as a label (29-design-process.md)"}
-    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
-    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
+    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: false, description: "what the elements realise; not for a ui Design, which realises operations of `designs`"}
+    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: false, description: "the names the document uses; not for a ui Design"}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: false, description: "for a ui Design: the product's DesignSystem (32-ui-design-process.md)"}
-    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "for a ui Design: the http-api Designs of the interfaces the block requires"}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "for a ui Design: the http-api Designs of the interfaces the block requires; its elements realise their operations"}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
   outputs:
@@ -208,8 +209,8 @@ spec:
       your context. `architecture` and `domainModel` in the Design are the artifact ids of the inputs with those
       names; `block` is `blockId`; for an API, `interface` is the input `interface` when bound, else the block's first provided
       interface. Every element realises a label the DomainModel names; every rule id is in `rules`. For a `ui` Design,
-      `designSystem` is the artifact id of the DesignSystem in your context and the screens call the operations of the
-      Designs in your context.
+      `designSystem` is the artifact id of the DesignSystem in your context, there is no `domainModel`, and every
+      element realises an operation of the Designs in your context.
       With `previous` and `feedback` bound, fix what the findings name and change nothing else.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: design-rules}}

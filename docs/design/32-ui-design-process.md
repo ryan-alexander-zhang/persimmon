@@ -68,12 +68,12 @@ an invented one. No `interface`: a client block provides none.
 | Gate `design-system-gate` | lint and confirmed, `all`, 72h |
 | ReviewLoop `design-system` | `produce` `write-design-system`, `review` `design-system-gate`, `maxRounds: 3` |
 | Prompt `design-rules` | gains the `ui` paragraph above |
-| Task `design-asset`, ReviewLoop `design-one`, Workflow `design-all` | `type` enum gains `ui`; inputs `designSystem` (optional) and `designs` (artifacts, optional: the `http-api` Designs of the interfaces the block requires) threaded through with `onMissing: omit` where the engine does not add it (a Workflow step, a Gate's Validator binding; the loop adds it to `produce` and `review`, `21-composition.md`); `design-all` with `type: ui` runs over the client blocks listed |
-| Validator `design-consistency`, Gate `design-gate` | `designSystem` (optional) threaded through |
+| Task `design-asset`, ReviewLoop `design-one`, Workflow `design-all` | `type` enum gains `ui`; inputs `designSystem` (optional) and `designs` (artifacts, optional: the `http-api` Designs of the interfaces the block requires) threaded through with `onMissing: omit` where the engine does not add it (a Workflow step, a Gate's Validator binding; the loop adds it to `produce` and `review`, `21-composition.md`); `domainModel` and `glossary` optional, unbound for a `ui` run; `design-all` with `type: ui` runs over the client blocks listed |
+| Validator `design-consistency`, Gate `design-gate` | `designSystem` and `designs` (optional) threaded through; `domainModel` optional |
 
 Run, after `architect` and the `http-api` Designs:
 `persimmon run design-system --input 'prd={...}' --input 'architecture={...}'`, then
-`persimmon run design-all --input 'blocks=[BB-5, BB-6, BB-7]' --input type=ui --input 'designSystem={...}' --input designs=@api-designs.yaml <architecture, domainModel, glossary, rules>`, where `api-designs.yaml` lists the `http-api` Designs the client blocks call.
+`persimmon run design-all --input 'blocks=[BB-5, BB-6, BB-7]' --input type=ui --input 'designSystem={...}' --input designs=@api-designs.yaml <architecture, rules>`, where `api-designs.yaml` lists the `http-api` Designs the client blocks call; no `domainModel`, no `glossary`.
 `plan-all` then takes the `ui` Designs in its `designs` list like any other.
 
 ## `designmd/v1`
