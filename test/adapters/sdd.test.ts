@@ -207,6 +207,8 @@ describe('sdd/v1 over a Prd', () => {
     expect(await withPrevious((r) => { r.rules[0].statement = 'reworded' }, named(content('BusinessRules').rules[0].id))).toEqual([]) // the finding asked for it
     expect(await withPrevious((r) => { r.rules[0].statement = 'reworded' }, named('BR-99'))).toEqual(['rule-drift']) // a finding on another rule
     expect(await withPrevious((r) => { r.rules.splice(r.rules.length - 1, 1) })).toEqual(['rule-drift']) // dropped; the last rule is cited by nothing, so only the drift shows
+    const refused = (id: string) => ({ passed: false, results: { consistency: { passed: false, findings: [{ severity: 'error', code: 'rule-drift', message: `${id} changed unasked: no finding of the last round names it` }] } } })
+    expect(await withPrevious((r) => { r.rules[0].statement = 'reworded' }, refused(content('BusinessRules').rules[0].id))).toEqual(['rule-drift']) // the gate's own refusal does not license the drift next round
   })
 
   it('is invalid_input without the BusinessRules beside a Prd', async () => {

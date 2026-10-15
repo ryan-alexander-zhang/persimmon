@@ -37,7 +37,7 @@ form is refused by the engine when wrong and the method is a Prompt a Namespace 
 
 ## `checkPrd`
 
-`adapters/sdd/check.mjs`, pure, `checkPrd({prd, rules})`, every finding `error`:
+`adapters/sdd/check.mjs`, pure, `checkPrd({prd, rules, previousRules, feedback})` (the last two from round two of `author-prd`), every finding `error`:
 
 | Code | Finding |
 |---|---|
@@ -47,6 +47,7 @@ form is refused by the engine when wrong and the method is a Prompt a Namespace 
 | `unknown-capability` | a `successCriteria[].capabilities[]` id that is no capability |
 | `goal-with-number` | a goal statement containing a digit; the number belongs to a success criterion |
 | `id-sequence` | `G-n`, `CAP-n`, `SC-n`, `Q-n` of the Prd and `BR-n` of the rules not unique and increasing in document order (a gap is a removed item) |
+| `rule-drift` | with `previousRules`: a `BR-n` of them dropped, or changed in `statement` or `status`, whose id no finding of `feedback` names (`results.<validator>.findings[].message`, the gate's own `rule-drift` findings excluded, so a refusal never licenses what it refused) |
 
 The Adapter picks the mode from the payload: `artifacts.spec` (or `artifacts.model`, the
 conformance suite's name) runs `checkSpec`; otherwise `artifacts.prd` runs `checkPrd`.
@@ -99,7 +100,8 @@ conformance suite's name) runs `checkSpec`; otherwise `artifacts.prd` runs `chec
   Found in UAT.
 - The loop carries the rules (`carry: {rules: previousRules}`, `21-composition.md`) and the gate
   reads them with the last verdict: `rule-drift` refuses a `BR-n` dropped or changed in statement
-  or status that no finding names, matched by id in the findings' text. Statement and status only:
+  or status that no finding names, matched by id in the findings' text; the gate's own `rule-drift`
+  findings are left out, else round n+1 would keep the drift round n refused. Statement and status only:
   rationale and source may be polished unasked, and a finding naming the rule frees every field.
   Round one has no previous rules and no verdict, so nothing is checked. Found in UAT (example08).
 - Proven live on `claude-sonnet-5`: `author-prd` over the car pool brief with the product's rules

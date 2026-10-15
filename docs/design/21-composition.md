@@ -76,7 +76,7 @@ Produce, review, feed the verdict back, repeat.
 |---|---|
 | `inputs`, `timeout` | as Workflow |
 | `produce` | Step without `repeat`: `uses` (Task, Workflow, Pipeline), `inputs`, `timeout` |
-| `review` | Step without `repeat`: `uses` a kind with runKind GateRun (Gate, Approval), `inputs` (may bind `fromStep: {stepRef: produce}`, and `fromInput: previous`, `fromInput: feedback` or a `carry` input's name into an optional port of the Gate: round one has none), `timeout` |
+| `review` | Step without `repeat`: `uses` a kind with runKind GateRun (Gate, Approval), `inputs` (may bind `fromStep: {stepRef: produce}`, and `fromInput: previous`, `fromInput: feedback` or a `carry` input's name, what the loop carries, into an optional port of the Gate: round one has none), `timeout` |
 | `subject` | an output port of `produce`; carried as the loop's result |
 | `previous` | optional input port of `produce`, `required: false`, type of `subject`; receives the last round's subject |
 | `feedback` | optional input port of `produce`, `required: false`, type `GateResult`; receives the last round's verdict |

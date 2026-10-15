@@ -125,9 +125,10 @@ export function checkPrd({ prd, rules, previousRules, feedback }) {
   for (const g of prd.goals ?? []) if (/\d/.test(String(g.statement ?? ''))) bad('goal-with-number', `${g.id}: a goal states a direction without a number`)
 
   sequence(bad, 'BR', (rules?.rules ?? []).map((r) => r.id))
-  // rule-drift: against the last round's rules, a BR-n dropped, or changed in statement or status, that no finding of the last verdict names (28-prd-process.md)
+  // rule-drift: against the last round's rules, a BR-n dropped, or changed in statement or status, that no finding of the last verdict names (28-prd-process.md).
+  // A GateResult holds its findings under results.<validator>; this gate's own rule-drift findings name the rule too and must not license the drift they refused
   if (previousRules?.rules) {
-    const named = [...(feedback?.findings ?? []), ...Object.values(feedback?.results ?? {}).flatMap((r) => r?.findings ?? [])].map((f) => f.message ?? '').join('\n')
+    const named = Object.values(feedback?.results ?? {}).flatMap((r) => r?.findings ?? []).filter((f) => f.code !== 'rule-drift').map((f) => f.message ?? '').join('\n')
     const now = new Map((rules?.rules ?? []).map((r) => [r.id, r]))
     for (const r of previousRules.rules) {
       if (new RegExp(`\\b${r.id}\\b`).test(named)) continue
