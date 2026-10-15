@@ -74,7 +74,7 @@ an invented one. No `interface`: a client block provides none.
 
 Run, after `architect` and the `http-api` Designs:
 `persimmon run design-system --input 'prd={...}' --input 'architecture={...}'`, then
-`persimmon run design-all --input 'blocks=[BB-5, BB-6, BB-7]' --input type=ui --input 'designSystem={...}' --input designs=@api-designs.yaml <architecture, rules>`, where `api-designs.yaml` lists the `http-api` Designs the client blocks call; no `domainModel`, no `glossary`.
+`persimmon run design-all --input 'blocks=[BB-5, BB-6, BB-7]' --input type=ui --input 'designSystem={...}' --input designs=kind:Design <architecture, rules>`: every Design of the project at its latest revision (`33-multi-context-product.md`), the `http-api` ones the screens realise among them; or a list file of those alone; no `domainModel`, no `glossary`.
 `plan-all` then takes the `ui` Designs in its `designs` list like any other.
 
 ## `designmd/v1`
@@ -198,6 +198,11 @@ without `document.content` is `not-a-design-system`, the only finding then. No E
 - `checkDesign` on a `ui` Design refuses when no DesignSystem is bound: the Validator's `designSystem`
   input is optional so the other types run without one, and the rule that a `ui` Design needs it lives
   in the check, not the port. Found in audit.
+- `designs=kind:Design` serves the `ui` run as well as `plan-all`: live on example08 the `ui` Design
+  of `BB-3` passed round one with all five Designs bound (two APIs, two data schemas, its own r1),
+  eight screens and twenty elements realising the APIs' operations, the same open question as with
+  the two-API list; the data schemas and the old `ui` Design are context the agent reads past and
+  elements the Validator never matches. The example's list files are gone. Found in UAT (example08).
 
 ## Examples
 

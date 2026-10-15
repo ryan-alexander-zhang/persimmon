@@ -101,8 +101,8 @@ persimmon run design-all --input 'blocks=[BB-1]' --input type=data-schema --inpu
 `BB-1` provides two APIs and stores two contexts' aggregates; a Design id is
 `<architecture>-<block>-<qualifier>-<type>`, so the four are `...-bb-1-reservations-http-api`,
 `...-bb-1-car-reservations-data-schema`, `...-bb-1-fleet-http-api`, `...-bb-1-fleet-care-data-schema`
-(`29-design-process.md`). Each round one. `api-designs.yaml` lists the two APIs for the `ui` Design,
-`designs.yaml` every Design for the Plans.
+(`29-design-process.md`). Each round one. The `ui` Design and the Plans take every Design of the
+project with `--input designs=kind:Design`; no list file.
 
 ### 7. The design system, you at the Gate
 
@@ -117,11 +117,12 @@ the brief does not give.
 ### 8. The web application's screens, over both APIs
 
 ```sh
-persimmon run design-all --input 'blocks=[BB-3]' --input type=ui --input 'designSystem=<ref>' --input designs=@api-designs.yaml <architecture, rules> --follow
+persimmon run design-all --input 'blocks=[BB-3]' --input type=ui --input 'designSystem=<ref>' --input designs=kind:Design <architecture, rules> --follow
 ```
 
 No `domainModel`, no `glossary`: a `ui` Design realises operations of the API Designs bound, not
-model labels (`32-ui-design-process.md`). `Design/car-pool-prd-architecture-bb-3-ui.r1`, round one:
+model labels (`32-ui-design-process.md`). `kind:Design` binds the two data schemas and the last
+`ui` Design too; the screens realise the APIs' operations and the Validator ignores the rest. `Design/car-pool-prd-architecture-bb-3-ui.r1`, round one:
 eight screens, twenty elements, ten over each API. Its first open question is a real gap upstream:
 the Reservation API's `Car` schema carries only `carId`, so the Available cars screen cannot show
 which car was offered. An earlier run of this step with the `car-reservations` model bound failed
