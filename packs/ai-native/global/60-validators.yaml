@@ -65,6 +65,8 @@ spec:
   inputs:
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    previousRules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false, description: "with feedback: a rule changed or dropped since, unnamed by any finding, is rule-drift"}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
   evaluator:
     type: adapter
     adapter: sdd/v1

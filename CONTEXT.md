@@ -192,9 +192,11 @@ ValidationResult.
 _Avoid_: reviewer (for the Resource), voter
 
 **ReviewLoop**:
-A **Composition kind**: `produce` then `review`, repeated with `previous` and `feedback` until
+A **Composition kind**: `produce` then `review`, repeated with `previous`, `feedback` and every
+`carry` entry (a produce output fed back into the optional produce input it names) until
 `passed` or `maxRounds`; expands to a Workflow and its `<name>-round` body. `maxRounds` names
-both the ceiling on the loop and the optional run input that lowers it.
+both the ceiling on the loop and the optional run input that lowers it. The review may read what
+the loop carries.
 _Avoid_: revision loop, feedback loop
 
 **Step**:

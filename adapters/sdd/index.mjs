@@ -71,7 +71,7 @@ function evaluate(payload) {
     // same stance as not-a-spec: content that is not a Prd is a finding, before the rules are required
     const notAPrd = checkPrd({ prd }).filter((f) => f.code === 'not-a-prd')
     if (notAPrd.length) return { passed: false, findings: notAPrd, evidence: [] }
-    const findings = checkPrd({ prd, rules: required(artifacts, 'rules') })
+    const findings = checkPrd({ prd, rules: required(artifacts, 'rules'), previousRules: artifacts.previousRules?.content, feedback: payload.inputs?.feedback?.value })
     return { passed: findings.length === 0, findings, evidence: [] }
   }
   const spec = required({ spec: artifacts.spec ?? artifacts.model }, 'spec')

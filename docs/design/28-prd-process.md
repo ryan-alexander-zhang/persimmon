@@ -29,11 +29,11 @@ form is refused by the engine when wrong and the method is a Prompt a Namespace 
 |---|---|
 | Prompt `prd-rules` | problem before solution; users as roles; goals are direction and success criteria carry the number, measured in production; a capability is one Spec's worth with its context and the rules that govern it; a rule is written into `BusinessRules`, never into the Prd; what is refused is a non-goal; an unknown is a `Q-n` |
 | Executor `prd-agent` | `claude-code/v1`, read-only, its own name so a Namespace picks the model per Task |
-| Task `draft-prd` | inputs `brief` (text), `productId` (the id stem), `contextIds` (the BoundedContexts the capabilities live in, one or more), `rules` and `glossary` (optional, the product's current ones), `previous` (the last Prd), `feedback`; outputs `prd` and `rules` (the context's BusinessRules: the input artifact's rules carried forward plus the brief's) |
+| Task `draft-prd` | inputs `brief` (text), `productId` (the id stem), `contextIds` (the BoundedContexts the capabilities live in, one or more), `rules` and `glossary` (optional, the product's current ones), `previous` (the last Prd), `previousRules` (the last round's rules, carried by the loop), `feedback`; outputs `prd` and `rules` (the context's BusinessRules: the input artifact's rules carried forward plus the brief's) |
 | Task `confirm-prd` | human on `cli-human/v1`: reads the Prd and the rules at the terminal, approves or rejects with one finding per id |
-| Validators | `prd-consistency`: `sdd/v1` over `prd` and `rules`; `prd-confirmed`: over `confirm-prd` |
+| Validators | `prd-consistency`: `sdd/v1` over `prd` and `rules`, and from round two `previousRules` and `feedback` (`rule-drift`: a rule dropped, or changed in statement or status, that no finding of the last verdict names); `prd-confirmed`: over `confirm-prd` |
 | Gate `prd-gate` | both, `all` |
-| ReviewLoop `author-prd` | `produce` `draft-prd`, `review` `prd-gate`, `maxRounds: 3`; the subject is the Prd |
+| ReviewLoop `author-prd` | `produce` `draft-prd`, `review` `prd-gate`, `maxRounds: 3`; the subject is the Prd; `carry: {rules: previousRules}`, and the review reads `previousRules` and `feedback` (`21-composition.md`) |
 
 ## `checkPrd`
 
@@ -58,7 +58,7 @@ conformance suite's name) runs `checkSpec`; otherwise `artifacts.prd` runs `chec
 | a Prd process runs over one product: `rules` is one artifact listing the product's contexts, every capability's `context` is one of them, and with several contexts every rule is tagged with the one that enforces it (`33-multi-context-product.md`) | `prd-consistency` (`context-mismatch`) |
 | the `rules` output is `<productId>-rules` and the Prd `<productId>-prd` (`outputs.<port>.id`, `12-task.md`): a second run with the same `productId` publishes their next revisions, so the rules a Prd run writes are revision n+1 of the context's rules when the input was named the same way | `draft-prd` outputs |
 | `author-prd` writes the first Prd of a product: `contextIds` are the ids the BoundedContexts will carry, chosen by the author before domain discovery derives them, and `productId` stems the Prd's and the rules' ids (a one-context product's is its context's); `23-pack-ai-native.md` allows a cited context not yet written | convention |
-| the Task writes the whole `BusinessRules` artifact each round from the input rules and its previous Prd: a ReviewLoop carries one subject back as `previous`, so the rules of the last round are not an input; `prd-consistency` refuses a Prd citing a rule the produced artifact lacks | `prd-consistency`; `21-composition.md` |
+| the Task writes the whole `BusinessRules` artifact each round, from `previousRules` when the loop carries them and from the input `rules` in round one; a `BR-n` keeps its id, statement and status unless a finding of the last verdict names it, a new policy takes the next number; `prd-consistency` refuses a Prd citing a rule the produced artifact lacks, and `rule-drift` a rule changed or dropped unasked | `prd-consistency`; `21-composition.md` |
 | a new rule carries `status: active`, `source` naming the brief, and `logic` only when the brief states the condition; a rule the brief implies but does not state is a `Q-n`, not a rule | `prd-rules` |
 | the human gate is the Prd's reviewer: `prd-consistency` decides form and citations, the human decides scope, goals and whether the capabilities are the right cut | `prd-gate` |
 
@@ -95,8 +95,13 @@ conformance suite's name) runs `checkSpec`; otherwise `artifacts.prd` runs `chec
   else" rewrote the BusinessRules whole and renumbered `BR-1` to `BR-10`, the Prd's citations
   surviving only because `CAP-1` cited them as a block. `prd-rules` already said a revision keeps
   every id in place; the Task now says it where the model reads last. A Validator check against
-  the previous rules needs the ReviewLoop's `review` to see `previous`, which it does not; roadmap.
+  the previous rules needs the ReviewLoop's `review` to see `previous`, which it did not then.
   Found in UAT.
+- The loop carries the rules (`carry: {rules: previousRules}`, `21-composition.md`) and the gate
+  reads them with the last verdict: `rule-drift` refuses a `BR-n` dropped or changed in statement
+  or status that no finding names, matched by id in the findings' text. Statement and status only:
+  rationale and source may be polished unasked, and a finding naming the rule frees every field.
+  Round one has no previous rules and no verdict, so nothing is checked. Found in UAT (example08).
 
 ## Examples
 

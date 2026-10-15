@@ -95,7 +95,7 @@ export function checkSpec({ spec, prd, domainModel, architecture, rules }) {
   return findings
 }
 
-export function checkPrd({ prd, rules }) {
+export function checkPrd({ prd, rules, previousRules, feedback }) {
   if (!prd || !Array.isArray(prd.capabilities) || !prd.title) {
     return [{ severity: 'error', code: 'not-a-prd', message: 'content is not a Prd: it has no capabilities array or no title' }]
   }
@@ -125,6 +125,17 @@ export function checkPrd({ prd, rules }) {
   for (const g of prd.goals ?? []) if (/\d/.test(String(g.statement ?? ''))) bad('goal-with-number', `${g.id}: a goal states a direction without a number`)
 
   sequence(bad, 'BR', (rules?.rules ?? []).map((r) => r.id))
+  // rule-drift: against the last round's rules, a BR-n dropped, or changed in statement or status, that no finding of the last verdict names (28-prd-process.md)
+  if (previousRules?.rules) {
+    const named = [...(feedback?.findings ?? []), ...Object.values(feedback?.results ?? {}).flatMap((r) => r?.findings ?? [])].map((f) => f.message ?? '').join('\n')
+    const now = new Map((rules?.rules ?? []).map((r) => [r.id, r]))
+    for (const r of previousRules.rules) {
+      if (new RegExp(`\\b${r.id}\\b`).test(named)) continue
+      const cur = now.get(r.id)
+      if (!cur) bad('rule-drift', `${r.id} was dropped and no finding asked for it`)
+      else if (cur.statement !== r.statement || cur.status !== r.status) bad('rule-drift', `${r.id} changed unasked: no finding of the last round names it`)
+    }
+  }
   sequence(bad, 'G', (prd.goals ?? []).map((g) => g.id))
   sequence(bad, 'CAP', capabilityIds)
   sequence(bad, 'SC', (prd.successCriteria ?? []).map((s) => s.id))

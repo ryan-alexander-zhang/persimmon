@@ -147,6 +147,7 @@ spec:
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: false}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false}
+    previousRules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false, description: "the rules the last round answered; the loop carries them (21-composition.md)"}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
   outputs:
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, id: {expression: "inputs.productId + '-prd'"}}
@@ -158,11 +159,13 @@ spec:
       context, and the product's one BusinessRules artifact with every rule the Prd cites: the input `rules` revised when bound,
       a new artifact otherwise. With `previous` and `feedback` bound, fix what the findings name and change
       nothing else; answer both artifacts whole. The rules you answer start as a verbatim copy of the rules you were
-      given (`rules`, or the last round's): every `BR-n` keeps its id, statement and rationale; a finding that names a
-      `BR-n` changes that rule; a new policy takes the next number. Never renumber, reorder or reword a rule unasked.
+      given (`previousRules` when bound, the last round's answer; else `rules`): every `BR-n` keeps its id, statement and
+      rationale; a finding that names a `BR-n` changes that rule; a new policy takes the next number. Never renumber,
+      reorder or reword a rule unasked: the gate refuses a rule that changed without a finding naming it.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: prd-rules}}
       - {kind: artifact, input: rules}
+      - {kind: artifact, input: previousRules}
       - {kind: artifact, input: glossary}
       - {kind: artifact, input: previous}
     parameters: {effort: high}

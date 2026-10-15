@@ -307,10 +307,13 @@ spec:
     inputs:
       prd: {fromStep: {stepRef: produce, output: prd}}
       rules: {fromStep: {stepRef: produce, output: rules}}
+      previousRules: {fromInput: previousRules} # the last round's rules, so the gate refuses a rule changed unasked; absent in round one
+      feedback: {fromInput: feedback}
     timeout: 72h
   subject: prd
   previous: previous
   feedback: feedback
+  carry: {rules: previousRules} # the rules come back beside the Prd: round two revises them instead of rewriting them from the Prd
   maxRounds: 3
   timeout: 240h
 ---

@@ -190,6 +190,25 @@ describe('sdd/v1 over a Prd', () => {
     expect(await codes((a) => { a.domainModel.context = 'payments' })).toEqual(['context-mismatch'])
   })
 
+  it('refuses a rule changed or dropped since the last round that no finding named', async () => {
+    const withPrevious = (mutate: (rules: any) => void, feedback?: unknown) => {
+      const a = structuredClone(prdExample()) as any
+      a.previousRules = structuredClone(a.rules)
+      mutate(a.rules)
+      const p = payload(a) as any
+      if (feedback) p.inputs = { feedback: { kind: 'value', value: feedback } }
+      return adapter({ id: ++id, op: 'evaluate', payload: p }).then((r) => r.result.findings.map((f: { code: string }) => f.code))
+    }
+    expect(await withPrevious(() => {})).toEqual([]) // unchanged rules
+    expect(await withPrevious((r) => { r.rules[0].statement = 'reworded' })).toEqual(['rule-drift'])
+    expect(await withPrevious((r) => { r.rules.at(-1).status = 'deprecated' })).toEqual(['rule-drift']) // the last rule is cited by nothing, so only the drift shows
+    expect(await withPrevious((r) => { r.rules.push({ ...r.rules[0], id: `BR-${r.rules.length + 1}` }) })).toEqual([]) // a new rule takes the next number
+    const named = (id: string) => ({ passed: false, results: { human: { passed: false, findings: [{ severity: 'error', message: `${id}: tighten the wording` }] } } })
+    expect(await withPrevious((r) => { r.rules[0].statement = 'reworded' }, named(content('BusinessRules').rules[0].id))).toEqual([]) // the finding asked for it
+    expect(await withPrevious((r) => { r.rules[0].statement = 'reworded' }, named('BR-99'))).toEqual(['rule-drift']) // a finding on another rule
+    expect(await withPrevious((r) => { r.rules.splice(r.rules.length - 1, 1) })).toEqual(['rule-drift']) // dropped; the last rule is cited by nothing, so only the drift shows
+  })
+
   it('is invalid_input without the BusinessRules beside a Prd', async () => {
     const r = await adapter({ id: 2003, op: 'evaluate', payload: payload({ prd: content('Prd') }) })
     expect(r).toEqual({ id: 2003, ok: false, error: { code: 'invalid_input', message: 'artifacts.rules is required', retryable: false } })
