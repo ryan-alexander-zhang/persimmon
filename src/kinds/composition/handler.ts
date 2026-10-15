@@ -37,6 +37,7 @@ export function compositionHandler(deps: HandlerDeps): HandlerImpl {
       for (const [taskPort, port] of Object.entries(mapping)) {
         if (!task.inputs[taskPort]) bad(`/spec/approvers/${i}/inputs/${taskPort}`, `${taskPort} is not an input of Task ${ap.uses.name}`)
         if (!a.spec.inputs[port]) bad(`/spec/approvers/${i}/inputs/${taskPort}`, `${port} is not an input of this Approval`)
+        else if (task.inputs[taskPort] && !optional(task.inputs[taskPort]!) && optional(a.spec.inputs[port]!)) bad(`/spec/approvers/${i}/inputs/${taskPort}`, `${port} is optional but ${taskPort} of Task ${ap.uses.name} is required`)
       }
       for (const [taskPort, spec] of Object.entries(task.inputs)) if (!optional(spec) && !(taskPort in mapping)) bad(`/spec/approvers/${i}/inputs`, `required input ${taskPort} of Task ${ap.uses.name} is not mapped`)
     }
@@ -66,6 +67,7 @@ export function compositionHandler(deps: HandlerDeps): HandlerImpl {
         const o = p.outputs[out]
         const i = p.inputs[inp]
         if (!o) bad(`/spec/carry/${out}`, `${out} is not an output of ${produce.uses.kind} ${produce.uses.name}`)
+        else if (['passed', 'rounds', 'verdict'].includes(out)) bad(`/spec/carry/${out}`, `${out} is a name the loop reserves for its own outputs; it cannot be carried`) // in the body that name is the loop's, not produce's
         if (!i) bad(`/spec/carry/${out}`, `${inp} is not an input of ${produce.uses.kind} ${produce.uses.name}`)
         else {
           if (i.required !== false) bad(`/spec/carry/${out}`, `${inp} must be an optional input (required: false): round 1 has nothing to carry`)
@@ -76,6 +78,9 @@ export function compositionHandler(deps: HandlerDeps): HandlerImpl {
         if (produce.inputs?.[inp]) bad(`/spec/produce/inputs/${inp}`, `${inp} is fed by the loop (carry); do not bind it`)
         if (inp in inputs || ['previous', 'feedback', 'maxRounds'].includes(inp)) bad(`/spec/carry/${out}`, `${inp} is a loop input or a reserved name; the carried input is named in the round body`)
       }
+      // what the loop feeds reaches produce where previous, feedback and carry say; a second route through a produce binding is a mistake
+      const fedNames = new Set([...(previous ? ['previous'] : []), ...(feedback ? ['feedback'] : []), ...Object.values(carry)])
+      for (const [port, b] of Object.entries(produce.inputs ?? {})) if ('fromInput' in b && !(b.fromInput in inputs) && fedNames.has(b.fromInput)) bad(`/spec/produce/inputs/${port}`, `${b.fromInput} is what the loop feeds back; bind it with previous, feedback or carry, not here`)
     }
     if (['passed', 'rounds', 'verdict'].includes(subject)) bad('/spec/subject', `${subject} is a name the loop reserves for its own outputs`) // shadowed, so it could never carry the subject
     // review may read what the loop carries (previous, feedback, a carried input) into an optional Gate port: round one has none

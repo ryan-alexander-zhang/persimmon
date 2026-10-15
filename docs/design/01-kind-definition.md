@@ -82,7 +82,7 @@ the target's rules, and the snapshot walk stores the expansion in place of the R
 | `stepContract.runKind` is registered and has `terminal` | static checker |
 | `versions[].name` unique; Resources keep the version they were written in | static checker; store |
 | a kind has one definition: a second under another name (a new plural, group or version name) is refused | registry |
-| `versions[].schema` and `statusSchema` carry no `$id`; `$ref` is relative to the schema root | registry |
+| `versions[].schema` and `statusSchema` carry no `$id` at any depth; `$ref` is relative to the schema root | registry |
 | Global: no `namespace`; write needs `admin` grant | write path (`00-resource.md`) |
 
 ## Decisions

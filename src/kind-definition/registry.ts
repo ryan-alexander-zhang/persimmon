@@ -16,7 +16,8 @@ export function validateKindDefinition(value: unknown): KindDefinition {
   if (metadata.name !== expected) throw new KindError(`metadata.name must be ${expected}, got ${metadata.name}`)
   const names = spec.versions.map((v) => v.name)
   if (new Set(names).size !== names.length) throw new KindError(`versions[].name not unique: ${names.join(', ')}`)
-  for (const v of spec.versions) for (const s of [v.schema, v.statusSchema]) if (s && typeof s === 'object' && '$id' in s) throw new KindError(`${metadata.name}: versions[].schema carries no $id; $ref is relative to the schema root`) // one ajv holds every kind; an id registered twice throws, and a frozen copy would resolve into the live one
+  const hasId = (s: unknown): boolean => !!s && typeof s === 'object' && (Array.isArray(s) ? s.some(hasId) : '$id' in s || Object.values(s).some(hasId)) // at any depth: a nested $id registers in the shared ajv too
+  for (const v of spec.versions) for (const s of [v.schema, v.statusSchema]) if (hasId(s)) throw new KindError(`${metadata.name}: versions[].schema carries no $id, at any depth; $ref is relative to the schema root`) // one ajv holds every kind; an id registered twice throws, and a frozen copy would resolve into the live one
   return value
 }
 

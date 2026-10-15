@@ -88,6 +88,9 @@ describe('KindRegistry', () => {
     const live = example('kind-definition-productrequirement')
     live.spec.versions[0].schema.$id = 'https://example.test/prd'
     expect(() => new KindRegistry().register(live)).toThrow(/carries no \$id/)
+    const nested = example('kind-definition-productrequirement')
+    nested.spec.versions[0].schema.$defs = { t: { $id: 'https://example.test/t', type: 'string' } }
+    expect(() => new KindRegistry().register(nested)).toThrow(/carries no \$id, at any depth/)
   })
 
   it('validates a WorkflowRun spec and status', () => {

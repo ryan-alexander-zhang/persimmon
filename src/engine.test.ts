@@ -161,6 +161,9 @@ describe('Engine', () => {
     await expect(engine.apply({ ...loop, spec: { ...loop.spec, carry: { prd: 'last' } } } as Resource)).rejects.toThrow(/last is fed twice/)
     await expect(engine.apply({ ...loop, spec: { ...loop.spec, carry: { prd: 'research' } } } as Resource)).rejects.toThrow(/research must be an optional input/)
     await expect(engine.apply({ ...loop, spec: { ...loop.spec, carry: { nope: 'last' } } } as Resource)).rejects.toThrow(/nope is not an output of Task revise-prd/)
+    await expect(engine.apply({ ...loop, spec: { ...loop.spec, produce: { ...(loop.spec as { produce: object }).produce, inputs: { research: { fromInput: 'research' }, lastCopy: { fromInput: 'previous' } } }, carry: undefined } } as Resource)).rejects.toThrow(/previous is what the loop feeds back/)
+    // an Approval's optional input cannot feed a required Task input: round one would fail at run
+    await expect(engine.apply({ apiVersion: 'persimmon.ai/v1', kind: 'Approval', metadata: { name: 'prd-approval-bad', namespace: 'demo' }, spec: { inputs: { prd: { ...prd, required: false } }, approvers: [{ name: 'human', uses: { kind: 'Task', name: 'approve-prd' } }], timeout: '72h' } } as Resource)).rejects.toThrow(/prd is optional but prd of Task approve-prd is required/)
     await expect(engine.apply({ ...loop, spec: { ...loop.spec, feedback: 'research' } } as Resource)).rejects.toThrow(/research must be an optional input/)
     await expect(engine.apply({ ...loop, spec: { ...loop.spec, review: { ...(loop.spec as { review: object }).review, uses: { kind: 'Task', name: 'approve-prd' } } } } as Resource)).rejects.toThrow(/does not run as a GateRun/)
     await expect(engine.apply({ ...loop, spec: { ...loop.spec, subject: 'passed' } } as Resource)).rejects.toThrow(/passed is a name the loop reserves/)

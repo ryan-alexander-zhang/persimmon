@@ -72,6 +72,7 @@ export function gateHandler(deps: HandlerDeps): HandlerImpl {
       const run = input.resource as unknown as GateRun
       if (run.kind !== 'GateRun') return { actions: [] }
       const status = run.status ?? { phase: 'Pending', validationRuns: {} }
+      const finish = (patch: Record<string, unknown>, actions: Action[] = []): ReconcileResult => done({ validationRuns: status.validationRuns ?? {}, ...patch }, actions) // the status schema requires validationRuns on every patch, a failure before Created stored any included
       if (terminal.has(status.phase)) return { actions: [] }
       const ev = input.event
       const now = deps.now()
@@ -88,7 +89,7 @@ export function gateHandler(deps: HandlerDeps): HandlerImpl {
           try {
             inputs = checkInputs(gate.spec.inputs ?? {}, run.spec.inputs)
           } catch (e) {
-            if (e instanceof PortError) return done({ phase: 'Failed', error: err('invalid_input', e.message), validationRuns: {} }) // the status schema requires validationRuns
+            if (e instanceof PortError) return finish({ phase: 'Failed', error: err('invalid_input', e.message)})
             throw e
           }
           const site = siteOf({ inputs: gate.spec.inputs ?? {} })
@@ -101,7 +102,7 @@ export function gateHandler(deps: HandlerDeps): HandlerImpl {
             try {
               bound = checkInputs(validator.spec.inputs ?? {}, bind(v.inputs ?? {}, { inputs }, site))
             } catch (e) {
-              if (e instanceof PortError) return done({ phase: 'Failed', error: err('invalid_input', `validator ${v.name}: ${e.message}`), validationRuns: {} })
+              if (e instanceof PortError) return finish({ phase: 'Failed', error: err('invalid_input', `validator ${v.name}: ${e.message}`)})
               throw e
             }
             const name = `${run.metadata.name}-${v.name.toLowerCase()}`
@@ -128,8 +129,8 @@ export function gateHandler(deps: HandlerDeps): HandlerImpl {
             const child = ref && byName.get(ref.name)
             const st = child?.status as { phase?: string; result?: ValidationResult; error?: ReconcileError } | undefined
             const phase = ref?.name === ev.payload.ref.name ? ev.payload.value : st?.phase
-            if (phase === 'Failed') return done({ phase: 'Failed', error: st?.error ?? err('validator_failed', `${v.name} failed`) }, cancelRemaining())
-            if (phase === 'Cancelled') return done({ phase: 'Failed', error: err('validator_cancelled', `${v.name} was cancelled`) }, cancelRemaining())
+            if (phase === 'Failed') return finish({ phase: 'Failed', error: st?.error ?? err('validator_failed', `${v.name} failed`) }, cancelRemaining())
+            if (phase === 'Cancelled') return finish({ phase: 'Failed', error: err('validator_cancelled', `${v.name} was cancelled`) }, cancelRemaining())
             if (phase !== 'Succeeded' || !st?.result) return { actions: [] } // still waiting for the rest
             results[v.name] = st.result
           }
@@ -137,13 +138,13 @@ export function gateHandler(deps: HandlerDeps): HandlerImpl {
           const policy = gate.spec.policy ?? { strategy: 'all' }
           const passed = policy.strategy === 'all' ? passedCount === gate.spec.validators.length : policy.strategy === 'any' ? passedCount >= 1 : passedCount >= (policy.count ?? 1)
           const result: GateResult = { passed, results }
-          return done({ phase: 'Succeeded', outputs: { result: { kind: 'value', value: result } } })
+          return finish({ phase: 'Succeeded', outputs: { result: { kind: 'value', value: result } } })
         }
 
         case 'TimerFired':
-          return ev.payload.key === 'deadline' ? done({ phase: 'Failed', error: err('timeout', 'gate timeout') }, cancelRemaining()) : { actions: [] }
+          return ev.payload.key === 'deadline' ? finish({ phase: 'Failed', error: err('timeout', 'gate timeout') }, cancelRemaining()) : { actions: [] }
         case 'CancelRequested':
-          return done({ phase: 'Cancelled' }, cancelRemaining())
+          return finish({ phase: 'Cancelled' }, cancelRemaining())
         default:
           return { actions: [] }
       }

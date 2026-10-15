@@ -76,7 +76,7 @@ Produce, review, feed the verdict back, repeat.
 |---|---|
 | `inputs`, `timeout` | as Workflow |
 | `produce` | Step without `repeat`: `uses` (Task, Workflow, Pipeline), `inputs`, `timeout` |
-| `review` | Step without `repeat`: `uses` a kind with runKind GateRun (Gate, Approval), `inputs` (may bind `fromStep: {stepRef: produce}`, and `fromInput: previous` or `fromInput: feedback`, the loop's reserved names, into an optional port of the Gate: round one has neither), `timeout` |
+| `review` | Step without `repeat`: `uses` a kind with runKind GateRun (Gate, Approval), `inputs` (may bind `fromStep: {stepRef: produce}`, and `fromInput: previous`, `fromInput: feedback` or a `carry` input's name into an optional port of the Gate: round one has none), `timeout` |
 | `subject` | an output port of `produce`; carried as the loop's result |
 | `previous` | optional input port of `produce`, `required: false`, type of `subject`; receives the last round's subject |
 | `feedback` | optional input port of `produce`, `required: false`, type `GateResult`; receives the last round's verdict |
@@ -102,8 +102,8 @@ Expansion:
 | Rule | Checked by |
 |---|---|
 | every Pipeline phase id unique; `outputBindings` keys equal `outputs` | expansion + Workflow checker |
-| Approval: approver names unique; every mapped Task port and Approval port exists; every required Task input is mapped; `uses` Task has output `resultOutput` of `value` type with the ValidationResult `$ref` | composition Handler, then the Validator rules on the expansion |
-| ReviewLoop: `subject` ∈ produce outputs and not `passed`, `rounds`, `verdict` (the loop's own shadow a produce output of that name, so `subject` could never carry it); `previous`, `feedback` ∈ produce inputs, optional, of the stated types, not bound by `produce.inputs`, and no loop input named `previous`, `feedback` or `maxRounds`; `carry` entries name a produce output and an optional produce input of its type, each input fed once and neither a loop input nor a reserved name; a `review` binding `fromInput` of a name that is not a loop input is `previous`, `feedback` or a carried input the loop declares, and lands on an optional Gate input; `review.uses` runKind is GateRun | composition Handler |
+| Approval: approver names unique; every mapped Task port and Approval port exists; every required Task input is mapped, and never from an optional Approval input; `uses` Task has output `resultOutput` of `value` type with the ValidationResult `$ref` | composition Handler, then the Validator rules on the expansion |
+| ReviewLoop: `subject` ∈ produce outputs and not `passed`, `rounds`, `verdict` (the loop's own shadow a produce output of that name, so `subject` could never carry it); `previous`, `feedback` ∈ produce inputs, optional, of the stated types, not bound by `produce.inputs`, and no loop input named `previous`, `feedback` or `maxRounds`; `carry` entries name a produce output (not `passed`, `rounds` or `verdict`, the loop's own in the body) and an optional produce input of its type, each input fed once and neither a loop input nor a reserved name; no `produce.inputs` binding reads `previous`, `feedback` or a carried name, the loop feeds those where declared; a `review` binding `fromInput` of a name that is not a loop input is `previous`, `feedback` or a carried input the loop declares, and lands on an optional Gate input; `review.uses` runKind is GateRun | composition Handler |
 | no composition expands through itself (a ReviewLoop producing with a ReviewLoop that produces with it) | expansion; refused at write when visible, at snapshot otherwise |
 | everything else | the Workflow and Gate rules on the expansion; a finding's path is rebased onto what the user wrote (a Pipeline phase; a ReviewLoop's `produce`, `review`, `inputs` or `maxRounds`, else `/spec`), its message names the expanded Resource |
 

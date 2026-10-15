@@ -78,10 +78,10 @@ A `task` Validator's TaskRun has invocation address
   Reference let `type` name the Role.
 - Evaluator Adapters get no `credentials` or `security`; they run on Adapter-level bindings.
 - Validator inputs are bound per Gate, so one Validator serves many Gates.
-- A GateRun that fails at Created (an input the Gate or a Validator cannot bind) records
-  `validationRuns: {}` beside the error: the status schema requires the map, and a Failed patch
-  without it was refused, so the run stayed Pending with the cause only in the engine log. Found in
-  implementation (the review of a ReviewLoop reading `previous`).
+- Every GateRun status patch carries `validationRuns` (the map so far, `{}` before Created stored
+  any): the status schema requires it, and a Failed patch at Created without it was refused, so the
+  run stayed Pending with the cause only in the engine log; a Cancel before Created would have done
+  the same. Found in implementation (the review of a ReviewLoop reading `previous`).
 - `cel` sees `{content, provenance}` per artifact and may return a full ValidationResult.
 - Gate and Validator inputs exclude `externalResource`: a Validator judges produced facts; a
   repository check is a `task` Validator whose Task reads the repository. `artifacts` is allowed,

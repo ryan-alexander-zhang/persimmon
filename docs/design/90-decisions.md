@@ -178,7 +178,7 @@ appears twice; the earlier file owns it.
 | 159 | `14-gate.md` | `evaluator.type` is closed: `cel`, `task`, `adapter`; the Adapter Role is always `evaluator`. Reference let `type` name the Role. |
 | 160 | `14-gate.md` | Evaluator Adapters get no `credentials` or `security`; they run on Adapter-level bindings. |
 | 161 | `14-gate.md` | Validator inputs are bound per Gate, so one Validator serves many Gates. |
-| 162 | `14-gate.md` | A GateRun that fails at Created (an input the Gate or a Validator cannot bind) records `validationRuns: {}` beside the error: the status schema requires the map, and a Failed patch without it was refused, so the run stayed Pending with the cause only in the engine log. Found in implementation (the review of a ReviewLoop reading `previous`). |
+| 162 | `14-gate.md` | Every GateRun status patch carries `validationRuns` (the map so far, `{}` before Created stored any): the status schema requires it, and a Failed patch at Created without it was refused, so the run stayed Pending with the cause only in the engine log; a Cancel before Created would have done the same. Found in implementation (the review of a ReviewLoop reading `previous`). |
 | 163 | `14-gate.md` | `cel` sees `{content, provenance}` per artifact and may return a full ValidationResult. |
 | 164 | `14-gate.md` | Gate and Validator inputs exclude `externalResource`: a Validator judges produced facts; a repository check is a `task` Validator whose Task reads the repository. `artifacts` is allowed, on an Approval too (same port schema): one Validator or approver judges a document against every revision it cites. |
 | 165 | `14-gate.md` | A ValidationRun exists only under a GateRun in v1. |
