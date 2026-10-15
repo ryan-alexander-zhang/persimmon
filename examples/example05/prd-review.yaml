@@ -134,7 +134,7 @@ spec:
 ---
 apiVersion: persimmon.ai/v1
 kind: Task
-metadata: {name: draft-prd}
+metadata: {name: draft-ears-prd}
 spec:
   inputs:
     idea: {type: {kind: value, schema: {type: string, minLength: 1}}}
@@ -280,7 +280,7 @@ spec:
   entry: [write]
   steps:
     - id: write
-      uses: {kind: Task, name: draft-prd}
+      uses: {kind: Task, name: draft-ears-prd}
       inputs: {idea: {fromInput: idea}}
       timeout: 25m
     - id: rounds

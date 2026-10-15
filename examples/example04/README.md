@@ -18,7 +18,7 @@ not just mentioned. Rejected rounds loop back. A verification report follows you
 Files:
 
 - [`templates.yaml`](templates.yaml): three `Prompt` resources. **This is the file you edit.**
-- [`sdlc.yaml`](sdlc.yaml): four artifact kinds (`Idea`, `Spec`, `ImplementationReport`,
+- [`sdlc.yaml`](sdlc.yaml): four artifact kinds (`Idea`, `AppSpec`, `ImplementationReport`,
   `VerificationReport`), one Skill, five Executors (plus the pack's `local-reviewer`), seven
   Tasks, two Validators, the Gate, two Workflows
 - [`skills/vitest-style/`](skills/vitest-style/): a skill the coder gets, how tests are written here
@@ -28,7 +28,7 @@ Files:
 ## Templates
 
 A template is a `Prompt`: text handed to the agent as context. The artifact kind in `sdlc.yaml`
-fixes the fields (`Spec` has `features[].requirements[].pattern`, `acceptance[].given`, ...); the
+fixes the fields (`AppSpec` has `features[].requirements[].pattern`, `acceptance[].given`, ...); the
 template says how to fill them. Change the wording, the size, the rules:
 
 ```sh
@@ -133,7 +133,7 @@ Scripted (no terminal): `--file` with `{passed: true, findings: [], evidence: []
 ```sh
 persimmon tree WorkflowRun/idea-to-verified-<hex>        # every run, every artifact by name, the Gate verdicts
 open app/reports/verification.html                       # the report from your template (macOS)
-persimmon get Spec/idea-to-verified-<hex>-write-spec-spec.r1               # EARS requirements, GWT ACs
+persimmon get AppSpec/idea-to-verified-<hex>-write-spec-appspec.r1             # EARS requirements, GWT ACs
 persimmon get GateRun/idea-to-verified-<hex>-rounds-1-gate                 # results.acceptance.findings: one per AC, info verified, error missing
 persimmon logs TaskRun/idea-to-verified-<hex>-rounds-1-gate-acceptance-task   # what codex read and concluded
 persimmon get VerificationReport/idea-to-verified-<hex>-report-verification.r1   # passed, verified/total, coverage, rounds

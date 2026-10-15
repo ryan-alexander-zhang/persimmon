@@ -1,4 +1,4 @@
-# idea-to-verified: one line -> Idea (agent, your template) -> you approve -> Spec (EARS + GWT, your template)
+# idea-to-verified: one line -> Idea (agent, your template) -> you approve -> AppSpec (EARS + GWT, your template)
 #   -> code (codex) behind a Gate (coverage script + codex checks every GWT AC has a test) -> verification report (your template).
 # Install: persimmon apply templates.yaml sdlc.yaml    Run: persimmon run idea-to-verified --input idea="..." --follow
 apiVersion: persimmon.ai/v1
@@ -25,10 +25,10 @@ spec:
 ---
 apiVersion: persimmon.ai/v1
 kind: KindDefinition
-metadata: {name: specs.engineering.persimmon.ai}
+metadata: {name: appspecs.engineering.persimmon.ai}
 spec:
   group: engineering.persimmon.ai
-  names: {kind: Spec, plural: specs}
+  names: {kind: AppSpec, plural: appspecs}
   scope: Namespaced
   versions:
     - name: v1
@@ -205,12 +205,12 @@ spec:
 ---
 apiVersion: persimmon.ai/v1
 kind: Task
-metadata: {name: write-spec}
+metadata: {name: write-app-spec}
 spec:
   inputs:
     idea: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: Idea}}}
   outputs:
-    spec: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: Spec}}}
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: AppSpec}}}
   executorRef: {kind: Executor, name: writer}
   action:
     instructions: |
@@ -230,7 +230,7 @@ kind: Task
 metadata: {name: implement}
 spec:
   inputs:
-    spec: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: Spec}}}
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: AppSpec}}}
     previous: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
   outputs:
     report: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ImplementationReport}}}
@@ -271,7 +271,7 @@ kind: Task
 metadata: {name: gwt-check}
 spec:
   inputs:
-    spec: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: Spec}}}
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: AppSpec}}}
     report: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ImplementationReport}}}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
@@ -298,7 +298,7 @@ kind: Task
 metadata: {name: write-report}
 spec:
   inputs:
-    spec: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: Spec}}}
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: AppSpec}}}
     report: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ImplementationReport}}}
     verdict: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
     rounds: {type: {kind: value, schema: {type: integer}}}
@@ -334,7 +334,7 @@ kind: Validator
 metadata: {name: acceptance}
 spec:
   inputs:
-    spec: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: Spec}}}
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: AppSpec}}}
     report: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ImplementationReport}}}
   evaluator: {type: task, taskRef: {kind: Task, name: gwt-check}, resultOutput: result}
   timeout: 15m
@@ -344,7 +344,7 @@ kind: Gate
 metadata: {name: quality-gate}
 spec:
   inputs:
-    spec: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: Spec}}}
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: AppSpec}}}
     report: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ImplementationReport}}}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
@@ -359,7 +359,7 @@ kind: Workflow
 metadata: {name: code-round}
 spec:
   inputs:
-    spec: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: Spec}}}
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: AppSpec}}}
     previous: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
   outputs:
     report: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: ImplementationReport}}}
@@ -393,7 +393,7 @@ spec:
     maxRounds: {type: {kind: value, schema: {type: integer, minimum: 1}}, required: false, default: {kind: value, value: 3}}
   outputs:
     idea: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: Idea}}}
-    spec: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: Spec}}}
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: AppSpec}}}
     verification: {type: {kind: artifact, artifactKind: {apiVersion: engineering.persimmon.ai/v1, kind: VerificationReport}}}
     passed: {type: {kind: value, schema: {type: boolean}}}
   outputBindings:
@@ -412,7 +412,7 @@ spec:
       inputs: {idea: {fromStep: {stepRef: write-idea, output: idea}}}
       timeout: 48h
     - id: write-spec
-      uses: {kind: Task, name: write-spec}
+      uses: {kind: Task, name: write-app-spec}
       inputs: {idea: {fromStep: {stepRef: write-idea, output: idea}}}
       timeout: 20m
     - id: rounds
