@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs'
-import { parse } from 'yaml'
+import { parse, parseAllDocuments } from 'yaml'
 import { beforeEach, describe, expect, it } from 'vitest'
+import schemas from '../generated/schemas.json' with { type: 'json' }
 import { KindError, KindRegistry, validateKindDefinition } from './registry.js'
 
 const dir = 'docs/design/examples'
@@ -132,5 +133,24 @@ describe('KindRegistry', () => {
     const a = { apiVersion: 'persimmon.ai/v1', kind: 'Trigger', metadata: { name: 't', namespace: 'demo' }, spec: { event: {}, run: {} } }
     const b = { ...a, spec: { ...a.spec, enabled: false } }
     expect(() => reg.checkMutability(a, b)).not.toThrow()
+  })
+})
+
+describe('the SDLC pack Design kind', () => {
+  const packKinds = parseAllDocuments(readFileSync('packs/sdlc/global/10-artifact-kinds.yaml', 'utf8')).map((d) => d.toJS())
+  const design = () => structuredClone(parseAllDocuments(readFileSync('examples/example07/room-booking-domain.yaml', 'utf8')).map((d) => d.toJS()).find((d) => d.kind === 'Design' && d.spec.content.references))
+
+  it('references[] is the ExternalResourceRef of resource.yaml, inlined (29-design-process.md); a malformed one is refused', () => {
+    const inlined = packKinds.find((k) => k.metadata.name === 'designs.sdd.persimmon.ai').spec.versions[0].schema.properties.references.items
+    const strip = (s: unknown): unknown => (Array.isArray(s) ? s.map(strip) : s && typeof s === 'object' ? Object.fromEntries(Object.entries(s).filter(([k]) => k !== 'description').map(([k, v]) => [k, strip(v)])) : s)
+    expect(strip(inlined)).toEqual(schemas['resource.yaml'].$defs.ExternalResourceRef)
+    const reg = new KindRegistry()
+    for (const k of packKinds) reg.register(k)
+    const ok = design()
+    ok.metadata.namespace = 'demo' // the example file carries none; apply stamps the default Namespace
+    expect(() => reg.validateResource(ok)).not.toThrow()
+    const bad = structuredClone(ok)
+    delete bad.spec.content.references[0].provider
+    expect(() => reg.validateResource(bad)).toThrow(/\/references\/0 must have required property 'provider'/)
   })
 })
