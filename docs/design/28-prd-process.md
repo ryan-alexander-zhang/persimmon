@@ -102,6 +102,11 @@ conformance suite's name) runs `checkSpec`; otherwise `artifacts.prd` runs `chec
   or status that no finding names, matched by id in the findings' text. Statement and status only:
   rationale and source may be polished unasked, and a finding naming the rule frees every field.
   Round one has no previous rules and no verdict, so nothing is checked. Found in UAT (example08).
+- Proven live on `claude-sonnet-5`: `author-prd` over the car pool brief with the product's rules
+  bound, three rounds. Round two, told to deprecate a rule that was already deprecated, republished
+  the rules byte-identical; round three, told to reword `BR-8`, changed that one statement line and
+  nothing else across twenty rules; `prd-consistency` passed both with `previousRules` and the
+  verdict bound. Found in UAT (example08).
 
 ## Examples
 
