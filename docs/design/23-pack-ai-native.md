@@ -236,6 +236,9 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
   names `prd` and `domainModel` by id named no rules. The id is the qualifier, as `CAP-1` is the
   Prd's; the Validator holds the name to the artifact bound (`rules-mismatch`) and refuses a document
   without it. Optional on the kinds, so committed revisions still validate. Found in design review.
+  Proven live: `design-all` for example08's Reservation API wrote `businessRules: car-pool-rules`
+  from the `rules` input and passed `design-consistency` in round one (3m24s). Found in UAT
+  (example08).
 - The four `-all` loops end `step_failed` when an iteration died before its Gate ran, and
   `<x>_inconsistent` only when the Gate rejected the last round (`when: steps.each.phase ==
   "Succeeded"`, `dispatch: first`): four `design-all` runs died in the agent CLI and every WorkflowRun
