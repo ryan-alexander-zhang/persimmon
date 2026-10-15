@@ -96,6 +96,9 @@ without `document.content` is `not-a-design-system`, the only finding then. No E
 | `designs-unbound` | no Design is bound to the Validator's `designs`: nothing to realise; one finding, the elements are not checked |
 | `unknown-realised` | an element's `realises` is not `{kind: operation, name}` with `name` an element name of a bound Design |
 | `document-unindexed`, `element-unbacked` | a `## <screen>` heading of the document with no element named like it, a screen a Plan cannot realise; an element whose screen is no heading (`29-design-process.md`, every type) |
+| `action-unknown` | a `METHOD /path` in backticks under a screen's Actions that is not an element name of a bound Design |
+| `action-unbacked` | an action element (`<screen>: <control>`) whose `realises.name` is not in backticks under that screen's Actions, or the screen has no Actions |
+| `layout-unknown` (warning) | a backticked name under a screen's Layout that is not a `components` key of the DesignSystem's front matter, nor a key of `colors`, `typography`, `spacing` or `rounded` bare or as `<group>.<key>`; no front matter to read, no check |
 | the rest | as any Design: `unknown-block`, rules both ways, `id-sequence` |
 
 A `ui` Design drawn in a design tool names it in `references[]` (`29-design-process.md`): the
@@ -109,7 +112,7 @@ the pixels are (example07's `bb-5-ui`).
 | the DESIGN.md is the truth: the pack adds no field that restates a token or a section; the linter checks the tokens (references, contrast, orphans, section order), the human checks the prose: that every section is present with something to say is not a linter rule | kind schema; `design-system-lint`; `confirm-design-system` |
 | one DesignSystem per product, confirmed by a human: taste is not a Validator's; the linter catches the format, the contrast and the broken reference | `design-system-gate` |
 | a `ui` Design cites the DesignSystem and the block's API Designs; never a DomainModel, a Glossary or a Spec: a client knows the operations it calls, not the model behind them, and a screen serves every capability that reaches the block | `design-rules`; `checkDesign` (`ui-domainmodel`, `unknown-realised`) |
-| the document's components are not checked against the DesignSystem's tokens, nor its prose against the API Designs beyond the index: the document is prose, the Design evaluator parses documents (`91-roadmap.md`); the index is checked: every `## <screen>` has an element, every element an operation of a bound Design | convention; roadmap; `checkDesign` |
+| a screen's prose is read where it names things: a `METHOD /path` in backticks under Actions is an operation of a bound Design, an action element's operation is in its screen's Actions, a backticked name under Layout is a component or token of the DesignSystem (advice); a part opens with `### <Part>` or a `**<Part>.**` line, fenced code is skipped; the rest of the prose is prose | `checkDesign`; `design-rules` |
 | a `ui` Design is per block, as every Design: the Architecture already cut one block per client surface | `design-all` |
 
 ## Decisions
@@ -207,6 +210,13 @@ the pixels are (example07's `bb-5-ui`).
   eight screens and twenty elements realising the APIs' operations, the same open question as with
   the two-API list; the data schemas and the old `ui` Design are context the agent reads past and
   elements the Validator never matches. The example's list files are gone. Found in UAT (example08).
+
+- Layout names are a warning, not an error: example08's live screens put field names in Layout
+  backticks (`passengerCount`, `serviceState`) beside the DesignSystem's, and a `status-badge-*`
+  glob; refusing a screen for those would be the Validator's taste, and a word list is a heuristic
+  (`dialect`). Actions are an error: a `METHOD /path` in backticks is a precise claim, and both
+  live examples make it precisely. The Prompt now says fields belong in Data. Found in
+  implementation.
 
 ## Examples
 
