@@ -235,7 +235,10 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
   "Succeeded"`, `dispatch: first`): four `design-all` runs died in the agent CLI and every WorkflowRun
   said `design_inconsistent`, the one Failed reason the loop had; the cause sat two levels down in
   `steps.each.error`, where it still is. No engine change: a `when` already reads a finished step's
-  phase. Found in UAT (example08).
+  phase. Proven live: `design-all` over `BB-1` with the design agent bound to a credential nobody
+  set ended `step_failed` in zero seconds, `steps.each.error` `permission_denied: step rounds: step
+  produce: credential ghost-credential not found`, and `persimmon tree` shows the chain down to the
+  TaskRun. Found in UAT (example08).
 - Every agent Task carries `retryPolicy: {maxAttempts: 3, backoff: {exponential, 1m, 5m, jitter: none}}`
   with no `retryOn` or `abortOn`, so the Adapter's `retryable` decides: a `403`/`429`/`5xx` the CLI
   reports is retried, and so is every other failure the Adapter calls retryable (`error_max_turns` as
