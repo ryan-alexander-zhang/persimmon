@@ -83,8 +83,9 @@ The Adapter picks the mode from the payload: `artifacts.spec` (or `artifacts.mod
   Designs had exposed `Export Status View`). Found in UAT.
 - `design-rules` says the document's dialect is the block's `technology`: the live data schema of a
   block declared "Node service, SQLite" was PostgreSQL DDL (`EXTRACT`, `INTERVAL`), and nothing in
-  `checkDesign` reads `technology`. A dialect check is the Design evaluator's job (roadmap); the
-  prompt says it now. Found in UAT.
+  `checkDesign` read `technology`. Now `dialect` warns on a word list per store, a warning because a
+  word list is a heuristic and must not block a round; the first `warning` in the pack, so the
+  Adapter's `passed` became "no `error` finding". Found in UAT.
 
 - The Validator parses the document for its names and nothing more: the index was hand-written
   and checked against the DomainModel alone, so an operation the document declared and the index
