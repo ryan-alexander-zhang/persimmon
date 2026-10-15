@@ -34,13 +34,15 @@ Workflow design-all: repeat over `blocks` with one `type` ─▶ ReviewLoop desi
 | Code | Finding |
 |---|---|
 | `not-a-design` | content without `elements` or `type`; the only finding then |
+| `document-unparsed` | the document does not read as its `mediaType` (YAML or JSON error, a duplicate key); the index is not checked against it |
+| `element-unbacked`, `document-unindexed` | the index against the document, both ways, from `contract.mjs`: an element whose `name` the document does not declare; a name the document declares with no element. Names per mediaType: OpenAPI `METHOD /path` per `paths` entry, AsyncAPI channel keys and their `messages` keys, JSON Schema `$defs`/`definitions` keys or the root `title`, DDL `CREATE TABLE [schema.]name` (last segment, comments stripped), markdown `## <screen>` headings. A `ui` action element (`<screen>: <control>`) is backed by its screen |
 | `unknown-block` | `block` is no `BB-n` of the Architecture |
 | `unknown-interface` | `interface` is no interface the block provides |
 | `unknown-realised` | an element's `realises` is no command, event, read model label or `AG-n` of the DomainModel (the same name sets as `checkSpec`); for a `ui` Design, no `operation` named as an element of a bound Design |
 | `unknown-rule`, `inactive-rule` | a `BR-n` at the root or on an element missing or not `active` |
 | `rules-incomplete`, `rules-unplaced` | an element's rule the root `rules[]` lacks; a root rule no element enforces (the root is the union, both ways) |
 | `type-mediatype` | `type` and `document.mediaType` do not pair (`http-api` OpenAPI, `async-api` AsyncAPI, `data-schema` JSON Schema or SQL, `ui` markdown) |
-| `designsystem-mismatch`, `client-block`, `ui-domainmodel`, `designs-unbound`, `screen-unindexed` | a `ui` Design: `designSystem` absent, no DesignSystem bound, or not the id bound; its block realises a context; it names a `domainModel`; no Design is bound to realise; a `## <screen>` heading with no element (`32-ui-design-process.md`) |
+| `designsystem-mismatch`, `client-block`, `ui-domainmodel`, `designs-unbound` | a `ui` Design: `designSystem` absent, no DesignSystem bound, or not the id bound; its block realises a context; it names a `domainModel`; no Design is bound to realise (`32-ui-design-process.md`) |
 | `domainmodel-unbound` | a Design of another type with no DomainModel bound; one finding, the elements unchecked |
 | `id-sequence` | `EL-n`, `Q-n` not unique and increasing |
 
@@ -51,7 +53,7 @@ The Adapter picks the mode from the payload: `artifacts.spec` (or `artifacts.mod
 
 | Rule | Enforcer |
 |---|---|
-| the document is the truth, the index its checked view: a Validator never parses the contract today, so an operation without an element, or an element without an operation, is not a finding until the contract evaluator lands (`91-roadmap.md`) | convention; roadmap |
+| the document is the truth, the index its checked view: `contract.mjs` reads the names the document declares and `checkDesign` holds the index to them both ways (`element-unbacked`, `document-unindexed`); a document that does not parse is `document-unparsed`. Nothing deeper is read: schemas, fields and a `ui` action's prose are the agent's (`91-roadmap.md`) | `design-consistency` |
 | one Design per block and type by `design-all`, id `<architecture>-<block>-<type>`; a block with two provided interfaces, or realising two contexts, gets its second Design of a type from a run with `qualifier` bound (`interface` beside it for an API), which the id carries: `<architecture>-<block>-<qualifier>-<type>` | `design-rules`; `design-asset` output id |
 | `decisions[]` is not checked: no Adr is in the Validator's payload; the Architecture lists its Adrs and the Prompt picks from that list | convention; Validator later |
 | a `data-schema` asset realises aggregates (`AG-n`), an `http-api` commands and read models, an `async-api` events; an asset of one type may still index the other kinds (an API that also serves an event feed) | `design-rules` |
@@ -83,6 +85,13 @@ The Adapter picks the mode from the payload: `artifacts.spec` (or `artifacts.mod
   `checkDesign` reads `technology`. A dialect check is the Design evaluator's job (roadmap); the
   prompt says it now. Found in UAT.
 
+- The Validator parses the document for its names and nothing more: the index was hand-written
+  and checked against the DomainModel alone, so an operation the document declared and the index
+  skipped, or an element naming a path the document lacked, passed. Names are cheap and exact per
+  mediaType (`yaml` is a dependency, DDL is a regex over comment-stripped text); schemas and fields
+  stay unread, a dialect check is a word list beside this. The first run over the examples found
+  example08's fleet API document declared `components` twice, invalid YAML that every earlier gate
+  had passed; merged by hand. Found in implementation.
 - `qualifier` in the Design id: the id was `<architecture>-<block>-<type>`, so the second API of a
   block, or the schema of its second context, published revision 2 of the first Design instead of a
   second one; example07's `BB-1` provided four interfaces and only one was designed, so it never

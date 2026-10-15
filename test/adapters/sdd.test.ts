@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseAllDocuments } from 'yaml'
 import { describe, expect, it } from 'vitest'
+import { contractNames } from '../../adapters/sdd/contract.mjs'
 
 const root = join(import.meta.dirname, '..', '..')
 const docs = parseAllDocuments(readFileSync(join(root, 'docs/design/examples/ai-native-domain.yaml'), 'utf8')).map((d) => d.toJS())
@@ -334,9 +335,54 @@ describe('sdd/v1 over a Design', () => {
     expect(await uiCodes((d) => { d.elements[0].realises = { kind: 'readModel', name: 'My Claims View' } })).toEqual(['unknown-realised']) // a model label is not an operation
     expect(await uiCodes((d) => { d.domainModel = 'expenses-model' })).toEqual(['ui-domainmodel'])
     expect(await uiCodes(() => {}, undefined, [])).toEqual(['designs-unbound']) // one finding, not one per element
-    expect(await uiCodes((d) => { d.elements.splice(1, 1); d.elements[1].id = 'EL-2' })).toEqual(['screen-unindexed'])
+    expect(await uiCodes((d) => { d.elements.splice(1, 1); d.elements[1].id = 'EL-2' })).toEqual(['document-unindexed'])
     expect(await uiCodes((d) => { d.document.content += '\n```md\n## Not a screen\n```\n## Submit a Claim ##\n' })).toEqual([]) // fenced code skipped, closing hashes dropped
-    expect(await uiCodes((d) => { d.document.content += '\n~~~\n```\n## Not a screen\n~~~\n  ## Indented\n' })).toEqual(['screen-unindexed']) // a ``` line does not close a ~~~ fence; an indented heading counts
+    expect(await uiCodes((d) => { d.document.content += '\n~~~\n```\n## Not a screen\n~~~\n  ## Indented\n' })).toEqual(['document-unindexed']) // a ``` line does not close a ~~~ fence; an indented heading counts
+  })
+
+  // the document is the truth, the index its view, both ways (29-design-process.md)
+  it('checks the index against the document both ways, per mediaType', async () => {
+    expect(await designCodes((a) => { a.design.elements[0].name = 'POST /ghosts' })).toEqual(['element-unbacked', 'document-unindexed']) // the renamed element is unbacked, its path unindexed
+    expect(await designCodes((a) => { a.design.document.content += '\n  /extra:\n    get: {responses: {"200": {description: ok}}}\n' })).toEqual(['document-unindexed'])
+    expect(await designCodes((a) => { a.design.document.content = 'openapi: [unclosed' })).toEqual([expect.stringMatching(/document-unparsed/)].map(() => 'document-unparsed'))
+    const findings = async (mutate: (a: ReturnType<typeof designExample>) => void) => { // like designCodes, a passing case allowed
+      const artifacts = structuredClone(designExample())
+      mutate(artifacts)
+      return (await adapter({ id: ++id, op: 'evaluate', payload: payload(artifacts) })).result.findings.map((f: { code: string }) => f.code)
+    }
+    const schema = (content: string, names: string[], mediaType = 'application/sql') => findings((a) => {
+      a.design.type = 'data-schema'
+      a.design.document = { mediaType, content }
+      a.design.elements = names.map((name, i) => ({ id: `EL-${i + 1}`, name, realises: { kind: 'aggregate', name: 'AG-1' } }))
+      a.design.rules = []
+    })
+    expect(await schema('-- create table in_a_comment (x int);\nCREATE SCHEMA s;\nCREATE TABLE IF NOT EXISTS s."claim" (id TEXT PRIMARY KEY);\ncreate temp table claim_line(id int);\n/* create table nope (x) */', ['claim', 'claim_line'])).toEqual([])
+    expect(await schema('CREATE TABLE claim (id TEXT);', ['claim', 'claim_line'])).toEqual(['element-unbacked'])
+    expect(await schema('CREATE TABLE claim (id TEXT); CREATE TABLE receipt (id TEXT);', ['claim'])).toEqual(['document-unindexed'])
+    expect(await schema('{"$defs": {"Claim": {"type": "object"}, "ClaimLine": {"type": "object"}}}', ['Claim', 'ClaimLine'], 'application/schema+json')).toEqual([])
+    expect(await schema('{"title": "Claim", "type": "object"}', ['Claim'], 'application/schema+json')).toEqual([])
+    expect(await schema('{"title": "Claim"', ['Claim'], 'application/schema+json')).toEqual(['document-unparsed'])
+    const events = (content: string, names: string[]) => findings((a) => {
+      a.design.type = 'async-api'
+      a.design.document = { mediaType: 'application/asyncapi+yaml', content }
+      a.design.elements = names.map((name, i) => ({ id: `EL-${i + 1}`, name, realises: { kind: 'event', name: 'Claim Submitted' } }))
+      a.design.rules = []
+    })
+    expect(await events('asyncapi: 3.0.0\nchannels:\n  claim.events:\n    address: claims\n    messages:\n      claim.submitted: {payload: {type: object}}\n', ['claim.events', 'claim.submitted'])).toEqual([])
+    expect(await events('asyncapi: 3.0.0\nchannels:\n  claim.events:\n    messages:\n      claim.submitted: {}\n', ['claim.events'])).toEqual(['document-unindexed'])
+    // a ui action is prose: only its screen must be a heading
+    expect(await uiCodes((d) => { d.elements[2].name = 'Ghost: Submit' })).toEqual(['element-unbacked'])
+  })
+
+  it('every example Design indexes exactly what its document declares', () => {
+    const files = ['docs/design/examples/ai-native-domain.yaml', 'examples/example07/room-booking-domain.yaml', 'examples/example08/car-pool-domain.yaml']
+    for (const f of files) for (const d of parseAllDocuments(readFileSync(join(root, f), 'utf8')).map((x) => x.toJS())) {
+      if (d?.kind !== 'Design') continue
+      const c = d.spec.content
+      const names = contractNames(c.document)!.names!
+      const screensOf = (n: string) => (c.type === 'ui' && n.includes(': ') ? n.slice(0, n.indexOf(': ')) : n)
+      expect({ file: f, id: d.spec.identity.id, unbacked: c.elements.map((e: { name: string }) => e.name).filter((n: string) => !names.includes(screensOf(n))), unindexed: names.filter((n) => !c.elements.some((e: { name: string }) => e.name === n)) }).toEqual({ file: f, id: d.spec.identity.id, unbacked: [], unindexed: [] })
+    }
   })
 
   it('fails ids that are not unique and increasing', async () => {

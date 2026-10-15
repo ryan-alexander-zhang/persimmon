@@ -95,7 +95,7 @@ without `document.content` is `not-a-design-system`, the only finding then. No E
 | `domainmodel-unbound` | a Design of another type with no DomainModel bound to the Validator (its port is optional so a `ui` run binds none): one finding, the elements are not checked |
 | `designs-unbound` | no Design is bound to the Validator's `designs`: nothing to realise; one finding, the elements are not checked |
 | `unknown-realised` | an element's `realises` is not `{kind: operation, name}` with `name` an element name of a bound Design |
-| `screen-unindexed` | a `## <screen>` heading of the document with no element named like it: a screen a Plan cannot realise |
+| `document-unindexed`, `element-unbacked` | a `## <screen>` heading of the document with no element named like it, a screen a Plan cannot realise; an element whose screen is no heading (`29-design-process.md`, every type) |
 | the rest | as any Design: `unknown-block`, rules both ways, `id-sequence` |
 
 ## Rules
@@ -141,7 +141,7 @@ without `document.content` is `not-a-design-system`, the only finding then. No E
   two kept those four screens in the document and dropped their elements, so no Plan could realise
   them. The model was the wrong layer: a client knows the operations it calls, not the model behind
   them; the API Design already holds each operation to the model. One `ui` Design per client block
-  stays, whatever contexts it shows; `screen-unindexed` holds every `## <screen>` to an element,
+  stays, whatever contexts it shows; `document-unindexed` holds every `## <screen>` to an element,
   which is what round two slipped past. The same `realises` shape with a fifth kind keeps the Plan's
   one grammar. example07's three `ui` Designs re-realised by hand (five operations of the booking
   API). Found in UAT.

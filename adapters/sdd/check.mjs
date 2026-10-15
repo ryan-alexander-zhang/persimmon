@@ -5,6 +5,8 @@
 // BusinessRules it enforces. And one Plan against its Spec, the Architecture and the Designs it realises. And one Architecture
 // against the Prd, the contexts, models and glossaries it lists and the Adrs it applies. Plain data in, findings out.
 // the document a Design of each type carries
+import { contractNames } from './contract.mjs'
+
 const mediaTypes = { 'http-api': ['application/openapi+yaml'], 'async-api': ['application/asyncapi+yaml'], 'data-schema': ['application/schema+json', 'application/sql'], ui: ['text/markdown'] }
 const keyword = { ubiquitous: 'The', 'event-driven': 'When', 'state-driven': 'While', 'unwanted-behaviour': 'If', optional: 'Where' }
 
@@ -145,18 +147,6 @@ export function checkPrd({ prd, rules, previousRules, feedback }) {
 }
 
 // The `## <screen>` headings of a ui document: outside fenced code, closing hashes dropped (32-ui-design-process.md).
-const screens = (markdown) => {
-  const out = []
-  let fence // the opener's marker (char and length); only a fence of that char at least that long closes it (CommonMark)
-  for (const line of markdown.split('\n')) {
-    const m = /^ {0,3}(`{3,}|~{3,})/.exec(line)
-    if (m && !fence) fence = m[1]
-    else if (m && m[1][0] === fence[0] && m[1].length >= fence.length) fence = undefined
-    else if (!fence && /^ {0,3}## /.test(line)) out.push(line.replace(/^ {0,3}## /, '').replace(/\s+#+\s*$/, '').trim())
-  }
-  return out
-}
-
 // `ids.designSystem` is the bound DesignSystem's artifact id, which a content never carries; a ui Design must cite it and
 // the Validator must have it bound, or the citation is unchecked. A ui Design realises operations, not DomainModel labels:
 // `designs` is artifact id → content of the API Designs bound, and their element names are what its elements may realise
@@ -174,7 +164,8 @@ export function checkDesign({ design, architecture, domainModel, rules, designs 
     bad('unknown-interface', `interface ${design.interface} is not an interface ${design.block} provides`)
   }
   const mediaType = design.document?.mediaType
-  if (!mediaTypes[design.type]?.includes(mediaType)) bad('type-mediatype', `type ${design.type} does not carry a document of mediaType ${mediaType}`)
+  const typed = mediaTypes[design.type]?.includes(mediaType)
+  if (!typed) bad('type-mediatype', `type ${design.type} does not carry a document of mediaType ${mediaType}`)
   if (design.type === 'ui') {
     if (design.designSystem === undefined) bad('designsystem-mismatch', 'a ui Design names the DesignSystem its screens follow; designSystem is absent')
     else if (!ids.designSystem) bad('designsystem-mismatch', `designSystem ${design.designSystem} cannot be checked: no DesignSystem is bound to the Validator`)
@@ -182,9 +173,17 @@ export function checkDesign({ design, architecture, domainModel, rules, designs 
     if (block && (block.contexts ?? []).length) bad('client-block', `block ${design.block} realises a context; a ui Design belongs to a client block`)
     if (design.domainModel !== undefined) bad('ui-domainmodel', `a ui Design realises operations of its block's API Designs, not a DomainModel; domainModel ${design.domainModel} is set`)
     if (!Object.keys(designs).length) bad('designs-unbound', 'a ui Design realises operations of the API Designs bound to the Validator; none is bound')
-    for (const screen of screens(design.document?.content ?? '')) {
-      if (!design.elements.some((el) => el.name === screen)) bad('screen-unindexed', `screen ${screen} has no element named like it`)
-    }
+  }
+  // the document is the truth and the index its view, both ways: every name the document declares has an element, every
+  // element names something the document declares (a ui action, `<screen>: <control>`, is prose and only its screen is checked)
+  const contract = typed ? contractNames(design.document) : undefined // a document of the wrong mediaType is that one finding
+  if (contract?.error) bad('document-unparsed', `document cannot be read as ${mediaType}: ${contract.error}`)
+  else if (contract) {
+    const declared = new Set(contract.names)
+    const indexed = new Set(design.elements.map((el) => el.name))
+    const backed = (name) => declared.has(name) || (design.type === 'ui' && name.includes(': ') && declared.has(name.slice(0, name.indexOf(': '))))
+    for (const el of design.elements) if (!backed(el.name)) bad('element-unbacked', `${el.id}: ${el.name} is not in the document`)
+    for (const name of declared) if (!indexed.has(name)) bad('document-unindexed', `${name} is in the document and has no element`)
   }
 
   const ui = design.type === 'ui'

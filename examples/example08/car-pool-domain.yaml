@@ -4467,14 +4467,6 @@ spec:
             repaired car to service, and review damage reports.
         servers:
           - url: /api/fleet
-        components:
-          securitySchemes:
-            ssoBearer:
-              type: http
-              scheme: bearer
-              bearerFormat: OIDC
-        security:
-          - ssoBearer: []
         paths:
           /cars/{carId}:
             parameters:
@@ -4772,6 +4764,13 @@ spec:
                 reviewOutcome:
                   type: string
                   enum: [minor, unsafe]
+          securitySchemes:
+            ssoBearer:
+              type: http
+              scheme: bearer
+              bearerFormat: OIDC
+        security:
+          - ssoBearer: []
     elements:
       - id: EL-1
         name: PUT /cars/{carId}
