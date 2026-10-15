@@ -121,6 +121,12 @@ when `artifacts.domainModel` is present; `passed` iff no error. Labels compare e
   confirmed base no longer carries was settled there. The durable path is a Prd revision with
   `openQuestions[].resolution` before storming; the Prompt models a resolved question. Found in UAT
   (example08).
+- Proven live on `claude-sonnet-5` with the same Prd: big-picture round one raised all five Prd
+  questions as hotspots, the gate answered them in four findings, round two modelled the answers
+  (`Extended reservation approval lapsed` added) and carried no hotspot; the process phase then
+  raised none of the five across 59 nodes, and the design phase raised three new design-level
+  hotspots (aggregate shape, the two-reservation cap across instances, the source of car data for
+  evaluation), none a Prd question. Found in UAT (example08).
 
 ## Examples
 
