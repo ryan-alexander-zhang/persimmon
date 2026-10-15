@@ -278,6 +278,26 @@ export function checkDesign({ design, architecture, domainModel, rules, designs 
   return findings
 }
 
+// One DomainModel against every Design that names it (29-design-process.md): each of the model's own names, an aggregate's
+// command, an `events[]` name, a read model, an `AG-n`, has an element of some Design realising it, or is `unrealised`, a
+// warning, since a contract not written yet is not a defect of one that is. External systems' commands and other
+// contexts' events are not the model's own. `designs` is artifact id → content; a Design naming another model, or none
+// (a ui Design), is not read. `ids.domainModel` is the bound model's artifact id.
+export function checkCoverage({ domainModel, designs = {}, ids = {} }) {
+  if (!domainModel || !Array.isArray(domainModel.aggregates)) {
+    return [{ severity: 'error', code: 'not-a-domainmodel', message: 'content is not a DomainModel: it has no aggregates array' }]
+  }
+  const realised = { command: new Set(), event: new Set(), readModel: new Set(), aggregate: new Set() }
+  for (const d of Object.values(designs)) if (d?.domainModel === ids.domainModel) for (const el of d.elements ?? []) realised[el.realises?.kind]?.add(el.realises.name)
+  const want = [
+    ...domainModel.aggregates.flatMap((a) => (a.commands ?? []).map((c) => ['command', c])),
+    ...(domainModel.events ?? []).map((e) => ['event', e.name]),
+    ...(domainModel.readModels ?? []).map((r) => ['readModel', r.name]),
+    ...domainModel.aggregates.map((a) => ['aggregate', a.id]),
+  ]
+  return want.filter(([kind, name]) => !realised[kind].has(name)).map(([kind, name]) => ({ severity: 'warning', code: 'unrealised', message: `${kind} ${name}: no Design of ${ids.domainModel} realises it` }))
+}
+
 // One Plan against the Spec it builds, the Architecture its tasks name blocks of, and the Designs it realises elements
 // of; `designs` is artifact id → content, paired by the caller from inputs.designs.refs and artifacts.designs.
 // `ids` are the bound inputs' artifact ids, `{spec, architecture}`, which a content never carries.

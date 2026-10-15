@@ -417,6 +417,36 @@ spec:
       dispatch: first
   timeout: 12h
 ---
+# The coverage report (29-design-process.md): one Gate, no Task. `persimmon run design-coverage --input domainModel=<id>
+# --input designs=kind:Design --follow`; the tree shows every `unrealised` name as a warning on a pass.
+apiVersion: persimmon.ai/v1
+kind: Workflow
+metadata: {name: design-coverage}
+spec:
+  inputs:
+    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, description: "kind:Design at run: every Design; the ones naming the model are read"}
+  outputs:
+    passed: {type: {kind: value, schema: {type: boolean}}}
+  outputBindings:
+    passed: {expression: "steps.coverage.outputs.result.passed"}
+  entry: [coverage]
+  steps:
+    - id: coverage
+      uses: {kind: Gate, name: coverage-gate}
+      inputs:
+        domainModel: {fromInput: domainModel}
+        designs: {fromInput: designs}
+      timeout: 5m
+  transitions:
+    - id: done
+      from: [{stepRef: coverage, outcomes: [Succeeded, Failed]}]
+      to:
+        - {terminal: Succeeded, when: 'steps.coverage.phase == "Succeeded"'}
+        - {terminal: Failed, reason: gate_error}
+      dispatch: first
+  timeout: 1h
+---
 # plan-one: the Plan of one Spec against the Designs the caller lists (30-plan-process.md). Run per Spec by ref:
 #   persimmon run plan-one --input 'spec={kind: artifact, ref: {...}}' --input designs=@designs.yaml ...
 apiVersion: persimmon.ai/v1

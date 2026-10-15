@@ -50,7 +50,7 @@ describe('persimmon CLI', () => {
     expect(out).toContain('created Pipeline/domain-discovery') // the SDLC pack (23-pack-sdlc.md) is the default flow
     out = []
     expect(await run('get', 'Workflow')).toBe(0)
-    expect(out).toEqual(['Workflow/derive-all', 'Workflow/design-all', 'Workflow/plan-all', 'Workflow/spec-all']) // the pack is Global (20-pack.md)
+    expect(out).toEqual(['Workflow/derive-all', 'Workflow/design-all', 'Workflow/design-coverage', 'Workflow/plan-all', 'Workflow/spec-all']) // the pack is Global (20-pack.md)
     out = [] // the demo pack (20-pack.md) applies like any user definitions: global/ as Global, its Trigger into the default Namespace
     expect([await run('apply', ...demoPack, '--global'), out.filter((l) => !l.startsWith('created'))]).toEqual([0, ['unchanged Executor/local-reviewer']]) // same definition in both packs
     out = []
@@ -172,7 +172,7 @@ describe('persimmon CLI', () => {
     expect(out).toEqual(['Workflow/prd-approval', 'Workflow/prd-create']) // the SDLC pack is not in this store
     out = [] // so a Workflow stepping into a ReviewLoop of the same files resolves on validate's second pass only (08-store.md)
     expect([await run('validate', ...sdlcPack), out.filter((l) => !l.startsWith('ok'))]).toEqual([0, []])
-    expect(out.length).toBe(79)
+    expect(out.length).toBe(82)
   })
 
   it('get --behind lists the latest revision whose pinned inputs moved on; a carried previous input and a run\'s own later output are not behind', async () => {

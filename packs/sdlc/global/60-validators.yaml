@@ -105,6 +105,21 @@ spec:
     configuration: {}
   timeout: 1m
 ---
+apiVersion: persimmon.ai/v1
+kind: Validator
+# Every name a DomainModel owns has a Design element realising it, or is reported `unrealised`, a warning: a report over
+# the Designs that name the model (29-design-process.md), run on `design-coverage` with `designs=kind:Design`.
+metadata: {name: domain-coverage}
+spec:
+  inputs:
+    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, description: "every Design; the ones naming the model are read"}
+  evaluator:
+    type: adapter
+    adapter: sdd/v1
+    configuration: {}
+  timeout: 1m
+---
 # plan-consistency: sdd/v1 checks a Plan's coverage of its Spec and its elements against the Designs (30-plan-process.md).
 apiVersion: persimmon.ai/v1
 kind: Validator

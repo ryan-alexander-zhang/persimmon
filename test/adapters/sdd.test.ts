@@ -658,3 +658,44 @@ describe('sdd/v1 over an Architecture', () => {
     expect(await archCodes((a) => (a.architecture.strategy[1].id = 'S-1'))).toEqual(['id-sequence'])
   })
 })
+
+describe('sdd/v1 over a DomainModel: coverage', () => {
+  // domain-coverage (29-design-process.md): every name the model owns has a Design element realising it, or is unrealised, a warning
+  const ref = (kind: string, id: string) => ({ apiVersion: 'sdd.persimmon.ai/v1', kind, namespace: 'default', id, revision: 1 })
+  const coveragePayload = (domainModel: unknown, designs: { id: string; content: unknown }[], modelId = 'expenses-model') => ({
+    ...payload({ domainModel }),
+    inputs: { domainModel: { kind: 'artifact', ref: ref('DomainModel', modelId) }, designs: { kind: 'artifacts', refs: designs.map((d) => ref('Design', d.id)) } },
+    artifacts: { domainModel: { content: domainModel, provenance }, designs: designs.map((d) => ({ content: d.content, provenance })) },
+  })
+  const findings = async (domainModel: unknown, designs: { id: string; content: unknown }[], modelId?: string) => {
+    const r = await adapter({ id: ++id, op: 'evaluate', payload: coveragePayload(domainModel, designs, modelId) })
+    return r.result as { passed: boolean; findings: { severity: string; code: string; message: string }[] }
+  }
+
+  it('reports every own name of the model no Design realises, as warnings on a pass', async () => {
+    const r = await findings(content('DomainModel'), [{ id: 'claims-api', content: content('Design') }])
+    expect(r.passed).toBe(true)
+    expect(r.findings.every((f) => f.severity === 'warning' && f.code === 'unrealised')).toBe(true)
+    const names = r.findings.map((f) => f.message.split(': ')[0])
+    expect(names.filter((n) => n.startsWith('command '))).toEqual(['command Set Risk Flag', 'command Export Claim']) // the API forgot one, another block owns one
+    expect(names.filter((n) => n.startsWith('readModel '))).toEqual(['readModel Export Status View'])
+    expect(names.filter((n) => n.startsWith('aggregate '))).toEqual(['aggregate AG-1', 'aggregate AG-2', 'aggregate AG-3']) // no data-schema Design yet
+    expect(names.filter((n) => n.startsWith('event ')).length).toBe(content('DomainModel').events.length) // no async-api Design yet
+    expect(r.findings[0].message).toBe('command Set Risk Flag: no Design of expenses-model realises it')
+  })
+
+  it('reads only the Designs that name the model: a ui Design and a Design of another model add nothing', async () => {
+    const other = { ...content('Design'), domainModel: 'other-model' }
+    const ui = { title: 'screens', type: 'ui', elements: [{ id: 'EL-1', name: 'My Claims', realises: { kind: 'operation', name: 'GET /claims/mine' } }] }
+    const all = await findings(content('DomainModel'), [])
+    const same = await findings(content('DomainModel'), [{ id: 'other', content: other }, { id: 'ui', content: ui }])
+    expect(same.findings).toEqual(all.findings)
+    const full = { ...content('Design'), elements: [...content('Design').elements, { id: 'EL-10', name: 'POST /x', realises: { kind: 'command', name: 'Set Risk Flag' } }] }
+    expect((await findings(content('DomainModel'), [{ id: 'claims-api', content: full }])).findings.map((f) => f.message)).not.toContain('command Set Risk Flag: no Design of expenses-model realises it')
+  })
+
+  it('fails content that is not a DomainModel', async () => {
+    const r = await findings({ title: 'x' }, [])
+    expect(r).toMatchObject({ passed: false, findings: [{ code: 'not-a-domainmodel' }] })
+  })
+})

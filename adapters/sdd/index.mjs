@@ -7,7 +7,7 @@
 // and no Spec, Design or Plan, it runs `checkArchitecture` on it, the Prd, the rules, the contexts, models, glossaries and
 // Adrs (artifacts ports, paired the same way). It answers a ValidationResult (10-ports.md). No Engine callbacks.
 import { createInterface } from 'node:readline'
-import { checkArchitecture, checkDesign, checkPlan, checkPrd, checkSpec } from './check.mjs'
+import { checkArchitecture, checkCoverage, checkDesign, checkPlan, checkPrd, checkSpec } from './check.mjs'
 
 const describe = {
   adapterId: 'sdd/v1',
@@ -40,6 +40,11 @@ function evaluate(payload) {
     const designs = boundDesigns(payload, artifacts)
     const ids = { spec: payload.inputs?.spec?.ref?.id, architecture: payload.inputs?.architecture?.ref?.id }
     const findings = checkPlan({ plan, spec: required(artifacts, 'spec'), architecture: required(artifacts, 'architecture'), designs, ids })
+    return { passed: passes(findings), findings, evidence: [] }
+  }
+  if (artifacts.domainModel && artifacts.designs && !artifacts.design && !artifacts.spec) {
+    // domain-coverage: the model and every Design, no document under evaluation (29-design-process.md)
+    const findings = checkCoverage({ domainModel: required(artifacts, 'domainModel'), designs: boundDesigns(payload, artifacts), ids: { domainModel: payload.inputs?.domainModel?.ref?.id } })
     return { passed: passes(findings), findings, evidence: [] }
   }
   const idsOf = (port) => (payload.inputs?.[port]?.refs ?? []).map((r) => r.id)
