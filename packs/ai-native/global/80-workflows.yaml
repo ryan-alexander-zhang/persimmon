@@ -525,6 +525,7 @@ spec:
   subject: architecture
   previous: previous
   feedback: feedback
+  carry: {adrs: previousAdrs} # the Adrs come back beside the Architecture: round two revises them instead of regenerating them blind
   maxRounds: 3
   timeout: 240h
 ---

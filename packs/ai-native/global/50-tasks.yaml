@@ -288,6 +288,7 @@ spec:
     domainModels: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
     glossaries: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}, required: false}
+    previousAdrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}, required: false, description: "the Adrs the last round answered; the loop carries them (21-composition.md)"}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
   outputs:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}, id: {expression: "inputs.prd.id + '-architecture'"}}
@@ -300,7 +301,10 @@ spec:
       list the artifact ids of every DomainModel and Glossary in your context; `buildingBlocks[].contexts` cite the
       BoundedContexts by artifact id. `adrs` is one Adr per strategy decision, in order; `decisions` lists their ids,
       `<prd>-adr-1`, `<prd>-adr-2`, ... With `previous` and `feedback` bound, fix what the findings name and change
-      nothing else; answer the whole Architecture and every Adr again.
+      nothing else; answer the whole Architecture and every Adr again. Each Adr you answer starts as a verbatim copy of
+      the one in `previousAdrs` with its id: a finding that names the Adr, or the `S-n` it backs, changes it; a strategy
+      the findings drop keeps its slot as a `superseded` Adr; a new strategy takes the next number. Never reword an Adr
+      unasked.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: architecture-rules}}
       - {kind: artifact, input: prd}
@@ -309,6 +313,7 @@ spec:
       - {kind: artifact, input: domainModels}
       - {kind: artifact, input: glossaries}
       - {kind: artifact, input: previous}
+      - {kind: artifact, input: previousAdrs}
     parameters: {effort: high}
   timeout: 30m
   retryPolicy: # a transient API refusal (19-adapter-roles.md) gets another attempt within the step deadline; a dead login is permission_denied and never retried

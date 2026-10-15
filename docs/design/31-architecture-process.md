@@ -21,11 +21,11 @@ ReviewLoop architect, run once per product with the contexts, models and glossar
 |---|---|
 | Prompt `architecture-rules` | arc42 as the pack reads it: the Prd is the requirements by reference; every context realised by a level 1 block; strategy decisions cite `QG-n` and `C-n`; every quality goal has a scenario; one Adr per `S-n`, in order |
 | Executor `architecture-agent` | `claude-code/v1`, read-only, its own name for per-Namespace override |
-| Task `write-architecture` | inputs `prd`, `rules`, `contexts`, `domainModels`, `glossaries` (artifacts), `previous`, `feedback`; outputs `architecture` (id `<prd>-architecture`) and `adrs` (artifacts, prefix `<prd>-adr`) |
+| Task `write-architecture` | inputs `prd`, `rules`, `contexts`, `domainModels`, `glossaries` (artifacts), `previous`, `previousAdrs` (the last round's Adrs, carried by the loop), `feedback`; outputs `architecture` (id `<prd>-architecture`) and `adrs` (artifacts, prefix `<prd>-adr`) |
 | Task `confirm-architecture` | human on `cli-human/v1`: reads the Architecture and its Adrs; approve, or one finding per `BB-n`, `S-n`, `QG-n`, `C-n`, `QS-n` or Adr id |
 | Validators | `architecture-consistency`: `sdd/v1` over `architecture`, `prd`, `rules`, `contexts`, `domainModels`, `glossaries`, `adrs`; `architecture-confirmed` over `confirm-architecture` |
 | Gate `architecture-gate` | consistency and confirmed, `all`, 72h |
-| ReviewLoop `architect` | `produce` `write-architecture`, `review` `architecture-gate`, `maxRounds: 3`; the subject is the Architecture; the Adrs ride beside it as a second output and are republished whole each round |
+| ReviewLoop `architect` | `produce` `write-architecture`, `review` `architecture-gate`, `maxRounds: 3`; the subject is the Architecture; the Adrs ride beside it as a second output, come back as `previousAdrs` (`carry`, `21-composition.md`) and are republished whole each round, each a copy of its last revision unless a finding names it |
 
 Run: `persimmon run architect --input 'prd={...}' --input 'rules={...}' --input contexts=@contexts.yaml --input domainModels=@models.yaml --input glossaries=@glossaries.yaml`,
 each list a YAML list of RevisionRefs (`08-store.md`), one entry per context in the same order.
@@ -84,8 +84,11 @@ else `artifacts.prd`.
   reason a Task may output a list (`12-task.md`). A round two republishes every Adr as its next
   revision. The loop's `previous` carries the subject only, so round two rewrites the Adrs without
   seeing its own: an Adr the human did not name is regenerated from the same inputs and may drift
-  in wording. A `previous` for every produce output is a roadmap row. Found in design review; the
-  blind rewrite found in audit.
+  in wording. Found in design review; the blind rewrite found in audit.
+- The loop now carries the Adrs (`carry: {adrs: previousAdrs}`) and the Task starts each Adr from
+  its last revision, changing one only for a finding that names it or its `S-n`. No Validator
+  checks the drift: an Adr is prose, and nothing in `checkArchitecture` reads the Adrs' text; the
+  instruction is the enforcer until the Design evaluator lands. Found in UAT (example08).
 - The n-th Adr backs `S-n` and a dropped strategy keeps its slot as a `superseded` Adr: the first
   live round two dropped `S-2` and `S-5` and republished five Adrs under `adr-1` to `adr-5`, so
   `adr-2` r2 backed `S-3` while r1 had backed `S-2`, one id for two decisions. Position equal to the
