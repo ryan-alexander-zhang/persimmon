@@ -428,13 +428,12 @@ export function checkArchitecture({ architecture, prd, rules, ids = {}, adrs = {
     }
   }
   for (const c of contexts) if (!realised.has(c)) bad('context-unrealised', `context ${c} is realised by no level 1 building block`)
-  // every capability lives in exactly one BoundedContext, the one that lists it (34-subdomains.md); the Prd names none
-  if (Object.keys(contextDocs).length) {
-    for (const cap of prd?.capabilities ?? []) {
-      const homes = Object.entries(contextDocs).filter(([, c]) => (c?.capabilities ?? []).includes(cap.id)).map(([id]) => id)
-      if (homes.length === 0) bad('capability-unplaced', `capability ${cap.id} is listed by no BoundedContext evaluated`)
-      else if (homes.length > 1) bad('capability-twice', `capability ${cap.id} is listed by ${homes.join(' and ')}; one context handles its commands`)
-    }
+  // every capability lives in exactly one BoundedContext, the one that lists it (34-subdomains.md); the Prd names none, so
+  // no context evaluated leaves every capability unplaced
+  for (const cap of prd?.capabilities ?? []) {
+    const homes = Object.entries(contextDocs).filter(([, c]) => (c?.capabilities ?? []).includes(cap.id)).map(([id]) => id)
+    if (homes.length === 0) bad('capability-unplaced', `capability ${cap.id} is listed by no BoundedContext evaluated`)
+    else if (homes.length > 1) bad('capability-twice', `capability ${cap.id} is listed by ${homes.join(' and ')}; one context handles its commands`)
   }
   // context.business[].context may name a context of another Namespace or one not yet written (23-pack-sdlc.md): not checked
 

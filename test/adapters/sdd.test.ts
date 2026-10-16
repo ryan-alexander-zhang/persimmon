@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseAllDocuments } from 'yaml'
 import { describe, expect, it } from 'vitest'
-import { checkDesign } from '../../adapters/sdd/check.mjs'
+import { checkArchitecture, checkDesign } from '../../adapters/sdd/check.mjs'
 
 const root = join(import.meta.dirname, '..', '..')
 const docs = parseAllDocuments(readFileSync(join(root, 'docs/design/examples/sdlc-domain.yaml'), 'utf8')).map((d) => d.toJS())
@@ -494,6 +494,16 @@ describe('sdd/v1 over a Design', () => {
     }
   })
 
+  it('every example places each Prd capability in exactly one BoundedContext (checkArchitecture)', () => {
+    for (const f of ['docs/design/examples/sdlc-domain.yaml', 'examples/example07/room-booking-domain.yaml', 'examples/example08/car-pool-domain.yaml']) {
+      const all = parseAllDocuments(readFileSync(join(root, f), 'utf8')).map((x) => x.toJS()).filter(Boolean)
+      const one = (kind: string) => all.find((d) => d.kind === kind).spec.content
+      const contexts = Object.fromEntries(all.filter((d) => d.kind === 'BoundedContext').map((d) => [d.spec.identity.id, d.spec.content]))
+      const found = checkArchitecture({ architecture: one('Architecture'), prd: one('Prd'), rules: one('BusinessRules'), contexts }).filter((x) => x.code.startsWith('capability-'))
+      expect({ file: f, found }).toEqual({ file: f, found: [] })
+    }
+  })
+
   // a BR-n is a pair with the artifact the document names (33-multi-context-product.md)
   it('refuses a document that names no BusinessRules artifact, or another than the one bound', async () => {
     expect(await designCodes((a) => { delete (a.design as any).businessRules })).toEqual(['rules-mismatch'])
@@ -660,7 +670,8 @@ describe('sdd/v1 over an Architecture', () => {
     expect(await archCodes((a) => a.architecture.buildingBlocks.forEach((b: { contexts: string[] }) => (b.contexts = [])))).toEqual(['context-unrealised'])
     // every capability in exactly one BoundedContext (34-subdomains.md)
     expect(await archCodes((a) => (a.contexts[0].capabilities = a.contexts[0].capabilities.slice(1)))).toEqual(['capability-unplaced'])
-    expect(await archCodes((a) => a.contexts.push(structuredClone(a.contexts[0])), { contexts: { kind: 'artifacts', refs: [ref('BoundedContext', 'expenses'), ref('BoundedContext', 'expenses-two')] } })).toEqual(expect.arrayContaining(['capability-twice']))
+    // a second context listing the same four, realised by no block
+    expect(await archCodes((a) => a.contexts.push(structuredClone(a.contexts[0])), { contexts: { kind: 'artifacts', refs: [ref('BoundedContext', 'expenses'), ref('BoundedContext', 'expenses-two')] } })).toEqual(['context-unrealised', ...Array(4).fill('capability-twice')])
     expect(await archCodes((a) => (a.architecture.buildingBlocks[0].parent = 'BB-9'))).toEqual(['unknown-parent'])
   })
   it('fails a listed model, glossary or Adr that was not evaluated, and one evaluated but not listed', async () => {

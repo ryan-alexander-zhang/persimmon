@@ -32,9 +32,10 @@ each list a YAML list of RevisionRefs (`08-store.md`), one entry per context in 
 
 ## `checkArchitecture`
 
-`adapters/sdd/check.mjs`, pure, `checkArchitecture({architecture, prd, rules, ids, adrs})` where
+`adapters/sdd/check.mjs`, pure, `checkArchitecture({architecture, prd, rules, ids, adrs, contexts})` where
 `ids` holds the Prd's id and the lists of context, model, glossary and Adr ids paired by
-`index.mjs` from `inputs.<port>.refs[i]`, and `adrs` maps an Adr id to its content; every finding
+`index.mjs` from `inputs.<port>.refs[i]`, `adrs` maps an Adr id to its content and `contexts` a
+BoundedContext id to its content, paired the same way; every finding
 `error`:
 
 | Code | Finding |
