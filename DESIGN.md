@@ -61,7 +61,7 @@ Read top to bottom within a layer; a file depends only on files above it.
 | `docs/design/30-plan-process.md` | Spec and Designs to `Plan`: the writing Task over an `artifacts` input, the `sdd/v1` Plan check, `plan-one` per Spec | draft |
 | `docs/design/31-architecture-process.md` | Prd and the domain kinds to `Architecture` and its `Adr`s: the writing Task with an `artifacts` output, the `sdd/v1` Architecture check, the human Gate, `architect` once per product | draft |
 | `docs/design/32-ui-design-process.md` | client blocks to a `DesignSystem` in the DESIGN.md format and `ui` Designs: the `designmd/v1` lint over `@google/design.md`, the human Gate, `design-all` with `type: ui` | draft |
-| `docs/design/33-multi-context-product.md` | one product over several bounded contexts: product-level `BusinessRules` with a context tag, `productId` and `contextIds` on the Prd process, the `kind:` query at `run`, `spec-all` and `design-all` per context | draft |
+| `docs/design/33-multi-context-product.md` | one product over several bounded contexts: product-level `BusinessRules`, `productId` on the Prd process, the `kind:` query at `run`, `spec-all` and `design-all` per context; its context tags and `contextIds` superseded by 34 | draft |
 | `docs/design/34-subdomains.md` | the Prd names typed subdomains, the storming cuts the bounded contexts: `subdomain` on capabilities, rules, storming contexts (DSL 4.1) and BoundedContexts, `capabilities` on a BoundedContext, `context` on `spec-all` | draft |
 | `docs/design/28-prd-process.md` | brief to `Prd`: the writing Task that also writes the rules, the `sdd/v1` Prd check, a human gate, `author-prd` | draft |
 

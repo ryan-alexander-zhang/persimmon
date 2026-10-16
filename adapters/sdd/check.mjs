@@ -121,7 +121,7 @@ export function checkPrd({ prd, rules, previousRules, feedback, ids = {} }) {
   const subdomains = (prd.subdomains ?? []).map((d) => d.id)
   const known = subdomains.join(', ')
   for (const [i, id] of subdomains.entries()) if (subdomains.indexOf(id) !== i) bad('subdomain-mismatch', `subdomain ${id} is named twice`)
-  if (subdomains.length > 1) for (const r of rules?.rules ?? []) if (!r.subdomain) bad('subdomain-mismatch', `${r.id}: a product over ${subdomains.length} subdomains tags every rule with the subdomain whose policy it is`)
+  if (new Set(subdomains).size > 1) for (const r of rules?.rules ?? []) if (!r.subdomain) bad('subdomain-mismatch', `${r.id}: a product over ${subdomains.length} subdomains tags every rule with the subdomain whose policy it is`)
   for (const r of rules?.rules ?? []) if (r.subdomain && !subdomains.includes(r.subdomain)) bad('subdomain-mismatch', `${r.id}: subdomain ${r.subdomain} is not one of the Prd's (${known})`)
   const capabilityIds = prd.capabilities.map((c) => c.id)
   for (const cap of prd.capabilities) {

@@ -1,8 +1,9 @@
 # example08: a product over two bounded contexts, brief to Plan
 
 A company car pool: employees reserve and pick up cars, a fleet coordinator keeps the cars serviced.
-Two bounded contexts, `car-reservations` and `fleet-care`, one Prd, one set of business rules tagged by
-context, one deployable realising both contexts and one web application showing both. The same
+Two subdomains in the Prd, `reservations` (core) and `fleet-care` (supporting), two bounded contexts
+the storming cuts for them, `car-reservations` and `fleet-care`, one set of business rules tagged by
+subdomain, one deployable realising both contexts and one web application showing both. The same
 steps as [example07](../example07/README.md), with what changes when a product has more than one
 context. You sit at the Gates; nothing is yours to write but the brief.
 
@@ -23,6 +24,9 @@ design system, the Plans for the Specs and every Design.
 [`car-pool-domain.yaml`](car-pool-domain.yaml) is what one run of these steps produced on
 `claude-sonnet-5`: thirty-eight artifacts, every one at revision 1 (the rounds collapsed into the
 revision that passed). Read it for the shapes, or load it without running anything (step 10).
+Edited by hand after the recording, which named the contexts in the Prd: the Prd's subdomains, the
+capabilities' and rules' tags, the storming contexts' `subdomain` and the BoundedContexts'
+`subdomain` and `capabilities` (`34-subdomains.md`).
 
 ## Prerequisites
 
@@ -45,16 +49,17 @@ persimmon init                          # the SDLC pack comes with it
 persimmon apply overrides.yaml          # the seven agent Executors on claude-sonnet-5
 ```
 
-### 2. The Prd, two contexts named up front
+### 2. The Prd, two subdomains from the brief
 
 ```sh
 persimmon run author-prd --input brief=@brief.txt --input productId=car-pool --follow
 ```
 
-`Prd/car-pool-prd` and `BusinessRules/car-pool-rules`, the rules with `contexts: [car-reservations, fleet-care]`
-and every `BR-n` tagged with the context it belongs to (`33-multi-context-product.md`). Round one here
-named a capability after a screen and put one rule in the wrong context; the rejection named both,
-round two passed.
+`Prd/car-pool-prd` with `subdomains: [reservations (core), fleet-care (supporting)]`, every capability
+naming one, and `BusinessRules/car-pool-rules` with every `BR-n` tagged with the subdomain whose
+policy it is (`34-subdomains.md`). The Prd names no bounded context: the storming cuts those. Round
+one of the recording named a capability after a screen and put one rule in the wrong part; the
+rejection named both, round two passed.
 
 ### 3. Domain discovery, both contexts from one storming
 
@@ -63,7 +68,7 @@ persimmon run domain-discovery --input 'prd=<ref>' --input 'rules=<ref>' --follo
 ```
 
 Three Gates, one per storming level; each passed at round two after one rejection. The design
-level carries both contexts; the derivation (a script Gate, no human) wrote `BoundedContext/car-reservations`,
+level carries both contexts, each naming its subdomain and typed by it; the derivation (a script Gate, no human) wrote `BoundedContext/car-reservations`,
 `BoundedContext/fleet-care` and a Glossary and DomainModel for each, all at round one. Round one of
 the process level re-raised Prd questions the big-picture Gate had already answered; the Prompt now
 reads a settled question off the confirmed model and never raises it again (`26-domain-discovery-process.md`).
@@ -84,13 +89,14 @@ backs `S-n` and says so in `strategy`), the first recording under that rule.
 ### 5. Specs, one run per context
 
 ```sh
-persimmon run spec-all --input 'prd=<ref>' --input 'capabilities=[CAP-1, CAP-2, CAP-3, CAP-4, CAP-5]' \
+persimmon run spec-all --input 'prd=<ref>' --input 'capabilities=[CAP-1, CAP-2, CAP-3, CAP-4, CAP-5, CAP-6]' \
   --input 'architecture=<ref>' --input 'domainModel=<car-reservations-model>' --input 'glossary=<car-reservations-glossary>' --input 'rules=<ref>' --follow
-persimmon run spec-all --input 'capabilities=[CAP-6, CAP-7, CAP-8, CAP-9]' --input 'domainModel=<fleet-care-model>' --input 'glossary=<fleet-care-glossary>' <the rest as above> --follow
+persimmon run spec-all --input 'capabilities=[CAP-7, CAP-8, CAP-9]' --input 'domainModel=<fleet-care-model>' --input 'glossary=<fleet-care-glossary>' <the rest as above> --follow
 ```
 
-A Spec binds one DomainModel, so the capabilities of each context run with that context's model.
-`written 5`, `written 4`, every Spec round one.
+A Spec binds one DomainModel, so the capabilities each BoundedContext lists run with that context's
+model: `car-reservations` lists CAP-1 to CAP-6, `fleet-care` CAP-7 to CAP-9. `written 6`, `written 3`,
+every Spec round one.
 
 ### 6. Four Designs of one block, told apart by `qualifier`
 

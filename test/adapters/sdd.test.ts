@@ -167,9 +167,11 @@ describe('sdd/v1 over a Prd', () => {
     for (const r of two.rules.rules) r.subdomain = 'expenses'
     expect((await adapter({ id: ++id, op: 'evaluate', payload: payload(two) })).result).toEqual({ passed: true, findings: [], evidence: [] })
     // a rule of the other subdomain: one finding per capability citing it; a tag outside the Prd's: the rule and every citation
-    expect(new Set(await prdCodes((a) => { a.prd.subdomains.push(pay); for (const r of a.rules.rules) r.subdomain = 'expenses'; a.rules.rules[0].subdomain = 'payments' }))).toEqual(new Set(['subdomain-mismatch']))
-    expect(new Set(await prdCodes((a) => { a.rules.rules[0].subdomain = 'ghost' }))).toEqual(new Set(['subdomain-mismatch']))
-    expect(await prdCodes((a) => { a.prd.subdomains.push(structuredClone(a.prd.subdomains[0])); for (const r of a.rules.rules) r.subdomain = 'expenses' })).toEqual(['subdomain-mismatch'])
+    const citing = (r: string) => content('Prd').capabilities.filter((c: { rules?: string[] }) => (c.rules ?? []).includes(r)).length
+    expect(await prdCodes((a) => { a.prd.subdomains.push(pay); for (const r of a.rules.rules) r.subdomain = 'expenses'; a.rules.rules[0].subdomain = 'payments' })).toEqual(Array(citing('BR-1')).fill('subdomain-mismatch'))
+    expect(await prdCodes((a) => { a.rules.rules[0].subdomain = 'ghost' })).toEqual(Array(1 + citing('BR-1')).fill('subdomain-mismatch'))
+    // a duplicate is one finding: it does not make the product one over two subdomains
+    expect(await prdCodes((a) => { a.prd.subdomains.push(structuredClone(a.prd.subdomains[0])) })).toEqual(['subdomain-mismatch'])
   })
 
   it('fails a success criterion citing a capability the Prd does not have', async () => {

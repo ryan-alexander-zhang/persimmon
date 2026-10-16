@@ -880,7 +880,7 @@ spec:
           prd: {type: string, minLength: 1, description: "artifact id of the Prd"}
           capability: {type: string, pattern: "^CAP-[0-9]+$", description: "the one capability of the Prd this Spec is"}
           architecture: {type: string, minLength: 1, description: "artifact id of the Architecture the qualities cite"}
-          domainModel: {type: string, minLength: 1, description: "artifact id of the DomainModel of the capability's context; every command, event and read model name is its"}
+          domainModel: {type: string, minLength: 1, description: "artifact id of the DomainModel of the BoundedContext that lists the capability; every command, event and read model name is its"}
           stories:
             type: array
             minItems: 1

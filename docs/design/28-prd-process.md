@@ -27,7 +27,7 @@ form is refused by the engine when wrong and the method is a Prompt a Namespace 
 
 | Member | Content |
 |---|---|
-| Prompt `prd-rules` | problem before solution; users as roles; goals are direction and success criteria carry the number, measured in production; a capability is one Spec's worth with its context and the rules that govern it; a rule is written into `BusinessRules`, never into the Prd; what is refused is a non-goal; an unknown is a `Q-n` |
+| Prompt `prd-rules` | problem before solution; users as roles; goals are direction and success criteria carry the number, measured in production; the Prd names the brief's subdomains, typed core, supporting or generic (`34-subdomains.md`); a capability is one Spec's worth with its subdomain and the rules that govern it; a rule is written into `BusinessRules`, never into the Prd; what is refused is a non-goal; an unknown is a `Q-n` |
 | Executor `prd-agent` | `claude-code/v1`, read-only, its own name so a Namespace picks the model per Task |
 | Task `draft-prd` | inputs `brief` (text), `productId` (the id stem), `rules` and `glossary` (optional, the product's current ones), `previous` (the last Prd), `previousRules` (the last round's rules, carried by the loop), `feedback`; outputs `prd` (with the `subdomains` the brief describes) and `rules` (the product's BusinessRules: the input artifact's rules carried forward plus the brief's) |
 | Task `confirm-prd` | human on `cli-human/v1`: reads the Prd and the rules at the terminal, approves or rejects with one finding per id |

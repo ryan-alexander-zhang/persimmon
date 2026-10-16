@@ -571,9 +571,9 @@ The pack process from the Architecture's client blocks to the **DesignSystem** (
 _Avoid_: UX phase, frontend design, screen design process
 
 **Product**:
-What one **Prd** describes: one or more bounded contexts delivered together, named by a `productId`
-that stems the Prd's, the rules' and the Architecture's artifact ids. A one-context product's id is
-its context's.
+What one **Prd** describes: one or more **Subdomain**s served together, realised by the bounded
+contexts the storming cuts, named by a `productId` that stems the Prd's, the rules' and the
+Architecture's artifact ids.
 _Avoid_: project (the persimmon project is the store), system, initiative (for the id)
 
 **Prd**:

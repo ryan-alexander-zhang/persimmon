@@ -155,7 +155,8 @@ persimmon validate room-booking-domain.yaml        # 30 lines `ok`
 ```
 
 `persimmon create` takes one document per file; split the file to load it, or read it as it is.
-The BusinessRules carry `contexts: [room-booking]`: the kind renamed `context` to `contexts` after this
-recording (`33-multi-context-product.md`), the one edit by hand.
+Edited by hand after this recording: the Prd names one subdomain, `room-booking` (supporting), its
+capabilities and the storming context name it, and the BoundedContext lists the six capabilities
+(`34-subdomains.md`); the recording named the context in the Prd instead.
 Every artifact in it is at revision 1: the rounds of the Prd (two) and the storming (five)
 collapsed into the revision that passed.
