@@ -68,7 +68,6 @@ later     eager joins · retention policy · policy resource · external event s
 | `secretManager` credential source | `08-store.md` | server mode |
 | `security.networkAccess` and `allowedHosts` enforced by the agent Adapters | `13-executor.md` | declarative today; needs a sandbox the CLIs do not expose |
 | the verification layer of the SDLC pack: `TestCase` (`verifies[] {kind: AC\|FR\|BR\|QS, ref}`, steps, assertions, `executionMode`), `TestRun` (build, environment, time), `TestResult` (one per executed case and data set, evidence), `TestReport` (runs, coverage split into requirements, execution and verification, defects, quality gate); a scenario and a test case are N:M; a Spec cites none of them | `23-pack-sdlc.md`, `27-spec-process.md` | the Spec's `AC-n`, `FR-n` and the rules' `BR-n` are the ids it will cite; nothing verifies yet |
-| a query binding inside a Workflow step (`fromQuery` with a `where` over content: every `Design` of a block, every `Spec` of a Prd) | `10-ports.md`, `33-multi-context-product.md` | `persimmon run --input <port>=kind:<Kind>` covers every shipped consumer: `plan-all` and a `ui` `design-all` take the whole list and the Validators ignore a Design no element names; a filter is the first real need, and none has shown |
 | fired Transitions recorded in `WorkflowRun.status` | `11-workflow.md` | derived from step runs |
 | `allowedHosts` enforcement and a network switch for `claude-code/v1` | `19-adapter-roles.md` | agent runs with the CLI's own sandbox; codex has the on/off switch |
 

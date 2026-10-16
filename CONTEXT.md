@@ -274,7 +274,8 @@ _Avoid_: activation, invocation (for the Trigger)
 
 **Binding**:
 How a port gets its value: `literal`, `fromInput`, `fromStep`, `fromState`,
-`fromIterationOutput`, `expression`, `fromEvent` (Trigger only).
+`fromIterationOutput`, `expression`, `fromArtifact` (one id's latest revision), `fromQuery`
+(every latest revision of a kind whose content passes a `where`), `fromEvent` (Trigger only).
 _Avoid_: mapping, wiring, assignment
 
 **Port**:
