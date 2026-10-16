@@ -45,7 +45,6 @@ later     eager joins · retention policy · policy resource · external event s
 | Skill digest verified at apply | `15-prompt-skill.md` | v1: `skill install` and every attempt verify; no engine-side check |
 | Executor-level workspace cap | `12-task.md` | v1: the workspace is the Task's |
 | Executor-level Skills | `12-task.md`, `15-prompt-skill.md` | v1: a Task lists its Skills as context |
-| the UI serves a revision's representations (the HTML, the mockups) beside its content | `25-ui.md`, `18-artifact.md` | `persimmon get --files` writes them out; the UI shows content only |
 | scripts reading artifact content through the Engine callback | `19-adapter-roles.md` | v1: `subprocess/v1` passes references; `fromEvent: content.<path>` binds values (`examples/example03`) |
 | per-run `resultFile` | `19-adapter-roles.md` | v1: one path per Executor; runs sharing it stay sequential (`examples/example03`) |
 

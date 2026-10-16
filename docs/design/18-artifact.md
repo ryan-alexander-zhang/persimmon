@@ -28,7 +28,7 @@ Storage: canonical content in the ResourceStore, representations in the BlobStor
 Representations: the content as JSON, named `json`, on every revision an Adapter publishes; and
 every file an agent leaves under `<files>/<port>/` in its workspace (`19-adapter-roles.md`), named by
 its stem, typed by its extension. `persimmon get <Kind>/<name> --files <dir>` writes them out as
-`<name>.<ext>`; the UI does not serve them yet (`91-roadmap.md`).
+`<name>.<ext>`; the UI serves one at `/api/artifacts/<ns>/<kindName>/<id>/<revision>/<name>` (`25-ui.md`).
 
 ## RelationType
 

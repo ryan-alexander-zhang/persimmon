@@ -73,6 +73,30 @@ describe('persimmon ui server', () => {
     expect((await get('/api/nothing')).status).toBe(404)
   })
 
+  it("serves a revision's representation as its bytes, sandboxed and unsniffed; an unknown name is 404", async () => {
+    const html = engine.store.blobs.put(Buffer.from('<h1>screens</h1><script>fetch("/api/kinds")</script>'), 'text/html')
+    const scope = { uid: 'test', key: 'k' }
+    engine.store.resources.stage({
+      apiVersion: 'sdd.persimmon.ai/v1', kind: 'Design', metadata: { name: 'ui.r1', namespace: 'default' },
+      spec: { identity: { id: 'ui', revision: 1 }, content: {}, provenance: { producerRef: { apiVersion: 'persimmon.ai/v1', kind: 'TaskRun', namespace: 'default', name: 'run', uid: 'uid-run' }, inputs: [], actor: { kind: 'user', id: 'local' } } },
+      status: { contentDigest: 'sha256:' + '0'.repeat(64), representations: [{ name: 'screens', mediaType: 'text/html', digest: html.digest }, { name: 'ghost', mediaType: 'text/plain', digest: 'sha256:' + 'f'.repeat(64) }] },
+    }, scope)
+    engine.store.resources.commitScope(scope)
+    const page = await get('/api/artifacts/default/designs.sdd.persimmon.ai/ui/1/screens')
+    expect([page.status, page.headers.get('content-type'), page.headers.get('content-security-policy'), page.headers.get('x-content-type-options'), page.headers.get('content-length')]).toEqual([200, 'text/html', 'sandbox', 'nosniff', '52'])
+    expect(await page.text()).toBe('<h1>screens</h1><script>fetch("/api/kinds")</script>') // the bytes as published; the policy, not a rewrite, keeps the script off the API
+    expect((await get('/api/artifacts/default/designs.sdd.persimmon.ai/ui/latest/screens')).status).toBe(200)
+    const none = await get('/api/artifacts/default/designs.sdd.persimmon.ai/ui/1/mockups')
+    expect([none.status, (await none.json()).error.message]).toEqual([404, 'designs.sdd.persimmon.ai ui revision 1 has no representation mockups'])
+    const gone = await get('/api/artifacts/default/designs.sdd.persimmon.ai/ui/1/ghost')
+    expect([gone.status, (await gone.json()).error.code]).toEqual([500, 'internal']) // a named blob that is not in the store is ours, not the caller's
+    expect((await get('/api/artifacts/default/designs.sdd.persimmon.ai/ui/1/screens/more')).status).toBe(404)
+    const rebound = await new Promise<number>((resolve) => {
+      request({ host: '127.0.0.1', port: server.port, path: '/api/artifacts/default/designs.sdd.persimmon.ai/ui/1/screens', headers: { host: `evil.example:${server.port}` } }, (res) => resolve(res.statusCode!)).end()
+    })
+    expect(rebound).toBe(403)
+  })
+
   it('keeps other origins out and refuses what it cannot parse', async () => {
     // fetch drops a Host header, so the rebound request goes through node:http
     const rebound = await new Promise<{ status: number; code: string }>((resolve) => {

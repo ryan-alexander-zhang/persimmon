@@ -1,4 +1,4 @@
-// The JSON API over the Engine (25-ui.md): revisioned kinds, their artifacts, one revision, create the next one.
+// The JSON API over the Engine (25-ui.md): revisioned kinds, their artifacts, one revision, its representations, create the next one.
 // Local mode binds loopback and trusts the user, so there is no auth here; server mode adds https and tokens.
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { createRevision } from '../cli/create.js'
@@ -29,8 +29,13 @@ export async function api(engine: Engine, req: IncomingMessage, res: ServerRespo
     if (req.method === 'POST' && !/^application\/json\b/.test(req.headers['content-type'] ?? '')) throw new HttpError(415, 'unsupported_media_type', 'POST needs content-type application/json')
     const url = new URL(req.url ?? '/', 'http://127.0.0.1')
     const path = decode(url.pathname).split('/').filter(Boolean).slice(1) // after `api`
-    const { status, body } = await route(engine, req, path, url)
-    send(res, status, body)
+    const { status, body, raw } = await route(engine, req, path, url)
+    if (raw) {
+      // an agent's HTML is untrusted and would run on this origin: `sandbox` gives it an opaque origin with no fetch to the
+      // API, no forms, no storage; `nosniff` keeps a text/plain blob from being read as HTML
+      res.writeHead(status, { 'content-type': raw.mediaType, 'content-length': raw.bytes.length, 'x-content-type-options': 'nosniff', 'content-security-policy': 'sandbox' })
+      res.end(raw.bytes)
+    } else send(res, status, body)
   } catch (e) {
     const { status, code } = e instanceof HttpError ? e : { status: 500, code: 'internal' }
     send(res, status, { error: { code, message: (e as Error).message } })
@@ -51,7 +56,7 @@ function send(res: ServerResponse, status: number, body: unknown): void {
   res.end(JSON.stringify(body))
 }
 
-async function route(engine: Engine, req: IncomingMessage, path: string[], url: URL): Promise<{ status: number; body: unknown }> {
+async function route(engine: Engine, req: IncomingMessage, path: string[], url: URL): Promise<{ status: number; body?: unknown; raw?: { bytes: Uint8Array; mediaType: string } }> {
   const method = req.method ?? 'GET'
   const [head, ...rest] = path
   if (head === 'kinds' && rest.length === 0 && method === 'GET')
@@ -71,8 +76,8 @@ async function route(engine: Engine, req: IncomingMessage, path: string[], url: 
     return { status: 200, body: [...latest].map(([id, revision]) => ({ apiVersion: apiVersionOf(kd), kind: kd.spec.names.kind, namespace, id, revision })) }
   }
 
-  const [namespace, kindName, id, revision] = rest
-  if (!namespace || !kindName || !id || rest.length > 4) throw new HttpError(404, 'not_found', `no route ${method} ${url.pathname}`)
+  const [namespace, kindName, id, revision, representation] = rest
+  if (!namespace || !kindName || !id || rest.length > 5) throw new HttpError(404, 'not_found', `no route ${method} ${url.pathname}`)
   const kd = revisionedKind(engine, kindName)
 
   if (method === 'POST' && rest.length === 3) {
@@ -99,7 +104,13 @@ async function route(engine: Engine, req: IncomingMessage, path: string[], url: 
   if (!Number.isInteger(wanted)) throw new HttpError(400, 'bad_request', `revision ${revision}: a number or latest`)
   const found = engine.store.resources.get({ kind: kd.spec.names.kind, namespace, name: `${id}.r${wanted}` })
   if (!found) throw new HttpError(404, 'not_found', `${kindName} ${id} revision ${wanted} not found in ${namespace}`)
-  return { status: 200, body: found }
+  if (representation === undefined) return { status: 200, body: found }
+  // one representation's bytes (18-artifact.md): `json` is the content, the rest the files the agent left
+  const rep = ((found.status as { representations?: { name: string; mediaType: string; digest: string }[] } | undefined)?.representations ?? []).find((r) => r.name === representation)
+  if (!rep) throw new HttpError(404, 'not_found', `${kindName} ${id} revision ${wanted} has no representation ${representation}`)
+  const blob = engine.store.blobs.get(`blob://${rep.digest.replace(/^sha256:/, '')}`)
+  if (!blob) throw new HttpError(500, 'internal', `${representation}: blob ${rep.digest} missing`)
+  return { status: 200, raw: { bytes: blob.bytes, mediaType: rep.mediaType } }
 }
 
 /** The create path's errors are the user's input: a taken revision is a conflict, anything else the engine refused is bad content. */
