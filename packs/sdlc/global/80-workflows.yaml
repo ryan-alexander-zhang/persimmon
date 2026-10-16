@@ -353,6 +353,7 @@ spec:
       design: {fromStep: {stepRef: produce, output: design}}
       architecture: {fromInput: architecture}
       domainModel: {fromInput: domainModel}
+      glossary: {fromInput: glossary}
       rules: {fromInput: rules}
       designSystem: {fromInput: designSystem}
       designs: {fromInput: designs}

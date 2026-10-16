@@ -101,6 +101,7 @@ spec:
     design: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: false}
+    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: false}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: false}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false}
@@ -113,6 +114,7 @@ spec:
         design: {fromInput: design}
         architecture: {fromInput: architecture}
         domainModel: {fromInput: domainModel, onMissing: omit}
+        glossary: {fromInput: glossary, onMissing: omit}
         rules: {fromInput: rules}
         designSystem: {fromInput: designSystem, onMissing: omit}
         designs: {fromInput: designs, onMissing: omit}

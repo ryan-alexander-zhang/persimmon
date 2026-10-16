@@ -86,8 +86,9 @@ spec:
     resultOutput: result
   timeout: 72h
 ---
-# design-consistency: sdd/v1 checks a Design's index against the Architecture, DomainModel and rules (29-design-process.md);
-# a ui Design's against the API Designs bound on `designs` instead of the DomainModel (32-ui-design-process.md).
+# design-consistency: sdd/v1 checks a Design's index against the Architecture, DomainModel and rules, and its document's
+# fields against the Glossary (29-design-process.md); a ui Design's against the API Designs bound on `designs` instead of
+# the DomainModel (32-ui-design-process.md).
 apiVersion: persimmon.ai/v1
 kind: Validator
 metadata: {name: design-consistency}
@@ -96,6 +97,7 @@ spec:
     design: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: false, description: "what the elements realise; not for a ui Design"}
+    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: false, description: "what the document's field names are held to; not for a ui Design; unbound, the fields are unchecked"}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: false, description: "for a ui Design: the DesignSystem it must cite"}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "for a ui Design: the API Designs whose operations its elements realise"}

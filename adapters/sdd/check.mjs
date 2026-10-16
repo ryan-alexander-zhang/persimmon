@@ -5,7 +5,7 @@
 // BusinessRules it enforces. And one Plan against its Spec, the Architecture and the Designs it realises. And one Architecture
 // against the Prd, the contexts, models and glossaries it lists and the Adrs it applies. Plain data in, findings out.
 // the document a Design of each type carries
-import { bareSql, contractNames, designSystemNames, methods, uiParts } from './contract.mjs'
+import { bareSql, contractNames, designSystemNames, fieldNames, methods, uiParts } from './contract.mjs'
 
 const mediaTypes = { 'http-api': ['application/openapi+yaml'], 'async-api': ['application/asyncapi+yaml'], 'data-schema': ['application/schema+json', 'application/sql'], ui: ['text/markdown'] }
 const keyword = { ubiquitous: 'The', 'event-driven': 'When', 'state-driven': 'While', 'unwanted-behaviour': 'If', optional: 'Where' }
@@ -184,9 +184,31 @@ const dialectMisses = (mediaType, sql, technology = '') => {
 // `designs` is artifact id → content of the API Designs bound, and their element names are what its elements may realise;
 // `designSystem` is the bound DesignSystem's content, whose front matter names what a screen's Layout may use
 // (32-ui-design-process.md).
+// A field name held to the Glossary (29-design-process.md): its words, split on case and `_`/`-`, are a term or the attribute of
+// a fact type (`claim has total`: `total`), an alias or a deprecated name the Glossary says not to write (an error), or a word it
+// lacks (a warning). `id`, `<x>Id`, `<x>_id` are the document's own.
+// ponytail: whole-name match, one trailing `s` forgiven; stemming when a live Design shows the need
+const words = (s) => String(s).replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_\-\s]+/g, ' ').trim().toLowerCase()
+const vocabulary = (glossary) => {
+  const fine = new Set()
+  const avoid = new Map()
+  for (const t of glossary?.terms ?? []) {
+    if (t.status === 'deprecated') avoid.set(words(t.name), `${t.name} is deprecated${t.replacedBy ? `; the Glossary names ${t.replacedBy}` : ''}`)
+    else fine.add(words(t.name))
+    for (const a of t.aliases ?? []) avoid.set(words(a), `${a} is an alias; the Glossary names ${t.name}`)
+  }
+  for (const f of glossary?.factTypes ?? []) {
+    const n = words(f.name)
+    const prefix = `${words(`${f.subject} ${f.predicate}`)} `
+    const attribute = n.startsWith(prefix) ? n.slice(prefix.length) : n
+    if (f.status === 'deprecated') avoid.set(attribute, `${f.name} is deprecated`)
+    else fine.add(attribute)
+  }
+  return { fine, avoid }
+}
 const isOperation = (name) => new RegExp(`^(${methods.map((m) => m.toUpperCase()).join('|')}) /`).test(name) // the methods contract.mjs names, as it spells them
 const backticked = (text) => [...text.matchAll(/`([^`\n]+)`/g)].map((m) => m[1])
-export function checkDesign({ design, architecture, domainModel, rules, designs = {}, designSystem, ids = {} }) {
+export function checkDesign({ design, architecture, domainModel, rules, designs = {}, designSystem, glossary, ids = {} }) {
   if (!design || !Array.isArray(design.elements) || !design.type) {
     return [{ severity: 'error', code: 'not-a-design', message: 'content is not a Design: it has no elements array or no type' }]
   }
@@ -258,6 +280,22 @@ export function checkDesign({ design, architecture, domainModel, rules, designs 
     const names = designSystemNames(designSystem?.document?.content)
     const seen = new Set()
     if (names) for (const p of parts.filter((p) => p.part === 'Layout')) for (const t of backticked(p.text)) if (!names.has(t) && !seen.has(t) && seen.add(t)) warn('layout-unknown', `${p.screen}: \`${t}\` is not a component or token of the DesignSystem`)
+  }
+
+  // the document's fields past the index: a name the Glossary says not to write is an error, one it lacks a warning, each once
+  // per document; a ui document binds no Glossary, and a Validator with none bound checks no field
+  if (!ui && glossary && contract && !contract.error) {
+    const { fine, avoid } = vocabulary(glossary)
+    const seen = new Set()
+    for (const name of fieldNames(design.document)) {
+      if (/^id$|Id$|_id$/.test(name) || seen.has(name)) continue
+      seen.add(name)
+      const forms = [words(name), words(name).replace(/s$/, '')]
+      if (forms.some((f) => fine.has(f))) continue
+      const why = forms.map((f) => avoid.get(f)).find(Boolean)
+      if (why) bad('alias-used', `${name}: ${why}`)
+      else warn('term-unknown', `${name}: no term or fact type of the Glossary names it`)
+    }
   }
 
   for (const el of design.elements) {

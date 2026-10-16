@@ -68,11 +68,57 @@ const ident = '(?:"[^"]+"|`[^`]+`|\\[[^\\]]+\\]|[\\w$]+)'
 const unquote = (s) => s.trim().replace(/^["`[]|["`\]]$/g, '')
 
 /** `CREATE [OR REPLACE] [TEMP|VIRTUAL|...] TABLE [IF NOT EXISTS] [schema.]name`: the last identifier, unquoted. Views and indexes are not tables. */
+const createTable = `\\bcreate\\s+(?:or\\s+replace\\s+)?(?:(?:global\\s+|local\\s+)?(?:temp|temporary|unlogged|virtual)\\s+)?table\\s+(?:if\\s+not\\s+exists\\s+)?(${ident}(?:\\s*\\.\\s*${ident})*)`
 const tables = (sql) => {
-  const re = new RegExp(`\\bcreate\\s+(?:or\\s+replace\\s+)?(?:(?:global\\s+|local\\s+)?(?:temp|temporary|unlogged|virtual)\\s+)?table\\s+(?:if\\s+not\\s+exists\\s+)?(${ident}(?:\\s*\\.\\s*${ident})*)`, 'gi')
   const out = []
-  for (const m of bareSql(sql).matchAll(re)) out.push(unquote(m[1].match(new RegExp(ident, 'g')).pop()))
+  for (const m of bareSql(sql).matchAll(new RegExp(createTable, 'gi'))) out.push(unquote(m[1].match(new RegExp(ident, 'g')).pop()))
   return out
+}
+
+/** The column names of every `CREATE TABLE` body: the first identifier of each top-level comma item that is not a table constraint. */
+const constraint = /^(constraint|primary|foreign|unique|check|index|key|exclude|like|period)\b/i
+const columns = (sql) => {
+  const bare = bareSql(sql)
+  const out = []
+  for (const m of bare.matchAll(new RegExp(`${createTable}\\s*\\(`, 'gi'))) {
+    let depth = 1
+    let item = ''
+    for (let i = m.index + m[0].length; i < bare.length && depth; i++) {
+      const c = bare[i]
+      if (c === '(') depth++
+      else if (c === ')') depth--
+      if (depth === 0 || (c === ',' && depth === 1)) {
+        const t = item.trim()
+        if (t && !constraint.test(t)) out.push(unquote(t.match(new RegExp(ident))[0]))
+        item = ''
+      } else item += c
+    }
+  }
+  return out
+}
+
+/** The field names a document declares (29-design-process.md): every key of a `properties` of an OpenAPI, AsyncAPI or JSON Schema
+ * document, at any depth, a container (an array, an inline object) skipped; every column of a DDL `CREATE TABLE`. [] when the
+ * mediaType has no fields or the document does not read: `contractNames` reports that. */
+export const fieldNames = (document) => {
+  const { mediaType, content = '' } = document ?? {}
+  try {
+    if (mediaType === 'application/sql') return columns(content)
+    if (!['application/openapi+yaml', 'application/asyncapi+yaml', 'application/schema+json'].includes(mediaType)) return []
+    const out = []
+    const walk = (node) => {
+      if (!node || typeof node !== 'object') return
+      if (Array.isArray(node)) return node.forEach(walk)
+      for (const [k, v] of Object.entries(node)) {
+        if (k === 'properties' && v && typeof v === 'object' && !Array.isArray(v)) for (const [name, s] of Object.entries(v)) if (!(s?.type === 'array' || s?.properties || s?.items)) out.push(name)
+        walk(v)
+      }
+    }
+    walk(mediaType === 'application/schema+json' ? JSON.parse(content) : parse(content))
+    return out
+  } catch {
+    return []
+  }
 }
 
 /** A local `$ref` (`#/a/b`) resolved against the document, else the node itself. */

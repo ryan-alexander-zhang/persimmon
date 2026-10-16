@@ -418,6 +418,38 @@ describe('sdd/v1 over a Design', () => {
     expect((await ddl('SQLite', "CREATE TABLE claim (due INTERVAL); CREATE TABLE ghost (id TEXT);")).findings.map((f: { code: string; severity: string }) => `${f.severity}:${f.code}`)).toEqual(['error:document-unindexed', 'warning:dialect'])
   })
 
+  it('holds the document\'s fields to the Glossary: an alias or a deprecated name is an error, a word the Glossary lacks a warning, each once', async () => {
+    const withGlossary = async (edit: (content: string) => string = (c) => c) => {
+      const a = structuredClone(designExample()) as any
+      a.glossary = content('Glossary')
+      a.design.document.content = edit(a.design.document.content)
+      return (await adapter({ id: ++id, op: 'evaluate', payload: payload(a) })).result
+    }
+    const label = (r: any) => r.findings.map((f: { severity: string; code: string; message: string }) => `${f.severity}:${f.code}:${f.message.split(':')[0]}`)
+    // the worked example: `rule`, `route` and `reason` are no term or fact type (Q-2 says so of reason); `amount`, `submissionDate`, `riskFlag`, `destinationCountry` are
+    const worked = await withGlossary()
+    expect(worked.passed).toBe(true)
+    expect(label(worked)).toEqual(['warning:term-unknown:rule', 'warning:term-unknown:route', 'warning:term-unknown:reason'])
+    expect(worked.findings[0].message).toBe('rule: no term or fact type of the Glossary names it')
+    // an alias of claim line, and the deprecated expense report: the Glossary says what to write instead
+    const alias = await withGlossary((c) => c.replace('properties: {amount:', 'properties: {expense:').replace('reason: {type: string}', 'reason: {type: string}, expenseReport: {type: string}'))
+    expect(alias.passed).toBe(false)
+    expect(alias.findings.filter((f: { code: string }) => f.code === 'alias-used').map((f: { message: string }) => f.message)).toEqual(['expense: expense is an alias; the Glossary names claim line', 'expenseReport: expense report is deprecated; the Glossary names claim'])
+    // a plural of a term, an id and an array are not findings; a name is reported once per document
+    const fine = await withGlossary((c) => c.replace('properties: {reason: {type: string}}', 'properties: {receipts: {type: boolean}, tripId: {type: string}, trips: {type: array, items: {type: string}}, rule: {type: string}}'))
+    expect(label(fine)).toEqual(['warning:term-unknown:rule', 'warning:term-unknown:route'])
+    // DDL columns, snake_case, quoted, a constraint item skipped
+    const a = structuredClone(designExample()) as any
+    a.glossary = content('Glossary')
+    a.design.type = 'data-schema'
+    a.design.document = { mediaType: 'application/sql', content: 'CREATE TABLE claim (id TEXT, claim_id TEXT, "reimbursement request" TEXT, submission_date DATE, cap NUMERIC, due DATE, PRIMARY KEY (id), CONSTRAINT c CHECK (cap > 0));' }
+    a.design.elements = [{ id: 'EL-1', name: 'claim', realises: { kind: 'aggregate', name: 'AG-1' } }]
+    a.design.rules = []
+    const ddl = (await adapter({ id: ++id, op: 'evaluate', payload: payload(a) })).result
+    expect(ddl.passed).toBe(false)
+    expect(label(ddl)).toEqual(['error:alias-used:reimbursement request', 'error:alias-used:cap', 'warning:term-unknown:due'])
+  })
+
   it('every example Design passes the document checks of checkDesign', () => {
     const files = ['docs/design/examples/sdlc-domain.yaml', 'examples/example07/room-booking-domain.yaml', 'examples/example08/car-pool-domain.yaml']
     for (const f of files) {
@@ -430,8 +462,9 @@ describe('sdd/v1 over a Design', () => {
         const domainModel = byKind('DomainModel').find((m) => m.spec.identity.id === c.domainModel)?.spec.content
         const rules = byKind('BusinessRules')[0]?.spec.content
         const designSystem = byKind('DesignSystem').find((s) => s.spec.identity.id === c.designSystem)?.spec.content
-        const all = checkDesign({ design: c, architecture, domainModel, rules, designs, designSystem, ids: { designSystem: c.designSystem } })
-        const found = all.filter((x: { code: string }) => /^(document-|element-unbacked|dialect|action-)/.test(x.code))
+        const glossary = byKind('Glossary').find((g) => g.spec.content.context === domainModel?.context)?.spec.content
+        const all = checkDesign({ design: c, architecture, domainModel, rules, designs, designSystem, glossary, ids: { designSystem: c.designSystem } })
+        const found = all.filter((x: { code: string }) => /^(document-|element-unbacked|dialect|action-|alias-)/.test(x.code))
         expect({ file: f, id: d.spec.identity.id, found }).toEqual({ file: f, id: d.spec.identity.id, found: [] })
         const layout = all.filter((x: { code: string }) => x.code === 'layout-unknown').length
         if (c.type === 'ui') expect({ file: f, id: d.spec.identity.id, layoutWarnings: layout > 0 }).toEqual({ file: f, id: d.spec.identity.id, layoutWarnings: f.includes('example08') }) // example07's Layouts name the DesignSystem only; example08's name fields too (32-ui-design-process.md)
