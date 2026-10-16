@@ -298,7 +298,20 @@ describe('the design example', () => {
   const domainModel = docs.find((d) => d.kind === 'DomainModel')!.spec.content
   it('expense-claims-storming r2 has no error and expenses-model agrees with it', () => {
     expect(check(model).filter((f) => f.severity === 'error')).toEqual([])
-    expect(checkDerived(model, domainModel, 'exp')).toEqual([])
+    expect(checkDerived(model, domainModel, 'expenses')).toEqual([])
+  })
+})
+
+describe('the recorded examples agree with their Prd', () => {
+  const files = [join('docs', 'design', 'examples', 'sdlc-domain.yaml'), join('examples', 'example07', 'room-booking-domain.yaml'), join('examples', 'example08', 'car-pool-domain.yaml')]
+  it.each(files)('%s: the design storming realises the Prd subdomains, each BoundedContext copies its context', (file) => {
+    const docs = parseAllDocuments(readFileSync(join(import.meta.dirname, '..', '..', file), 'utf8')).map((d) => d.toJS()).filter(Boolean) as { kind: string; spec: { identity: { id: string }; content: { meta?: { level: string } } } }[]
+    const prd = docs.find((d) => d.kind === 'Prd')!.spec.content
+    const model = docs.find((d) => d.kind === 'EventStorming' && d.spec.content.meta?.level === 'design')!.spec.content
+    expect(checkSubdomains(model, prd)).toEqual([])
+    const contexts = docs.filter((d) => d.kind === 'BoundedContext')
+    expect(contexts.length).toBeGreaterThan(0)
+    for (const bc of contexts) expect(checkBoundedContext(model, bc.spec.content, bc.spec.identity.id, prd)).toEqual([])
   })
 })
 

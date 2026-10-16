@@ -58,10 +58,10 @@ brief ─▶ author-prd ─▶ Prd: subdomains[] (core | supporting | generic), 
 | Task `draft-prd`, ReviewLoop `author-prd` | input `contextIds` removed; the agent names the subdomains from the brief and the human confirms them at `prd-gate`; `previous` keeps the ids across rounds |
 | Prompt `prd-rules` | a subdomain per part of the business the brief names, typed by the test "would a competitor copying it hurt"; a capability names the subdomain whose users it serves; a rule names the subdomain whose policy it is |
 | Validator `prd-consistency` (`checkPrd`) | `subdomain-mismatch` replaces `context-mismatch`: a capability's or a rule's `subdomain` not in the Prd's; a cited rule of another subdomain; an untagged rule when the Prd has more than one; duplicate subdomain ids |
-| Prompt `storming-big-picture` | contexts are cut where the language or the owner changes; the Prd's subdomains are where to look, not the cut: one subdomain may need two contexts, and a context's id is the storming's own |
+| Prompt `storming-big-picture` | contexts are cut where the language or the owner changes; the Prd's subdomains are where to look, not the cut: one subdomain may need two contexts, and a context's id is the storming's own; what the product only talks to is an `externalSystem`, never a context; a part it builds that no subdomain covers is a hotspot for the human to add one to the Prd |
 | Prompt `storming-design` | each context names its `subdomain`; `classification` is that subdomain's `type` |
 | grammar `check` | DSL 4.1, 4.0 still read; `bad-subdomain` when the field is not an id |
-| Gate `storming-gate`, Validator `eventstorming-grammar` (`checkSubdomains`) | binds the `prd`; at design level `context-no-subdomain`, `subdomain-unknown` (not one of the Prd's), `subdomain-unrealised` (a Prd subdomain no context names), `classification-mismatch` (not the subdomain's `type`) |
+| Gate `storming-gate`, Validator `eventstorming-grammar` (`checkSubdomains`) | binds the `prd`; at any level `subdomain-unknown` (not one of the Prd's); at design level `context-no-subdomain`, `subdomain-unrealised` (a Prd subdomain no context names), `classification-mismatch` (not the subdomain's `type`) |
 | Task `derive-domain`, Prompt `derive-domain-rules` | the BoundedContext takes `subdomain`, `classification` and `capabilities`; invariants take the rules of its subdomain, or untagged ones, that its constraints cite |
 | Gate `derived-gate`, `checkDerived` | binds the derived `context` and the `prd`; `derived-subdomain-mismatch` (not the storming context's), `derived-classification-mismatch` (not the storming context's), `derived-capability-unknown` (not a capability of the subdomain), `derived-capability-missing` (one of the subdomain's left out when no other context realises it), `derived-relationship-mismatch` (`relationships` differ from the storming's `contextRelationships` under the role and pattern map) |
 | Validator `architecture-consistency` (`checkArchitecture`) | `prd-context-unread` replaced by `capability-unplaced` (no BoundedContext lists a capability) and `capability-twice` (two do); reads the contexts' content |
@@ -104,6 +104,12 @@ brief ─▶ author-prd ─▶ Prd: subdomains[] (core | supporting | generic), 
 - A BoundedContext's `capabilities` may be empty: a subdomain split in two can leave one context
   that no capability's commands land in; that every capability lands somewhere is the
   Architecture check's, which sees every context. Found in implementation.
+- Only what the product builds is a context: a directory or a ledger it talks to is an
+  `externalSystem`, so a context never lacks a subdomain for want of one in the Prd, and every
+  context reaches the Architecture's blocks. A part it builds that the Prd lacks is a hotspot the
+  human answers in the Prd. The ceiling: the map no longer shows how the product conforms to an
+  outside model; that lives in the Architecture's `context.business`, and an external context
+  mark is the upgrade if the map needs it. Found in audit.
 - The relationships check rides along: `derived-gate` never received the derived BoundedContext,
   so a wrong `role` or `pattern` passed unseen. Found in a walkthrough of example08.
 

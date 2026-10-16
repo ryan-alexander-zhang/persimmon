@@ -85,6 +85,23 @@ describe('eventstorming/v1 beside the Prd', () => {
     expect(r.result.passed).toBe(false)
     expect(r.result.findings.map((f: { code: string }) => f.code)).toEqual(['subdomain-unknown'])
   })
+
+  const withPrd = (content: unknown, subdomains: unknown[]) => {
+    const p = payload(content)
+    ;(p.artifacts as Record<string, unknown>).prd = { content: { subdomains }, provenance }
+    return p
+  }
+
+  it('passes a design-level model whose contexts realise the Prd subdomains', async () => {
+    const design = { ...model, version: '4.1', meta: { name: 'x', level: 'design' }, contexts: [{ id: 'a', name: 'A', order: 0, classification: 'core', subdomain: 'expenses' }] }
+    const r = await adapter({ id: 13, op: 'evaluate', payload: withPrd(design, [{ id: 'expenses', type: 'core' }]) })
+    expect(r.result.findings.filter((f: { severity: string }) => f.severity === 'error')).toEqual([])
+  })
+
+  it('reports only not-a-model for content that is not a model', async () => {
+    const r = await adapter({ id: 14, op: 'evaluate', payload: withPrd({ title: 'x' }, [{ id: 'expenses', type: 'core' }]) })
+    expect(r.result.findings.map((f: { code: string }) => f.code)).toEqual(['not-a-model'])
+  })
 })
 
 describe('eventstorming/v1 against a derived DomainModel', () => {

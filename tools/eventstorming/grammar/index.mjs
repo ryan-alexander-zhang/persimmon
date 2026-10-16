@@ -238,7 +238,6 @@ export function check(content) {
   return findings
 }
 
-/** A label set the storming holds against the one the domain model holds. */
 /**
  * A storming's contexts against the subdomains of the Prd it storms (34-subdomains.md): a context's
  * `subdomain` is one of the Prd's at any level; at design level every context names one, has that
@@ -257,6 +256,7 @@ export function checkSubdomains(model, prd) {
       if (design) add('error', 'context-no-subdomain', `context ${c.id}: names no subdomain - one of the Prd's (${known})`)
       continue
     }
+    if (typeof c.subdomain !== 'string' || !c.subdomain) continue // check's bad-subdomain
     const d = subdomains.get(c.subdomain)
     if (!d) {
       add('error', 'subdomain-unknown', `context ${c.id}: subdomain '${c.subdomain}' is not one of the Prd's (${known})`)
@@ -306,6 +306,7 @@ export function checkBoundedContext(model, boundedContext, context, prd) {
   return findings.sort(order)
 }
 
+/** A label set the storming holds against the one the domain model holds. */
 function diffLabels(add, what, storming, derived, missingCode, extraCode = missingCode) {
   for (const l of storming) if (!derived.includes(l)) add('error', missingCode, `${what} '${l}' is in the storming but not in the domain model`)
   for (const l of derived) if (!storming.includes(l)) add('error', extraCode, `${what} '${l}' is in the domain model but not in the storming`)

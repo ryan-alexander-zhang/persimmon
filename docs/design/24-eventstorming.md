@@ -125,5 +125,7 @@ executor".
 ## Examples
 
 - [`examples/sdlc-domain.yaml`](examples/sdlc-domain.yaml): `expense-claims-storming`, a
-  big-picture model with three contexts, nine events, two alternative sets and one open hotspot
+  big-picture model (r1) and its design level (r2) with one context, `expenses`, realising the Prd's
+  subdomain; the Identity directory and the Accounting ledger are external systems outside it
+  (`34-subdomains.md`); nine events, two alternative sets and one open hotspot
 - `test/tools/*.json`: two of the tool's example models, the grammar's regression fixtures
