@@ -522,7 +522,7 @@ describe('persimmon CLI', () => {
     expect(parseInput('s=hello world')).toEqual(['s', { kind: 'value', value: 'hello world' }])
     expect(parseInput('a={kind: artifact, ref: {id: x}}')).toEqual(['a', { kind: 'artifact', ref: { id: 'x' } }])
     expect(() => parseInput('novalue')).toThrow(/<port>=<value>/)
-  })
+  }, 30_000) // init applies the whole SDLC pack before the runs: near five seconds, the default limit
 
   it('an unknown flag is an error with usage, exit 2', async () => {
     expect(await run('run', 'wf', '--inputs', 'x=1')).toBe(2)
