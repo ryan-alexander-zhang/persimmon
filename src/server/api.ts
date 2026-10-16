@@ -31,9 +31,16 @@ export async function api(engine: Engine, req: IncomingMessage, res: ServerRespo
     const path = decode(url.pathname).split('/').filter(Boolean).slice(1) // after `api`
     const { status, body, raw } = await route(engine, req, path, url)
     if (raw) {
-      // an agent's HTML is untrusted and would run on this origin: `sandbox` gives it an opaque origin with no fetch to the
-      // API, no forms, no storage; `nosniff` keeps a text/plain blob from being read as HTML
-      res.writeHead(status, { 'content-type': raw.mediaType, 'content-length': raw.bytes.length, 'x-content-type-options': 'nosniff', 'content-security-policy': 'sandbox' })
+      // an agent's HTML is untrusted and would run on this origin: `sandbox` with no token runs no script, submits no form,
+      // opens no popup, and gives the page an opaque origin; `nosniff` keeps a text/plain blob from being read as HTML;
+      // `same-origin` keeps any site the user visits from pulling a .js or .css representation in with <script src>
+      res.writeHead(status, {
+        'content-type': /^text\//.test(raw.mediaType) ? `${raw.mediaType}; charset=utf-8` : raw.mediaType,
+        'content-length': raw.bytes.length,
+        'x-content-type-options': 'nosniff',
+        'content-security-policy': 'sandbox',
+        'cross-origin-resource-policy': 'same-origin',
+      })
       res.end(raw.bytes)
     } else send(res, status, body)
   } catch (e) {
@@ -106,7 +113,9 @@ async function route(engine: Engine, req: IncomingMessage, path: string[], url: 
   if (!found) throw new HttpError(404, 'not_found', `${kindName} ${id} revision ${wanted} not found in ${namespace}`)
   if (representation === undefined) return { status: 200, body: found }
   // one representation's bytes (18-artifact.md): `json` is the content, the rest the files the agent left
-  const rep = ((found.status as { representations?: { name: string; mediaType: string; digest: string }[] } | undefined)?.representations ?? []).find((r) => r.name === representation)
+  // by name, else by `<name>.<ext>`: a page links its sibling by the file name the agent wrote, the name is the stem
+  const reps = (found.status as { representations?: { name: string; mediaType: string; digest: string }[] } | undefined)?.representations ?? []
+  const rep = reps.find((r) => r.name === representation) ?? reps.find((r) => r.name === representation.replace(/\.[^.]+$/, ''))
   if (!rep) throw new HttpError(404, 'not_found', `${kindName} ${id} revision ${wanted} has no representation ${representation}`)
   const blob = engine.store.blobs.get(`blob://${rep.digest.replace(/^sha256:/, '')}`)
   if (!blob) throw new HttpError(500, 'internal', `${representation}: blob ${rep.digest} missing`)

@@ -83,9 +83,10 @@ describe('persimmon ui server', () => {
     }, scope)
     engine.store.resources.commitScope(scope)
     const page = await get('/api/artifacts/default/designs.sdd.persimmon.ai/ui/1/screens')
-    expect([page.status, page.headers.get('content-type'), page.headers.get('content-security-policy'), page.headers.get('x-content-type-options'), page.headers.get('content-length')]).toEqual([200, 'text/html', 'sandbox', 'nosniff', '52'])
-    expect(await page.text()).toBe('<h1>screens</h1><script>fetch("/api/kinds")</script>') // the bytes as published; the policy, not a rewrite, keeps the script off the API
+    expect([page.status, page.headers.get('content-type'), page.headers.get('content-security-policy'), page.headers.get('x-content-type-options'), page.headers.get('cross-origin-resource-policy'), page.headers.get('content-length')]).toEqual([200, 'text/html; charset=utf-8', 'sandbox', 'nosniff', 'same-origin', '52'])
+    expect(await page.text()).toBe('<h1>screens</h1><script>fetch("/api/kinds")</script>') // the bytes as published; the policy, not a rewrite, keeps the script from running
     expect((await get('/api/artifacts/default/designs.sdd.persimmon.ai/ui/latest/screens')).status).toBe(200)
+    expect((await get('/api/artifacts/default/designs.sdd.persimmon.ai/ui/1/screens.html')).status).toBe(200) // the file name a sibling page links
     const none = await get('/api/artifacts/default/designs.sdd.persimmon.ai/ui/1/mockups')
     expect([none.status, (await none.json()).error.message]).toEqual([404, 'designs.sdd.persimmon.ai ui revision 1 has no representation mockups'])
     const gone = await get('/api/artifacts/default/designs.sdd.persimmon.ai/ui/1/ghost')
