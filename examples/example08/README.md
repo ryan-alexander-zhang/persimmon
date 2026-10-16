@@ -147,8 +147,10 @@ persimmon tree WorkflowRun/design-coverage-<hex>     # one `unrealised` warning 
 ```
 
 The run Succeeds: an unrealised name is the product's gap, not a defect of the Designs that
-exist. Here `reservations` has four and `fleet-care` nine, every command among them one a policy
-invokes (release, lapse, cancel future reservations, update mileage), the events fleet care's own.
+exist. A command a policy invokes (release, lapse, cancel future reservations, update mileage) is
+`unrealised-internal`, an info: a handler realises it, no API does. Here `reservations` has no
+`unrealised` left and four internal commands, `fleet-care` five events no event Design publishes and
+four internal commands.
 Run it again, once per DomainModel, after the next `design-all`.
 
 ### 8c. One Design again, later

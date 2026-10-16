@@ -750,9 +750,11 @@ describe('sdd/v1 over a DomainModel: coverage', () => {
   it('reports every own name of the model no Design realises, as warnings on a pass', async () => {
     const r = await findings(content('DomainModel'), [{ id: 'claims-api', content: content('Design') }])
     expect(r.passed).toBe(true)
-    expect(r.findings.every((f) => f.severity === 'warning' && f.code === 'unrealised')).toBe(true)
+    expect(r.findings.every((f) => (f.severity === 'warning' && f.code === 'unrealised') || (f.severity === 'info' && f.code === 'unrealised-internal'))).toBe(true)
     const names = r.findings.map((f) => f.message.split(': ')[0])
     expect(names.filter((n) => n.startsWith('command '))).toEqual(['command Set Risk Flag', 'command Export Claim']) // the API forgot one, another block owns one
+    // Export Claim is what the Export Policy invokes: the system's own reaction, noted as internal, not a gap
+    expect(r.findings.filter((f) => f.code === 'unrealised-internal').map((f) => f.message)).toEqual(['command Export Claim: invoked by Export Policy; no Design of expenses-model realises it, a handler does'])
     expect(names.filter((n) => n.startsWith('readModel '))).toEqual(['readModel Export Status View'])
     expect(names.filter((n) => n.startsWith('aggregate '))).toEqual(['aggregate AG-1', 'aggregate AG-2', 'aggregate AG-3']) // no data-schema Design yet
     expect(names.filter((n) => n.startsWith('event ')).length).toBe(content('DomainModel').events.length) // no async-api Design yet

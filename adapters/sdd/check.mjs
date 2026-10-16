@@ -339,8 +339,15 @@ export function checkCoverage({ domainModel, designs = {}, ids = {} }) {
     ...(domainModel.readModels ?? []).map((r) => ['readModel', r.name]),
     ...domainModel.aggregates.map((a) => ['aggregate', a.id]),
   ]
+  // a command a policy invokes is the system's own reaction: a handler realises it, no API operation does, so it is noted as
+  // internal (info), not a gap. ponytail: the model does not say who else issues it; one an actor also issues is noted the same
+  const invokedBy = new Map()
+  for (const p of domainModel.policies ?? []) for (const c of p.then ?? []) if (!invokedBy.has(c)) invokedBy.set(c, p.name)
   const seen = new Set()
-  return want.filter(([kind, name]) => !realised[kind].has(name) && !seen.has(`${kind}/${name}`) && seen.add(`${kind}/${name}`)).map(([kind, name]) => ({ severity: 'warning', code: 'unrealised', message: `${kind} ${name}: no Design of ${ids.domainModel} realises it` }))
+  return want.filter(([kind, name]) => !realised[kind].has(name) && !seen.has(`${kind}/${name}`) && seen.add(`${kind}/${name}`)).map(([kind, name]) =>
+    kind === 'command' && invokedBy.has(name)
+      ? { severity: 'info', code: 'unrealised-internal', message: `${kind} ${name}: invoked by ${invokedBy.get(name)}; no Design of ${ids.domainModel} realises it, a handler does` }
+      : { severity: 'warning', code: 'unrealised', message: `${kind} ${name}: no Design of ${ids.domainModel} realises it` })
 }
 
 // One Plan against the Spec it builds, the Architecture its tasks name blocks of, and the Designs it realises elements
