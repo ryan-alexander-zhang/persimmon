@@ -14,7 +14,7 @@ export interface Where {
 /** A representation's file: `<name>.<ext>`, the extension from the media type's subtype (`image/svg+xml`: `svg`), a few named by convention. */
 const extension = (mediaType: string): string => {
   const sub = mediaType.split('/')[1]?.split('+')[0] ?? ''
-  return { markdown: 'md', plain: 'txt', jpeg: 'jpg', javascript: 'js', 'octet-stream': 'bin' }[sub] ?? sub
+  return { markdown: 'md', plain: 'txt', jpeg: 'jpg', javascript: 'js', 'vnd.mermaid': 'mmd', 'octet-stream': 'bin' }[sub] ?? sub
 }
 
 /** `persimmon get <kind>[/<name>] [-n ns | --global] [--behind | --files <dir>]`. */

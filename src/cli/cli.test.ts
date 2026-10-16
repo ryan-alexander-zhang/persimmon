@@ -222,11 +222,12 @@ describe('persimmon CLI', () => {
     await engine.start()
     const html = engine.store.blobs.put(Buffer.from('<h1>screens</h1>'), 'text/html')
     const svg = engine.store.blobs.put(Buffer.from('<svg/>'), 'image/svg+xml')
+    const mmd = engine.store.blobs.put(Buffer.from('graph TD'), 'text/vnd.mermaid')
     const scope = { uid: 'test', key: 'k' }
     engine.store.resources.stage({
       apiVersion: 'sdd.persimmon.ai/v1', kind: 'Design', metadata: { name: 'ui.r1', namespace: 'default' },
       spec: { identity: { id: 'ui', revision: 1 }, content: {}, provenance: { producerRef: { apiVersion: 'persimmon.ai/v1', kind: 'TaskRun', namespace: 'default', name: 'run', uid: 'uid-run' }, inputs: [], actor: { kind: 'user', id: 'local' } } },
-      status: { contentDigest: 'sha256:' + '0'.repeat(64), representations: [{ name: 'screens', mediaType: 'text/html', digest: html.digest }, { name: 'flow', mediaType: 'image/svg+xml', digest: svg.digest }] },
+      status: { contentDigest: 'sha256:' + '0'.repeat(64), representations: [{ name: 'screens', mediaType: 'text/html', digest: html.digest }, { name: 'flow', mediaType: 'image/svg+xml', digest: svg.digest }, { name: 'decision', mediaType: 'text/vnd.mermaid', digest: mmd.digest }] },
     }, scope)
     engine.store.resources.stage({
       apiVersion: 'sdd.persimmon.ai/v1', kind: 'Design', metadata: { name: 'bare.r1', namespace: 'default' },
@@ -236,7 +237,7 @@ describe('persimmon CLI', () => {
     engine.store.resources.commitScope(scope)
     await engine.close()
     out = []
-    expect([await run('get', 'Design/ui.r1', '--files', 'out/ui'), out]).toEqual([0, [`wrote ${join(dir, 'out/ui/screens.html')}  text/html  16 bytes`, `wrote ${join(dir, 'out/ui/flow.svg')}  image/svg+xml  6 bytes`]])
+    expect([await run('get', 'Design/ui.r1', '--files', 'out/ui'), out]).toEqual([0, [`wrote ${join(dir, 'out/ui/screens.html')}  text/html  16 bytes`, `wrote ${join(dir, 'out/ui/flow.svg')}  image/svg+xml  6 bytes`, `wrote ${join(dir, 'out/ui/decision.mmd')}  text/vnd.mermaid  8 bytes`]])
     expect(readFileSync(join(dir, 'out/ui/screens.html'), 'utf8')).toBe('<h1>screens</h1>')
     expect(await run('get', 'Design/bare.r1', '--files', 'out/bare')).toBe(1)
     expect(err.at(-1)).toBe('Design/bare.r1 has no representations')
