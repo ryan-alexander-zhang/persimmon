@@ -65,6 +65,10 @@ describe('persimmon ui server', () => {
     const bad = await post(`/api/artifacts/default/${KIND}/y`, { content: { title: 'x' } })
     expect(bad.status).toBe(400)
     expect(((await bad.json()) as { error: { message: string } }).error.message).toContain("must have required property 'version'")
+    // DSL 4.1: a context carries the subdomain it realises, and the kind refuses an empty one
+    const tagged = (subdomain: string) => ({ ...model('t'), version: '4.1', contexts: [{ id: 'c', name: 'C', order: 0, subdomain }] })
+    expect((await post(`/api/artifacts/default/${KIND}/t`, { content: tagged('claims') })).status).toBe(201)
+    expect((await post(`/api/artifacts/default/${KIND}/t`, { content: tagged('') })).status).toBe(400)
 
     expect((await get('/api/artifacts?kind=nothings.example.com')).status).toBe(404)
     expect((await post('/api/artifacts/default/nothings.example.com/x', { content: {} })).status).toBe(404)

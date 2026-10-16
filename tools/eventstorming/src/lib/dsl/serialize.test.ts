@@ -4,7 +4,7 @@ import type { ESEdge, ESNode } from "@/lib/store/types";
 import { fromModel, stripCreatedAt, toModel } from "./serialize";
 
 const META = { name: "Order flow", level: "design" as const };
-const CONTEXTS: Context[] = [{ id: "ord", name: "Ordering", order: 0 }];
+const CONTEXTS: Context[] = [{ id: "ord", name: "Ordering", order: 0, subdomain: "ordering" }];
 
 function sampleCanvas(): { nodes: ESNode[]; edges: ESEdge[] } {
   const nodes: ESNode[] = [

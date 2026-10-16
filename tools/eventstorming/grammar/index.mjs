@@ -108,7 +108,7 @@ export function check(content) {
   const notAModel = (message) => [{ severity: 'error', code: 'not-a-model', message }]
 
   if (!isObject(content) || !versions.includes(content.version)) {
-    return notAModel(`content is not a DSL ${DSL_VERSION} model`)
+    return notAModel(`content is not a DSL ${versions.join(' or ')} model`)
   }
   const lists = {}
   for (const key of ['contexts', 'contextRelationships', 'nodes', 'edges']) {
@@ -136,6 +136,8 @@ export function check(content) {
     }
     if (c.subdomain != null && (typeof c.subdomain !== 'string' || !c.subdomain)) {
       add('error', 'bad-subdomain', `context ${c.id}: subdomain must be a subdomain id`)
+    } else if (c.subdomain != null && content.version === '4.0') {
+      add('error', 'bad-subdomain', `context ${c.id}: subdomain is DSL 4.1 - set version 4.1`)
     }
   }
 

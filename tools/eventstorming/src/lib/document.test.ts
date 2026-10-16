@@ -62,6 +62,11 @@ describe("the file a model travels in", () => {
     expect(parseImport(JSON.stringify(old))).toEqual(model);
   });
 
+  it("imports a v4.1 file whole, a context's subdomain included", () => {
+    const tagged = { ...model, version: "4.1", contexts: [{ id: "c", name: "C", order: 0, subdomain: "claims" }] };
+    expect(parseImport(JSON.stringify(tagged))).toEqual(tagged);
+  });
+
   it("names what the file is when it is not a v4.0 or v4.1 model", () => {
     expect(() => parseImport(JSON.stringify({ ...model, version: "3.0" }))).toThrow(
       "not a DSL 4.0 or 4.1 model",

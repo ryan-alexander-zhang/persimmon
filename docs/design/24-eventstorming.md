@@ -89,7 +89,7 @@ executor".
 |---|---|
 | content validates the kind schema | engine at publish |
 | grammar findings as above; `passed` iff no error | Adapter |
-| `version` other than `4.0` is `not-a-model`; a new grammar is a new kind version | schema (`const`), grammar |
+| `version` other than `4.0` or `4.1` is `not-a-model`; a `4.0` model carrying `subdomain` is `bad-subdomain` | schema (`enum`), grammar |
 | the grammar module and the Adapter answer the same findings the tool's `validate.py` answers for the tool's example models, errors and warnings alike | `test/tools/grammar.test.ts` over two ported models |
 
 ## Decisions
