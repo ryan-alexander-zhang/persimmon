@@ -143,7 +143,7 @@ exist. Run it again, once per DomainModel, after the next `design-all`.
 ```sh
 persimmon get Design --behind                        # which Designs pin a Glossary, a DomainModel or rules that moved on
 persimmon run design-check --input 'design=<ref>' --input 'architecture=<ref>' --input 'rules=<ref>' \
-  --input 'domainModel=<ref>' --input 'glossary=<ref>' --follow     # a ui Design: designSystem=<ref> and designs=kind:Design instead
+  --input 'domainModel=<ref>' --input 'glossary=<ref>' --follow     # a ui Design: designSystem=<ref> and designs=kind:Design instead of these two; no glossary, no field check
 persimmon tree WorkflowRun/design-check-<hex>        # every finding; `passed false` when one is an error
 ```
 

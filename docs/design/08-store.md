@@ -206,8 +206,10 @@ imports into a server unchanged.
   applied: the kind order (Task before Workflow before ReviewLoop before Pipeline) cannot settle a
   Workflow that steps into a ReviewLoop of the same files, so the AI Native pack validated only
   after it was applied. Found in UAT.
-- `get <Kind> --behind` is a read verb over provenance, not a Gate finding: at gate time the
-  revision bound is the one the document pins, so a document behind is never seen there. It reads every
+- `get <Kind> --behind` is a read verb over provenance, not a Gate finding: at gate time inside
+  a loop the revision bound is the one the document pins, so a document behind is never seen
+  there; `design-check` (`29-design-process.md`) is the deliberate exception, a Gate run by hand
+  against the revisions the caller names, newer than the pins. It reads every
   revisioned kind the same way, so a Spec behind its BusinessRules, a Plan behind a redesigned
   Design and a DomainModel behind the Prd it was derived from are one query. Two traps from a live
   project: a Prd pinned `rules` r3 and `previousRules` r1, and the run that read r3 wrote r4; the

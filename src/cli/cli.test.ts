@@ -266,7 +266,7 @@ describe('persimmon CLI', () => {
     expect(err.at(-1)).toMatch(/--input designs: no Plan in Namespace default/) // kind:<Kind> needs one in the store
   })
 
-  it('design-check runs design-gate alone over a stored Design; a finding fails the run, a warning rides on a pass', async () => {
+  it('design-check runs design-gate alone over a stored Design; an error finding gives passed false, a warning rides on a pass', async () => {
     await run('init')
     const docs = parseAllDocuments(readFileSync('docs/design/examples/sdlc-domain.yaml', 'utf8')).map((d) => d.toJS()).filter(Boolean)
     for (const kind of ['Architecture', 'BusinessRules', 'DomainModel', 'Glossary', 'Design']) expect(await run('create', file(`${kind}.yaml`, [docs.find((d) => d.kind === kind)]))).toBe(0)
@@ -288,7 +288,9 @@ describe('persimmon CLI', () => {
     expect(await run('create', file('Design2.yaml', [bad]))).toBe(0)
     out = []
     expect(await run('run', 'design-check', ...refs.slice(1).flatMap((r) => ['--input', r]), '--input', 'design={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: Design, id: claims-api, revision: 2}}', '--follow')).toBe(0)
+    expect(out.some((l) => /^WorkflowRun\s+design-check-[0-9a-f]{6}\s+Succeeded/.test(l))).toBe(true) // the Gate ran: a rejection is its answer, not a failure
     expect(out).toContain('  passed  false')
+    expect(out.map((l) => l.trim())).toContain('unknown-block: block BB-9 is not a building block of the Architecture')
   })
 
   it('run --follow returns when the run is parked on a human Task', async () => {

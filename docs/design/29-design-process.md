@@ -28,7 +28,7 @@ Workflow design-all: repeat over `blocks` with one `type` ─▶ ReviewLoop desi
 | Workflow `design-all` | `repeat` over `blocks` (BB-n ids) for one `type`, as `spec-all` repeats over capabilities; a block the loop could not design ends the run `design_inconsistent`, an iteration that died before its Gate ran `step_failed`; output `written` |
 | Validator `domain-coverage` | `sdd/v1` over `domainModel` and `designs` (every Design; the ones naming the model are read): each name the model owns with no element realising it is `unrealised`, a warning |
 | Gate `coverage-gate`, Workflow `design-coverage` | the Gate alone, no Task: `persimmon run design-coverage --input domainModel=<ref> --input designs=kind:Design --follow`; output `passed`, the tree lists every gap |
-| Workflow `design-check` | `design-gate` alone over one stored Design: `persimmon run design-check --input design=<ref> --input architecture=<ref> --input rules=<ref> --input domainModel=<ref> --input glossary=<ref> --follow` (a `ui` Design: `designSystem=<ref>` and `designs=kind:Design` instead); for a Design `get Design --behind` names, or a hand-edited one; output `passed`, the tree lists every finding |
+| Workflow `design-check` | `design-gate` alone over one stored Design: `persimmon run design-check --input design=<ref> --input architecture=<ref> --input rules=<ref> --input domainModel=<ref> --input glossary=<ref> --follow` (a `ui` Design: `designSystem=<ref>` and `designs=kind:Design` instead of `domainModel` and `glossary`); for a Design `get Design --behind` names, or a hand-edited one; output `passed`, the tree lists every finding. `glossary` left out is not a finding: the field names go unchecked, as the Validator's port says |
 
 ## `checkDesign`
 
