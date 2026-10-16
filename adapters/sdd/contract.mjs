@@ -75,8 +75,9 @@ const tables = (sql) => {
   return out
 }
 
-/** The column names of every `CREATE TABLE` body: the first identifier of each top-level comma item that is not a table constraint. */
-const constraint = /^(constraint|primary|foreign|unique|check|index|key|exclude|like|period)\b/i
+/** The column names of every `CREATE TABLE` body: the first identifier of each top-level comma item that is not a table
+ * constraint, told by its syntax so a column named `key`, `check` or `period` still counts. */
+const constraint = /^(constraint\s|primary\s+key|foreign\s+key|unique\s*[(\s]|(?:fulltext\s+|spatial\s+)?(?:key|index)\s+[\w"`[]*\s*\(|check\s*\(|like\s+\w|period\s+for|exclude\s)/i
 const columns = (sql) => {
   const bare = bareSql(sql)
   const out = []
@@ -106,12 +107,18 @@ export const fieldNames = (document) => {
     if (mediaType === 'application/sql') return columns(content)
     if (!['application/openapi+yaml', 'application/asyncapi+yaml', 'application/schema+json'].includes(mediaType)) return []
     const out = []
+    // a `properties` map's keys are fields and its values schemas, so the map itself is not walked: a field named `properties`
+    // is a field, not a map. ponytail: a schema named `properties` under components.schemas still reads as a map
     const walk = (node) => {
       if (!node || typeof node !== 'object') return
       if (Array.isArray(node)) return node.forEach(walk)
       for (const [k, v] of Object.entries(node)) {
-        if (k === 'properties' && v && typeof v === 'object' && !Array.isArray(v)) for (const [name, s] of Object.entries(v)) if (!(s?.type === 'array' || s?.properties || s?.items)) out.push(name)
-        walk(v)
+        if (k === 'properties' && v && typeof v === 'object' && !Array.isArray(v)) {
+          for (const [name, s] of Object.entries(v)) {
+            if (!(s?.type === 'array' || s?.properties || s?.items)) out.push(name)
+            walk(s)
+          }
+        } else walk(v)
       }
     }
     walk(mediaType === 'application/schema+json' ? JSON.parse(content) : parse(content))

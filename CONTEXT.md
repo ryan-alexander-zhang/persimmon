@@ -445,7 +445,7 @@ _Avoid_: attribute, field, property, relation
 A name a Design document declares inside its contract: an OpenAPI, AsyncAPI or JSON Schema
 `properties` key, a DDL column. Its words, in the document's own convention (`claimLine`,
 `claim_line`), are a **Glossary** term's name or a **Fact type**'s name less its subject and
-predicate; `id` and `<x>Id` are the document's own. Held by `design-consistency`.
+predicate; `id` and a name ending in `id` are the document's own. Held by `design-consistency`.
 _Avoid_: attribute, column (bare), property (bare), schema field
 
 **BusinessRules**:

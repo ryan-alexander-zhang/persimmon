@@ -435,19 +435,22 @@ describe('sdd/v1 over a Design', () => {
     const alias = await withGlossary((c) => c.replace('properties: {amount:', 'properties: {expense:').replace('reason: {type: string}', 'reason: {type: string}, expenseReport: {type: string}'))
     expect(alias.passed).toBe(false)
     expect(alias.findings.filter((f: { code: string }) => f.code === 'alias-used').map((f: { message: string }) => f.message)).toEqual(['expense: expense is an alias; the Glossary names claim line', 'expenseReport: expense report is deprecated; the Glossary names claim'])
-    // a plural of a term, an id and an array are not findings; a name is reported once per document
-    const fine = await withGlossary((c) => c.replace('properties: {reason: {type: string}}', 'properties: {receipts: {type: boolean}, tripId: {type: string}, trips: {type: array, items: {type: string}}, rule: {type: string}}'))
-    expect(label(fine)).toEqual(['warning:term-unknown:rule', 'warning:term-unknown:route'])
+    // a plural of a term, an id in any case, an array and a field named `properties` are not findings; a name is reported once per document
+    const fine = await withGlossary((c) => c.replace('properties: {reason: {type: string}}', 'properties: {receipts: {type: boolean}, tripId: {type: string}, LINE_ID: {type: string}, legs: {type: array, items: {type: string}}, properties: {type: string, format: date}, rule: {type: string}}'))
+    expect(label(fine)).toEqual(['warning:term-unknown:rule', 'warning:term-unknown:route', 'warning:term-unknown:properties'])
+    // the name as written is looked up before its singular: `caps` is the alias `cap`, not a plural of nothing
+    const caps = await withGlossary((c) => c.replace('properties: {reason: {type: string}}', 'properties: {caps: {type: number}}'))
+    expect(label(caps)).toContain('error:alias-used:caps')
     // DDL columns, snake_case, quoted, a constraint item skipped
     const a = structuredClone(designExample()) as any
     a.glossary = content('Glossary')
     a.design.type = 'data-schema'
-    a.design.document = { mediaType: 'application/sql', content: 'CREATE TABLE claim (id TEXT, claim_id TEXT, "reimbursement request" TEXT, submission_date DATE, cap NUMERIC, due DATE, PRIMARY KEY (id), CONSTRAINT c CHECK (cap > 0));' }
+    a.design.document = { mediaType: 'application/sql', content: 'CREATE TABLE claim (id TEXT, CLAIM_ID TEXT, "reimbursement request" TEXT, submission_date DATE, cap NUMERIC, due DATE, period DATE, PRIMARY KEY (id), CONSTRAINT c CHECK (cap > 0), KEY k (due), FULLTEXT INDEX f (cap));' } // `period` the column, not `PERIOD FOR`; KEY and FULLTEXT INDEX items are constraints
     a.design.elements = [{ id: 'EL-1', name: 'claim', realises: { kind: 'aggregate', name: 'AG-1' } }]
     a.design.rules = []
     const ddl = (await adapter({ id: ++id, op: 'evaluate', payload: payload(a) })).result
     expect(ddl.passed).toBe(false)
-    expect(label(ddl)).toEqual(['error:alias-used:reimbursement request', 'error:alias-used:cap', 'warning:term-unknown:due'])
+    expect(label(ddl)).toEqual(['error:alias-used:reimbursement request', 'error:alias-used:cap', 'warning:term-unknown:due', 'warning:term-unknown:period'])
   })
 
   it('every example Design passes the document checks of checkDesign', () => {

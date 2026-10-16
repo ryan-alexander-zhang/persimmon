@@ -186,7 +186,7 @@ const dialectMisses = (mediaType, sql, technology = '') => {
 // (32-ui-design-process.md).
 // A field name held to the Glossary (29-design-process.md): its words, split on case and `_`/`-`, are a term or a fact type's
 // name less its subject and predicate (`claim has total`: `total`), an alias or a deprecated name the Glossary says not to write
-// (an error), or a word it lacks (a warning). `id`, `<x>Id`, `<x>_id` are the document's own.
+// (an error), or a word it lacks (a warning). `id` and a name ending in `id`, any case, are the document's own.
 // ponytail: whole-name match, one trailing `s` forgiven; stemming when a live Design shows the need
 const words = (s) => String(s).replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_\-\s]+/g, ' ').trim().toLowerCase()
 const vocabulary = (glossary) => {
@@ -195,7 +195,7 @@ const vocabulary = (glossary) => {
   for (const t of glossary?.terms ?? []) {
     if (t.status === 'deprecated') avoid.set(words(t.name), `${t.name} is deprecated${t.replacedBy ? `; the Glossary names ${t.replacedBy}` : ''}`)
     else fine.add(words(t.name))
-    for (const a of t.aliases ?? []) avoid.set(words(a), `${a} is an alias; the Glossary names ${t.name}`)
+    for (const a of t.aliases ?? []) avoid.set(words(a), `${a} is an alias; the Glossary names ${t.status === 'deprecated' && t.replacedBy ? t.replacedBy : t.name}`)
   }
   for (const f of glossary?.factTypes ?? []) {
     const n = words(f.name)
@@ -288,11 +288,12 @@ export function checkDesign({ design, architecture, domainModel, rules, designs 
     const { fine, avoid } = vocabulary(glossary)
     const seen = new Set()
     for (const name of fieldNames(design.document)) {
-      if (/^id$|Id$|_id$/.test(name) || seen.has(name)) continue
+      const w = words(name)
+      if (/(^| )id$/.test(w) || seen.has(name)) continue
       seen.add(name)
-      const forms = [words(name), words(name).replace(/s$/, '')]
-      if (forms.some((f) => fine.has(f))) continue
-      const why = forms.map((f) => avoid.get(f)).find(Boolean)
+      // the name as written first, then one trailing `s` forgiven: `caps` is the alias `cap`, `lines` an alias before `line` a term
+      const why = avoid.get(w) ?? (fine.has(w) || fine.has(w.replace(/s$/, '')) ? undefined : avoid.get(w.replace(/s$/, '')))
+      if (!why && (fine.has(w) || fine.has(w.replace(/s$/, '')))) continue
       if (why) bad('alias-used', `${name}: ${why}`)
       else warn('term-unknown', `${name}: no term or fact type of the Glossary names it`)
     }
