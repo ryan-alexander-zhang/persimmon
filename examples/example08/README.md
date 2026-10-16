@@ -55,7 +55,7 @@ persimmon run author-prd --input brief=@brief.txt --input productId=car-pool --f
 `Prd/car-pool-prd` with `subdomains: [reservations (core), fleet-care (supporting)]` and seven
 capabilities, each naming one, and `BusinessRules/car-pool-rules` with eighteen rules, each tagged
 with the subdomain whose policy it is. The Prd names no bounded context. Round one cited the fleet
-rule "each car return must update the car's mileage" from the pickup and return capability, and
+rule BR-12, "Each car return must update the car's current mileage.", from the pickup and return capability, and
 `prd-consistency` refused it (`subdomain-mismatch`); the human moved it to fleet record keeping,
 typed `fleet-care` supporting instead of core, and answered the four open questions. Round two
 passed.
@@ -74,7 +74,9 @@ service-due. At the design level each context names its subdomain and carries it
 holds one partnership, and `storming-gate` checks both against the Prd (`checkSubdomains`). The
 derivation (a script Gate, no human) wrote `BoundedContext/reservations` (CAP-1 to CAP-4) and
 `BoundedContext/fleet-care` (CAP-5 to CAP-7), each with its Glossary and DomainModel, all at round
-one; `derived-gate` holds their subdomain, capabilities and relationships to the storming.
+one; `derived-gate` holds their subdomain, capabilities and relationships to the storming. The
+recorded contexts reuse the subdomain ids; the Prompt now asks for a noun for the model
+(`car-reservations`) in a product of more than one context, so a run today may name them so.
 
 ### 4. The Architecture, the lists bound by kind
 
@@ -143,14 +145,15 @@ so the search screen cannot show the car's seats or gearbox.
 
 ```sh
 persimmon run design-coverage --input 'domainModel=<ref>' --follow   # <ref>: reservations-model, then once more for fleet-care-model; the Designs naming it are queried
-persimmon tree WorkflowRun/design-coverage-<hex>     # one `unrealised` warning per stormed name without a Design element
+persimmon tree WorkflowRun/design-coverage-<hex>     # a `warning unrealised` per stormed name a Design still owes, an `info unrealised-internal` per one no Design should
 ```
 
 The run Succeeds: an unrealised name is the product's gap, not a defect of the Designs that
-exist. A command a policy invokes (release, lapse, cancel future reservations, update mileage) is
-`unrealised-internal`, an info: a handler realises it, no API does. Here `reservations` has no
-`unrealised` left and four internal commands, `fleet-care` five events no event Design publishes and
-four internal commands.
+exist. A command a policy invokes (release, lapse, cancel future reservations, update mileage) and
+an event an external system emits (the garage's "Car serviced") are `unrealised-internal`, an info: a
+handler realises the one, the outside the other. Here `reservations` has no `unrealised` left and
+four internal commands; `fleet-care` has four events no event Design publishes, four internal
+commands and the garage's event.
 Run it again, once per DomainModel, after the next `design-all`.
 
 ### 8c. One Design again, later

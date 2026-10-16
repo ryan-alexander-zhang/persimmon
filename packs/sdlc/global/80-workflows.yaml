@@ -430,7 +430,7 @@ spec:
 ---
 # The coverage report (29-design-process.md): one Gate, no Task. `persimmon run design-coverage --input domainModel=<ref>
 # --follow`, once per DomainModel; the step queries the Designs naming the model (10-ports.md `fromQuery`), and the tree
-# shows every `unrealised` name as a warning on a pass. No Design yet: an empty list, everything unrealised.
+# shows every `unrealised` name as a warning on a pass, an internal one as an info. No Design yet: an empty list, everything unrealised.
 apiVersion: persimmon.ai/v1
 kind: Workflow
 metadata: {name: design-coverage}

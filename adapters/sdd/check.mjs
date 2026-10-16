@@ -324,8 +324,9 @@ export function checkDesign({ design, architecture, domainModel, rules, designs 
 
 // One DomainModel against every Design that names it (29-design-process.md): each of the model's own names, an aggregate's
 // command, an `events[]` name, a read model, an `AG-n`, has an element of some Design realising it, or is `unrealised`, a
-// warning, since a contract not written yet is not a defect of one that is. External systems' commands and other
-// contexts' events are not the model's own. `designs` is artifact id → content; a Design naming another model, or none
+// warning, since a contract not written yet is not a defect of one that is; a command a policy invokes and an event an
+// external system emits are `unrealised-internal`, an info. External systems' commands and other contexts' events are
+// not the model's own. `designs` is artifact id → content; a Design naming another model, or none
 // (a ui Design), is not read. `ids.domainModel` is the bound model's artifact id.
 export function checkCoverage({ domainModel, designs = {}, ids = {} }) {
   if (!domainModel || !Array.isArray(domainModel.aggregates)) {
@@ -343,11 +344,20 @@ export function checkCoverage({ domainModel, designs = {}, ids = {} }) {
   // internal (info), not a gap. ponytail: the model does not say who else issues it; one an actor also issues is noted the same
   const invokedBy = new Map()
   for (const p of domainModel.policies ?? []) for (const c of p.then ?? []) if (!invokedBy.has(c)) invokedBy.set(c, p.name)
+  // an event an outside system emits reaches the model from outside: no Design of the model publishes it
+  const emittedBy = new Map()
+  for (const x of domainModel.externalSystems ?? []) for (const e of x.emits ?? []) if (!emittedBy.has(e)) emittedBy.set(e, x.name)
+  const internal = (kind, name) =>
+    kind === 'command' && invokedBy.has(name) ? `invoked by ${invokedBy.get(name)}; no Design of ${ids.domainModel} realises it, a handler does`
+      : kind === 'event' && emittedBy.has(name) ? `emitted by ${emittedBy.get(name)}, outside the model; no Design of ${ids.domainModel} publishes it`
+        : undefined
   const seen = new Set()
-  return want.filter(([kind, name]) => !realised[kind].has(name) && !seen.has(`${kind}/${name}`) && seen.add(`${kind}/${name}`)).map(([kind, name]) =>
-    kind === 'command' && invokedBy.has(name)
-      ? { severity: 'info', code: 'unrealised-internal', message: `${kind} ${name}: invoked by ${invokedBy.get(name)}; no Design of ${ids.domainModel} realises it, a handler does` }
-      : { severity: 'warning', code: 'unrealised', message: `${kind} ${name}: no Design of ${ids.domainModel} realises it` })
+  return want.filter(([kind, name]) => !realised[kind].has(name) && !seen.has(`${kind}/${name}`) && seen.add(`${kind}/${name}`)).map(([kind, name]) => {
+    const why = internal(kind, name)
+    return why
+      ? { severity: 'info', code: 'unrealised-internal', message: `${kind} ${name}: ${why}` }
+      : { severity: 'warning', code: 'unrealised', message: `${kind} ${name}: no Design of ${ids.domainModel} realises it` }
+  })
 }
 
 // One Plan against the Spec it builds, the Architecture its tasks name blocks of, and the Designs it realises elements

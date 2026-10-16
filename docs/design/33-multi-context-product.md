@@ -101,8 +101,10 @@ the Namespace. Inside a Workflow, a step filters the same set by content with `f
 
 ## Examples
 
-- `examples/example08/`: a company car pool over two contexts, `car-reservations` and `fleet-care`,
-  thirty-eight artifacts produced live: one Prd and rules, one storming, two of each context kind,
-  the Architecture and four Adrs, nine Specs, four Designs of one block, the DesignSystem, one `ui`
-  Design over both APIs, nine Plans; the first recording under the Adr slot rule
-  (`31-architecture-process.md`) and the `ui` index over operations (`32-ui-design-process.md`).
+- `examples/example08/`: a company car pool over two subdomains and two contexts, `reservations` and
+  `fleet-care`, thirty-six artifacts produced live under `34-subdomains.md`: one Prd and rules, one
+  storming, two of each context kind, the Architecture and four Adrs, seven Specs, six module Designs
+  (http-api, async-api, data-schema for each of two modules), the DesignSystem, one `ui` Design over
+  both APIs, seven Plans. An earlier recording, under this design's context tags, was the first under
+  the Adr slot rule (`31-architecture-process.md`) and the `ui` index over operations
+  (`32-ui-design-process.md`).
