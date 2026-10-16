@@ -487,7 +487,7 @@ written inside. Section 8's domain model and 12 by reference, 9 a list of **Adr*
 _Avoid_: architecture doc, system design, high-level design, technical design
 
 **EventStorming**:
-**Artifact kind** holding one event storming model in the tool's DSL v4.0 (`24-eventstorming.md`):
+**Artifact kind** holding one event storming model in the tool's DSL v4.1 (`24-eventstorming.md`):
 contexts, nodes, edges, a `meta.level`; a revision per phase.
 _Avoid_: board, storming session, event storming JSON
 

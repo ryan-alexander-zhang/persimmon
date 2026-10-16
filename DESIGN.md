@@ -54,7 +54,7 @@ Read top to bottom within a layer; a file depends only on files above it.
 | `docs/design/20-pack.md` | Pack as a directory, lifecycle, override by name, demo pack content | active |
 | `docs/design/21-composition.md` | Pipeline, Approval, ReviewLoop: sugar kinds expanding to Workflow and Gate | active |
 | `docs/design/23-pack-sdlc.md` | SDLC pack, the default flow `init` applies: BoundedContext, Glossary, BusinessRules, DecisionTable, Prd, Adr, Architecture, Spec; the process later | draft |
-| `docs/design/24-eventstorming.md` | the event storming tool built in: `EventStorming` kind (DSL v4.0), grammar module, evaluator Adapter `eventstorming/v1`, evaluator conformance | draft |
+| `docs/design/24-eventstorming.md` | the event storming tool built in: `EventStorming` kind (DSL v4.1), grammar module, evaluator Adapter `eventstorming/v1`, evaluator conformance | draft |
 | `docs/design/26-domain-discovery.md` | Prd to domain kinds: the storming session as ReviewLoops with a human gate, `DomainModel`, the derivation and its consistency check | draft |
 | `docs/design/27-spec-process.md` | Prd capability to `Spec`: the writing Task, the consistency check `sdd/v1`, one ReviewLoop per capability, `spec-all` over a Prd | draft |
 | `docs/design/29-design-process.md` | Architecture block to `Design` assets: the writing Task per block and type, the `sdd/v1` Design check, `design-all` over blocks | draft |

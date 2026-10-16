@@ -74,6 +74,7 @@ describe('every error code fires', () => {
     ],
     ['bad-parameters', model({ nodes: [node('p', 'policy', { properties: { parameters: [{ name: 'n', value: 3 }] } })] })],
     ['bad-enum', model({ nodes: [node('h', 'hotspot', { properties: { priority: 'urgent' } })] })],
+    ['bad-subdomain', model({ version: '4.1', contexts: [{ id: 'c', name: 'C', order: 0, subdomain: '' }] })],
   ]
 
   it.each(cases)('%s', (code, content) => {
@@ -81,8 +82,9 @@ describe('every error code fires', () => {
   })
 
   it('not-a-model', () => {
-    expect(check(null)).toEqual([{ severity: 'error', code: 'not-a-model', message: 'content is not a DSL 4.0 model' }])
+    expect(check(null)).toEqual([{ severity: 'error', code: 'not-a-model', message: 'content is not a DSL 4.1 model' }])
     expect(codes({ version: '3.0' })).toEqual(['not-a-model'])
+    expect(codes(model({ version: '4.1', contexts: [{ id: 'c', name: 'C', order: 0, subdomain: 'reservations' }] }))).not.toContain('not-a-model')
     expect(codes(model({ nodes: 'nope' }))).toEqual(['not-a-model'])
     expect(codes(model({ nodes: ['nope'] }))).toEqual(['not-a-model'])
   })

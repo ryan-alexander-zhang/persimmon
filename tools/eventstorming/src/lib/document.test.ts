@@ -62,15 +62,15 @@ describe("the file a model travels in", () => {
     expect(parseImport(JSON.stringify(old))).toEqual(model);
   });
 
-  it("names what the file is when it is not a v4.0 model", () => {
+  it("names what the file is when it is not a v4.0 or v4.1 model", () => {
     expect(() => parseImport(JSON.stringify({ ...model, version: "3.0" }))).toThrow(
-      "not a DSL 4.0 model",
+      "not a DSL 4.0 or 4.1 model",
     );
-    expect(() => parseImport(JSON.stringify({ version: "4.0" }))).toThrow("not a DSL 4.0 model");
+    expect(() => parseImport(JSON.stringify({ version: "4.0" }))).toThrow("not a DSL 4.0 or 4.1 model");
     expect(() => parseImport(JSON.stringify({ version: "4.0", meta: "Claims" }))).toThrow(
-      "not a DSL 4.0 model",
+      "not a DSL 4.0 or 4.1 model",
     );
-    expect(() => parseImport("")).toThrow("not a DSL 4.0 model");
+    expect(() => parseImport("")).toThrow("not a DSL 4.0 or 4.1 model");
   });
 
   it("names the kind of a Resource that is not an EventStorming", () => {

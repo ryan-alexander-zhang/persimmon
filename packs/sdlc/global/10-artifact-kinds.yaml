@@ -641,7 +641,7 @@ spec:
   revisioned: true
   snapshot: "None"
 ---
-# An event storming model, DSL v4.0 of the event storming tool (24-eventstorming.md) without meta.createdAt: the
+# An event storming model, DSL v4.1 of the event storming tool (24-eventstorming.md) without meta.createdAt: the
 # revision carries time. The schema is the shape only; per-type properties, level gating, edge rules and smells are the
 # grammar's (tools/eventstorming/grammar), run by the evaluator Adapter eventstorming/v1.
 apiVersion: persimmon.ai/v1
@@ -658,7 +658,7 @@ spec:
         required: [version, meta, contexts, contextRelationships, nodes, edges]
         additionalProperties: false
         properties:
-          version: {const: "4.0", description: "the grammar version"}
+          version: {enum: ["4.0", "4.1"], description: "the grammar version; 4.1 adds contexts[].subdomain"}
           meta:
             type: object
             required: [name, level]
@@ -678,6 +678,7 @@ spec:
                 order: {type: integer, minimum: 0, description: "left-to-right reading order of the map"}
                 classification: {enum: [core, supporting, generic]}
                 bigBallOfMud: {type: boolean, description: "a recognised mess, boundary drawn so its model does not propagate"}
+                subdomain: {type: string, minLength: 1, description: "the Prd subdomain id this context realises (34-subdomains.md)"}
           contextRelationships:
             type: array
             items:

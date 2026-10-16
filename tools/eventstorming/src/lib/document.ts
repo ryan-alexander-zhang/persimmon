@@ -59,7 +59,7 @@ export async function open(
   );
 }
 
-/** The board as a DSL v4.0 model. */
+/** The board as a DSL v4.1 model. */
 export function currentModel(): Model {
   const s = useESStore.getState();
   return toModel(
@@ -128,8 +128,8 @@ export function parseImport(text: string): Model {
   const spec = parsed?.spec as { content?: unknown } | undefined;
   const model = (spec?.content ?? parsed) as Record<string, unknown> | null;
   const meta = model?.meta;
-  if (model?.version !== "4.0" || typeof meta !== "object" || meta === null || Array.isArray(meta)) {
-    throw new Error("That file is not a DSL 4.0 model.");
+  if (!["4.0", "4.1"].includes(model?.version as string) || typeof meta !== "object" || meta === null || Array.isArray(meta)) {
+    throw new Error("That file is not a DSL 4.0 or 4.1 model.");
   }
   return stripCreatedAt(model) as Model;
 }

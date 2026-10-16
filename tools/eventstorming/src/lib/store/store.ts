@@ -1,4 +1,4 @@
-// The canvas state store (DSL v4.0). Holds React Flow nodes/edges, bounded
+// The canvas state store (DSL v4.1). Holds React Flow nodes/edges, bounded
 // contexts, and selection. Positions are never authored — after every
 // structural change the store recomputes them with the layout engine.
 

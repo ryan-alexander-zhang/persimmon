@@ -8,21 +8,21 @@ the pack Tasks that run a session (unit 2) build on these three.
 
 ```text
 EventStorming revision ──▶ Validator eventstorming-grammar ──▶ Adapter eventstorming/v1 (evaluator)
-   content: DSL v4.0            inputs.model                      evaluate: grammar.check(content) ──▶ ValidationResult
+   content: DSL v4.1            inputs.model                      evaluate: grammar.check(content) ──▶ ValidationResult
                                                                   imports tools/eventstorming/grammar/index.mjs
 ```
 
 ## Kind
 
-`EventStorming`, `sdd.persimmon.ai/v1`, Namespaced, Immutable, revisioned. Content is DSL v4.0 of
+`EventStorming`, `sdd.persimmon.ai/v1`, Namespaced, Immutable, revisioned. Content is DSL v4.1 of
 the tool without `meta.createdAt`; one artifact per model, a revision per phase as `meta.level`
 rises.
 
 | Field | Content |
 |---|---|
-| `version` | `"4.0"`, the grammar version |
+| `version` | `"4.1"`, the grammar version; `"4.0"` is read as 4.1 without `subdomain` |
 | `meta` | `{name, level: big-picture \| process \| design}`; the level gates which node types may appear |
-| `contexts[]` | `{id, name, order, classification?: core \| supporting \| generic, bigBallOfMud?}` |
+| `contexts[]` | `{id, name, order, classification?: core \| supporting \| generic, bigBallOfMud?, subdomain?}`; `subdomain` (4.1) is the Prd subdomain id the context realises (`34-subdomains.md`) |
 | `contextRelationships[]` | `{id, source, target, type}`; `source` is upstream; the tool's eight camelCase types |
 | `nodes[]` | `{id, type, label, context?, order?, properties}`; ten types; `order` on `domainEvent` only, one global sequence |
 | `edges[]` | `{id, source, target, relation}`; eleven relations, each legal for fixed source and target types |
@@ -116,6 +116,10 @@ executor".
   evidence the engine already holds. Found in implementation.
 - The old tool is ported, not copied: its projects, autosave, snapshots and compare are the Store,
   revisions and two revisions here; import and export are `create` and `get`.
+- DSL v4.1 adds `contexts[].subdomain`, the Prd subdomain the context realises (`34-subdomains.md`).
+  The grammar reads 4.0 and 4.1 alike and only types the field; which subdomains exist is the
+  Prd's, so the pack checks it beside the Prd. The editor copies contexts whole and writes 4.1.
+  Found in design review.
 
 ## Examples
 

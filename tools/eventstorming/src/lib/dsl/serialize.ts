@@ -1,5 +1,5 @@
 // Serialize between the runtime canvas (React Flow nodes + edges + contexts) and
-// the DSL v4.0 Model — the `spec.content` of an EventStorming artifact
+// the DSL v4.1 Model — the `spec.content` of an EventStorming artifact
 // (24-eventstorming.md). Positions are runtime-only (computed by the layout engine)
 // and never stored. There is no `meta.createdAt`: the revision carries time.
 // Shape is the kind schema's and the API answers 400 on a violation; the grammar's

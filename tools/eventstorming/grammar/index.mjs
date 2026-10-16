@@ -1,9 +1,11 @@
-// The event storming DSL v4.0 grammar: element types, level gating, edge rules, context
+// The event storming DSL v4.1 grammar: element types, level gating, edge rules, context
 // relationship types, and `check` — the rules the old tool split between its validator
 // (errors) and its editor health check (model smells). One copy, no dependencies, so
 // `adapters/eventstorming/` and the editor can both import it without a build.
 
-export const DSL_VERSION = '4.0'
+export const DSL_VERSION = '4.1'
+// 4.1 adds `contexts[].subdomain` (34-subdomains.md); a 4.0 model is a 4.1 model without it
+const versions = ['4.0', DSL_VERSION]
 
 export const elements = [
   'domainEvent',
@@ -97,7 +99,7 @@ const order = (a, b) =>
   (a.message < b.message ? -1 : a.message > b.message ? 1 : 0)
 
 /**
- * Check a DSL v4.0 model. Returns findings ordered errors first, then by code, then by
+ * Check a DSL v4.1 model (or 4.0). Returns findings ordered errors first, then by code, then by
  * message, so the same model always answers the same list.
  */
 export function check(content) {
@@ -105,7 +107,7 @@ export function check(content) {
   const add = (severity, code, message) => findings.push({ severity, code, message })
   const notAModel = (message) => [{ severity: 'error', code: 'not-a-model', message }]
 
-  if (!isObject(content) || content.version !== DSL_VERSION) {
+  if (!isObject(content) || !versions.includes(content.version)) {
     return notAModel(`content is not a DSL ${DSL_VERSION} model`)
   }
   const lists = {}
@@ -131,6 +133,9 @@ export function check(content) {
     contextIds.add(c.id)
     if (c.classification != null && !classifications.includes(c.classification)) {
       add('error', 'bad-enum', `context ${c.id}: classification '${c.classification}' - use ${classifications.join('|')}`)
+    }
+    if (c.subdomain != null && (typeof c.subdomain !== 'string' || !c.subdomain)) {
+      add('error', 'bad-subdomain', `context ${c.id}: subdomain must be a subdomain id`)
     }
   }
 
