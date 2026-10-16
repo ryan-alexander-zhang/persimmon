@@ -82,7 +82,8 @@ spec:
       context id in `glossary.context` and `domainModel.context` (the engine names the BoundedContext artifact it
       publishes for you); `source` is the model's artifact id. Invent nothing; leave empty what the model does not say.
       With `previous` and `feedback` bound, the consistency check refused the last derivation: every finding names
-      a label that differs from the model; fix those and change nothing else.
+      a DomainModel label that differs from the model, or a BoundedContext subdomain, classification, capability or
+      relationship that differs from the storming and the Prd; fix those and change nothing else.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: derive-domain-rules}}
       - {kind: artifact, input: model}

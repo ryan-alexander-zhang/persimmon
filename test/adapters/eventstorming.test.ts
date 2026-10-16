@@ -133,4 +133,12 @@ describe('eventstorming/v1 against a derived DomainModel', () => {
     expect(r.result.passed).toBe(false)
     expect(r.result.findings.map((f: { code: string }) => f.code)).toEqual(['derived-extra-aggregate', 'derived-missing-aggregate'])
   })
+  it('checks the derived BoundedContext beside the Prd when it is bound', async () => {
+    const p = pair(derived)
+    ;(p.artifacts as Record<string, unknown>).boundedContext = { content: { subdomain: 'x', capabilities: [], relationships: [] }, provenance }
+    ;(p.artifacts as Record<string, unknown>).prd = { content: { capabilities: [] }, provenance }
+    const r = await adapter({ id: 12, op: 'evaluate', payload: p })
+    expect(r.result.passed).toBe(false)
+    expect(r.result.findings.map((f: { code: string }) => f.code)).toEqual(['derived-subdomain-mismatch'])
+  })
 })

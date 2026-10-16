@@ -23,7 +23,7 @@ spec:
   policy: {strategy: all}
   timeout: 72h
 ---
-# A derived context passes when its DomainModel agrees with the model.
+# A derived context passes when its DomainModel and its BoundedContext agree with the model.
 apiVersion: persimmon.ai/v1
 kind: Gate
 metadata: {name: derived-gate}
@@ -32,6 +32,8 @@ spec:
     model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
     contextId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}
+    boundedContext: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext}}}
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
   validators:
@@ -41,6 +43,8 @@ spec:
         model: {fromInput: model}
         domainModel: {fromInput: domainModel}
         context: {fromInput: contextId}
+        boundedContext: {fromInput: boundedContext}
+        prd: {fromInput: prd}
   policy: {strategy: all}
   timeout: 5m
 ---

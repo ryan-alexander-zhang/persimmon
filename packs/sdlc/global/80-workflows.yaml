@@ -109,6 +109,8 @@ spec:
       model: {fromInput: model}
       domainModel: {fromStep: {stepRef: produce, output: domainModel}}
       contextId: {fromInput: contextId}
+      boundedContext: {fromStep: {stepRef: produce, output: context}}
+      prd: {fromInput: prd}
     timeout: 5m
   subject: domainModel
   previous: previous

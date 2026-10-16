@@ -35,6 +35,8 @@ spec:
     model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
     context: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}
+    boundedContext: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext}}, required: false, description: "the derived BoundedContext: its subdomain, capabilities and relationships against the storming (34-subdomains.md)"}
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false, description: "with boundedContext: the capabilities of its subdomain"}
   evaluator:
     type: adapter
     adapter: eventstorming/v1

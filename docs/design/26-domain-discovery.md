@@ -14,7 +14,7 @@ Pipeline domain-discovery
   design:     ReviewLoop storm-design      ─┘ previous and feedback fed back; base = the phase before
   derive:     Workflow derive-all: repeat over the design phase's `contexts` ─▶ Workflow derive-one per context
                  derive: Task derive-domain ─▶ BoundedContext, Glossary, DomainModel
-                 check:  Gate derived-gate = Validator domain-consistency (eventstorming/v1, two artifacts)
+                 check:  Gate derived-gate = Validator domain-consistency (eventstorming/v1: model, DomainModel, BoundedContext, Prd)
 ```
 
 ## `DomainModel`
@@ -40,7 +40,7 @@ thing is defined.
 | Task `event-storm` | inputs `prd`, `rules` (optional, the BusinessRules the Prd cites), `level`, `base` (the phase before), `previous` (this phase's last round), `feedback`; outputs `model`, `contexts` (the ids in order); an unknown is a hotspot, never a question |
 | Task `confirm-storming` | human on `cli-human/v1`: open the model in `persimmon ui`, approve or reject with one finding per node, edge or context |
 | Validators | `eventstorming-grammar` with `level` and the `prd` (`checkSubdomains`, `34-subdomains.md`); `storming-confirmed` over `confirm-storming`; `domain-consistency`: `eventstorming/v1` with `model`, `domainModel` and `context`, the grammar's `checkDerived` |
-| Gates | `storming-gate` (grammar and confirmed, `all`); `derived-gate` (consistency) |
+| Gates | `storming-gate` (grammar and confirmed, `all`); `derived-gate` (consistency, binding the derived BoundedContext and the Prd) |
 | ReviewLoops `storm-big-picture`, `storm-process`, `storm-design` | `produce` `event-storm` with the level as a literal, `review` `storming-gate`, `maxRounds: 3`; `process` and `design` take `base` from the phase before; all three take `rules` (optional) |
 | Task `derive-domain` | inputs `model`, `contextId`, `prd`, `rules` (optional); outputs `context`, `glossary`, `domainModel`; a projection, invents nothing |
 | ReviewLoop `derive-one` | `produce` `derive-domain`, `review` `derived-gate`, `maxRounds: 2`; the consistency findings go back as `feedback` with the last `domainModel` as `previous` |
@@ -54,7 +54,11 @@ Two Layer 1 changes this needed, each its own unit: `state.<var>` readable in ex
 ## `checkDerived`
 
 `tools/eventstorming/grammar` `checkDerived(model, domainModel, context)`, run by `eventstorming/v1`
-when `artifacts.domainModel` is present; `passed` iff no error. Labels compare exactly.
+when `artifacts.domainModel` is present; `passed` iff no error. Labels compare exactly. With
+`artifacts.boundedContext` (and `prd`) bound, `checkBoundedContext(model, boundedContext, context, prd)`
+runs beside it (`34-subdomains.md`): `derived-subdomain-mismatch`, `derived-classification-mismatch`,
+`derived-capability-unknown`, `derived-capability-missing` (a subdomain no other context realises),
+`derived-relationship-mismatch` (the storming's map from this context's side), all errors.
 
 | Severity | Codes |
 |---|---|

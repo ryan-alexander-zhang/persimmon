@@ -121,4 +121,6 @@ declare module '*/tools/eventstorming/grammar/index.mjs' {
   export function checkDerived(model: unknown, domainModel: unknown, context: string): Finding[]
   /** A storming's contexts against the Prd's `subdomains` (34-subdomains.md). */
   export function checkSubdomains(model: unknown, prd: unknown): Finding[]
+  /** A derived BoundedContext against its storming context and the Prd (34-subdomains.md). */
+  export function checkBoundedContext(model: unknown, boundedContext: unknown, context: string, prd: unknown): Finding[]
 }

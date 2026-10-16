@@ -1676,6 +1676,8 @@ spec:
       - Scheduling and completing garage service, owned by Fleet Care
       - Opening and reviewing damage reports and taking a car out or back into service, owned by Fleet Care
     classification: core
+    subdomain: reservations
+    capabilities: [CAP-1, CAP-2, CAP-3, CAP-4, CAP-5, CAP-6]
     relationships:
       - context: fleet-care
         role: peer
@@ -2100,6 +2102,8 @@ spec:
       - My reservations view, owned by Car Reservations
       - Employee reliability view, owned by Car Reservations
       - Pending approvals view, owned by Car Reservations
+    subdomain: fleet-care
+    capabilities: [CAP-7, CAP-8, CAP-9]
     relationships:
       - context: car-reservations
         role: peer

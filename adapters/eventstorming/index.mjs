@@ -3,7 +3,7 @@
 // ValidationResult (10-ports.md); with an
 // `artifacts.domainModel` it runs `checkDerived` instead (26-domain-discovery.md). No Engine callbacks.
 import { createInterface } from 'node:readline'
-import { check, checkDerived, checkSubdomains, levelRank } from '../../tools/eventstorming/grammar/index.mjs'
+import { check, checkBoundedContext, checkDerived, checkSubdomains, levelRank } from '../../tools/eventstorming/grammar/index.mjs'
 
 const describe = {
   adapterId: 'eventstorming/v1',
@@ -32,6 +32,8 @@ function evaluate(payload) {
     const derived = [
       ...check(model.content).filter((f) => f.severity === 'error'),
       ...checkDerived(model.content, domainModel.content, context),
+      // with the derived BoundedContext beside it: its subdomain, capabilities and map (34-subdomains.md)
+      ...(payload.artifacts.boundedContext ? checkBoundedContext(model.content, payload.artifacts.boundedContext.content, context, payload.artifacts.prd?.content) : []),
     ]
     return { passed: !derived.some((f) => f.severity === 'error'), findings: derived, evidence: [] }
   }

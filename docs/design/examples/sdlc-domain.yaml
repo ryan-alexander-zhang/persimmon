@@ -18,6 +18,8 @@ spec:
       - "employee, reporting line, cost centre membership: Identity context"
       - "payment, ledger posting, currency conversion at booking: Accounting context"
     owner: Finance operations
+    subdomain: expenses
+    capabilities: [CAP-1, CAP-2, CAP-3, CAP-4]
     relationships:
       - {context: identity, role: downstream, pattern: conformist, note: "we read employees and reporting lines as Identity publishes them"}
       - {context: accounting, role: upstream, pattern: published-language, note: "we publish approved claims as a fixed export record"}

@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseAllDocuments } from 'yaml'
 import { describe, expect, it } from 'vitest'
-import { check, checkDerived, checkSubdomains } from '../../tools/eventstorming/grammar/index.mjs'
+import { check, checkBoundedContext, checkDerived, checkSubdomains } from '../../tools/eventstorming/grammar/index.mjs'
 
 const fixture = (name: string): Record<string, unknown> => {
   const model = JSON.parse(readFileSync(join(import.meta.dirname, name), 'utf8'))
@@ -319,5 +319,44 @@ describe('checkSubdomains', () => {
 
   it('refuses a subdomain the Prd does not name at any level', () => {
     expect(codesOf(at('big-picture', [ctx('a', { subdomain: 'payroll' })]))).toEqual(['subdomain-unknown'])
+  })
+})
+
+describe('checkBoundedContext', () => {
+  const prd = { capabilities: [{ id: 'CAP-1', subdomain: 'reservations' }, { id: 'CAP-2', subdomain: 'reservations' }, { id: 'CAP-3', subdomain: 'fleet-care' }] }
+  const storming = (contexts: unknown[]) => model({
+    version: '4.1',
+    contexts,
+    contextRelationships: [{ id: 'cr-1', source: 'fleet-care', target: 'car-reservations', type: 'customerSupplier' }, { id: 'cr-2', source: 'fleet-care', target: 'car-reservations', type: 'partnership' }],
+  })
+  const two = storming([{ id: 'car-reservations', name: 'R', order: 0, subdomain: 'reservations', classification: 'core' }, { id: 'fleet-care', name: 'F', order: 1, subdomain: 'fleet-care', classification: 'supporting' }])
+  const bc = (over: Record<string, unknown> = {}) => ({
+    subdomain: 'reservations', classification: 'core', capabilities: ['CAP-1', 'CAP-2'],
+    relationships: [{ context: 'fleet-care', role: 'downstream', pattern: 'customer-supplier' }, { context: 'fleet-care', role: 'peer', pattern: 'partnership' }],
+    ...over,
+  })
+  const codesOf = (m: unknown, b: unknown, c = 'car-reservations') => checkBoundedContext(m, b, c, prd).map((f) => f.code)
+
+  it('passes a BoundedContext that copies its storming context and sees the map from its side', () => {
+    expect(checkBoundedContext(two, bc(), 'car-reservations', prd)).toEqual([])
+    expect(codesOf(two, { subdomain: 'fleet-care', classification: 'supporting', capabilities: ['CAP-3'], relationships: [{ context: 'car-reservations', role: 'upstream', pattern: 'customer-supplier' }, { context: 'car-reservations', role: 'peer', pattern: 'partnership' }] }, 'fleet-care')).toEqual([])
+  })
+
+  it('fails a subdomain or a classification off the storming context', () => {
+    expect(codesOf(two, bc({ subdomain: 'fleet-care' }))).toContain('derived-subdomain-mismatch')
+    expect(codesOf(two, bc({ classification: 'generic' }))).toEqual(['derived-classification-mismatch'])
+  })
+
+  it('fails a capability of another subdomain, and a missing one when the context realises its subdomain alone', () => {
+    expect(codesOf(two, bc({ capabilities: ['CAP-1', 'CAP-2', 'CAP-3'] }))).toEqual(['derived-capability-unknown'])
+    expect(codesOf(two, bc({ capabilities: ['CAP-1'] }))).toEqual(['derived-capability-missing'])
+    // a subdomain split over two contexts: each lists its own share
+    const split = storming([{ id: 'car-reservations', name: 'R', order: 0, subdomain: 'reservations', classification: 'core' }, { id: 'car-approvals', name: 'A', order: 1, subdomain: 'reservations', classification: 'core' }, { id: 'fleet-care', name: 'F', order: 2, subdomain: 'fleet-care', classification: 'supporting' }])
+    expect(codesOf(split, bc({ capabilities: ['CAP-1'] }))).toEqual([])
+  })
+
+  it('fails a relationship the storming does not have, and one it has that is missing', () => {
+    expect(codesOf(two, bc({ relationships: [{ context: 'fleet-care', role: 'upstream', pattern: 'customer-supplier' }, { context: 'fleet-care', role: 'peer', pattern: 'partnership' }] }))).toEqual(['derived-relationship-mismatch', 'derived-relationship-mismatch'])
+    expect(codesOf(two, bc({ relationships: [] }))).toEqual(['derived-relationship-mismatch', 'derived-relationship-mismatch'])
   })
 })

@@ -48,7 +48,7 @@ brief ─▶ author-prd ─▶ Prd: subdomains[] (core | supporting | generic), 
 | Field | Change |
 |---|---|
 | `subdomain` | new, required: the storming context's `subdomain` |
-| `capabilities[]` | new, at least one: the `CAP-n` of its subdomain whose commands it handles; every capability of the subdomain when the subdomain has one context |
+| `capabilities[]` | new, may be empty: the `CAP-n` of its subdomain whose commands it handles; every capability of the subdomain when the subdomain has one context |
 | `classification` | unchanged; the subdomain's `type` |
 
 ## Process
@@ -63,7 +63,7 @@ brief ─▶ author-prd ─▶ Prd: subdomains[] (core | supporting | generic), 
 | grammar `check` | DSL 4.1, 4.0 still read; `bad-subdomain` when the field is not an id |
 | Gate `storming-gate`, Validator `eventstorming-grammar` (`checkSubdomains`) | binds the `prd`; at design level `context-no-subdomain`, `subdomain-unknown` (not one of the Prd's), `subdomain-unrealised` (a Prd subdomain no context names), `classification-mismatch` (not the subdomain's `type`) |
 | Task `derive-domain`, Prompt `derive-domain-rules` | the BoundedContext takes `subdomain`, `classification` and `capabilities`; invariants take the rules of its subdomain, or untagged ones, that its constraints cite |
-| Gate `derived-gate`, `checkDerived` | binds the derived `context` and the `prd`; `derived-subdomain-mismatch` (not the storming context's), `derived-classification-mismatch` (not the storming context's), `derived-capability-unknown` (not a capability of the subdomain), `derived-relationship-mismatch` (`relationships` differ from the storming's `contextRelationships` under the role and pattern map) |
+| Gate `derived-gate`, `checkDerived` | binds the derived `context` and the `prd`; `derived-subdomain-mismatch` (not the storming context's), `derived-classification-mismatch` (not the storming context's), `derived-capability-unknown` (not a capability of the subdomain), `derived-capability-missing` (one of the subdomain's left out when no other context realises it), `derived-relationship-mismatch` (`relationships` differ from the storming's `contextRelationships` under the role and pattern map) |
 | Validator `architecture-consistency` (`checkArchitecture`) | `prd-context-unread` replaced by `capability-unplaced` (no BoundedContext lists a capability) and `capability-twice` (two do); reads the contexts' content |
 | ReviewLoop `spec-one`, Workflow `spec-all`, Gate `spec-gate` | input `context` (the BoundedContext); `checkSpec`'s `context-mismatch` becomes: the capability is in `context.capabilities`, and `domainModel.context` is the context's id |
 | Prompt `write-spec` | the capability's context is the bound BoundedContext |
@@ -101,6 +101,9 @@ brief ─▶ author-prd ─▶ Prd: subdomains[] (core | supporting | generic), 
   and requires not even a classification; which subdomains exist is the Prd's, and a miss found at
   the derivation could not be fixed there, because `derive-domain` cannot change the storming.
   Found in implementation.
+- A BoundedContext's `capabilities` may be empty: a subdomain split in two can leave one context
+  that no capability's commands land in; that every capability lands somewhere is the
+  Architecture check's, which sees every context. Found in implementation.
 - The relationships check rides along: `derived-gate` never received the derived BoundedContext,
   so a wrong `role` or `pattern` passed unseen. Found in a walkthrough of example08.
 

@@ -727,6 +727,8 @@ spec:
       - Office Management
     outOfScope: []
     classification: supporting
+    subdomain: room-booking
+    capabilities: [CAP-1, CAP-2, CAP-3, CAP-4, CAP-5, CAP-6]
     relationships: []
 ---
 apiVersion: sdd.persimmon.ai/v1

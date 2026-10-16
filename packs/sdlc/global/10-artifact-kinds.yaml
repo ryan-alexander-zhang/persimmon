@@ -12,7 +12,7 @@ spec:
     - name: v1
       schema:
         type: object
-        required: [name, purpose, inScope, outOfScope, relationships]
+        required: [name, purpose, inScope, outOfScope, subdomain, capabilities, relationships]
         additionalProperties: false
         properties:
           name: {type: string, minLength: 1}
@@ -20,8 +20,10 @@ spec:
           inScope: {type: array, minItems: 1, items: {type: string}, description: "the Glossary's term names this context owns"}
           outOfScope: {type: array, items: {type: string}, description: "concepts that look like ours but belong elsewhere; name the context"}
           owner: {type: string, description: "team or role that owns the model"}
-          classification: {enum: [core, supporting, generic], description: "the storming's strategic classification"}
+          classification: {enum: [core, supporting, generic], description: "the storming's strategic classification, the type of its subdomain"}
           bigBallOfMud: {type: boolean, description: "a recognised mess, boundary drawn so its model does not propagate"}
+          subdomain: {type: string, minLength: 1, description: "the Prd subdomain this context realises, as the storming context names it (34-subdomains.md)"}
+          capabilities: {type: array, items: {type: string, pattern: "^CAP-[0-9]+$"}, description: "the Prd capabilities of its subdomain whose commands this context handles; every one when no other context realises the subdomain; may be empty"}
           relationships:
             type: array
             description: "this context's own view of the context map; the other side keeps its own"

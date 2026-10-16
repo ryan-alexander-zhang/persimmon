@@ -269,6 +269,41 @@ export function checkSubdomains(model, prd) {
   return findings.sort(order)
 }
 
+const symmetric = ['partnership', 'sharedKernel', 'separateWays']
+const kebab = { sharedKernel: 'shared-kernel', customerSupplier: 'customer-supplier', acl: 'anticorruption-layer', openHostService: 'open-host-service', publishedLanguage: 'published-language', separateWays: 'separate-ways' }
+
+/**
+ * A derived BoundedContext (34-subdomains.md) against its storming context `context` and the Prd: it
+ * copies the context's `subdomain` and `classification`, lists only capabilities of that subdomain
+ * (all of them when no other context realises it), and its `relationships` are the storming's
+ * `contextRelationships` seen from this context. Findings in `check`'s order and shape.
+ */
+export function checkBoundedContext(model, boundedContext, context, prd) {
+  const findings = []
+  const add = (severity, code, message) => findings.push({ severity, code, message })
+  const c = arr(model?.contexts).find((x) => x.id === context)
+  if (!c) return findings // checkDerived reports the unknown context
+  const bc = isObject(boundedContext) ? boundedContext : {}
+  if (bc.subdomain !== c.subdomain) add('error', 'derived-subdomain-mismatch', `subdomain ${bc.subdomain ?? 'none'} is not ${c.subdomain ?? 'none'}, the storming context's`)
+  if (bc.classification !== c.classification) add('error', 'derived-classification-mismatch', `classification ${bc.classification ?? 'none'} is not ${c.classification ?? 'none'}, the storming context's`)
+  const ofSubdomain = arr(prd?.capabilities).filter((cap) => cap.subdomain === c.subdomain).map((cap) => cap.id)
+  const listed = Array.isArray(bc.capabilities) ? bc.capabilities : []
+  for (const id of listed) if (!ofSubdomain.includes(id)) add('error', 'derived-capability-unknown', `capability ${id} is not a capability of subdomain ${c.subdomain ?? 'none'}`)
+  const alone = arr(model?.contexts).filter((x) => x.subdomain === c.subdomain).length === 1
+  if (alone) for (const id of ofSubdomain) if (!listed.includes(id)) add('error', 'derived-capability-missing', `capability ${id} of subdomain ${c.subdomain}, which no other context realises, is not listed`)
+  // the storming's map seen from this context: upstream as source, downstream as target, peer for a symmetric type
+  const key = (r) => `${r.context}|${r.role}|${r.pattern}`
+  const want = arr(model?.contextRelationships).filter((r) => r.source === context || r.target === context).map((r) => key({
+    context: r.source === context ? r.target : r.source,
+    role: symmetric.includes(r.type) ? 'peer' : r.source === context ? 'upstream' : 'downstream',
+    pattern: kebab[r.type] ?? r.type,
+  }))
+  const have = arr(bc.relationships).map(key)
+  for (const k of want) if (!have.includes(k)) add('error', 'derived-relationship-mismatch', `relationship ${k.replaceAll('|', ' ')} is in the storming but not in the BoundedContext`)
+  for (const k of have) if (!want.includes(k)) add('error', 'derived-relationship-mismatch', `relationship ${k.replaceAll('|', ' ')} is in the BoundedContext but not in the storming`)
+  return findings.sort(order)
+}
+
 function diffLabels(add, what, storming, derived, missingCode, extraCode = missingCode) {
   for (const l of storming) if (!derived.includes(l)) add('error', missingCode, `${what} '${l}' is in the storming but not in the domain model`)
   for (const l of derived) if (!storming.includes(l)) add('error', extraCode, `${what} '${l}' is in the domain model but not in the storming`)
