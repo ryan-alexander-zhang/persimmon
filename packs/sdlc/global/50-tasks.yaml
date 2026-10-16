@@ -143,8 +143,7 @@ metadata: {name: draft-prd}
 spec:
   inputs:
     brief: {type: {kind: value, schema: {type: string, minLength: 1}}}
-    productId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}, description: "the id stem of the Prd and the rules; a one-context product's is its context's"}
-    contextIds: {type: {kind: value, schema: {type: array, minItems: 1, maxItems: 20, items: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}, description: "the BoundedContext ids the capabilities live in (33-multi-context-product.md)"}
+    productId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}, description: "the id stem of the Prd and the rules"}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: false}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false}
@@ -156,7 +155,7 @@ spec:
   executorRef: {kind: Executor, name: prd-agent}
   action:
     instructions: |
-      Write the Prd from `brief` for the product whose contexts are `contextIds`, following the Prd rules in your
+      Write the Prd from `brief`, with the subdomains the brief describes, following the Prd rules in your
       context, and the product's one BusinessRules artifact with every rule the Prd cites: the input `rules` revised when bound,
       a new artifact otherwise. The Prd's `businessRules` is `<productId>-rules`, the id the rules you answer are published under. With `previous` and `feedback` bound, fix what the findings name and change
       nothing else; answer both artifacts whole. The rules you answer start as a verbatim copy of the rules you were

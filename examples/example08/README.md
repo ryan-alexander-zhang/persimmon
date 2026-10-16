@@ -48,7 +48,7 @@ persimmon apply overrides.yaml          # the seven agent Executors on claude-so
 ### 2. The Prd, two contexts named up front
 
 ```sh
-persimmon run author-prd --input brief=@brief.txt --input productId=car-pool --input 'contextIds=[car-reservations, fleet-care]' --follow
+persimmon run author-prd --input brief=@brief.txt --input productId=car-pool --follow
 ```
 
 `Prd/car-pool-prd` and `BusinessRules/car-pool-rules`, the rules with `contexts: [car-reservations, fleet-care]`

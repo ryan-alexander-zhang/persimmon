@@ -290,7 +290,6 @@ spec:
   inputs:
     brief: {type: {kind: value, schema: {type: string, minLength: 1}}}
     productId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}
-    contextIds: {type: {kind: value, schema: {type: array, minItems: 1, maxItems: 20, items: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: false}
   produce:
@@ -298,7 +297,6 @@ spec:
     inputs:
       brief: {fromInput: brief}
       productId: {fromInput: productId}
-      contextIds: {fromInput: contextIds}
       rules: {fromInput: rules}
       glossary: {fromInput: glossary}
     timeout: 30m

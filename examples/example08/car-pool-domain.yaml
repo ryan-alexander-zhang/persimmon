@@ -38,12 +38,21 @@ spec:
       - Telematics or keyless entry; keys remain in the physical cabinet.
       - Insurance claims handling beyond the damage report.
       - A distinct role or workflow for the office manager; they act as the fleet coordinator when covering absences.
+    subdomains:
+      - id: reservations
+        name: Reservations
+        description: "Employees reserve a fitting pool car for a trip, pick it up and return it."
+        type: core
+      - id: fleet-care
+        name: Fleet care
+        description: "The fleet coordinator keeps each car's record, service and damage state."
+        type: supporting
     capabilities:
       - id: CAP-1
         name: Reserve a car
         description: An employee requests a car for a time slot, stating the trip's purpose, passenger count, and any need for a van or automatic gearbox; the system offers only cars that fit those needs, are free for the slot, are in service, and will not fall service-due before the slot ends, and it keeps an employee within their allowed number of open future reservations.
         priority: P1
-        context: car-reservations
+        subdomain: reservations
         rules:
           - BR-1
           - BR-2
@@ -57,14 +66,14 @@ spec:
         name: Pick up and return a car
         description: An employee picks up the reserved car at the start of the slot and later returns it, recording the mileage read off the dashboard and noting any new damage; a reservation left unclaimed too long is released so another employee can take the car.
         priority: P1
-        context: car-reservations
+        subdomain: reservations
         rules:
           - BR-8
       - id: CAP-3
         name: Cancel a reservation
         description: An employee cancels a reservation they no longer need; cancelling well ahead of the start carries no consequence, while cancelling close to the start is treated the same as not showing up.
         priority: P2
-        context: car-reservations
+        subdomain: reservations
         rules:
           - BR-11
           - BR-12
@@ -72,35 +81,35 @@ spec:
         name: Track reservation reliability
         description: An employee sees their own reservations and their own count of late cancellations and no-shows, and the fleet coordinator sees the monthly count for every employee, so a pattern of late cancellations or no-shows is visible rather than lost in a shared calendar.
         priority: P2
-        context: car-reservations
+        subdomain: reservations
         rules:
           - BR-12
       - id: CAP-5
         name: Approve extended reservations
         description: An employee whose trip needs a car for longer than the standard limit asks the fleet coordinator to approve the longer reservation before it is created, so a single long trip does not quietly remove a car from the shared pool.
         priority: P2
-        context: car-reservations
+        subdomain: reservations
         rules:
           - BR-10
       - id: CAP-6
         name: Cancel reservations when a car leaves service
         description: When fleet care takes a car out of service, car reservations cancels every future reservation held for that car and notifies each affected employee, so they can reserve another car instead of discovering the problem at pickup.
         priority: P1
-        context: car-reservations
+        subdomain: reservations
         rules:
           - BR-20
       - id: CAP-7
         name: Maintain fleet record
         description: The fleet coordinator keeps each car's plate, seats, gearbox, van flag, current mileage, next service due by date or mileage, and in-service or out-of-service state in one record, updated from the mileage recorded at each return, replacing the spreadsheet.
         priority: P1
-        context: fleet-care
+        subdomain: fleet-care
         rules:
           - BR-14
       - id: CAP-8
         name: Manage scheduled service
         description: The fleet coordinator is alerted when a car's mileage or date crosses its service threshold, books the car in with the garage and takes it out of service for the garage days, and puts it back in service with the new mileage and next-service threshold once the garage returns it.
         priority: P1
-        context: fleet-care
+        subdomain: fleet-care
         rules:
           - BR-15
           - BR-16
@@ -109,7 +118,7 @@ spec:
         name: Review damage reports
         description: The fleet coordinator reviews the damage report opened by a return's damage note, leaves the car in service when the damage is minor, and takes the car out of service at once when the damage makes it unsafe.
         priority: P1
-        context: fleet-care
+        subdomain: fleet-care
         rules:
           - BR-17
           - BR-18
@@ -181,9 +190,6 @@ spec:
     revision: 1
   content:
     title: Company Car Pool Business Rules
-    contexts:
-      - car-reservations
-      - fleet-care
     owner: Fleet coordinator
     rules:
       - id: BR-1
@@ -192,147 +198,147 @@ spec:
         rationale: A reservation that named more than one car could not be picked up or returned as one trip.
         source: brief
         status: active
-        context: car-reservations
+        subdomain: reservations
       - id: BR-2
         type: constraint
         statement: A car must not be offered for a reservation whose passenger count exceeds the car's seats.
         rationale: An employee must not be offered a car that cannot carry their party.
         source: brief
         status: active
-        context: car-reservations
+        subdomain: reservations
       - id: BR-3
         type: constraint
         statement: A car must not be offered for a trip that needs equipment space unless the car is a van.
         rationale: A trip stating a need for equipment space requires van cargo capacity.
         source: brief
         status: active
-        context: car-reservations
+        subdomain: reservations
       - id: BR-4
         type: constraint
         statement: A car must not be offered for a reservation asking for an automatic gearbox unless the car has an automatic gearbox.
         rationale: An employee who asks for an automatic gearbox must not be offered a manual car.
         source: brief
         status: active
-        context: car-reservations
+        subdomain: reservations
       - id: BR-5
         type: constraint
         statement: A car must not be offered for a slot that overlaps another reservation already held for that car.
         rationale: Two reservations for the same car in overlapping slots is the double-booking the pool must stop.
         source: brief
         status: active
-        context: car-reservations
+        subdomain: reservations
       - id: BR-6
         type: constraint
         statement: A car that is out of service must not be offered for any slot.
         rationale: A car under repair or awaiting the garage cannot be driven.
         source: brief
         status: active
-        context: car-reservations
+        subdomain: reservations
       - id: BR-7
         type: constraint
         statement: A car whose service is due before the end of a requested slot must not be offered for that slot.
         rationale: A car must not go out on a trip that runs past its due service.
         source: brief
         status: active
-        context: car-reservations
+        subdomain: reservations
       - id: BR-8
         type: constraint
         statement: A reservation not picked up within thirty minutes of its start must be released.
         rationale: An unclaimed car should return to the pool quickly rather than sit reserved.
         source: brief
         status: active
-        context: car-reservations
+        subdomain: reservations
       - id: BR-9
         type: constraint
         statement: An employee must not hold more than two future reservations at a time.
         rationale: Limits how much of the shared pool one employee can tie up at once.
         source: brief
         status: active
-        context: car-reservations
+        subdomain: reservations
       - id: BR-10
         type: constraint
         statement: A reservation longer than three days must be approved by the fleet coordinator before it is created.
         rationale: A long reservation removes a car from the shared pool for an extended time and needs the coordinator's sign-off.
         source: brief
         status: active
-        context: car-reservations
+        subdomain: reservations
       - id: BR-11
         type: constraint
         statement: A cancellation made at least two hours before the reservation's start must not be counted against the employee.
         rationale: Cancelling with reasonable notice should carry no penalty.
         source: brief
         status: active
-        context: car-reservations
+        subdomain: reservations
       - id: BR-12
         type: constraint
         statement: A cancellation made less than two hours before the reservation's start, and a no-show, must be counted against the employee.
         rationale: Late cancellations and no-shows tie up a car other employees could have used and must be tracked.
         source: brief
         status: active
-        context: car-reservations
+        subdomain: reservations
       - id: BR-13
         type: constraint
         statement: The fleet coordinator must be able to see each employee's monthly count of late cancellations and no-shows.
         rationale: "Superseded: this statement describes a capability (CAP-4), not a business rule, so it is withdrawn rather than enforced as a rule."
         source: brief
         status: deprecated
-        context: car-reservations
+        subdomain: reservations
       - id: BR-14
         type: fact
         statement: Each car's record must include its plate, seats, gearbox, van flag, current mileage, next service due date or mileage, and in-service or out-of-service state.
         rationale: These are the facts the fleet coordinator needs to manage the car safely, replacing the spreadsheet.
         source: brief
         status: active
-        context: fleet-care
+        subdomain: fleet-care
       - id: BR-15
         type: derivation
         statement: A car must be considered service-due when its mileage or date crosses its next-service threshold.
         rationale: Service-due status must be derived automatically so it is never missed as it was with the spreadsheet.
         source: brief
         status: active
-        context: fleet-care
+        subdomain: fleet-care
       - id: BR-16
         type: constraint
         statement: A car that is service-due must be taken out of service for the days it is booked with the garage.
         rationale: A car due for service must not keep operating until the garage work is done.
         source: brief
         status: active
-        context: fleet-care
+        subdomain: fleet-care
       - id: BR-17
         type: fact
         statement: A damage note recorded at return must open a damage report for the fleet coordinator to review.
         rationale: Every damage note needs a reviewable record, not just a note that gets lost.
         source: brief
         status: active
-        context: fleet-care
+        subdomain: fleet-care
       - id: BR-18
         type: constraint
         statement: A car whose damage report is reviewed as minor must remain in service.
         rationale: Minor damage does not justify pulling a car from the shared pool.
         source: brief
         status: active
-        context: fleet-care
+        subdomain: fleet-care
       - id: BR-19
         type: constraint
         statement: A car whose damage report is reviewed as unsafe must be taken out of service at once.
         rationale: An unsafe car must not be driven until it is repaired.
         source: brief
         status: active
-        context: fleet-care
+        subdomain: fleet-care
       - id: BR-20
         type: constraint
         statement: Taking a car out of service must cancel its future reservations and notify the affected employees.
         rationale: An employee must learn their car is unavailable before they arrive to pick it up, not at the cabinet.
         source: brief
         status: active
-        context: car-reservations
+        subdomain: reservations
       - id: BR-21
         type: constraint
         statement: When the garage returns a car, it must be put back in service with its new mileage and next-service threshold.
         rationale: The fleet record must reflect the car's true state once garage work finishes.
         source: brief
         status: active
-        context: fleet-care
+        subdomain: fleet-care
 ---
 apiVersion: sdd.persimmon.ai/v1
 kind: EventStorming

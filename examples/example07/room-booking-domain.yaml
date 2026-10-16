@@ -37,12 +37,17 @@ spec:
       - Integration with external calendar tools
       - Supporting more than one office or time zone
       - Modifying an existing booking's time, attendees or video need; the owner cancels and books again instead
+    subdomains:
+      - id: room-booking
+        name: Room booking
+        description: "Employees book the office meeting rooms for a slot and the people attending."
+        type: supporting
     capabilities:
       - id: CAP-1
         name: Book a room
         description: An employee requests a room for a day, a time slot, a number of attendees and optionally a need for video conferencing, and the tool offers only the rooms that both fit the party and are free for that slot so the employee can confirm a booking.
         priority: P1
-        context: room-booking
+        subdomain: room-booking
         rules:
           - BR-1
           - BR-2
@@ -56,21 +61,21 @@ spec:
         name: Cancel a booking
         description: The owner of a booking releases it ahead of time so the room becomes available to others, instead of it sitting reserved and unused.
         priority: P1
-        context: room-booking
+        subdomain: room-booking
         rules:
           - BR-8
       - id: CAP-3
         name: Check in to confirm a booking
         description: The owner of a booking confirms their presence by checking in at the room's door within a short window of the start time; a booking nobody checks into is recognised as a no-show and the room is freed for others.
         priority: P1
-        context: room-booking
+        subdomain: room-booking
         rules:
           - BR-9
       - id: CAP-4
         name: Walk-in ad hoc booking
         description: An employee with no prior reservation claims an empty room on the spot by checking in at its door, holding the room for a bounded time until the next scheduled booking.
         priority: P2
-        context: room-booking
+        subdomain: room-booking
         rules:
           - BR-9
           - BR-10
@@ -78,13 +83,13 @@ spec:
         name: Room status screens
         description: A screen at each room's door shows whether the room is free, who holds it and until when, and what comes next, while a floor-wide screen lists the current status of every room so anyone can see at a glance what is available.
         priority: P1
-        context: room-booking
+        subdomain: room-booking
         rules: []
       - id: CAP-6
         name: Monthly utilisation report
         description: "Office management receives a monthly report summarising how each room is used: utilisation per room, no-show rate per team, and peak hours of demand."
         priority: P2
-        context: room-booking
+        subdomain: room-booking
         rules: []
     successCriteria:
       - id: SC-1
@@ -131,7 +136,6 @@ spec:
     revision: 1
   content:
     title: Meeting Room Booking Business Rules
-    contexts: [room-booking]
     owner: Office management
     rules:
       - id: BR-1

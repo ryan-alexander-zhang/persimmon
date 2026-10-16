@@ -1,5 +1,8 @@
 # Multi-context product
 
+> The Prd's `contextIds` and the context tags on capabilities and rules are superseded by
+> `34-subdomains.md`: the Prd names subdomains, the storming cuts the contexts.
+
 status: draft · layer: 2 (`23-pack-sdlc.md`, `26-domain-discovery.md`, `28-prd-process.md`, `31-architecture-process.md`) and one CLI convenience (`08-store.md`) · schema: the `BusinessRules` kind in `packs/sdlc/global/10-artifact-kinds.yaml`
 
 One product, several bounded contexts, through the whole chain. Today the Prd process runs over

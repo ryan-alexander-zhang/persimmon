@@ -29,7 +29,7 @@ form is refused by the engine when wrong and the method is a Prompt a Namespace 
 |---|---|
 | Prompt `prd-rules` | problem before solution; users as roles; goals are direction and success criteria carry the number, measured in production; a capability is one Spec's worth with its context and the rules that govern it; a rule is written into `BusinessRules`, never into the Prd; what is refused is a non-goal; an unknown is a `Q-n` |
 | Executor `prd-agent` | `claude-code/v1`, read-only, its own name so a Namespace picks the model per Task |
-| Task `draft-prd` | inputs `brief` (text), `productId` (the id stem), `contextIds` (the BoundedContexts the capabilities live in, one or more), `rules` and `glossary` (optional, the product's current ones), `previous` (the last Prd), `previousRules` (the last round's rules, carried by the loop), `feedback`; outputs `prd` and `rules` (the context's BusinessRules: the input artifact's rules carried forward plus the brief's) |
+| Task `draft-prd` | inputs `brief` (text), `productId` (the id stem), `rules` and `glossary` (optional, the product's current ones), `previous` (the last Prd), `previousRules` (the last round's rules, carried by the loop), `feedback`; outputs `prd` (with the `subdomains` the brief describes) and `rules` (the product's BusinessRules: the input artifact's rules carried forward plus the brief's) |
 | Task `confirm-prd` | human on `cli-human/v1`: reads the Prd and the rules at the terminal, approves or rejects with one finding per id |
 | Validators | `prd-consistency`: `sdd/v1` over `prd` and `rules` (`rules-mismatch` when the Prd's `businessRules` is not the artifact bound), and from round two `previousRules` and `feedback` (`rule-drift`: a rule dropped, or changed in statement or status, that no finding of the last verdict names); `prd-confirmed`: over `confirm-prd` |
 | Gate `prd-gate` | both, `all` |
@@ -43,7 +43,7 @@ form is refused by the engine when wrong and the method is a Prompt a Namespace 
 |---|---|
 | `not-a-prd` | content without `capabilities` or `title`; the only finding then |
 | `unknown-rule`, `inactive-rule` | a `capabilities[].rules[]` id the BusinessRules lack or hold as not `active` |
-| `context-mismatch` | a `capabilities[].context` not in the BusinessRules' `contexts`; a cited rule tagged with another `context`; an untagged rule when `contexts` has more than one (`33-multi-context-product.md`) |
+| `subdomain-mismatch` | a capability's or a rule's `subdomain` not among the Prd's `subdomains`; a cited rule tagged with another subdomain; an untagged rule when the Prd has more than one subdomain; a subdomain id named twice (`34-subdomains.md`) |
 | `unknown-capability` | a `successCriteria[].capabilities[]` id that is no capability |
 | `goal-with-number` | a goal statement containing a digit; the number belongs to a success criterion |
 | `id-sequence` | `G-n`, `CAP-n`, `SC-n`, `Q-n` of the Prd and `BR-n` of the rules not unique and increasing in document order (a gap is a removed item) |
@@ -56,9 +56,9 @@ conformance suite's name) runs `checkSpec`; otherwise `artifacts.prd` runs `chec
 
 | Rule | Enforcer |
 |---|---|
-| a Prd process runs over one product: `rules` is one artifact listing the product's contexts, every capability's `context` is one of them, and with several contexts every rule is tagged with the one that enforces it (`33-multi-context-product.md`) | `prd-consistency` (`context-mismatch`) |
+| a Prd process runs over one product: the Prd names its subdomains, every capability's `subdomain` is one of them, and with several every rule is tagged with the subdomain whose policy it is; no context is named (`34-subdomains.md`) | `prd-consistency` (`subdomain-mismatch`) |
 | the `rules` output is `<productId>-rules` and the Prd `<productId>-prd` (`outputs.<port>.id`, `12-task.md`): a second run with the same `productId` publishes their next revisions, so the rules a Prd run writes are revision n+1 of the context's rules when the input was named the same way | `draft-prd` outputs |
-| `author-prd` writes the first Prd of a product: `contextIds` are the ids the BoundedContexts will carry, chosen by the author before domain discovery derives them, and `productId` stems the Prd's and the rules' ids (a one-context product's is its context's); `23-pack-sdlc.md` allows a cited context not yet written | convention |
+| `author-prd` writes the first Prd of a product: the agent names the subdomains from the brief and the human confirms them at `prd-gate`; the storming cuts the bounded contexts later (`34-subdomains.md`); `productId` stems the Prd's and the rules' ids | convention |
 | the Task writes the whole `BusinessRules` artifact each round, from `previousRules` when the loop carries them and from the input `rules` in round one; a `BR-n` keeps its id, statement and status unless a finding of the last verdict names it, a new policy takes the next number; `prd-consistency` refuses a Prd citing a rule the produced artifact lacks, and `rule-drift` a rule changed or dropped unasked | `prd-consistency`; `21-composition.md` |
 | a new rule carries `status: active`, `source` naming the brief, and `logic` only when the brief states the condition; a rule the brief implies but does not state is a `Q-n`, not a rule | `prd-rules` |
 | the human gate is the Prd's reviewer: `prd-consistency` decides form and citations, the human decides scope, goals and whether the capabilities are the right cut | `prd-gate` |

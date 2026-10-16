@@ -157,17 +157,19 @@ describe('sdd/v1 over a Prd', () => {
     expect(await prdCodes((a) => { a.prd.capabilities[0].rules = ['BR-6'] })).toEqual(['inactive-rule'])
   })
 
-  it('fails a capability in another context than the BusinessRules', async () => {
-    expect(await prdCodes((a) => { a.prd.capabilities[1].context = 'payments' })).toEqual(['context-mismatch'])
-    // one BusinessRules per product (33-multi-context-product.md): with two contexts every rule is tagged, and a capability cites its own context's rules
-    expect(await prdCodes((a) => { a.rules.contexts = ['expenses', 'payments'] })).toEqual(Array(content('BusinessRules').rules.length).fill('context-mismatch')) // every rule untagged
+  it('fails a capability or a rule outside the Prd\'s subdomains', async () => {
+    expect(await prdCodes((a) => { a.prd.capabilities[1].subdomain = 'payments' })).toEqual(['subdomain-mismatch'])
+    // the Prd names the subdomains (34-subdomains.md): with two every rule is tagged, and a capability cites its own subdomain's rules
+    const pay = { id: 'payments', name: 'Payments', description: 'Finance pays the claims.', type: 'supporting' }
+    expect(await prdCodes((a) => { a.prd.subdomains.push(pay) })).toEqual(Array(content('BusinessRules').rules.length).fill('subdomain-mismatch')) // every rule untagged
     const two = structuredClone(prdExample())
-    two.rules.contexts = ['expenses', 'payments']
-    for (const r of two.rules.rules) r.context = 'expenses'
+    two.prd.subdomains.push(pay)
+    for (const r of two.rules.rules) r.subdomain = 'expenses'
     expect((await adapter({ id: ++id, op: 'evaluate', payload: payload(two) })).result).toEqual({ passed: true, findings: [], evidence: [] })
-    // a rule of the other context: one finding per capability citing it; a tag outside contexts: the rule and every citation
-    expect(new Set(await prdCodes((a) => { a.rules.contexts = ['expenses', 'payments']; for (const r of a.rules.rules) r.context = 'expenses'; a.rules.rules[0].context = 'payments' }))).toEqual(new Set(['context-mismatch']))
-    expect(new Set(await prdCodes((a) => { a.rules.rules[0].context = 'ghost' }))).toEqual(new Set(['context-mismatch']))
+    // a rule of the other subdomain: one finding per capability citing it; a tag outside the Prd's: the rule and every citation
+    expect(new Set(await prdCodes((a) => { a.prd.subdomains.push(pay); for (const r of a.rules.rules) r.subdomain = 'expenses'; a.rules.rules[0].subdomain = 'payments' }))).toEqual(new Set(['subdomain-mismatch']))
+    expect(new Set(await prdCodes((a) => { a.rules.rules[0].subdomain = 'ghost' }))).toEqual(new Set(['subdomain-mismatch']))
+    expect(await prdCodes((a) => { a.prd.subdomains.push(structuredClone(a.prd.subdomains[0])); for (const r of a.rules.rules) r.subdomain = 'expenses' })).toEqual(['subdomain-mismatch'])
   })
 
   it('fails a success criterion citing a capability the Prd does not have', async () => {
@@ -187,9 +189,6 @@ describe('sdd/v1 over a Prd', () => {
     expect(await prdCodes((a) => { a.prd.openQuestions[1].id = 'Q-1' })).toEqual(['id-sequence'])
   })
 
-  it('fails a DomainModel of another context than the capability', async () => {
-    expect(await codes((a) => { a.domainModel.context = 'payments' })).toEqual(['context-mismatch'])
-  })
 
   it('refuses a rule changed or dropped since the last round that no finding named', async () => {
     const withPrevious = (mutate: (rules: any) => void, feedback?: unknown) => {
@@ -641,7 +640,6 @@ describe('sdd/v1 over an Architecture', () => {
   it('fails a block context not evaluated, a context no level 1 block realises, a Prd capability context not evaluated', async () => {
     expect(await archCodes((a) => (a.architecture.buildingBlocks[0].contexts = ['payroll']))).toEqual(['unknown-context']) // BB-3 and BB-4 still realise expenses
     expect(await archCodes((a) => a.architecture.buildingBlocks.forEach((b: { contexts: string[] }) => (b.contexts = [])))).toEqual(['context-unrealised'])
-    expect(await archCodes((a) => (a.prd.capabilities[0].context = 'payroll'))).toEqual(['prd-context-unread'])
     expect(await archCodes((a) => (a.architecture.buildingBlocks[0].parent = 'BB-9'))).toEqual(['unknown-parent'])
   })
   it('fails a listed model, glossary or Adr that was not evaluated, and one evaluated but not listed', async () => {

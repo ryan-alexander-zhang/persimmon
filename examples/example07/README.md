@@ -42,7 +42,7 @@ the project (`persimmon apply` is idempotent, the Global ones stay) to run on th
 ### 2. The Prd
 
 ```sh
-persimmon run author-prd --input brief=@brief.txt --input productId=room-booking --input 'contextIds=[room-booking]' --follow
+persimmon run author-prd --input brief=@brief.txt --input productId=room-booking --follow
 ```
 
 The run parks on you:

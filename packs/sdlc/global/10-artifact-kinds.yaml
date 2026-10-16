@@ -112,11 +112,10 @@ spec:
     - name: v1
       schema:
         type: object
-        required: [title, contexts, owner, rules]
+        required: [title, owner, rules]
         additionalProperties: false
         properties:
           title: {type: string, minLength: 1}
-          contexts: {type: array, minItems: 1, items: {type: string, minLength: 1}, description: "artifact ids of the BoundedContexts these rules govern: one product, one artifact, BR-n unique across it (33-multi-context-product.md)"}
           owner: {type: string, minLength: 1, description: "who signs these rules; a rule may name its own owner"}
           rules:
             type: array
@@ -127,7 +126,7 @@ spec:
               additionalProperties: false
               properties:
                 id: {type: string, pattern: "^BR-[0-9]+$", description: "never reused; a withdrawn rule stays with status deprecated"}
-                context: {type: string, minLength: 1, description: "the context that enforces the rule, one of contexts; required by the Validator when contexts has more than one"}
+                subdomain: {type: string, minLength: 1, description: "the Prd subdomain whose policy the rule is (34-subdomains.md); required by the Validator when the Prd has more than one"}
                 type: {enum: [fact, constraint, derivation, decision], description: "fact: a structural rule over one fact type (cardinality, necessity); constraint: a must or must not; derivation: a computed value; decision: an outcome"}
                 statement: {type: string, minLength: 1, description: "one RuleSpeak sentence in Glossary terms with a rule keyword: 'must', 'must not', 'may ... only', 'must be computed as', 'must be considered <outcome> if'"}
                 rationale: {type: string, minLength: 1, description: "an informal rule (no logic) says so here"}
@@ -292,7 +291,7 @@ spec:
     - name: v1
       schema:
         type: object
-        required: [title, problem, users, goals, nonGoals, capabilities, successCriteria, assumptions, openQuestions]
+        required: [title, problem, users, goals, nonGoals, subdomains, capabilities, successCriteria, assumptions, openQuestions]
         additionalProperties: false
         properties:
           title: {type: string, minLength: 1}
@@ -308,20 +307,33 @@ spec:
             description: "the direction, without a number: what should be true for users when this works; a number belongs to a success criterion"
             items: {type: object, required: [id, statement], additionalProperties: false, properties: {id: {type: string, pattern: "^G-[0-9]+$"}, statement: {type: string, minLength: 1}}}
           nonGoals: {type: array, items: {type: string}, description: "what this Prd refuses; may be empty"}
+          subdomains:
+            type: array
+            minItems: 1
+            description: "the parts of the business the product serves, problem space (34-subdomains.md); the storming cuts the bounded contexts that realise them"
+            items:
+              type: object
+              required: [id, name, description, type]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}
+                name: {type: string, minLength: 1}
+                description: {type: string, minLength: 1, description: "what this part of the business does, in the brief's words; never a model or a team"}
+                type: {enum: [core, supporting, generic], description: "core: a competitor copying it would hurt; supporting: needed, not differentiating; generic: bought or solved"}
           capabilities:
             type: array
             minItems: 1
             description: "the feature list; each becomes one Spec"
             items:
               type: object
-              required: [id, name, description, priority, context]
+              required: [id, name, description, priority, subdomain]
               additionalProperties: false
               properties:
                 id: {type: string, pattern: "^CAP-[0-9]+$"}
                 name: {type: string, minLength: 1}
                 description: {type: string, minLength: 1, description: "one paragraph, no stories, no acceptance scenarios"}
                 priority: {enum: [P1, P2, P3]}
-                context: {type: string, minLength: 1, description: "artifact id of the BoundedContext the capability lives in"}
+                subdomain: {type: string, minLength: 1, description: "the subdomain whose users the capability serves, one of subdomains[].id; the BoundedContext that lists it is the storming's cut"}
                 rules: {type: array, items: {type: string, pattern: "^BR-[0-9]+$"}, description: "BusinessRules ids the capability must honour"}
           successCriteria:
             type: array

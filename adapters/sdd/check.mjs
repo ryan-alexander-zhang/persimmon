@@ -52,8 +52,6 @@ export function checkSpec({ spec, prd, domainModel, architecture, rules, ids = {
 
   const capability = (prd?.capabilities ?? []).find((c) => c.id === spec.capability)
   if (!capability) bad('unknown-capability', `capability ${spec.capability} is not a capability of the Prd`)
-  // derive-domain names the BoundedContext after the storming context, so the model's context is the capability's
-  else if (domainModel?.context !== capability.context) bad('context-mismatch', `${capability.id}: context ${capability.context} is not ${domainModel?.context}, the context of the DomainModel`)
 
   const { commands, events, readModels } = domainNames(domainModel)
   const scenarios = new Set((architecture?.qualityScenarios ?? []).map((q) => q.id))
@@ -117,20 +115,22 @@ export function checkPrd({ prd, rules, previousRules, feedback, ids = {} }) {
   rulesSource(bad, prd, ids)
 
   const status = new Map((rules?.rules ?? []).map((r) => [r.id, r.status]))
-  const ruleContext = new Map((rules?.rules ?? []).map((r) => [r.id, r.context]))
-  // one BusinessRules per product (33-multi-context-product.md): a capability lives in one of its contexts and cites rules
-  // of that context, or untagged ones; with several contexts every rule says which one enforces it
-  const contexts = rules?.contexts ?? []
-  if (contexts.length > 1) for (const r of rules.rules ?? []) if (!r.context) bad('context-mismatch', `${r.id}: a product over ${contexts.length} contexts tags every rule with the context that enforces it`)
-  for (const r of rules?.rules ?? []) if (r.context && !contexts.includes(r.context)) bad('context-mismatch', `${r.id}: context ${r.context} is not one the BusinessRules govern (${contexts.join(', ')})`)
+  const ruleSubdomain = new Map((rules?.rules ?? []).map((r) => [r.id, r.subdomain]))
+  // the Prd names the product's subdomains (34-subdomains.md): a capability serves one of them and cites rules of that
+  // subdomain, or untagged ones; with several subdomains every rule says whose policy it is
+  const subdomains = (prd.subdomains ?? []).map((d) => d.id)
+  const known = subdomains.join(', ')
+  for (const [i, id] of subdomains.entries()) if (subdomains.indexOf(id) !== i) bad('subdomain-mismatch', `subdomain ${id} is named twice`)
+  if (subdomains.length > 1) for (const r of rules?.rules ?? []) if (!r.subdomain) bad('subdomain-mismatch', `${r.id}: a product over ${subdomains.length} subdomains tags every rule with the subdomain whose policy it is`)
+  for (const r of rules?.rules ?? []) if (r.subdomain && !subdomains.includes(r.subdomain)) bad('subdomain-mismatch', `${r.id}: subdomain ${r.subdomain} is not one of the Prd's (${known})`)
   const capabilityIds = prd.capabilities.map((c) => c.id)
   for (const cap of prd.capabilities) {
     for (const r of cap.rules ?? []) {
       if (!status.has(r)) bad('unknown-rule', `${cap.id}: rule ${r} is not in the BusinessRules`)
       else if (status.get(r) !== 'active') bad('inactive-rule', `${cap.id}: rule ${r} is ${status.get(r)}, not active`)
-      else if (ruleContext.get(r) && ruleContext.get(r) !== cap.context) bad('context-mismatch', `${cap.id}: rule ${r} is enforced in ${ruleContext.get(r)}, not the capability's ${cap.context}`)
+      else if (ruleSubdomain.get(r) && ruleSubdomain.get(r) !== cap.subdomain) bad('subdomain-mismatch', `${cap.id}: rule ${r} is a policy of ${ruleSubdomain.get(r)}, not the capability's ${cap.subdomain}`)
     }
-    if (!contexts.includes(cap.context)) bad('context-mismatch', `${cap.id}: context ${cap.context} is not one the BusinessRules govern (${contexts.join(', ')})`)
+    if (!subdomains.includes(cap.subdomain)) bad('subdomain-mismatch', `${cap.id}: subdomain ${cap.subdomain} is not one of the Prd's (${known})`)
   }
   for (const sc of prd.successCriteria ?? []) {
     for (const c of sc.capabilities ?? []) if (!capabilityIds.includes(c)) bad('unknown-capability', `${sc.id}: capability ${c} is not in the Prd`)
@@ -425,7 +425,6 @@ export function checkArchitecture({ architecture, prd, rules, ids = {}, adrs = {
   }
   for (const c of contexts) if (!realised.has(c)) bad('context-unrealised', `context ${c} is realised by no level 1 building block`)
   // context.business[].context may name a context of another Namespace or one not yet written (23-pack-sdlc.md): not checked
-  for (const cap of prd?.capabilities ?? []) if (cap.context && !contexts.has(cap.context)) bad('prd-context-unread', `capability ${cap.id}: context ${cap.context} is not among the BoundedContexts evaluated`)
 
   // the lists of kinds applied equal what was evaluated
   const same = (code, name, listed, given) => {

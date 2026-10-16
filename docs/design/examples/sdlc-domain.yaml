@@ -123,7 +123,6 @@ spec:
   identity: {id: expenses-rules, revision: 1}
   content:
     title: Expense claim rules
-    contexts: [expenses]
     owner: Finance operations
     rules:
       - id: BR-1
@@ -322,6 +321,11 @@ spec:
       - Paying the employee; Accounting pays from the export.
       - Corporate card reconciliation.
       - Travel booking or pre-approval of trips.
+    subdomains:
+      - id: expenses
+        name: Expense claims
+        description: "Employees claim back what they spent for the company, approvers decide, finance reimburses."
+        type: core
     capabilities:
       - id: CAP-1
         name: Submit a claim
@@ -330,7 +334,7 @@ spec:
           it. The claim refuses submission while a rule is broken and says which line and which rule, so a claim
           that reaches an approver is already complete.
         priority: P1
-        context: expenses
+        subdomain: expenses
         rules: [BR-2, BR-3]
       - id: CAP-2
         name: Route and decide a claim
@@ -339,7 +343,7 @@ spec:
           back to the employee, a small clean one approved at once, the rest to the approver. The approver sees the
           claim, every receipt, and every line that needed a justification, and approves or rejects it with a reason.
         priority: P1
-        context: expenses
+        subdomain: expenses
         rules: [BR-1, BR-3, BR-5, BR-7, BR-8, BR-9, BR-10]
       - id: CAP-3
         name: Per diem lines
@@ -347,7 +351,7 @@ spec:
           An employee adds a trip with its days and destination country; the claim computes the per diem line
           itself and needs no receipt for it.
         priority: P2
-        context: expenses
+        subdomain: expenses
         rules: [BR-2, BR-4]
       - id: CAP-4
         name: Export approved claims
@@ -355,7 +359,7 @@ spec:
           Approved claims appear to Accounting as export records in the published format, once each, with the
           receipts reachable by reference. Finance operators see which claims are exported and which wait.
         priority: P1
-        context: expenses
+        subdomain: expenses
     successCriteria:
       - {id: SC-1, statement: Median submission-to-approval time is under 3 working days over a full quarter.}
       - {id: SC-2, statement: Fewer than 5% of submitted claims are rejected or returned over a full quarter., capabilities: [CAP-1]}

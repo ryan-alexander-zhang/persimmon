@@ -41,7 +41,7 @@ each list a YAML list of RevisionRefs (`08-store.md`), one entry per context in 
 |---|---|
 | `not-an-architecture` | content without `buildingBlocks` or `introduction`; the only finding then |
 | `prd-mismatch` | `introduction.prd` is not the id of the Prd bound |
-| `unknown-context`, `context-unrealised`, `prd-context-unread` | a block's context not among those evaluated; a context evaluated that no level 1 block realises; a Prd capability's context not among those evaluated (`context.business[].context` is not checked: it may name a context of another Namespace or one not yet written) |
+| `unknown-context`, `context-unrealised` | a block's context not among those evaluated; a context evaluated that no level 1 block realises (the Prd names no context, `34-subdomains.md`; `context.business[].context` is not checked: it may name a context of another Namespace or one not yet written) |
 | `unknown-parent` | a block's `parent` is no `BB-n` |
 | `model-mismatch`, `glossary-mismatch`, `adr-mismatch` | `domainModels[]`, `glossaries[]`, `decisions[]` differ from the ids evaluated, either way |
 | `unknown-driver` | a strategy `addresses` id that is neither a `QG-n` nor a `C-n` |
@@ -64,7 +64,7 @@ else `artifacts.prd`.
 | the slot rule: the n-th Adr backs `S-n` and says so in `strategy`, so `<prd>-adr-n` names one decision across rounds and the Architecture alone tells the agent which slots are live (round two never sees round one's Adrs); a dropped `S-n` keeps its slot as a `superseded` Adr still naming it, which the Architecture does not list; the Validator holds a named strategy to its slot and a superseded one to a dropped strategy, and does not count: the kind rule ("detail is an Adr") lets an Architecture apply fewer Adrs than it has strategies, and an Adr taken outside the loop names no strategy and sits in no slot | `architecture-rules`; `adr-mismatch`, `adr-status`, `adr-strategy` |
 | one BoundedContext per product today: `rules` is one BusinessRules, per context, and `checkPrd` holds every capability to it; a product over several contexts takes `rules` as a list with the query row of `10-ports.md` | convention; `91-roadmap.md` |
 | `status: accepted` on the Architecture and its Adrs is the author's claim; the Gate's pass is the fact, read from the run; a rejected round's artifacts are committed revisions all the same, as every produce output is | convention |
-| every context the Prd's capabilities name is in `contexts`, and the caller lists its model and glossary beside it | `prd-context-unread`; convention for the lists |
+| the caller lists every BoundedContext with its model and glossary (`kind:` queries); each capability's place is the context that lists it (`34-subdomains.md`) | convention for the lists |
 | the Architecture is written once per product, after `domain-discovery` and before `spec-all`; a second run publishes `r2` and the Specs that follow cite it | convention |
 
 ## Decisions
