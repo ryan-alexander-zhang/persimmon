@@ -80,6 +80,15 @@ export class Engine {
         const last = this.store.resources.listRevisions(kind.kind, ns, id).filter((r) => r.apiVersion === kind.apiVersion).at(-1) // ascending; committed only
         return last ? { apiVersion: kind.apiVersion, kind: kind.kind, namespace: ns, id, revision: (last.spec as { identity: { revision: number } }).identity.revision } : undefined
       },
+      latestRevisions: (kind, ns) => {
+        const latest = new Map<string, { revision: number; content: unknown }>()
+        for (const r of this.store.resources.list(kind.kind, ns)) {
+          const spec = r.spec as { identity?: { id: string; revision: number }; content?: unknown }
+          if (r.apiVersion !== kind.apiVersion || !spec.identity || (latest.get(spec.identity.id)?.revision ?? 0) >= spec.identity.revision) continue
+          latest.set(spec.identity.id, { revision: spec.identity.revision, content: spec.content })
+        }
+        return [...latest.keys()].sort().map((id) => ({ ref: { apiVersion: kind.apiVersion, kind: kind.kind, namespace: ns, id, revision: latest.get(id)!.revision }, content: latest.get(id)!.content }))
+      },
     }
     const builtins = new Map<string, HandlerImpl>([
       ['workflow', workflowHandler(deps)],

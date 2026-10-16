@@ -20,6 +20,11 @@ export class Site {
     }
   }
 
+  /** This site with more roots, for an expression that reads one the site itself does not have (`content` of `fromQuery`). */
+  extend(roots: Record<string, JsonSchema | undefined>): Site {
+    return new Site({ ...this.#roots, ...roots })
+  }
+
   /** Static rule: the expression parses and type-checks against this site. Returns the result type. */
   check(expression: string): string {
     const r = this.#env.check(expression) as { valid: boolean; type?: string; error?: { message: string } }

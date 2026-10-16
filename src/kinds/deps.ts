@@ -21,6 +21,8 @@ export interface HandlerDeps {
   expand?(resource: Resource, namespace?: string): Resource[]
   /** The latest committed revision of an artifact id, for `fromArtifact` bindings (10-ports.md); absent in handler unit tests. */
   latestRevision?(kind: { apiVersion: string; kind: string }, namespace: string, id: string): RevisionRef | undefined
+  /** Every id of a kind at its latest committed revision, by id, with its content, for `fromQuery` bindings (10-ports.md); absent in handler unit tests. */
+  latestRevisions?(kind: { apiVersion: string; kind: string }, namespace: string): { ref: RevisionRef; content: unknown }[]
 }
 
 /** Definition lookup inside a closure: the run's Namespace first, then Global (04-snapshot.md). */

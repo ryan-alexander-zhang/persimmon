@@ -166,6 +166,23 @@ $defs:
           onMissing: true
         required: [fromArtifact]
         additionalProperties: false
+      - properties:
+          fromQuery:
+            type: object
+            required: [kind, where]
+            additionalProperties: false
+            properties:
+              kind:
+                type: object
+                required: [apiVersion, kind]
+                additionalProperties: false
+                x-persimmon-kind-ref: {}
+                properties:
+                  apiVersion: {$ref: "resource.yaml#/$defs/ApiVersion"}
+                  kind: {$ref: "resource.yaml#/$defs/Kind"}
+              where: {type: string, minLength: 1, description: "a CEL bool over the site's roots and `content`, the revision tested"}
+        required: [fromQuery]
+        additionalProperties: false
 
   Bindings:
     type: object

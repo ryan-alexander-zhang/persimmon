@@ -133,6 +133,16 @@ export function checkWorkflow(spec: WorkflowSpec, resolve: Resolve): Finding[] {
       }
       return { kind: 'artifact', artifactKind: b.fromArtifact.kind }
     }
+    if ('fromQuery' in b) {
+      try {
+        const type = siteFor(visible, step).extend({ content: {} }).check(b.fromQuery.where) // `content` is the revision tested, dyn: its fields show at bind
+        if (type !== 'bool' && type !== 'dyn') bad(path, `fromQuery where is ${type}, not bool`)
+      } catch (e) {
+        if (e instanceof ExpressionError) bad(path, `fromQuery where: ${e.message}`)
+        else throw e
+      }
+      return { kind: 'artifacts', artifactKind: b.fromQuery.kind }
+    }
     bad(path, 'fromEvent only in Trigger')
     return undefined
   }

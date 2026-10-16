@@ -20,6 +20,7 @@ const resolve: Resolve = (ref) => {
     'Task/security-review': { inputs: { prd: { type: prd } }, outputs: { report: { type: report } } },
     'Task/product-review': { inputs: { prd: { type: prd } }, outputs: { report: { type: report } } },
     'Gate/prd-approval-gate': { inputs: { prd: { type: prd }, security: { type: report, required: false }, product: { type: report, required: false } }, outputs: { result: { type: gateResult } } },
+    'Task/plan-them': { inputs: { research: { type: { kind: 'artifacts', artifactKind: report.artifactKind } } }, outputs: { prd: { type: prd } } },
     'Task/handle-item': { inputs: { item: { type: { kind: 'value', schema: { type: 'string' } } } }, outputs: { echo: { type: { kind: 'value', schema: { type: 'string' } } } } },
     'Workflow/prd-review-round': { inputs: { prd: { type: prd }, research: { type: report } }, outputs: { prd: { type: prd }, accepted: { type: { kind: 'value', schema: { type: 'boolean' } } } } },
   }
@@ -68,6 +69,19 @@ describe('checkWorkflow', () => {
     expect(checkWorkflow(byId, resolve).map((f) => f.message)).toEqual([expect.stringMatching(/^fromArtifact id: /)])
     byId.steps[1]!.inputs = { research: { fromArtifact: { kind: report.artifactKind, id: '1 + 1' } } }
     expect(checkWorkflow(byId, resolve).map((f) => f.message)).toEqual(['fromArtifact id is int, not string'])
+    // fromQuery: an artifacts list of its kind, `where` a bool over the site and `content`
+    const byQuery = linear()
+    byQuery.steps[1]!.uses = { kind: 'Task', name: 'plan-them' }
+    byQuery.steps[1]!.inputs = { research: { fromQuery: { kind: report.artifactKind, where: 'content.repository == inputs.repository.id' } } }
+    expect(checkWorkflow(byQuery, resolve).map((f) => f.message)).toEqual([])
+    byQuery.steps[1]!.inputs = { research: { fromQuery: { kind: prd.artifactKind, where: 'true' } } }
+    expect(checkWorkflow(byQuery, resolve).map((f) => f.message)).toEqual(['producer type differs from consumer type'])
+    byQuery.steps[1]!.inputs = { research: { fromQuery: { kind: report.artifactKind, where: 'inputs.nope' } } }
+    expect(checkWorkflow(byQuery, resolve).map((f) => f.message)).toEqual([expect.stringMatching(/^fromQuery where: /)])
+    byQuery.steps[1]!.inputs = { research: { fromQuery: { kind: report.artifactKind, where: 'inputs.repository.id' } } }
+    expect(checkWorkflow(byQuery, resolve).map((f) => f.message)).toEqual(['fromQuery where is string, not bool'])
+    byId.steps[1]!.inputs = { research: { fromQuery: { kind: report.artifactKind, where: 'true' } } }
+    expect(checkWorkflow(byId, resolve).map((f) => f.message)).toEqual(['producer type differs from consumer type']) // a list into one artifact
     const u = linear()
     u.steps[1]!.inputs = {}
     expect(checkWorkflow(u, resolve).map((f) => f.message)).toEqual(['required input research unbound'])

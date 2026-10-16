@@ -147,6 +147,20 @@ describe('bindings', () => {
     expect(() => bind({ x: { fromArtifact: { ...gone.fromArtifact, id: 'inputs.maxRounds' } } }, sources, site)).toThrow(/fromArtifact: id 3 is not a string/)
   })
 
+  it('fromQuery binds every latest revision its where holds for, by id; none is an empty list; a where that throws or answers no bool fails the bind', () => {
+    const kind = { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement' }
+    const rev = (id: string, revision: number, content: unknown) => ({ ref: { ...kind, namespace: 'demo', id, revision }, content })
+    const found = [rev('a', 2, { owner: 'checkout-v2', flag: true }), rev('b', 1, { owner: 'other' }), rev('c', 4, { owner: 'checkout-v2', flag: false })]
+    const s = { ...sources, query: () => found }
+    const q = (where: string) => ({ x: { fromQuery: { kind, where } } })
+    expect(bind(q('content.owner == inputs.prd.id'), s, site)).toEqual({ x: { kind: 'artifacts', refs: [found[0]!.ref, found[2]!.ref] } }) // `content` beside the site's own roots
+    expect(bind(q('content.owner == "nobody"'), s, site)).toEqual({ x: { kind: 'artifacts', refs: [] } }) // an answer, not an absence
+    expect(bind(q('has(content.flag) && content.flag'), s, site)).toEqual({ x: { kind: 'artifacts', refs: [found[0]!.ref] } }) // an optional field guarded
+    expect(() => bind(q('content.flag'), s, site)).toThrow(/fromQuery: ProductRequirement\/b\.r1: /) // unguarded: the revision named, never a shorter list
+    expect(() => bind(q('content.owner'), s, site)).toThrow(/fromQuery: ProductRequirement\/a\.r2: where answered "checkout-v2", not a bool/)
+    expect(() => bind(q('true'), sources, site)).toThrow(/x: source absent/) // no store at the site
+  })
+
   it('an absent source without onMissing is an error; an unfinished step is absent', () => {
     expect(() => bind({ x: { fromState: 'draft' } }, sources, site)).toThrow(/x: source absent/)
     expect(bind({ x: { fromStep: { stepRef: 'review', output: 'result' }, onMissing: 'omit' } }, { steps: {} }, site)).toEqual({})

@@ -154,6 +154,8 @@ export interface Sources {
   event?: Record<string, unknown>
   /** The latest committed revision of an artifact id in the run's Namespace, for `fromArtifact`; absent where the site has no store. */
   latest?: (kind: { apiVersion: string; kind: string }, id: string) => RevisionRef | undefined
+  /** Every id of a kind in the run's Namespace at its latest committed revision, by id, with its content, for `fromQuery`; absent where the site has no store. */
+  query?: (kind: { apiVersion: string; kind: string }) => { ref: RevisionRef; content: unknown }[]
 }
 
 /** Evaluates one Binding; `undefined` means the source is absent (caller applies `onMissing`). */
@@ -169,6 +171,25 @@ export function evaluateBinding(b: Binding, s: Sources, site: Site): RuntimeValu
     if (typeof id !== 'string') throw new PortError(`fromArtifact: id ${JSON.stringify(id)} is not a string`)
     const ref = s.latest?.(b.fromArtifact.kind, id)
     return ref ? { kind: 'artifact', ref } : undefined
+  }
+  if ('fromQuery' in b) {
+    // every latest revision `where` holds for, by id; none is an empty list, an answer, not an absence (10-ports.md)
+    const candidates = s.query?.(b.fromQuery.kind)
+    if (!candidates) return undefined
+    const at = site.extend({ content: {} })
+    const ctx = celContext(s)
+    const refs: RevisionRef[] = []
+    for (const c of candidates) {
+      let keep: unknown
+      try {
+        keep = at.evaluate(b.fromQuery.where, { ...ctx, content: c.content })
+      } catch (e) {
+        throw new PortError(`fromQuery: ${c.ref.kind}/${c.ref.id}.r${c.ref.revision}: ${(e as Error).message}`) // a typo shows, never a silently shorter list
+      }
+      if (typeof keep !== 'boolean') throw new PortError(`fromQuery: ${c.ref.kind}/${c.ref.id}.r${c.ref.revision}: where answered ${JSON.stringify(keep)}, not a bool`)
+      if (keep) refs.push(c.ref)
+    }
+    return { kind: 'artifacts', refs }
   }
   const v = b.fromEvent.split('.').reduce<unknown>((o, k) => (o as Record<string, unknown> | undefined)?.[k], s.event)
   return v === undefined ? undefined : { kind: 'value', value: v }
