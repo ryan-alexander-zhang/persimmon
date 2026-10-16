@@ -25,6 +25,11 @@ A KindDefinition with `revisioned: true` (`01-kind-definition.md`). Nothing else
 Storage: canonical content in the ResourceStore, representations in the BlobStore
 (`08-store.md`). Git is an export target, never the source of truth.
 
+Representations: the content as JSON, named `json`, on every revision an Adapter publishes; and
+every file an agent leaves under `<files>/<port>/` in its workspace (`19-adapter-roles.md`), named by
+its stem, typed by its extension. `persimmon get <Kind>/<name> --files <dir>` writes them out as
+`<name>.<ext>`; the UI does not serve them yet (`91-roadmap.md`).
+
 ## RelationType
 
 An Immutable Definition kind, `scope: Any`, `snapshot: Definition`, no handler.
@@ -86,6 +91,17 @@ Query: `list` by the three labels, from the CLI, the API, or the `list` Engine c
 - Artifact kinds and RelationTypes beyond the examples are pack content (`20-pack.md`).
 - No artifact scope (internal versus exported); Workflow output contracts encapsulate, and
   every revision stays addressable for audit (reference roadmap; kept out).
+- A file the agent draws beside an output is a representation of the revision, not a path in
+  its content. `examples/example02` had the agent write `reports/test-report.html` into the
+  workspace and the TestReport hold the path: unversioned, undigested, overwritten by the next
+  run. Now the agent runner names a fresh directory in the workspace, reads `<files>/<port>/`
+  after the answer and puts each file as a blob beside the content's `json`; the revision pins
+  them by digest, and `get --files` writes the exact bytes of the revision under review.
+  The name is the file's stem as a DNS label, the media type from a short extension table
+  (unknown: `application/octet-stream`), one flat directory per port, 8 MiB per file; a nested
+  directory is not read. Proven live on `claude-sonnet-5`: an Adr published with `json`, `adr`
+  (`text/html`, 2544 bytes) and `decision` (`text/vnd.mermaid`), exported as `adr.html` and
+  `decision.mmd`, the files directory gone from the workspace. Found in UAT.
 
 ## Examples
 

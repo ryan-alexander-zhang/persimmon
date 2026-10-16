@@ -9,7 +9,7 @@ findings back to the coder, up to three rounds. Claude then writes an HTML test 
 spec ─▶ implement (codex) ─▶ Gate: coverage script + AC check (claude) ─┐
           ▲                                                             │ rejected: next round with the findings
           └─────────────────────────────────────────────────────────────┘
-        accepted or 3 rounds ─▶ write-report (claude) ─▶ reports/test-report.html
+        accepted or 3 rounds ─▶ write-report (claude) ─▶ TestReport + report.html as its representation
 ```
 
 Files:
@@ -110,8 +110,9 @@ report is still written and the run ends `Failed quality_not_met`.
 ### 3. Read the results
 
 ```sh
-open app/reports/test-report.html                                    # the HTML report (macOS)
 persimmon tree WorkflowRun/spec-to-code-<hex>                        # every run and every artifact, by name
+persimmon get TestReport/spec-to-code-<hex>-report-testreport.r1 --files out   # report.html beside json.json
+open out/report.html                                                 # the HTML report (macOS)
 persimmon get TestReport/spec-to-code-<hex>-report-testreport.r1     # content under spec.content
 persimmon get GateRun/spec-to-code-<hex>-rounds-1-gate               # status.outputs.result.results.coverage / .acceptance
 persimmon get ImplementationReport/spec-to-code-<hex>-rounds-1-implement-report.r1

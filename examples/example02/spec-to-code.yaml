@@ -63,10 +63,9 @@ spec:
     - name: v1
       schema:
         type: object
-        required: [passed, path, summary]
+        required: [passed, summary]
         properties:
           passed: {type: boolean}
-          path: {type: string, description: "the HTML file, relative to the app directory"}
           summary: {type: string}
           coverage: {type: string}
           rounds: {type: integer, description: "how many implement rounds the Gate took"}
@@ -187,11 +186,11 @@ spec:
   executorRef: {kind: Executor, name: reporter}
   action:
     instructions: |
-      Write a self-contained HTML test report to reports/test-report.html in the current directory, the app
-      (create the directory). Sections: verdict (passed or not, rounds taken), coverage numbers from the
-      coverage validator finding, one table row per acceptance criterion with its test and status from the
-      acceptance validator, and the implementation summary. Plain HTML and inline CSS, no scripts.
-      Then publish a TestReport: passed, path, summary, coverage, rounds.
+      Write a self-contained HTML test report as `report.html` in the files directory named below, under the
+      `testReport` port: it becomes a representation of the published TestReport. Sections: verdict (passed or
+      not, rounds taken), coverage numbers from the coverage validator finding, one table row per acceptance
+      criterion with its test and status from the acceptance validator, and the implementation summary. Plain
+      HTML and inline CSS, no scripts. Then answer the TestReport: passed, summary, coverage, rounds.
     context:
       - {kind: artifact, input: spec}
       - {kind: artifact, input: report}

@@ -77,6 +77,7 @@ Inspect and drive runs:
 ```sh
 persimmon get WorkflowRun                       # phases, waiting reasons, errors
 persimmon get Spec --behind                     # latest revisions whose pinned inputs have a newer revision
+persimmon get Design/<id> --files out/          # its representations (the HTML, the mockups the agent drew) as files
 persimmon tree WorkflowRun/<name>               # the run, what it produced and every run it owns
 persimmon complete <taskRun>                    # answer a human Task; use --file result.yaml to script it
 persimmon resume                                # drive waiting work after a Signal or a timer

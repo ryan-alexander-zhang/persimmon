@@ -191,6 +191,16 @@ Result: a ValidationResult (`10-ports.md`). No `credentials`, no `security` (`14
   install command in the message) or a different digest (`skill_digest_mismatch`); it logs the
   skills present that no context entry declares. `--add-dir` only granted read access; a native
   skill can be invoked. Found in UAT.
+- Files ride beside the answer, not inside it. The structured output is one flat JSON object
+  under a closed schema, so a `files[]` key beside the ports was a schema change on every Task
+  and a second thing for the agent to misplace; a directory the prompt names is what every
+  agent already does with a file. The runner makes `<workspace>/.persimmon-files-<rand>/` per
+  attempt, since a read-only or workspace-write sandbox lets the agent write there and nowhere
+  else, says in the Answer section that a file for an output goes in `<files>/<port>/` (a list
+  output: `<port>/<n>/`), and removes the directory after the publish, success or not. A stem
+  that is no DNS label, a second file of one stem, a file named `json` or one over the cap is
+  `agent_failed`, retryable: the agent's mistake, told back to it. `subprocess/v1` gets the
+  directory too but no note; its payload is the program's. Found in UAT (`18-artifact.md`).
 
 ## Examples
 

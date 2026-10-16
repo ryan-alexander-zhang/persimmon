@@ -374,7 +374,8 @@ _Avoid_: stale, outdated, drift (drift is `rule-drift`, a Gate finding within on
 
 **Representation**:
 Bytes of an **Artifact** in a media type (Markdown, HTML, bundle), stored in BlobStore at
-`blob://<digest>`.
+`blob://<digest>`; `json` is the content itself, every other one a file the agent left under
+`<files>/<port>/`, named by its stem; `persimmon get --files` writes them out as `<name>.<ext>`.
 _Avoid_: rendering, export, format, attachment
 
 **Relation**:
