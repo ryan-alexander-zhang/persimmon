@@ -282,6 +282,8 @@ describe('persimmon CLI', () => {
     const warnings = out.map((l) => l.trim()).filter((l) => l.startsWith('warning unrealised: '))
     expect(warnings).toContain('warning unrealised: command Set Risk Flag: no Design of expenses-model realises it')
     expect(warnings.some((l) => l.includes('readModel My Claims View'))).toBe(false) // GET /claims/mine realises it
+    // what the Export Policy invokes is noted as internal, an info the tree shows beside the warnings
+    expect(out.map((l) => l.trim())).toContain('info unrealised-internal: command Export Claim: invoked by Export Policy; no Design of expenses-model realises it, a handler does')
     const step = parse(readFileSync('packs/sdlc/global/80-workflows.yaml', 'utf8').split('\n---\n').find((d) => d.includes('name: design-coverage}'))!)
     expect(step.spec.steps[0].inputs.designs.fromQuery.where).toBe('has(content.domainModel) && content.domainModel == inputs.domainModel.id')
     expect(await run('run', 'plan-all', '--input', 'designs=kind:Plan')).toBe(1)
