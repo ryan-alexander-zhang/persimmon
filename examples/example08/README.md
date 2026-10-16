@@ -24,7 +24,8 @@ revision that passed). Read it for the shapes, or load it without running anythi
 - `persimmon` on your PATH: `npm install && npm install -g .` in the repository root
   ([Installation](../../README.md#installation))
 - `claude` CLI installed and logged in
-- about 90 minutes of wall clock and your attention at seven Gates
+- about 90 minutes of wall clock and your attention at six Gates (the Prd, three storming levels, the
+  Architecture, the design system)
 
 ## Steps
 
@@ -57,7 +58,7 @@ persimmon run domain-discovery --input 'prd=<ref>' --input 'rules=<ref>' --follo
 ```
 
 Three Gates, one per storming level; each passed at round two after one rejection. The design
-level carries both contexts; the derivation (no Gate) wrote `BoundedContext/car-reservations`,
+level carries both contexts; the derivation (a script Gate, no human) wrote `BoundedContext/car-reservations`,
 `BoundedContext/fleet-care` and a Glossary and DomainModel for each, all at round one. Round one of
 the process level re-raised Prd questions the big-picture Gate had already answered; the Prompt now
 reads a settled question off the confirmed model and never raises it again (`26-domain-discovery-process.md`).
