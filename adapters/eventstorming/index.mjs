@@ -1,8 +1,9 @@
 // eventstorming/v1: the evaluator Role (19-adapter-roles.md) over the event storming grammar (24-eventstorming.md).
-// `evaluate` runs `check` on `artifacts.model.content` and answers a ValidationResult (10-ports.md); with an
+// `evaluate` runs `check` on `artifacts.model.content`, and `checkSubdomains` beside an `artifacts.prd`, and answers a
+// ValidationResult (10-ports.md); with an
 // `artifacts.domainModel` it runs `checkDerived` instead (26-domain-discovery.md). No Engine callbacks.
 import { createInterface } from 'node:readline'
-import { check, checkDerived, levelRank } from '../../tools/eventstorming/grammar/index.mjs'
+import { check, checkDerived, checkSubdomains, levelRank } from '../../tools/eventstorming/grammar/index.mjs'
 
 const describe = {
   adapterId: 'eventstorming/v1',
@@ -36,6 +37,9 @@ function evaluate(payload) {
   }
   const configuration = payload.validator?.configuration ?? {}
   const findings = [...check(model.content)] // content that is not a model is a not-a-model finding, never an Adapter error
+  // beside the Prd it storms, its contexts name the Prd's subdomains (34-subdomains.md)
+  const prd = payload.artifacts.prd
+  if (prd && !findings.some((f) => f.code === 'not-a-model')) findings.push(...checkSubdomains(model.content, prd.content))
   const want = payload.inputs?.level?.value ?? configuration.level // the Validator's own input, else its configuration
   const level = model.content?.meta?.level
   if (want !== undefined && !(levelRank[level] >= levelRank[want])) {

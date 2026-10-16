@@ -6,13 +6,13 @@ metadata: {name: storming-dsl}
 spec:
   mediaType: text/markdown
   content: |
-    # Event storming DSL 4.0, the content of an EventStorming artifact
+    # Event storming DSL 4.1, the content of an EventStorming artifact
 
-    You answer the `model` port with one object: `{version: "4.0", meta: {name, level}, contexts: [], contextRelationships: [], nodes: [], edges: []}`.
+    You answer the `model` port with one object: `{version: "4.1", meta: {name, level}, contexts: [], contextRelationships: [], nodes: [], edges: []}`.
     No `createdAt`, no positions; layout is computed from `order` and the relations.
 
     - `meta.level` is `big-picture`, `process` or `design`; it gates which node types may appear and rises as phases complete.
-    - `contexts[]`: `{id, name, order, classification?: core|supporting|generic, bigBallOfMud?}`; `order` from 0, left to right; `id` a DNS label (lower case letters, digits, hyphens, at most 40 characters): it becomes the BoundedContext artifact id.
+    - `contexts[]`: `{id, name, order, classification?: core|supporting|generic, bigBallOfMud?, subdomain?}`; `order` from 0, left to right; `id` a DNS label (lower case letters, digits, hyphens, at most 40 characters): it becomes the BoundedContext artifact id; `subdomain` is the id of the Prd subdomain the context realises, one per context.
     - `contextRelationships[]`: `{id, source, target, type}`; `source` is upstream; `type` is one of partnership, sharedKernel, customerSupplier, conformist, acl, openHostService, publishedLanguage, separateWays.
     - `nodes[]`: `{id, type, label, context?, order?, properties}`; `properties` is always an object, `{}` when empty.
       - types: `domainEvent` (past tense, carries `order`), `command` (imperative), `actor`, `readModel` (ends in View), `policy` (ends in Policy), `aggregate`, `constraint`, `externalSystem`, `hotspot` (the open question itself), `opportunity`.
@@ -43,7 +43,7 @@ spec:
     2. Converge: deduplicate, past tense, one global `order` from 0; events that happen in parallel share an `order`.
     3. Mark: `pivotal: true` on the few events that change the state of the business (three to seven); `temporal: true` on events raised by time passing; the two ways one moment can go share an `alternativeSet`.
     4. Unhappy paths: what goes wrong, gets cancelled, rejected, expired, retried. People forget them; you may not.
-    5. Draft contexts: group events where the language changes meaning or the owner changes; write `contexts` and `nodes[].context`. The Prd's capabilities already name the product's contexts: use those ids for them, and add one only where the events show a language the Prd did not name.
+    5. Draft contexts: group events where the language changes meaning or the owner changes; write `contexts` and `nodes[].context`. The Prd's `subdomains` are the parts of the business to look in, not the cut: one subdomain whose events speak two languages is two contexts; give each context its own id, a noun for the model (`car-reservations`), and its `subdomain`. A context whose events serve two subdomains is a hotspot on the context's first event: the cut is not settled.
     6. Edges at this level: only `externalSystem emits domainEvent`, `hotspot annotates`, `opportunity highlights`. The timeline is `order`, never event-to-event edges.
 
     Gate you must meet: every event past tense with an `order`; the chain reads as one story with no missing step; unhappy paths present; pivotal events marked; alternatives share a set; every unknown or disagreement a hotspot with kind and priority. `meta.level: big-picture`.
@@ -87,10 +87,10 @@ spec:
     3. Split what is overloaded: an aggregate with more than five commands or five events is usually two.
 
     Context map:
-    4. Classify every context: core (a competitor copying it would hurt), supporting (needed, not differentiating), generic (could be bought). Most models have one or two core contexts.
+    4. Every context names the Prd subdomain it realises in `subdomain`, and every Prd subdomain is realised by at least one context; `classification` is that subdomain's `type`, never another.
     5. Every edge that crosses a context is a seam; each pair with a seam gets at least one `contextRelationships` entry, `source` the upstream (the one that sets the terms). Downstream can ask for changes: customerSupplier; cannot: conformist; cannot and must protect its model: acl; upstream serves many the same way: openHostService, plus publishedLanguage when the contract is a documented schema; symmetric: partnership, sharedKernel, separateWays. A context whose model is a recognised mess gets `bigBallOfMud: true`.
 
-    Gate you must meet: every command has handledBy; every aggregate emits at least one event or its command's produces edge carries the spine; every "you cannot X unless Y" is a constraint with a rule; no aggregate over the threshold without a hotspot saying so; every context classified; every crossing pair typed; no relationship from a context to itself. `meta.level: design`.
+    Gate you must meet: every command has handledBy; every aggregate emits at least one event or its command's produces edge carries the spine; every "you cannot X unless Y" is a constraint with a rule; no aggregate over the threshold without a hotspot saying so; every context names a Prd subdomain and has its type; every subdomain realised; every crossing pair typed; no relationship from a context to itself. `meta.level: design`.
 
     Also answer the `contexts` port: the ids of `contexts[]`, in `order`.
 ---

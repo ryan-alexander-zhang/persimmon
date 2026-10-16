@@ -119,4 +119,6 @@ declare module '*/tools/eventstorming/grammar/index.mjs' {
    * fallback). Findings in `check`'s order.
    */
   export function checkDerived(model: unknown, domainModel: unknown, context: string): Finding[]
+  /** A storming's contexts against the Prd's `subdomains` (34-subdomains.md). */
+  export function checkSubdomains(model: unknown, prd: unknown): Finding[]
 }

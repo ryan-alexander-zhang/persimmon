@@ -47,7 +47,7 @@ are migrated by the rename alone, said in their README.
 | Task `draft-prd`, ReviewLoop `author-prd` | inputs `productId` (the id stem) and `contextIds` (one or more) replace `contextId`; outputs `<productId>-prd` and `<productId>-rules`; a one-context product passes the same id twice |
 | Prompt `prd-rules` | `capabilities[].context` is one of `contextIds`, never another; `rules.contexts` is `contextIds`; with more than one context every rule carries `context`; a capability that needs two contexts is two capabilities, as before |
 | Validator `prd-consistency` (`checkPrd`) | `context-mismatch`: a capability's `context` not in `rules.contexts`; a cited rule whose `context` is set and differs from the capability's; a rule without `context` when `contexts` has more than one |
-| Prompt `storming-big-picture` | the Prd's capability contexts are the storming contexts, with the ids the Prd uses, so `derive-all` publishes the BoundedContexts the capabilities cite (already said; restated with the list) |
+| Prompt `storming-big-picture` | (superseded, `34-subdomains.md`) the Prd's capability contexts are the storming contexts, with the ids the Prd uses, so `derive-all` publishes the BoundedContexts the capabilities cite (already said; restated with the list) |
 | Prompt `derive-domain-rules` | invariants and `rules` citations take the rules tagged with this context, or untagged |
 | `spec-all`, `design-all` | unchanged: one run per context, with that context's capability ids or blocks and its DomainModel and Glossary; a Workflow cannot read a Prd to pick a capability's context, so the caller does (`27-spec-process.md`, `29-design-process.md` rows stand) |
 | `architect`, `design-system`, `plan-all` | unchanged |

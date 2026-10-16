@@ -10,7 +10,7 @@ human confirms each phase in the editor, and the design-level model is projected
 ```text
 Pipeline domain-discovery
   bigPicture: ReviewLoop storm-big-picture ─┐ produce: Task event-storm (level literal)
-  process:    ReviewLoop storm-process      ├ review:  Gate storming-gate = Validator eventstorming-grammar (level) + storming-confirmed (human)
+  process:    ReviewLoop storm-process      ├ review:  Gate storming-gate = Validator eventstorming-grammar (level, prd) + storming-confirmed (human)
   design:     ReviewLoop storm-design      ─┘ previous and feedback fed back; base = the phase before
   derive:     Workflow derive-all: repeat over the design phase's `contexts` ─▶ Workflow derive-one per context
                  derive: Task derive-domain ─▶ BoundedContext, Glossary, DomainModel
@@ -39,7 +39,7 @@ thing is defined.
 | Prompts `storming-dsl`, `storming-big-picture`, `storming-process`, `storming-design`, `derive-domain-rules` | the old tool's skill references as Prompt text; the design Prompt carries the context map |
 | Task `event-storm` | inputs `prd`, `rules` (optional, the BusinessRules the Prd cites), `level`, `base` (the phase before), `previous` (this phase's last round), `feedback`; outputs `model`, `contexts` (the ids in order); an unknown is a hotspot, never a question |
 | Task `confirm-storming` | human on `cli-human/v1`: open the model in `persimmon ui`, approve or reject with one finding per node, edge or context |
-| Validators | `eventstorming-grammar` with `level`; `storming-confirmed` over `confirm-storming`; `domain-consistency`: `eventstorming/v1` with `model`, `domainModel` and `context`, the grammar's `checkDerived` |
+| Validators | `eventstorming-grammar` with `level` and the `prd` (`checkSubdomains`, `34-subdomains.md`); `storming-confirmed` over `confirm-storming`; `domain-consistency`: `eventstorming/v1` with `model`, `domainModel` and `context`, the grammar's `checkDerived` |
 | Gates | `storming-gate` (grammar and confirmed, `all`); `derived-gate` (consistency) |
 | ReviewLoops `storm-big-picture`, `storm-process`, `storm-design` | `produce` `event-storm` with the level as a literal, `review` `storming-gate`, `maxRounds: 3`; `process` and `design` take `base` from the phase before; all three take `rules` (optional) |
 | Task `derive-domain` | inputs `model`, `contextId`, `prd`, `rules` (optional); outputs `context`, `glossary`, `domainModel`; a projection, invents nothing |
@@ -66,6 +66,7 @@ when `artifacts.domainModel` is present; `passed` iff no error. Labels compare e
 | Rule | Enforcer |
 |---|---|
 | a phase's model has `meta.level` at least the phase's; the grammar Validator takes the level from the Gate | `storming-gate` |
+| a context names one of the Prd's subdomains; at design every context names one and has its type, and every subdomain is realised (`34-subdomains.md`) | `storming-gate` (`checkSubdomains`) |
 | the agent asks nothing: an unknown is a hotspot with kind and priority; the human gate is where questions are answered, and an answer given there is modelled into that phase, so the next phase reads it off `base` and never raises the Prd question again; a Prd `Q-n` with a `resolution` is modelled, not raised | Prompts (`storming-dsl`); `confirm-storming` |
 | a derivation is a projection: every name a storming label, every relation an edge; `domain-consistency` refuses drift | `derived-gate` |
 | `glossary.context` and `domainModel.context` cite the storming context id, and the BoundedContext artifact the Task publishes carries that id (`outputs.context.id: inputs.contextId`, `12-task.md`), the Glossary `<context>-glossary`, the DomainModel `<context>-model`; a second derivation publishes their next revisions | `derive-domain` outputs; Validator later |

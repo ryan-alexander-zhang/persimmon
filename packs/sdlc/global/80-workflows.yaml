@@ -19,6 +19,7 @@ spec:
     inputs:
       model: {fromStep: {stepRef: produce, output: model}}
       level: {literal: big-picture}
+      prd: {fromInput: prd}
     timeout: 72h
   subject: model
   previous: previous
@@ -47,6 +48,7 @@ spec:
     inputs:
       model: {fromStep: {stepRef: produce, output: model}}
       level: {literal: process}
+      prd: {fromInput: prd}
     timeout: 72h
   subject: model
   previous: previous
@@ -75,6 +77,7 @@ spec:
     inputs:
       model: {fromStep: {stepRef: produce, output: model}}
       level: {literal: design}
+      prd: {fromInput: prd}
     timeout: 72h
   subject: model
   previous: previous

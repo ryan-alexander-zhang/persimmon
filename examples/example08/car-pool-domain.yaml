@@ -349,7 +349,7 @@ spec:
     id: car-pool-prd-storming
     revision: 1
   content:
-    version: "4.0"
+    version: "4.1"
     meta:
       name: Company Car Pool
       level: design
@@ -358,10 +358,12 @@ spec:
         name: Car Reservations
         order: 0
         classification: core
+        subdomain: reservations
       - id: fleet-care
         name: Fleet Care
         order: 1
         classification: supporting
+        subdomain: fleet-care
     contextRelationships:
       - id: cr-01
         source: fleet-care

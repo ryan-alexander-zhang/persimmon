@@ -6,6 +6,7 @@ spec:
   inputs:
     model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
     level: {type: {kind: value, schema: {type: string, enum: [big-picture, process, design]}}, required: false}
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false, description: "the Prd stormed: the contexts name its subdomains (34-subdomains.md)"}
   evaluator:
     type: adapter
     adapter: eventstorming/v1

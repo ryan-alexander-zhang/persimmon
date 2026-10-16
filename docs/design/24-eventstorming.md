@@ -40,10 +40,11 @@ publish; grammar findings arrive all at once from the Validator.
 |---|---|
 | `elements`, `levels`, `levelRank`, `relations`, `contextRelations`, `propertyTypes` | the tables |
 | `check(content)` | `Finding[]` in the engine's shape `{severity, code, message}`; errors first, then by code and message |
+| `checkSubdomains(content, prd)` | the contexts against the Prd's `subdomains` (`34-subdomains.md`): `subdomain-unknown` at any level; at design `context-no-subdomain`, `classification-mismatch`, `subdomain-unrealised`; same order |
 
 | Severity | Codes |
 |---|---|
-| error | `not-a-model`, `duplicate-id`, `undeclared-context`, `self-relationship`, `not-at-level`, `order-not-on-event`, `property-not-on-type`, `bad-enum`, `bad-parameters`, `edge-endpoint-missing`, `illegal-connection`, `wrong-relation` |
+| error | `not-a-model`, `duplicate-id`, `undeclared-context`, `self-relationship`, `not-at-level`, `order-not-on-event`, `property-not-on-type`, `bad-enum`, `bad-subdomain`, `bad-parameters`, `edge-endpoint-missing`, `illegal-connection`, `wrong-relation` |
 | warning | `event-without-order`, `empty-context`, `no-pivotal-event`, `orphan-event` (not a temporal event, not at big-picture), `dangling-command`, `unissued-command`, `overloaded-aggregate` (over 5 commands or 5 events), `untriggered-policy`, `idle-policy`, `policy-without-execution` (an error at `design`: the DomainModel requires it), `lone-alternative`, `reaction-cycle`, `duplicate-edge`, `unrecorded-resolution` |
 | info | `open-hotspots` |
 
@@ -80,7 +81,7 @@ executor".
 
 | Member | Content |
 |---|---|
-| Validator `eventstorming-grammar` | inputs `model` and optional value `level`, `evaluator: {type: adapter, adapter: eventstorming/v1}`; a Gate per phase (unit 2) binds `level`, since `configuration` lives on the Validator (`14-gate.md`) and a Gate's `validators[]` carries inputs only |
+| Validator `eventstorming-grammar` | inputs `model`, optional value `level` and optional artifact `prd` (the contexts then run `checkSubdomains`, `34-subdomains.md`), `evaluator: {type: adapter, adapter: eventstorming/v1}`; a Gate per phase (unit 2) binds `level`, since `configuration` lives on the Validator (`14-gate.md`) and a Gate's `validators[]` carries inputs only |
 
 ## Rules
 

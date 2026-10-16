@@ -6,6 +6,7 @@ spec:
   inputs:
     model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
     level: {type: {kind: value, schema: {type: string, enum: [big-picture, process, design]}}}
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
   validators:
@@ -14,6 +15,7 @@ spec:
       inputs:
         model: {fromInput: model}
         level: {fromInput: level}
+        prd: {fromInput: prd}
     - name: confirmed
       ref: {kind: Validator, name: storming-confirmed}
       inputs:

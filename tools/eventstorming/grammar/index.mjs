@@ -237,6 +237,38 @@ export function check(content) {
 }
 
 /** A label set the storming holds against the one the domain model holds. */
+/**
+ * A storming's contexts against the subdomains of the Prd it storms (34-subdomains.md): a context's
+ * `subdomain` is one of the Prd's at any level; at design level every context names one, has that
+ * subdomain's `type` as its classification, and every subdomain is realised by some context.
+ * Findings in `check`'s order and shape.
+ */
+export function checkSubdomains(model, prd) {
+  const findings = []
+  const add = (severity, code, message) => findings.push({ severity, code, message })
+  const design = isObject(model?.meta) && model.meta.level === 'design'
+  const subdomains = new Map(arr(prd?.subdomains).map((d) => [d.id, d]))
+  const known = [...subdomains.keys()].join(', ')
+  const named = new Set()
+  for (const c of arr(model?.contexts)) {
+    if (c.subdomain == null) {
+      if (design) add('error', 'context-no-subdomain', `context ${c.id}: names no subdomain - one of the Prd's (${known})`)
+      continue
+    }
+    const d = subdomains.get(c.subdomain)
+    if (!d) {
+      add('error', 'subdomain-unknown', `context ${c.id}: subdomain '${c.subdomain}' is not one of the Prd's (${known})`)
+      continue
+    }
+    named.add(d.id)
+    if (design && c.classification !== d.type) {
+      add('error', 'classification-mismatch', `context ${c.id}: classification ${c.classification ?? 'none'} is not ${d.type}, the type of subdomain ${d.id}`)
+    }
+  }
+  if (design) for (const id of subdomains.keys()) if (!named.has(id)) add('error', 'subdomain-unrealised', `subdomain ${id}: no context realises it`)
+  return findings.sort(order)
+}
+
 function diffLabels(add, what, storming, derived, missingCode, extraCode = missingCode) {
   for (const l of storming) if (!derived.includes(l)) add('error', missingCode, `${what} '${l}' is in the storming but not in the domain model`)
   for (const l of derived) if (!storming.includes(l)) add('error', extraCode, `${what} '${l}' is in the domain model but not in the storming`)

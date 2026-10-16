@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseAllDocuments } from 'yaml'
 import { describe, expect, it } from 'vitest'
-import { check, checkDerived } from '../../tools/eventstorming/grammar/index.mjs'
+import { check, checkDerived, checkSubdomains } from '../../tools/eventstorming/grammar/index.mjs'
 
 const fixture = (name: string): Record<string, unknown> => {
   const model = JSON.parse(readFileSync(join(import.meta.dirname, name), 'utf8'))
@@ -297,5 +297,27 @@ describe('the design example', () => {
   it('expense-claims-storming r2 has no error and expenses-model agrees with it', () => {
     expect(check(model).filter((f) => f.severity === 'error')).toEqual([])
     expect(checkDerived(model, domainModel, 'exp')).toEqual([])
+  })
+})
+
+describe('checkSubdomains', () => {
+  const prd = { subdomains: [{ id: 'reservations', type: 'core' }, { id: 'fleet-care', type: 'supporting' }] }
+  const ctx = (id: string, extra: Record<string, unknown> = {}) => ({ id, name: id, order: 0, ...extra })
+  const at = (level: string, contexts: unknown[]) => model({ version: '4.1', meta: { name: 'T', level }, contexts })
+  const codesOf = (m: unknown) => checkSubdomains(m, prd).map((f) => f.code)
+
+  it('passes a design model whose contexts realise every subdomain with its type, one subdomain split in two', () => {
+    const contexts = [ctx('car-reservations', { subdomain: 'reservations', classification: 'core' }), ctx('car-approvals', { subdomain: 'reservations', classification: 'core' }), ctx('fleet-care', { subdomain: 'fleet-care', classification: 'supporting' })]
+    expect(checkSubdomains(at('design', contexts), prd)).toEqual([])
+  })
+
+  it('asks for a subdomain, its type and every subdomain only at design level', () => {
+    expect(codesOf(at('big-picture', [ctx('a')]))).toEqual([])
+    expect(codesOf(at('design', [ctx('a'), ctx('b', { subdomain: 'fleet-care', classification: 'supporting' })]))).toEqual(['context-no-subdomain', 'subdomain-unrealised'])
+    expect(codesOf(at('design', [ctx('a', { subdomain: 'reservations', classification: 'supporting' }), ctx('b', { subdomain: 'fleet-care' })]))).toEqual(['classification-mismatch', 'classification-mismatch'])
+  })
+
+  it('refuses a subdomain the Prd does not name at any level', () => {
+    expect(codesOf(at('big-picture', [ctx('a', { subdomain: 'payroll' })]))).toEqual(['subdomain-unknown'])
   })
 })

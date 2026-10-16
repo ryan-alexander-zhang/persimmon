@@ -76,6 +76,17 @@ describe('eventstorming/v1', () => {
 })
 
 // The second mode: a DomainModel beside the model is compared against it (26-domain-discovery.md).
+describe('eventstorming/v1 beside the Prd', () => {
+  it('checks the contexts against the Prd subdomains', async () => {
+    const tagged = { ...model, version: '4.1', contexts: [{ id: 'a', name: 'A', order: 0, subdomain: 'payroll' }] }
+    const p = payload(tagged)
+    ;(p.artifacts as Record<string, unknown>).prd = { content: { subdomains: [{ id: 'expenses', type: 'core' }] }, provenance }
+    const r = await adapter({ id: 9, op: 'evaluate', payload: p })
+    expect(r.result.passed).toBe(false)
+    expect(r.result.findings.map((f: { code: string }) => f.code)).toEqual(['subdomain-unknown'])
+  })
+})
+
 describe('eventstorming/v1 against a derived DomainModel', () => {
   const storming = {
     version: '4.0',
