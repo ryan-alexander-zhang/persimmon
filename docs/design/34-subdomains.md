@@ -120,8 +120,8 @@ brief ─▶ author-prd ─▶ Prd: subdomains[] (core | supporting | generic), 
   both BoundedContexts passed `checkBoundedContext` at round one. The Architecture placed every
   capability once; seven Specs with `context` bound, no `context-mismatch` or `capability-mismatch`.
   The storming reused the subdomain ids as context ids, though the Prompt asked for a model noun;
-  the Prompt now says the id is never the subdomain's copied. No check refuses it: a one-context
-  product's context and subdomain may share a name. Found in UAT.
+  the Prompt now says the id copies the subdomain's only in a product of one context.
+  No check refuses it: a one-context product's context and subdomain may share a name. Found in UAT.
 
 ## Migration
 
