@@ -642,6 +642,9 @@ describe('sdd/v1 over an Architecture', () => {
   it('fails a block context not evaluated, a context no level 1 block realises, a Prd capability context not evaluated', async () => {
     expect(await archCodes((a) => (a.architecture.buildingBlocks[0].contexts = ['payroll']))).toEqual(['unknown-context']) // BB-3 and BB-4 still realise expenses
     expect(await archCodes((a) => a.architecture.buildingBlocks.forEach((b: { contexts: string[] }) => (b.contexts = [])))).toEqual(['context-unrealised'])
+    // every capability in exactly one BoundedContext (34-subdomains.md)
+    expect(await archCodes((a) => (a.contexts[0].capabilities = a.contexts[0].capabilities.slice(1)))).toEqual(['capability-unplaced'])
+    expect(await archCodes((a) => a.contexts.push(structuredClone(a.contexts[0])), { contexts: { kind: 'artifacts', refs: [ref('BoundedContext', 'expenses'), ref('BoundedContext', 'expenses-two')] } })).toEqual(expect.arrayContaining(['capability-twice']))
     expect(await archCodes((a) => (a.architecture.buildingBlocks[0].parent = 'BB-9'))).toEqual(['unknown-parent'])
   })
   it('fails a listed model, glossary or Adr that was not evaluated, and one evaluated but not listed', async () => {

@@ -238,7 +238,7 @@ spec:
   content: |
     # Writing the Architecture of one product
 
-    You write the arc42 baseline of the product the Prd describes, once per product, over every bounded context the Prd's capabilities name. An Architecture says how the product is shaped; it cites the Prd, the contexts, their DomainModels and Glossaries and the rules, and restates none of them.
+    You write the arc42 baseline of the product the Prd describes, once per product, over every BoundedContext in your context; each lists the Prd capabilities whose commands it handles. An Architecture says how the product is shaped; it cites the Prd, the contexts, their DomainModels and Glossaries and the rules, and restates none of them.
 
     Sections, each short:
     - `introduction`: `prd` is the Prd's artifact id, the requirements by reference. `qualityGoals` (`QG-n`, at most five, most important first): an ISO 25010:2023 characteristic each, `motivation` naming the Prd goal or success criterion it serves. `stakeholders`: the Prd's users plus whoever runs or audits the product, each with one expectation.

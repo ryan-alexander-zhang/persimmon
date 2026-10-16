@@ -396,8 +396,9 @@ export function checkPlan({ plan, spec, architecture, designs = {}, ids = {} }) 
 
 /** One Architecture against the Prd it serves, the BoundedContexts, DomainModels and Glossaries it lists (artifact ids given by
  * `ids`, paired from the artifacts inputs), the BusinessRules the Prd cites and the Adrs it applies (31-architecture-process.md).
- * `ids`: {prd, contexts[], domainModels[], glossaries[], adrs[]}; `adrs` maps an Adr id to its content. Every finding `error`. */
-export function checkArchitecture({ architecture, prd, rules, ids = {}, adrs = {} }) {
+ * `ids`: {prd, contexts[], domainModels[], glossaries[], adrs[]}; `adrs` maps an Adr id to its content, `contexts` a BoundedContext
+ * id to its content. Every finding `error`. */
+export function checkArchitecture({ architecture, prd, rules, ids = {}, adrs = {}, contexts: contextDocs = {} }) {
   if (!architecture || !Array.isArray(architecture.buildingBlocks) || !architecture.introduction) {
     return [{ severity: 'error', code: 'not-an-architecture', message: 'content is not an Architecture: it has no buildingBlocks array or no introduction' }]
   }
@@ -424,6 +425,14 @@ export function checkArchitecture({ architecture, prd, rules, ids = {}, adrs = {
     }
   }
   for (const c of contexts) if (!realised.has(c)) bad('context-unrealised', `context ${c} is realised by no level 1 building block`)
+  // every capability lives in exactly one BoundedContext, the one that lists it (34-subdomains.md); the Prd names none
+  if (Object.keys(contextDocs).length) {
+    for (const cap of prd?.capabilities ?? []) {
+      const homes = Object.entries(contextDocs).filter(([, c]) => (c?.capabilities ?? []).includes(cap.id)).map(([id]) => id)
+      if (homes.length === 0) bad('capability-unplaced', `capability ${cap.id} is listed by no BoundedContext evaluated`)
+      else if (homes.length > 1) bad('capability-twice', `capability ${cap.id} is listed by ${homes.join(' and ')}; one context handles its commands`)
+    }
+  }
   // context.business[].context may name a context of another Namespace or one not yet written (23-pack-sdlc.md): not checked
 
   // the lists of kinds applied equal what was evaluated

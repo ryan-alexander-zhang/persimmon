@@ -56,7 +56,8 @@ function evaluate(payload) {
       if (notAnArchitecture.length) return { passed: false, findings: notAnArchitecture, evidence: [] }
       const adrs = Object.fromEntries((artifacts.adrs ?? []).map((d, i) => [idsOf('adrs')[i], d.content]))
       const ids = { prd: payload.inputs?.prd?.ref?.id, rules: payload.inputs?.rules?.ref?.id, contexts: idsOf('contexts'), domainModels: idsOf('domainModels'), glossaries: idsOf('glossaries'), adrs: idsOf('adrs') }
-      const findings = checkArchitecture({ architecture, prd: required(artifacts, 'prd'), rules: required(artifacts, 'rules'), ids, adrs })
+      const contexts = Object.fromEntries((artifacts.contexts ?? []).map((d, i) => [idsOf('contexts')[i], d.content]))
+      const findings = checkArchitecture({ architecture, prd: required(artifacts, 'prd'), rules: required(artifacts, 'rules'), ids, adrs, contexts })
       return { passed: passes(findings), findings, evidence: [] }
     }
     if (!artifacts.prd) {
