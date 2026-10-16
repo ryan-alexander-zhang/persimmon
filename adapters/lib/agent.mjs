@@ -21,27 +21,37 @@ export class AdapterError extends Error {
 const pidDir = () => join(process.cwd(), '.persimmon', 'agents')
 const pidFile = (idempotencyKey) => join(pidDir(), encodeURIComponent(idempotencyKey) + '.pid')
 // A file the agent leaves beside an output becomes a representation of the published revision (18-artifact.md): its name
-// the file's stem, a DNS label; its media type from the extension, else application/octet-stream. `json` is the content's own.
+// the file's stem as a DNS label (`Test_Report.v2.html`: `test-report-v2`); its media type from the extension, else
+// application/octet-stream. `json` is the content's own. Regular files of one flat directory per port; a dotfile is skipped.
 const mediaTypes = { html: 'text/html', htm: 'text/html', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml', pdf: 'application/pdf', md: 'text/markdown', txt: 'text/plain', csv: 'text/csv', css: 'text/css', js: 'text/javascript', mmd: 'text/vnd.mermaid', json: 'application/json', yaml: 'application/yaml', yml: 'application/yaml', xml: 'application/xml' }
 const maxFileBytes = 8 * 1024 * 1024 // ponytail: one cap for every file, the blob rides base64 over the callback; a streamed put when a Design ships a video
-const filesOf = (dir, where) => {
+const label = (stem) => stem.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+const filesOf = (dir, where, log) => {
   let entries = []
   try {
-    entries = readdirSync(dir, { withFileTypes: true }).filter((e) => e.isFile()).map((e) => e.name).sort()
-  } catch {
-    return [] // no directory: no files
+    entries = readdirSync(dir, { withFileTypes: true })
+  } catch (e) {
+    if (e.code === 'ENOENT') return [] // no directory: no files
+    throw new AdapterError('agent_failed', `${where}: ${e.message}`, true)
   }
-  const seen = new Set()
-  return entries.map((file) => {
-    const ext = extname(file)
-    const name = file.slice(0, file.length - ext.length)
-    if (name === 'json' || !/^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/.test(name) || name.length > 63) throw new AdapterError('agent_failed', `${where}/${file}: a representation's name is its file stem, a DNS label (lowercase letters, digits, hyphens), never json`, true)
-    if (seen.has(name)) throw new AdapterError('agent_failed', `${where}/${file}: a second file named ${name}`, true)
-    seen.add(name)
-    const bytes = readFileSync(join(dir, file))
-    if (bytes.length > maxFileBytes) throw new AdapterError('agent_failed', `${where}/${file}: ${bytes.length} bytes is over the ${maxFileBytes} cap`, true)
-    return { name, mediaType: mediaTypes[ext.slice(1).toLowerCase()] ?? 'application/octet-stream', bytes }
-  })
+  const seen = new Map()
+  const out = []
+  for (const e of entries.map((e) => e.name).sort().map((n) => entries.find((e) => e.name === n))) {
+    if (e.name.startsWith('.')) continue
+    if (!e.isFile()) {
+      log(`${where}/${e.name}: not a regular file, not a representation`)
+      continue
+    }
+    const ext = extname(e.name)
+    const name = label(e.name.slice(0, e.name.length - ext.length))
+    if (!name || name === 'json' || name.length > 63) throw new AdapterError('agent_failed', `${where}/${e.name}: a representation's name is its file stem as a DNS label, never json or empty`, true)
+    if (seen.has(name)) throw new AdapterError('agent_failed', `${where}/${e.name}: named ${name} like ${seen.get(name)}`, true)
+    seen.set(name, e.name)
+    const size = statSync(join(dir, e.name)).size
+    if (size > maxFileBytes) throw new AdapterError('agent_failed', `${where}/${e.name}: ${size} bytes is over the ${maxFileBytes} cap`, true)
+    out.push({ name, mediaType: mediaTypes[ext.slice(1).toLowerCase()] ?? 'application/octet-stream', bytes: readFileSync(join(dir, e.name)) })
+  }
+  return out
 }
 
 /** `<NS>__<NAME>` upper case, `-` becomes `_`: the same grammar the engine uses for its own credential env. */
@@ -85,22 +95,26 @@ async function execute(driver, payload, log) {
   const { workspace } = payload
   const cwd = workspace ?? process.cwd() // the Task's workspace (12-task.md); .persimmon/ state stays under the engine's cwd
   if (workspace && !(existsSync(workspace) && statSync(workspace).isDirectory())) throw new AdapterError('invalid_input', `workspace ${workspace} is not a directory`, false)
-  const files = mkdtempSync(join(cwd, '.persimmon-files-')) // inside the workspace, where the agent's sandbox lets it write; fresh per attempt, gone after
+  // the files directory: inside the workspace, where a workspace-write sandbox lets the agent write; fresh per attempt, gone after;
+  // none when the agent reads only, answers a program's payload (subprocess/v1) or has no artifact port
+  const ports = Object.entries(payload.task.outputs).filter(([, s]) => s.type.kind === 'artifact' || s.type.kind === 'artifacts').map(([p]) => p)
+  const files = !driver.input && ports.length && payload.executor.configuration?.sandbox !== 'read-only' ? mkdtempSync(join(cwd, '.persimmon-files-')) : undefined
+  if (files) writeFileSync(join(files, '.gitignore'), '*\n') // a kill skips the cleanup; what stays is not the workspace's
   try {
-    return await attempt(driver, payload, log, cwd, files)
+    return await attempt(driver, payload, log, cwd, files, ports)
   } finally {
-    rmSync(files, { recursive: true, force: true })
+    if (files) rmSync(files, { recursive: true, force: true })
   }
 }
 
-async function attempt(driver, payload, log, cwd, files) {
+async function attempt(driver, payload, log, cwd, files, ports) {
   const { task, taskRun, inputs, context, executor, credentials, engine, deadline } = payload
   const call = callbacks(engine)
   const configuration = executor.configuration ?? {}
   const schema = outputSchema(task)
   const dir = mkdtempSync(join(tmpdir(), 'persimmon-agent-'))
   // the files the agent left per port, `<files>/<port>/` or `<files>/<port>/<n>/` for a list item
-  const filesFor = (port, n) => filesOf(n === undefined ? join(files, port) : join(files, port, String(n)), n === undefined ? port : `${port}/${n}`)
+  const filesFor = (port, n) => (files ? filesOf(n === undefined ? join(files, port) : join(files, port, String(n)), n === undefined ? port : `${port}/${n}`, log) : [])
   let answer
   try {
     if (!driver.input) checkSkills(context, driver.skillFormats ?? ['claude-code-skill/v1'], cwd, driver.skillDir ?? '.claude/skills', log)
@@ -113,7 +127,7 @@ async function attempt(driver, payload, log, cwd, files) {
       const [program, ...pre] = configuration.command
       ;[cmd, args] = [program, [...pre, ...args]]
     }
-    const stdin = driver.input ? driver.input(ctx) : await buildPrompt(task, inputs, context, call, driver.skillDir ?? '.claude/skills', files)
+    const stdin = driver.input ? driver.input(ctx) : await buildPrompt(task, inputs, context, call, driver.skillDir ?? '.claude/skills', files, ports)
     let stdout
     try {
       stdout = await run(cmd, args, stdin, { credentials, deadline, idempotencyKey: taskRun.idempotencyKey, log, transcript: driver.transcript, cwd })
@@ -188,7 +202,7 @@ function checkSkills(context, formats, workspace, skillDir, log) {
 }
 
 /** Context entries in order, then inputs, then instructions (12-task.md). Artifacts are fetched with the call token. */
-async function buildPrompt(task, inputs, context, call, skillDir = '.claude/skills', files) {
+async function buildPrompt(task, inputs, context, call, skillDir = '.claude/skills', files, ports = []) {
   const parts = []
   for (const c of context) {
     switch (c.kind) {
@@ -221,8 +235,8 @@ async function buildPrompt(task, inputs, context, call, skillDir = '.claude/skil
     const shown = own.length ? { ...s, $defs: Object.fromEntries(own) } : s
     return `\`${port}\`:\n\n\`\`\`json\n${JSON.stringify(shown, null, 2)}\n\`\`\``
   })
-  const artifactPorts = Object.entries(task.outputs).filter(([, s]) => s.type.kind === 'artifact' || s.type.kind === 'artifacts').map(([p]) => p)
-  const filesNote = files && artifactPorts.length ? ` A file that belongs to an output (a rendered HTML, a mockup image, a diagram) goes in \`${files}/<port>/\` (${artifactPorts.join(', ')}; a list output: \`<port>/<n>/\` for its n-th item, from 1), flat, named by a lowercase stem and an extension (\`screens.png\`, \`report.html\`): each becomes a representation of the published revision. The JSON answer is the content itself; a file never stands in for it.` : ''
+  const dirs = ports.map((p) => `\`${files}/${p}/\`${task.outputs[p].type.kind === 'artifacts' ? ` (\`${files}/${p}/<n>/\` for its n-th item, from 1)` : ''}`)
+  const filesNote = files ? ` A file that belongs to an output (a rendered HTML, a mockup image, a diagram) goes in ${dirs.join(', ')}: flat, no subdirectory, one file per name, named \`<stem>.<ext>\` with a lowercase stem of letters, digits and hyphens (\`screens.png\`, \`report.html\`; never \`json\`) and an extension that says the type (html, png, svg, pdf, md, mmd, csv). Each becomes a representation of the published revision. The JSON answer is the content itself; a file never stands in for it.` : ''
   parts.push(`## Answer\n\nAnswer with one JSON object: one key per output port (${Object.keys(task.outputs).join(', ')}), nothing else, no wrapper key. No prose outside the JSON. Each output must validate against its JSON Schema, string formats included (a \`format: uri\` string is an absolute URL).${filesNote}\n\n${schemas.join('\n\n')}`)
   return parts.join('\n\n') + '\n'
 }

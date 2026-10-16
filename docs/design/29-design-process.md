@@ -116,8 +116,8 @@ The Adapter picks the mode from the payload: `artifacts.spec` (or `artifacts.mod
   unresolved. The alternative, inlining artifact output schemas in the handler too and writing the
   `$ref`, was set aside: the kind schema is also what `validate` and the UI read, and a kind that
   stands alone reads without the engine. Files beside the document (a
-  rendered HTML, mockup images, a design directory) are `representations` of the revision: the
-  agent leaves them under `<files>/design/` and the runner publishes them (`18-artifact.md`). Found in design review.
+  rendered HTML, mockup images) are `representations` of the revision: the agent leaves them
+  flat under `<files>/design/` and the runner publishes them (`18-artifact.md`). Found in design review.
 - Proven live on `claude-sonnet-5`: `design-all` for the Reservation API of example08's `BB-1`
   passed round one under the contract check, a 283-line OpenAPI document declaring ten operations
   and an index of ten, none unbacked, none unindexed, two open questions. The run's `qualifier`

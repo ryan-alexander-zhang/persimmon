@@ -32,7 +32,7 @@ beforeAll(async () => {
       if (process.env.STUB_FAIL) { process.stderr.write('boom ' + process.env.GITHUB_TOKEN + '\\n' + (process.env.DEPLOY_KEY ?? '') + '\\n'); process.exit(1) }
       if (process.env.STUB_AUTH) { process.stdout.write(JSON.stringify({ type: 'result', subtype: 'success', is_error: true, result: process.env.STUB_AUTH === '1' ? 'Failed to authenticate' : process.env.STUB_AUTH })); process.exit(1) }
       process.stderr.write('\\x1b[1mthinking\\x1b[0m about ' + (process.env.GITHUB_TOKEN ?? '') + '\\n')
-      if (process.env.STUB_FILES) { const d = /goes in \`([^\`]+)\\/<port>\\/\`/.exec(p)[1]; for (const f of process.env.STUB_FILES.split(',')) { fs.mkdirSync(require('node:path').dirname(d + '/' + f), { recursive: true }); fs.writeFileSync(d + '/' + f, 'x'.repeat(3)) } }
+      if (process.env.STUB_FILES) { const d = /goes in \`([^\`]+)\\/[a-z]+\\/\`/.exec(p)[1]; for (const f of process.env.STUB_FILES.split(',')) { fs.mkdirSync(require('node:path').dirname(d + '/' + f), { recursive: true }); fs.writeFileSync(d + '/' + f, 'x'.repeat(3)) } }
       const ev = (o) => process.stdout.write(JSON.stringify(o) + '\\n')
       ev({ type: 'system', subtype: 'init', tools: ['Bash'] })
       ev({ type: 'assistant', message: { content: [{ type: 'text', text: 'Reading the brief.' }, { type: 'tool_use', name: 'Bash', input: { command: 'npm test' } }] } })
@@ -133,27 +133,44 @@ describe('claude-code/v1', () => {
 
   it('files the agent leaves under <files>/<port>/ publish as representations named by stem, typed by extension; the directory is gone after', async () => {
     calls.length = 0
-    const r = await adapter('claude-code', { id: 21, op: 'execute', payload: payload() }, { STUB_RESULT: JSON.stringify({ prd: { title: 'Checkout v2' }, count: 2 }), STUB_FILES: 'prd/screens.png,prd/report.html,prd/notes.weird,prd/sub/ignored.txt' })
+    const writer = (over: Record<string, unknown> = {}) => payload({ executor: { type: 'agent', configuration: { model: 'sonnet', sandbox: 'workspace-write' }, security: { networkAccess: 'deny', credentialBindings: [] } }, ...over })
+    const result = JSON.stringify({ prd: { title: 'Checkout v2' }, count: 2 })
+    const r = await adapter('claude-code', { id: 21, op: 'execute', payload: writer() }, { STUB_RESULT: result, STUB_FILES: 'prd/screens.png,prd/Test_Report.v2.html,prd/notes.weird,prd/.DS_Store,prd/sub/ignored.txt' })
     expect(last(r).ok).toBe(true)
     const p: string = JSON.parse(readFileSync(join(stubs, 'claude.json'), 'utf8')).prompt
-    const dir = /goes in `([^`]+)\/<port>\/` \(prd;/.exec(p)![1]!
+    const dir = /goes in `([^`]+)\/prd\/`: flat/.exec(p)![1]! // the literal directory per artifact port, then the rule
     expect(dir.startsWith(join(realpathSync(cwd), '.persimmon-files-'))).toBe(true) // inside the workspace (process.cwd() is the real path), where the sandbox lets the agent write
     expect(existsSync(dir)).toBe(false)
     expect(readdirSync(cwd).filter((n) => n.startsWith('.persimmon-files-'))).toEqual([])
-    expect(calls.filter((c) => c.name === 'putBlob').map((c) => c.args.mediaType)).toEqual(['application/json', 'application/octet-stream', 'text/html', 'image/png']) // the content first, then the files by name; a nested file is not read
-    expect(calls.find((c) => c.name === 'publishArtifact')!.args.representations.map((x: { name: string; mediaType: string }) => `${x.name} ${x.mediaType}`)).toEqual(['json application/json', 'notes application/octet-stream', 'report text/html', 'screens image/png'])
-    // a stem that is no DNS label, a second file of one stem, and the content's own name are the agent's mistake, retried
-    for (const files of ['prd/Report.html', 'prd/a.png,prd/a.svg', 'prd/json.txt']) {
-      const bad = await adapter('claude-code', { id: 22, op: 'execute', payload: payload() }, { STUB_RESULT: JSON.stringify({ prd: { title: 'Checkout v2' }, count: 2 }), STUB_FILES: files })
-      expect(last(bad)).toMatchObject({ ok: false, error: { code: 'agent_failed', retryable: true, message: expect.stringContaining(files.split(',').at(-1)!) } })
+    expect(calls.filter((c) => c.name === 'putBlob').map((c) => c.args.mediaType)).toEqual(['application/json', 'text/html', 'application/octet-stream', 'image/png']) // the content first, then the files by file name (uppercase first); a dotfile and a nested file are not read
+    expect(calls.find((c) => c.name === 'publishArtifact')!.args.representations.map((x: { name: string; mediaType: string }) => `${x.name} ${x.mediaType}`)).toEqual(['json application/json', 'test-report-v2 text/html', 'notes application/octet-stream', 'screens image/png']) // the stem made a DNS label
+    expect(r.lines.filter((l) => l.event === 'log').map((l) => l.text)).toContain('prd/sub: not a regular file, not a representation')
+    // two stems that collide, the content's own name, and a stem that empties are the agent's mistake, retried
+    for (const [files, said] of [['prd/a.png,prd/a_.png', 'named a like a.png'], ['prd/json.txt', 'never json'], ['prd/__.html', 'never json or empty']]) {
+      const bad = await adapter('claude-code', { id: 22, op: 'execute', payload: writer() }, { STUB_RESULT: result, STUB_FILES: files! })
+      expect(last(bad)).toMatchObject({ ok: false, error: { code: 'agent_failed', retryable: true, message: expect.stringContaining(said!) } })
     }
     expect(readdirSync(cwd).filter((n) => n.startsWith('.persimmon-files-'))).toEqual([])
+    // the directory lands in payload.workspace when one is set, and a .gitignore keeps a killed attempt's leftovers out of git status
+    const ws = mkdtempSync(join(tmpdir(), 'persimmon-ws-'))
+    const seen = await adapter('claude-code', { id: 24, op: 'execute', payload: writer({ workspace: ws }) }, { STUB_RESULT: result, STUB_FILES: 'prd/report.html' })
+    expect(last(seen).ok).toBe(true)
+    const wsPrompt: string = JSON.parse(readFileSync(join(stubs, 'claude.json'), 'utf8')).prompt
+    expect(/goes in `([^`]+)\/prd\/`/.exec(wsPrompt)![1]!.startsWith(join(ws, '.persimmon-files-'))).toBe(true) // the workspace as the payload gave it
+    expect(readdirSync(ws)).toEqual([])
+    // a read-only sandbox, a Task with no artifact port: no directory, no note
+    calls.length = 0
+    const ro = await adapter('claude-code', { id: 25, op: 'execute', payload: payload() }, { STUB_RESULT: result })
+    expect(last(ro).ok).toBe(true)
+    expect(JSON.parse(readFileSync(join(stubs, 'claude.json'), 'utf8')).prompt).not.toContain('.persimmon-files-')
+    expect(calls.filter((c) => c.name === 'putBlob').length).toBe(1)
     // a list output's n-th item takes <port>/<n>/
-    const base = payload()
+    const base = writer()
     const task = { ...base.task, outputs: { adrs: { type: { kind: 'artifacts', artifactKind: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement' } } } }, outputSchemas: { adrs: base.task.outputSchemas.prd }, outputIds: { adrs: 'checkout-adr' } }
     calls.length = 0
-    const list = await adapter('claude-code', { id: 23, op: 'execute', payload: payload({ task }) }, { STUB_RESULT: JSON.stringify({ adrs: [{ title: 'One' }, { title: 'Two' }] }), STUB_FILES: 'adrs/2/diagram.svg' })
+    const list = await adapter('claude-code', { id: 23, op: 'execute', payload: writer({ task }) }, { STUB_RESULT: JSON.stringify({ adrs: [{ title: 'One' }, { title: 'Two' }] }), STUB_FILES: 'adrs/2/diagram.svg' })
     expect(last(list).ok).toBe(true)
+    expect(JSON.parse(readFileSync(join(stubs, 'claude.json'), 'utf8')).prompt).toMatch(/goes in `[^`]+\/adrs\/` \(`[^`]+\/adrs\/<n>\/` for its n-th item, from 1\)/)
     expect(calls.filter((c) => c.name === 'publishArtifact').map((c) => [c.args.id, c.args.representations.map((x: { name: string }) => x.name)])).toEqual([['checkout-adr-1', ['json']], ['checkout-adr-2', ['json', 'diagram']]])
   })
 

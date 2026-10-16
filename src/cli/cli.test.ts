@@ -241,6 +241,9 @@ describe('persimmon CLI', () => {
     expect(readFileSync(join(dir, 'out/ui/screens.html'), 'utf8')).toBe('<h1>screens</h1>')
     expect(await run('get', 'Design/bare.r1', '--files', 'out/bare')).toBe(1)
     expect(err.at(-1)).toBe('Design/bare.r1 has no representations')
+    expect(await run('get', 'Design', '--files', 'out/all')).toBe(1) // a Kind alone writes nothing: refused, not silent
+    expect(err.at(-1)).toBe('--files takes <Kind>/<name> and no --behind')
+    expect(await run('get', 'Design/ui.r1', '--behind', '--files', 'out/all')).toBe(1)
     expect(await run('get', 'Spec/cap-1', '--behind')).toBe(1)
     expect(err.at(-1)).toBe('--behind takes a Kind, not a name')
   })

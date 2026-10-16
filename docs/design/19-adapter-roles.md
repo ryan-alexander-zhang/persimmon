@@ -195,12 +195,15 @@ Result: a ValidationResult (`10-ports.md`). No `credentials`, no `security` (`14
   under a closed schema, so a `files[]` key beside the ports was a schema change on every Task
   and a second thing for the agent to misplace; a directory the prompt names is what every
   agent already does with a file. The runner makes `<workspace>/.persimmon-files-<rand>/` per
-  attempt, since a read-only or workspace-write sandbox lets the agent write there and nowhere
-  else, says in the Answer section that a file for an output goes in `<files>/<port>/` (a list
-  output: `<port>/<n>/`), and removes the directory after the publish, success or not. A stem
-  that is no DNS label, a second file of one stem, a file named `json` or one over the cap is
-  `agent_failed`, retryable: the agent's mistake, told back to it. `subprocess/v1` gets the
-  directory too but no note; its payload is the program's. Found in UAT (`18-artifact.md`).
+  attempt, since a workspace-write sandbox lets the agent write there and nowhere else, with a
+  `.gitignore` of `*` so a killed attempt leaves nothing in `git status`; it names the literal
+  directory per artifact port in the Answer section (`<files>/<port>/`; a list output:
+  `<files>/<port>/<n>/`) with the naming rule, and removes the directory after the publish,
+  success or not. No directory and no note when the sandbox is `read-only`, when the Task has
+  no artifact port, or for `subprocess/v1`, whose payload is the program's. The stem is made a
+  DNS label (`Test_Report.v2.html`: `test-report-v2`), so only a stem that empties, two stems
+  that collide, `json` or a file over the cap is `agent_failed`, retryable; the retry carries no
+  prior error, so the rule in the prompt has to be enough. Found in UAT (`18-artifact.md`).
 
 ## Examples
 

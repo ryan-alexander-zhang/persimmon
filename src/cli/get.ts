@@ -13,7 +13,7 @@ export interface Where {
 
 /** A representation's file: `<name>.<ext>`, the extension from the media type's subtype (`image/svg+xml`: `svg`), a few named by convention. */
 const extension = (mediaType: string): string => {
-  const sub = mediaType.split('/')[1]?.split('+')[0] ?? ''
+  const sub = (mediaType.split('/')[1]?.split('+')[0] ?? '').replace(/^x-/, '')
   return { markdown: 'md', plain: 'txt', jpeg: 'jpg', javascript: 'js', 'vnd.mermaid': 'mmd', 'octet-stream': 'bin' }[sub] ?? sub
 }
 
@@ -23,6 +23,10 @@ export async function get(cli: Cli, ref: string, o: Where & { behind?: boolean; 
     cli,
     async (engine) => {
       const { kind, name } = parseRef(ref)
+      if (o.files !== undefined && (!name || o.behind)) {
+        cli.err('--files takes <Kind>/<name> and no --behind')
+        return 1
+      }
       if (o.behind) {
         if (name) {
           cli.err('--behind takes a Kind, not a name')
@@ -49,16 +53,17 @@ export async function get(cli: Cli, ref: string, o: Where & { behind?: boolean; 
             cli.err(`${r.kind}/${r.metadata.name} has no representations`)
             return 1
           }
+          const blobs = reps.map((rep) => [rep, engine.store.blobs.get(`blob://${rep.digest.replace(/^sha256:/, '')}`)] as const)
+          const missing = blobs.find(([, b]) => !b)
+          if (missing) {
+            cli.err(`${missing[0].name}: blob ${missing[0].digest} missing`) // nothing written: all or none
+            return 1
+          }
           mkdirSync(resolve(cli.cwd, o.files), { recursive: true })
-          for (const rep of reps) {
-            const blob = engine.store.blobs.get(`blob://${rep.digest.replace(/^sha256:/, '')}`)
-            if (!blob) {
-              cli.err(`${rep.name}: blob ${rep.digest} missing`)
-              return 1
-            }
+          for (const [rep, blob] of blobs) {
             const path = join(resolve(cli.cwd, o.files), `${rep.name}.${extension(rep.mediaType)}`)
-            writeFileSync(path, blob.bytes)
-            cli.out(`wrote ${path}  ${rep.mediaType}  ${blob.bytes.length} bytes`)
+            writeFileSync(path, blob!.bytes)
+            cli.out(`wrote ${path}  ${rep.mediaType}  ${blob!.bytes.length} bytes`)
           }
           return 0
         }

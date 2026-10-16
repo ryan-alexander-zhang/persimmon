@@ -137,14 +137,12 @@ said, `> <tool> <input>` for each call and `< <result>` for what came back.
 ## Reset
 
 ```sh
-rm -rf .persimmon persimmon.yaml app/src app/test app/coverage app/reports
+rm -rf .persimmon persimmon.yaml app/src app/test app/coverage
 git checkout app/package.json              # a coder may add a bin entry despite AGENTS.md
 ```
 
 ## Known limits
 
-- The HTML report is a file the agent writes; the `TestReport` artifact holds its path and summary.
-  Storing the HTML as an artifact representation is designed but not wired into the agent Adapter.
 - The coder's sandbox has no network, so `npm install` runs before the workflow.
 - Without the workspace, the coder once found the persimmon checkout's `.git` and `AGENTS.md` above
   this directory and committed to it. `workspace: {path: app}`, the app's own git repository and its

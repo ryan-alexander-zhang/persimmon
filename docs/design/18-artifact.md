@@ -97,9 +97,9 @@ Query: `list` by the three labels, from the CLI, the API, or the `list` Engine c
   run. Now the agent runner names a fresh directory in the workspace, reads `<files>/<port>/`
   after the answer and puts each file as a blob beside the content's `json`; the revision pins
   them by digest, and `get --files` writes the exact bytes of the revision under review.
-  The name is the file's stem as a DNS label, the media type from a short extension table
+  The name is the file's stem made a DNS label, the media type from a short extension table
   (unknown: `application/octet-stream`), one flat directory per port, 8 MiB per file; a nested
-  directory is not read. Proven live on `claude-sonnet-5`: an Adr published with `json`, `adr`
+  directory or a dotfile is not read, the former logged. Proven live on `claude-sonnet-5`: an Adr published with `json`, `adr`
   (`text/html`, 2544 bytes) and `decision` (`text/vnd.mermaid`), exported as `adr.html` and
   `decision.mmd`, the files directory gone from the workspace. Found in UAT.
 
