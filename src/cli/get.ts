@@ -1,3 +1,5 @@
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 import type { Resource } from '../resource/types.js'
 import type { Cli } from './context.js'
 import { withEngine } from './context.js'
@@ -9,8 +11,14 @@ export interface Where {
   global?: boolean
 }
 
-/** `persimmon get <kind>[/<name>] [-n ns | --global] [--behind]`. */
-export async function get(cli: Cli, ref: string, o: Where & { behind?: boolean } = {}): Promise<number> {
+/** A representation's file: `<name>.<ext>`, the extension from the media type's subtype (`image/svg+xml`: `svg`), a few named by convention. */
+const extension = (mediaType: string): string => {
+  const sub = mediaType.split('/')[1]?.split('+')[0] ?? ''
+  return { markdown: 'md', plain: 'txt', jpeg: 'jpg', javascript: 'js', 'octet-stream': 'bin' }[sub] ?? sub
+}
+
+/** `persimmon get <kind>[/<name>] [-n ns | --global] [--behind | --files <dir>]`. */
+export async function get(cli: Cli, ref: string, o: Where & { behind?: boolean; files?: string } = {}): Promise<number> {
   return withEngine(
     cli,
     async (engine) => {
@@ -33,6 +41,26 @@ export async function get(cli: Cli, ref: string, o: Where & { behind?: boolean }
         if (!r) {
           cli.err(`${kind}/${name} not found`)
           return 1
+        }
+        if (o.files !== undefined) {
+          // every representation of the revision as a file (18-artifact.md); a kind without them has nothing to write
+          const reps = ((r.status as { representations?: { name: string; mediaType: string; digest: string }[] } | undefined)?.representations ?? [])
+          if (!reps.length) {
+            cli.err(`${r.kind}/${r.metadata.name} has no representations`)
+            return 1
+          }
+          mkdirSync(resolve(cli.cwd, o.files), { recursive: true })
+          for (const rep of reps) {
+            const blob = engine.store.blobs.get(`blob://${rep.digest.replace(/^sha256:/, '')}`)
+            if (!blob) {
+              cli.err(`${rep.name}: blob ${rep.digest} missing`)
+              return 1
+            }
+            const path = join(resolve(cli.cwd, o.files), `${rep.name}.${extension(rep.mediaType)}`)
+            writeFileSync(path, blob.bytes)
+            cli.out(`wrote ${path}  ${rep.mediaType}  ${blob.bytes.length} bytes`)
+          }
+          return 0
         }
         cli.out(toYaml(r))
         return 0

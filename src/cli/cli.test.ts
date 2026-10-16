@@ -214,6 +214,32 @@ describe('persimmon CLI', () => {
     expect(err.at(-1)).toBe('Workflow is not revisioned')
     expect(await run('get', 'Nope', '--behind')).toBe(1)
     expect(err.at(-1)).toBe('unknown kind Nope')
+  })
+
+  it('get --files writes every representation of a revision as <name>.<ext> into the directory', async () => {
+    await run('init')
+    const engine = new Engine({ config: loadConfig(join(dir, 'persimmon.yaml')), cwd: dir })
+    await engine.start()
+    const html = engine.store.blobs.put(Buffer.from('<h1>screens</h1>'), 'text/html')
+    const svg = engine.store.blobs.put(Buffer.from('<svg/>'), 'image/svg+xml')
+    const scope = { uid: 'test', key: 'k' }
+    engine.store.resources.stage({
+      apiVersion: 'sdd.persimmon.ai/v1', kind: 'Design', metadata: { name: 'ui.r1', namespace: 'default' },
+      spec: { identity: { id: 'ui', revision: 1 }, content: {}, provenance: { producerRef: { apiVersion: 'persimmon.ai/v1', kind: 'TaskRun', namespace: 'default', name: 'run', uid: 'uid-run' }, inputs: [], actor: { kind: 'user', id: 'local' } } },
+      status: { contentDigest: 'sha256:' + '0'.repeat(64), representations: [{ name: 'screens', mediaType: 'text/html', digest: html.digest }, { name: 'flow', mediaType: 'image/svg+xml', digest: svg.digest }] },
+    }, scope)
+    engine.store.resources.stage({
+      apiVersion: 'sdd.persimmon.ai/v1', kind: 'Design', metadata: { name: 'bare.r1', namespace: 'default' },
+      spec: { identity: { id: 'bare', revision: 1 }, content: {}, provenance: { producerRef: { apiVersion: 'persimmon.ai/v1', kind: 'TaskRun', namespace: 'default', name: 'run', uid: 'uid-run' }, inputs: [], actor: { kind: 'user', id: 'local' } } },
+      status: { contentDigest: 'sha256:' + '0'.repeat(64), representations: [] },
+    }, scope)
+    engine.store.resources.commitScope(scope)
+    await engine.close()
+    out = []
+    expect([await run('get', 'Design/ui.r1', '--files', 'out/ui'), out]).toEqual([0, [`wrote ${join(dir, 'out/ui/screens.html')}  text/html  16 bytes`, `wrote ${join(dir, 'out/ui/flow.svg')}  image/svg+xml  6 bytes`]])
+    expect(readFileSync(join(dir, 'out/ui/screens.html'), 'utf8')).toBe('<h1>screens</h1>')
+    expect(await run('get', 'Design/bare.r1', '--files', 'out/bare')).toBe(1)
+    expect(err.at(-1)).toBe('Design/bare.r1 has no representations')
     expect(await run('get', 'Spec/cap-1', '--behind')).toBe(1)
     expect(err.at(-1)).toBe('--behind takes a Kind, not a name')
   })

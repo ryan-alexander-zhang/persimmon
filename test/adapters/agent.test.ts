@@ -32,6 +32,7 @@ beforeAll(async () => {
       if (process.env.STUB_FAIL) { process.stderr.write('boom ' + process.env.GITHUB_TOKEN + '\\n' + (process.env.DEPLOY_KEY ?? '') + '\\n'); process.exit(1) }
       if (process.env.STUB_AUTH) { process.stdout.write(JSON.stringify({ type: 'result', subtype: 'success', is_error: true, result: process.env.STUB_AUTH === '1' ? 'Failed to authenticate' : process.env.STUB_AUTH })); process.exit(1) }
       process.stderr.write('\\x1b[1mthinking\\x1b[0m about ' + (process.env.GITHUB_TOKEN ?? '') + '\\n')
+      if (process.env.STUB_FILES) { const d = /goes in \`([^\`]+)\\/<port>\\/\`/.exec(p)[1]; for (const f of process.env.STUB_FILES.split(',')) { fs.mkdirSync(require('node:path').dirname(d + '/' + f), { recursive: true }); fs.writeFileSync(d + '/' + f, 'x'.repeat(3)) } }
       const ev = (o) => process.stdout.write(JSON.stringify(o) + '\\n')
       ev({ type: 'system', subtype: 'init', tools: ['Bash'] })
       ev({ type: 'assistant', message: { content: [{ type: 'text', text: 'Reading the brief.' }, { type: 'tool_use', name: 'Bash', input: { command: 'npm test' } }] } })
@@ -128,6 +129,32 @@ describe('claude-code/v1', () => {
     expect(calls.filter((c) => c.name === 'publishArtifact').map((c) => [c.args.id, c.args.content.title])).toEqual([['checkout-adr-1', 'One'], ['checkout-adr-2', 'Two']])
     const schema = JSON.parse(JSON.parse(readFileSync(join(stubs, 'claude.json'), 'utf8')).args.filter((_: string, i: number, a: string[]) => a[i - 1] === '--json-schema')[0])
     expect(schema.properties.adrs).toEqual({ type: 'array', maxItems: 999, items: base.task.outputSchemas.prd })
+  })
+
+  it('files the agent leaves under <files>/<port>/ publish as representations named by stem, typed by extension; the directory is gone after', async () => {
+    calls.length = 0
+    const r = await adapter('claude-code', { id: 21, op: 'execute', payload: payload() }, { STUB_RESULT: JSON.stringify({ prd: { title: 'Checkout v2' }, count: 2 }), STUB_FILES: 'prd/screens.png,prd/report.html,prd/notes.weird,prd/sub/ignored.txt' })
+    expect(last(r).ok).toBe(true)
+    const p: string = JSON.parse(readFileSync(join(stubs, 'claude.json'), 'utf8')).prompt
+    const dir = /goes in `([^`]+)\/<port>\/` \(prd;/.exec(p)![1]!
+    expect(dir.startsWith(join(realpathSync(cwd), '.persimmon-files-'))).toBe(true) // inside the workspace (process.cwd() is the real path), where the sandbox lets the agent write
+    expect(existsSync(dir)).toBe(false)
+    expect(readdirSync(cwd).filter((n) => n.startsWith('.persimmon-files-'))).toEqual([])
+    expect(calls.filter((c) => c.name === 'putBlob').map((c) => c.args.mediaType)).toEqual(['application/json', 'application/octet-stream', 'text/html', 'image/png']) // the content first, then the files by name; a nested file is not read
+    expect(calls.find((c) => c.name === 'publishArtifact')!.args.representations.map((x: { name: string; mediaType: string }) => `${x.name} ${x.mediaType}`)).toEqual(['json application/json', 'notes application/octet-stream', 'report text/html', 'screens image/png'])
+    // a stem that is no DNS label, a second file of one stem, and the content's own name are the agent's mistake, retried
+    for (const files of ['prd/Report.html', 'prd/a.png,prd/a.svg', 'prd/json.txt']) {
+      const bad = await adapter('claude-code', { id: 22, op: 'execute', payload: payload() }, { STUB_RESULT: JSON.stringify({ prd: { title: 'Checkout v2' }, count: 2 }), STUB_FILES: files })
+      expect(last(bad)).toMatchObject({ ok: false, error: { code: 'agent_failed', retryable: true, message: expect.stringContaining(files.split(',').at(-1)!) } })
+    }
+    expect(readdirSync(cwd).filter((n) => n.startsWith('.persimmon-files-'))).toEqual([])
+    // a list output's n-th item takes <port>/<n>/
+    const base = payload()
+    const task = { ...base.task, outputs: { adrs: { type: { kind: 'artifacts', artifactKind: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement' } } } }, outputSchemas: { adrs: base.task.outputSchemas.prd }, outputIds: { adrs: 'checkout-adr' } }
+    calls.length = 0
+    const list = await adapter('claude-code', { id: 23, op: 'execute', payload: payload({ task }) }, { STUB_RESULT: JSON.stringify({ adrs: [{ title: 'One' }, { title: 'Two' }] }), STUB_FILES: 'adrs/2/diagram.svg' })
+    expect(last(list).ok).toBe(true)
+    expect(calls.filter((c) => c.name === 'publishArtifact').map((c) => [c.args.id, c.args.representations.map((x: { name: string }) => x.name)])).toEqual([['checkout-adr-1', ['json']], ['checkout-adr-2', ['json', 'diagram']]])
   })
 
   it('builds the prompt in context order, publishes artifact outputs, passes credentials as env', async () => {

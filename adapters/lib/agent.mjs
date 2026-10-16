@@ -5,7 +5,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { request } from 'node:http'
 import { tmpdir } from 'node:os'
-import { join, relative } from 'node:path'
+import { extname, join, relative } from 'node:path'
 import { createInterface } from 'node:readline'
 import { createHash } from 'node:crypto'
 import { skillDigest } from './skills.mjs'
@@ -20,6 +20,30 @@ export class AdapterError extends Error {
 
 const pidDir = () => join(process.cwd(), '.persimmon', 'agents')
 const pidFile = (idempotencyKey) => join(pidDir(), encodeURIComponent(idempotencyKey) + '.pid')
+// A file the agent leaves beside an output becomes a representation of the published revision (18-artifact.md): its name
+// the file's stem, a DNS label; its media type from the extension, else application/octet-stream. `json` is the content's own.
+const mediaTypes = { html: 'text/html', htm: 'text/html', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml', pdf: 'application/pdf', md: 'text/markdown', txt: 'text/plain', csv: 'text/csv', css: 'text/css', js: 'text/javascript', mmd: 'text/vnd.mermaid', json: 'application/json', yaml: 'application/yaml', yml: 'application/yaml', xml: 'application/xml' }
+const maxFileBytes = 8 * 1024 * 1024 // ponytail: one cap for every file, the blob rides base64 over the callback; a streamed put when a Design ships a video
+const filesOf = (dir, where) => {
+  let entries = []
+  try {
+    entries = readdirSync(dir, { withFileTypes: true }).filter((e) => e.isFile()).map((e) => e.name).sort()
+  } catch {
+    return [] // no directory: no files
+  }
+  const seen = new Set()
+  return entries.map((file) => {
+    const ext = extname(file)
+    const name = file.slice(0, file.length - ext.length)
+    if (name === 'json' || !/^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/.test(name) || name.length > 63) throw new AdapterError('agent_failed', `${where}/${file}: a representation's name is its file stem, a DNS label (lowercase letters, digits, hyphens), never json`, true)
+    if (seen.has(name)) throw new AdapterError('agent_failed', `${where}/${file}: a second file named ${name}`, true)
+    seen.add(name)
+    const bytes = readFileSync(join(dir, file))
+    if (bytes.length > maxFileBytes) throw new AdapterError('agent_failed', `${where}/${file}: ${bytes.length} bytes is over the ${maxFileBytes} cap`, true)
+    return { name, mediaType: mediaTypes[ext.slice(1).toLowerCase()] ?? 'application/octet-stream', bytes }
+  })
+}
+
 /** `<NS>__<NAME>` upper case, `-` becomes `_`: the same grammar the engine uses for its own credential env. */
 const envName = (name) => name.toUpperCase().replaceAll('-', '_').replace('/', '__')
 
@@ -58,13 +82,25 @@ export function serve(driver) {
 }
 
 async function execute(driver, payload, log) {
-  const { task, taskRun, inputs, context, executor, credentials, engine, deadline, workspace } = payload
-  const call = callbacks(engine)
-  const configuration = executor.configuration ?? {}
+  const { workspace } = payload
   const cwd = workspace ?? process.cwd() // the Task's workspace (12-task.md); .persimmon/ state stays under the engine's cwd
   if (workspace && !(existsSync(workspace) && statSync(workspace).isDirectory())) throw new AdapterError('invalid_input', `workspace ${workspace} is not a directory`, false)
+  const files = mkdtempSync(join(cwd, '.persimmon-files-')) // inside the workspace, where the agent's sandbox lets it write; fresh per attempt, gone after
+  try {
+    return await attempt(driver, payload, log, cwd, files)
+  } finally {
+    rmSync(files, { recursive: true, force: true })
+  }
+}
+
+async function attempt(driver, payload, log, cwd, files) {
+  const { task, taskRun, inputs, context, executor, credentials, engine, deadline } = payload
+  const call = callbacks(engine)
+  const configuration = executor.configuration ?? {}
   const schema = outputSchema(task)
   const dir = mkdtempSync(join(tmpdir(), 'persimmon-agent-'))
+  // the files the agent left per port, `<files>/<port>/` or `<files>/<port>/<n>/` for a list item
+  const filesFor = (port, n) => filesOf(n === undefined ? join(files, port) : join(files, port, String(n)), n === undefined ? port : `${port}/${n}`)
   let answer
   try {
     if (!driver.input) checkSkills(context, driver.skillFormats ?? ['claude-code-skill/v1'], cwd, driver.skillDir ?? '.claude/skills', log)
@@ -77,7 +113,7 @@ async function execute(driver, payload, log) {
       const [program, ...pre] = configuration.command
       ;[cmd, args] = [program, [...pre, ...args]]
     }
-    const stdin = driver.input ? driver.input(ctx) : await buildPrompt(task, inputs, context, call, driver.skillDir ?? '.claude/skills')
+    const stdin = driver.input ? driver.input(ctx) : await buildPrompt(task, inputs, context, call, driver.skillDir ?? '.claude/skills', files)
     let stdout
     try {
       stdout = await run(cmd, args, stdin, { credentials, deadline, idempotencyKey: taskRun.idempotencyKey, log, transcript: driver.transcript, cwd })
@@ -100,21 +136,25 @@ async function execute(driver, payload, log) {
       outputs[port] = { kind: 'value', value }
       continue
     }
-    const publish = async (content, id) => {
-      const blob = await call('putBlob', { bytes: Buffer.from(JSON.stringify(content)).toString('base64'), mediaType: 'application/json' })
-      return call('publishArtifact', { kind: spec.type.artifactKind, id, content, inputs: artifactInputs, representations: [{ name: 'json', mediaType: 'application/json', digest: blob.digest }] })
+    const publish = async (content, id, files) => {
+      const representations = []
+      for (const f of [{ name: 'json', mediaType: 'application/json', bytes: Buffer.from(JSON.stringify(content)) }, ...files]) {
+        const blob = await call('putBlob', { bytes: f.bytes.toString('base64'), mediaType: f.mediaType })
+        representations.push({ name: f.name, mediaType: f.mediaType, digest: blob.digest })
+      }
+      return call('publishArtifact', { kind: spec.type.artifactKind, id, content, inputs: artifactInputs, representations })
     }
     if (spec.type.kind === 'artifacts') {
       // a list of contents, published in order as <prefix>-<n> under the Task's chosen prefix (12-task.md)
       if (!Array.isArray(value)) throw new AdapterError('agent_failed', `${port}: an artifacts output is a list`, true)
       const prefix = task.outputIds?.[port] ?? artifactId(taskRun.logicalExecutionId, port)
       const refs = []
-      for (const [i, item] of value.entries()) refs.push(await publish(item, `${prefix}-${i + 1}`))
+      for (const [i, item] of value.entries()) refs.push(await publish(item, `${prefix}-${i + 1}`, filesFor(port, i + 1)))
       outputs[port] = { kind: 'artifacts', refs }
       continue
     }
     const id = task.outputIds?.[port] ?? artifactId(taskRun.logicalExecutionId, port) // the Task's chosen identity, else one per logical execution and port
-    outputs[port] = { kind: 'artifact', ref: await publish(value, id) }
+    outputs[port] = { kind: 'artifact', ref: await publish(value, id, filesFor(port)) }
   }
   const result = { protocol: 'persimmon.result/v1', outputs }
   if (typeof answer.summary === 'string') result.summary = answer.summary
@@ -148,7 +188,7 @@ function checkSkills(context, formats, workspace, skillDir, log) {
 }
 
 /** Context entries in order, then inputs, then instructions (12-task.md). Artifacts are fetched with the call token. */
-async function buildPrompt(task, inputs, context, call, skillDir = '.claude/skills') {
+async function buildPrompt(task, inputs, context, call, skillDir = '.claude/skills', files) {
   const parts = []
   for (const c of context) {
     switch (c.kind) {
@@ -181,7 +221,9 @@ async function buildPrompt(task, inputs, context, call, skillDir = '.claude/skil
     const shown = own.length ? { ...s, $defs: Object.fromEntries(own) } : s
     return `\`${port}\`:\n\n\`\`\`json\n${JSON.stringify(shown, null, 2)}\n\`\`\``
   })
-  parts.push(`## Answer\n\nAnswer with one JSON object: one key per output port (${Object.keys(task.outputs).join(', ')}), nothing else, no wrapper key. No prose outside the JSON. Each output must validate against its JSON Schema, string formats included (a \`format: uri\` string is an absolute URL).\n\n${schemas.join('\n\n')}`)
+  const artifactPorts = Object.entries(task.outputs).filter(([, s]) => s.type.kind === 'artifact' || s.type.kind === 'artifacts').map(([p]) => p)
+  const filesNote = files && artifactPorts.length ? ` A file that belongs to an output (a rendered HTML, a mockup image, a diagram) goes in \`${files}/<port>/\` (${artifactPorts.join(', ')}; a list output: \`<port>/<n>/\` for its n-th item, from 1), flat, named by a lowercase stem and an extension (\`screens.png\`, \`report.html\`): each becomes a representation of the published revision. The JSON answer is the content itself; a file never stands in for it.` : ''
+  parts.push(`## Answer\n\nAnswer with one JSON object: one key per output port (${Object.keys(task.outputs).join(', ')}), nothing else, no wrapper key. No prose outside the JSON. Each output must validate against its JSON Schema, string formats included (a \`format: uri\` string is an absolute URL).${filesNote}\n\n${schemas.join('\n\n')}`)
   return parts.join('\n\n') + '\n'
 }
 

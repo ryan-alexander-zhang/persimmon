@@ -115,6 +115,9 @@ describe('commit', () => {
     expect((rev.status as { contentDigest: string }).contentDigest).toMatch(/^sha256:/)
     expect(outbox()[0]).toMatchObject({ type: 'artifact.published', subject: { id: 'research-checkout-v2', revision: 1 } })
     expect(store.audit.read(rev.metadata.uid!)[0]?.change).toBe('create')
+    // a representation's name is unique on its revision: the file it exports as
+    const twice = { ...publish, representations: [publish.representations[0], { ...publish.representations[0], mediaType: 'text/plain' }] }
+    await expect(commit(engine, commitOf(child, { type: 'Created', sequence: 2, dedupeKey: 'created-twice' }, { actions: [twice] }))).rejects.toThrow(/representation markdown: named twice/)
   })
 
   it('a publish validates against the schema the producer\'s snapshot froze, not the live one', async () => {

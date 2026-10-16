@@ -130,6 +130,8 @@ export function stageRevision(engine: Engine, req: PublishRequest, producer: Res
   const validate = frozen ? kinds.compile(frozen.schema) : c.spec
   if (!validate(req.content)) throw new WriteError(`${req.kind.kind} content: ${validate.errors?.map((e) => `${e.instancePath || '/'} ${e.message}`).join('; ')}`) // the path, so an agent's answer can be read against it
   for (const r of req.representations) if (!store.blobs.get(`blob://${r.digest.slice(7)}`)) throw new WriteError(`representation ${r.name}: blob ${r.digest} missing`)
+  const names = new Set<string>()
+  for (const r of req.representations) if (names.has(r.name) || !names.add(r.name)) throw new WriteError(`representation ${r.name}: named twice`)
   const namespace = producer.metadata.namespace
   if (!namespace) throw new WriteError(`${producer.kind} ${producer.metadata.name} is Global; revisioned kinds are Namespaced`)
   const revision = store.resources.reserveRevision(req.kind.kind, namespace, req.id)
