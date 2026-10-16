@@ -57,8 +57,6 @@ binds the refs as if given in a file. Refused on any other port, and when nothin
 the Namespace. Inside a Workflow, a step filters the same set by content with `fromQuery`
 (`10-ports.md`). In local mode a project is one product, so "every BoundedContext" is the product's;
 `persimmon run architect --input contexts=kind:BoundedContext --input domainModels=kind:DomainModel --input glossaries=kind:Glossary ...`.
-The engine-side query binding (`fromQuery` in a Workflow step) stays on the roadmap: no shipped
-Workflow consumes a list it could not be given at `run`.
 
 ## Rules
 

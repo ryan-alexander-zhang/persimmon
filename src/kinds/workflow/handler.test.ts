@@ -191,6 +191,29 @@ describe('workflow Handler', () => {
     expect(clean(res.statusPatch)).toMatchObject({ phase: 'Succeeded', outputs: { last: { kind: 'value', value: 'c' } } })
   })
 
+  it('a repeat whose initial or next binding fails fails the step invalid_input, not the reconcile', () => {
+    const gone = { fromArtifact: { kind: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement' }, id: '"nope"' } } // no store at the site: absent, no onMissing
+    const variant = (repeat: Record<string, unknown>) => {
+      const wf = structuredClone(listLoop)
+      Object.assign(wf.spec.steps[0]!.repeat, repeat)
+      const altered: Closure = { ...closure, resources: closure.resources.map((r) => (r === listLoop ? wf : r)) }
+      const kinds = new KindRegistry()
+      for (const kd of closure.resources.filter((r) => r.kind === 'KindDefinition')) kinds.register(kd)
+      return workflowHandler({ kinds, adapters: new AdapterRegistry({ resolve: () => undefined }), now: () => new Date(clock), closure: () => altered, callback: () => undefined, getResource: () => undefined, getByUid: () => undefined, random: () => 0 })
+    }
+    const first = variant({ initial: { index: { literal: 1 }, items: gone } })
+    const r = run('per-item', { items: { kind: 'value', value: ['a', 'b'] } }, 'bad-initial')
+    const res = first.reconcile(input(r, { type: 'Created', dedupeKey: 'created' })) as ReconcileResult
+    expect(created(res)).toEqual([])
+    expect(clean(res.statusPatch).steps.each).toMatchObject({ phase: 'Failed', error: { code: 'invalid_input', message: 'step each: items: source absent' } })
+    const later = variant({ next: { index: { expression: 'state.index + 1' }, items: gone } })
+    let r2 = run('per-item', { items: { kind: 'value', value: ['a', 'b'] } }, 'bad-next')
+    r2 = apply(r2, later.reconcile(input(r2, { type: 'Created', dedupeKey: 'created' })) as ReconcileResult)
+    const res2 = later.reconcile(childFinished(r2, 'each', 'Succeeded', { phase: 'Succeeded', outputs: { echo: { kind: 'value', value: 'a' } } })) as ReconcileResult
+    expect(created(res2)).toEqual([])
+    expect(clean(res2.statusPatch).steps.each).toMatchObject({ phase: 'Failed', error: { code: 'invalid_input', message: 'step each: items: source absent' } })
+  })
+
   it('quorum join with dispatch first and onMissing inputs', () => {
     let r = run('prd-approval', { prd: { kind: 'artifact', ref: prdRef } }, 'appr')
     let res = handler.reconcile(input(r, { type: 'Created', dedupeKey: 'created' })) as ReconcileResult

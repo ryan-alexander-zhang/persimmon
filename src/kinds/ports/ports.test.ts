@@ -150,12 +150,13 @@ describe('bindings', () => {
   it('fromQuery binds every latest revision its where holds for, by id; none is an empty list; a where that throws or answers no bool fails the bind', () => {
     const kind = { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement' }
     const rev = (id: string, revision: number, content: unknown) => ({ ref: { ...kind, namespace: 'demo', id, revision }, content })
-    const found = [rev('a', 2, { owner: 'checkout-v2', flag: true }), rev('b', 1, { owner: 'other' }), rev('c', 4, { owner: 'checkout-v2', flag: false })]
+    const found = [rev('a', 2, { owner: 'checkout-v2', flag: true, n: 1, share: 0.5 }), rev('b', 1, { owner: 'other' }), rev('c', 4, { owner: 'checkout-v2', flag: false, n: 3, share: 1.5 })]
     const s = { ...sources, query: () => found }
     const q = (where: string) => ({ x: { fromQuery: { kind, where } } })
     expect(bind(q('content.owner == inputs.prd.id'), s, site)).toEqual({ x: { kind: 'artifacts', refs: [found[0]!.ref, found[2]!.ref] } }) // `content` beside the site's own roots
     expect(bind(q('content.owner == "nobody"'), s, site)).toEqual({ x: { kind: 'artifacts', refs: [] } }) // an answer, not an absence
     expect(bind(q('has(content.flag) && content.flag'), s, site)).toEqual({ x: { kind: 'artifacts', refs: [found[0]!.ref] } }) // an optional field guarded
+    expect(bind(q('has(content.n) && content.n + 1 == 2 && content.n < inputs.maxRounds && content.share < 1.0'), s, site)).toEqual({ x: { kind: 'artifacts', refs: [found[0]!.ref] } }) // a whole number is an int, as an integer port's: arithmetic with int literals and int inputs
     expect(() => bind(q('content.flag'), s, site)).toThrow(/fromQuery: ProductRequirement\/b\.r1: /) // unguarded: the revision named, never a shorter list
     expect(() => bind(q('content.owner'), s, site)).toThrow(/fromQuery: ProductRequirement\/a\.r2: where answered "checkout-v2", not a bool/)
     expect(() => bind(q('true'), sources, site)).toThrow(/x: source absent/) // no store at the site

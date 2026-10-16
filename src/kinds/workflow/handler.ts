@@ -121,6 +121,21 @@ export function workflowHandler(deps: HandlerDeps): HandlerImpl {
         return finish({ phase: 'Failed', error, ...(error.code && spec.transitions.some((t) => t.to.some((x) => 'reason' in x && x.reason === error.code)) ? { reason: error.code } : {}) })
       }
 
+      /** A repeat's `initial` or `next` binding, then that iteration; a binding that fails fails the step, as `start` does with its inputs. */
+      const iterate = (step: Step, iteration: number, bindings: Parameters<typeof bind>[0], src: Sources): void => {
+        let state: RuntimeValues
+        try {
+          state = bind(bindings, src, site(step))
+        } catch (e) {
+          if (e instanceof PortError) {
+            steps[step.id] = { ...steps[step.id], phase: 'Failed', error: err('invalid_input', `step ${step.id}: ${e.message}`) }
+            return
+          }
+          throw e
+        }
+        start(step, iteration, state)
+      }
+
       /** Starts a step (or a repeat iteration): one child run with inherited snapshot and bound inputs. */
       const start = (step: Step, iteration?: number, state?: RuntimeValues): void => {
         const u = used.get(step.id)!
@@ -172,7 +187,7 @@ export function workflowHandler(deps: HandlerDeps): HandlerImpl {
                 for (const x of chosen) {
                   if ('stepRef' in x) {
                     const step = stepsById.get(x.stepRef)!
-                    if (step.repeat) start(step, 1, bind(step.repeat.initial, sources(), site(step)))
+                    if (step.repeat) iterate(step, 1, step.repeat.initial, sources())
                     else start(step)
                   } else if (!selected) selected = { terminal: x.terminal, ...(x.reason ? { reason: x.reason } : {}) }
                 }
@@ -221,7 +236,7 @@ export function workflowHandler(deps: HandlerDeps): HandlerImpl {
         case 'Created': {
           for (const id of spec.entry) {
             const step = stepsById.get(id)!
-            if (step.repeat) start(step, 1, bind(step.repeat.initial, sources(), site(step)))
+            if (step.repeat) iterate(step, 1, step.repeat.initial, sources())
             else start(step)
           }
           actions.push({ type: 'setTimer', key: 'deadline', at: rfc3339(runDeadline) })
@@ -244,8 +259,7 @@ export function workflowHandler(deps: HandlerDeps): HandlerImpl {
             if (!done) {
               if (iteration >= step.repeat.maxIterations) steps[id] = { ...steps[id]!, phase: 'Failed', error: err('iteration_limit', `${step.repeat.maxIterations} iterations`) }
               else {
-                const next = bind(step.repeat.next, sources({ ...(steps[id]!.state ? { state: steps[id]!.state } : {}), iteration: { index: iteration, outputs } }), site(step))
-                start(step, iteration + 1, next)
+                iterate(step, iteration + 1, step.repeat.next, sources({ ...(steps[id]!.state ? { state: steps[id]!.state } : {}), iteration: { index: iteration, outputs } }))
                 return conclude()
               }
             } else steps[id] = { ...steps[id]!, phase: 'Succeeded' }

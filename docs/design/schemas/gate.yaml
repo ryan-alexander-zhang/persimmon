@@ -16,7 +16,7 @@ $defs:
 
   ValidatorBinding:
     allOf: [{$ref: "ports.yaml#/$defs/Binding"}]
-    not: {anyOf: [{required: [fromStep]}, {required: [fromState]}, {required: [fromIterationOutput]}, {required: [fromEvent]}, {required: [fromArtifact]}]}
+    not: {anyOf: [{required: [fromStep]}, {required: [fromState]}, {required: [fromIterationOutput]}, {required: [fromEvent]}, {required: [fromArtifact]}, {required: [fromQuery]}]}
 
   Gate:
     type: object

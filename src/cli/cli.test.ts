@@ -270,6 +270,11 @@ describe('persimmon CLI', () => {
     out = []
     expect(await run('run', 'design-coverage', '--input', model, '--follow')).toBe(0)
     expect(out.some((l) => /^WorkflowRun\s+design-coverage-[0-9a-f]{6}\s+Succeeded/.test(l))).toBe(true)
+    const ran = out
+    out = []
+    expect(await run('get', `GateRun/${ran.find((l) => l.startsWith('created WorkflowRun/'))!.slice('created WorkflowRun/'.length)}-coverage`)).toBe(0)
+    expect(parse(out.join('\n')).spec.inputs.designs.refs.map((r: { id: string }) => r.id)).toEqual(['claims-api']) // the query bound it, not other-api, which names another model
+    out = ran
     expect(out).toContain('  passed  true') // a report: warnings on a pass
     const name = out.find((l) => l.startsWith('created WorkflowRun/'))!.slice('created '.length)
     out = []

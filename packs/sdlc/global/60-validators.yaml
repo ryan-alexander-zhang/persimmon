@@ -110,7 +110,7 @@ spec:
 apiVersion: persimmon.ai/v1
 kind: Validator
 # Every name a DomainModel owns has a Design element realising it, or is reported `unrealised`, a warning: a report over
-# the Designs that name the model (29-design-process.md), run on `design-coverage` with `designs=kind:Design`.
+# the Designs that name the model (29-design-process.md), which the `design-coverage` step queries.
 metadata: {name: domain-coverage}
 spec:
   inputs:

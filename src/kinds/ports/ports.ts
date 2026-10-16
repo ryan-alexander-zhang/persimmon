@@ -177,12 +177,14 @@ export function evaluateBinding(b: Binding, s: Sources, site: Site): RuntimeValu
     const candidates = s.query?.(b.fromQuery.kind)
     if (!candidates) return undefined
     const at = site.extend({ content: {} })
+    // content is typed dyn, so no schema says which numbers are integers: a whole number is a CEL int, as an `integer` port's is
+    const ints = (v: unknown): unknown => (typeof v === 'number' && Number.isInteger(v) ? BigInt(v) : Array.isArray(v) ? v.map(ints) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, ints(x)])) : v)
     const ctx = celContext(s)
     const refs: RevisionRef[] = []
     for (const c of candidates) {
       let keep: unknown
       try {
-        keep = at.evaluate(b.fromQuery.where, { ...ctx, content: c.content })
+        keep = at.evaluate(b.fromQuery.where, { ...ctx, content: ints(c.content) })
       } catch (e) {
         throw new PortError(`fromQuery: ${c.ref.kind}/${c.ref.id}.r${c.ref.revision}: ${(e as Error).message}`) // a typo shows, never a silently shorter list
       }

@@ -103,7 +103,7 @@ Values enter CEL typed by the port schema: `integer` → `int`, `number` → `do
 | `default` only with `required: false` | schema |
 | `default.kind` equals `type.kind` | static checker |
 | `value.schema` carries no `$ref` outside the well-known set, at any depth | static checker |
-| producer type equals consumer type; `literal` and `expression` feed `value` ports only; `fromArtifact` produces an `artifact` of its `kind`, `fromQuery` an `artifacts` of its `kind` with `where` a `bool` (or `dyn`) at the site plus `content`, and its `id` expression type-checks as a string at the site | static checker |
+| producer type equals consumer type; `literal` and `expression` feed `value` ports only; `fromArtifact` produces an `artifact` of its `kind`, and its `id` expression type-checks as a string at the site; `fromQuery` produces an `artifacts` of its `kind`, and its `where` type-checks as a `bool` (or `dyn`) at the site plus `content` | static checker |
 | a Binding reads only causal predecessors in scope | static checker |
 | `fromState`, `fromIterationOutput` only inside `repeat`; `fromEvent` only in Trigger | static checker |
 | `onMissing: omit` only on optional inputs, never in output bindings | static checker |
