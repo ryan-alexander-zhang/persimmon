@@ -112,13 +112,22 @@ brief ─▶ author-prd ─▶ Prd: subdomains[] (core | supporting | generic), 
   mark is the upgrade if the map needs it. Found in audit.
 - The relationships check rides along: `derived-gate` never received the derived BoundedContext,
   so a wrong `role` or `pattern` passed unseen. Found in a walkthrough of example08.
+- Live on `claude-sonnet-5` (example08 recorded again): the Prd agent named `reservations` and
+  `fleet-care` from the brief and no context; `subdomain-mismatch` caught the fleet rule "a return
+  updates the mileage" cited from the pickup and return capability, and the human typed `fleet-care`
+  supporting. The storming cut two contexts and kept the garage an external system; every level
+  passed at round two on modelling findings, the design level named and typed both subdomains, and
+  both BoundedContexts passed `checkBoundedContext` at round one. The Architecture placed every
+  capability once; seven Specs with `context` bound, no `context-mismatch` or `capability-mismatch`.
+  The storming reused the subdomain ids as context ids, though the Prompt asks for a model noun.
+  Found in UAT.
 
 ## Migration
 
 The four kinds are revisioned and their schemas change incompatibly, so a project made before this
-starts fresh (`91-roadmap.md`). The recorded examples are migrated by hand: example07 and
-example08 move their Prd's contexts to subdomains and tag their storming contexts and
-BoundedContexts, said in their README; `docs/design/examples/sdlc-domain.yaml` also drops its
+starts fresh (`91-roadmap.md`). example08 is recorded again, live under this design. The other
+recorded examples are migrated by hand: example07 moves its Prd's context to a subdomain and tags
+its storming context and BoundedContext, said in its README; `docs/design/examples/sdlc-domain.yaml` also drops its
 Identity and Accounting contexts, which held one external system each, and renames `exp` to the
 BoundedContext's id `expenses`. `test/tools/grammar.test.ts` runs `checkSubdomains` and
 `checkBoundedContext` over all three, and `persimmon validate` holds them to the kinds.

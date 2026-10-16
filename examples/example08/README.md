@@ -1,32 +1,29 @@
 # example08: a product over two bounded contexts, brief to Plan
 
 A company car pool: employees reserve and pick up cars, a fleet coordinator keeps the cars serviced.
-Two subdomains in the Prd, `reservations` (core) and `fleet-care` (supporting), two bounded contexts
-the storming cuts for them, `car-reservations` and `fleet-care`, one set of business rules tagged by
-subdomain, one deployable realising both contexts and one web application showing both. The same
-steps as [example07](../example07/README.md), with what changes when a product has more than one
-context. You sit at the Gates; nothing is yours to write but the brief.
+The Prd names two subdomains from the brief, `reservations` (core) and `fleet-care` (supporting), and
+no bounded context; the storming cuts the contexts that realise them (`34-subdomains.md`). One set of
+business rules tagged by subdomain, one deployable with a module per context, one web application
+showing both. The same steps as [example07](../example07/README.md), with what changes when a product
+has more than one context. You sit at the Gates; nothing is yours to write but the brief.
 
 ```text
 brief ─▶ author-prd ─▶ domain-discovery ─▶ architect ────┬─▶ spec-all ×2 ───────────────────────────┐
-         Prd, rules    EventStorming ×3    Architecture, │   Spec ×9                                │
-         you confirm   you confirm each    Adrs ×4;      ├─▶ design-all ×4 ───┬─────────────────────┤
-                       BoundedContext ×2,  you confirm   │   Design ×4        ▼                     ├─▶ plan-all
-                       Glossary ×2,                      └─▶ design-system ─▶ design-all (ui) ──────┘   Plan ×9
+         Prd, rules    EventStorming ×3    Architecture, │   Spec ×7                                │
+         you confirm   you confirm each    Adrs ×4;      ├─▶ design-all ×6 ───┬─────────────────────┤
+                       BoundedContext ×2,  you confirm   │   Design ×6        ▼                     ├─▶ plan-all
+                       Glossary ×2,                      └─▶ design-system ─▶ design-all (ui) ──────┘   Plan ×7
                        DomainModel ×2                        DesignSystem     Design ×1
                                                              you confirm
 ```
 
-Specs, the `BB-1` Designs and the design system each need only the Architecture and what came before
-it; the steps below run them one after another. The `ui` Design waits for the `BB-1` Designs and the
+Specs, the module Designs and the design system each need only the Architecture and what came before
+it; the steps below run them one after another. The `ui` Design waits for the module Designs and the
 design system, the Plans for the Specs and every Design.
 
 [`car-pool-domain.yaml`](car-pool-domain.yaml) is what one run of these steps produced on
-`claude-sonnet-5`: thirty-eight artifacts, every one at revision 1 (the rounds collapsed into the
+`claude-sonnet-5`: thirty-six artifacts, every one at revision 1 (the rounds collapsed into the
 revision that passed). Read it for the shapes, or load it without running anything (step 10).
-Edited by hand after the recording, which named the contexts in the Prd: the Prd's subdomains, the
-capabilities' and rules' tags, the storming contexts' `subdomain` and the BoundedContexts'
-`subdomain` and `capabilities` (`34-subdomains.md`).
 
 ## Prerequisites
 
@@ -55,23 +52,29 @@ persimmon apply overrides.yaml          # the seven agent Executors on claude-so
 persimmon run author-prd --input brief=@brief.txt --input productId=car-pool --follow
 ```
 
-`Prd/car-pool-prd` with `subdomains: [reservations (core), fleet-care (supporting)]`, every capability
-naming one, and `BusinessRules/car-pool-rules` with every `BR-n` tagged with the subdomain whose
-policy it is (`34-subdomains.md`). The Prd names no bounded context: the storming cuts those. Round
-one of the recording named a capability after a screen and put one rule in the wrong part; the
-rejection named both, round two passed.
+`Prd/car-pool-prd` with `subdomains: [reservations (core), fleet-care (supporting)]` and seven
+capabilities, each naming one, and `BusinessRules/car-pool-rules` with eighteen rules, each tagged
+with the subdomain whose policy it is. The Prd names no bounded context. Round one cited the fleet
+rule "each car return must update the car's mileage" from the pickup and return capability, and
+`prd-consistency` refused it (`subdomain-mismatch`); the human moved it to fleet record keeping,
+typed `fleet-care` supporting instead of core, and answered the four open questions. Round two
+passed.
 
-### 3. Domain discovery, both contexts from one storming
+### 3. Domain discovery: the storming cuts the contexts
 
 ```sh
 persimmon run domain-discovery --input 'prd=<ref>' --input 'rules=<ref>' --follow
 ```
 
-Three Gates, one per storming level; each passed at round two after one rejection. The design
-level carries both contexts, each naming its subdomain and typed by it; the derivation (a script Gate, no human) wrote `BoundedContext/car-reservations`,
-`BoundedContext/fleet-care` and a Glossary and DomainModel for each, all at round one. Round one of
-the process level re-raised Prd questions the big-picture Gate had already answered; the Prompt now
-reads a settled question off the confirmed model and never raises it again (`26-domain-discovery-process.md`).
+Three Gates, one per storming level, each passed at round two. The big picture cut two contexts,
+`reservations` and `fleet-care`, and kept the garage an external system outside both; the human
+merged a duplicated "Car taken out of service" and asked for the missing "Car mileage updated". The
+process level gained a time-triggered "Service date reached", so a parked car still becomes
+service-due. At the design level each context names its subdomain and carries its type, the map
+holds one partnership, and `storming-gate` checks both against the Prd (`checkSubdomains`). The
+derivation (a script Gate, no human) wrote `BoundedContext/reservations` (CAP-1 to CAP-4) and
+`BoundedContext/fleet-care` (CAP-5 to CAP-7), each with its Glossary and DomainModel, all at round
+one; `derived-gate` holds their subdomain, capabilities and relationships to the storming.
 
 ### 4. The Architecture, the lists bound by kind
 
@@ -81,39 +84,37 @@ persimmon run architect --input 'prd=<ref>' --input 'rules=<ref>' \
 ```
 
 `--input <port>=kind:<Kind>` lists every artifact of that kind at its latest revision (`08-store.md`).
-Round one cut two services and a gateway; the rejection asked for one deployable realising both
-contexts. Round two: `BB-1 Car Pool Service` (both contexts, two provided APIs), `BB-3 Pool Web
-Application`, four Adrs in strategy slots `S-1` to `S-4` (`31-architecture-process.md`: the n-th Adr
-backs `S-n` and says so in `strategy`), the first recording under that rule.
+Round one: one deployable with a module per context, `BB-1 Reservations module` and `BB-2 Fleet care
+module`, `BB-3 Web client`, `BB-4 Data store`; the modules integrate by domain events, and car
+search reads an event-fed projection. Four Adrs in strategy slots `S-1` to `S-4`
+(`31-architecture-process.md`). `architecture-consistency` placed every capability in exactly one
+BoundedContext.
 
 ### 5. Specs, one run per context
 
 ```sh
-persimmon run spec-all --input 'prd=<ref>' --input 'capabilities=[CAP-1, CAP-2, CAP-3, CAP-4, CAP-5, CAP-6]' \
-  --input 'architecture=<ref>' --input 'context=<car-reservations>' --input 'domainModel=<car-reservations-model>' --input 'glossary=<car-reservations-glossary>' --input 'rules=<ref>' --follow
-persimmon run spec-all --input 'capabilities=[CAP-7, CAP-8, CAP-9]' --input 'context=<fleet-care>' --input 'domainModel=<fleet-care-model>' --input 'glossary=<fleet-care-glossary>' <the rest as above> --follow
+persimmon run spec-all --input 'prd=<ref>' --input 'capabilities=[CAP-1, CAP-2, CAP-3, CAP-4]' \
+  --input 'architecture=<ref>' --input 'context=<reservations>' --input 'domainModel=<reservations-model>' --input 'glossary=<reservations-glossary>' --input 'rules=<ref>' --follow
+persimmon run spec-all --input 'capabilities=[CAP-5, CAP-6, CAP-7]' --input 'context=<fleet-care>' --input 'domainModel=<fleet-care-model>' --input 'glossary=<fleet-care-glossary>' <the rest as above> --follow
 ```
 
-A Spec binds one BoundedContext and its DomainModel, so the capabilities each BoundedContext lists run
-with that context and its model: `car-reservations` lists CAP-1 to CAP-6, `fleet-care` CAP-7 to CAP-9. `written 6`, `written 3`,
-every Spec round one.
+A Spec binds one BoundedContext and its DomainModel, so each run takes the capabilities that context
+lists. `written 4`, `written 3`; two Specs took a second round to put their acceptance ids in order.
 
-### 6. Four Designs of one block, told apart by `qualifier`
+### 6. Six Designs, three per module
 
 ```sh
-persimmon run design-all --input 'blocks=[BB-1]' --input type=http-api --input 'interface=Reservation API' --input qualifier=reservations \
-  --input 'domainModel=<car-reservations-model>' --input 'glossary=<car-reservations-glossary>' <architecture, rules> --follow
-persimmon run design-all --input 'blocks=[BB-1]' --input type=data-schema --input qualifier=car-reservations <the same model and glossary> --follow
-persimmon run design-all --input 'blocks=[BB-1]' --input type=http-api --input 'interface=Fleet record API' --input qualifier=fleet \
-  --input 'domainModel=<fleet-care-model>' --input 'glossary=<fleet-care-glossary>' <architecture, rules> --follow
-persimmon run design-all --input 'blocks=[BB-1]' --input type=data-schema --input qualifier=fleet-care <the same model and glossary> --follow
+persimmon run design-all --input 'blocks=[BB-1]' --input type=http-api --input 'interface=Reservation API' \
+  --input 'domainModel=<reservations-model>' --input 'glossary=<reservations-glossary>' <architecture, rules> --follow
+persimmon run design-all --input 'blocks=[BB-1]' --input type=async-api --input 'interface=Reservation events' <the same model and glossary> --follow
+persimmon run design-all --input 'blocks=[BB-1]' --input type=data-schema <the same model and glossary> --follow
+# and the same three for BB-2: 'Fleet care API', 'Fleet care status events', the fleet-care model and glossary
 ```
 
-`BB-1` provides two APIs and stores two contexts' aggregates; a Design id is
-`<architecture>-<block>-<qualifier>-<type>`, so the four are `...-bb-1-reservations-http-api`,
-`...-bb-1-car-reservations-data-schema`, `...-bb-1-fleet-http-api`, `...-bb-1-fleet-care-data-schema`
-(`29-design-process.md`). Each round one. The `ui` Design and the Plans take every Design of the
-project with `--input designs=kind:Design`; no list file.
+A Design id is `<architecture>-<block>-<type>`, `...-bb-1-http-api` and so on; a block with two
+Designs of one type would add `--input qualifier=<label>` (`29-design-process.md`). The http-api and
+data-schema Designs passed at round one, both async-api Designs at round two. The `ui` Design and
+the Plans take every Design of the project with `--input designs=kind:Design`; no list file.
 
 ### 7. The design system, you at the Gate
 
@@ -132,23 +133,23 @@ persimmon run design-all --input 'blocks=[BB-3]' --input type=ui --input 'design
 ```
 
 No `domainModel`, no `glossary`: a `ui` Design realises operations of the API Designs bound, not
-model labels (`32-ui-design-process.md`). `kind:Design` binds the two data schemas and the last
-`ui` Design too; the screens realise the APIs' operations and the Validator ignores the rest. `Design/car-pool-prd-architecture-bb-3-ui.r1`, round one:
-eight screens, twenty elements, ten over each API. Its first open question is a real gap upstream:
-the Reservation API's `Car` schema carries only `carId`, so the Available cars screen cannot show
-which car was offered. An earlier run of this step with the `car-reservations` model bound failed
-on the four fleet screens and, at round two, kept them in prose without elements; that is why the
-index moved to operations.
+model labels (`32-ui-design-process.md`). `kind:Design` binds the schemas and the event Designs too;
+the screens realise the APIs' operations and the Validator ignores the rest.
+`Design/car-pool-prd-architecture-bb-3-ui.r1`, round one: nine screens, twenty elements. Its open
+question is a real gap upstream: the Reservation API's available-cars response carries only `carId`,
+so the search screen cannot show the car's seats or gearbox.
 
 ### 8b. What no Design realises yet
 
 ```sh
-persimmon run design-coverage --input 'domainModel=<ref>' --follow   # <ref>: car-reservations-model, then once more for fleet-care-model; the Designs naming it are queried
-persimmon tree WorkflowRun/design-coverage-<hex>     # one `unrealised` warning per stormed name without a Design element: commands the APIs skipped, every event (no async-api Design), an aggregate no schema holds
+persimmon run design-coverage --input 'domainModel=<ref>' --follow   # <ref>: reservations-model, then once more for fleet-care-model; the Designs naming it are queried
+persimmon tree WorkflowRun/design-coverage-<hex>     # one `unrealised` warning per stormed name without a Design element
 ```
 
 The run Succeeds: an unrealised name is the product's gap, not a defect of the Designs that
-exist. Run it again, once per DomainModel, after the next `design-all`.
+exist. Here `reservations` has four and `fleet-care` nine, every command among them one a policy
+invokes (release, lapse, cancel future reservations, update mileage), the events fleet care's own.
+Run it again, once per DomainModel, after the next `design-all`.
 
 ### 8c. One Design again, later
 
@@ -162,20 +163,21 @@ persimmon tree WorkflowRun/design-check-<hex>        # every finding; `passed fa
 ### 9. One Plan per Spec
 
 ```sh
-persimmon run plan-all --input 'prd=<ref>' --input 'capabilities=[CAP-1, CAP-2, CAP-3, CAP-4, CAP-5, CAP-6, CAP-7, CAP-8, CAP-9]' \
+persimmon run plan-all --input 'prd=<ref>' --input 'capabilities=[CAP-1, CAP-2, CAP-3, CAP-4, CAP-5, CAP-6, CAP-7]' \
   --input 'architecture=<ref>' --input designs=kind:Design --follow
 ```
 
-`written 9`, every Plan round one, each with tasks on `BB-1` and `BB-3` realising elements of the
-APIs, the schemas and the screens. Their open questions name what no Design covers: the
-time-triggered release of an unclaimed reservation, the lapse of an undecided approval, the mail
-relay for notifications, a mileage update the Fleet record API has no operation for.
+`written 7`, every Plan round one, each with tasks on its context's module and `BB-3` realising
+elements of the APIs, the schemas and the screens; the damage review's Plan touches both modules.
+Their open questions name what no Design covers: the car attributes the available-cars response
+lacks, the time trigger of the approval lapse and of the service date, and the consuming side of
+each module's events.
 
 ### 10. Load the recorded output instead
 
 ```sh
 persimmon init
-persimmon validate car-pool-domain.yaml        # 38 lines `ok`
+persimmon validate car-pool-domain.yaml        # 36 lines `ok`
 ```
 
 `persimmon create` takes one document per file; split the file to load it, or read it as it is.

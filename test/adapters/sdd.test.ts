@@ -496,7 +496,7 @@ describe('sdd/v1 over a Design', () => {
         const found = all.filter((x: { code: string }) => /^(document-|element-unbacked|dialect|action-|alias-)/.test(x.code))
         expect({ file: f, id: d.spec.identity.id, found }).toEqual({ file: f, id: d.spec.identity.id, found: [] })
         const layout = all.filter((x: { code: string }) => x.code === 'layout-unknown').length
-        if (c.type === 'ui') expect({ file: f, id: d.spec.identity.id, layoutWarnings: layout > 0 }).toEqual({ file: f, id: d.spec.identity.id, layoutWarnings: f.includes('example08') }) // example07's Layouts name the DesignSystem only; example08's name fields too (32-ui-design-process.md)
+        if (c.type === 'ui') expect({ file: f, id: d.spec.identity.id, layoutWarnings: layout > 0 }).toEqual({ file: f, id: d.spec.identity.id, layoutWarnings: false }) // every recorded ui Design's Layouts name the DesignSystem only (32-ui-design-process.md)
       }
       const rulesId = byKind('BusinessRules')[0]?.spec.identity.id
       for (const d of all.filter((x) => ['Prd', 'Spec', 'Design', 'Architecture'].includes(x.kind))) expect({ file: f, id: d.spec.identity.id, businessRules: d.spec.content.businessRules }).toEqual({ file: f, id: d.spec.identity.id, businessRules: rulesId })

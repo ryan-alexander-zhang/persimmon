@@ -75,7 +75,7 @@ describe('persimmon CLI', () => {
     expect(out.length).toBe(30)
     out = [] // the car pool over two contexts (33-multi-context-product.md)
     expect([await run('validate', 'examples/example08/car-pool-domain.yaml'), out.filter((l) => !l.startsWith('ok'))]).toEqual([0, []])
-    expect(out.length).toBe(38)
+    expect(out.length).toBe(36)
     out = []
     const bad = example('workflow-prd-create')
     bad.spec.entry = ['write-prd']
