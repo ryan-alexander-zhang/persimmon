@@ -233,6 +233,7 @@ spec:
     uses: {kind: Gate, name: spec-gate}
     inputs:
       spec: {fromStep: {stepRef: produce, output: spec}}
+      capabilityId: {fromInput: capabilityId}
       prd: {fromInput: prd}
       domainModel: {fromInput: domainModel}
       architecture: {fromInput: architecture}

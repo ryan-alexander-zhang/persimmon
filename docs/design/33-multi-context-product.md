@@ -49,7 +49,7 @@ are migrated by the rename alone, said in their README.
 | Validator `prd-consistency` (`checkPrd`) | `context-mismatch`: a capability's `context` not in `rules.contexts`; a cited rule whose `context` is set and differs from the capability's; a rule without `context` when `contexts` has more than one |
 | Prompt `storming-big-picture` | (superseded, `34-subdomains.md`) the Prd's capability contexts are the storming contexts, with the ids the Prd uses, so `derive-all` publishes the BoundedContexts the capabilities cite (already said; restated with the list) |
 | Prompt `derive-domain-rules` | invariants and `rules` citations take the rules tagged with this context, or untagged |
-| `spec-all`, `design-all` | unchanged: one run per context, with that context's capability ids or blocks and its DomainModel and Glossary; a Workflow cannot read a Prd to pick a capability's context, so the caller does (`27-spec-process.md`, `29-design-process.md` rows stand) |
+| (`spec-all` takes the BoundedContext too, `34-subdomains.md`) `spec-all`, `design-all` | unchanged: one run per context, with that context's capability ids or blocks and its DomainModel and Glossary; a Workflow cannot read a Prd to pick a capability's context, so the caller does (`27-spec-process.md`, `29-design-process.md` rows stand) |
 | `architect`, `design-system`, `plan-all` | unchanged |
 
 ## `kind:` query at `run`
@@ -67,7 +67,7 @@ the Namespace. Inside a Workflow, a step filters the same set by content with `f
 |---|---|
 | one BusinessRules per product, `BR-n` unique across the product, each rule tagged with the context that enforces it when the product has more than one; a Prd, Spec, Design or Architecture names the artifact in `businessRules`, the Validator holds it to the one bound and to what the upstream document names (a Spec's Prd, a Design's Architecture, an Architecture's Prd), so a `BR-n` is a pair (artifact id, `BR-n`) and two products' `BR-11` never meet | `prd-consistency`, `spec-consistency`, `design-consistency`, `architecture-consistency` (`rules-mismatch`) `prd-consistency` |
 | a capability lives in one context and cites rules of its context (or untagged ones) | `prd-consistency` |
-| `spec-all` and `design-all` run once per context: the caller passes that context's capability ids or block ids with its DomainModel and Glossary | convention; roadmap for a per-item pick |
+| (`spec-all` takes the BoundedContext too, `34-subdomains.md`) `spec-all` and `design-all` run once per context: the caller passes that context's capability ids or block ids with its DomainModel and Glossary | convention; roadmap for a per-item pick |
 | a `ui` Design of a client block that reads two contexts takes the DomainModel of the one it reads most; its other read models are `Q-n` until `design-asset` takes a list of models | convention; roadmap |
 | `kind:` lists the Namespace's artifacts of one kind, latest revision each: the whole product, because a local project is one product | CLI; `08-store.md` |
 
@@ -82,7 +82,7 @@ the Namespace. Inside a Workflow, a step filters the same set by content with `f
 - The query is a `run` convenience, not an engine binding: every list the pack needs is given at
   `run` by the person who starts the step, and local mode has one product per project, so "every
   artifact of a kind" is the right list without a filter language. Found in design review.
-- `spec-all` and `design-all` stay per context: a Workflow reads no artifact content, so it cannot
+- (`spec-all` also binds the BoundedContext since `34-subdomains.md`.) `spec-all` and `design-all` stay per context: a Workflow reads no artifact content, so it cannot
   map a capability to its context's model; two runs with explicit ids are honest and cheap. Found in
   design review.
 - Live on `claude-sonnet-5` (example08, `uat3`): the Prd came back with nine capabilities over the

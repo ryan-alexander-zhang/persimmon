@@ -67,6 +67,15 @@ describe('sdd/v1', () => {
     expect(listed.result.findings.map((f: { code: string }) => f.code)).toEqual(['context-mismatch'])
     const model = await adapter({ id: ++id, op: 'evaluate', payload: withContext((_, a) => (a.domainModel.context = 'payments')) })
     expect(model.result.findings.map((f: { code: string }) => f.code)).toEqual(['context-mismatch'])
+ 
+    // off the engine, a context with no ref: the capability is still held to it, the DomainModel's context is not
+    const unref = withContext((_, a) => (a.domainModel.context = 'payments'))
+    delete (unref.inputs as Record<string, unknown>).context
+    expect((await adapter({ id: ++id, op: 'evaluate', payload: unref })).result).toEqual({ passed: true, findings: [], evidence: [] })
+    // the capability written for: a Spec that switched capability is refused
+    const switched = withContext()
+    ;(switched.inputs as Record<string, unknown>).capabilityId = { kind: 'value', value: 'CAP-4' }
+    expect((await adapter({ id: ++id, op: 'evaluate', payload: switched })).result.findings.map((f: { code: string }) => f.code)).toEqual(['capability-mismatch'])
   })
 
   it('fails content that is not a Spec, and reports nothing else', async () => {

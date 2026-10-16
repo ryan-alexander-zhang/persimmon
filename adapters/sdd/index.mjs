@@ -1,5 +1,6 @@
 // sdd/v1: the evaluator Role (19-adapter-roles.md) over the SDLC pack (23-pack-sdlc.md), in four modes.
-// Given a Spec, `evaluate` runs `checkSpec` on it and the Prd, DomainModel, Architecture and BusinessRules it cites;
+// Given a Spec, `evaluate` runs `checkSpec` on it and the Prd, DomainModel, Architecture and BusinessRules it cites and
+// the BoundedContext bound;
 // given a Prd, it runs `checkPrd` on it and the BusinessRules of its context; given a Design, it runs `checkDesign` on
 // it and the Architecture, DomainModel and BusinessRules it cites (a ui Design: the DesignSystem bound and the API Designs
 // instead of the DomainModel); given a Plan, it runs `checkPlan` on it, the Spec,
@@ -95,7 +96,7 @@ function evaluate(payload) {
     architecture: required(artifacts, 'architecture'),
     rules: required(artifacts, 'rules'),
     context: artifacts.context?.content,
-    ids: { rules: payload.inputs?.rules?.ref?.id, context: payload.inputs?.context?.ref?.id },
+    ids: { rules: payload.inputs?.rules?.ref?.id, context: payload.inputs?.context?.ref?.id, capability: payload.inputs?.capabilityId?.value },
   })
   // the payload carries each artifact as {content, provenance}: no RevisionRef, so no evidence (19-adapter-roles.md)
   return { passed: passes(findings), findings, evidence: [] }

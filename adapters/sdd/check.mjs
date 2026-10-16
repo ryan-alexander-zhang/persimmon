@@ -51,6 +51,8 @@ export function checkSpec({ spec, prd, domainModel, architecture, rules, context
   rulesSource(bad, spec, ids, { name: 'the Prd', doc: prd })
 
   const capability = (prd?.capabilities ?? []).find((c) => c.id === spec.capability)
+  // the Spec describes the capability it was written for: a finding the writer cannot fix is no licence to switch capability
+  if (ids.capability && spec.capability !== ids.capability) bad('capability-mismatch', `capability ${spec.capability} is not ${ids.capability}, the capability this Spec was written for`)
   if (!capability) bad('unknown-capability', `capability ${spec.capability} is not a capability of the Prd`)
   // the capability lives in the BoundedContext that lists it, and the DomainModel is that context's (34-subdomains.md)
   else if (context && !(context.capabilities ?? []).includes(capability.id)) bad('context-mismatch', `${capability.id} is not a capability the bound BoundedContext lists`)

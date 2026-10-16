@@ -123,7 +123,8 @@ spec:
       Write the Spec of the Prd capability whose id is `capabilityId`, following the Spec rules in your context.
       `prd`, `architecture`, `domainModel` and `businessRules` in the Spec are the artifact ids of the inputs with those
       names (`businessRules` is the input `rules`: the artifact every `BR-n` you cite belongs to).
-      The capability is one `context` lists, and the DomainModel is that context's.
+      The capability is one `context` lists, and the DomainModel is that context's; `capability` is always
+      `capabilityId`: a finding that the context does not list it is the caller's to fix, so answer it with a `Q-n`.
       Every command, event and read model label is the DomainModel's; every rule id is in `rules`; every quality
       scenario id is in `architecture`. With `previous` and `feedback` bound, fix what the findings name and
       change nothing else.
