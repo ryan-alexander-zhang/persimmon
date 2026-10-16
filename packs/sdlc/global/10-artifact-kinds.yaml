@@ -34,7 +34,7 @@ spec:
               properties:
                 context: {type: string, minLength: 1, description: "artifact id of the other BoundedContext; may live in another Namespace or not exist yet"}
                 role: {enum: [upstream, downstream, peer], description: "this context's role toward `context`"}
-                pattern: {enum: [shared-kernel, customer-supplier, conformist, anticorruption-layer, open-host-service, published-language, partnership, separate-ways], description: "conformist and anticorruption-layer are downstream; open-host-service and published-language upstream; shared-kernel, partnership and separate-ways peer; customer-supplier either way"}
+                pattern: {enum: [shared-kernel, customer-supplier, conformist, anticorruption-layer, open-host-service, published-language, partnership, separate-ways], description: "the relationship's type, the same on both sides; `role` says which side this context is. conformist and anticorruption-layer describe what the downstream does, open-host-service and published-language what the upstream offers; shared-kernel, partnership and separate-ways have peers on both sides"}
                 note: {type: string}
   mutability: Immutable
   revisioned: true

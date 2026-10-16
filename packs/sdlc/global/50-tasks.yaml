@@ -69,6 +69,7 @@ spec:
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: false}
+    previousContext: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext}}, required: false, description: "the BoundedContext the last round answered; the loop carries it (21-composition.md)"}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
   outputs:
     context: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext}}, id: {expression: "inputs.contextId"}}
@@ -83,13 +84,15 @@ spec:
       publishes for you); `source` is the model's artifact id. Invent nothing; leave empty what the model does not say.
       With `previous` and `feedback` bound, the consistency check refused the last derivation: every finding names
       a DomainModel label that differs from the model, or a BoundedContext subdomain, classification, capability or
-      relationship that differs from the storming and the Prd; fix those and change nothing else.
+      relationship that differs from the storming and the Prd; fix those and change nothing else: start from
+      `previous` and `previousContext`, the last round's DomainModel and BoundedContext.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: derive-domain-rules}}
       - {kind: artifact, input: model}
       - {kind: artifact, input: prd}
       - {kind: artifact, input: rules}
       - {kind: artifact, input: previous}
+      - {kind: artifact, input: previousContext}
     parameters: {effort: high}
   timeout: 30m
   retryPolicy: # a transient API refusal (19-adapter-roles.md) gets another attempt within the step deadline; a dead login is permission_denied and never retried

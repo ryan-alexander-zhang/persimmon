@@ -370,6 +370,34 @@ describe('checkBoundedContext', () => {
     expect(codesOf(split, bc({ capabilities: ['CAP-1'] }))).toEqual([])
   })
 
+  it.each([
+    ['partnership', 'peer', 'peer', 'partnership'],
+    ['sharedKernel', 'peer', 'peer', 'shared-kernel'],
+    ['separateWays', 'peer', 'peer', 'separate-ways'],
+    ['customerSupplier', 'upstream', 'downstream', 'customer-supplier'],
+    ['conformist', 'upstream', 'downstream', 'conformist'],
+    ['acl', 'upstream', 'downstream', 'anticorruption-layer'],
+    ['openHostService', 'upstream', 'downstream', 'open-host-service'],
+    ['publishedLanguage', 'upstream', 'downstream', 'published-language'],
+  ])('maps %s to %s on the source side, %s on the target side, pattern %s', (type, source, target, pattern) => {
+    const m = model({ version: '4.1', contexts: [{ id: 'up', name: 'U', order: 0, subdomain: 'reservations', classification: 'core' }, { id: 'down', name: 'D', order: 1, subdomain: 'fleet-care', classification: 'supporting' }], contextRelationships: [{ id: 'cr-1', source: 'up', target: 'down', type }] })
+    const side = (subdomain: string, classification: string, capabilities: string[], context: string, role: string) => ({ subdomain, classification, capabilities, relationships: [{ context, role, pattern }] })
+    expect(checkBoundedContext(m, side('reservations', 'core', ['CAP-1', 'CAP-2'], 'down', source), 'up', prd)).toEqual([])
+    expect(checkBoundedContext(m, side('fleet-care', 'supporting', ['CAP-3'], 'up', target), 'down', prd)).toEqual([])
+  })
+
+  it('counts: a relationship listed twice is a mismatch, and so is a capability', () => {
+    const twice = bc().relationships.concat(bc().relationships[0])
+    expect(codesOf(two, bc({ relationships: twice }))).toEqual(['derived-relationship-mismatch'])
+    expect(codesOf(two, bc({ capabilities: ['CAP-1', 'CAP-2', 'CAP-1'] }))).toEqual(['derived-capability-unknown'])
+  })
+
+  it('leaves the capabilities unchecked without a Prd, and the subdomain to the storming Gate when the context has none', () => {
+    expect(checkBoundedContext(two, bc({ capabilities: ['CAP-9'] }), 'car-reservations', undefined)).toEqual([])
+    const untagged = storming([{ id: 'car-reservations', name: 'R', order: 0, classification: 'core' }, { id: 'fleet-care', name: 'F', order: 1, classification: 'supporting' }])
+    expect(codesOf(untagged, bc())).toEqual([])
+  })
+
   it('fails a relationship the storming does not have, and one it has that is missing', () => {
     expect(codesOf(two, bc({ relationships: [{ context: 'fleet-care', role: 'upstream', pattern: 'customer-supplier' }, { context: 'fleet-care', role: 'peer', pattern: 'partnership' }] }))).toEqual(['derived-relationship-mismatch', 'derived-relationship-mismatch'])
     expect(codesOf(two, bc({ relationships: [] }))).toEqual(['derived-relationship-mismatch', 'derived-relationship-mismatch'])

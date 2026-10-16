@@ -152,6 +152,8 @@ describe('eventstorming/v1 against a derived DomainModel', () => {
   })
   it('checks the derived BoundedContext beside the Prd when it is bound', async () => {
     const p = pair(derived)
+    const tagged = { ...storming, version: '4.1', contexts: storming.contexts.map((c) => ({ ...c, subdomain: 'expenses' })) }
+    p.artifacts.model = { content: tagged, provenance }
     ;(p.artifacts as Record<string, unknown>).boundedContext = { content: { subdomain: 'x', capabilities: [], relationships: [] }, provenance }
     ;(p.artifacts as Record<string, unknown>).prd = { content: { capabilities: [] }, provenance }
     const r = await adapter({ id: 12, op: 'evaluate', payload: p })

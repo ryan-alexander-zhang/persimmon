@@ -115,6 +115,7 @@ spec:
   subject: domainModel
   previous: previous
   feedback: feedback
+  carry: {context: previousContext} # the BoundedContext comes back beside the DomainModel: round two fixes it instead of rebuilding it
   maxRounds: 2
   timeout: 90m
 ---

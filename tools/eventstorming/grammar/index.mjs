@@ -286,13 +286,20 @@ export function checkBoundedContext(model, boundedContext, context, prd) {
   const c = arr(model?.contexts).find((x) => x.id === context)
   if (!c) return findings // checkDerived reports the unknown context
   const bc = isObject(boundedContext) ? boundedContext : {}
-  if (bc.subdomain !== c.subdomain) add('error', 'derived-subdomain-mismatch', `subdomain ${bc.subdomain ?? 'none'} is not ${c.subdomain ?? 'none'}, the storming context's`)
   if (bc.classification !== c.classification) add('error', 'derived-classification-mismatch', `classification ${bc.classification ?? 'none'} is not ${c.classification ?? 'none'}, the storming context's`)
-  const ofSubdomain = arr(prd?.capabilities).filter((cap) => cap.subdomain === c.subdomain).map((cap) => cap.id)
-  const listed = Array.isArray(bc.capabilities) ? bc.capabilities : []
-  for (const id of listed) if (!ofSubdomain.includes(id)) add('error', 'derived-capability-unknown', `capability ${id} is not a capability of subdomain ${c.subdomain ?? 'none'}`)
-  const alone = arr(model?.contexts).filter((x) => x.subdomain === c.subdomain).length === 1
-  if (alone) for (const id of ofSubdomain) if (!listed.includes(id)) add('error', 'derived-capability-missing', `capability ${id} of subdomain ${c.subdomain}, which no other context realises, is not listed`)
+  // a storming context without a subdomain is the storming Gate's to refuse (checkSubdomains); the derivation cannot fix it
+  if (c.subdomain != null) {
+    if (bc.subdomain !== c.subdomain) add('error', 'derived-subdomain-mismatch', `subdomain ${bc.subdomain ?? 'none'} is not ${c.subdomain}, the storming context's`)
+    // the capabilities need the Prd; unbound, they go unchecked rather than all unknown
+    if (isObject(prd)) {
+      const ofSubdomain = arr(prd.capabilities).filter((cap) => cap.subdomain === c.subdomain).map((cap) => cap.id)
+      const listed = Array.isArray(bc.capabilities) ? bc.capabilities : []
+      for (const id of listed) if (!ofSubdomain.includes(id)) add('error', 'derived-capability-unknown', `capability ${id} is not a capability of subdomain ${c.subdomain}`)
+      for (const [i, id] of listed.entries()) if (listed.indexOf(id) !== i) add('error', 'derived-capability-unknown', `capability ${id} is listed twice`)
+      const alone = arr(model?.contexts).filter((x) => x.subdomain === c.subdomain).length === 1
+      if (alone) for (const id of ofSubdomain) if (!listed.includes(id)) add('error', 'derived-capability-missing', `capability ${id} of subdomain ${c.subdomain}, which no other context realises, is not listed`)
+    }
+  }
   // the storming's map seen from this context: upstream as source, downstream as target, peer for a symmetric type
   const key = (r) => `${r.context}|${r.role}|${r.pattern}`
   const want = arr(model?.contextRelationships).filter((r) => r.source === context || r.target === context).map((r) => key({
@@ -301,8 +308,13 @@ export function checkBoundedContext(model, boundedContext, context, prd) {
     pattern: kebab[r.type] ?? r.type,
   }))
   const have = arr(bc.relationships).map(key)
-  for (const k of want) if (!have.includes(k)) add('error', 'derived-relationship-mismatch', `relationship ${k.replaceAll('|', ' ')} is in the storming but not in the BoundedContext`)
-  for (const k of have) if (!want.includes(k)) add('error', 'derived-relationship-mismatch', `relationship ${k.replaceAll('|', ' ')} is in the BoundedContext but not in the storming`)
+  // a multiset difference: the same relationship twice on one side and once on the other is a mismatch
+  const count = (list, k) => list.filter((x) => x === k).length
+  for (const k of new Set([...want, ...have])) {
+    const [w, h] = [count(want, k), count(have, k)]
+    if (w > h) add('error', 'derived-relationship-mismatch', `relationship ${k.replaceAll('|', ' ')} is in the storming ${w} times, in the BoundedContext ${h}`)
+    if (h > w) add('error', 'derived-relationship-mismatch', `relationship ${k.replaceAll('|', ' ')} is in the BoundedContext ${h} times, in the storming ${w}`)
+  }
   return findings.sort(order)
 }
 
