@@ -118,7 +118,10 @@ brief ─▶ author-prd ─▶ Prd: subdomains[] (core | supporting | generic), 
 The four kinds are revisioned and their schemas change incompatibly, so a project made before this
 starts fresh (`91-roadmap.md`). The recorded examples are migrated by hand: example07 and
 example08 move their Prd's contexts to subdomains and tag their storming contexts and
-BoundedContexts, said in their README.
+BoundedContexts, said in their README; `docs/design/examples/sdlc-domain.yaml` also drops its
+Identity and Accounting contexts, which held one external system each, and renames `exp` to the
+BoundedContext's id `expenses`. `test/tools/grammar.test.ts` runs `checkSubdomains` and
+`checkBoundedContext` over all three, and `persimmon validate` holds them to the kinds.
 
 ## Units
 
