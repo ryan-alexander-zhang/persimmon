@@ -12,7 +12,7 @@ plus one shipped evaluator Adapter.
 ```text
 Workflow spec-all: repeat over `capabilities` ─▶ ReviewLoop spec-one per CAP-n
   produce: Task write-spec (spec-agent) ─▶ Spec
-  review:  Gate spec-gate = Validator spec-consistency (sdd/v1: spec, prd, domainModel, architecture, rules)
+  review:  Gate spec-gate = Validator spec-consistency (sdd/v1: spec, prd, domainModel, architecture, rules, context)
   previous and feedback fed back; maxRounds 2
 ```
 
@@ -37,7 +37,7 @@ returning findings, every one `error`:
 |---|---|
 | `not-a-spec` | content without `stories`, `requirements` or `capability`; the only finding then |
 | `unknown-capability` | `capability` is no `CAP-n` of the Prd |
-| `context-mismatch` | pending `34-subdomains.md` unit 6: the capability is not one the bound BoundedContext lists, or `domainModel.context` is not that context; until then unchecked, since the Prd names no context |
+| `context-mismatch` | the capability is not one the bound BoundedContext lists, or `domainModel.context` is not that context (`34-subdomains.md`; the Prd names no context) |
 | `unknown-role` | a story's `role` is no Prd user |
 | `unknown-command`, `unknown-event`, `unknown-read-model` | a name the DomainModel lacks (commands: aggregates' and external systems' `handles` and `issues`; events: `events[]`, read models' `updatedBy`, external systems' `emits`, so another context's event counts once the model names it) |
 | `unknown-requirement` | a story covers an `FR-n` the Spec lacks |
@@ -58,8 +58,8 @@ nothing: the schema refuses those (`minItems: 1`).
 | a Spec cites and never restates: a name the DomainModel lacks is a finding, fixed upstream, never invented in the Spec | `spec-consistency` |
 | a scenario's values ("25 EUR") are example data of the revision the Spec read, never the rule's authority; provenance pins the BusinessRules revision, and `persimmon get Spec --behind` lists the Specs whose pinned revision is behind (`08-store.md`), a query, not a field | convention; `get --behind` |
 | the Spec's `prd`, `architecture`, `domainModel` artifact ids are not checked against the inputs: the evaluator payload carries content and provenance, no RevisionRef (`19-adapter-roles.md`); provenance pins what was read | convention; Validator later |
-| the capability lives in the bound BoundedContext and the DomainModel is that context's (`context-mismatch`, `34-subdomains.md`) | `spec-consistency`, pending unit 6 |
-| `spec-all` runs over one context: its `domainModel`, `glossary` and `rules` are one artifact each; a Prd spanning contexts runs it once per context with that context's capability ids | convention |
+| the capability lives in the bound BoundedContext and the DomainModel is that context's (`context-mismatch`, `34-subdomains.md`) | `spec-consistency` |
+| `spec-all` runs over one context: its `context`, `domainModel`, `glossary` and `rules` are one artifact each, and its capability ids are ones the `context` lists; a product over several contexts runs it once per context | convention; `context-mismatch` per Spec |
 | `spec-gate` has no human: a project that wants sign-off wraps `spec-one` in an Approval, as example06 does | convention |
 
 ## Decisions

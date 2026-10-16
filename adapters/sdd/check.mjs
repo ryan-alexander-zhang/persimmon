@@ -42,7 +42,7 @@ const rulesSource = (bad, doc, ids, upstream) => {
   if (upstream?.doc?.businessRules !== undefined && ids.rules && upstream.doc.businessRules !== ids.rules) bad('rules-mismatch', `${upstream.name} names businessRules ${upstream.doc.businessRules}, not ${ids.rules}, the BusinessRules bound`)
 }
 
-export function checkSpec({ spec, prd, domainModel, architecture, rules, ids = {} }) {
+export function checkSpec({ spec, prd, domainModel, architecture, rules, context, ids = {} }) {
   if (!spec || !Array.isArray(spec.stories) || !Array.isArray(spec.requirements) || !spec.capability) {
     return [{ severity: 'error', code: 'not-a-spec', message: 'content is not a Spec: it has no stories array, no requirements array or no capability' }]
   }
@@ -52,6 +52,9 @@ export function checkSpec({ spec, prd, domainModel, architecture, rules, ids = {
 
   const capability = (prd?.capabilities ?? []).find((c) => c.id === spec.capability)
   if (!capability) bad('unknown-capability', `capability ${spec.capability} is not a capability of the Prd`)
+  // the capability lives in the BoundedContext that lists it, and the DomainModel is that context's (34-subdomains.md)
+  else if (context && !(context.capabilities ?? []).includes(capability.id)) bad('context-mismatch', `${capability.id} is not a capability the bound BoundedContext lists`)
+  if (context && ids.context && domainModel?.context !== ids.context) bad('context-mismatch', `the DomainModel's context ${domainModel?.context} is not ${ids.context}, the BoundedContext bound`)
 
   const { commands, events, readModels } = domainNames(domainModel)
   const scenarios = new Set((architecture?.qualityScenarios ?? []).map((q) => q.id))

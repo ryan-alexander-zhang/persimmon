@@ -90,12 +90,12 @@ backs `S-n` and says so in `strategy`), the first recording under that rule.
 
 ```sh
 persimmon run spec-all --input 'prd=<ref>' --input 'capabilities=[CAP-1, CAP-2, CAP-3, CAP-4, CAP-5, CAP-6]' \
-  --input 'architecture=<ref>' --input 'domainModel=<car-reservations-model>' --input 'glossary=<car-reservations-glossary>' --input 'rules=<ref>' --follow
-persimmon run spec-all --input 'capabilities=[CAP-7, CAP-8, CAP-9]' --input 'domainModel=<fleet-care-model>' --input 'glossary=<fleet-care-glossary>' <the rest as above> --follow
+  --input 'architecture=<ref>' --input 'context=<car-reservations>' --input 'domainModel=<car-reservations-model>' --input 'glossary=<car-reservations-glossary>' --input 'rules=<ref>' --follow
+persimmon run spec-all --input 'capabilities=[CAP-7, CAP-8, CAP-9]' --input 'context=<fleet-care>' --input 'domainModel=<fleet-care-model>' --input 'glossary=<fleet-care-glossary>' <the rest as above> --follow
 ```
 
-A Spec binds one DomainModel, so the capabilities each BoundedContext lists run with that context's
-model: `car-reservations` lists CAP-1 to CAP-6, `fleet-care` CAP-7 to CAP-9. `written 6`, `written 3`,
+A Spec binds one BoundedContext and its DomainModel, so the capabilities each BoundedContext lists run
+with that context and its model: `car-reservations` lists CAP-1 to CAP-6, `fleet-care` CAP-7 to CAP-9. `written 6`, `written 3`,
 every Spec round one.
 
 ### 6. Four Designs of one block, told apart by `qualifier`

@@ -94,7 +94,8 @@ function evaluate(payload) {
     domainModel: required(artifacts, 'domainModel'),
     architecture: required(artifacts, 'architecture'),
     rules: required(artifacts, 'rules'),
-    ids: { rules: payload.inputs?.rules?.ref?.id },
+    context: artifacts.context?.content,
+    ids: { rules: payload.inputs?.rules?.ref?.id, context: payload.inputs?.context?.ref?.id },
   })
   // the payload carries each artifact as {content, provenance}: no RevisionRef, so no evidence (19-adapter-roles.md)
   return { passed: passes(findings), findings, evidence: [] }

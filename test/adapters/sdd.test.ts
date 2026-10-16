@@ -53,6 +53,22 @@ describe('sdd/v1', () => {
     expect(r).toEqual({ id: 1001, ok: true, result: { passed: true, findings: [], evidence: [] } })
   })
 
+  it('holds the capability to the BoundedContext bound, and the DomainModel to that context (34-subdomains.md)', async () => {
+    const withContext = (mutate: (bc: any, a: ReturnType<typeof example>) => void = () => {}) => {
+      const a = structuredClone(example())
+      const bc = structuredClone(content('BoundedContext'))
+      mutate(bc, a)
+      const p = payload({ ...a, context: bc })
+      ;(p.inputs as Record<string, unknown>).context = { kind: 'artifact', ref: { apiVersion: 'sdd.persimmon.ai/v1', kind: 'BoundedContext', namespace: 'demo', id: 'expenses', revision: 1 } }
+      return p
+    }
+    expect((await adapter({ id: ++id, op: 'evaluate', payload: withContext() })).result).toEqual({ passed: true, findings: [], evidence: [] })
+    const listed = await adapter({ id: ++id, op: 'evaluate', payload: withContext((bc) => (bc.capabilities = bc.capabilities.filter((c: string) => c !== 'CAP-1'))) })
+    expect(listed.result.findings.map((f: { code: string }) => f.code)).toEqual(['context-mismatch'])
+    const model = await adapter({ id: ++id, op: 'evaluate', payload: withContext((_, a) => (a.domainModel.context = 'payments')) })
+    expect(model.result.findings.map((f: { code: string }) => f.code)).toEqual(['context-mismatch'])
+  })
+
   it('fails content that is not a Spec, and reports nothing else', async () => {
     const r = await adapter({ id: 1002, op: 'evaluate', payload: payload({ spec: { title: 'not a Spec' } }) })
     expect(r.result).toEqual({ passed: false, findings: [{ severity: 'error', code: 'not-a-spec', message: 'content is not a Spec: it has no stories array, no requirements array or no capability' }], evidence: [] })

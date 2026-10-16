@@ -112,6 +112,7 @@ spec:
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    context: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext}}}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
   outputs:
@@ -122,6 +123,7 @@ spec:
       Write the Spec of the Prd capability whose id is `capabilityId`, following the Spec rules in your context.
       `prd`, `architecture`, `domainModel` and `businessRules` in the Spec are the artifact ids of the inputs with those
       names (`businessRules` is the input `rules`: the artifact every `BR-n` you cite belongs to).
+      The capability is one `context` lists, and the DomainModel is that context's.
       Every command, event and read model label is the DomainModel's; every rule id is in `rules`; every quality
       scenario id is in `architecture`. With `previous` and `feedback` bound, fix what the findings name and
       change nothing else.
@@ -132,6 +134,7 @@ spec:
       - {kind: artifact, input: domainModel}
       - {kind: artifact, input: glossary}
       - {kind: artifact, input: rules}
+      - {kind: artifact, input: context}
       - {kind: artifact, input: previous}
     parameters: {effort: high}
   timeout: 30m
