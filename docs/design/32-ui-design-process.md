@@ -70,7 +70,7 @@ an invented one. No `interface`: a client block provides none.
 | ReviewLoop `design-system` | `produce` `write-design-system`, `review` `design-system-gate`, `maxRounds: 3` |
 | Prompt `design-rules` | gains the `ui` paragraph above |
 | Task `design-asset`, ReviewLoop `design-one`, Workflow `design-all` | `type` enum gains `ui`; inputs `designSystem` and `designs` (artifacts: the `http-api` Designs of the interfaces the block requires) `required: {expression: "inputs.type == 'ui'"}`, `domainModel` and `glossary` `required: {expression: "inputs.type != 'ui'"}` (`10-ports.md`): a run that lacks what its `type` needs is refused at `run`; threaded through with `onMissing: omit` where the engine does not add it (a Workflow step, a Gate's Validator binding; the loop adds it to `produce` and `review`, `21-composition.md`); `design-all` with `type: ui` runs over the client blocks listed |
-| Validator `design-consistency`, Gate `design-gate` | `designSystem` and `designs` (optional) threaded through; `domainModel` optional |
+| Validator `design-consistency`, Gate `design-gate` | `designSystem` and `designs` (optional) threaded through; `domainModel` and `glossary` optional, both unbound for a `ui` Design: its field names come from the API Designs, not a Glossary |
 
 Run, after `architect` and the `http-api` Designs:
 `persimmon run design-system --input 'prd={...}' --input 'architecture={...}'`, then

@@ -22,7 +22,7 @@ Workflow design-all: repeat over `blocks` with one `type` ─▶ ReviewLoop desi
 | Prompt `design-rules` | one asset per block and type; the contract whole and standard; the index names what each operation, channel or table realises in the DomainModel; refusals name the rule; field names are Glossary terms; nothing the DomainModel lacks is invented |
 | Executor `design-agent` | `claude-code/v1`, read-only, its own name for per-Namespace override |
 | Task `design-asset` | inputs `architecture`, `blockId`, `type`, `interface` (optional: which provided interface, else the block's first), `domainModel` and `glossary` (required unless `type` is `ui`), `rules`, `designSystem` and `designs` (required when it is), `previous`, `feedback`; output `design` |
-| Validator `design-consistency` | `sdd/v1` over `design`, `architecture`, `domainModel` (optional), `rules`, and for a `ui` Design `designSystem` and `designs`; the Design rule row of `23-pack-sdlc.md` as findings, and a `ui` screen's Actions and Layout prose read past the index (`32-ui-design-process.md`) |
+| Validator `design-consistency` | `sdd/v1` over `design`, `architecture`, `domainModel` and `glossary` (optional), `rules`, and for a `ui` Design `designSystem` and `designs`; the Design rule row of `23-pack-sdlc.md` as findings, the document's field names held to the Glossary (`alias-used`, `term-unknown`), and a `ui` screen's Actions and Layout prose read past the index (`32-ui-design-process.md`) |
 | Gate `design-gate` | consistency only |
 | ReviewLoop `design-one` | `produce` `design-asset`, `review` `design-gate`, `maxRounds: 2`; takes `interface` too, so a block with two provided interfaces gets its second Design from a direct run |
 | Workflow `design-all` | `repeat` over `blocks` (BB-n ids) for one `type`, as `spec-all` repeats over capabilities; a block the loop could not design ends the run `design_inconsistent`, an iteration that died before its Gate ran `step_failed`; output `written` |
@@ -31,7 +31,7 @@ Workflow design-all: repeat over `blocks` with one `type` ─▶ ReviewLoop desi
 
 ## `checkDesign`
 
-`adapters/sdd/check.mjs`, pure, `checkDesign({design, architecture, domainModel, rules, designs, ids})` with `ids.designSystem` the bound DesignSystem's id and `designs` the bound API Designs by id (a `ui` Design realises their operations, `32-ui-design-process.md`), every finding `error` but `dialect`; the Adapter's `passed` is "no `error` finding":
+`adapters/sdd/check.mjs`, pure, `checkDesign({design, architecture, domainModel, rules, designs, designSystem, glossary, ids})` with `ids.designSystem` the bound DesignSystem's id, `designs` the bound API Designs by id (a `ui` Design realises their operations, `32-ui-design-process.md`) and `glossary` the bound Glossary's content, every finding `error` but the warnings `dialect`, `layout-unknown` (`32-ui-design-process.md`) and `term-unknown`; the Adapter's `passed` is "no `error` finding":
 
 | Code | Finding |
 |---|---|
@@ -49,6 +49,8 @@ Workflow design-all: repeat over `blocks` with one `type` ─▶ ReviewLoop desi
 | `domainmodel-unbound` | a Design of another type with no DomainModel bound; one finding, the elements unchecked |
 | `id-sequence` | `EL-n`, `Q-n` not unique and increasing |
 | `dialect` | `warning`: a DDL word the store the block's `technology` names lacks (`sqlite`: `INTERVAL`, `EXTRACT(`, `SERIAL`, `BIGSERIAL`, `CREATE SCHEMA`, `::`; `postgres`: `AUTOINCREMENT`, `WITHOUT ROWID`, `DATETIME`, `NVARCHAR`); string literals and comments stripped, whole words with any whitespace inside; no store named, or two, no check |
+| `alias-used` | a field name of the document (`fieldNames` in `contract.mjs`: every `properties` key of an OpenAPI, AsyncAPI or JSON Schema document at any depth, a container skipped; every column of a DDL `CREATE TABLE`, a constraint item skipped), split into words on case and `_`/`-`, is an alias or a deprecated term of the Glossary, or a deprecated fact type's name less its subject and predicate: the Glossary says what to write instead (`expense: expense is an alias; the Glossary names claim line`). `id`, `<x>Id`, `<x>_id` are the document's own; a name is reported once per document; a `ui` document, or no Glossary bound, checks nothing |
+| `term-unknown` | `warning`: a field name whose words (one trailing `s` forgiven) are no active term and no active fact type's name less its subject and predicate (`claim has total`: `total`): a config column or a refusal's `message` is a fine name no Glossary lists, and the agent said why in a `Q-n` when it is not |
 
 The Adapter picks the mode from the payload: `artifacts.spec` (or `artifacts.model`), else
 `artifacts.prd`, else `artifacts.design`.
@@ -64,7 +66,7 @@ The Adapter picks the mode from the payload: `artifacts.spec` (or `artifacts.mod
 
 | Rule | Enforcer |
 |---|---|
-| the document is the truth, the index its checked view: `contract.mjs` reads the names the document declares and `checkDesign` holds the index to them both ways (`element-unbacked`, `document-unindexed`); a document that does not parse is `document-unparsed`. Nothing deeper is read: schemas, fields and a `ui` action's prose are the agent's (`91-roadmap.md`) | `design-consistency` |
+| the document is the truth, the index its checked view: `contract.mjs` reads the names the document declares and `checkDesign` holds the index to them both ways (`element-unbacked`, `document-unindexed`); a document that does not parse is `document-unparsed`. Past the names, the document's field names are held to the Glossary (`alias-used`, `term-unknown`) and a `ui` screen's Actions and Layout prose is read (`32-ui-design-process.md`); schema shapes, types and units are the agent's | `design-consistency` |
 | one Design per block and type by `design-all`, id `<architecture>-<block>-<type>`; a block with two provided interfaces, or realising two contexts, gets its second Design of a type from a run with `qualifier` bound (`interface` beside it for an API), which the id carries: `<architecture>-<block>-<qualifier>-<type>` | `design-rules`; `design-asset` output id |
 | `decisions[]` is not checked: no Adr is in the Validator's payload; the Architecture lists its Adrs and the Prompt picks from that list | convention; Validator later |
 | `references[]` point outside the engine (a Figma file, a design tool's share link, a git path) as `ExternalResourceRef`s, the tool's version pinned when it has one; the Validator never fetches one, and the document stays whole in `document.content`: a reference is never a stand-in for it | shape: schema; pinning and no stand-in: `design-rules` |
@@ -140,6 +142,24 @@ The Adapter picks the mode from the payload: `artifacts.spec` (or `artifacts.mod
   commands (`Reject reservation request`, `Release unclaimed reservation`, ...), every event (no
   `async-api` Design), and `AG-3` unrealised; every read model and `AG-1`, `AG-2` realised. Found
   in UAT.
+
+- Field names are held to the Glossary by whole-name match, an alias an error and a missing word a
+  warning. The `design-rules` Prompt had said since the first round that domain field and property
+  names are Glossary term and fact type names in the document's own convention, never an alias,
+  never a domain word the Glossary lacks; nothing checked it. The check splits a name into words on
+  case and `_`/`-` and matches the whole against a term's name or a fact type's name less its
+  subject and predicate: no stemming, one trailing `s` forgiven, since `claim line has amount` names
+  `amount` and nothing shorter. An alias or a deprecated name is an error because the Glossary states
+  the right word and the loop's next round can write it; a word the Glossary lacks is a warning
+  because `booking_limit_config`'s columns and a refusal's `message` are structure no Glossary
+  should list, and a `Q-n` covers the rest. Over the three example files no alias is used and the
+  warnings are the names the Glossaries lack (`rule`, `route`, `reason`, `date`, `createdDate`);
+  example08, agent-written under the Prompt, warns on `status`, `rule` and `message` only. Proven
+  live on the car pool: the stored `car-reservations-glossary` r2 names `slot`, `van need` and
+  `damage note`, the hand-loaded `data-schema` Design says `slot_start`, `equipment_need` and
+  `damage_location`, ten `term-unknown` warnings; the agent-written `http-api` r2 says `slot` and
+  `lateCancellationAndNoShowCount` and passes with three. `glossary` is optional on the Validator
+  and the Gate so a `ui` Design and a direct run without one are unchanged. Found in UAT.
 
 ## Examples
 

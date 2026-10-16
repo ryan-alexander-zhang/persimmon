@@ -184,9 +184,9 @@ const dialectMisses = (mediaType, sql, technology = '') => {
 // `designs` is artifact id → content of the API Designs bound, and their element names are what its elements may realise;
 // `designSystem` is the bound DesignSystem's content, whose front matter names what a screen's Layout may use
 // (32-ui-design-process.md).
-// A field name held to the Glossary (29-design-process.md): its words, split on case and `_`/`-`, are a term or the attribute of
-// a fact type (`claim has total`: `total`), an alias or a deprecated name the Glossary says not to write (an error), or a word it
-// lacks (a warning). `id`, `<x>Id`, `<x>_id` are the document's own.
+// A field name held to the Glossary (29-design-process.md): its words, split on case and `_`/`-`, are a term or a fact type's
+// name less its subject and predicate (`claim has total`: `total`), an alias or a deprecated name the Glossary says not to write
+// (an error), or a word it lacks (a warning). `id`, `<x>Id`, `<x>_id` are the document's own.
 // ponytail: whole-name match, one trailing `s` forgiven; stemming when a live Design shows the need
 const words = (s) => String(s).replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[_\-\s]+/g, ' ').trim().toLowerCase()
 const vocabulary = (glossary) => {
@@ -200,9 +200,9 @@ const vocabulary = (glossary) => {
   for (const f of glossary?.factTypes ?? []) {
     const n = words(f.name)
     const prefix = `${words(`${f.subject} ${f.predicate}`)} `
-    const attribute = n.startsWith(prefix) ? n.slice(prefix.length) : n
-    if (f.status === 'deprecated') avoid.set(attribute, `${f.name} is deprecated`)
-    else fine.add(attribute)
+    const tail = n.startsWith(prefix) ? n.slice(prefix.length) : n
+    if (f.status === 'deprecated') avoid.set(tail, `${f.name} is deprecated`)
+    else fine.add(tail)
   }
   return { fine, avoid }
 }

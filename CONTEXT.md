@@ -441,6 +441,13 @@ _Avoid_: dictionary, terms list, vocabulary
 object is a term or a typed value. The typed input of a rule's logic and of a **DecisionTable**.
 _Avoid_: attribute, field, property, relation
 
+**Field**:
+A name a Design document declares inside its contract: an OpenAPI, AsyncAPI or JSON Schema
+`properties` key, a DDL column. Its words, in the document's own convention (`claimLine`,
+`claim_line`), are a **Glossary** term's name or a **Fact type**'s name less its subject and
+predicate; `id` and `<x>Id` are the document's own. Held by `design-consistency`.
+_Avoid_: attribute, column (bare), property (bare), schema field
+
 **BusinessRules**:
 **Artifact kind**, one per product (`BR-n` unique across it); a Prd, Spec, Design or Architecture
 names it in `businessRules`, so a `BR-n` there is a pair with that artifact id (a DomainModel,
