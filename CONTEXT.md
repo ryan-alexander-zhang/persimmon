@@ -428,10 +428,17 @@ The PRD lifecycle (`packs/demo/`, `20-pack.md`): research, write-prd, reviews be
 Trigger. Proves the engine's mechanics; applied by hand. Group `engineering.persimmon.ai`.
 _Avoid_: sample pack, PRD pack
 
+**Subdomain**:
+A part of the business the product serves, in the problem space (Evans, Vernon): named from the
+brief, typed `core` (the competitive edge), `supporting` (needed, not differentiating) or `generic`
+(bought or solved). Not a model boundary; one or more **BoundedContext**s realise it.
+_Avoid_: domain (bare), area, module, context
+
 **BoundedContext**:
-**Artifact kind** of the SDLC pack: where one domain model holds; `inScope`, `outOfScope`,
-`relationships` (its own view of the context map). Cited by artifact id.
-_Avoid_: domain, module, subsystem, context (bare)
+**Artifact kind** of the SDLC pack: where one domain model holds, in the solution space; cut by the
+storming, it realises one **Subdomain**; `inScope`, `outOfScope`, `relationships` (its own view of
+the context map). Cited by artifact id.
+_Avoid_: domain, module, subsystem, context (bare), subdomain
 
 **Glossary**:
 **Artifact kind**, one per **BoundedContext**: the ubiquitous language; a term's identity is its
