@@ -138,6 +138,15 @@ persimmon tree WorkflowRun/design-coverage-<hex>     # one `unrealised` warning 
 The run Succeeds: an unrealised name is the product's gap, not a defect of the Designs that
 exist. Run it again, once per DomainModel, after the next `design-all`.
 
+### 8c. One Design again, later
+
+```sh
+persimmon get Design --behind                        # which Designs pin a Glossary, a DomainModel or rules that moved on
+persimmon run design-check --input 'design=<ref>' --input 'architecture=<ref>' --input 'rules=<ref>' \
+  --input 'domainModel=<ref>' --input 'glossary=<ref>' --follow     # a ui Design: designSystem=<ref> and designs=kind:Design instead
+persimmon tree WorkflowRun/design-check-<hex>        # every finding; `passed false` when one is an error
+```
+
 ### 9. One Plan per Spec
 
 ```sh

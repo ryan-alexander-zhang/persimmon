@@ -50,7 +50,7 @@ describe('persimmon CLI', () => {
     expect(out).toContain('created Pipeline/domain-discovery') // the SDLC pack (23-pack-sdlc.md) is the default flow
     out = []
     expect(await run('get', 'Workflow')).toBe(0)
-    expect(out).toEqual(['Workflow/derive-all', 'Workflow/design-all', 'Workflow/design-coverage', 'Workflow/plan-all', 'Workflow/spec-all']) // the pack is Global (20-pack.md)
+    expect(out).toEqual(['Workflow/derive-all', 'Workflow/design-all', 'Workflow/design-check', 'Workflow/design-coverage', 'Workflow/plan-all', 'Workflow/spec-all']) // the pack is Global (20-pack.md)
     out = [] // the demo pack (20-pack.md) applies like any user definitions: global/ as Global, its Trigger into the default Namespace
     expect([await run('apply', ...demoPack, '--global'), out.filter((l) => !l.startsWith('created'))]).toEqual([0, ['unchanged Executor/local-reviewer']]) // same definition in both packs
     out = []
@@ -172,7 +172,7 @@ describe('persimmon CLI', () => {
     expect(out).toEqual(['Workflow/prd-approval', 'Workflow/prd-create']) // the SDLC pack is not in this store
     out = [] // so a Workflow stepping into a ReviewLoop of the same files resolves on validate's second pass only (08-store.md)
     expect([await run('validate', ...sdlcPack), out.filter((l) => !l.startsWith('ok'))]).toEqual([0, []])
-    expect(out.length).toBe(82)
+    expect(out.length).toBe(83)
   })
 
   it('get --behind lists the latest revision whose pinned inputs moved on; a carried previous input and a run\'s own later output are not behind', async () => {
@@ -264,6 +264,31 @@ describe('persimmon CLI', () => {
     expect(warnings.some((l) => l.includes('readModel My Claims View'))).toBe(false) // GET /claims/mine realises it
     expect(await run('run', 'design-coverage', '--input', 'domainModel={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel, id: expenses-model, revision: 1}}', '--input', 'designs=kind:Plan')).toBe(1)
     expect(err.at(-1)).toMatch(/--input designs: no Plan in Namespace default/) // kind:<Kind> needs one in the store
+  })
+
+  it('design-check runs design-gate alone over a stored Design; a finding fails the run, a warning rides on a pass', async () => {
+    await run('init')
+    const docs = parseAllDocuments(readFileSync('docs/design/examples/sdlc-domain.yaml', 'utf8')).map((d) => d.toJS()).filter(Boolean)
+    for (const kind of ['Architecture', 'BusinessRules', 'DomainModel', 'Glossary', 'Design']) expect(await run('create', file(`${kind}.yaml`, [docs.find((d) => d.kind === kind)]))).toBe(0)
+    const ref = (kind: string, id: string) => `${kind[0]!.toLowerCase()}${kind.slice(1)}={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: ${kind}, id: ${id}, revision: 1}}`
+    const refs = [ref('Design', 'claims-api'), ref('Architecture', 'expense-claims-architecture'), ref('DomainModel', 'expenses-model'), ref('Glossary', 'expenses-glossary'), 'rules={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules, id: expenses-rules, revision: 1}}']
+    out = []
+    expect(await run('run', 'design-check', ...refs.flatMap((r) => ['--input', r]), '--follow')).toBe(0)
+    expect(out.some((l) => /^WorkflowRun\s+design-check-[0-9a-f]{6}\s+Succeeded/.test(l))).toBe(true)
+    expect(out).toContain('  passed  true')
+    const name = out.find((l) => l.startsWith('created WorkflowRun/'))!.slice('created '.length)
+    out = []
+    expect(await run('tree', name)).toBe(0)
+    expect(out.map((l) => l.trim()).filter((l) => l.startsWith('warning term-unknown: '))).toEqual(['warning term-unknown: rule: no term or fact type of the Glossary names it', 'warning term-unknown: route: no term or fact type of the Glossary names it', 'warning term-unknown: reason: no term or fact type of the Glossary names it']) // the Glossary bound: the field check runs
+    // a Design whose block the Architecture lacks: the Gate rejects, the run Succeeds with passed false, the finding in the tree
+    const bad = structuredClone(docs.find((d) => d.kind === 'Design'))
+    bad.spec.content.block = 'BB-9'
+    bad.metadata.name = 'claims-api.r2'
+    bad.spec.identity.revision = 2
+    expect(await run('create', file('Design2.yaml', [bad]))).toBe(0)
+    out = []
+    expect(await run('run', 'design-check', ...refs.slice(1).flatMap((r) => ['--input', r]), '--input', 'design={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: Design, id: claims-api, revision: 2}}', '--follow')).toBe(0)
+    expect(out).toContain('  passed  false')
   })
 
   it('run --follow returns when the run is parked on a human Task', async () => {
