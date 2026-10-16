@@ -7,17 +7,22 @@ steps as [example07](../example07/README.md), with what changes when a product h
 context. You sit at the Gates; nothing is yours to write but the brief.
 
 ```text
-brief ─▶ author-prd ─▶ domain-discovery ─▶ architect ─▶ spec-all ×2 ─▶ design-all ×4 ─▶ design-system ─▶ design-all (ui) ─▶ plan-all
-          Prd, rules    EventStorming ×3       Architecture,  Spec ×9        Design ×4       DesignSystem      Design ×1          Plan ×9
-          you confirm   you confirm each       Adrs ×4;                                     you confirm
-                        BoundedContext ×2,     you confirm
-                        Glossary ×2,
-                        DomainModel ×2
+brief ─▶ author-prd ─▶ domain-discovery ─▶ architect ────┬─▶ spec-all ×2 ───────────────────────────┐
+         Prd, rules    EventStorming ×3    Architecture, │   Spec ×9                                │
+         you confirm   you confirm each    Adrs ×4;      ├─▶ design-all ×4 ───┬─────────────────────┤
+                       BoundedContext ×2,  you confirm   │   Design ×4        ▼                     ├─▶ plan-all
+                       Glossary ×2,                      └─▶ design-system ─▶ design-all (ui) ──────┘   Plan ×9
+                       DomainModel ×2                        DesignSystem     Design ×1
+                                                             you confirm
 ```
+
+Specs, the `BB-1` Designs and the design system each need only the Architecture and what came before
+it; the steps below run them one after another. The `ui` Design waits for the `BB-1` Designs and the
+design system, the Plans for the Specs and every Design.
 
 [`car-pool-domain.yaml`](car-pool-domain.yaml) is what one run of these steps produced on
 `claude-sonnet-5`: thirty-eight artifacts, every one at revision 1 (the rounds collapsed into the
-revision that passed). Read it for the shapes, or load it without running anything (step 9).
+revision that passed). Read it for the shapes, or load it without running anything (step 10).
 
 ## Prerequisites
 
