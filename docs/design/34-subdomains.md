@@ -39,9 +39,9 @@ brief ─▶ author-prd ─▶ Prd: subdomains[] (core | supporting | generic), 
 
 | Field | Change |
 |---|---|
-| `contexts[].subdomain` | new: the Prd subdomain id this context realises. Optional at big-picture and process; required at design (`context-no-subdomain`). One subdomain per context; a subdomain may have several contexts |
+| `contexts[].subdomain` | new: the Prd subdomain id this context realises. Optional in the grammar, which only types it; at design level the storming Gate requires it beside the Prd. One subdomain per context; a subdomain may have several contexts |
 | `contexts[].classification` | unchanged in the DSL (the context map draws it); at design it is the subdomain's `type`, held by the derivation |
-| `version` | `4.1`; a 4.0 model loads with no subdomains and fails only the design-level rule |
+| `version` | `4.1`; a 4.0 model reads as 4.1 without subdomains |
 
 ## BoundedContext
 
@@ -60,9 +60,10 @@ brief ─▶ author-prd ─▶ Prd: subdomains[] (core | supporting | generic), 
 | Validator `prd-consistency` (`checkPrd`) | `subdomain-mismatch` replaces `context-mismatch`: a capability's or a rule's `subdomain` not in the Prd's; a cited rule of another subdomain; an untagged rule when the Prd has more than one; duplicate subdomain ids |
 | Prompt `storming-big-picture` | contexts are cut where the language or the owner changes; the Prd's subdomains are where to look, not the cut: one subdomain may need two contexts, and a context's id is the storming's own |
 | Prompt `storming-design` | each context names its `subdomain`; `classification` is that subdomain's `type` |
-| grammar `check` | DSL 4.1; `context-no-subdomain` at design level |
+| grammar `check` | DSL 4.1, 4.0 still read; `bad-subdomain` when the field is not an id |
+| Gate `storming-gate`, Validator `eventstorming-grammar` (`checkSubdomains`) | binds the `prd`; at design level `context-no-subdomain`, `subdomain-unknown` (not one of the Prd's), `subdomain-unrealised` (a Prd subdomain no context names), `classification-mismatch` (not the subdomain's `type`) |
 | Task `derive-domain`, Prompt `derive-domain-rules` | the BoundedContext takes `subdomain`, `classification` and `capabilities`; invariants take the rules of its subdomain, or untagged ones, that its constraints cite |
-| Gate `derived-gate`, `checkDerived` | binds the derived `context` and the `prd`; `derived-subdomain-mismatch` (not the storming context's, or not the Prd's), `derived-classification-mismatch` (not the subdomain's type), `derived-capability-unknown` (not a capability of the subdomain), `derived-relationship-mismatch` (`relationships` differ from the storming's `contextRelationships` under the role and pattern map) |
+| Gate `derived-gate`, `checkDerived` | binds the derived `context` and the `prd`; `derived-subdomain-mismatch` (not the storming context's), `derived-classification-mismatch` (not the storming context's), `derived-capability-unknown` (not a capability of the subdomain), `derived-relationship-mismatch` (`relationships` differ from the storming's `contextRelationships` under the role and pattern map) |
 | Validator `architecture-consistency` (`checkArchitecture`) | `prd-context-unread` replaced by `capability-unplaced` (no BoundedContext lists a capability) and `capability-twice` (two do); reads the contexts' content |
 | ReviewLoop `spec-one`, Workflow `spec-all`, Gate `spec-gate` | input `context` (the BoundedContext); `checkSpec`'s `context-mismatch` becomes: the capability is in `context.capabilities`, and `domainModel.context` is the context's id |
 | Prompt `write-spec` | the capability's context is the bound BoundedContext |
@@ -73,8 +74,8 @@ brief ─▶ author-prd ─▶ Prd: subdomains[] (core | supporting | generic), 
 |---|---|
 | a Prd names its subdomains and nothing in it names a context | schema, `prd-consistency` |
 | every capability and, with more than one subdomain, every rule names one of the Prd's subdomains | `prd-consistency` |
-| at design level every storming context names a subdomain | grammar |
-| a BoundedContext realises the subdomain its storming context names, has that subdomain's type, lists only that subdomain's capabilities, and its relationships are the storming's | `domain-consistency` |
+| at design level every storming context names one of the Prd's subdomains, has its type, and every subdomain is named | `eventstorming-grammar` beside the Prd |
+| a BoundedContext copies its storming context's subdomain and classification, lists only that subdomain's capabilities, and its relationships are the storming's | `domain-consistency` |
 | every capability is listed by exactly one BoundedContext | `architecture-consistency` |
 | a Spec's capability is one its BoundedContext lists | `spec-consistency` |
 
@@ -96,6 +97,10 @@ brief ─▶ author-prd ─▶ Prd: subdomains[] (core | supporting | generic), 
 - DSL 4.1, not an unversioned extra field: the `EventStorming` kind's schema is closed. The editor
   copies contexts whole, so the field round-trips without a UI change. The upstream event-storming
   repository takes the same field on its own schedule. Found in design review.
+- The subdomain rule sits at the storming Gate, not in the grammar: the grammar is the tool's DSL
+  and requires not even a classification; which subdomains exist is the Prd's, and a miss found at
+  the derivation could not be fixed there, because `derive-domain` cannot change the storming.
+  Found in implementation.
 - The relationships check rides along: `derived-gate` never received the derived BoundedContext,
   so a wrong `role` or `pattern` passed unseen. Found in a walkthrough of example08.
 
@@ -108,9 +113,9 @@ BoundedContexts, said in their README.
 
 ## Units
 
-1. Grammar DSL 4.1 and the `EventStorming` schema: `contexts[].subdomain`, `context-no-subdomain`.
+1. Grammar DSL 4.1 and the `EventStorming` schema: `contexts[].subdomain`, `bad-subdomain`.
 2. `Prd` and `BusinessRules` schemas, `checkPrd`, `draft-prd`, `author-prd`, Prompt `prd-rules`.
-3. Storming Prompts.
+3. Storming Prompts, `storming-gate` with the Prd, `checkSubdomains`.
 4. `BoundedContext` schema, `derive-domain`, `derived-gate`, `checkDerived` (with relationships).
 5. `checkArchitecture`.
 6. `spec-one`, `spec-all`, `spec-gate`, `checkSpec`, Prompt `write-spec`.
