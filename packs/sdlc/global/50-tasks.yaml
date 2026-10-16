@@ -197,7 +197,8 @@ spec:
     instructions: |
       Confirm the Prd and the rules it cites. Judge scope, users, goals and whether the capabilities are the right
       cut; the Validator checks ids and citations beside you. Approve, or reject with one finding per G-n,
-      CAP-n, SC-n, Q-n or BR-n that must change, naming the id in the finding's message.
+      CAP-n, SC-n, Q-n or BR-n that must change, naming the id in the finding's message. A finding that changes the
+      answer of a Q-n whose answer became a rule names that BR-n too, so the rule may change with it.
     context:
       - {kind: artifact, input: prd}
       - {kind: artifact, input: rules}
