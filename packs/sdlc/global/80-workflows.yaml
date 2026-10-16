@@ -419,15 +419,14 @@ spec:
   timeout: 12h
 ---
 # The coverage report (29-design-process.md): one Gate, no Task. `persimmon run design-coverage --input domainModel=<ref>
-# --input designs=kind:Design --follow`, once per DomainModel; the tree shows every `unrealised` name as a warning on a
-# pass. `kind:Design` needs one Design in the Namespace: before the first, everything is unrealised by construction.
+# --follow`, once per DomainModel; the step queries the Designs naming the model (10-ports.md `fromQuery`), and the tree
+# shows every `unrealised` name as a warning on a pass. No Design yet: an empty list, everything unrealised.
 apiVersion: persimmon.ai/v1
 kind: Workflow
 metadata: {name: design-coverage}
 spec:
   inputs:
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
-    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, description: "kind:Design at run: every Design; the ones naming the model are read"}
   outputs:
     passed: {type: {kind: value, schema: {type: boolean}}}
   outputBindings:
@@ -438,7 +437,7 @@ spec:
       uses: {kind: Gate, name: coverage-gate}
       inputs:
         domainModel: {fromInput: domainModel}
-        designs: {fromInput: designs}
+        designs: {fromQuery: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}, where: "has(content.domainModel) && content.domainModel == inputs.domainModel.id"}}
       timeout: 5m
   transitions:
     - id: done

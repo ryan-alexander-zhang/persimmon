@@ -248,12 +248,27 @@ describe('persimmon CLI', () => {
     expect(err.at(-1)).toBe('--behind takes a Kind, not a name')
   })
 
-  it('design-coverage runs the Gate alone over a stored model and every Design, and the tree names what is unrealised', async () => {
+  it('design-coverage runs the Gate alone over a stored model and the Designs its query finds, and the tree names what is unrealised', async () => {
     await run('init')
     const docs = parseAllDocuments(readFileSync('docs/design/examples/sdlc-domain.yaml', 'utf8')).map((d) => d.toJS()).filter(Boolean)
-    for (const kind of ['DomainModel', 'Design']) expect(await run('create', file(`${kind}.yaml`, [docs.find((d) => d.kind === kind)]))).toBe(0)
+    const model = 'domainModel={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel, id: expenses-model, revision: 1}}'
+    expect(await run('create', file('DomainModel.yaml', [docs.find((d) => d.kind === 'DomainModel')]))).toBe(0)
     out = []
-    expect(await run('run', 'design-coverage', '--input', 'domainModel={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel, id: expenses-model, revision: 1}}', '--input', 'designs=kind:Design', '--follow')).toBe(0)
+    expect(await run('run', 'design-coverage', '--input', model, '--follow')).toBe(0) // no Design yet: the query answers an empty list, everything unrealised
+    expect(out).toContain('  passed  true')
+    const empty = out.find((l) => l.startsWith('created WorkflowRun/'))!.slice('created '.length)
+    out = []
+    expect(await run('tree', empty)).toBe(0)
+    expect(out.map((l) => l.trim()).filter((l) => l.startsWith('warning unrealised: ')).some((l) => l.includes('readModel My Claims View'))).toBe(true)
+    expect(await run('create', file('Design.yaml', [docs.find((d) => d.kind === 'Design')]))).toBe(0)
+    const other = structuredClone(docs.find((d) => d.kind === 'Design'))
+    Object.assign(other.metadata, { name: 'other-api.r1' })
+    Object.assign(other.spec.identity, { id: 'other-api' })
+    other.spec.content.domainModel = 'another-model' // names another model: not queried, so its elements realise nothing here
+    other.spec.content.elements = other.spec.content.elements.map((e: { realises: { kind: string } }) => ({ ...e, realises: { kind: 'command', name: 'Set Risk Flag' } }))
+    expect(await run('create', file('Other.yaml', [other]))).toBe(0)
+    out = []
+    expect(await run('run', 'design-coverage', '--input', model, '--follow')).toBe(0)
     expect(out.some((l) => /^WorkflowRun\s+design-coverage-[0-9a-f]{6}\s+Succeeded/.test(l))).toBe(true)
     expect(out).toContain('  passed  true') // a report: warnings on a pass
     const name = out.find((l) => l.startsWith('created WorkflowRun/'))!.slice('created '.length)
@@ -262,8 +277,10 @@ describe('persimmon CLI', () => {
     const warnings = out.map((l) => l.trim()).filter((l) => l.startsWith('warning unrealised: '))
     expect(warnings).toContain('warning unrealised: command Set Risk Flag: no Design of expenses-model realises it')
     expect(warnings.some((l) => l.includes('readModel My Claims View'))).toBe(false) // GET /claims/mine realises it
-    expect(await run('run', 'design-coverage', '--input', 'domainModel={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel, id: expenses-model, revision: 1}}', '--input', 'designs=kind:Plan')).toBe(1)
-    expect(err.at(-1)).toMatch(/--input designs: no Plan in Namespace default/) // kind:<Kind> needs one in the store
+    const step = parse(readFileSync('packs/sdlc/global/80-workflows.yaml', 'utf8').split('\n---\n').find((d) => d.includes('name: design-coverage}'))!)
+    expect(step.spec.steps[0].inputs.designs.fromQuery.where).toBe('has(content.domainModel) && content.domainModel == inputs.domainModel.id')
+    expect(await run('run', 'plan-all', '--input', 'designs=kind:Plan')).toBe(1)
+    expect(err.at(-1)).toMatch(/--input designs: no Plan in Namespace default/) // kind:<Kind> at run still needs one in the store
   })
 
   it('design-check runs design-gate alone over a stored Design; an error finding gives passed false, a warning rides on a pass', async () => {

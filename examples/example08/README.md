@@ -131,7 +131,7 @@ index moved to operations.
 ### 8b. What no Design realises yet
 
 ```sh
-persimmon run design-coverage --input 'domainModel=<ref>' --input designs=kind:Design --follow   # <ref>: car-reservations-model, then once more for fleet-care-model
+persimmon run design-coverage --input 'domainModel=<ref>' --follow   # <ref>: car-reservations-model, then once more for fleet-care-model; the Designs naming it are queried
 persimmon tree WorkflowRun/design-coverage-<hex>     # one `unrealised` warning per stormed name without a Design element: commands the APIs skipped, every event (no async-api Design), an aggregate no schema holds
 ```
 
