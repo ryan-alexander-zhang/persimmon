@@ -27,7 +27,7 @@ form is refused by the engine when wrong and the method is a Prompt a Namespace 
 
 | Member | Content |
 |---|---|
-| Prompt `prd-rules` | problem before solution; users as roles; goals are direction and success criteria carry the number, measured in production; the Prd names the brief's subdomains, typed core, supporting or generic (`34-subdomains.md`); a capability is one Spec's worth with its subdomain and the rules that govern it; a rule is written into `BusinessRules`, never into the Prd; what is refused is a non-goal; an unknown is a `Q-n` |
+| Prompt `prd-rules` | problem before solution; users as roles; goals are direction and success criteria carry the number, measured in production; the Prd names the brief's subdomains, typed core, supporting or generic (`34-subdomains.md`); a capability is one Spec's worth with its subdomain and the rules that govern it; a rule is written into `BusinessRules`, never into the Prd; what is refused is a non-goal; an unknown is a `Q-n`, and a `Q-n` answered with a policy also becomes a `BR-n` sourced from that answer |
 | Executor `prd-agent` | `claude-code/v1`, read-only, its own name so a Namespace picks the model per Task |
 | Task `draft-prd` | inputs `brief` (text), `productId` (the id stem), `rules` and `glossary` (optional, the product's current ones), `previous` (the last Prd), `previousRules` (the last round's rules, carried by the loop), `feedback`; outputs `prd` (with the `subdomains` the brief describes) and `rules` (the product's BusinessRules: the input artifact's rules carried forward plus the brief's) |
 | Task `confirm-prd` | human on `cli-human/v1`: reads the Prd and the rules at the terminal, approves or rejects with one finding per id |
@@ -109,6 +109,11 @@ conformance suite's name) runs `checkSpec`; otherwise `artifacts.prd` runs `chec
   the rules byte-identical; round three, told to reword `BR-8`, changed that one statement line and
   nothing else across twenty rules; `prd-consistency` passed both with `previousRules` and the
   verdict bound. Found in UAT (example08).
+- A question answered with a policy becomes a rule as well as a resolution: in the live example08
+  run the human answered "a request not approved by the start lapses and the employee is notified";
+  it stayed a resolution, the storming modelled the lapse, and no `BR-n` existed for a Spec
+  requirement to enforce, so `rule-unenforced` had nothing to hold a Spec to. Which answer is a policy stays the
+  agent's call and the human's at `prd-gate`; no check tells a policy from a fact. Found in UAT.
 
 ## Examples
 
