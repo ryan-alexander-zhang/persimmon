@@ -419,11 +419,11 @@ export function checkPlan({ plan, spec, architecture, designs = {}, ids = {} }) 
 const red = (c) => c.status === 'failed' || c.status === 'errored'
 
 /** One AcceptanceRecord against the TestOutcome of its round, the Plan task it builds and the Spec (35-build-process.md): the
- * record is the builder's claim, the outcome the evidence. `ids`: {plan, spec, taskId} bound beside it; `previous`: the last
- * round's record, whose named tests must still run. A test is named by string equality with a case's `name` or with
+ * record is the builder's claim, the outcome the evidence. `ids`: {plan, spec, taskId} bound beside it; `previous` and
+ * `previousOutcome`: the last round's record and tests; a test it named that ran then must still run. A test is named by string equality with a case's `name` or with
  * `classname > name`, never split; cases with the same classname and name (a retried or parameterized test) are one test, red
  * if any of them is. Every finding `error`. */
-export function checkAcceptance({ record, testOutcome, plan, spec, previous, ids = {} }) {
+export function checkAcceptance({ record, testOutcome, plan, spec, previous, previousOutcome, ids = {} }) {
   if (!record || !record.task || !Array.isArray(record.verifies)) {
     return [{ severity: 'error', code: 'not-a-record', message: 'content is not an AcceptanceRecord: it has no task or no verifies array' }]
   }
@@ -463,7 +463,9 @@ export function checkAcceptance({ record, testOutcome, plan, spec, previous, ids
   }
   for (const ac of due) if (!seen.has(ac)) bad('ac-unrecorded', `${ac} verifies ${record.task} but the record names no test for it`)
   const current = new Set(record.verifies.flatMap((r) => r.tests ?? []))
-  const dropped = new Set((previous?.verifies ?? []).flatMap((r) => r.tests ?? []).filter((n) => !current.has(n) && matching(n).length === 0))
+  // a name the last round got wrong never ran: only a test that ran then can be dropped now
+  const ranBefore = (n) => (previousOutcome?.tests ?? []).some((c) => c.name === n || `${c.classname} > ${c.name}` === n)
+  const dropped = new Set((previous?.verifies ?? []).flatMap((r) => r.tests ?? []).filter((n) => !current.has(n) && ranBefore(n) && matching(n).length === 0))
   for (const name of dropped) bad('test-dropped', `${name}, named last round, no longer runs`)
   for (const c of cases) if (!named.has(c) && red(c)) bad('suite-failed', `${c.classname} > ${c.name} ${c.status}${c.message ? `: ${c.message}` : ''}`)
   if (testOutcome.exitCode !== 0 && !cases.some(red)) bad('suite-exit', `the tests exited ${testOutcome.exitCode} with no test case failing: killed part way, or failed after the tests`)

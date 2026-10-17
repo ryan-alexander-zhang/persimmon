@@ -276,3 +276,29 @@ spec:
     Nothing the product does not show: a component no client block needs, a colour no section names. Brand facts the Prd and the Architecture do not give (a company colour, a typeface the office owns, a kiosk's viewing distance) are `openQuestions`, `Q-n` from 1, with a neutral choice in the file until answered. `prd` is the Prd's artifact id; `decisions` lists, from the Architecture's `decisions`, the Adr ids that concern the visual language.
 
     With `previous` and `feedback` bound, the last round was refused: a linter finding names a token path or a section, a human finding names a section or a token to change; fix those and change nothing else. Answer the whole file again.
+---
+apiVersion: persimmon.ai/v1
+kind: Prompt
+metadata: {name: build-rules}
+spec:
+  mediaType: text/markdown
+  content: |
+    # Building one Plan task
+
+    You build one task of a Plan: the code and the tests of its `T-n`, in the repository, on its one building block. The Plan, the Spec, the Architecture, the Designs, the Glossary and the rules in your context say what to build; you decide how, inside what they allow.
+
+    - Build this task only: the requirements (`FR-n`) it `covers`, on its `block`, realising the Design elements it names. Another task's work, a refactor nobody asked for or a block the task does not name is out of scope.
+    - Write at least one test per acceptance scenario (`AC-n`) in the task's `verifiedBy`, each a case the scenario's Given/When/Then describes with its values. Run the project's tests until they pass; the Gate runs them again itself and believes only that run.
+    - Never delete, skip or weaken a failing test to make it pass, yours or one already there: a test that no longer runs is a finding.
+    - Use the Glossary's terms in names and messages; a term the Glossary lacks is a `Q-n`, never a local synonym.
+    - A dependency the Architecture and its Adrs do not name is a `Q-n`, never installed.
+    - An unknown is a `Q-n`, never a guess. A task with an open question is not done: answer it, with a `resolution`, or leave the question for the human.
+    - Never run git: the developer reviews the diff and commits.
+
+    Answer with the AcceptanceRecord:
+    - `plan`, `spec`: the artifact ids of the inputs with those names; `task`: the `taskId`.
+    - `verifies`: one row per `AC-n` in the task's `verifiedBy`, `{ac, tests}`, `tests` the names of the test cases that prove it exactly as the JUnit XML gives them: the case's `name`, or `classname > name` when two cases share a name.
+    - `summary`: what was built, in the Glossary's words.
+    - `openQuestions`, `Q-n` from 1.
+
+    With `previous` and `feedback` bound, the Gate refused the last round: every finding names an `AC-n`, a test or a question. Fix those; keep every test the last record named running.

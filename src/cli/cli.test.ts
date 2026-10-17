@@ -51,7 +51,7 @@ describe('persimmon CLI', () => {
     expect(out).toContain('created Pipeline/domain-discovery') // the SDLC pack (23-pack-sdlc.md) is the default flow
     out = []
     expect(await run('get', 'Workflow')).toBe(0)
-    expect(out).toEqual(['Workflow/derive-all', 'Workflow/design-all', 'Workflow/design-check', 'Workflow/design-coverage', 'Workflow/plan-all', 'Workflow/spec-all']) // the pack is Global (20-pack.md)
+    expect(out).toEqual(['Workflow/build-all', 'Workflow/build-work', 'Workflow/derive-all', 'Workflow/design-all', 'Workflow/design-check', 'Workflow/design-coverage', 'Workflow/plan-all', 'Workflow/spec-all']) // the pack is Global (20-pack.md)
     out = [] // the demo pack (20-pack.md) applies like any user definitions: global/ as Global, its Trigger into the default Namespace
     expect([await run('apply', ...demoPack, '--global'), out.filter((l) => !l.startsWith('created'))]).toEqual([0, ['unchanged Executor/local-reviewer']]) // same definition in both packs
     out = []
@@ -108,7 +108,7 @@ describe('persimmon CLI', () => {
 
     out = []
     expect(await run('get', 'Task')).toBe(0)
-    expect(out.length).toBe(18) // the SDLC pack's thirteen and the demo pack's five
+    expect(out.length).toBe(19) // the SDLC pack's fourteen and the demo pack's five
     expect(await run('delete', 'Task/write-prd')).toBe(1) // referenced by prd-create
     expect(err.at(-1)).toMatch(/referenced/)
 
@@ -245,7 +245,7 @@ describe('persimmon CLI', () => {
     expect(out).toEqual(['Workflow/prd-approval', 'Workflow/prd-create']) // the SDLC pack is not in this store
     out = [] // so a Workflow stepping into a ReviewLoop of the same files resolves on validate's second pass only (08-store.md)
     expect([await run('validate', ...sdlcPack), out.filter((l) => !l.startsWith('ok'))]).toEqual([0, []])
-    expect(out.length).toBe(89)
+    expect(out.length).toBe(95)
   })
 
   it('get --behind lists the latest revision whose pinned inputs moved on; a carried previous input and a run\'s own later output are not behind', async () => {

@@ -111,3 +111,15 @@ spec:
     junit: junit.xml
   security:
     networkAccess: deny   # declarative on junit/v1, as on subprocess/v1 (13-executor.md decisions)
+---
+# Who builds a Plan task (35-build-process.md): by default the developer with their own coding agent, answering the form in
+# .persimmon/inbox/ with `persimmon complete <taskRun> --file record.yaml`. An unattended Namespace overrides this Executor by
+# name: adapter claude-code/v1, type agent, sandbox workspace-write, networkAccess allowlist [api.anthropic.com], and
+# allowedTools for its test command.
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: builder}
+spec:
+  type: human
+  adapter: cli-human/v1
+  configuration: {}

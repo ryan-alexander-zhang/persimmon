@@ -237,6 +237,7 @@ spec:
     plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}}
     spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: AcceptanceRecord}}, required: false, description: "the last round's record; round one has none"}
+    previousOutcome: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the last round's tests; round one has none"}
     taskId: {type: {kind: value, schema: {type: string, pattern: "^T-[0-9]+$"}}}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
@@ -249,6 +250,7 @@ spec:
         plan: {fromInput: plan}
         spec: {fromInput: spec}
         previous: {fromInput: previous, onMissing: omit}
+        previousOutcome: {fromInput: previousOutcome, onMissing: omit}
         taskId: {fromInput: taskId}
   policy: {strategy: all}
   timeout: 5m

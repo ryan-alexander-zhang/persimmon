@@ -692,7 +692,12 @@ describe('sdd/v1 over an AcceptanceRecord', () => {
   it('fails a red test no row names, a non-zero exit with nothing red, a test the last round named that no longer runs, an open question', async () => {
     expect(await recordCodes((a) => { tests(a)[2]!.status = 'failed'; a.testOutcome.exitCode = 1 })).toEqual(['suite-failed'])
     expect(await recordCodes((a) => { a.testOutcome.exitCode = 137 })).toEqual(['suite-exit'])
-    expect(await recordCodes((a) => { a.previous = { ...a.record, verifies: [{ ac: 'AC-1', tests: ['claim > an older test'] }] } })).toEqual(['test-dropped'])
+    const older = (a: Record<string, any>) => ({ ...a.testOutcome, tests: [...tests(a), { classname: 'test/claim.test.ts', name: 'claim > an older test', status: 'passed' }] })
+    expect(await recordCodes((a) => { a.previous = { ...a.record, verifies: [{ ac: 'AC-1', tests: ['claim > an older test'] }] }; a.previousOutcome = older(a) })).toEqual(['test-dropped'])
+    const neverRan = structuredClone(recordExample())
+    neverRan.previous = { ...neverRan.record, verifies: [{ ac: 'AC-1', tests: ['claim > a wrong name'] }] } // last round named a test that never ran
+    neverRan.previousOutcome = neverRan.testOutcome
+    expect((await adapter({ id: 5008, op: 'evaluate', payload: recordPayload(neverRan) })).result.passed).toBe(true) // fixing the name is not dropping a test
     expect(await recordCodes((a) => { a.record.verifies[0].tests = ['gone']; a.previous = structuredClone(a.record) })).toEqual(['test-missing']) // still named now: missing, not dropped
     const same = structuredClone(recordExample())
     same.previous = structuredClone(same.record)

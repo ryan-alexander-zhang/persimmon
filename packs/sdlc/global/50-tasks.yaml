@@ -421,3 +421,45 @@ spec:
     workspace: {input: repository}
   timeout: 2h   # a ceiling: a project's override of test-runner cannot change it, and a run ends when its tests end
   sideEffects: idempotent
+---
+# One Plan task built (35-build-process.md): the code and tests in the repository, and the AcceptanceRecord naming the test
+# that proves each AC-n. The builder is the developer by default; the Executor is the switch to an agent.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: implement}
+spec:
+  inputs:
+    plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}}
+    taskId: {type: {kind: value, schema: {type: string, pattern: "^T-[0-9]+$"}}}
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, description: "the Designs the Plan lists"}
+    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    repository: {type: {kind: externalResource, provider: git, type: repository}, description: "the project's code, where the task is built"}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: AcceptanceRecord}}, required: false}
+    previousOutcome: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "what the tests did last round"}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+  outputs:
+    record: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: AcceptanceRecord}}, id: {expression: "inputs.plan.id + '-' + inputs.taskId.lowerAscii()"}}
+  executorRef: {kind: Executor, name: builder}
+  action:
+    instructions: |
+      Build the Plan task whose id is `taskId` in the repository, following the build rules in your context, then
+      answer with its AcceptanceRecord. `plan` and `spec` in the record are the artifact ids of the inputs with those
+      names; `task` is `taskId`. With `previous` and `feedback` bound, fix what the findings name and change nothing
+      else.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: build-rules}}
+      - {kind: artifact, input: plan}
+      - {kind: artifact, input: spec}
+      - {kind: artifact, input: architecture}
+      - {kind: artifact, input: designs}
+      - {kind: artifact, input: glossary}
+      - {kind: artifact, input: rules}
+      - {kind: artifact, input: previous}
+      - {kind: artifact, input: previousOutcome}
+    workspace: {input: repository}
+    parameters: {effort: high}
+  timeout: 72h   # a human's: the developer builds it in their own session
+  sideEffects: nonIdempotent   # it writes the repository

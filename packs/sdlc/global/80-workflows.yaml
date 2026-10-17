@@ -637,3 +637,153 @@ spec:
   feedback: feedback
   maxRounds: 3
   timeout: 240h
+---
+# One build round (35-build-process.md): the builder builds the task, then the project's tests run in the same repository.
+apiVersion: persimmon.ai/v1
+kind: Workflow
+metadata: {name: build-work}
+spec:
+  inputs:
+    plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}}
+    taskId: {type: {kind: value, schema: {type: string, pattern: "^T-[0-9]+$"}}}
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
+    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    repository: {type: {kind: externalResource, provider: git, type: repository}}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: AcceptanceRecord}}, required: false}
+    previousOutcome: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+  outputs:
+    record: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: AcceptanceRecord}}}
+    testOutcome: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}}
+  outputBindings:
+    record: {fromStep: {stepRef: implement, output: record}}
+    testOutcome: {fromStep: {stepRef: tests, output: testOutcome}}
+  entry: [implement]
+  steps:
+    - id: implement
+      uses: {kind: Task, name: implement}
+      inputs:
+        plan: {fromInput: plan}
+        taskId: {fromInput: taskId}
+        spec: {fromInput: spec}
+        architecture: {fromInput: architecture}
+        designs: {fromInput: designs}
+        glossary: {fromInput: glossary}
+        rules: {fromInput: rules}
+        repository: {fromInput: repository}
+        previous: {fromInput: previous, onMissing: omit}
+        previousOutcome: {fromInput: previousOutcome, onMissing: omit}
+        feedback: {fromInput: feedback, onMissing: omit}
+      timeout: 72h
+    - id: tests
+      uses: {kind: Task, name: run-tests}
+      inputs:
+        record: {fromStep: {stepRef: implement, output: record}}
+        repository: {fromInput: repository}
+      timeout: 2h
+  transitions:
+    - id: to-tests
+      from: [{stepRef: implement, outcomes: [Succeeded]}]
+      to: [{stepRef: tests}]
+    - id: done
+      from: [{stepRef: tests, outcomes: [Succeeded]}]
+      to: [{terminal: Succeeded}]
+  timeout: 75h
+---
+# One Plan task built and checked against its tests (35-build-process.md), up to three rounds; the findings go back to the builder.
+apiVersion: persimmon.ai/v1
+kind: ReviewLoop
+metadata: {name: build-one}
+spec:
+  inputs:
+    plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}}
+    taskId: {type: {kind: value, schema: {type: string, pattern: "^T-[0-9]+$"}}}
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
+    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    repository: {type: {kind: externalResource, provider: git, type: repository}}
+  produce:
+    uses: {kind: Workflow, name: build-work}
+    inputs:
+      plan: {fromInput: plan}
+      taskId: {fromInput: taskId}
+      spec: {fromInput: spec}
+      architecture: {fromInput: architecture}
+      designs: {fromInput: designs}
+      glossary: {fromInput: glossary}
+      rules: {fromInput: rules}
+      repository: {fromInput: repository}
+    timeout: 75h
+  review:
+    uses: {kind: Gate, name: build-gate}
+    inputs:
+      record: {fromStep: {stepRef: produce, output: record}}
+      testOutcome: {fromStep: {stepRef: produce, output: testOutcome}}
+      plan: {fromInput: plan}
+      spec: {fromInput: spec}
+      previous: {fromInput: previous}
+      previousOutcome: {fromInput: previousOutcome}
+      taskId: {fromInput: taskId}
+    timeout: 5m
+  subject: record
+  previous: previous
+  feedback: feedback
+  carry: {testOutcome: previousOutcome} # the last round's tests come back beside its record: what failed, and which tests ran
+  maxRounds: 3
+  timeout: 240h
+---
+# build-all: every listed Plan task in order (35-build-process.md); `tasks` in ascending T-n, which the Plan's own order is.
+apiVersion: persimmon.ai/v1
+kind: Workflow
+metadata: {name: build-all}
+spec:
+  inputs:
+    plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}}
+    tasks: {type: {kind: value, schema: {type: array, minItems: 1, maxItems: 20, items: {type: string, pattern: "^T-[0-9]+$"}}}}
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
+    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    repository: {type: {kind: externalResource, provider: git, type: repository}}
+  outputs:
+    built: {type: {kind: value, schema: {type: integer}}}
+  outputBindings:
+    built: {expression: "steps.each.iterations"}
+  entry: [each]
+  steps:
+    - id: each
+      uses: {kind: ReviewLoop, name: build-one}
+      inputs:
+        plan: {fromInput: plan}
+        taskId: {expression: "inputs.tasks[state.index - 1]"}
+        spec: {fromInput: spec}
+        architecture: {fromInput: architecture}
+        designs: {fromInput: designs}
+        glossary: {fromInput: glossary}
+        rules: {fromInput: rules}
+        repository: {fromInput: repository}
+      timeout: 2400h
+      repeat:
+        state:
+          index: {type: {kind: value, schema: {type: integer, minimum: 1}}}
+        initial:
+          index: {literal: 1}
+        next:
+          index: {expression: "state.index + 1"}
+        until: "!iteration.outputs.passed || iteration.index >= inputs.tasks.size()"
+        maxIterations: 20
+  transitions:
+    - id: done
+      from: [{stepRef: each, outcomes: [Succeeded, Failed]}]
+      to:
+        - {terminal: Succeeded, when: 'steps.each.phase == "Succeeded" && steps.each.outputs.passed'}
+        - {terminal: Failed, reason: build_inconsistent, when: 'steps.each.phase == "Succeeded"'} # the Gate rejected the last round
+        - {terminal: Failed, reason: step_failed} # the iteration died before its Gate ran; steps.each.error names the cause
+      dispatch: first
+  timeout: 2400h

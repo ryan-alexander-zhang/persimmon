@@ -41,7 +41,7 @@ function evaluate(payload) {
     const notARecord = checkAcceptance({ record }).filter((f) => f.code === 'not-a-record')
     if (notARecord.length) return { passed: false, findings: notARecord, evidence: [] }
     const ids = { plan: payload.inputs?.plan?.ref?.id, spec: payload.inputs?.spec?.ref?.id, taskId: payload.inputs?.taskId?.value }
-    const findings = checkAcceptance({ record, testOutcome: required(artifacts, 'testOutcome'), plan: required(artifacts, 'plan'), spec: required(artifacts, 'spec'), previous: artifacts.previous?.content, ids })
+    const findings = checkAcceptance({ record, testOutcome: required(artifacts, 'testOutcome'), plan: required(artifacts, 'plan'), spec: required(artifacts, 'spec'), previous: artifacts.previous?.content, previousOutcome: artifacts.previousOutcome?.content, ids })
     return { passed: passes(findings), findings, evidence: [] }
   }
   if (artifacts.plan) {

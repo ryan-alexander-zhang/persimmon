@@ -15,8 +15,8 @@ ReviewLoop build-one
   produce: Workflow build-work
              Task implement (Executor builder: cli-human/v1; a Namespace override: claude-code/v1) ─▶ AcceptanceRecord
              Task run-tests (Executor test-runner: junit/v1, the project's command) ─▶ TestOutcome
-  review:  Gate build-gate = Validator acceptance-evidence (sdd/v1: record, testOutcome, plan, spec, previous, taskId)
-  previous and feedback fed back; maxRounds 3
+  review:  Gate build-gate = Validator acceptance-evidence (sdd/v1: record, testOutcome, plan, spec, previous, previousOutcome, taskId)
+  previous, the last testOutcome (carried) and feedback fed back; maxRounds 3
 ```
 
 ## Kinds
@@ -33,11 +33,11 @@ ReviewLoop build-one
 | Prompt `build-rules` | one task per round, its block only; at least one test per `AC-n`, named in `record`; a failing test is never deleted, skipped or weakened; a dependency the Architecture and its Adrs do not name is a `Q-n`, never installed; an unknown is a `Q-n`, never a guess; no git; the code uses the Glossary's terms |
 | Executor `builder` | `cli-human/v1`, `type: human`: the form in `.persimmon/inbox/<taskRun>.yaml` is the task brief, every context entry with its content (`20-pack.md`); the developer's agent reads it, builds, and answers with `persimmon complete <taskRun> --file record.yaml` holding `{outputs: {record: <content>}}` |
 | Executor `test-runner` | `junit/v1`, `type: script`, configuration `{program, junit}`: the project's test command and the JUnit XML it writes (a file, or a directory of `.xml` files); the pack's `{program: [npm, test], junit: junit.xml}` is a placeholder a project overrides by name (`mvn test` with `target/surefire-reports`, `pytest --junitxml=junit.xml`) |
-| Task `implement` | inputs `plan`, `taskId` (value), `spec`, `architecture`, `designs` (artifacts), `glossary`, `rules`, `repository` (the workspace), `previous`, `feedback`; output `record`, id `<plan>-<t-n>`; `workspace: {input: repository}`; `sideEffects: nonIdempotent` (it writes the repository); `timeout: 72h`, a human's |
+| Task `implement` | inputs `plan`, `taskId` (value), `spec`, `architecture`, `designs` (artifacts), `glossary`, `rules`, `repository` (the workspace), `previous`, `previousOutcome` (what the tests did last round), `feedback`; output `record`, id `<plan>-<t-n>`; `workspace: {input: repository}`; `sideEffects: nonIdempotent` (it writes the repository); `timeout: 72h`, a human's |
 | Task `run-tests` | inputs `record`, `repository`; output `testOutcome`, id `<record>-tests`; `workspace: {input: repository}`; the `record` input pins the record in the outcome's provenance; `sideEffects: idempotent`; `timeout: 2h`, a ceiling an Executor override cannot raise |
-| Validator `acceptance-evidence` | `sdd/v1` over `record`, `testOutcome`, `plan`, `spec`, optionally `previous` (the last round's record), and the value `taskId`; the findings below |
+| Validator `acceptance-evidence` | `sdd/v1` over `record`, `testOutcome`, `plan`, `spec`, optionally `previous` and `previousOutcome` (the last round's record and tests), and the value `taskId`; the findings below |
 | Gate `build-gate` | `acceptance-evidence` only; a human review of the diff is the project's, before it commits |
-| ReviewLoop `build-one` | `produce` the Workflow `build-work` (implement, then run-tests), `review` `build-gate` with `previous` bound, `maxRounds: 3`; the findings go back as `feedback` with the last `record` as `previous` |
+| ReviewLoop `build-one` | `produce` the Workflow `build-work` (implement, then run-tests), `review` `build-gate` with `previous` and `previousOutcome` bound, `carry: {testOutcome: previousOutcome}`, `maxRounds: 3`; the findings go back as `feedback` with the last `record` as `previous` and its `testOutcome` as `previousOutcome` |
 | Workflow `build-all` | `repeat` over `tasks`, `T-n` ids in ascending order, as `spec-all` repeats over capabilities; a task the loop could not build ends the run `build_inconsistent`, an iteration that died before its Gate `step_failed`; output `built` |
 
 An unattended Namespace overrides Executor `builder` by name with `adapter: claude-code/v1`,
@@ -89,7 +89,7 @@ before `artifacts.plan`, since this Validator binds a Plan too. Every finding `e
 | `test-missing` | a test a row names matches no test case |
 | `test-ambiguous` | a test a row names matches two test cases |
 | `test-failed`, `test-skipped` | a test a row names failed, errored or was skipped |
-| `test-dropped` | a test the previous round's record named, which the current record no longer names, matches no test case now (one it still names is `test-missing`) |
+| `test-dropped` | a test the previous round's record named, which ran in the previous round's outcome and which the current record no longer names, matches no test case now (one it still names is `test-missing`; a name that never ran was a wrong name, not a test) |
 | `suite-failed` | a test case no row names failed or errored: a change broke another test |
 | `suite-exit` | `exitCode` is not 0 while no test case failed or errored: the suite was killed part way, or failed after its tests (a coverage threshold, a build step) |
 | `question-open` | an open question without a `resolution`: code built on an unknown is not done |
@@ -149,6 +149,10 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
   `configuration.command` for the conformance suite's stand-in and refuses it on an applied
   Executor. A glob in `junit` was dropped: maven and gradle write one directory, and a directory
   covers both. Found in implementation.
+- `test-dropped` reads the last round's `TestOutcome`, carried beside its record: judged against the
+  record alone, it fired for a name the last round got wrong, a test that never ran, so a builder
+  who fixed the name was refused again and the loop could not pass. The builder's form shows the
+  last outcome too, so a human sees what failed. Found in implementation (the build scenario test).
 
 ## Examples
 
