@@ -34,7 +34,7 @@ ReviewLoop build-one
 | Executor `builder` | `cli-human/v1`, `type: human`: the form in `.persimmon/inbox/<taskRun>.yaml` is the task brief, every context entry with its content (`20-pack.md`); the developer's agent reads it, builds, and answers with `persimmon complete <taskRun> --file record.yaml` holding `{outputs: {record: <content>}}` |
 | Executor `test-runner` | `junit/v1`, `type: script`, configuration `{program, junit}`: the project's test command and the JUnit XML it writes (a file, or a directory of `.xml` files); the pack's `{program: [npm, test], junit: junit.xml}` is a placeholder a project overrides by name (`mvn test` with `target/surefire-reports`, `pytest --junitxml=junit.xml`) |
 | Task `implement` | inputs `plan`, `taskId` (value), `spec`, `architecture`, `designs` (artifacts), `glossary`, `rules`, `repository` (the workspace), `previous`, `feedback`; output `record`, id `<plan>-<t-n>`; `workspace: {input: repository}`; `sideEffects: nonIdempotent` (it writes the repository); `timeout: 72h`, a human's |
-| Task `run-tests` | inputs `record`, `repository`; output `testOutcome`, id `<record>-tests`; `workspace: {input: repository}`; the `record` input pins the record in the outcome's provenance; `sideEffects: idempotent`; `timeout: 30m` |
+| Task `run-tests` | inputs `record`, `repository`; output `testOutcome`, id `<record>-tests`; `workspace: {input: repository}`; the `record` input pins the record in the outcome's provenance; `sideEffects: idempotent`; `timeout: 2h`, a ceiling an Executor override cannot raise |
 | Validator `acceptance-evidence` | `sdd/v1` over `record`, `testOutcome`, `plan`, `spec`, optionally `previous` (the last round's record), and the value `taskId`; the findings below |
 | Gate `build-gate` | `acceptance-evidence` only; a human review of the diff is the project's, before it commits |
 | ReviewLoop `build-one` | `produce` the Workflow `build-work` (implement, then run-tests), `review` `build-gate` with `previous` bound, `maxRounds: 3`; the findings go back as `feedback` with the last `record` as `previous` |
@@ -49,14 +49,22 @@ them.
 ## `junit/v1`
 
 An executor Adapter on the shared runner (`adapters/lib/agent.mjs`), beside `subprocess/v1`. Per
-attempt, in the workspace: delete the JUnit files `junit` names, run `program`, read every file
+attempt, in the workspace: refuse a `junit` that is the workspace or outside it (`invalid_input`),
+delete the stale reports there (only files whose root is `testsuite` or `testsuites`; a `pom.xml`
+stays), read `head` and `dirty` before the run, run `program` with its output as the log, read every file
 `junit` names (`<testsuites>` or `<testsuite>` root), and answer the Task's one output port; XML
 that does not parse counts as no test case read, its error in `outputTail`. The
 command's exit code is recorded, never an error, `128` plus the signal number when a signal killed
-it (the shell's convention; a killed suite writes no XML, so it shows as `suite-empty`): failing tests exit non-zero, which is an outcome
+it (the shell's convention; a killed suite may leave reports written so far, so `suite-exit`
+catches it): failing tests exit non-zero, which is an outcome
 the Gate judges, not a failed attempt; a run with no test case read (a compile error) answers
 `tests: []` and the last 50 lines of output as `outputTail`. `head` and `dirty` come from
-`git rev-parse HEAD` and `git status --porcelain`, read only; outside a repository both are absent.
+`git rev-parse HEAD` and `git --no-optional-locks status --porcelain`, so no index lock is taken;
+outside a repository both are absent. `outputTail` and every failure `message` pass through the
+runner's credential redaction: the program had the credentials, and what it printed is stored. A
+test case without a `name` takes its `classname`. Under `anyExit` the runner keeps the last 1 MiB
+of output, and an attempt stopped with the Adapter (engine shutdown) is `agent_failed`, never an
+outcome.
 The runner gains two driver hooks for this: `prepare`, run in the workspace before the program,
 and `anyExit`, an exit code that is the program's answer, not a failure. `junit/v1` takes no
 executor conformance suite: E3 expects the fixture's answer and E10 an `agent_failed` on a
@@ -83,6 +91,7 @@ before `artifacts.plan`, since this Validator binds a Plan too. Every finding `e
 | `test-failed`, `test-skipped` | a test a row names failed, errored or was skipped |
 | `test-dropped` | a test the previous round's record named matches no test case now |
 | `suite-failed` | a test case no row names failed or errored: a change broke another test |
+| `suite-exit` | `exitCode` is not 0 while no test case failed or errored: the suite was killed part way, or failed after its tests (a coverage threshold, a build step) |
 | `question-open` | an open question without a `resolution`: code built on an unknown is not done |
 
 A row names a test by string equality with the test case's `name`, or with `classname + ' > ' +

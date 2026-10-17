@@ -249,7 +249,7 @@ function artifactId(logicalExecutionId, port) {
 }
 
 /** Credential values never reach a log line, whatever the agent echoed (07-adapter.md). Log lines are single lines, so every line of a multi-line secret (a PEM key) is redacted on its own. */
-function redact(text, credentials) {
+export function redact(text, credentials) {
   for (const v of Object.values(credentials ?? {}))
     for (const part of String(v ?? '').split('\n')) if (part.trim().length >= 8) text = text.split(part).join('[redacted]')
   return text
@@ -284,6 +284,7 @@ function rewrite(node, port) {
 
 /** Whole lines of the agent's own output become `log` stream lines, ANSI escapes stripped, at most `maxLogLines` per stream per attempt; `map` turns a line into log text or drops it (undefined). The store keeps them beside the call (07-adapter.md). */
 export const maxLogLines = 5000
+const tailBytes = 1 << 20
 function lineLogger(log, map = (line) => line) {
   let buf = ''
   let n = 0
@@ -323,30 +324,35 @@ function run(cmd, args, prompt, { credentials, deadline, idempotencyKey, log, tr
       child.kill('SIGTERM')
       setTimeout(() => child.kill('SIGKILL'), 5000).unref()
     }
-    process.once('SIGTERM', stop)
+    let stopped = false // this process was told to stop: the program's exit is no answer, whatever anyExit says
+    const onSigterm = () => ((stopped = true), stop())
+    process.once('SIGTERM', onSigterm)
     let timedOut = false
     const timer = left < Infinity ? setTimeout(() => ((timedOut = true), stop()), left) : undefined
     let stdout = ''
     let stderr = ''
     const tapErr = lineLogger(log)
     const tapOut = transcript ? lineLogger(log, typeof transcript === 'function' ? transcript : undefined) : () => {}
-    child.stdout.setEncoding('utf8').on('data', (c) => ((stdout += c), tapOut(c)))
-    child.stderr.setEncoding('utf8').on('data', (c) => ((stderr += c), tapErr(c)))
+    // ponytail: under anyExit only the last tailBytes are kept (a test suite's log can be gigabytes); a driver needing all of it lifts the cap
+    const keep = (buf, c) => (anyExit ? (buf + c).slice(-tailBytes) : buf + c)
+    child.stdout.setEncoding('utf8').on('data', (c) => ((stdout = keep(stdout, c)), tapOut(c)))
+    child.stderr.setEncoding('utf8').on('data', (c) => ((stderr = keep(stderr, c)), tapErr(c)))
     child.on('spawn', () => writeFileSync(pid, String(child.pid)))
     child.on('error', (e) => {
       clearTimeout(timer)
-      process.off('SIGTERM', stop)
+      process.off('SIGTERM', onSigterm)
       reject(e.code === 'ENOENT' || e.code === 'EACCES' ? new AdapterError('invalid_input', `${cmd}: ${e.message}`, false) : e)
     })
     child.on('close', (code, signal) => {
       clearTimeout(timer)
-      process.off('SIGTERM', stop)
+      process.off('SIGTERM', onSigterm)
       const cancelled = !mine() // cancel removed the file first; a stale file from another attempt is left alone
       if (mine()) unlinkSync(pid)
       tapOut('\n') // flush the partial last lines, the most telling ones when the agent was killed
       tapErr('\n')
       if (timedOut) return reject(new AdapterError('timeout', `${cmd} exceeded the deadline`, true))
       if (cancelled) return reject(new AdapterError('cancelled', `${cmd} was cancelled`, false))
+      if (stopped) return reject(new AdapterError('agent_failed', `${cmd} was stopped with the Adapter`, true))
       // a signal is 128 plus its number, the shell's convention, so a killed program still has an exit code
       const exitCode = code ?? 128 + (osConstants.signals[signal] ?? 0)
       if (exitCode !== 0 && !anyExit) {

@@ -483,8 +483,81 @@ describe('junit/v1', () => {
     git('add', 'a.txt')
     git('commit', '-qm', 'a')
     await adapter('junit', { id: 46, op: 'execute', payload: p(dir) }, { JUNIT: junitXml })
-    expect(published()[0]!.content).toMatchObject({ head: expect.stringMatching(/^[0-9a-f]{40}$/), dirty: true }) // junit.xml is untracked
+    expect(published()[0]!.content).toMatchObject({ head: expect.stringMatching(/^[0-9a-f]{40}$/), dirty: false }) // read before the run: its own junit.xml is not the change tested
+    writeFileSync(join(dir, 'a.txt'), 'b')
+    calls.length = 0
+    await adapter('junit', { id: 47, op: 'execute', payload: p(dir) }, { JUNIT: junitXml })
+    expect(published()[0]!.content).toMatchObject({ dirty: true })
     rmSync(dir, { recursive: true })
+  })
+
+  it('refuses a junit path at or outside the workspace, and a Task without exactly one output, before the command runs', async () => {
+    const dir = ws()
+    for (const junit of ['.', '..', '/tmp/x.xml']) {
+      const r = await adapter('junit', { id: 48, op: 'execute', payload: p(dir, { program, junit }) }, { JUNIT: junitXml })
+      expect(last(r)).toMatchObject({ ok: false, error: { code: 'invalid_input', retryable: false, message: expect.stringContaining('inside the workspace') } })
+    }
+    const two = p(dir)
+    two.task.outputs = { ...two.task.outputs, other: two.task.outputs.testOutcome }
+    const r = await adapter('junit', { id: 49, op: 'execute', payload: two }, { JUNIT: junitXml })
+    expect(last(r)).toMatchObject({ ok: false, error: { code: 'invalid_input', message: expect.stringContaining('declares 2') } })
+    expect(existsSync(join(dir, 'junit.xml'))).toBe(false) // never ran
+    rmSync(dir, { recursive: true })
+  })
+
+  it('deletes only stale reports in a directory, redacts credentials from what it stores, falls back on an empty run', async () => {
+    const dir = ws()
+    mkdirSync(join(dir, 'reports'))
+    writeFileSync(join(dir, 'reports', 'TEST-old.xml'), '<?xml version="1.0"?><!-- old --><testsuite name="old"><testcase name="gone"/></testsuite>')
+    writeFileSync(join(dir, 'reports', 'pom.xml'), '<project/>')
+    calls.length = 0
+    const leak = "console.log('token ' + process.env.REGISTRY_TOKEN); process.exit(3)"
+    await adapter('junit', { id: 50, op: 'execute', payload: { ...p(dir, { program: [process.execPath, '-e', leak], junit: 'reports' }), credentials: { 'registry-token': 'reg-secret-1' } } })
+    expect(existsSync(join(dir, 'reports', 'TEST-old.xml'))).toBe(false)
+    expect(existsSync(join(dir, 'reports', 'pom.xml'))).toBe(true) // not a report
+    expect(published()[0]!.content).toMatchObject({ exitCode: 3, tests: [], outputTail: 'token [redacted]' })
+    calls.length = 0
+    await adapter('junit', { id: 51, op: 'execute', payload: p(dir, { program: [process.execPath, '-e', "require('node:fs').writeFileSync('junit.xml', '<testsuites/>')"], junit: 'junit.xml' }) })
+    expect(published()[0]!.content).toMatchObject({ tests: [], outputTail: 'no test case read from junit.xml' })
+    rmSync(dir, { recursive: true })
+  })
+
+  it('an Adapter told to stop fails the attempt instead of publishing an outcome', async () => {
+    calls.length = 0
+    const dir = ws()
+    const child = spawn(process.execPath, [join(root, 'adapters', 'junit', 'index.mjs')], { cwd, env: { PATH: process.env.PATH!, HOME: process.env.HOME! } })
+    let out = ''
+    child.stdout.on('data', (c) => (out += c))
+    child.stdin.end(JSON.stringify({ id: 52, op: 'execute', payload: p(dir, { program: [process.execPath, '-e', "require('node:fs').writeFileSync('started', ''); setTimeout(() => {}, 60000)"], junit: 'junit.xml' }) }) + '\n')
+    for (let i = 0; i < 100 && !existsSync(join(dir, 'started')); i++) await new Promise((r) => setTimeout(r, 50))
+    child.kill('SIGTERM')
+    await new Promise((r) => child.on('close', r))
+    const answer = JSON.parse(out.trim().split('\n').at(-1)!)
+    expect(answer).toMatchObject({ ok: false, error: { code: 'agent_failed', message: expect.stringContaining('stopped with the Adapter') } })
+    expect(published()).toEqual([])
+    rmSync(dir, { recursive: true })
+  })
+
+  it('a command outliving the deadline is timeout under anyExit too, never an outcome', async () => {
+    calls.length = 0
+    const dir = ws()
+    const r = await adapter('junit', { id: 53, op: 'execute', payload: { ...p(dir, { program: [process.execPath, '-e', 'setTimeout(() => {}, 60000)'], junit: 'junit.xml' }), deadline: new Date(Date.now() + 1500).toISOString() } })
+    expect(last(r)).toMatchObject({ ok: false, error: { code: 'timeout' } })
+    expect(published()).toEqual([])
+    rmSync(dir, { recursive: true })
+  })
+
+  it('reads JUnit: a message from the element text, CDATA and entities, a nameless case, an empty root; paths and roots checked', async () => {
+    // @ts-expect-error plain module
+    const { testCases, reportPath } = await import('../../adapters/junit/read.mjs')
+    expect(testCases('<testsuite><testcase classname="C" name="a &amp; b"><failure><![CDATA[expected <1>\n  at x]]></failure></testcase><testcase classname="Only"/></testsuite>')).toEqual([
+      { classname: 'C', name: 'a & b', status: 'failed', message: 'expected <1>' },
+      { classname: 'Only', name: 'Only', status: 'passed' },
+    ])
+    expect(testCases('<testsuites/>')).toEqual([])
+    expect(() => testCases('<testsuites><testsuite>')).toThrow()
+    expect(reportPath('/w', 'target/surefire-reports')).toBe('/w/target/surefire-reports')
+    for (const bad of ['.', '../x', '/abs.xml']) expect(() => reportPath('/w', bad)).toThrow(/inside the workspace/)
   })
 })
 

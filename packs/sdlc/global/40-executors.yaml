@@ -110,4 +110,4 @@ spec:
     program: [npm, test]
     junit: junit.xml
   security:
-    networkAccess: deny
+    networkAccess: deny   # declarative on junit/v1, as on subprocess/v1 (13-executor.md decisions)

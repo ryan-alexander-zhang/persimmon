@@ -419,5 +419,5 @@ spec:
   action:
     instructions: Run the project's tests in the repository and answer what their JUnit XML says.
     workspace: {input: repository}
-  timeout: 30m
+  timeout: 2h   # a ceiling: a project's override of test-runner cannot change it, and a run ends when its tests end
   sideEffects: idempotent
