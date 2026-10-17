@@ -35,9 +35,13 @@ ReviewLoop build-one
 | Executor `test-runner` | `junit/v1`, `type: script`, configuration `{program, junit}`: the project's test command and the JUnit XML it writes (a file, or a directory of `.xml` files); the pack's `{program: [npm, test], junit: junit.xml}` is a placeholder a project overrides by name (`mvn test` with `target/surefire-reports`, `pytest --junitxml=junit.xml`) |
 | Task `implement` | inputs `plan`, `taskId` (value), `spec`, `architecture`, `designs` (artifacts), `glossary`, `rules`, `repository` (the workspace), `previous`, `previousOutcome` (what the tests did last round), `feedback`; output `record`, id `<plan>-<t-n>`; `workspace: {input: repository}`; `sideEffects: nonIdempotent` (it writes the repository); `timeout: 72h`, a human's |
 | Task `run-tests` | inputs `record`, `repository`; output `testOutcome`, id `<record>-tests`; `workspace: {input: repository}`; the `record` input pins the record in the outcome's provenance; `sideEffects: idempotent`; `timeout: 2h`, a ceiling an Executor override cannot raise |
+| Prompt `audit-rules` | for each row of the record, read the named tests in the repository and judge whether they prove the scenario: an `AC-n`'s Given/When/Then with its values, a `QS-n`'s stimulus and its response and measure as one run decides it (the Spec's `delta` replacing what it tightens), a `fitness` one the structure; a test that asserts nothing the scenario says, mocks the thing under test or proves another scenario is `test-unfit`; pass and fail are `acceptance-evidence`'s, not the auditor's; never edit a file |
+| Executor `auditor` | `claude-code/v1`, `type: agent`, `sandbox: read-only`, `model: claude-sonnet-5`: a judge reading a few tests; a Namespace overrides it by name for another model or agent, or with `cli-human/v1` to judge by hand |
+| Task `audit-acceptance` | inputs `record`, `testOutcome`, `plan`, `taskId`, `spec`, `architecture`, `repository` (the workspace, read only); output `audit`, a `ValidationResult` value; `workspace: {input: repository}`; `sideEffects: none`; `timeout: 1h` |
 | Validator `acceptance-evidence` | `sdd/v1` over `record`, `testOutcome`, `plan`, `spec`, optionally `previous` and `previousOutcome` (the last round's record and tests), and the value `taskId`; the findings below |
-| Gate `build-gate` | `acceptance-evidence` only; a human review of the diff is the project's, before it commits |
-| ReviewLoop `build-one` | `produce` the Workflow `build-work` (implement, then run-tests), `review` `build-gate` with `previous` and `previousOutcome` bound, `carry: {testOutcome: previousOutcome}`, `maxRounds: 3`; the findings go back as `feedback` with the last `record` as `previous` and its `testOutcome` as `previousOutcome` |
+| Validator `acceptance-audited` | `cel` over the value `audit`: passed when no finding is an `error`, the auditor's findings as they are; the auditor's own `passed` is not read |
+| Gate `build-gate` | `acceptance-evidence` and `acceptance-audited`, policy `all`; a human review of the diff is the project's, before it commits |
+| ReviewLoop `build-one` | `produce` the Workflow `build-work` (implement, then run-tests, then audit-acceptance), `review` `build-gate` with `previous` and `previousOutcome` bound, `carry: {testOutcome: previousOutcome}`, `maxRounds: 3`; the findings go back as `feedback` with the last `record` as `previous` and its `testOutcome` as `previousOutcome` |
 | Workflow `build-all` | `repeat` over `tasks`, `T-n` ids in ascending order, as `spec-all` repeats over capabilities; a task the loop could not build ends the run `build_inconsistent`, an iteration that died before its Gate `step_failed`; output `built` |
 
 An unattended Namespace overrides Executor `builder` by name with `adapter: claude-code/v1`,
@@ -106,7 +110,7 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
 | the Gate trusts the outcome, not the record: a test the record names passes only if the outcome says so | `acceptance-evidence` |
 | the tests run in the workspace the work was done in, after it | `build-work` order |
 | the suite is green before `build-all`: `suite-failed` cannot tell an old red test from a new one | convention; a baseline outcome later |
-| whether a named test verifies its `AC-n` or `QS-n` is judged by a reader, not by the check | the developer; an auditor Validator later |
+| whether a named test verifies its `AC-n` or `QS-n` is judged by a reader, not by the check | `audit-acceptance`, through `acceptance-audited`; the developer reading the diff |
 | persimmon never commits: the developer reviews the diff and commits | convention; AGENTS.md section 8 for an Executor's agent |
 | `tasks` in ascending `T-n`: `dependency-forward` makes document order the build order (`23-pack-sdlc.md`) | `plan-consistency` |
 | a bug is a Spec revision with a new `AC-n`, then a Plan revision, then `build-one` | convention (`23-pack-sdlc.md`: a brownfield change is a Spec revision) |
@@ -142,8 +146,9 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
   evidence, not the code. Found in design review and audit.
 - The task brief is the `cli-human/v1` form, not a new verb: it already carries every context
   entry with its content. Found in design review.
-- Deferred: an auditor Validator judging whether a test verifies its `AC-n` or `QS-n`; a baseline outcome
-  for a suite already red. Each lands on this process once it runs.
+- Deferred: a baseline outcome for a suite already red; an auditor reviewing a draft before a human
+  confirms it, which needs a Gate's Validators to run in order (all run at once, `14-gate.md`).
+  Found in design review. Each lands on this process once it runs.
   Found in design review.
 - The Executor's command is `configuration.program`, not `command`: the shared runner reserves
   `configuration.command` for the conformance suite's stand-in and refuses it on an applied
@@ -199,6 +204,17 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
   too: a decision on behaviour (receipts never overwritten) is held by a behaviour test. The template's
   `enforced_by` lists test paths; persimmon keeps the names in the record. Found in design review.
 
+- The auditor is a Task in `build-work`, after the tests, not a `task` Validator in the Gate: a
+  Gate's and a Validator's inputs exclude `externalResource` (`14-gate.md`), so a Validator's Task
+  cannot have the repository as its workspace, and the auditor must read the tests. Its verdict is
+  a `ValidationResult` value the Gate's `cel` Validator reads, so the builder gets its findings as
+  any other. A value, not a new kind: the verdict is run state the GateResult already carries.
+  `passed` is recomputed from the findings, so an auditor answering `passed: true` beside an
+  error cannot pass the round. It runs every round, a red one too: one agent call a round, the
+  price of a judge. It judges the names `acceptance-evidence` resolves, not pass or fail. The
+  default model is `claude-sonnet-5`, not the pack's `claude-opus-5`: it reads a few tests and
+  answers one finding list. Found in design review.
+
 ## Examples
 
 - `docs/design/examples/sdlc-domain.yaml`: `AcceptanceRecord/submit-a-claim-plan-t-1`, the tests
@@ -217,3 +233,4 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
 8. A quality scenario's `method` and `provenAt`.
 9. A `build` quality scenario verifies a Plan task and is proven by a record row.
 10. An Adr's `enforcedBy`.
+11. The auditor: Prompt `audit-rules`, Executor `auditor`, Task `audit-acceptance` in `build-work`, Validator `acceptance-audited` in `build-gate`.
