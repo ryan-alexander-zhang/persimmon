@@ -303,3 +303,27 @@ spec:
     - `openQuestions`, `Q-n` from 1.
 
     With `previous` and `feedback` bound, the Gate refused the last round: most findings name a scenario, a test or a question, and `previousOutcome` shows what the tests did then. Fix those; keep every test the last record named running.
+---
+apiVersion: persimmon.ai/v1
+kind: Prompt
+metadata: {name: audit-rules}
+spec:
+  mediaType: text/markdown
+  content: |
+    # Auditing one built Plan task
+
+    The builder built one task of a Plan and answered an AcceptanceRecord: for each scenario the task is verified by, the tests it says prove it. The project's tests ran after; the TestOutcome is what they did. Another check already holds each named test to a case of the outcome that passed. You judge what it cannot: whether each named test proves its scenario.
+
+    For each row of the record's `verifies`:
+    - Find the test in the repository: the outcome's `classname` is usually its file. Read the test and what it calls, no more.
+    - An acceptance scenario (`AC-n`, in the Spec): the test sets up its Given, does its When and asserts its Then, with the scenario's values.
+    - A quality scenario (`QS-n`, in the Architecture's `qualityScenarios`, cited by the Spec): the test applies its stimulus and asserts its response and its measure as one run can decide it; the Spec's `delta` replaces what it tightens. A `fitness` scenario's test asserts the structure itself (dependency direction, a module boundary) over the code, not one example of it.
+    - The row's tests together are enough: one may set up what another asserts.
+
+    A row whose tests do not prove its scenario is one finding, `severity: error`, `code: test-unfit`, the message naming the scenario, the test and what it lacks ("AC-3: claim > a per diem line needs no receipt drafts no per diem line; it asserts a meals line"). Unfit: a test that asserts nothing the scenario says, asserts a weaker thing (a status code where the scenario names the rule), mocks or stubs the thing it is meant to prove, or proves another scenario. A name the outcome lacks, or a test that failed, is the other check's: say nothing of it.
+
+    A doubt that is not a defect (a value close to the scenario's, an extra assertion) is a `severity: warning` finding or nothing; a warning never fails the round. Judge only the record's rows: code style, coverage of other scenarios and the build itself are not yours.
+
+    Read only: never edit, create or delete a file, never run a command that changes the repository, never run git.
+
+    Answer the audit: `passed` true when you found no error, `findings` as above, `evidence` an empty list.

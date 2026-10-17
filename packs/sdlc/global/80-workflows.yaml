@@ -638,7 +638,8 @@ spec:
   maxRounds: 3
   timeout: 240h
 ---
-# One build round (35-build-process.md): the builder builds the task, then the project's tests run in the same repository.
+# One build round (35-build-process.md): the builder builds the task, the project's tests run in the same repository, then
+# the auditor reads the tests the record names.
 apiVersion: persimmon.ai/v1
 kind: Workflow
 metadata: {name: build-work}
@@ -658,9 +659,11 @@ spec:
   outputs:
     record: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: AcceptanceRecord}}}
     testOutcome: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}}
+    audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
   outputBindings:
     record: {fromStep: {stepRef: implement, output: record}}
     testOutcome: {fromStep: {stepRef: tests, output: testOutcome}}
+    audit: {fromStep: {stepRef: audit, output: audit}}
   entry: [implement]
   steps:
     - id: implement
@@ -684,14 +687,28 @@ spec:
         record: {fromStep: {stepRef: implement, output: record}}
         repository: {fromInput: repository}
       timeout: 2h
+    - id: audit
+      uses: {kind: Task, name: audit-acceptance}
+      inputs:
+        record: {fromStep: {stepRef: implement, output: record}}
+        testOutcome: {fromStep: {stepRef: tests, output: testOutcome}}
+        plan: {fromInput: plan}
+        taskId: {fromInput: taskId}
+        spec: {fromInput: spec}
+        architecture: {fromInput: architecture}
+        repository: {fromInput: repository}
+      timeout: 1h
   transitions:
     - id: to-tests
       from: [{stepRef: implement, outcomes: [Succeeded]}]
       to: [{stepRef: tests}]
-    - id: done
+    - id: to-audit
       from: [{stepRef: tests, outcomes: [Succeeded]}]
+      to: [{stepRef: audit}]
+    - id: done
+      from: [{stepRef: audit, outcomes: [Succeeded]}]
       to: [{terminal: Succeeded}]
-  timeout: 75h
+  timeout: 76h
 ---
 # One Plan task built and checked against its tests (35-build-process.md), up to three rounds; the findings go back to the builder.
 apiVersion: persimmon.ai/v1
@@ -718,7 +735,7 @@ spec:
       glossary: {fromInput: glossary}
       rules: {fromInput: rules}
       repository: {fromInput: repository}
-    timeout: 75h
+    timeout: 76h
   review:
     uses: {kind: Gate, name: build-gate}
     inputs:
@@ -729,6 +746,7 @@ spec:
       previous: {fromInput: previous}
       previousOutcome: {fromInput: previousOutcome}
       taskId: {fromInput: taskId}
+      audit: {fromStep: {stepRef: produce, output: audit}}
     timeout: 5m
   subject: record
   previous: previous

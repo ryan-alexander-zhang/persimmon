@@ -123,3 +123,19 @@ spec:
   type: human
   adapter: cli-human/v1
   configuration: {}
+---
+# Who audits a built Plan task (35-build-process.md): an agent reading the named tests, read only. A judge reading a few tests,
+# so a smaller model than the pack's writers; a Namespace overrides it by name for another model or agent, or with
+# cli-human/v1 to judge by hand.
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: auditor}
+spec:
+  type: agent
+  adapter: claude-code/v1
+  configuration:
+    model: claude-sonnet-5
+    sandbox: read-only      # audit-acceptance reads the tests and answers JSON; it writes no file
+  security:
+    networkAccess: allowlist
+    allowedHosts: [api.anthropic.com]

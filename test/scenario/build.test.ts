@@ -1,6 +1,7 @@
 // End to end on SQLite: build-one over T-1 of the worked example (35-build-process.md). The builder is the human
 // (cli-human/v1, answered with `persimmon complete --file`), the tests run on junit/v1 with a Namespace override of
-// test-runner, and build-gate checks the record against them: round one is refused, round two passes.
+// test-runner, the auditor is a human too by an override of auditor, and build-gate checks the record against the
+// tests and the audit: round one is refused by both, round two passes.
 import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -42,6 +43,14 @@ describe('scenario: build one Plan task', () => {
     const junit = '<testsuites><testsuite name="claim"><testcase classname="test/claim.test.ts" name="claim &gt; a 30 EUR meals line without a receipt is not complete and names BR-2"/><testcase classname="test/claim.test.ts" name="claim &gt; a per diem line needs no receipt"/><testcase classname="test/claim.test.ts" name="claim &gt; attaching a receipt to another employee&apos;s claim by URL is refused and logged"/></testsuite></testsuites>'
     const runner = { apiVersion: 'persimmon.ai/v1', kind: 'Executor', metadata: { name: 'test-runner', namespace: 'default' }, spec: { type: 'script', adapter: 'junit/v1', configuration: { program: [process.execPath, '-e', `require('node:fs').writeFileSync('junit.xml', ${JSON.stringify(junit)})`], junit: 'junit.xml' } } }
     expect(await run('apply', file('runner.yaml', [runner]), '-n', 'default')).toBe(0)
+    const auditor = { apiVersion: 'persimmon.ai/v1', kind: 'Executor', metadata: { name: 'auditor', namespace: 'default' }, spec: { type: 'human', adapter: 'cli-human/v1', configuration: {} } }
+    expect(await run('apply', file('auditor.yaml', [auditor]), '-n', 'default')).toBe(0)
+    const audit = async (name: string, findings: unknown[]) => {
+      expect(inbox()).toHaveLength(1)
+      const t = inbox()[0]!.replace(/\.yaml$/, '')
+      expect(parse(readFileSync(join(dir, '.persimmon', 'inbox', `${t}.yaml`), 'utf8')).reading.map((r: { kind: string }) => r.kind)).toEqual(['Prompt', 'AcceptanceRecord', 'TestOutcome', 'Plan', 'Spec', 'Architecture'])
+      expect([await run('complete', t, '--file', file(name, [{ outputs: { audit: { kind: 'value', value: { passed: true, findings, evidence: [] } } } }])), out.filter((l) => l.startsWith('ERR'))]).toEqual([0, []]) // passed: true is not read
+    }
 
     out = []
     const started = await run('run', 'build-one', '--input', `plan=${ref('Plan', 'submit-a-claim-plan')}`, '--input', 'taskId=T-1', '--input', `spec=${ref('Spec', 'submit-a-claim')}`, '--input', `architecture=${ref('Architecture', 'expense-claims-architecture')}`,
@@ -59,16 +68,20 @@ describe('scenario: build one Plan task', () => {
     wrong.verifies[1].tests = ['claim > per diem']
     out = []
     expect(await run('complete', taskRun, '--file', file('r1.yaml', [{ outputs: { record: wrong } }]))).toBe(0)
+    await audit('a1.yaml', [{ severity: 'error', code: 'test-unfit', message: 'AC-1: the test asserts no rule' }])
     expect(inbox()).toHaveLength(1) // round two waits on the builder
     taskRun = inbox()[0]!.replace(/\.yaml$/, '')
     const second = parse(readFileSync(join(dir, '.persimmon', 'inbox', `${taskRun}.yaml`), 'utf8'))
     expect(second.inputs.feedback.value.passed).toBe(false)
     expect(second.inputs.feedback.value.results.evidence.findings.map((f: { code: string }) => f.code)).toEqual(['test-missing']) // the findings reach the builder
+    expect(second.inputs.feedback.value.results.audit).toMatchObject({ passed: false, findings: [{ code: 'test-unfit' }] }) // the auditor's too
     expect(second.inputs.previousOutcome.ref).toMatchObject({ kind: 'TestOutcome', id: 'submit-a-claim-plan-t-1-tests', revision: 1 }) // carried beside the record
     expect(second.reading.map((r: { kind: string }) => r.kind).slice(-2)).toEqual(['AcceptanceRecord', 'TestOutcome']) // the builder reads what failed
 
     out = []
     expect(await run('complete', taskRun, '--file', file('r2.yaml', [{ outputs: { record } }]))).toBe(0)
+    out = []
+    await audit('a2.yaml', [{ severity: 'warning', code: 'test-unfit', message: 'AC-3: a value close to the scenario\'s' }]) // a warning passes
     expect(out.find((l) => l.startsWith('WorkflowRun   build-one-'))).toMatch(/Succeeded/)
     out = []
     expect(await run('get', 'TestOutcome/submit-a-claim-plan-t-1-tests')).toBe(0)

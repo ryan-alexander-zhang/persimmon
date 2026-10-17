@@ -569,14 +569,19 @@ _Avoid_: NFR, non-functional requirement, stage (for `provenAt`)
 
 **Build process**:
 The pack process from a **Plan** task to code and its evidence: ReviewLoop `build-one` per `T-n`, the
-**Builder** writing an **AcceptanceRecord**, `run-tests` a **TestOutcome**, checked by
-`acceptance-evidence`.
+**Builder** writing an **AcceptanceRecord**, `run-tests` a **TestOutcome**, the **Auditor** judging the
+tests, checked by `acceptance-evidence` and `acceptance-audited`.
 _Avoid_: implementation phase, coding stage, build-all
 
 **Builder**:
 Who builds a **Plan** task: by default the developer with their own coding agent, answering a
 `cli-human/v1` form; in an unattended Namespace, the agent the Executor `builder` is overridden to.
 _Avoid_: developer (for the role), coder, implementer, code agent
+
+**Auditor**:
+Who judges whether each test an **AcceptanceRecord** names proves its scenario: the agent the
+Executor `auditor` runs, read only, in Task `audit-acceptance`. Judges fit, never pass or fail.
+_Avoid_: reviewer (a human at a Gate), judge, LLM validator
 
 **Architecture process**:
 The pack process from a **Prd** and the domain kinds of its contexts to the **Architecture** and its

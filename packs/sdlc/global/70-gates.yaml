@@ -239,6 +239,7 @@ spec:
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: AcceptanceRecord}}, required: false, description: "the last round's record; round one has none"}
     previousOutcome: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the last round's tests; round one has none"}
     taskId: {type: {kind: value, schema: {type: string, pattern: "^T-[0-9]+$"}}}
+    audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}, description: "the auditor's verdict on the record"}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
   validators:
@@ -252,5 +253,9 @@ spec:
         previous: {fromInput: previous, onMissing: omit}
         previousOutcome: {fromInput: previousOutcome, onMissing: omit}
         taskId: {fromInput: taskId}
+    - name: audit
+      ref: {kind: Validator, name: acceptance-audited}
+      inputs:
+        audit: {fromInput: audit}
   policy: {strategy: all}
   timeout: 5m

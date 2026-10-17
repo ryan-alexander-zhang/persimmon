@@ -222,3 +222,17 @@ spec:
     adapter: sdd/v1
     configuration: {}
   timeout: 1m
+---
+# acceptance-audited: the auditor's verdict (Task audit-acceptance in build-work, 35-build-process.md) as the round's; passed is
+# recomputed from the findings, so an answer saying passed beside an error cannot pass.
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: acceptance-audited}
+spec:
+  inputs:
+    audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
+  evaluator:
+    type: cel
+    expression: |
+      {"passed": inputs.audit.findings.all(f, f.severity != "error"), "findings": inputs.audit.findings, "evidence": []}
+  timeout: 1m

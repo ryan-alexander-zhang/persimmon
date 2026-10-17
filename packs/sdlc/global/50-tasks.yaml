@@ -422,6 +422,41 @@ spec:
   timeout: 2h   # a ceiling: a project's override of test-runner cannot change it, and a run ends when its tests end
   sideEffects: idempotent
 ---
+# Whether each test a record names proves its scenario (35-build-process.md): a judge that reads the repository, so a Task in
+# build-work and not a Validator's, whose inputs exclude it (14-gate.md). The Gate's acceptance-audited reads the answer.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: audit-acceptance}
+spec:
+  inputs:
+    record: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: AcceptanceRecord}}}
+    testOutcome: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}}
+    plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}}
+    taskId: {type: {kind: value, schema: {type: string, pattern: "^T-[0-9]+$"}}}
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    repository: {type: {kind: externalResource, provider: git, type: repository}, description: "the project's code, read only"}
+  outputs:
+    audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
+  executorRef: {kind: Executor, name: auditor}
+  action:
+    instructions: |
+      Audit the record of the Plan task whose id is `taskId`, built in the directory the `repository` input names,
+      following the audit rules in your context: for each scenario row, whether its named tests prove the scenario.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: audit-rules}}
+      - {kind: artifact, input: record}
+      - {kind: artifact, input: testOutcome}
+      - {kind: artifact, input: plan}
+      - {kind: artifact, input: spec}
+      - {kind: artifact, input: architecture}
+    workspace: {input: repository}
+  timeout: 1h
+  retryPolicy: # a transient API refusal gets another attempt
+    maxAttempts: 3
+    backoff: {strategy: exponential, initial: 1m, max: 5m, jitter: none}
+  sideEffects: none
+---
 # One Plan task built (35-build-process.md): the code and tests in the repository, and the AcceptanceRecord naming the test
 # that proves each AC-n and QS-n. The builder is the developer by default; the Executor is the switch to an agent.
 apiVersion: persimmon.ai/v1
