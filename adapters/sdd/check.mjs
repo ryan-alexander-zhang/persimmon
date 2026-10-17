@@ -421,7 +421,8 @@ const red = (c) => c.status === 'failed' || c.status === 'errored'
 /** One AcceptanceRecord against the TestOutcome of its round, the Plan task it builds and the Spec (35-build-process.md): the
  * record is the builder's claim, the outcome the evidence. `ids`: {plan, spec, taskId} bound beside it; `previous`: the last
  * round's record, whose named tests must still run. A test is named by string equality with a case's `name` or with
- * `classname > name`, never split. Every finding `error`. */
+ * `classname > name`, never split; cases with the same classname and name (a retried or parameterized test) are one test, red
+ * if any of them is. Every finding `error`. */
 export function checkAcceptance({ record, testOutcome, plan, spec, previous, ids = {} }) {
   if (!record || !record.task || !Array.isArray(record.verifies)) {
     return [{ severity: 'error', code: 'not-a-record', message: 'content is not an AcceptanceRecord: it has no task or no verifies array' }]
@@ -441,21 +442,23 @@ export function checkAcceptance({ record, testOutcome, plan, spec, previous, ids
   const scenarios = new Set((spec?.stories ?? []).flatMap((s) => (s.acceptance ?? []).map((a) => a.id)))
 
   const matching = (name) => cases.filter((c) => c.name === name || `${c.classname} > ${c.name}` === name)
+  const tests = (m) => new Set(m.map((c) => `${c.classname} > ${c.name}`)).size
   const named = new Set()
   const seen = new Set()
+  for (const ac of due) if (!scenarios.has(ac)) bad('unknown-ac', `${ac} verifies ${record.task} but is not in the Spec: the Spec was revised after the Plan`)
   for (const row of record.verifies) {
     if (seen.has(row.ac)) bad('ac-duplicate', `${row.ac} has two rows`)
     seen.add(row.ac)
-    if (task && !due.has(row.ac)) bad('unknown-ac', scenarios.has(row.ac) ? `${row.ac} does not verify ${record.task}` : `${row.ac} is not in the Spec: the Spec was revised after the Plan`)
+    if (task && !due.has(row.ac)) bad('unknown-ac', `${row.ac} does not verify ${record.task}`)
     for (const name of row.tests ?? []) {
       const m = matching(name)
+      for (const c of m) named.add(c)
       if (m.length === 0) bad('test-missing', `${row.ac}: no test case is named ${name}`)
-      else if (m.length > 1) bad('test-ambiguous', `${row.ac}: ${m.length} test cases are named ${name}; name it as classname > name`)
-      else {
-        named.add(m[0])
-        if (red(m[0])) bad('test-failed', `${row.ac}: ${name} ${m[0].status}${m[0].message ? `: ${m[0].message}` : ''}`)
-        else if (m[0].status === 'skipped') bad('test-skipped', `${row.ac}: ${name} was skipped`)
-      }
+      else if (tests(m) > 1) bad('test-ambiguous', `${row.ac}: ${tests(m)} test cases are named ${name}; name it as classname > name`)
+      else if (m.some(red)) {
+        const r = m.find(red)
+        bad('test-failed', `${row.ac}: ${name} ${r.status}${r.message ? `: ${r.message}` : ''}`)
+      } else if (m.every((c) => c.status === 'skipped')) bad('test-skipped', `${row.ac}: ${name} was skipped`)
     }
   }
   for (const ac of due) if (!seen.has(ac)) bad('ac-unrecorded', `${ac} verifies ${record.task} but the record names no test for it`)

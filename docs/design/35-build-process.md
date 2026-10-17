@@ -15,7 +15,7 @@ ReviewLoop build-one
   produce: Workflow build-work
              Task implement (Executor builder: cli-human/v1; a Namespace override: claude-code/v1) ─▶ AcceptanceRecord
              Task run-tests (Executor test-runner: junit/v1, the project's command) ─▶ TestOutcome
-  review:  Gate build-gate = Validator acceptance-evidence (sdd/v1: record, testOutcome, plan, spec, previous)
+  review:  Gate build-gate = Validator acceptance-evidence (sdd/v1: record, testOutcome, plan, spec, previous, taskId)
   previous and feedback fed back; maxRounds 3
 ```
 
@@ -85,17 +85,18 @@ before `artifacts.plan`, since this Validator binds a Plan too. Every finding `e
 | `unknown-task` | `task` is no `T-n` of the Plan |
 | `ac-unrecorded` | an `AC-n` in the task's `verifiedBy` with no `verifies[]` row |
 | `ac-duplicate` | two rows for one `AC-n` |
-| `unknown-ac` | a row's `AC-n` not in the task's `verifiedBy`; one not in the Spec says the Spec was revised after the Plan |
+| `unknown-ac` | a row's `AC-n` not in the task's `verifiedBy`; or an `AC-n` the task's `verifiedBy` names that the Spec lacks: the Spec was revised after the Plan |
 | `test-missing` | a test a row names matches no test case |
 | `test-ambiguous` | a test a row names matches two test cases |
 | `test-failed`, `test-skipped` | a test a row names failed, errored or was skipped |
-| `test-dropped` | a test the previous round's record named matches no test case now |
+| `test-dropped` | a test the previous round's record named, which the current record no longer names, matches no test case now (one it still names is `test-missing`) |
 | `suite-failed` | a test case no row names failed or errored: a change broke another test |
 | `suite-exit` | `exitCode` is not 0 while no test case failed or errored: the suite was killed part way, or failed after its tests (a coverage threshold, a build step) |
 | `question-open` | an open question without a `resolution`: code built on an unknown is not done |
 
 A row names a test by string equality with the test case's `name`, or with `classname + ' > ' +
-name`; a name is never split (vitest's own `name` holds ` > `).
+name`; a name is never split (vitest's own `name` holds ` > `). Cases with the same `classname` and
+`name` (a retried or parameterized test JUnit writes twice) are one test, red if any of them is.
 
 ## Rules
 

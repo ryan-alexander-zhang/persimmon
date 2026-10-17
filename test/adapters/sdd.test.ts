@@ -666,13 +666,20 @@ describe('sdd/v1 over an AcceptanceRecord', () => {
     expect(await recordCodes((a) => { a.record.verifies.pop() })).toEqual(['ac-unrecorded'])
     expect(await recordCodes((a) => { a.record.verifies.push({ ...a.record.verifies[0] }) })).toEqual(['ac-duplicate'])
     expect(await recordCodes((a) => { a.record.verifies.push({ ac: 'AC-4', tests: [tests(a)[2]!.name] }) })).toEqual(['unknown-ac'])
-    const r = await adapter({ id: 5003, op: 'evaluate', payload: recordPayload((() => { const a = structuredClone(recordExample()); a.record.verifies.push({ ac: 'AC-99', tests: [a.testOutcome.tests[2].name] }); return a })()) })
-    expect(r.result.findings[0].message).toMatch(/revised after the Plan/)
+    expect(await recordCodes((a) => { a.record.verifies.push({ ac: 'AC-99', tests: [tests(a)[2]!.name] }) })).toEqual(['unknown-ac']) // a typo: not this task's
+    const stale = structuredClone(recordExample())
+    stale.spec.stories[0].acceptance = stale.spec.stories[0].acceptance.filter((s: { id: string }) => s.id !== 'AC-3') // the Spec dropped AC-3 after the Plan
+    const r = await adapter({ id: 5003, op: 'evaluate', payload: recordPayload(stale) })
+    expect(r.result.findings.map((f: { code: string; message: string }) => [f.code, /revised after the Plan/.test(f.message)])).toEqual([['unknown-ac', true]])
   })
 
   it('fails a named test that is missing, ambiguous, failed, errored or skipped', async () => {
     expect(await recordCodes((a) => { a.record.verifies[0].tests = ['nope'] })).toEqual(['test-missing'])
-    expect(await recordCodes((a) => { tests(a).push({ ...tests(a)[0]!, classname: 'test/other.test.ts' }) })).toEqual(['test-ambiguous'])
+    expect(await recordCodes((a) => { tests(a).push({ ...tests(a)[0]!, classname: 'test/other.test.ts', status: 'failed' }); a.testOutcome.exitCode = 1 })).toEqual(['test-ambiguous']) // its red twin is not also suite-failed
+    expect(await recordCodes((a) => { tests(a).push({ ...tests(a)[0]!, status: 'failed' }); a.testOutcome.exitCode = 1 })).toEqual(['test-failed']) // written twice, one test: red if any run is
+    const retried = structuredClone(recordExample())
+    retried.testOutcome.tests.push({ ...retried.testOutcome.tests[0] })
+    expect((await adapter({ id: 5006, op: 'evaluate', payload: recordPayload(retried) })).result.passed).toBe(true)
     const twin = structuredClone(recordExample())
     twin.testOutcome.tests.push({ ...twin.testOutcome.tests[0], classname: 'test/other.test.ts' })
     twin.record.verifies[0].tests = [`test/claim.test.ts > ${twin.testOutcome.tests[0].name}`]
@@ -686,6 +693,10 @@ describe('sdd/v1 over an AcceptanceRecord', () => {
     expect(await recordCodes((a) => { tests(a)[2]!.status = 'failed'; a.testOutcome.exitCode = 1 })).toEqual(['suite-failed'])
     expect(await recordCodes((a) => { a.testOutcome.exitCode = 137 })).toEqual(['suite-exit'])
     expect(await recordCodes((a) => { a.previous = { ...a.record, verifies: [{ ac: 'AC-1', tests: ['claim > an older test'] }] } })).toEqual(['test-dropped'])
+    expect(await recordCodes((a) => { a.record.verifies[0].tests = ['gone']; a.previous = structuredClone(a.record) })).toEqual(['test-missing']) // still named now: missing, not dropped
+    const same = structuredClone(recordExample())
+    same.previous = structuredClone(same.record)
+    expect((await adapter({ id: 5007, op: 'evaluate', payload: recordPayload(same) })).result.passed).toBe(true) // last round's tests still run
     expect(await recordCodes((a) => { a.record.openQuestions = [{ id: 'Q-1', question: 'which currency?' }] })).toEqual(['question-open'])
     const r = await adapter({ id: 5004, op: 'evaluate', payload: recordPayload((() => { const a = structuredClone(recordExample()); a.record.openQuestions = [{ id: 'Q-1', question: 'which currency?', resolution: 'EUR' }]; return a })()) })
     expect(r.result.passed).toBe(true) // a resolved question passes

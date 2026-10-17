@@ -1,4 +1,4 @@
-// sdd/v1: the evaluator Role (19-adapter-roles.md) over the SDLC pack (23-pack-sdlc.md), in four modes.
+// sdd/v1: the evaluator Role (19-adapter-roles.md) over the SDLC pack (23-pack-sdlc.md), one mode per document evaluated.
 // Given a Spec, `evaluate` runs `checkSpec` on it and the Prd, DomainModel, Architecture and BusinessRules it cites and
 // the BoundedContext bound;
 // given an AcceptanceRecord, it runs `checkAcceptance` on it, the TestOutcome, the Plan and the Spec (35-build-process.md);
