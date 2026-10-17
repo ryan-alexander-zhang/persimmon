@@ -76,7 +76,8 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 ## 6. Artifact Workflow
 
 - The run order: `author-prd`, `domain-discovery`, `architect`, `spec-all`, `design-all`,
-  `design-system` before a `ui` `design-all`, `plan-all`. Each artifact cites upstream only.
+  `design-system` before a `ui` `design-all`, `plan-all`, `build-all`. Each artifact cites
+  upstream only.
 - Read an artifact with `persimmon get <Kind>/<id>`; `--files <dir>` exports its representations,
   for a kind that has them. An exported file is a copy: change the artifact through its process, never the copy.
 - A Gate's finding is fixed where it points, upstream; never worked around downstream.
@@ -86,6 +87,16 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
   a loop out of rounds still publishes its rejected revision. `persimmon get <Kind> --behind`
   lists the revisions that read an outdated input.
 
+Building a Plan task (`build-all`): you are the builder, with the developer.
+- The run waits on you at each task: `.persimmon/inbox/<taskRun>.yaml` is the brief, its
+  `reading` the build rules, the Plan, the Spec, the Architecture, the Designs, the Glossary
+  and the rules; in a later round also the last record, what the tests did, and the findings.
+- Build in the directory the form's `repository` input names: the tests run there.
+- Answer with a file holding `outputs: {record: <the AcceptanceRecord>}` and run
+  `persimmon complete <taskRun> --file <file>` in the background or with no time limit: it runs
+  the tests and the Gate before it returns, then the next round or task waits on you.
+- Commit only after the Gate passed, once the developer has reviewed the diff.
+
 ## 7. Output Discipline
 
 One sentence when one sentence answers it; expand only on request. Formatting as
@@ -94,7 +105,8 @@ conclusion. This governs replies to a human, not the documents a Task writes.
 
 ## 8. Persimmon Tasks
 
-An agent a persimmon Task runs:
+An agent a persimmon Executor spawns (a pack agent, or the builder overridden to an agent),
+not you answering a form in section 6:
 - follows its Task's Prompt where it differs from this file;
 - never asks and never stops to ask: an unknown goes into its output, a `Q-n` or a hotspot,
   as its Prompt says;

@@ -154,6 +154,9 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
   record alone, it fired for a name the last round got wrong, a test that never ran, so a builder
   who fixed the name was refused again and the loop could not pass. The builder's form shows the
   last outcome too, so a human sees what failed. Found in implementation (the build scenario test).
+- AGENTS.md section 8 binds an agent an Executor spawns; the developer's own agent answering the
+  builder's form is under section 6: it may ask the developer, it reads the repository, and it runs
+  `persimmon complete`, all of which section 8 forbids a pack agent. Found in audit.
 
 ## Examples
 
