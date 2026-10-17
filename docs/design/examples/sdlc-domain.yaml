@@ -421,8 +421,9 @@ spec:
     context: >-
       The route of a submitted claim is the claim routing DecisionTable (BR-7 to BR-10). A client could compute it to
       show the employee the outcome while typing, which an approver's minute (SC-4) would welcome; but a client is
-      outside Finance's control and the table changes yearly. Taken against the Prd and the rules, before the Architecture.
+      outside Finance's control and the table changes yearly. Taken with the Architecture, whose QS-5 holds it at build.
     drivers: [BR-7, BR-8, BR-9, BR-10]
+    enforcedBy: [QS-5]
     decision: >-
       The claims core evaluates the claim routing table at submission and records the route and the row that fired on
       the claim. Clients display the recorded route; they never compute one.
@@ -585,6 +586,13 @@ spec:
         measure: under 2 seconds on the office network
         method: load
         provenAt: release
+      - id: QS-5
+        qualityGoal: QG-1
+        stimulus: a change makes a client module evaluate the claim routing table
+        response: the architecture test fails; the route stays the core's alone (adr-routing-in-core)
+        measure: zero imports of the routing evaluation outside BB-1
+        method: fitness
+        provenAt: build
     risks:
       - id: RK-1
         kind: risk

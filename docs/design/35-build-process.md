@@ -142,8 +142,8 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
   evidence, not the code. Found in design review and audit.
 - The task brief is the `cli-human/v1` form, not a new verb: it already carries every context
   entry with its content. Found in design review.
-- Deferred: an Adr's `enforcedBy` tests; an auditor Validator judging whether a test verifies its
-  `AC-n`; a baseline outcome for a suite already red. Each lands on this process once it runs.
+- Deferred: an auditor Validator judging whether a test verifies its `AC-n`; a baseline outcome
+  for a suite already red. Each lands on this process once it runs.
   Found in design review.
 - The Executor's command is `configuration.program`, not `command`: the shared runner reserves
   `configuration.command` for the conformance suite's stand-in and refuses it on an applied
@@ -186,6 +186,17 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
   Architecture; the Gate checks only that the Spec still cites the `QS-n`. The Plans of examples 07
   and 08 predate the rule and verify no `QS-n`. Found in design review.
 
+- An Adr is `enforcedBy` quality scenarios of its Architecture proven at `build`, not by test
+  names: an Adr is immutable and written before any code, so a test name in it would mean revising
+  the decision after the build. A structural decision gets a `fitness` scenario; a Spec whose
+  capability changes the code it holds cites it, the Plan verifies it by a task, and the record
+  names the test, as any `build` scenario. Once that test exists, `suite-failed` turns it red at
+  every later Gate, so the decision stays held with no rule of its own. Whether a decision binds
+  structure is the architect's call: the Prompt asks for a scenario or a negative consequence saying
+  why none, which no check can tell. An Adr taken before its Architecture names no scenario until a
+  revision; a `fitness` scenario no Spec cites is never planned, a known gap. The template's
+  `enforced_by` lists test paths; persimmon keeps the names in the record. Found in design review.
+
 ## Examples
 
 - `docs/design/examples/sdlc-domain.yaml`: `AcceptanceRecord/submit-a-claim-plan-t-1`, the tests
@@ -203,3 +214,4 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
 7. A live UAT: one Plan task of a small project, built the default way, then by the override.
 8. A quality scenario's `method` and `provenAt`.
 9. A `build` quality scenario verifies a Plan task and is proven by a record row.
+10. An Adr's `enforcedBy`.

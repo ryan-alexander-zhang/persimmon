@@ -579,6 +579,12 @@ export function checkArchitecture({ architecture, prd, rules, ids = {}, adrs = {
       else if (!strategies.has(adr.strategy)) bad('adr-strategy', `adr ${id}: strategy ${adr.strategy} is not a strategy decision of the Architecture`)
     }
     for (const d of adr.drivers ?? []) if (!goals.has(d) && !constraints.has(d) && !scenarios.has(d) && !ruleIds.has(d) && !prdIds.has(d)) bad('unknown-adr-driver', `adr ${id}: driver ${d} resolves in neither the Architecture, the Prd nor the rules`)
+    // a test holds the decision only at build: a Plan task proves a build scenario, and every later Gate keeps it green (suite-failed)
+    for (const q of adr.enforcedBy ?? []) {
+      const s = (a.qualityScenarios ?? []).find((x) => x.id === q)
+      if (!s) bad('adr-enforcer', `adr ${id}: enforcedBy ${q} is not a quality scenario of the Architecture`)
+      else if (s.provenAt !== 'build') bad('adr-enforcer', `adr ${id}: enforcedBy ${q} is proven at ${s.provenAt}, not at build`)
+    }
   }
 
   sequence(bad, 'QG', [...goals])

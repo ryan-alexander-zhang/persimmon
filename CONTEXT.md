@@ -478,7 +478,8 @@ _Avoid_: rule table, routing table, DRD
 **Adr**:
 **Artifact kind**, one per architecture decision (Nygard form, MADR alternatives); taken first, or
 by the `architect` loop beside its **Architecture**, naming the strategy decision it backs; listed by
-the Architecture or Design revision that applies it; a status change is a revision.
+the Architecture or Design revision that applies it; a status change is a revision. A structural
+one is `enforcedBy` a `build` **Quality scenario** whose test fails when the decision is broken.
 _Avoid_: decision record, decision log, design decision (bare)
 
 **Architecture**:

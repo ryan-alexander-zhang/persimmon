@@ -19,7 +19,7 @@ ReviewLoop architect, run once per product with the contexts, models and glossar
 
 | Member | Content |
 |---|---|
-| Prompt `architecture-rules` | arc42 as the pack reads it: the Prd is the requirements by reference; every context realised by a level 1 block; strategy decisions cite `QG-n` and `C-n`; every quality goal has a scenario, each with its `method` and `provenAt`, a `build` one a `test` or a `fitness` one; one Adr per `S-n`, in order |
+| Prompt `architecture-rules` | arc42 as the pack reads it: the Prd is the requirements by reference; every context realised by a level 1 block; strategy decisions cite `QG-n` and `C-n`; every quality goal has a scenario, each with its `method` and `provenAt`, a `build` one a `test` or a `fitness` one; one Adr per `S-n`, in order; a structural decision `enforcedBy` a `fitness` scenario, or a negative consequence saying why none |
 | Executor `architecture-agent` | `claude-code/v1`, read-only, its own name for per-Namespace override |
 | Task `write-architecture` | inputs `prd`, `rules`, `contexts`, `domainModels`, `glossaries` (artifacts), `previous`, `previousAdrs` (the last round's Adrs, carried by the loop), `feedback`; outputs `architecture` (id `<prd>-architecture`) and `adrs` (artifacts, prefix `<prd>-adr`) |
 | Task `confirm-architecture` | human on `cli-human/v1`: reads the Architecture and its Adrs; approve, or one finding per `BB-n`, `S-n`, `QG-n`, `C-n`, `QS-n` or Adr id |
@@ -51,6 +51,7 @@ BoundedContext id to its content, paired the same way; every finding
 | `unknown-relation-end`, `relation-no-block`, `unknown-interface` | a relation end neither a block nor a partner; neither end a block; `interface` not provided by the `to` block, or not required by the `from` block when `to` is a partner |
 | `block-unrelated`, `partner-unrelated` | a level 1 block or a partner with no relation |
 | `adr-status`, `unknown-adr-driver` | an Adr not `accepted`; a driver that resolves in neither the Architecture (`QG`, `C`, `QS`), the Prd (`G`, `CAP`, `SC`) nor the rules (`BR`) |
+| `adr-enforcer` | an applied Adr's `enforcedBy` names a `QS-n` the Architecture lacks, or one not proven at `build` |
 | `adr-strategy` | the Adr at position n of `inputs.adrs` names a `strategy` other than `S-n`, or `S-n` is no strategy of the Architecture; a superseded Adr names a strategy the Architecture still has (an Adr without `strategy` is not checked) |
 | `id-sequence` | `QG-n`, `C-n`, `S-n`, `BB-n`, `REL-n`, `CC-n`, `QS-n`, `RK-n` not unique and increasing |
 

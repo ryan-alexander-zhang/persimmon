@@ -803,6 +803,10 @@ describe('sdd/v1 over an Architecture', () => {
     expect(await archCodes((a) => (a.adrs[0].status = 'proposed'))).toEqual(['adr-status'])
     expect(await archCodes((a) => (a.adrs[0].drivers = ['BR-99']))).toEqual(['unknown-adr-driver'])
   })
+  it('fails an Adr enforced by a quality scenario the Architecture lacks or proves after build (35-build-process.md)', async () => {
+    expect(await archCodes((a) => (a.adrs[1].enforcedBy = ['QS-9']))).toEqual(['adr-enforcer'])
+    expect(await archCodes((a) => (a.adrs[1].enforcedBy = ['QS-4']))).toEqual(['adr-enforcer']) // a load scenario at release
+  })
 
   // the slot rule (31-architecture-process.md): the n-th Adr backs S-n and says so; the worked example's Adrs are taken
   // outside the loop and name no strategy, so the tests set it
