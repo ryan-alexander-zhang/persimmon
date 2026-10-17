@@ -46,7 +46,7 @@ export async function complete(cli: Cli, taskRun: string, file: string | undefin
     let completion: Record<string, unknown>
     if (file) {
       const body = loadDocs([file])[0] as Record<string, unknown>
-      completion = 'taskResult' in body ? body : { taskResult: body, publish: [] }
+      completion = 'taskResult' in body ? body : fromFile(body, existsSync(form) ? (parse(readFileSync(form, 'utf8')) as Form) : undefined, r.metadata.name)
     } else {
       if (!cli.ask) throw new Error('complete: --file required without a terminal')
       if (!existsSync(form)) throw new Error(`complete: no inbox form at ${form}; pass --file`)
@@ -83,6 +83,23 @@ const dnsLabel = (s: string) => {
   return slug.length <= 63 ? slug : `${slug.slice(0, 50)}-${createHash('sha256').update(slug).digest('hex').slice(0, 12)}`
 }
 
+/** A request publishing `content` on an artifact port, under the id the Task chose (12-task.md), else `<taskRun>-<port>`. */
+const publishRequest = (form: Form, port: string, content: unknown, taskRun: string) => {
+  const spec = form.outputs[port]!
+  if (spec.type.kind !== 'artifact') throw new Error(`complete: ${port} is not an artifact port`)
+  return { port, request: { kind: spec.type.artifactKind, id: form.outputIds?.[port] ?? dnsLabel(`${taskRun}-${port}`), content, representations: [] } }
+}
+
+/** `--file` with `{outputs}`: an artifact port's value is its content, published like an interactive answer; every other port passes through as written (35-build-process.md). */
+export function fromFile(body: Record<string, unknown>, form: Form | undefined, taskRun: string): { taskResult: Record<string, unknown>; publish: { port: string; request: Record<string, unknown> }[] } {
+  const outputs = { ...((body.outputs ?? {}) as Record<string, unknown>) }
+  const artifactPorts = Object.entries(form?.outputs ?? {}).filter(([port, spec]) => spec.type.kind === 'artifact' && port in outputs).map(([port]) => port)
+  if (artifactPorts.length && form!.outputIds === undefined) throw new Error('complete: the form predates chosen artifact ids (12-task.md); cancel the run and start it again')
+  const publish = artifactPorts.map((port) => publishRequest(form!, port, outputs[port], taskRun))
+  for (const port of artifactPorts) delete outputs[port]
+  return { taskResult: { ...body, protocol: body.protocol ?? 'persimmon.result/v1', outputs }, publish }
+}
+
 const isValidationResult = (schema: Record<string, unknown> | undefined) => {
   const req = schema?.required
   return Array.isArray(req) && ['passed', 'findings', 'evidence'].every((k) => req.includes(k))
@@ -117,7 +134,7 @@ export async function askForm(cli: Cli, form: Form, taskRun: string): Promise<Re
         value = await askYaml(cli, port, what, schema, value) // the heuristic was wrong for this schema: edit the typed answer, never signal a bad value
       }
     } else value = await askYaml(cli, port, what, schema)
-    if (spec.type.kind === 'artifact') publish.push({ port, request: { kind: spec.type.artifactKind, id: form.outputIds?.[port] ?? dnsLabel(`${taskRun}-${port}`), content: value, representations: [] } })
+    if (spec.type.kind === 'artifact') publish.push(publishRequest(form, port, value, taskRun))
     else outputs[port] = { kind: 'value', value }
   }
   return { taskResult: { protocol: 'persimmon.result/v1', outputs }, publish }

@@ -107,7 +107,7 @@ A Namespaced Resource may bind only its own Namespace's names and Global names.
 | `persimmon digest <dir>` | the Skill bundle digest of a directory (`15-prompt-skill.md`), to paste into `spec.digest` |
 | `persimmon tree <kind>/<name>` | a run and every run it owns, nested by `ownerReferences`, oldest first; a child is labelled by its name minus its owner's, then its kind, then a TaskRun's Adapter; right column: phase (`passed` \| `rejected` for a Gate or Validator verdict) and elapsed time (creation to the last attempt's `finishedAt` for a TaskRun, else to the last RunLog entry; to now while live); under a run: its error, the `complete` command it waits for, a rejected Validator's findings, the artifacts a TaskRun published as `<Kind>/<id>.r<n>`; a footer lists the root's outputs |
 | `persimmon init` | local mode: create `.persimmon/` and `.persimmon/inbox/`, write `persimmon.yaml`, install the shipped Adapters, apply the SDLC pack's `global/`, and `namespaced/` when the pack has one, then copy the pack's `files/` when absent or written by `init` and unedited, link `CLAUDE.md` to an `AGENTS.md` it wrote and ignore `.persimmon/` in `.gitignore` (`20-pack.md`) |
-| `persimmon complete <taskRun> [--file <result.yaml>]` | local mode: `signal` for a `cli-human/v1` attempt as the local Actor; drains, then prints the `tree` of the run the Task belongs to, in both modes |
+| `persimmon complete <taskRun> [--file <result.yaml>]` | local mode: `signal` for a `cli-human/v1` attempt as the local Actor; `--file` holds `{outputs}`, an artifact port's value its content, or the `{taskResult, publish}` envelope; drains, then prints the `tree` of the run the Task belongs to, in both modes |
 | `persimmon delete <kind>/<name>` | refused while referenced (`00-resource.md`) |
 | `persimmon serve` | roadmap: server mode daemon; the API is these verbs over https |
 
@@ -151,6 +151,10 @@ imports into a server unchanged.
   example shaped by the schema for any other port, validates every answer before the Signal.
   Scripted: `--file <result.yaml>`, no prompts; required when no terminal is attached. Found in
   UAT.
+- `complete --file` takes `{outputs}` with an artifact port's content as its value, published under
+  the form's `outputIds` as an interactive answer is; the `{taskResult, publish}` envelope still
+  passes as is. A coding agent answering a build task writes the content it made, not the engine's
+  envelope (`35-build-process.md`). Found in design review.
 - Local mode has one live engine per project: `listen` takes `.persimmon/engine.lock` (pid, stale
   when the process is gone) and a second write verb fails with the holder's pid. Read verbs
   (`get`, `describe`, `logs`, `tree`, `validate`) open the store without the socket, without call

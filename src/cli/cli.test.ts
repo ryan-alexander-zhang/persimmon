@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { parse, parseAllDocuments, stringify } from 'yaml'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { parseInput } from './create.js'
-import { askForm, example as template, type Form } from './signal.js'
+import { askForm, example as template, fromFile, type Form } from './signal.js'
 import { runCli } from './index.js'
 import { init, packDir } from './init.js'
 import { digestOf } from '../snapshot/canonical.js'
@@ -657,6 +657,20 @@ describe('persimmon CLI', () => {
     // an older form (references only) still records the reviewed artifact as evidence
     c = await askForm({ cwd: dir, out: (l) => out.push(l), err: (l) => err.push(l), ask: scripted(['y', '']) }, { instructions: 'Approve?', inputs: { prd: { kind: 'artifact', ref: prd[0]!.ref } }, outputs: { result } }, 'tr')
     expect((c.taskResult as { outputs: { result: { value: { evidence: unknown[] } } } }).outputs.result.value.evidence).toEqual([prd[0]!.ref])
+  })
+
+  it('complete --file: an artifact port\'s value is its content, published under the chosen id; a value port passes through (35-build-process.md)', () => {
+    const record = { type: { kind: 'artifact' as const, artifactKind: { apiVersion: 'sdd.persimmon.ai/v1', kind: 'AcceptanceRecord' } } }
+    const note = { type: { kind: 'value' as const, schema: { type: 'string' } } }
+    const form: Form = { instructions: 'Build T-1', outputs: { record, note }, outputIds: { record: 'p-t-1' } }
+    const content = { plan: 'p', task: 'T-1' }
+    expect(fromFile({ outputs: { record: content, note: { kind: 'value', value: 'ok' } } }, form, 'tr')).toEqual({
+      taskResult: { protocol: 'persimmon.result/v1', outputs: { note: { kind: 'value', value: 'ok' } } },
+      publish: [{ port: 'record', request: { kind: record.type.artifactKind, id: 'p-t-1', content, representations: [] } }],
+    })
+    expect(fromFile({ outputs: { record: content } }, { ...form, outputIds: {} }, 'my-Run').publish[0]!.request.id).toBe('my-run-record') // no chosen id: <taskRun>-<port>
+    expect(fromFile({ protocol: 'persimmon.result/v1', outputs: {} }, undefined, 'tr')).toEqual({ taskResult: { protocol: 'persimmon.result/v1', outputs: {} }, publish: [] }) // no form: a TaskResult as written
+    expect(() => fromFile({ outputs: { record: content } }, { instructions: '', outputs: { record } }, 'tr')).toThrow(/predates chosen artifact ids/)
   })
 
   it('adapter test runs the conformance suite over an installed Adapter', async () => {

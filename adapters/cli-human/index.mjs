@@ -63,7 +63,7 @@ async function handle({ id, op, payload }) {
         outputSchemas: payload.task.outputSchemas,
         outputIds: payload.task.outputIds,
         deadline: payload.deadline,
-        answer: `persimmon complete ${name}   # or --file <result.yaml> with {protocol: persimmon.result/v1, outputs: {<port>: {kind: value, value: ...}}}`,
+        answer: `persimmon complete ${name}   # or --file <result.yaml> with {outputs: {<value port>: {kind: value, value: ...}, <artifact port>: <content>}}`,
       }
       writeFileSync(file, stringify(form, { lineWidth: 0 }))
       out({ id, event: 'log', text: `waiting for a human: ${file}` })
