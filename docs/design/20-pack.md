@@ -132,6 +132,10 @@ Credentials the pack Executors bind are Global names resolved at run time.
   a user rarely edits. An unreadable record is empty, so every file is kept; a record entry for a
   file the pack dropped stays, harmless; the record is written only when it changes. An update
   restores no `CLAUDE.md` link: a user who removed it chose to. Found in audit.
+- Known limit: `.persimmon/` is ignored by git, so a fresh clone has no record; an AGENTS.md an
+  older pack wrote is then kept and reported as differing, not updated. Matching the digests of
+  every earlier shipped version would close it; the notice tells the user meanwhile. Found in
+  audit.
 
 ## Examples
 

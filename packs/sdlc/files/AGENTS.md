@@ -80,22 +80,28 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
   upstream only.
 - Read an artifact with `persimmon get <Kind>/<id>`; `--files <dir>` exports its representations,
   for a kind that has them. An exported file is a copy: change the artifact through its process, never the copy.
-- A Gate's finding is fixed where it points, upstream; never worked around downstream.
+- A Gate's finding is fixed where it points, upstream; never worked around downstream. A
+  `build-gate` finding points at the code, the tests or the record.
 - An unknown is a `Q-n`, never an assumption. What only a domain owner can settle waits for
   the human at a Gate.
 - Write code only against a revision its Gate passed: `persimmon tree <run>` shows `passed`;
   a loop out of rounds still publishes its rejected revision. `persimmon get <Kind> --behind`
   lists the revisions that read an outdated input.
 
-Building a Plan task (`build-all`): you are the builder, with the developer.
+Building a Plan task (`build-all`), as the developer's own agent reading an inbox form:
 - The run waits on you at each task: `.persimmon/inbox/<taskRun>.yaml` is the brief, its
   `reading` the build rules, the Plan, the Spec, the Architecture, the Designs, the Glossary
-  and the rules; in a later round also the last record, what the tests did, and the findings.
-- Build in the directory the form's `repository` input names: the tests run there.
+  and the business rules; in a later round also the last record and what the tests did, with
+  the findings in `inputs.feedback`.
+- The build rules win over sections 1-5 for a build task: a dependency the Architecture does not
+  name is a `Q-n`, never installed.
+- Build in the directory `inputs.repository.ref.locator.path` names: the tests run there. Ask the
+  developer how to build; a domain unknown is a `Q-n` the Gate holds for the human.
 - Answer with a file holding `outputs: {record: <the AcceptanceRecord>}` and run
-  `persimmon complete <taskRun> --file <file>` in the background or with no time limit: it runs
-  the tests and the Gate before it returns, then the next round or task waits on you.
-- Commit only after the Gate passed, once the developer has reviewed the diff.
+  `persimmon complete <taskRun> --file <file>` from the project directory, in the background or
+  with no time limit: it runs the tests and the Gate before it returns. The next round or task
+  then waits on you, unless the tree it prints shows the run ended.
+- Never run git; once the Gate passed, the developer reviews the diff and commits.
 
 ## 7. Output Discipline
 
@@ -105,8 +111,8 @@ conclusion. This governs replies to a human, not the documents a Task writes.
 
 ## 8. Persimmon Tasks
 
-An agent a persimmon Executor spawns (a pack agent, or the builder overridden to an agent),
-not you answering a form in section 6:
+An agent whose prompt is a persimmon Task (it ends with `## Answer`), not the developer's agent
+reading a `.persimmon/inbox/` file in section 6:
 - follows its Task's Prompt where it differs from this file;
 - never asks and never stops to ask: an unknown goes into its output, a `Q-n` or a hotspot,
   as its Prompt says;
