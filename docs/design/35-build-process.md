@@ -10,13 +10,13 @@ BMAD hand `/implement` to the developer's session; a Namespace that wants it una
 one Executor. Persimmon owns what is built and the proof; the builder owns how.
 
 ```text
-Workflow build-all: repeat over `tasks` ─▶ ReviewLoop build-one per T-n
+Workflow build-all: Task run-baseline (Executor test-runner) ─▶ TestOutcome <plan>-baseline; repeat over `tasks` ─▶ ReviewLoop build-one per T-n
 ReviewLoop build-one
   produce: Workflow build-work
              Task implement (Executor builder: cli-human/v1; a Namespace override: claude-code/v1) ─▶ AcceptanceRecord
              Task run-tests (Executor test-runner: junit/v1, the project's command) ─▶ TestOutcome
              Task audit-acceptance (Executor auditor: claude-code/v1, read only) ─▶ audit (ValidationResult)
-  review:  Gate build-gate = Validator acceptance-evidence (sdd/v1: record, testOutcome, plan, spec, previous, previousOutcome, taskId)
+  review:  Gate build-gate = Validator acceptance-evidence (sdd/v1: record, testOutcome, plan, spec, previous, previousOutcome, taskId, baseline?)
                            + Validator acceptance-audited (cel: audit)
   previous, the last testOutcome (carried) and feedback fed back; maxRounds 3
 ```
@@ -35,16 +35,16 @@ ReviewLoop build-one
 | Prompt `build-rules` | one task per round, its block only; at least one test per `AC-n` and `QS-n`, named in `record`; a failing test is never deleted, skipped or weakened; a dependency the Architecture and its Adrs do not name is a `Q-n`, never installed; an unknown is a `Q-n`, never a guess; no git; the code uses the Glossary's terms |
 | Executor `builder` | `cli-human/v1`, `type: human`: the form in `.persimmon/inbox/<taskRun>.yaml` is the task brief, every context entry with its content (`20-pack.md`); the developer's agent reads it, builds, and answers with `persimmon complete <taskRun> --file record.yaml` holding `{outputs: {record: <content>}}` |
 | Executor `test-runner` | `junit/v1`, `type: script`, configuration `{program, junit}`: the project's test command and the JUnit XML it writes (a file, or a directory of `.xml` files); the pack's `{program: [npm, test], junit: junit.xml}` is a placeholder a project overrides by name (`mvn test` with `target/surefire-reports`, `pytest --junitxml=junit.xml`) |
-| Task `implement` | inputs `plan`, `taskId` (value), `spec`, `architecture`, `designs` (artifacts), `glossary`, `rules`, `repository` (the workspace), `previous`, `previousOutcome` (what the tests did last round), `feedback`; output `record`, id `<plan>-<t-n>`; `workspace: {input: repository}`; `sideEffects: nonIdempotent` (it writes the repository); `timeout: 72h`, a human's |
+| Task `implement` | inputs `plan`, `taskId` (value), `spec`, `architecture`, `designs` (artifacts), `glossary`, `rules`, `repository` (the workspace), `previous`, `previousOutcome` (what the tests did last round), `feedback`, `baseline` (the tests before `build-all`, optional); output `record`, id `<plan>-<t-n>`; `workspace: {input: repository}`; `sideEffects: nonIdempotent` (it writes the repository); `timeout: 72h`, a human's |
 | Task `run-baseline` | inputs `plan`, `repository`; output `baseline`, a TestOutcome, id `<plan>-baseline`; Executor `test-runner`; the project's tests before any task is built |
 | Task `run-tests` | inputs `record`, `repository`; output `testOutcome`, id `<record>-tests`; `workspace: {input: repository}`; the `record` input pins the record in the outcome's provenance; `sideEffects: idempotent`; `timeout: 2h`, a ceiling an Executor override cannot raise |
 | Prompt `audit-rules` | for each row of the record, read the named tests in the repository and judge whether they prove the scenario: an `AC-n`'s Given/When/Then with its values, a `QS-n`'s stimulus and its response and measure as one run decides it (the Spec's `delta` replacing what it tightens), a `fitness` one the structure; a test that asserts nothing the scenario says, mocks the thing under test or proves another scenario is `test-unfit`; pass and fail are `acceptance-evidence`'s, not the auditor's; never edit a file |
 | Executor `auditor` | `claude-code/v1`, `type: agent`, `sandbox: read-only`, `model: claude-sonnet-5`: an auditor reads a few tests; a Namespace overrides it by name for another model or agent |
 | Task `audit-acceptance` | inputs `record`, `testOutcome`, `plan`, `taskId`, `spec`, `architecture`, `repository` (the workspace, read only); output `audit`, a `ValidationResult` value; `workspace: {input: repository}`; `sideEffects: none`; `timeout: 1h` |
-| Validator `acceptance-evidence` | `sdd/v1` over `record`, `testOutcome`, `plan`, `spec`, optionally `previous` and `previousOutcome` (the last round's record and tests), and the value `taskId`; the findings below |
+| Validator `acceptance-evidence` | `sdd/v1` over `record`, `testOutcome`, `plan`, `spec`, optionally `previous` and `previousOutcome` (the last round's record and tests) and `baseline`, and the value `taskId`; the findings below |
 | Validator `acceptance-audited` | `cel` over the value `audit`: passed when no finding is an `error`, the auditor's findings as they are; the auditor's own `passed` is not read |
 | Gate `build-gate` | `acceptance-evidence` and `acceptance-audited`, policy `all`; a human review of the diff is the project's, before it commits |
-| ReviewLoop `build-one` | `produce` the Workflow `build-work` (implement, then run-tests, then audit-acceptance), `review` `build-gate` with `previous` and `previousOutcome` bound, `carry: {testOutcome: previousOutcome}`, `maxRounds: 3`; the findings go back as `feedback` with the last `record` as `previous` and its `testOutcome` as `previousOutcome` |
+| ReviewLoop `build-one` | `produce` the Workflow `build-work` (implement, then run-tests, then audit-acceptance), `review` `build-gate` with `previous`, `previousOutcome` and an optional `baseline` bound, `carry: {testOutcome: previousOutcome}`, `maxRounds: 3`; the findings go back as `feedback` with the last `record` as `previous` and its `testOutcome` as `previousOutcome` |
 | Workflow `build-all` | `run-baseline` first, then `repeat` over `tasks` with the baseline bound to every `build-one`, `T-n` ids in ascending order, as `spec-all` repeats over capabilities; a task the loop could not build ends the run `build_inconsistent`, an iteration that died before its Gate `step_failed`; output `built` |
 
 An unattended Namespace overrides Executor `builder` by name with `adapter: claude-code/v1`,
