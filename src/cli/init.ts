@@ -1,7 +1,8 @@
-import { appendFileSync, constants, copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, symlinkSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, symlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Resource } from '../resource/types.js'
+import { digestOf } from '../snapshot/canonical.js'
 import { applyDocs } from './apply.js'
 import type { Cli } from './context.js'
 import { withEngine } from './context.js'
@@ -24,16 +25,31 @@ const present = (p: string) => {
   }
 }
 
-/** The pack's `files/` into the project, each only when absent; `CLAUDE.md` links to an `AGENTS.md` init wrote (20-pack.md). */
+/** The pack's `files/` into the project when absent, or over one init wrote that nobody edited (its digest in `.persimmon/files.json`); `CLAUDE.md` links to an `AGENTS.md` init wrote (20-pack.md). */
 function placeFiles(cli: Cli, dir: string): void {
   // regular files only: a directory or a dotfile (.DS_Store) in files/ is not a project file
   const files = existsSync(dir) ? readdirSync(dir, { withFileTypes: true }).filter((e) => e.isFile() && !e.name.startsWith('.')).map((e) => e.name).sort() : []
+  const record = join(cli.cwd, '.persimmon', 'files.json')
+  const written: Record<string, string> = existsSync(record) ? JSON.parse(readFileSync(record, 'utf8')) : {}
   for (const f of files) {
-    if (present(join(cli.cwd, f))) {
-      cli.out(`kept ${f}`)
+    const to = join(cli.cwd, f)
+    const pack = readFileSync(join(dir, f))
+    const packDigest = digestOf(pack)
+    if (present(to)) {
+      // a symlink or a dangling one is never read through: kept as it is
+      const mine = lstatSync(to).isFile() ? digestOf(readFileSync(to)) : undefined
+      if (mine === packDigest) {
+        written[f] = packDigest // a fresh clone has the file but no record
+        cli.out(`kept ${f}`)
+      } else if (mine !== undefined && mine === written[f]) {
+        writeFileSync(to, pack)
+        written[f] = packDigest
+        cli.out(`updated ${f}`)
+      } else cli.out(mine === undefined ? `kept ${f}` : `kept ${f} (differs from the pack's: ${join(dir, f)})`)
       continue
     }
-    copyFileSync(join(dir, f), join(cli.cwd, f), constants.COPYFILE_EXCL)
+    writeFileSync(to, pack, { flag: 'wx' })
+    written[f] = packDigest
     cli.out(`wrote ${f}`)
     if (f !== 'AGENTS.md') continue
     const claude = join(cli.cwd, 'CLAUDE.md')
@@ -42,6 +58,7 @@ function placeFiles(cli: Cli, dir: string): void {
       cli.out('wrote CLAUDE.md -> AGENTS.md')
     } else if (!(lstatSync(claude).isSymbolicLink() && readlinkSync(claude) === 'AGENTS.md')) cli.out('kept CLAUDE.md (not linked to AGENTS.md: claude-code agents do not read it)')
   }
+  if (files.length) writeFileSync(record, `${JSON.stringify(written, null, 2)}\n`)
   const ignore = join(cli.cwd, '.gitignore')
   const text = existsSync(ignore) ? readFileSync(ignore, 'utf8') : ''
   if (text.split('\n').some((l) => l.trim().replace(/^\//, '').replace(/\/$/, '') === '.persimmon')) return

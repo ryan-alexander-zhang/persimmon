@@ -6,7 +6,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { parseInput } from './create.js'
 import { askForm, example as template, type Form } from './signal.js'
 import { runCli } from './index.js'
-import { init } from './init.js'
+import { init, packDir } from './init.js'
+import { digestOf } from '../snapshot/canonical.js'
 import { loadConfig } from '../config.js'
 import { Engine } from '../engine.js'
 
@@ -180,9 +181,31 @@ describe('persimmon CLI', () => {
     writeFileSync(join(dir, 'AGENTS.md'), 'mine\n')
     writeFileSync(join(dir, '.gitignore'), 'node_modules')
     expect([await run('init'), err]).toEqual([0, []])
-    expect(out.filter((l) => /^(kept|ignored) /.test(l))).toEqual(['kept AGENTS.md', 'ignored .persimmon/ in .gitignore'])
+    expect(out.filter((l) => /^(kept|ignored) /.test(l))).toEqual([`kept AGENTS.md (differs from the pack's: ${join(packDir(), 'files', 'AGENTS.md')})`, 'ignored .persimmon/ in .gitignore'])
     expect([readFileSync(join(dir, 'AGENTS.md'), 'utf8'), existsSync(join(dir, 'CLAUDE.md'))]).toEqual(['mine\n', false])
     expect(readFileSync(join(dir, '.gitignore'), 'utf8')).toBe('node_modules\n.persimmon/\n')
+  })
+
+  it('init updates an AGENTS.md it wrote that nobody edited, keeps an edited one, and records one a fresh clone has (20-pack.md)', async () => {
+    const placed = () => out.filter((l) => /^(wrote|kept|updated) AGENTS\.md/.test(l))
+    const record = join(dir, '.persimmon', 'files.json')
+    const pack = readFileSync('packs/sdlc/files/AGENTS.md', 'utf8')
+    expect(await run('init')).toBe(0)
+    expect(JSON.parse(readFileSync(record, 'utf8'))).toEqual({ 'AGENTS.md': digestOf(Buffer.from(pack)) })
+    writeFileSync(join(dir, 'AGENTS.md'), 'an older pack\n') // as an older init wrote it
+    writeFileSync(record, JSON.stringify({ 'AGENTS.md': digestOf(Buffer.from('an older pack\n')) }))
+    out = []
+    expect(await run('init')).toBe(0)
+    expect([placed(), readFileSync(join(dir, 'AGENTS.md'), 'utf8')]).toEqual([['updated AGENTS.md'], pack])
+    writeFileSync(join(dir, 'AGENTS.md'), `${pack}mine\n`) // edited by the user
+    out = []
+    expect(await run('init')).toBe(0)
+    expect([placed(), readFileSync(join(dir, 'AGENTS.md'), 'utf8')]).toEqual([[`kept AGENTS.md (differs from the pack's: ${join(packDir(), 'files', 'AGENTS.md')})`], `${pack}mine\n`])
+    writeFileSync(join(dir, 'AGENTS.md'), pack)
+    rmSync(record) // a fresh clone: the file from git, .persimmon/ ignored
+    out = []
+    expect(await run('init')).toBe(0)
+    expect([placed(), JSON.parse(readFileSync(record, 'utf8'))]).toEqual([['kept AGENTS.md'], { 'AGENTS.md': digestOf(Buffer.from(pack)) }])
   })
 
   it('init writes AGENTS.md beside a CLAUDE.md of the project\'s and says it is not linked; a dangling link is kept; /.persimmon counts as ignored', async () => {
