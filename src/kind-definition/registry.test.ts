@@ -153,4 +153,19 @@ describe('the SDLC pack Design kind', () => {
     delete bad.spec.content.references[0].provider
     expect(() => reg.validateResource(bad)).toThrow(/\/references\/0 must have required property 'provider'/)
   })
+
+  it('a quality scenario names its method and stage; a build one is a test or a fitness one (35-build-process.md)', () => {
+    const reg = new KindRegistry()
+    for (const k of packKinds) reg.register(k)
+    const architecture = parseAllDocuments(readFileSync('examples/example07/room-booking-domain.yaml', 'utf8')).map((d) => d.toJS()).find((d) => d.kind === 'Architecture')
+    architecture.metadata.namespace = 'demo'
+    expect(() => reg.validateResource(architecture)).not.toThrow()
+    const load = structuredClone(architecture)
+    load.spec.content.qualityScenarios[0].method = 'load'
+    expect(() => reg.validateResource(load)).toThrow(/qualityScenarios\/0\/method must be equal to one of the allowed values/)
+    load.spec.content.qualityScenarios[0].stage = 'release'
+    expect(() => reg.validateResource(load)).not.toThrow()
+    delete load.spec.content.qualityScenarios[0].stage
+    expect(() => reg.validateResource(load)).toThrow(/qualityScenarios\/0 must have required property 'stage'/)
+  })
 })

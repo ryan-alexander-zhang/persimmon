@@ -626,7 +626,7 @@ spec:
             description: "arc42 10: at least one per quality goal"
             items:
               type: object
-              required: [id, qualityGoal, stimulus, response, measure]
+              required: [id, qualityGoal, stimulus, response, measure, method, stage]
               additionalProperties: false
               properties:
                 id: {type: string, pattern: "^QS-[0-9]+$"}
@@ -636,6 +636,10 @@ spec:
                 environment: {type: string}
                 response: {type: string, minLength: 1}
                 measure: {type: string, minLength: 1, description: "a number or an observable fact"}
+                method: {enum: [test, fitness, load, chaos, observe], description: "how the measure is proven: a behaviour test, a structural test, a load run, fault injection, or watching production"}
+                stage: {enum: [build, release, runtime], description: "when it is proven: build is every Plan task's Gate, by a passing test"}
+              if: {properties: {stage: {const: build}}}
+              then: {properties: {method: {enum: [test, fitness]}}}
           risks:
             type: array
             description: "arc42 11, risks and technical debt, optional"

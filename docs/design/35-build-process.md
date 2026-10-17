@@ -142,10 +142,9 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
   evidence, not the code. Found in design review and audit.
 - The task brief is the `cli-human/v1` form, not a new verb: it already carries every context
   entry with its content. Found in design review.
-- Deferred: a quality scenario's `method` and `stage`, so a build-stage `test` scenario needs a
-  passing test too; an Adr's `enforcedBy` tests; an auditor Validator judging whether a test
-  verifies its `AC-n`; a baseline outcome for a suite already red. Each lands on this process once
-  it runs. Found in design review.
+- Deferred: an Adr's `enforcedBy` tests; an auditor Validator judging whether a test verifies its
+  `AC-n`; a baseline outcome for a suite already red. Each lands on this process once it runs.
+  Found in design review.
 - The Executor's command is `configuration.program`, not `command`: the shared runner reserves
   `configuration.command` for the conformance suite's stand-in and refuses it on an applied
   Executor. A glob in `junit` was dropped: maven and gradle write one directory, and a directory
@@ -170,6 +169,14 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
   round 2 fixed from the carried TestOutcome. The agent never ran git. `persimmon init` on the
   project updated its unedited AGENTS.md to the new pack text. Found in UAT.
 
+- A quality scenario names its `method` (`test`, `fitness`, `load`, `chaos`, `observe`) and its
+  `stage` (`build`, `release`, `runtime`), both required, so the architect says how and when each
+  measure is proven. A `build` scenario is a `test` or a `fitness` one, the two methods a JUnit test
+  can prove; the schema refuses another. `release` and `runtime` are declared and checked by
+  nothing yet: no release process exists. The method names are the template's verification axis.
+  The worked example and examples 07 and 08 were labelled by hand after their runs. Found in design
+  review.
+
 ## Examples
 
 - `docs/design/examples/sdlc-domain.yaml`: `AcceptanceRecord/submit-a-claim-plan-t-1`, the tests
@@ -185,3 +192,4 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
 5. `build-rules`, Executor `builder`, Task `implement`, `build-work`, `build-one`, `build-all`.
 6. AGENTS.md: section 8 scoped to an Executor's agent, section 6 the builder's steps.
 7. A live UAT: one Plan task of a small project, built the default way, then by the override.
+8. A quality scenario's `method` and `stage`.
