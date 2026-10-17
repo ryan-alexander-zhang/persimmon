@@ -204,6 +204,10 @@ Result: a ValidationResult (`10-ports.md`). No `credentials`, no `security` (`14
   DNS label (`Test_Report.v2.html`: `test-report-v2`), so only a stem that empties, two stems
   that collide, `json` or a file over the cap is `agent_failed`, retryable; the retry carries no
   prior error, so the rule in the prompt has to be enough. Found in UAT (`18-artifact.md`).
+- The shared runner takes two driver hooks for `junit/v1` (`35-build-process.md`): `prepare`, run in
+  the workspace before the program, and `anyExit`, under which a non-zero exit is part of the
+  answer and reaches `parse` as `exitCode` (a signal as 128 plus its number), never
+  `agent_failed`. Found in implementation.
 
 ## Examples
 

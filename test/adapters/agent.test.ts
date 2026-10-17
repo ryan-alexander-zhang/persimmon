@@ -418,6 +418,76 @@ describe('subprocess/v1', () => {
 })
 
 
+describe('junit/v1', () => {
+  const outcome = { apiVersion: 'sdd.persimmon.ai/v1', kind: 'TestOutcome' }
+  const record = { apiVersion: 'sdd.persimmon.ai/v1', kind: 'AcceptanceRecord', namespace: 'demo', id: 'p-t-1', revision: 1 }
+  const junitXml = '<?xml version="1.0"?><testsuites><testsuite name="claim"><testcase classname="test/claim.test.ts" name="claim &gt; ac 1"/><testcase classname="test/claim.test.ts" name="claim &gt; ac 3"><failure message="expected complete">AssertionError</failure></testcase></testsuite></testsuites>'
+  // a test command: writes what JUNIT says to junit.xml (unless empty), prints OUT, exits CODE or kills itself with SIG
+  const program = [process.execPath, '-e', "const fs = require('node:fs'); if (process.env.JUNIT) fs.writeFileSync('junit.xml', process.env.JUNIT); console.log(process.env.OUT ?? 'ran'); if (process.env.SIG) process.kill(process.pid, process.env.SIG); process.exit(Number(process.env.CODE ?? 0))"]
+  const p = (ws: string, configuration: Record<string, unknown> = { program, junit: 'junit.xml' }) => payload({
+    workspace: ws, executor: { type: 'script', configuration, security: { networkAccess: 'deny' } }, credentials: {}, context: [],
+    inputs: { record: { kind: 'artifact', ref: record } },
+    task: { instructions: 'Run the tests.', parameters: {}, sideEffects: 'idempotent', outputs: { testOutcome: { type: { kind: 'artifact', artifactKind: outcome } } }, outputSchemas: {}, outputIds: { testOutcome: 'p-t-1-tests' } },
+  })
+  const published = () => calls.filter((c) => c.name === 'publishArtifact').map((c) => c.args as { id: string; content: Record<string, unknown>; inputs: unknown[] })
+  const ws = () => mkdtempSync(join(tmpdir(), 'persimmon-junit-'))
+
+  it('describes a script type with no context', async () => {
+    const d = last(await adapter('junit', { id: 40, op: 'describe', payload: {} }))
+    expect(d.result).toMatchObject({ adapterId: 'junit/v1', executorTypes: ['script'], contextKinds: [], skillFormats: [] })
+  })
+
+  it('a red suite is an outcome, not a failure: exit code and every test case published, the record pinned', async () => {
+    calls.length = 0
+    const dir = ws()
+    const r = await adapter('junit', { id: 41, op: 'execute', payload: p(dir) }, { JUNIT: junitXml, CODE: '1' })
+    expect(last(r)).toMatchObject({ ok: true, result: { outputs: { testOutcome: { kind: 'artifact', ref: { id: 'p-t-1-tests' } } } } })
+    const [pub] = published()
+    expect(pub!.content).toEqual({ command: program, exitCode: 1, tests: [{ classname: 'test/claim.test.ts', name: 'claim > ac 1', status: 'passed' }, { classname: 'test/claim.test.ts', name: 'claim > ac 3', status: 'failed', message: 'expected complete' }] })
+    expect(pub!.inputs).toEqual([record]) // provenance: the record the run followed
+    rmSync(dir, { recursive: true })
+  })
+
+  it('no test case read answers tests [] with the output tail; a stale report is deleted before the run', async () => {
+    calls.length = 0
+    const dir = ws()
+    writeFileSync(join(dir, 'junit.xml'), junitXml) // an earlier run's
+    await adapter('junit', { id: 42, op: 'execute', payload: p(dir) }, { OUT: 'error TS2304: Cannot find name claim', CODE: '2' })
+    expect(published()[0]!.content).toMatchObject({ exitCode: 2, tests: [], outputTail: expect.stringContaining('error TS2304') })
+    expect(existsSync(join(dir, 'junit.xml'))).toBe(false)
+    calls.length = 0
+    await adapter('junit', { id: 43, op: 'execute', payload: p(dir) }, { JUNIT: '<testsuites><testsuite>', CODE: '1' })
+    expect(published()[0]!.content).toMatchObject({ tests: [], outputTail: expect.stringContaining('unreadable JUnit XML') })
+    rmSync(dir, { recursive: true })
+  })
+
+  it('a signal-killed command records 128 plus the signal; a directory of reports is read whole', async () => {
+    calls.length = 0
+    const dir = ws()
+    await adapter('junit', { id: 44, op: 'execute', payload: p(dir) }, { SIG: 'SIGKILL' })
+    expect(published()[0]!.content).toMatchObject({ exitCode: 137, tests: [] })
+    mkdirSync(join(dir, 'reports'))
+    const surefire = "const fs = require('node:fs'); fs.writeFileSync('reports/TEST-a.xml', '<testsuite name=\"a\"><testcase classname=\"A\" name=\"one\"/></testsuite>'); fs.writeFileSync('reports/TEST-b.xml', '<testsuite name=\"b\"><testcase classname=\"B\" name=\"two\"><skipped/></testcase><testcase classname=\"B\" name=\"three\"><error message=\"NPE\"/></testcase></testsuite>')"
+    calls.length = 0
+    await adapter('junit', { id: 45, op: 'execute', payload: p(dir, { program: [process.execPath, '-e', surefire], junit: 'reports' }) })
+    expect(published()[0]!.content.tests).toEqual([{ classname: 'A', name: 'one', status: 'passed' }, { classname: 'B', name: 'two', status: 'skipped' }, { classname: 'B', name: 'three', status: 'errored', message: 'NPE' }])
+    rmSync(dir, { recursive: true })
+  })
+
+  it('records the commit and whether the tested tree was dirty', async () => {
+    calls.length = 0
+    const dir = ws()
+    const git = (...a: string[]) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', ...a], { cwd: dir, stdio: 'ignore' })
+    git('init', '-q')
+    writeFileSync(join(dir, 'a.txt'), 'a')
+    git('add', 'a.txt')
+    git('commit', '-qm', 'a')
+    await adapter('junit', { id: 46, op: 'execute', payload: p(dir) }, { JUNIT: junitXml })
+    expect(published()[0]!.content).toMatchObject({ head: expect.stringMatching(/^[0-9a-f]{40}$/), dirty: true }) // junit.xml is untracked
+    rmSync(dir, { recursive: true })
+  })
+})
+
 describe('outputSchema', () => {
   it("hoists a port schema's $defs to the root and rewrites its $ref, since the CLI resolves refs from the root", async () => {
     const { outputSchema } = await import('../../adapters/lib/agent.mjs')

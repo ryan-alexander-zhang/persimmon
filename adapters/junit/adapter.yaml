@@ -1,0 +1,9 @@
+# Test runner Executor Adapter: a project's test command and its JUnit XML (35-build-process.md). persimmon init resolves the script path.
+apiVersion: persimmon.ai/v1
+kind: Adapter
+metadata: {name: junit-v1}
+spec:
+  id: junit/v1
+  roles: [executor]
+  transport: stdio
+  command: [node, adapters/junit/index.mjs]

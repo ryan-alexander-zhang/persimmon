@@ -403,3 +403,21 @@ spec:
       - {kind: artifact, input: designSystem}
   timeout: 72h
   sideEffects: none
+---
+# The project's own tests after a build round (35-build-process.md): the evidence the AcceptanceRecord is checked against.
+# `record` is an input so the TestOutcome's provenance pins the record it followed.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: run-tests}
+spec:
+  inputs:
+    record: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: AcceptanceRecord}}}
+    repository: {type: {kind: externalResource, provider: git, type: repository}, description: "the project's code, where the build round wrote"}
+  outputs:
+    testOutcome: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, id: {expression: "inputs.record.id + '-tests'"}}
+  executorRef: {kind: Executor, name: test-runner}
+  action:
+    instructions: Run the project's tests in the repository and answer what their JUnit XML says.
+    workspace: {input: repository}
+  timeout: 30m
+  sideEffects: idempotent

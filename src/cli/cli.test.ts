@@ -63,7 +63,7 @@ describe('persimmon CLI', () => {
     expect(await run('adapter', 'install', file('a.yaml', [fakeAdapter('claude-code/v1'), fakeAdapter('cli-human/v1', 'human')]))).toBe(0)
     out = []
     expect(await run('adapter', 'list')).toBe(0)
-    expect(out).toEqual(['claude-code/v1  Ready  roles: executor', 'cli-human/v1  Ready  roles: executor', 'codex/v1  Ready  roles: executor', 'designmd/v1  Ready  roles: evaluator', 'eventstorming/v1  Ready  roles: evaluator', 'sdd/v1  Ready  roles: evaluator', 'subprocess/v1  Ready  roles: executor'])
+    expect(out).toEqual(['claude-code/v1  Ready  roles: executor', 'cli-human/v1  Ready  roles: executor', 'codex/v1  Ready  roles: executor', 'designmd/v1  Ready  roles: evaluator', 'eventstorming/v1  Ready  roles: evaluator', 'junit/v1  Ready  roles: executor', 'sdd/v1  Ready  roles: evaluator', 'subprocess/v1  Ready  roles: executor'])
 
     out = []
     expect([await run('validate', 'packs/demo/global/50-tasks.yaml', 'packs/demo/global/80-workflows.yaml', 'packs/demo/global/40-executors.yaml'), out.filter((l) => l.startsWith('error'))]).toEqual([0, []])
@@ -108,7 +108,7 @@ describe('persimmon CLI', () => {
 
     out = []
     expect(await run('get', 'Task')).toBe(0)
-    expect(out.length).toBe(17) // the SDLC pack's twelve and the demo pack's five
+    expect(out.length).toBe(18) // the SDLC pack's thirteen and the demo pack's five
     expect(await run('delete', 'Task/write-prd')).toBe(1) // referenced by prd-create
     expect(err.at(-1)).toMatch(/referenced/)
 
@@ -245,7 +245,7 @@ describe('persimmon CLI', () => {
     expect(out).toEqual(['Workflow/prd-approval', 'Workflow/prd-create']) // the SDLC pack is not in this store
     out = [] // so a Workflow stepping into a ReviewLoop of the same files resolves on validate's second pass only (08-store.md)
     expect([await run('validate', ...sdlcPack), out.filter((l) => !l.startsWith('ok'))]).toEqual([0, []])
-    expect(out.length).toBe(85)
+    expect(out.length).toBe(87)
   })
 
   it('get --behind lists the latest revision whose pinned inputs moved on; a carried previous input and a run\'s own later output are not behind', async () => {

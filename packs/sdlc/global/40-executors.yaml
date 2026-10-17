@@ -97,3 +97,17 @@ spec:
   security:
     networkAccess: allowlist
     allowedHosts: [api.anthropic.com]
+---
+# The project's tests, read from their JUnit XML (35-build-process.md). The command is a placeholder: a project
+# overrides this Executor by name with its own (`[mvn, test]` with `target/surefire-reports`, `[pytest, --junitxml=junit.xml]`).
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: test-runner}
+spec:
+  type: script
+  adapter: junit/v1
+  configuration:
+    program: [npm, test]
+    junit: junit.xml
+  security:
+    networkAccess: deny

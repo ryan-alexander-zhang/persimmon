@@ -32,7 +32,7 @@ ReviewLoop build-one
 |---|---|
 | Prompt `build-rules` | one task per round, its block only; at least one test per `AC-n`, named in `record`; a failing test is never deleted, skipped or weakened; a dependency the Architecture and its Adrs do not name is a `Q-n`, never installed; an unknown is a `Q-n`, never a guess; no git; the code uses the Glossary's terms |
 | Executor `builder` | `cli-human/v1`, `type: human`: the form in `.persimmon/inbox/<taskRun>.yaml` is the task brief, every context entry with its content (`20-pack.md`); the developer's agent reads it, builds, and answers with `persimmon complete <taskRun> --file record.yaml` holding `{outputs: {record: <content>}}` |
-| Executor `test-runner` | `junit/v1`, `type: script`, configuration `{command, junit}`: the project's test command and the JUnit XML it writes (a file, a directory or a glob); the pack's `{command: [npm, test], junit: junit.xml}` is a placeholder a project overrides by name (`mvn test` with `target/surefire-reports`, `pytest --junitxml=junit.xml`) |
+| Executor `test-runner` | `junit/v1`, `type: script`, configuration `{program, junit}`: the project's test command and the JUnit XML it writes (a file, or a directory of `.xml` files); the pack's `{program: [npm, test], junit: junit.xml}` is a placeholder a project overrides by name (`mvn test` with `target/surefire-reports`, `pytest --junitxml=junit.xml`) |
 | Task `implement` | inputs `plan`, `taskId` (value), `spec`, `architecture`, `designs` (artifacts), `glossary`, `rules`, `repository` (the workspace), `previous`, `feedback`; output `record`, id `<plan>-<t-n>`; `workspace: {input: repository}`; `sideEffects: nonIdempotent` (it writes the repository); `timeout: 72h`, a human's |
 | Task `run-tests` | inputs `record`, `repository`; output `testOutcome`, id `<record>-tests`; `workspace: {input: repository}`; the `record` input pins the record in the outcome's provenance; `sideEffects: idempotent`; `timeout: 30m` |
 | Validator `acceptance-evidence` | `sdd/v1` over `record`, `testOutcome`, `plan`, `spec`, optionally `previous` (the last round's record), and the value `taskId`; the findings below |
@@ -49,15 +49,18 @@ them.
 ## `junit/v1`
 
 An executor Adapter on the shared runner (`adapters/lib/agent.mjs`), beside `subprocess/v1`. Per
-attempt, in the workspace: delete the JUnit files `junit` names, run `command`, read every file
-`junit` names (`<testsuites>` or `<testsuite>` root), and answer the `testOutcome` port. The
+attempt, in the workspace: delete the JUnit files `junit` names, run `program`, read every file
+`junit` names (`<testsuites>` or `<testsuite>` root), and answer the Task's one output port; XML
+that does not parse counts as no test case read, its error in `outputTail`. The
 command's exit code is recorded, never an error, `128` plus the signal number when a signal killed
 it (the shell's convention; a killed suite writes no XML, so it shows as `suite-empty`): failing tests exit non-zero, which is an outcome
 the Gate judges, not a failed attempt; a run with no test case read (a compile error) answers
 `tests: []` and the last 50 lines of output as `outputTail`. `head` and `dirty` come from
 `git rev-parse HEAD` and `git status --porcelain`, read only; outside a repository both are absent.
-The runner gains one driver flag for this: an exit code that is the program's answer, not a
-failure.
+The runner gains two driver hooks for this: `prepare`, run in the workspace before the program,
+and `anyExit`, an exit code that is the program's answer, not a failure. `junit/v1` takes no
+executor conformance suite: E3 expects the fixture's answer and E10 an `agent_failed` on a
+non-zero exit, both contrary to its contract; its own tests cover it (`test/adapters/agent.test.ts`).
 
 ## `checkAcceptance`
 
@@ -113,10 +116,12 @@ name`; a name is never split (vitest's own `name` holds ` > `).
   path in an Executor's `program` is relative to the user's repository, `subprocess/v1` takes only
   `args` as parameters, and a non-zero exit is an attempt failure there, so a red suite would end
   the run instead of feeding a round back. Found in audit.
-- `junit/v1` reads XML with `fast-xml-parser`: a maintained parser with no dependencies, imported
-  in that Adapter only, as `designmd/v1` imports its linter; a hand-written reader would break on
-  entities and CDATA. `xml2js` (callback API, two dependencies) and `sax` (event stream, more code
-  to assemble test cases) were compared. Found in audit.
+- `junit/v1` reads XML with `@xmldom/xmldom` 0.9.12: a maintained DOM parser with no dependencies,
+  imported in that Adapter only, as `designmd/v1` imports its linter; `getElementsByTagName` reads
+  JUnit's `testcase` elements under either root, and a hand-written reader would break on entities
+  and CDATA. `fast-xml-parser` was chosen first on the belief it had no dependencies; 5.11.2 pulls
+  in six, so the user chose again. `sax` (event stream, more code to assemble test cases) was
+  compared. Found in audit and implementation.
 - `persimmon complete --file` takes `{outputs: {<port>: <content>}}` for an artifact port and
   publishes it under the form's `outputIds`: the full `{taskResult, publish}` envelope is the
   engine's, not something a coding agent should write. Found in audit.
@@ -130,6 +135,10 @@ name`; a name is never split (vitest's own `name` holds ` > `).
   passing test too; an Adr's `enforcedBy` tests; an auditor Validator judging whether a test
   verifies its `AC-n`; a baseline outcome for a suite already red. Each lands on this process once
   it runs. Found in design review.
+- The Executor's command is `configuration.program`, not `command`: the shared runner reserves
+  `configuration.command` for the conformance suite's stand-in and refuses it on an applied
+  Executor. A glob in `junit` was dropped: maven and gradle write one directory, and a directory
+  covers both. Found in implementation.
 
 ## Examples
 
@@ -141,7 +150,7 @@ name`; a name is never split (vitest's own `name` holds ` > `).
 
 1. The `AcceptanceRecord` and `TestOutcome` kinds, with examples beside the worked domain example.
 2. `persimmon complete --file` with `{outputs}` for an artifact port.
-3. `junit/v1` with `fast-xml-parser`, the runner's exit-code flag, Executor `test-runner`, Task `run-tests`.
+3. `junit/v1` with `@xmldom/xmldom`, the runner's `prepare` and `anyExit` hooks, Executor `test-runner`, Task `run-tests`.
 4. `checkAcceptance`, the `acceptance-evidence` Validator and `build-gate`.
 5. `build-rules`, Executor `builder`, Task `implement`, `build-work`, `build-one`, `build-all`.
 6. AGENTS.md: section 8 scoped to an Executor's agent, section 6 the builder's steps.

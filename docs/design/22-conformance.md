@@ -125,3 +125,7 @@ none.
 - The fixture answer agrees with its context. An answer the context contradicted read as a
   prompt injection to claude, which answered from the context instead; a value input beside the
   instructions was copied as `count`. Found in UAT.
+- `junit/v1` ships without a stub and is not in the shipped list the suite runs over: E3 expects
+  the fixture's answer and E10 an `agent_failed` on a non-zero exit, and its contract is the
+  opposite of both, an answer read from JUnit XML and an exit code that is an outcome
+  (`35-build-process.md`). Its own tests cover it. Found in implementation.
