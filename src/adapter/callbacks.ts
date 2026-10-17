@@ -16,8 +16,8 @@ export class CallbackError extends Error {
 }
 
 export type TokenScope =
-  | { kind: 'reconcile'; uid: string; sequence: number }
-  | { kind: 'call'; uid: string; idempotencyKey: string }
+  | { kind: 'reconcile'; uid: string; sequence: number; actor?: Actor }
+  | { kind: 'call'; uid: string; idempotencyKey: string; adapterId?: string }
   | { kind: 'adapter'; id: string }
 
 export interface CallbackEngine extends Omit<CommitEngine, 'handlers'> {
@@ -74,8 +74,10 @@ export function callback(engine: CallbackEngine, token: string, name: string, ar
       return store.blobs.put(Buffer.from(args.bytes as string, 'base64'), args.mediaType as string)
     case 'publishArtifact': {
       if (!caller) throw new CallbackError('forbidden', 'publishArtifact needs a reconcile or call token')
+      // who produced it (18-artifact.md): the Adapter answering a call; else the actor of the Signal the reconcile serves; else its Handler
       const owner = engine.handlers?.lookup(caller.apiVersion, caller.kind)?.handler.metadata.name
-      const actor: Actor = { kind: 'handler', id: owner ?? 'engine' }
+      const actor: Actor =
+        scope.kind === 'call' && scope.adapterId ? { kind: 'service', id: scope.adapterId } : (scope.kind === 'reconcile' && scope.actor) || { kind: 'handler', id: owner ?? 'engine' }
       const publication = scope.kind === 'call' ? { uid: scope.uid, key: scope.idempotencyKey } : reconcileScope((scope as { uid: string }).uid, (scope as { sequence: number }).sequence)
       return stageRevision(engine as CommitEngine, args as unknown as PublishRequest, caller, publication, actor)
     }

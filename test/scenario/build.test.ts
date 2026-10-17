@@ -89,6 +89,10 @@ describe('scenario: build a Plan task', () => {
     out = []
     expect(await run('get', 'TestOutcome/submit-a-claim-plan-t-1-tests')).toBe(0)
     expect(out.join('\n')).toContain('exitCode: 0')
+    expect(out.join('\n')).toMatch(/actor:\s*\n\s*kind: service\s*\n\s*id: junit\/v1/) // a script wrote it
+    out = []
+    expect(await run('get', 'AcceptanceRecord/submit-a-claim-plan-t-1')).toBe(0)
+    expect(out.join('\n')).toMatch(/actor:\s*\n\s*kind: user\s*\n\s*id: local/) // the human who answered the form, not the task Handler
     out = []
     expect(await run('get', 'WorkflowRun')).toBe(0)
     const loop = out.find((l) => /^WorkflowRun\/build-one-[0-9a-f]+\s/.test(l))!.split(/\s/)[0]!

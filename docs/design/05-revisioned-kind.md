@@ -23,7 +23,7 @@ Framework adds to every Resource of the kind; the kind is `Immutable`, `Namespac
 | `metadata.name` | engine | `<id>.r<revision>` |
 | `spec.identity` | engine | `{id, revision ≥ 1}`; `id` is a DNS label from the publisher; revision reserved at staging |
 | `spec.content` | publisher | validated by the kind's `schema` frozen in the caller's snapshot; live registration when the caller has none |
-| `spec.provenance` | engine | `{producerRef, inputs: [RevisionRef], actor}`; `producerRef` is the Resource owning the reconcile or Publication scope, or the revision itself when written by hand (`persimmon create`); `actor` is `context.actor` of the committing reconcile, else the owning Handler's `handler` Actor |
+| `spec.provenance` | engine | `{producerRef, inputs: [RevisionRef], actor}`; `producerRef` is the Resource owning the reconcile or Publication scope, or the revision itself when written by hand (`persimmon create`); `actor` is who produced it: `{kind: service, id: <adapter id>}` when an Adapter call publishes it; else `context.actor` of the reconcile that stages it (the Signal's, for a human's answer); else the owning Handler's `handler` Actor |
 | `status.contentDigest` | engine | `sha256:` over canonically encoded `content` (`04-snapshot.md` encoding) |
 | `status.representations[]` | engine | `{name, mediaType, digest}`; bytes in BlobStore at `blob://<digest hex>` |
 
@@ -85,6 +85,13 @@ revisions are retained flagged, excluded from get and list, and leave a gap.
   producer, no inputs, the writer as actor, `status.contentDigest` is computed, `artifact.published` is
   emitted so Triggers fire. Re-creating the same content is idempotent; provenance is not
   compared. Found in UAT.
+- `provenance.actor` names who produced a revision, so a reader tells an agent's work from a
+  human's: an Adapter call's publish is the Adapter, as `service`, and a reconcile's is the actor
+  of the Signal it serves, which its token carries. Before, a publish through the callback was
+  stamped with the Handler: a human's form answer and an agent's were both `handler/task`, and
+  "who approved is read from `provenance.actor`" (`14-gate.md`) could not hold. A script Adapter
+  is a `service` too; nothing it writes answers a question. Found in design review
+  (`35-build-process.md`, an agent's choices made in a human's place).
 
 ## Examples
 

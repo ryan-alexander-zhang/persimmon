@@ -108,6 +108,22 @@ describe('engine callbacks', () => {
     expect(store.runLog.logs(run.metadata.uid!, 1)).toEqual(['3 requirements drafted'])
   })
 
+  // who produced an artifact (18-artifact.md): the Adapter of a call, the actor of the Signal a reconcile serves, else the Handler
+  it('publishArtifact names its producer: the Adapter of a call, a Signal\'s actor, else the Handler', () => {
+    const req = () => {
+      const r = structuredClone(example('reconcile-actions')[2])
+      r.representations[0].digest = store.blobs.put(Buffer.from('r'), 'text/markdown').digest
+      return r
+    }
+    const actorOf = (token: string, key: string) => {
+      callback(engine, token, 'publishArtifact', req())
+      return (store.resources.commitScope({ uid: run.metadata.uid!, key }).at(-1)!.spec as { provenance: { actor: unknown } }).provenance.actor
+    }
+    expect(actorOf(store.tokens.issue({ kind: 'call', uid: run.metadata.uid, idempotencyKey: 'k/2', adapterId: 'claude-code/v1' }), 'k/2')).toEqual({ kind: 'service', id: 'claude-code/v1' })
+    expect(actorOf(store.tokens.issue({ kind: 'reconcile', uid: run.metadata.uid, sequence: 7, actor: { kind: 'user', id: 'local' } }), reconcileScope(run.metadata.uid!, 7).key)).toEqual({ kind: 'user', id: 'local' })
+    expect(actorOf(store.tokens.issue({ kind: 'reconcile', uid: run.metadata.uid, sequence: 8 }), reconcileScope(run.metadata.uid!, 8).key)).toEqual({ kind: 'handler', id: 'workflow' })
+  })
+
   it('publishArtifact with a reconcile token joins that reconcile scope', () => {
     const t = reconcileToken()
     const req = example('reconcile-actions')[2]

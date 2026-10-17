@@ -48,7 +48,8 @@ export async function reconcileOnce(engine: Engine, uid: string, entry: RunLogEn
     const event = entry.event as unknown as Event
     const attempt = store.runLog.markDelivery(uid, entry.event.sequence)
     // expires with the lease, so a crash between issue and revoke leaves no live token
-    const token = store.tokens.issue({ kind: 'reconcile', uid, sequence: event.sequence }, new Date(engine.now().getTime() + engine.leaseTtlMs).toISOString())
+    // the Signal's actor rides in the token, so what the reconcile publishes names who answered (18-artifact.md)
+    const token = store.tokens.issue({ kind: 'reconcile', uid, sequence: event.sequence, ...(entry.actor ? { actor: entry.actor } : {}) }, new Date(engine.now().getTime() + engine.leaseTtlMs).toISOString())
     try {
       const input: ReconcileInput = { resource, event, context: contextOf(engine, resource, entry), engine: { endpoint: engine.endpoint, token } }
       const result: ReconcileResult = bound.impl
@@ -123,7 +124,7 @@ export async function dispatchCalls(engine: Engine): Promise<number> {
       const key = `${c.uid}/${c.action.idempotencyKey}`
       engine.inFlight.add(key)
       const a = c.action as { adapterId: string; op: string; payload: Record<string, unknown>; idempotencyKey: string; deadline?: string }
-      const scope = { kind: 'call', uid: c.uid, idempotencyKey: a.idempotencyKey }
+      const scope = { kind: 'call', uid: c.uid, idempotencyKey: a.idempotencyKey, adapterId: a.adapterId }
       const finished = (payload: AdapterFinishedPayload) => appendEvent(engine, c.uid, { type: 'AdapterFinished', dedupeKey: `adapter/${a.idempotencyKey}`, payload: { ...payload, finishedAt: engine.now().toISOString() } }) // answer time; delivery waits for the other calls of this drain
       try {
         const deadline = a.deadline ? new Date(a.deadline) : new Date(engine.now().getTime() + engine.defaultCallDeadlineMs)

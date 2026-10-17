@@ -72,7 +72,7 @@ describe('scenario: PRD lifecycle', () => {
       const prd = (done.status as { outputs: { prd: { ref: { id: string; revision: number; kind: string } } } }).outputs.prd.ref
       expect(prd).toMatchObject({ kind: 'ProductRequirement', revision: 1 })
       const rev = e.store.resources.get({ kind: 'ProductRequirement', namespace: 'default', name: `${prd.id}.r1` })!
-      expect(rev.spec).toMatchObject({ content: { title: 'Checkout v2' }, provenance: { actor: { kind: 'handler', id: 'task' } } })
+      expect(rev.spec).toMatchObject({ content: { title: 'Checkout v2' }, provenance: { actor: { kind: 'service', id: 'claude-code/v1' } } }) // the agent wrote it (18-artifact.md)
       expect(e.store.resources.listRevisions('ResearchReport', 'default', 'research-researchreport')).toHaveLength(1)
       // the Trigger fired an ownerless approval run named after the event
       const approvals = e.store.resources.list('WorkflowRun', 'default').filter((r) => r.metadata.name.startsWith('on-prd-published-'))
