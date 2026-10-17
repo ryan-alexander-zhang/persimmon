@@ -564,6 +564,7 @@ _Avoid_: planning phase, task breakdown, plan-all
 An Architecture element `QS-n` under a quality goal: stimulus, response, a measure, the `method` that
 proves it (`test`, `fitness`, `load`, `chaos`, `observe`) and when (`provenAt`: `build`, `release`,
 `runtime`). A Spec cites the ones its capability is held to; a `build` one verifies a **Plan** task.
+A bare scenario in a Plan or an **AcceptanceRecord** is an `AC-n` or a `QS-n`.
 _Avoid_: NFR, non-functional requirement, stage (for `provenAt`)
 
 **Build process**:

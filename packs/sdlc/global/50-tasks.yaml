@@ -423,7 +423,7 @@ spec:
   sideEffects: idempotent
 ---
 # One Plan task built (35-build-process.md): the code and tests in the repository, and the AcceptanceRecord naming the test
-# that proves each AC-n. The builder is the developer by default; the Executor is the switch to an agent.
+# that proves each AC-n and QS-n. The builder is the developer by default; the Executor is the switch to an agent.
 apiVersion: persimmon.ai/v1
 kind: Task
 metadata: {name: implement}

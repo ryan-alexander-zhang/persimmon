@@ -574,9 +574,9 @@ spec:
         provenAt: build
       - id: QS-3
         qualityGoal: QG-2
-        stimulus: an employee opens another employee's claim by URL
+        stimulus: an employee sends a request naming another employee's claim in its URL
         response: refused and logged
-        measure: zero cross-employee reads outside the approver and finance roles
+        measure: zero cross-employee reads or changes outside the approver and finance roles
         method: test
         provenAt: build
       - id: QS-4

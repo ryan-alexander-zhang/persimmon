@@ -4,7 +4,7 @@ status: draft · layer: 2 (`23-pack-sdlc.md`, `27-spec-process.md`, `29-design-p
 
 From a Spec and the Designs it will be built against to its Plan: an agent writes the tasks in
 build order, each on one Architecture block, covering the Spec's requirements, verified by its
-acceptance scenarios, realising elements of the Designs; a Validator checks coverage and every
+acceptance scenarios and the `build` quality scenarios it cites, realising elements of the Designs; a Validator checks coverage and every
 reference; the loop feeds findings back once. The Plan is the only artifact linking a Spec to
 Designs.
 
@@ -75,8 +75,8 @@ The Adapter picks the mode from the payload: `artifacts.plan` first (a Plan payl
   The Designs are passed once for the whole product: a Plan lists only the Designs its tasks
   realise elements of, so extra Designs in the payload are no finding. The per-capability query
   ("every Design of the blocks this Spec touches") stays roadmap. Found in design review.
-- `verifiedBy` and `covers` may both be empty on a task (groundwork), but every `FR-n` and `AC-n` of
-  the Spec must be in some task: coverage is a Spec-level rule, not a task-level one. Found in
+- `verifiedBy` and `covers` may both be empty on a task (groundwork), but every `FR-n`, `AC-n` and cited
+  `build` `QS-n` of the Spec must be in some task: coverage is a Spec-level rule, not a task-level one. Found in
   design review.
 
 - Proven live on `claude-sonnet-5`: `plan-one` over the example Spec, Architecture and the one

@@ -601,6 +601,7 @@ describe('sdd/v1 over a Plan', () => {
     expect(await planCodes((a) => { a.plan.tasks[0].verifiedBy = ['AC-1', 'AC-3'] })).toEqual(['scenario-unverified'])
     expect(await planCodes((a) => { a.plan.tasks[0].verifiedBy.push('QS-2') })).toEqual(['unknown-scenario']) // build, but not cited
     expect(await planCodes((a) => { a.plan.tasks[0].verifiedBy.push('QS-1') })).toEqual(['scenario-not-build']) // cited, at release
+    expect(await planCodes((a) => { a.spec.qualities.push({ scenario: 'QS-9' }); a.plan.tasks[0].verifiedBy.push('QS-9') })).toEqual(['unknown-scenario']) // cited, but the Architecture has none
     const released = structuredClone(planExample())
     Object.assign(qs(released), { method: 'load', provenAt: 'release' })
     released.plan.tasks[0].verifiedBy = ['AC-1', 'AC-3']

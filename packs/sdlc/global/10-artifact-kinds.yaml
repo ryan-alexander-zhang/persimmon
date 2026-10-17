@@ -1084,8 +1084,9 @@ spec:
   snapshot: "None"
 ---
 # The Plan of one Spec: the work that builds its capability, as tasks on one building block each, covering the Spec's
-# requirements, verified by its acceptance scenarios, realising elements of the Designs it builds against. The Plan
-# carries the Spec-to-Design link; a Spec never cites a Design. No estimates, owners or status: status is run state.
+# requirements, verified by its acceptance scenarios and the build quality scenarios it cites, realising elements of
+# the Designs it builds against. The Plan carries the Spec-to-Design link; a Spec never cites a Design. No estimates,
+# owners or status: status is run state.
 apiVersion: persimmon.ai/v1
 kind: KindDefinition
 metadata: {name: plans.sdd.persimmon.ai}

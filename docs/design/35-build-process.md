@@ -142,7 +142,7 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
   evidence, not the code. Found in design review and audit.
 - The task brief is the `cli-human/v1` form, not a new verb: it already carries every context
   entry with its content. Found in design review.
-- Deferred: an auditor Validator judging whether a test verifies its `AC-n`; a baseline outcome
+- Deferred: an auditor Validator judging whether a test verifies its `AC-n` or `QS-n`; a baseline outcome
   for a suite already red. Each lands on this process once it runs.
   Found in design review.
 - The Executor's command is `configuration.program`, not `command`: the shared runner reserves

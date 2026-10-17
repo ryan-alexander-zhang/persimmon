@@ -396,7 +396,8 @@ export function checkPlan({ plan, spec, architecture, designs = {}, ids = {} }) 
       verified.add(a)
       if (a.startsWith('QS-')) {
         if (!cited.has(a)) bad('unknown-scenario', `${t.id}: quality scenario ${a} is not one the Spec cites`)
-        else if (provenAt.get(a) !== 'build') bad('scenario-not-build', `${t.id}: quality scenario ${a} is proven at ${provenAt.get(a) ?? 'no time the Architecture names'}, not at build`)
+        else if (!provenAt.has(a)) bad('unknown-scenario', `${t.id}: quality scenario ${a} is not in the Architecture`)
+        else if (provenAt.get(a) !== 'build') bad('scenario-not-build', `${t.id}: quality scenario ${a} is proven at ${provenAt.get(a)}, not at build`)
       } else if (!scenarios.has(a)) bad('unknown-scenario', `${t.id}: scenario ${a} is not in the Spec`)
     }
     for (const d of t.dependsOn ?? []) {
