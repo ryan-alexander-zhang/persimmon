@@ -48,8 +48,9 @@ export async function reconcileOnce(engine: Engine, uid: string, entry: RunLogEn
     const event = entry.event as unknown as Event
     const attempt = store.runLog.markDelivery(uid, entry.event.sequence)
     // expires with the lease, so a crash between issue and revoke leaves no live token
-    // the Signal's actor rides in the token, so what the reconcile publishes names who answered (18-artifact.md)
-    const token = store.tokens.issue({ kind: 'reconcile', uid, sequence: event.sequence, ...(entry.actor ? { actor: entry.actor } : {}) }, new Date(engine.now().getTime() + engine.leaseTtlMs).toISOString())
+    // the Signal's actor rides in the token, so what the reconcile publishes names who answered (05-revisioned-kind.md); revoked by the same scope
+    const scope = { kind: 'reconcile', uid, sequence: event.sequence, ...(entry.actor ? { actor: entry.actor } : {}) }
+    const token = store.tokens.issue(scope, new Date(engine.now().getTime() + engine.leaseTtlMs).toISOString())
     try {
       const input: ReconcileInput = { resource, event, context: contextOf(engine, resource, entry), engine: { endpoint: engine.endpoint, token } }
       const result: ReconcileResult = bound.impl
@@ -65,7 +66,7 @@ export async function reconcileOnce(engine: Engine, uid: string, entry: RunLogEn
       else if (engine.retryBaseMs > 0) await new Promise((r) => setTimeout(r, engine.retryBaseMs * 2 ** (attempt - 1)))
       return 'failed'
     } finally {
-      store.tokens.revoke({ kind: 'reconcile', uid, sequence: event.sequence })
+      store.tokens.revoke(scope)
     }
   } finally {
     store.leases.release(uid, engine.holder)

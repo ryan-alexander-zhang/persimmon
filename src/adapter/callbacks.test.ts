@@ -108,7 +108,7 @@ describe('engine callbacks', () => {
     expect(store.runLog.logs(run.metadata.uid!, 1)).toEqual(['3 requirements drafted'])
   })
 
-  // who produced an artifact (18-artifact.md): the Adapter of a call, the actor of the Signal a reconcile serves, else the Handler
+  // who produced an artifact (05-revisioned-kind.md): the Adapter of a call, the actor of the Signal a reconcile serves, else the Handler
   it('publishArtifact names its producer: the Adapter of a call, a Signal\'s actor, else the Handler', () => {
     const req = () => {
       const r = structuredClone(example('reconcile-actions')[2])

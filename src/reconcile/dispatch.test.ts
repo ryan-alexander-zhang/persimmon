@@ -129,6 +129,16 @@ describe('dispatcher', () => {
     expect(store.resources.getByUid(r2.metadata.uid!)?.status?.phase).toBe('Failed')
   })
 
+  it('a Signal reconcile\'s token carries its actor and dies with the reconcile', async () => {
+    const r = startRun()
+    await drain(engine)
+    appendEvent(engine, r.metadata.uid!, { type: 'Signal', dedupeKey: 'signal/s1', payload: { source: 'api', eventId: 's1' } }, { kind: 'user', id: 'local' })
+    await drain(engine)
+    const token = seen.at(-1)!.engine.token
+    expect(seen.at(-1)!.event.type).toBe('Signal')
+    expect(store.tokens.verify(token)).toBeUndefined() // revoked by the scope it was issued with, actor and all
+  })
+
   it('a lost lease refuses the commit and the Event is redelivered', async () => {
     let calls = 0
     impl.reconcile = () => {

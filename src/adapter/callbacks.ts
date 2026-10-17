@@ -74,7 +74,7 @@ export function callback(engine: CallbackEngine, token: string, name: string, ar
       return store.blobs.put(Buffer.from(args.bytes as string, 'base64'), args.mediaType as string)
     case 'publishArtifact': {
       if (!caller) throw new CallbackError('forbidden', 'publishArtifact needs a reconcile or call token')
-      // who produced it (18-artifact.md): the Adapter answering a call; else the actor of the Signal the reconcile serves; else its Handler
+      // who produced it (05-revisioned-kind.md): the Adapter answering a call; else the actor of the Signal the reconcile serves; else its Handler
       const owner = engine.handlers?.lookup(caller.apiVersion, caller.kind)?.handler.metadata.name
       const actor: Actor =
         scope.kind === 'call' && scope.adapterId ? { kind: 'service', id: scope.adapterId } : (scope.kind === 'reconcile' && scope.actor) || { kind: 'handler', id: owner ?? 'engine' }
