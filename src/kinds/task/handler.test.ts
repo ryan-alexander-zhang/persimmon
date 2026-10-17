@@ -205,6 +205,20 @@ describe('task Handler', () => {
     expect(handler.reconcile(input(state, { type: 'CancelRequested', dedupeKey: 'cancel' }))).toEqual({ actions: [] })
   })
 
+  it('a human completion whose publish is refused fails the attempt instead of stalling the TaskRun', () => {
+    const run = base()
+    run.spec.taskRef = { kind: 'Task', name: 'write-prd' }
+    run.spec.inputs = { research: { kind: 'artifact', ref: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ResearchReport', namespace: 'demo', id: 'research-checkout-v2', revision: 1 } } }
+    deps.closure = () => ({ ...closure, resources: closure.resources.map((r) => (r.kind === 'Executor' ? { ...r, spec: { ...r.spec, type: 'human', adapter: 'review-ui/v1' } } : r)) })
+    const state = apply(run, handler.reconcile(input(run, { type: 'Created', dedupeKey: 'created' })) as ReconcileResult)
+    deps.callback = () => {
+      throw new Error('ProductRequirement content: / must have required property \'problem\'')
+    }
+    const request = { kind: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement' }, id: 'checkout-v2', content: { title: 'x' }, representations: [] }
+    const r = handler.reconcile(input(state, { type: 'Signal', dedupeKey: 's', payload: { source: 'adapter', eventId: 'c', payload: { taskResult: { protocol: 'persimmon.result/v1', outputs: {} }, publish: [{ port: 'prd', request }] } } })) as ReconcileResult
+    expect(clean(r.statusPatch)).toMatchObject({ phase: 'Failed', error: { code: 'schema_violation', message: "prd: ProductRequirement content: / must have required property 'problem'" } })
+  })
+
   it('an output that chooses its id: resolved at start, handed to the Adapter, enforced on the published ref', () => {
     const research = closure.resources.find((r) => r.kind === 'Task' && (r.spec as { action: { instructions: string } }).action.instructions.startsWith('Research'))!
     const withId = (id: unknown): Closure => ({ ...closure, resources: closure.resources.map((r) => (r === research ? { ...r, spec: { ...r.spec, outputs: { report: { ...(r.spec as TaskSpec).outputs!.report, id } } } } : r)) })

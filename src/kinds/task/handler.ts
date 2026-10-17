@@ -307,7 +307,14 @@ export function taskHandler(deps: HandlerDeps): HandlerImpl {
           const outputs: RuntimeValues = { ...body.taskResult.outputs }
           const stagedNow: { ref: RevisionRef; scope: string }[] = []
           for (const p of body.publish ?? []) {
-            const ref = deps.callback(input.engine.token, 'publishArtifact', p.request as unknown as Record<string, unknown>) as RevisionRef
+            let ref: RevisionRef
+            try {
+              ref = deps.callback(input.engine.token, 'publishArtifact', p.request as unknown as Record<string, unknown>) as RevisionRef
+            } catch (e) {
+              // a refused publish (content off the kind's schema, an unknown kind) fails the attempt; thrown, it stalled the TaskRun in Waiting
+              if (e instanceof Error) return attemptFailed(current, err('schema_violation', `${p.port}: ${e.message}`))
+              throw e
+            }
             outputs[p.port] = { kind: 'artifact', ref }
             stagedNow.push({ ref, scope: current.idempotencyKey }) // only what was published here is staged; a ref the signal carries is not
           }

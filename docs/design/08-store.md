@@ -154,7 +154,10 @@ imports into a server unchanged.
 - `complete --file` takes `{outputs}` with an artifact port's content as its value, published under
   the form's `outputIds` as an interactive answer is; the `{taskResult, publish}` envelope still
   passes as is. A coding agent answering a build task writes the content it made, not the engine's
-  envelope (`35-build-process.md`). Found in design review.
+  envelope (`35-build-process.md`). Every answer is checked against its port's schema before the
+  Signal, so a bad one keeps the form; a value port is `{kind: value, value}`, and without the form
+  only RuntimeValues pass. A publish the engine still refuses fails the attempt with
+  `schema_violation`; before, it stalled the TaskRun in Waiting. Found in audit.
 - Local mode has one live engine per project: `listen` takes `.persimmon/engine.lock` (pid, stale
   when the process is gone) and a second write verb fails with the holder's pid. Read verbs
   (`get`, `describe`, `logs`, `tree`, `validate`) open the store without the socket, without call

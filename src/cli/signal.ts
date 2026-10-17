@@ -46,7 +46,7 @@ export async function complete(cli: Cli, taskRun: string, file: string | undefin
     let completion: Record<string, unknown>
     if (file) {
       const body = loadDocs([file])[0] as Record<string, unknown>
-      completion = 'taskResult' in body ? body : fromFile(body, existsSync(form) ? (parse(readFileSync(form, 'utf8')) as Form) : undefined, r.metadata.name)
+      completion = 'taskResult' in body ? body : fromFile(body, existsSync(form) ? (parse(readFileSync(form, 'utf8')) as Form) : undefined, r.metadata.name, form)
     } else {
       if (!cli.ask) throw new Error('complete: --file required without a terminal')
       if (!existsSync(form)) throw new Error(`complete: no inbox form at ${form}; pass --file`)
@@ -85,18 +85,43 @@ const dnsLabel = (s: string) => {
 
 /** A request publishing `content` on an artifact port, under the id the Task chose (12-task.md), else `<taskRun>-<port>`. */
 const publishRequest = (form: Form, port: string, content: unknown, taskRun: string) => {
-  const spec = form.outputs[port]!
-  if (spec.type.kind !== 'artifact') throw new Error(`complete: ${port} is not an artifact port`)
-  return { port, request: { kind: spec.type.artifactKind, id: form.outputIds?.[port] ?? dnsLabel(`${taskRun}-${port}`), content, representations: [] } }
+  const spec = form.outputs[port]!.type as { kind: 'artifact'; artifactKind: unknown }
+  return { port, request: { kind: spec.artifactKind, id: form.outputIds?.[port] ?? dnsLabel(`${taskRun}-${port}`), content, representations: [] } }
 }
 
-/** `--file` with `{outputs}`: an artifact port's value is its content, published like an interactive answer; every other port passes through as written (35-build-process.md). */
-export function fromFile(body: Record<string, unknown>, form: Form | undefined, taskRun: string): { taskResult: Record<string, unknown>; publish: { port: string; request: Record<string, unknown> }[] } {
+const runtimeKinds = ['value', 'artifact', 'artifacts', 'externalResource']
+const isRuntimeValue = (v: unknown) => !!v && typeof v === 'object' && runtimeKinds.includes((v as { kind?: string }).kind ?? '')
+
+/** Throws `<port>: <errors>` when `value` misses `schema`; nothing is signalled then and the form is kept. */
+const checkAnswer = (port: string, schema: Record<string, unknown> | undefined, value: unknown) => {
+  if (!schema) return
+  const check = ajv.compile(schema)
+  if (!check(value)) throw new Error(`complete: ${port}: ${formatErrors(check.errors)}`)
+}
+
+/** `--file` with `{outputs}`: an artifact port's value is its content, published like an interactive answer and checked as one before
+ * anything is signalled; a value port is `{kind: value, value}` (35-build-process.md). Without the inbox form only RuntimeValues pass. */
+export function fromFile(body: Record<string, unknown>, form: Form | undefined, taskRun: string, formPath = 'the inbox'): { taskResult: Record<string, unknown>; publish: { port: string; request: Record<string, unknown> }[] } {
   const outputs = { ...((body.outputs ?? {}) as Record<string, unknown>) }
-  const artifactPorts = Object.entries(form?.outputs ?? {}).filter(([port, spec]) => spec.type.kind === 'artifact' && port in outputs).map(([port]) => port)
-  if (artifactPorts.length && form!.outputIds === undefined) throw new Error('complete: the form predates chosen artifact ids (12-task.md); cancel the run and start it again')
-  const publish = artifactPorts.map((port) => publishRequest(form!, port, outputs[port], taskRun))
-  for (const port of artifactPorts) delete outputs[port]
+  const publish: { port: string; request: Record<string, unknown> }[] = []
+  for (const [port, value] of Object.entries(outputs)) {
+    const spec = form?.outputs[port]
+    if (!form) {
+      if (!isRuntimeValue(value)) throw new Error(`complete: no inbox form at ${formPath}; write ${port} as {kind: value, value: ...}, or pass the {taskResult, publish} envelope`)
+      continue
+    }
+    if (!spec) throw new Error(`complete: ${port} is no output of this Task`)
+    if (spec.type.kind === 'artifact') {
+      if (form.outputIds === undefined) throw new Error('complete: the form predates chosen artifact ids (12-task.md); cancel the run and start it again')
+      if ((value as { kind?: string } | null)?.kind === 'artifact' && 'ref' in (value as object)) throw new Error(`complete: ${port} is an artifact port: write the content of the artifact, not a ref`)
+      checkAnswer(port, form.outputSchemas?.[port], value)
+      publish.push(publishRequest(form, port, value, taskRun))
+      delete outputs[port]
+    } else if (spec.type.kind === 'value') {
+      if ((value as { kind?: string } | null)?.kind !== 'value' || !('value' in (value as object))) throw new Error(`complete: ${port} is a value port: write {kind: value, value: ...}`)
+      checkAnswer(port, spec.type.schema as Record<string, unknown> | undefined, (value as { value: unknown }).value)
+    }
+  }
   return { taskResult: { ...body, protocol: body.protocol ?? 'persimmon.result/v1', outputs }, publish }
 }
 

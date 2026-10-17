@@ -669,9 +669,40 @@ describe('persimmon CLI', () => {
       publish: [{ port: 'record', request: { kind: record.type.artifactKind, id: 'p-t-1', content, representations: [] } }],
     })
     expect(fromFile({ outputs: { record: content } }, { ...form, outputIds: {} }, 'my-Run').publish[0]!.request.id).toBe('my-run-record') // no chosen id: <taskRun>-<port>
-    expect(fromFile({ protocol: 'persimmon.result/v1', outputs: {} }, undefined, 'tr')).toEqual({ taskResult: { protocol: 'persimmon.result/v1', outputs: {} }, publish: [] }) // no form: a TaskResult as written
+    expect(fromFile({ protocol: 'persimmon.result/v1', outputs: { note: { kind: 'value', value: 'ok' } } }, undefined, 'tr').publish).toEqual([]) // no form: RuntimeValues as written
+    expect(() => fromFile({ outputs: { record: content } }, undefined, 'tr', '.persimmon/inbox/tr.yaml')).toThrow('no inbox form at .persimmon/inbox/tr.yaml')
     expect(() => fromFile({ outputs: { record: content } }, { instructions: '', outputs: { record } }, 'tr')).toThrow(/predates chosen artifact ids/)
+    expect(() => fromFile({ outputs: { record: { kind: 'artifact', ref: { id: 'x' } } } }, form, 'tr')).toThrow(/write the content of the artifact, not a ref/)
+    expect(() => fromFile({ outputs: { note: 'ok' } }, form, 'tr')).toThrow(/note is a value port: write \{kind: value/)
+    expect(() => fromFile({ outputs: { note: { kind: 'value', value: 3 } } }, form, 'tr')).toThrow(/complete: note: /) // the value's schema
+    expect(() => fromFile({ outputs: { record: { plan: 7 } } }, { ...form, outputSchemas: { record: { type: 'object', properties: { plan: { type: 'string' } } } } }, 'tr')).toThrow(/complete: record: /) // the kind's schema
+    expect(() => fromFile({ outputs: { other: content } }, form, 'tr')).toThrow(/other is no output of this Task/)
   })
+
+  it('complete --file publishes a human Task\'s artifact under the chosen id; bad content is refused before the Signal and the form kept', async () => {
+    await run('init')
+    const kind = { apiVersion: 'sdd.persimmon.ai/v1', kind: 'AcceptanceRecord' }
+    const task = { apiVersion: 'persimmon.ai/v1', kind: 'Task', metadata: { name: 'hand-record' }, spec: { outputs: { record: { type: { kind: 'artifact', artifactKind: kind }, id: { literal: 'p-t-1' } } }, executorRef: { kind: 'Executor', name: 'local-reviewer' }, action: { instructions: 'Build T-1' }, timeout: '1h', sideEffects: 'none' } }
+    const wf = { apiVersion: 'persimmon.ai/v1', kind: 'Workflow', metadata: { name: 'hand' }, spec: { outputs: {}, outputBindings: {}, entry: ['build'], steps: [{ id: 'build', uses: { kind: 'Task', name: 'hand-record' }, timeout: '1h' }], transitions: [{ id: 'done', from: [{ stepRef: 'build', outcomes: ['Succeeded'] }], to: [{ terminal: 'Succeeded' }] }], timeout: '2h' } }
+    expect([await run('apply', file('hand.yaml', [task, wf])), err]).toEqual([0, []])
+    expect(await run('run', 'hand', '--follow')).toBe(0)
+    out = []
+    await run('get', 'TaskRun')
+    const taskRun = out[0]!.split(/\s/)[0]!.replace('TaskRun/', '')
+    const form = join(dir, '.persimmon', 'inbox', `${taskRun}.yaml`)
+    expect(existsSync(form)).toBe(true)
+    const content = { plan: 'p', spec: 's', task: 'T-1', verifies: [{ ac: 'AC-1', tests: ['claim > ac 1'] }], summary: 'built', openQuestions: [] }
+    err = []
+    expect(await run('complete', taskRun, '--file', file('bad.yaml', [{ outputs: { record: { ...content, task: 'one' } } }]))).toBe(1)
+    expect(err.at(-1)).toMatch(/complete: record: .*task/)
+    expect(existsSync(form)).toBe(true) // nothing signalled: answer again
+    out = []
+    expect(await run('complete', taskRun, '--file', file('record.yaml', [{ outputs: { record: content } }]))).toBe(0)
+    expect(out.some((l) => /TaskRun\s+cli-human\/v1\s+Succeeded/.test(l))).toBe(true)
+    out = []
+    expect(await run('get', 'AcceptanceRecord/p-t-1')).toBe(0)
+    expect(out.join('\n')).toContain('summary: built')
+  }, 30_000)
 
   it('adapter test runs the conformance suite over an installed Adapter', async () => {
     await run('init')
