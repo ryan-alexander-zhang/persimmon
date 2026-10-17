@@ -606,6 +606,16 @@ _Avoid_: design doc, technical design, design asset, design per capability, API 
 **Design**s it lists. The only artifact that links a Spec to Designs. Always the capitalised kind name.
 _Avoid_: tasks.md, work breakdown, implementation plan, task (for the kind; a Task is the engine's)
 
+**AcceptanceRecord**:
+**Artifact kind** of the SDLC pack, one per built **Plan** task: for each `AC-n` the task is verified by,
+the tests the builder says prove it. A claim, checked against a **TestRun**.
+_Avoid_: test report, implementation report, record (alone)
+
+**TestRun**:
+**Artifact kind** of the SDLC pack: what the project's own tests did in one run, read from JUnit XML,
+one entry per test case with its status. The evidence an **AcceptanceRecord** is checked against.
+_Avoid_: test report, test result, CI run
+
 **Spec**:
 **Artifact kind** of the SDLC pack, one per `CAP-n` of a **Prd**: stories `US-n` (Connextra)
 covering requirements `FR-n` (EARS) that enforce rules `BR-n`, acceptance scenarios `AC-n`
