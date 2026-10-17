@@ -95,7 +95,8 @@ Building a Plan task (`build-all`), as the developer's own agent reading an inbo
   the findings in `inputs.feedback`.
 - The build rules win over sections 1-5 for a build task: a dependency the Architecture does not
   name is a `Q-n`, never installed.
-- Build in the directory `inputs.repository.ref.locator.path` names: the tests run there. Ask the
+- Build in the directory `inputs.repository.ref.locator.path` names: the tests run there, with
+  the project's own test setup, which you use as it is and never change. Ask the
   developer how to build; a domain unknown is a `Q-n` the Gate holds for the human.
 - Answer with a file holding `outputs: {record: <the AcceptanceRecord>}` and run
   `persimmon complete <taskRun> --file <file>` from the project directory, in the background or

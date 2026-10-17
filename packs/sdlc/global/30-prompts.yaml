@@ -289,6 +289,7 @@ spec:
 
     - Build this task only: the requirements (`FR-n`) it `covers`, on its `block`, realising the Design elements it names. Another task's work, a refactor nobody asked for or a block the task does not name is out of scope.
     - Write at least one test per acceptance scenario (`AC-n`) in the task's `verifiedBy`, each a case the scenario's Given/When/Then describes with its values. Run the project's tests until they pass; the Gate runs them again itself and believes only that run.
+    - Use the project's own test setup as it is (its test script, its config, its runner): the Gate runs that. Never change it. A project without one is a `Q-n`.
     - Never delete, skip or weaken a failing test to make it pass, yours or one already there: a test that no longer runs is a finding.
     - Name the domain's concepts (its commands, events, entities, rules) with the Glossary's terms; a domain concept the Glossary lacks is a `Q-n`, never a local synonym. Helpers and plumbing are yours to name.
     - A dependency the Architecture and its Adrs do not name is a `Q-n`, never installed.

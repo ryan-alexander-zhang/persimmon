@@ -157,6 +157,18 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
 - AGENTS.md section 8 binds an agent an Executor spawns; the developer's own agent answering the
   builder's form is under section 6: it may ask the developer, it reads the repository, and it runs
   `persimmon complete`, all of which section 8 forbids a pack agent. Found in audit.
+- The builder uses the project's test setup as it is and never changes it: the command the Gate
+  runs is the `test-runner` Executor's, which no Task reads, so an agent builder on a repository
+  without a test script guessed `node --test`, set it as `scripts.test`, and lost a round to the
+  Gate's vitest run; round two learnt the runner from the carried TestOutcome. A `testCommand`
+  input was weighed and refused: it would copy the Executor's configuration and drift from it.
+  Found in UAT.
+- Proven live on T-1 of the worked example: the default builder (the developer's agent answering
+  the form with `complete --file`) passed in round 1; the `builder` override to `claude-code/v1` on
+  `claude-sonnet-5` passed unattended in round 1 (3m20s) once the test-setup rule was in, the Gate
+  running the project's `npm test` with vitest's JUnit reporter; before the rule it took 2 rounds,
+  round 2 fixed from the carried TestOutcome. The agent never ran git. `persimmon init` on the
+  project updated its unedited AGENTS.md to the new pack text. Found in UAT.
 
 ## Examples
 
