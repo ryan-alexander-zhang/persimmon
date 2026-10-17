@@ -100,6 +100,7 @@ or the reverse, is `invalid_input`. Every finding `error` but `suite-baseline` (
 | `test-dropped` | a test the previous round's record named, which ran in the previous round's outcome and which the current record no longer names, matches no test case now (one it still names is `test-missing`; a name that never ran was a wrong name, not a test) |
 | `suite-failed` | a test case no row names failed or errored, and was not red in the baseline: a change broke another test |
 | `suite-baseline` | info: the test cases no row names that were red in the baseline and are red still; tolerated, never failing |
+| `question-agent-resolved` | warning, from every `sdd/v1` document check: a `Q-n` with a `resolution` in a document an Adapter published (`provenance.actor.kind: service`), an agent's answer in a human's place |
 | `baseline-dirty` | warning: a red was tolerated and the baseline ran over uncommitted changes, so that red may be one an earlier build left |
 | `suite-exit` | `exitCode` is not 0 while no test case failed or errored, or only tolerated ones did and the baseline exited otherwise: the suite was killed part way, or failed after its tests (a coverage threshold, a build step) |
 | `question-open` | an open question without a `resolution`: code built on an unknown is not done |
@@ -234,6 +235,14 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
   since persimmon never reverts: a red it caused is then tolerated, so a tolerated red over a
   dirty baseline is a `baseline-dirty` warning. A tolerated red would hide `suite-exit`, so a
   non-zero exit other than the baseline's is still one. Found in design review and audit.
+- A question an agent answered is told, not refused: every `sdd/v1` document check warns of a
+  `Q-n` resolved in a document an Adapter published, naming the agent and its answer, so the
+  human reads it at a confirmation Gate or in the build's tree before the diff is committed. The
+  build rules let an agent builder answer what it can, and an unattended Namespace runs on that.
+  Who produced the document is its `provenance.actor` (`05-revisioned-kind.md`), never a field
+  the agent fills: an agent could not be trusted to mark its own answers. A warning, not an error:
+  refusing them is a policy an unattended Namespace may want later, by its own Validator. The
+  template's `decided_by: agent`. Found in design review.
 - Proven live on `claude-sonnet-5`: `build-one` over `T-1`, the human builder naming for `QS-3` a real,
   passing test that never applies its stimulus. `acceptance-evidence` passed it; the auditor refused
   it in 18s with `test-unfit`, naming what the test lacks and the test that proves `QS-3`. Round two
@@ -259,3 +268,4 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
 10. An Adr's `enforcedBy`.
 11. The auditor: Prompt `audit-rules`, Executor `auditor`, Task `audit-acceptance` in `build-work`, Validator `acceptance-audited` in `build-gate`.
 12. The baseline: Task `run-baseline`, `checkAcceptance`'s `baseline`, the wiring through `build-all`.
+13. A question an agent answered: the producer in `provenance.actor`, the `question-agent-resolved` warning.

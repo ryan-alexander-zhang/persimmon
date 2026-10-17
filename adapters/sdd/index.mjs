@@ -20,6 +20,18 @@ const describe = {
 
 // a warning rides in the result and fails nothing: passed is no error finding (29-design-process.md)
 const passes = (findings) => !findings.some((f) => f.severity === 'error')
+// an answer an agent gave in a human's place (35-build-process.md): who produced the document is its provenance actor, a
+// `service` for an Adapter's publish (05-revisioned-kind.md); a warning, so a human reads it, never a refusal
+const agentAnswers = (...docs) =>
+  docs.flatMap((d) =>
+    d?.provenance?.actor?.kind === 'service'
+      ? (d.content?.openQuestions ?? []).filter((q) => q.resolution).map((q) => ({ severity: 'warning', code: 'question-agent-resolved', message: `${q.id} was answered by ${d.provenance.actor.id}, not a human: ${q.question} — ${q.resolution}` }))
+      : [],
+  )
+const done = (findings, ...docs) => {
+  const all = [...findings, ...agentAnswers(...docs)]
+  return { passed: passes(all), findings: all, evidence: [] }
+}
 const invalid = (message) => Object.assign(new Error(message), { code: 'invalid_input' })
 const required = (artifacts, name) => {
   const artifact = artifacts[name]
@@ -44,7 +56,7 @@ function evaluate(payload) {
     if (!artifacts.previous !== !artifacts.previousOutcome) throw invalid('artifacts.previous and artifacts.previousOutcome come together')
     const ids = { plan: payload.inputs?.plan?.ref?.id, spec: payload.inputs?.spec?.ref?.id, taskId: payload.inputs?.taskId?.value }
     const findings = checkAcceptance({ record, testOutcome: required(artifacts, 'testOutcome'), plan: required(artifacts, 'plan'), spec: required(artifacts, 'spec'), previous: artifacts.previous?.content, previousOutcome: artifacts.previousOutcome?.content, baseline: artifacts.baseline?.content, ids })
-    return { passed: passes(findings), findings, evidence: [] }
+    return done(findings, artifacts.record)
   }
   if (artifacts.plan) {
     const plan = required(artifacts, 'plan')
@@ -53,7 +65,7 @@ function evaluate(payload) {
     const designs = boundDesigns(payload, artifacts)
     const ids = { spec: payload.inputs?.spec?.ref?.id, architecture: payload.inputs?.architecture?.ref?.id }
     const findings = checkPlan({ plan, spec: required(artifacts, 'spec'), architecture: required(artifacts, 'architecture'), designs, ids })
-    return { passed: passes(findings), findings, evidence: [] }
+    return done(findings, artifacts.plan)
   }
   if (artifacts.domainModel && artifacts.designs && !artifacts.design && !artifacts.spec) {
     // domain-coverage: the model and every Design, no document under evaluation (29-design-process.md)
@@ -71,7 +83,7 @@ function evaluate(payload) {
       const ids = { prd: payload.inputs?.prd?.ref?.id, rules: payload.inputs?.rules?.ref?.id, contexts: idsOf('contexts'), domainModels: idsOf('domainModels'), glossaries: idsOf('glossaries'), adrs: idsOf('adrs') }
       const contexts = Object.fromEntries((artifacts.contexts ?? []).map((d, i) => [idsOf('contexts')[i], d.content]))
       const findings = checkArchitecture({ architecture, prd: required(artifacts, 'prd'), rules: required(artifacts, 'rules'), ids, adrs, contexts })
-      return { passed: passes(findings), findings, evidence: [] }
+      return done(findings, artifacts.architecture)
     }
     if (!artifacts.prd) {
       if (!artifacts.design) throw invalid('artifacts.spec, artifacts.prd, artifacts.design, artifacts.architecture or artifacts.plan is required')
@@ -88,14 +100,14 @@ function evaluate(payload) {
         glossary: artifacts.glossary?.content,
         ids: { designSystem: payload.inputs?.designSystem?.ref?.id, rules: payload.inputs?.rules?.ref?.id },
       })
-      return { passed: passes(findings), findings, evidence: [] }
+      return done(findings, artifacts.design)
     }
     const prd = required(artifacts, 'prd')
     // same stance as not-a-spec: content that is not a Prd is a finding, before the rules are required
     const notAPrd = checkPrd({ prd }).filter((f) => f.code === 'not-a-prd')
     if (notAPrd.length) return { passed: false, findings: notAPrd, evidence: [] }
     const findings = checkPrd({ prd, rules: required(artifacts, 'rules'), previousRules: artifacts.previousRules?.content, feedback: payload.inputs?.feedback?.value, ids: { rules: payload.inputs?.rules?.ref?.id } })
-    return { passed: passes(findings), findings, evidence: [] }
+    return done(findings, artifacts.prd, artifacts.rules) // the agent writes the rules beside the Prd
   }
   const spec = required({ spec: artifacts.spec ?? artifacts.model }, 'spec')
   // content that is not a Spec is a not-a-spec finding, never an Adapter error; nothing it cites can be read off it
@@ -111,7 +123,7 @@ function evaluate(payload) {
     ids: { rules: payload.inputs?.rules?.ref?.id, context: payload.inputs?.context?.ref?.id, capability: payload.inputs?.capabilityId?.value },
   })
   // the payload carries each artifact as {content, provenance}: no RevisionRef, so no evidence (19-adapter-roles.md)
-  return { passed: passes(findings), findings, evidence: [] }
+  return done(findings, artifacts.spec ?? artifacts.model)
 }
 
 const out = (o) => process.stdout.write(JSON.stringify(o) + '\n')

@@ -742,6 +742,19 @@ describe('sdd/v1 over an AcceptanceRecord', () => {
     const r = await adapter({ id: 5004, op: 'evaluate', payload: recordPayload((() => { const a = structuredClone(recordExample()); a.record.openQuestions = [{ id: 'Q-1', question: 'which currency?', resolution: 'EUR' }]; return a })()) })
     expect(r.result.passed).toBe(true) // a resolved question passes
   })
+
+  // an answer an agent gave in a human's place is told to the human, never refused (35-build-process.md)
+  it('warns of a question an agent answered, read from the provenance actor; a human\'s answer is not one', async () => {
+    const answered = structuredClone(recordExample())
+    answered.record.openQuestions = [{ id: 'Q-1', question: 'which currency?', resolution: 'EUR' }]
+    const by = (actor: Record<string, string>) => {
+      const p = recordPayload(answered)
+      p.artifacts.record.provenance = { ...provenance, actor }
+      return adapter({ id: ++id, op: 'evaluate', payload: p })
+    }
+    expect((await by({ kind: 'service', id: 'claude-code/v1' })).result).toEqual({ passed: true, evidence: [], findings: [{ severity: 'warning', code: 'question-agent-resolved', message: 'Q-1 was answered by claude-code/v1, not a human: which currency? — EUR' }] })
+    expect((await by({ kind: 'user', id: 'local' })).result).toEqual({ passed: true, findings: [], evidence: [] })
+  })
 })
 
 describe('sdd/v1 over an Architecture', () => {
