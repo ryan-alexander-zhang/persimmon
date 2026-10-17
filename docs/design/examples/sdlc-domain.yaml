@@ -421,7 +421,7 @@ spec:
     context: >-
       The route of a submitted claim is the claim routing DecisionTable (BR-7 to BR-10). A client could compute it to
       show the employee the outcome while typing, which an approver's minute (SC-4) would welcome; but a client is
-      outside Finance's control and the table changes yearly. Taken with the Architecture, whose QS-5 holds it at build.
+      outside Finance's control and the table changes yearly. Taken beside the Architecture, outside the architect loop; its QS-5 holds it at build.
     drivers: [BR-7, BR-8, BR-9, BR-10]
     enforcedBy: [QS-5]
     decision: >-

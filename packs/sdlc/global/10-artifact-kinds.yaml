@@ -409,7 +409,7 @@ spec:
                 kind: {enum: [positive, negative, neutral]}
                 statement: {type: string, minLength: 1}
           supersedes: {type: string, minLength: 1, description: "artifact id of the Adr this one replaces"}
-          enforcedBy: {type: array, items: {type: string, pattern: "^QS-[0-9]+$"}, description: "quality scenarios of the Architecture that lists this Adr, proven at build, whose test fails when the decision is broken"}
+          enforcedBy: {type: array, items: {type: string, pattern: "^QS-[0-9]+$"}, description: "quality scenarios of the Architecture, proven at build, whose test fails when the decision is broken; checked for an Adr the Architecture applies"}
           strategy: {type: string, pattern: "^S-[0-9]+$", description: "for an Adr the architect loop takes: the strategy decision of the Architecture it backs (31-architecture-process.md)"}
   mutability: Immutable
   revisioned: true

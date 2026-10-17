@@ -194,7 +194,9 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
   every later Gate, so the decision stays held with no rule of its own. Whether a decision binds
   structure is the architect's call: the Prompt asks for a scenario or a negative consequence saying
   why none, which no check can tell. An Adr taken before its Architecture names no scenario until a
-  revision; a `fitness` scenario no Spec cites is never planned, a known gap. The template's
+  revision; a `fitness` scenario no Spec cites is never planned, and the `enforcedBy` of an Adr only a
+  Design lists is checked by nothing, known gaps. The check takes any `build` scenario, a `test` one
+  too: a decision on behaviour (receipts never overwritten) is held by a behaviour test. The template's
   `enforced_by` lists test paths; persimmon keeps the names in the record. Found in design review.
 
 ## Examples

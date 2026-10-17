@@ -139,7 +139,7 @@ spec:
     - `prd` and `capability`: the Prd's artifact id and the capability id. The BoundedContext in your context is the Spec's context; do not repeat it.
     - `businessRules`: the artifact id of the input `rules`, the BusinessRules every `BR-n` here is one of; the same artifact the Prd names.
     - `domainModel`: the DomainModel's artifact id. Command, event and read model labels are its, spelled exactly. A label the model lacks is a gap in the model: leave it out and ask in `openQuestions`; never invent a label. A read model's `updatedBy` may name another context's event; that is not a gap.
-    - `architecture`: the Architecture's artifact id. `qualities` cite its quality scenarios by `QS-n`, a `fitness` one too when the capability changes the code it holds; a `delta` only tightens a measure or a response for this capability. No other non-functional text anywhere in the Spec.
+    - `architecture`: the Architecture's artifact id. `qualities` cite its quality scenarios by `QS-n`, a `fitness` one too when the capability changes code that scenario's measure names; a `delta` only tightens a measure or a response for this capability. No other non-functional text anywhere in the Spec.
     - Prose uses Glossary term names, never aliases.
 
     Ids: `US-n`, `FR-n`, `AC-n`, `Q-n` each sequential from 1 in document order; a revision keeps every id and fixes in place.
