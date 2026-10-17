@@ -691,7 +691,7 @@ describe('persimmon CLI', () => {
     const taskRun = out[0]!.split(/\s/)[0]!.replace('TaskRun/', '')
     const form = join(dir, '.persimmon', 'inbox', `${taskRun}.yaml`)
     expect(existsSync(form)).toBe(true)
-    const content = { plan: 'p', spec: 's', task: 'T-1', verifies: [{ ac: 'AC-1', tests: ['claim > ac 1'] }], summary: 'built', openQuestions: [] }
+    const content = { plan: 'p', spec: 's', task: 'T-1', verifies: [{ scenario: 'AC-1', tests: ['claim > ac 1'] }], summary: 'built', openQuestions: [] }
     err = []
     expect(await run('complete', taskRun, '--file', file('bad.yaml', [{ outputs: { record: { ...content, task: 'one' } } }]))).toBe(1)
     expect(err.at(-1)).toMatch(/complete: record: .*task/)

@@ -1024,7 +1024,7 @@ spec:
         description: The Claim aggregate, its lines, the BR-2 completeness check as a read of the claim, and the two operations that build a draft.
         block: BB-1
         covers: [FR-1, FR-2]
-        verifiedBy: [AC-1, AC-3]
+        verifiedBy: [AC-1, AC-3, QS-3]  # QS-3: the receipt URL names a claim id; another employee's is refused
         elements:
           - {design: claims-api, element: EL-1}
           - {design: claims-api, element: EL-2}
@@ -1057,7 +1057,7 @@ spec:
       - id: Q-1
         question: BB-2's blob API has no Design yet; T-2 names no element until one exists. Write the Design before T-2 starts, or let T-2 produce it?
 ---
-# T-1 of the Plan, built: the builder names the test that proves each AC-n the task is verified by (35-build-process.md).
+# T-1 of the Plan, built: the builder names the test that proves each AC-n and QS-n the task is verified by (35-build-process.md).
 apiVersion: sdd.persimmon.ai/v1
 kind: AcceptanceRecord
 metadata: {name: submit-a-claim-plan-t-1.r1}
@@ -1068,10 +1068,12 @@ spec:
     spec: submit-a-claim
     task: T-1
     verifies:
-      - ac: AC-1
+      - scenario: AC-1
         tests: [claim > a 30 EUR meals line without a receipt is not complete and names BR-2]
-      - ac: AC-3
+      - scenario: AC-3
         tests: [claim > a per diem line needs no receipt]
+      - scenario: QS-3
+        tests: ["claim > attaching a receipt to another employee's claim by URL is refused and logged"]
     summary: The Claim aggregate holds its lines; a drafted claim reads as complete only when every line BR-2 requires a receipt for has one.
     openQuestions: []
 ---
@@ -1090,3 +1092,4 @@ spec:
       - {classname: test/claim.test.ts, name: claim > a 30 EUR meals line without a receipt is not complete and names BR-2, status: passed}
       - {classname: test/claim.test.ts, name: claim > a per diem line needs no receipt, status: passed}
       - {classname: test/claim.test.ts, name: claim > a drafted claim starts with no lines, status: passed}
+      - {classname: test/claim.test.ts, name: "claim > attaching a receipt to another employee's claim by URL is refused and logged", status: passed}

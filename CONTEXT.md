@@ -613,12 +613,12 @@ _Avoid_: design doc, technical design, design asset, design per capability, API 
 
 **Plan**:
 **Artifact kind** of the SDLC pack, one per **Spec**: tasks `T-n` in build order, each on one
-**Architecture** block, covering the Spec's `FR-n`, verified by its `AC-n`, realising `EL-n` of the
+**Architecture** block, covering the Spec's `FR-n`, verified by its `AC-n` and `build` `QS-n`, realising `EL-n` of the
 **Design**s it lists. The only artifact that links a Spec to Designs. Always the capitalised kind name.
 _Avoid_: tasks.md, work breakdown, implementation plan, task (for the kind; a Task is the engine's)
 
 **AcceptanceRecord**:
-**Artifact kind** of the SDLC pack, one per built **Plan** task: for each `AC-n` the task is verified by,
+**Artifact kind** of the SDLC pack, one per built **Plan** task: for each `AC-n` and `QS-n` the task is verified by,
 the tests the builder says prove it. A claim, checked against a **TestOutcome**.
 _Avoid_: test report, implementation report
 

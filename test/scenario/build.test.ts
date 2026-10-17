@@ -38,8 +38,8 @@ describe('scenario: build one Plan task', () => {
     expect(await run('init')).toBe(0)
     const upstream = ['Plan', 'Spec', 'Architecture', 'Design', 'Glossary', 'BusinessRules'].map(one)
     for (const [i, doc] of upstream.entries()) expect(await run('create', file(`upstream-${i}.yaml`, [doc]))).toBe(0) // create stores one document
-    // the project's tests: a JUnit report with the two T-1 tests passing, as a test command would write it
-    const junit = '<testsuites><testsuite name="claim"><testcase classname="test/claim.test.ts" name="claim &gt; a 30 EUR meals line without a receipt is not complete and names BR-2"/><testcase classname="test/claim.test.ts" name="claim &gt; a per diem line needs no receipt"/></testsuite></testsuites>'
+    // the project's tests: a JUnit report with the three T-1 tests passing, as a test command would write it
+    const junit = '<testsuites><testsuite name="claim"><testcase classname="test/claim.test.ts" name="claim &gt; a 30 EUR meals line without a receipt is not complete and names BR-2"/><testcase classname="test/claim.test.ts" name="claim &gt; a per diem line needs no receipt"/><testcase classname="test/claim.test.ts" name="claim &gt; attaching a receipt to another employee&apos;s claim by URL is refused and logged"/></testsuite></testsuites>'
     const runner = { apiVersion: 'persimmon.ai/v1', kind: 'Executor', metadata: { name: 'test-runner', namespace: 'default' }, spec: { type: 'script', adapter: 'junit/v1', configuration: { program: [process.execPath, '-e', `require('node:fs').writeFileSync('junit.xml', ${JSON.stringify(junit)})`], junit: 'junit.xml' } } }
     expect(await run('apply', file('runner.yaml', [runner]), '-n', 'default')).toBe(0)
 

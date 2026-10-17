@@ -1117,7 +1117,7 @@ spec:
                 description: {type: string}
                 block: {type: string, pattern: "^BB-[0-9]+$", description: "the one building block this task changes; work on two blocks is two tasks"}
                 covers: {type: array, items: {type: string, pattern: "^FR-[0-9]+$"}, description: "Spec requirements this task implements"}
-                verifiedBy: {type: array, items: {type: string, pattern: "^AC-[0-9]+$"}, description: "Spec acceptance scenarios that pass once this task is done"}
+                verifiedBy: {type: array, items: {type: string, pattern: "^(AC|QS)-[0-9]+$"}, description: "Spec acceptance scenarios, and build-stage quality scenarios the Spec cites, that pass once this task is done"}
                 elements:
                   type: array
                   description: "what of which Design this task realises"
@@ -1143,7 +1143,7 @@ spec:
   revisioned: true
   snapshot: "None"
 ---
-# What the builder says proves one Plan task: for each AC-n the task is verified by, the tests that prove it.
+# What the builder says proves one Plan task: for each AC-n or QS-n the task is verified by, the tests that prove it.
 # A claim; the acceptance-evidence Validator checks it against a TestOutcome (35-build-process.md).
 apiVersion: persimmon.ai/v1
 kind: KindDefinition
@@ -1164,13 +1164,13 @@ spec:
           task: {type: string, pattern: "^T-[0-9]+$", description: "the Plan task built"}
           verifies:
             type: array
-            description: "one row per AC-n in the task's verifiedBy"
+            description: "one row per AC-n or QS-n in the task's verifiedBy"
             items:
               type: object
-              required: [ac, tests]
+              required: [scenario, tests]
               additionalProperties: false
               properties:
-                ac: {type: string, pattern: "^AC-[0-9]+$"}
+                scenario: {type: string, pattern: "^(AC|QS)-[0-9]+$"}
                 tests: {type: array, minItems: 1, items: {type: string, minLength: 1}, description: "test case names as the JUnit XML gives them: `name`, or `classname > name`"}
           summary: {type: string, minLength: 1, description: "what was built, in the Glossary's words"}
           openQuestions:

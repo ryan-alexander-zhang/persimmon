@@ -217,7 +217,7 @@ spec:
 
     Tasks (`tasks`, `T-n` from 1), each:
     - `block`: the one Architecture building block the task changes. Work on two blocks is two tasks.
-    - `covers`: the Spec requirements (`FR-n`) this task implements; `verifiedBy`: the Spec acceptance scenarios (`AC-n`) that pass once it is done. Together the tasks cover every `FR-n` and verify every `AC-n` of the Spec; nothing outside the Spec is planned.
+    - `covers`: the Spec requirements (`FR-n`) this task implements; `verifiedBy`: the Spec acceptance scenarios (`AC-n`) that pass once it is done, and the quality scenarios (`QS-n`) the Spec's `qualities` cite whose Architecture `stage` is `build`, each on the task that builds what its stimulus exercises. Together the tasks cover every `FR-n` and verify every `AC-n` and every such `QS-n` of the Spec; nothing outside the Spec is planned.
     - `elements`: for each Design in your context whose `block` is this task's, the `EL-n` this task realises, as `{design, element}` where `design` is the Design's artifact id. A block whose Design is not in your context gets no elements and a `Q-n` saying which Design is missing.
     - `dependsOn`: earlier tasks only; document order is build order. A task that touches data before the API that serves it, an aggregate before the view updated from its events.
     - `title` and `description`: what is built, in Glossary words; no estimate, owner, file path or technology the Architecture does not name.
@@ -288,7 +288,7 @@ spec:
     You build one task of a Plan: the code and the tests of its `T-n`, in the repository, on its one building block. The Plan, the Spec, the Architecture, the Designs, the Glossary and the rules in your context say what to build; you decide how, inside what they allow.
 
     - Build this task only: the requirements (`FR-n`) it `covers`, on its `block`, realising the Design elements it names. Another task's work, a refactor nobody asked for or a block the task does not name is out of scope.
-    - Write at least one test per acceptance scenario (`AC-n`) in the task's `verifiedBy`, each a case the scenario's Given/When/Then describes with its values. Run the project's tests until they pass; the Gate runs them again itself and believes only that run.
+    - Write at least one test per scenario in the task's `verifiedBy`: for an acceptance scenario (`AC-n`), a case its Given/When/Then describes with its values; for a quality scenario (`QS-n`), a case that applies its stimulus and asserts its response and its measure, the Spec's `delta` when it has one; a `fitness` one asserts the structure itself (dependency direction, a module boundary). Run the project's tests until they pass; the Gate runs them again itself and believes only that run.
     - Use the project's own test setup as it is (its test script, its config, its runner): the Gate runs that. Never change it. A project without one is a `Q-n`.
     - Never delete, skip or weaken a failing test to make it pass, yours or one already there: a test that no longer runs is a finding.
     - Name the domain's concepts (its commands, events, entities, rules) with the Glossary's terms; a domain concept the Glossary lacks is a `Q-n`, never a local synonym. Helpers and plumbing are yours to name.
@@ -298,8 +298,8 @@ spec:
 
     Answer with the AcceptanceRecord:
     - `plan`, `spec`: the artifact ids of the inputs with those names; `task`: the `taskId`.
-    - `verifies`: one row per `AC-n` in the task's `verifiedBy`, `{ac, tests}`, `tests` the names of the test cases that prove it exactly as the JUnit XML gives them: the case's `name`, or `classname > name` when two cases share a name.
+    - `verifies`: one row per `AC-n` or `QS-n` in the task's `verifiedBy`, `{scenario, tests}`, `tests` the names of the test cases that prove it exactly as the JUnit XML gives them: the case's `name`, or `classname > name` when two cases share a name.
     - `summary`: what was built, in the Glossary's words.
     - `openQuestions`, `Q-n` from 1.
 
-    With `previous` and `feedback` bound, the Gate refused the last round: most findings name an `AC-n`, a test or a question, and `previousOutcome` shows what the tests did then. Fix those; keep every test the last record named running.
+    With `previous` and `feedback` bound, the Gate refused the last round: most findings name a scenario, a test or a question, and `previousOutcome` shows what the tests did then. Fix those; keep every test the last record named running.

@@ -20,7 +20,7 @@ ReviewLoop plan-one, run per Spec by ref or from plan-all, the Designs listed by
 
 | Member | Content |
 |---|---|
-| Prompt `plan-rules` | one block per task; tasks cover every `FR-n` and verify every `AC-n`; elements only of Designs in context, of the task's block; earlier tasks only; no estimate, owner, path or technology |
+| Prompt `plan-rules` | one block per task; tasks cover every `FR-n` and verify every `AC-n` and every `build` `QS-n` the Spec cites; elements only of Designs in context, of the task's block; earlier tasks only; no estimate, owner, path or technology |
 | Executor `plan-agent` | `claude-code/v1`, read-only, its own name for per-Namespace override |
 | Task `write-plan` | inputs `spec`, `architecture`, `designs` (artifacts), `previous`, `feedback`; output `plan` |
 | Validator `plan-consistency` | `sdd/v1` over `plan`, `spec`, `architecture`, `designs`; the Plan rule row of `23-pack-sdlc.md` as findings |
@@ -43,8 +43,9 @@ maps artifact id to content, paired by `index.mjs` from `inputs.designs.refs[i]`
 | `not-a-plan` | content without `tasks` or `spec`; the only finding then |
 | `spec-mismatch`, `architecture-mismatch` | `spec` or `architecture` is not the id of the input bound (`inputs.spec.ref.id`, `inputs.architecture.ref.id`); a content carries no id of its own |
 | `design-duplicate` | an id listed twice in `designs[]` |
-| `unknown-requirement`, `unknown-scenario` | a `covers` or `verifiedBy` id the Spec lacks |
-| `requirement-unplanned`, `scenario-unverified` | an `FR-n` no task covers; an `AC-n` no task verifies |
+| `unknown-requirement`, `unknown-scenario` | a `covers` or `verifiedBy` id the Spec lacks; a `QS-n` the Spec's `qualities` do not cite |
+| `scenario-not-build` | a `verifiedBy` `QS-n` whose Architecture `stage` is not `build` |
+| `requirement-unplanned`, `scenario-unverified` | an `FR-n` no task covers; an `AC-n`, or a `build` `QS-n` the Spec cites, no task verifies |
 | `unknown-block` | a task's `block` is no `BB-n` of the Architecture |
 | `unknown-task`, `dependency-forward` | `dependsOn` names no task; names one not earlier (itself included) |
 | `unknown-design`, `design-unread`, `design-unused` | an element's `design` not in `designs[]`; listed but not among the Designs evaluated; listed but no task realises an element of it |

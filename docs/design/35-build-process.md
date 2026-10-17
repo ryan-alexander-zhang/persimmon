@@ -4,7 +4,7 @@ status: draft · layer: 2 (`23-pack-sdlc.md`, `27-spec-process.md`, `30-plan-pro
 
 From a Plan task to code and the evidence that it does what the Spec says: the builder writes the
 code and tests of one `T-n` in the project's repository and names the test that proves each `AC-n`
-the task is verified by; the project's own tests run; a Validator checks the names against the
+and `build` `QS-n` the task is verified by; the project's own tests run; a Validator checks the names against the
 outcome. By default the builder is the developer with their own coding agent, as spec-kit, Kiro and
 BMAD hand `/implement` to the developer's session; a Namespace that wants it unattended overrides
 one Executor. Persimmon owns what is built and the proof; the builder owns how.
@@ -23,14 +23,14 @@ ReviewLoop build-one
 
 | Kind | Content |
 |---|---|
-| `AcceptanceRecord` | `plan`, `spec` (artifact ids), `task` (`T-n`), `verifies[]` (`ac`: `AC-n`, `tests[]`, `minItems: 1`: test names as JUnit gives them), `summary`, `openQuestions[]` (`Q-n`, `resolution?`); what the builder says proves each scenario |
+| `AcceptanceRecord` | `plan`, `spec` (artifact ids), `task` (`T-n`), `verifies[]` (`scenario`: `AC-n` or `QS-n`, `tests[]`, `minItems: 1`: test names as JUnit gives them), `summary`, `openQuestions[]` (`Q-n`, `resolution?`); what the builder says proves each scenario |
 | `TestOutcome` | `command`, `exitCode`, `head?` (the commit), `dirty?` (uncommitted changes), `tests[]` (`classname`, `name`, `status`: `passed`, `failed`, `errored`, `skipped`, `message?`), `outputTail?`, present exactly when no test case was read; what the project's tests did, read from JUnit XML |
 
 ## Process
 
 | Member | Content |
 |---|---|
-| Prompt `build-rules` | one task per round, its block only; at least one test per `AC-n`, named in `record`; a failing test is never deleted, skipped or weakened; a dependency the Architecture and its Adrs do not name is a `Q-n`, never installed; an unknown is a `Q-n`, never a guess; no git; the code uses the Glossary's terms |
+| Prompt `build-rules` | one task per round, its block only; at least one test per `AC-n` and `QS-n`, named in `record`; a failing test is never deleted, skipped or weakened; a dependency the Architecture and its Adrs do not name is a `Q-n`, never installed; an unknown is a `Q-n`, never a guess; no git; the code uses the Glossary's terms |
 | Executor `builder` | `cli-human/v1`, `type: human`: the form in `.persimmon/inbox/<taskRun>.yaml` is the task brief, every context entry with its content (`20-pack.md`); the developer's agent reads it, builds, and answers with `persimmon complete <taskRun> --file record.yaml` holding `{outputs: {record: <content>}}` |
 | Executor `test-runner` | `junit/v1`, `type: script`, configuration `{program, junit}`: the project's test command and the JUnit XML it writes (a file, or a directory of `.xml` files); the pack's `{program: [npm, test], junit: junit.xml}` is a placeholder a project overrides by name (`mvn test` with `target/surefire-reports`, `pytest --junitxml=junit.xml`) |
 | Task `implement` | inputs `plan`, `taskId` (value), `spec`, `architecture`, `designs` (artifacts), `glossary`, `rules`, `repository` (the workspace), `previous`, `previousOutcome` (what the tests did last round), `feedback`; output `record`, id `<plan>-<t-n>`; `workspace: {input: repository}`; `sideEffects: nonIdempotent` (it writes the repository); `timeout: 72h`, a human's |
@@ -84,9 +84,9 @@ or the reverse, is `invalid_input`. Every finding `error`:
 | `task-mismatch` | `task` is not the `taskId` the record was written for |
 | `plan-mismatch`, `spec-mismatch` | `plan` or `spec` is not the artifact bound, or the Plan's `spec` is not the Spec bound |
 | `unknown-task` | `task` is no `T-n` of the Plan |
-| `ac-unrecorded` | an `AC-n` in the task's `verifiedBy` with no `verifies[]` row |
-| `ac-duplicate` | two rows for one `AC-n` |
-| `unknown-ac` | a row's `AC-n` not in the task's `verifiedBy`; or an `AC-n` the task's `verifiedBy` names that the Spec lacks: the Spec was revised after the Plan |
+| `scenario-unrecorded` | an `AC-n` or `QS-n` in the task's `verifiedBy` with no `verifies[]` row |
+| `scenario-duplicate` | two rows for one scenario |
+| `unknown-scenario` | a row's scenario not in the task's `verifiedBy`; or one the task's `verifiedBy` names that the Spec lacks (an `AC-n` it has not, a `QS-n` its `qualities` do not cite): the Spec was revised after the Plan |
 | `test-missing` | a test a row names matches no test case |
 | `test-ambiguous` | a test a row names matches two test cases |
 | `test-failed`, `test-skipped` | a test a row names failed, errored or was skipped |
@@ -106,7 +106,7 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
 | the Gate trusts the outcome, not the record: a test the record names passes only if the outcome says so | `acceptance-evidence` |
 | the tests run in the workspace the work was done in, after it | `build-work` order |
 | the suite is green before `build-all`: `suite-failed` cannot tell an old red test from a new one | convention; a baseline outcome later |
-| whether a named test verifies its `AC-n` is judged by a reader, not by the check | the developer; an auditor Validator later |
+| whether a named test verifies its `AC-n` or `QS-n` is judged by a reader, not by the check | the developer; an auditor Validator later |
 | persimmon never commits: the developer reviews the diff and commits | convention; AGENTS.md section 8 for an Executor's agent |
 | `tasks` in ascending `T-n`: `dependency-forward` makes document order the build order (`23-pack-sdlc.md`) | `plan-consistency` |
 | a bug is a Spec revision with a new `AC-n`, then a Plan revision, then `build-one` | convention (`23-pack-sdlc.md`: a brownfield change is a Spec revision) |
@@ -176,12 +176,18 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
   nothing yet: no release process exists. The method names are the template's verification axis.
   The worked example and examples 07 and 08 were labelled by hand after their runs. Found in design
   review.
+- A `build` quality scenario the Spec cites is a scenario of the Plan like an `AC-n`: a task's
+  `verifiedBy` names it, the record proves it with a row, and `checkAcceptance` holds the row to a
+  passing test with no new rule. The record's row key is `scenario`, not `ac`, for both; the Plan
+  check already called an `AC-n` a scenario. The stage is the Plan check's to read, since it has the
+  Architecture; the Gate checks only that the Spec still cites the `QS-n`. The Plans of examples 07
+  and 08 predate the rule and verify no `QS-n`. Found in design review.
 
 ## Examples
 
 - `docs/design/examples/sdlc-domain.yaml`: `AcceptanceRecord/submit-a-claim-plan-t-1`, the tests
-  proving `AC-1` and `AC-3` of `T-1`, and `TestOutcome/submit-a-claim-plan-t-1-tests`, the vitest
-  run they are named in, three test cases passed; pass `checkAcceptance` (`test/adapters/sdd.test.ts`).
+  proving `AC-1`, `AC-3` and `QS-3` of `T-1`, and `TestOutcome/submit-a-claim-plan-t-1-tests`, the
+  vitest run they are named in, four test cases passed; pass `checkAcceptance` (`test/adapters/sdd.test.ts`).
 
 ## Units
 
@@ -193,3 +199,4 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
 6. AGENTS.md: section 8 scoped to an Executor's agent, section 6 the builder's steps.
 7. A live UAT: one Plan task of a small project, built the default way, then by the override.
 8. A quality scenario's `method` and `stage`.
+9. A `build` quality scenario verifies a Plan task and is proven by a record row.

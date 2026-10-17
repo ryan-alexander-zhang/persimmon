@@ -596,6 +596,17 @@ describe('sdd/v1 over a Plan', () => {
     expect(await planCodes((a) => { a.plan.tasks[3].verifiedBy = ['AC-9'] })).toEqual(['unknown-scenario', 'scenario-unverified'])
   })
 
+  it('a build-stage quality scenario the Spec cites verifies a task; one not cited or not at build is refused (35-build-process.md)', async () => {
+    const qs = (a: ReturnType<typeof planExample>) => a.architecture.qualityScenarios.find((q: { id: string }) => q.id === 'QS-3')
+    expect(await planCodes((a) => { a.plan.tasks[0].verifiedBy = ['AC-1', 'AC-3'] })).toEqual(['scenario-unverified'])
+    expect(await planCodes((a) => { a.plan.tasks[0].verifiedBy.push('QS-2') })).toEqual(['unknown-scenario']) // build, but not cited
+    expect(await planCodes((a) => { a.plan.tasks[0].verifiedBy.push('QS-1') })).toEqual(['scenario-not-build']) // cited, at release
+    const released = structuredClone(planExample())
+    Object.assign(qs(released), { method: 'load', stage: 'release' })
+    released.plan.tasks[0].verifiedBy = ['AC-1', 'AC-3']
+    expect((await adapter({ id: 4009, op: 'evaluate', payload: planPayload(released) })).result.passed).toBe(true) // a release scenario is not the build's
+  })
+
   it('fails a block the Architecture lacks and a dependency that is unknown or not earlier', async () => {
     expect(await planCodes((a) => { a.plan.tasks[1].block = 'BB-9' })).toEqual(['unknown-block'])
     expect(await planCodes((a) => { a.plan.tasks[0].dependsOn = ['T-3'] })).toEqual(['dependency-forward'])
@@ -643,7 +654,7 @@ describe('sdd/v1 over an AcceptanceRecord', () => {
   }
   const tests = (a: Record<string, any>) => a.testOutcome.tests as { classname: string; name: string; status: string }[]
 
-  it('passes the worked example: T-1 built, AC-1 and AC-3 proven by passing tests', async () => {
+  it('passes the worked example: T-1 built, AC-1, AC-3 and QS-3 proven by passing tests', async () => {
     const r = await adapter({ id: 5001, op: 'evaluate', payload: recordPayload(recordExample()) })
     expect(r).toEqual({ id: 5001, ok: true, result: { passed: true, findings: [], evidence: [] } })
   })
@@ -655,7 +666,7 @@ describe('sdd/v1 over an AcceptanceRecord', () => {
   })
 
   it('fails a record for another task, Plan or Spec, and a task the Plan lacks', async () => {
-    expect(await recordCodes((a) => { a.record.task = 'T-3'; a.record.verifies = [{ ac: 'AC-4', tests: [tests(a)[0]!.name] }, { ac: 'AC-5', tests: [tests(a)[1]!.name] }, { ac: 'AC-6', tests: [tests(a)[2]!.name] }] })).toEqual(['task-mismatch'])
+    expect(await recordCodes((a) => { a.record.task = 'T-3'; a.record.verifies = [{ scenario: 'AC-4', tests: [tests(a)[0]!.name] }, { scenario: 'AC-5', tests: [tests(a)[1]!.name] }, { scenario: 'AC-6', tests: [tests(a)[2]!.name] }] })).toEqual(['task-mismatch'])
     expect(await recordCodes((a) => { a.record.plan = 'other' })).toEqual(['plan-mismatch'])
     expect(await recordCodes((a) => { a.record.spec = 'other' })).toEqual(['spec-mismatch'])
     expect(await recordCodes((a) => { a.plan.spec = 'other' })).toEqual(['spec-mismatch'])
@@ -663,14 +674,19 @@ describe('sdd/v1 over an AcceptanceRecord', () => {
   })
 
   it('fails a scenario with no row, two rows, or a row for a scenario the task is not verified by', async () => {
-    expect(await recordCodes((a) => { a.record.verifies.pop() })).toEqual(['ac-unrecorded'])
-    expect(await recordCodes((a) => { a.record.verifies.push({ ...a.record.verifies[0] }) })).toEqual(['ac-duplicate'])
-    expect(await recordCodes((a) => { a.record.verifies.push({ ac: 'AC-4', tests: [tests(a)[2]!.name] }) })).toEqual(['unknown-ac'])
-    expect(await recordCodes((a) => { a.record.verifies.push({ ac: 'AC-99', tests: [tests(a)[2]!.name] }) })).toEqual(['unknown-ac']) // a typo: not this task's
+    expect(await recordCodes((a) => { a.record.verifies.pop() })).toEqual(['scenario-unrecorded'])
+    expect(await recordCodes((a) => { a.record.verifies.push({ ...a.record.verifies[0] }) })).toEqual(['scenario-duplicate'])
+    expect(await recordCodes((a) => { a.record.verifies.push({ scenario: 'AC-4', tests: [tests(a)[2]!.name] }) })).toEqual(['unknown-scenario'])
+    expect(await recordCodes((a) => { a.record.verifies.push({ scenario: 'AC-99', tests: [tests(a)[2]!.name] }) })).toEqual(['unknown-scenario']) // a typo: not this task's
     const stale = structuredClone(recordExample())
     stale.spec.stories[0].acceptance = stale.spec.stories[0].acceptance.filter((s: { id: string }) => s.id !== 'AC-3') // the Spec dropped AC-3 after the Plan
     const r = await adapter({ id: 5003, op: 'evaluate', payload: recordPayload(stale) })
-    expect(r.result.findings.map((f: { code: string; message: string }) => [f.code, /revised after the Plan/.test(f.message)])).toEqual([['unknown-ac', true]])
+    expect(r.result.findings.map((f: { code: string; message: string }) => [f.code, /revised after the Plan/.test(f.message)])).toEqual([['unknown-scenario', true]])
+    expect(await recordCodes((a) => { a.spec.qualities = a.spec.qualities.filter((q: { scenario: string }) => q.scenario !== 'QS-3') })).toEqual(['unknown-scenario']) // the Spec stopped citing QS-3
+    expect(await recordCodes((a) => { a.record.verifies = a.record.verifies.filter((r: { scenario: string }) => r.scenario !== 'QS-3') })).toEqual(['scenario-unrecorded'])
+    const misnamed = structuredClone(recordExample())
+    misnamed.record.verifies.at(-1).tests = [misnamed.testOutcome.tests[2].name]
+    expect((await adapter({ id: 5010, op: 'evaluate', payload: recordPayload(misnamed) })).result.passed).toBe(true) // which test proves QS-3 is a reader's judgement, not the check's
   })
 
   it('fails a named test that is missing, ambiguous, failed, errored or skipped', async () => {
@@ -693,9 +709,9 @@ describe('sdd/v1 over an AcceptanceRecord', () => {
     expect(await recordCodes((a) => { tests(a)[2]!.status = 'failed'; a.testOutcome.exitCode = 1 })).toEqual(['suite-failed'])
     expect(await recordCodes((a) => { a.testOutcome.exitCode = 137 })).toEqual(['suite-exit'])
     const older = (a: Record<string, any>) => ({ ...a.testOutcome, tests: [...tests(a), { classname: 'test/claim.test.ts', name: 'claim > an older test', status: 'passed' }] })
-    expect(await recordCodes((a) => { a.previous = { ...a.record, verifies: [{ ac: 'AC-1', tests: ['claim > an older test'] }] }; a.previousOutcome = older(a) })).toEqual(['test-dropped'])
+    expect(await recordCodes((a) => { a.previous = { ...a.record, verifies: [{ scenario: 'AC-1', tests: ['claim > an older test'] }] }; a.previousOutcome = older(a) })).toEqual(['test-dropped'])
     const neverRan = structuredClone(recordExample())
-    neverRan.previous = { ...neverRan.record, verifies: [{ ac: 'AC-1', tests: ['claim > a wrong name'] }] } // last round named a test that never ran
+    neverRan.previous = { ...neverRan.record, verifies: [{ scenario: 'AC-1', tests: ['claim > a wrong name'] }] } // last round named a test that never ran
     neverRan.previousOutcome = neverRan.testOutcome
     expect((await adapter({ id: 5008, op: 'evaluate', payload: recordPayload(neverRan) })).result.passed).toBe(true) // fixing the name is not dropping a test
     const half = structuredClone(recordExample())
