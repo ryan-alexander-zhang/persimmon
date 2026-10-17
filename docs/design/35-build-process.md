@@ -214,6 +214,10 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
   price of a judge. It judges the names `acceptance-evidence` resolves, not pass or fail. The
   default model is `claude-sonnet-5`, not the pack's `claude-opus-5`: it reads a few tests and
   answers one finding list. Found in design review.
+- Proven live on `claude-sonnet-5`: `build-one` over `T-1`, the human builder naming for `QS-3` a real,
+  passing test that never applies its stimulus. `acceptance-evidence` passed it; the auditor refused
+  it in 18s with `test-unfit`, naming what the test lacks and the test that proves `QS-3`. Round two
+  named that test and passed, 1m13s in all. The auditor wrote no file. Found in UAT.
 
 ## Examples
 
