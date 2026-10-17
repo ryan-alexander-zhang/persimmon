@@ -1047,3 +1047,37 @@ spec:
     openQuestions:
       - id: Q-1
         question: BB-2's blob API has no Design yet; T-2 names no element until one exists. Write the Design before T-2 starts, or let T-2 produce it?
+---
+# T-1 of the Plan, built: the builder names the test that proves each AC-n the task is verified by (35-build-process.md).
+apiVersion: sdd.persimmon.ai/v1
+kind: AcceptanceRecord
+metadata: {name: submit-a-claim-plan-t-1.r1}
+spec:
+  identity: {id: submit-a-claim-plan-t-1, revision: 1}
+  content:
+    plan: submit-a-claim-plan
+    spec: submit-a-claim
+    task: T-1
+    verifies:
+      - ac: AC-1
+        tests: [claim > a 30 EUR meals line without a receipt is not complete and names BR-2]
+      - ac: AC-3
+        tests: [claim > a per diem line needs no receipt]
+    summary: The Claim aggregate holds its lines; a drafted claim reads as complete only when every line BR-2 requires a receipt for has one.
+    openQuestions: []
+---
+# What the project's tests did after T-1, read from its JUnit XML: the evidence the record is checked against.
+apiVersion: sdd.persimmon.ai/v1
+kind: TestOutcome
+metadata: {name: submit-a-claim-plan-t-1-tests.r1}
+spec:
+  identity: {id: submit-a-claim-plan-t-1-tests, revision: 1}
+  content:
+    command: [npm, test]
+    exitCode: 0
+    head: 3f2a9c1e8b7d6a5f4e3d2c1b0a9f8e7d6c5b4a39
+    dirty: true
+    tests:
+      - {classname: test/claim.test.ts, name: claim > a 30 EUR meals line without a receipt is not complete and names BR-2, status: passed}
+      - {classname: test/claim.test.ts, name: claim > a per diem line needs no receipt, status: passed}
+      - {classname: test/claim.test.ts, name: claim > a drafted claim starts with no lines, status: passed}

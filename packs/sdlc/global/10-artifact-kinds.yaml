@@ -1138,3 +1138,83 @@ spec:
   mutability: Immutable
   revisioned: true
   snapshot: "None"
+---
+# What the builder says proves one Plan task: for each AC-n the task is verified by, the tests that prove it.
+# A claim; the acceptance-evidence Validator checks it against a TestOutcome (35-build-process.md).
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata: {name: acceptancerecords.sdd.persimmon.ai}
+spec:
+  group: sdd.persimmon.ai
+  names: {kind: AcceptanceRecord, plural: acceptancerecords}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [plan, spec, task, verifies, summary, openQuestions]
+        additionalProperties: false
+        properties:
+          plan: {type: string, minLength: 1, description: "artifact id of the Plan the task is in"}
+          spec: {type: string, minLength: 1, description: "artifact id of the Spec the Plan builds"}
+          task: {type: string, pattern: "^T-[0-9]+$", description: "the Plan task built"}
+          verifies:
+            type: array
+            description: "one row per AC-n in the task's verifiedBy"
+            items:
+              type: object
+              required: [ac, tests]
+              additionalProperties: false
+              properties:
+                ac: {type: string, pattern: "^AC-[0-9]+$"}
+                tests: {type: array, minItems: 1, items: {type: string, minLength: 1}, description: "test case names as the JUnit XML gives them: `name`, or `classname > name`"}
+          summary: {type: string, minLength: 1, description: "what was built, in the Glossary's words"}
+          openQuestions:
+            type: array
+            items:
+              type: object
+              required: [id, question]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^Q-[0-9]+$"}
+                question: {type: string, minLength: 1}
+                resolution: {type: string}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"
+---
+# What the project's own tests did once, read from JUnit XML by junit/v1: the evidence an AcceptanceRecord is
+# checked against. head and dirty pin the commit tested; persimmon never commits (35-build-process.md).
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata: {name: testoutcomes.sdd.persimmon.ai}
+spec:
+  group: sdd.persimmon.ai
+  names: {kind: TestOutcome, plural: testoutcomes}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [command, exitCode, tests]
+        additionalProperties: false
+        properties:
+          command: {type: array, minItems: 1, items: {type: string}, description: "the test command run in the workspace"}
+          exitCode: {type: integer, description: "the command's exit code: an outcome, never an attempt failure"}
+          head: {type: string, description: "the commit checked out; absent outside a git repository"}
+          dirty: {type: boolean, description: "uncommitted changes were tested; absent outside a git repository"}
+          tests:
+            type: array
+            items:
+              type: object
+              required: [classname, name, status]
+              additionalProperties: false
+              properties:
+                classname: {type: string}
+                name: {type: string, minLength: 1}
+                status: {enum: [passed, failed, errored, skipped]}
+                message: {type: string}
+          outputTail: {type: string, description: "the last lines of output when no test case was read, a compile error"}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"

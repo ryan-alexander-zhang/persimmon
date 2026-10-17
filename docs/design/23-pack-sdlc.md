@@ -301,8 +301,8 @@ that kept its own `AGENTS.md` or `CLAUDE.md` carries section 8 itself.
   `BoundedContext`, its `Glossary` with fact types, `BusinessRules` with logic, the `DecisionTable`
   that routes a claim, the `Prd` that cites them, two `Adr`s and the `Architecture` that applies
   them, a design-level `EventStorming` and the `DomainModel` derived from it, the `Spec` of `CAP-1`, the
-  `Design` of the claims API (OpenAPI, one asset for three capabilities), and the `Plan` of that Spec;
-  validates after the pack is applied
+  `Design` of the claims API (OpenAPI, one asset for three capabilities), the `Plan` of that Spec, and
+  the `AcceptanceRecord` and `TestOutcome` of its `T-1` (`35-build-process.md`); validates after the pack is applied
 - [`examples/example07/room-booking-domain.yaml`](../../examples/example07/room-booking-domain.yaml): one domain, meeting room booking,
   produced by the pack live on `claude-sonnet-5`: `author-prd` (two rounds, the human decided two open
   questions), `domain-discovery` (five storming revisions, the human rejected one hotspot and merged an

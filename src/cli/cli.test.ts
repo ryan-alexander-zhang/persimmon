@@ -70,7 +70,7 @@ describe('persimmon CLI', () => {
     expect(out.filter((l) => l.startsWith('ok')).length).toBeGreaterThanOrEqual(7)
     out = [] // the SDLC pack's worked domain example validates (23-pack-sdlc.md)
     expect([await run('validate', 'docs/design/examples/sdlc-domain.yaml'), out.filter((l) => !l.startsWith('ok'))]).toEqual([0, []])
-    expect(out.length).toBe(14)
+    expect(out.length).toBe(16)
     out = [] // the pack's own live output, meeting room booking, validates too
     expect([await run('validate', 'examples/example07/room-booking-domain.yaml'), out.filter((l) => !l.startsWith('ok'))]).toEqual([0, []])
     expect(out.length).toBe(30)
@@ -245,7 +245,7 @@ describe('persimmon CLI', () => {
     expect(out).toEqual(['Workflow/prd-approval', 'Workflow/prd-create']) // the SDLC pack is not in this store
     out = [] // so a Workflow stepping into a ReviewLoop of the same files resolves on validate's second pass only (08-store.md)
     expect([await run('validate', ...sdlcPack), out.filter((l) => !l.startsWith('ok'))]).toEqual([0, []])
-    expect(out.length).toBe(83)
+    expect(out.length).toBe(85)
   })
 
   it('get --behind lists the latest revision whose pinned inputs moved on; a carried previous input and a run\'s own later output are not behind', async () => {
