@@ -22,7 +22,7 @@ WorkflowRun in team-a ── snapshot walk resolves Namespace, then Global ─�
 |---|---|
 | `global/NN-*.yaml` | Global definitions, multi-document files, applied in file-name order; the author orders dependencies |
 | `namespaced/*.yaml` | Namespaced kinds (Triggers); applied with `-n <namespace>`; `persimmon init` does this into `defaultNamespace` only for the pack it installs |
-| `files/*` | project files: `persimmon init` copies each into the project directory when no file of that name is there; never applied, never stored |
+| `files/*` | project files: `persimmon init` copies each into the project directory when no file of that name is there, and updates one it wrote that nobody edited; never applied, never stored |
 
 ## Lifecycle
 
@@ -41,7 +41,7 @@ snapshot walk rooted in that Namespace (`04-snapshot.md`). Overrides are ordinar
 | Rule | Enforcer |
 |---|---|
 | an override's input and output port names and types equal the shadowed definition's | static checker at admission |
-| `init` places the files after the pack applied, so a pack that fails leaves none; only regular files, no dotfile; it never overwrites a project file: one present, a dangling symlink too, is kept and reported `kept <file>`; `CLAUDE.md` becomes a symlink to `AGENTS.md` only when `init` wrote `AGENTS.md` and no `CLAUDE.md` is there, and a `CLAUDE.md` of the project's is reported as not linked; `.persimmon/` is appended to `.gitignore`, created when absent, unless a line already names it | `persimmon init` |
+| `init` places the files after the pack applied, so a pack that fails leaves none; only regular files, no dotfile; it records the digest of each file it writes in `.persimmon/files.json`; a file present that still has that digest is replaced by a newer pack's and reported `updated <file>`; any other file present, a dangling symlink too, is never overwritten: kept and reported `kept <file>`, with `(differs from the pack's: <path>)` when a regular file's content is not the pack's; a file equal to the pack's but unrecorded (a fresh clone, `.persimmon/` being ignored) is recorded; `CLAUDE.md` becomes a symlink to `AGENTS.md` only when `init` wrote `AGENTS.md` and no `CLAUDE.md` is there, and a `CLAUDE.md` of the project's is reported as not linked; `.persimmon/` is appended to `.gitignore`, created when absent, unless a line already names it | `persimmon init` |
 | a Namespace that needs its own credentials overrides the Executor (`13-executor.md`) | convention |
 
 ## Demo pack content
@@ -125,6 +125,12 @@ Credentials the pack Executors bind are Global names resolved at run time.
   `.gitignore`, so `.persimmon/` was committed unless the user knew to ignore it. `init` creates no
   git repository: persimmon runs in existing repositories too. A file present is never merged; a
   3-way update like `ainpt update` waits for a user who needs it. Found in design review.
+- `init` updates a project file it wrote and nobody edited: it re-applies a newer pack, so a kept
+  file left the project's agents on the old rules with no sign, and an agent following an outdated
+  "ask" fails with no output. The digest of what it wrote tells an untouched file from an edited
+  one; an edited one is kept and reported as differing, never merged. A 3-way merge (`ainpt
+  update`) was weighed and refused: a base copy, a `git` dependency and conflict markers for a file
+  a user rarely edits. Found in design review.
 
 ## Examples
 
