@@ -90,8 +90,11 @@ revisions are retained flagged, excluded from get and list, and leave a gap.
   of the Signal it serves, which its token carries. Before, a publish through the callback was
   stamped with the Handler: a human's form answer and an agent's were both `handler/task`, and
   "who approved is read from `provenance.actor`" (`14-gate.md`) could not hold. A script Adapter
-  is a `service` too; nothing it writes answers a question. Found in design review
-  (`35-build-process.md`, an agent's choices made in a human's place).
+  is a `service` too; nothing it writes answers a question. The actor names the channel: a
+  developer's agent running `persimmon complete` is `user`. Reference `05-framework.md` and
+  `30-artifact-kinds.md` say the actor is always `context.actor` of the committing reconcile;
+  an Adapter call's publish is `service` instead, since its reconcile has no such actor. Found in
+  design review (`35-build-process.md`, an agent's choices made in a human's place).
 
 ## Examples
 
