@@ -24,7 +24,7 @@ ReviewLoop build-one
 | Kind | Content |
 |---|---|
 | `AcceptanceRecord` | `plan`, `spec` (artifact ids), `task` (`T-n`), `verifies[]` (`ac`: `AC-n`, `tests[]`, `minItems: 1`: test names as JUnit gives them), `summary`, `openQuestions[]` (`Q-n`, `resolution?`); what the builder says proves each scenario |
-| `TestOutcome` | `command`, `exitCode`, `head` (the commit), `dirty` (uncommitted changes), `tests[]` (`classname`, `name`, `status`: `passed`, `failed`, `errored`, `skipped`, `message?`), `outputTail` when no test case was read; what the project's tests did, read from JUnit XML |
+| `TestOutcome` | `command`, `exitCode`, `head?` (the commit), `dirty?` (uncommitted changes), `tests[]` (`classname`, `name`, `status`: `passed`, `failed`, `errored`, `skipped`, `message?`), `outputTail?`, present exactly when no test case was read; what the project's tests did, read from JUnit XML |
 
 ## Process
 
@@ -51,7 +51,8 @@ them.
 An executor Adapter on the shared runner (`adapters/lib/agent.mjs`), beside `subprocess/v1`. Per
 attempt, in the workspace: delete the JUnit files `junit` names, run `command`, read every file
 `junit` names (`<testsuites>` or `<testsuite>` root), and answer the `testOutcome` port. The
-command's exit code is recorded, never an error: failing tests exit non-zero, which is an outcome
+command's exit code is recorded, never an error, `128` plus the signal number when a signal killed
+it (the shell's convention; a killed suite writes no XML, so it shows as `suite-empty`): failing tests exit non-zero, which is an outcome
 the Gate judges, not a failed attempt; a run with no test case read (a compile error) answers
 `tests: []` and the last 50 lines of output as `outputTail`. `head` and `dirty` come from
 `git rev-parse HEAD` and `git status --porcelain`, read only; outside a repository both are absent.
@@ -129,6 +130,12 @@ name`; a name is never split (vitest's own `name` holds ` > `).
   passing test too; an Adr's `enforcedBy` tests; an auditor Validator judging whether a test
   verifies its `AC-n`; a baseline outcome for a suite already red. Each lands on this process once
   it runs. Found in design review.
+
+## Examples
+
+- `docs/design/examples/sdlc-domain.yaml`: `AcceptanceRecord/submit-a-claim-plan-t-1`, the tests
+  proving `AC-1` and `AC-3` of `T-1`, and `TestOutcome/submit-a-claim-plan-t-1-tests`, the vitest
+  run they are named in, three test cases passed.
 
 ## Units
 

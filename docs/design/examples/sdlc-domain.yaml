@@ -1,7 +1,8 @@
 # One domain written with the SDLC pack's artifact kinds (23-pack-sdlc.md): a BoundedContext, its Glossary
 # (terms and fact types), BusinessRules with logic, one DecisionTable, the Prd that cites them, two Adrs taken against the
 # Prd and the rules, the Architecture that applies them, a big-picture and a design-level EventStorming, the DomainModel
-# derived from the latter, the Spec of CAP-1 and the Design of the claims API. Validates after
+# derived from the latter, the Spec of CAP-1, the Design of the claims API, the Plan of that Spec, and the
+# AcceptanceRecord and TestOutcome of its T-1. Validates after
 # `persimmon init`. Prose uses Glossary term names only, never an alias.
 apiVersion: sdd.persimmon.ai/v1
 kind: BoundedContext

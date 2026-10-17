@@ -1200,7 +1200,7 @@ spec:
         additionalProperties: false
         properties:
           command: {type: array, minItems: 1, items: {type: string}, description: "the test command run in the workspace"}
-          exitCode: {type: integer, description: "the command's exit code: an outcome, never an attempt failure"}
+          exitCode: {type: integer, description: "the command's exit code, 128 plus the signal number when a signal killed it: an outcome, never an attempt failure"}
           head: {type: string, description: "the commit checked out; absent outside a git repository"}
           dirty: {type: boolean, description: "uncommitted changes were tested; absent outside a git repository"}
           tests:
@@ -1214,7 +1214,10 @@ spec:
                 name: {type: string, minLength: 1}
                 status: {enum: [passed, failed, errored, skipped]}
                 message: {type: string}
-          outputTail: {type: string, description: "the last lines of output when no test case was read, a compile error"}
+          outputTail: {type: string, description: "the last lines of output when no test case was read, a compile error; present exactly then"}
+        if: {properties: {tests: {maxItems: 0}}}
+        then: {required: [outputTail]}
+        else: {not: {required: [outputTail]}}
   mutability: Immutable
   revisioned: true
   snapshot: "None"
