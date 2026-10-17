@@ -17,8 +17,9 @@ Architecture ──▶ Prd, rules, BoundedContext (3, 5), Adr (9), Glossary (12)
 Spec per CAP-n ──▶ Prd, Architecture, DomainModel, Glossary, rules
 Design per block and type ──▶ Architecture, DomainModel, Glossary, rules
 DesignSystem once ──▶ Prd, Architecture;  Design (ui) per client block ──▶ Architecture, rules, DesignSystem, the block's API Designs (no DomainModel)
-Plan per Spec ──▶ Spec (by id, latest), Architecture, Design (many);  work (later) ──▶ Plan
-why, for whom: Prd · exactly what: Spec · how: Architecture, Design (reusable assets) · work: Plan
+Plan per Spec ──▶ Spec (by id, latest), Architecture, Design (many)
+AcceptanceRecord per T-n ──▶ Plan, Spec, Architecture, Design, Glossary, rules;  TestOutcome ──▶ AcceptanceRecord   (35-build-process.md)
+why, for whom: Prd · exactly what: Spec · how: Architecture, Design (reusable assets) · work: Plan · proof: AcceptanceRecord, TestOutcome
 ```
 
 Every arrow is a Task input: the author Task reads the upstream artifact, so `provenance.inputs`
@@ -44,6 +45,8 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
 | `Prd` | why, for whom, what capabilities | `title`, `problem`, `users[]`, `goals[] G-n`, `nonGoals[]`, `subdomains[] {id, name, description, type: core\|supporting\|generic}`, `capabilities[] {id CAP-n, name, description, priority, subdomain, rules?}`, `successCriteria[] {id SC-n, statement, capabilities?}`, `assumptions[]`, `openQuestions[] {id Q-n, question, resolution?}` |
 | `Spec` | exactly what one capability does | `title`, `prd`, `capability` CAP-n, `architecture`, `domainModel`, `stories[] {id US-n, role, goal, benefit, requirements[] FR-n, commands?[], events?[], readModels?[], acceptance[] {id AC-n, title, given[], when[], then[]}}` (Connextra; Given/When/Then), `requirements[] {id FR-n, pattern: ubiquitous\|event-driven\|state-driven\|unwanted-behaviour\|optional\|complex, statement, rules?[] BR-n}` (EARS), `qualities[] {scenario QS-n, delta?}`, `openQuestions[] {id Q-n, question, resolution?}` |
 | `Plan` | the work that builds one Spec | `title`, `spec`, `architecture`, `designs[]` (Design ids), `tasks[] {id T-n, title, description?, block BB-n, covers[] FR-n, verifiedBy[] AC-n, elements?[] {design, element EL-n}, dependsOn?[] T-n}` in build order, `openQuestions[]` |
+| `AcceptanceRecord` | which tests prove one Plan task | `plan`, `spec`, `task` T-n, `verifies[] {ac AC-n, tests[]}`, `summary`, `openQuestions[]` (`35-build-process.md`) |
+| `TestOutcome` | what the project's tests did | `command`, `exitCode`, `head?`, `dirty?`, `tests[] {classname, name, status: passed\|failed\|errored\|skipped, message?}`, `outputTail?`, read from JUnit XML |
 | `Design` | one reusable contract or schema of one block | `title`, `type: http-api\|async-api\|data-schema\|ui`, `architecture`, `block` BB-n, `interface?`, `domainModel` (absent on `ui`), `designSystem?`, `document {mediaType, content}` (OpenAPI 3.1, AsyncAPI 3, JSON Schema, DDL or a `ui` screen document, embedded whole), `elements[] {id EL-n, name, realises {kind: command\|event\|readModel\|aggregate\|operation, name}, rules?[] BR-n}`, `rules[] BR-n`, `decisions[]` (Adr ids), `references?[]` (ExternalResourceRefs: a Figma file, a design tool's link, a repository path; pointers, never the document), `openQuestions[]` |
 | `DesignSystem` | the product's visual language, once | `title`, `prd`, `document {mediaType: text/markdown, content}` (DESIGN.md verbatim, `32-ui-design-process.md`), `decisions[]` (Adr ids), `openQuestions[]` |
 
@@ -75,6 +78,7 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
 | `Plan` | `spec`, `tasks[].covers`, `verifiedBy` | one `Spec`, its `FR-n` and `AC-n` | artifact id; every requirement and scenario of the Spec is covered or verified by a task |
 | `Plan` | `architecture`, `tasks[].block` | one `Architecture` and its blocks | artifact id, `BB-n`; one block per task |
 | `Plan` | `designs[]`, `tasks[].elements[]` | the `Design`s and their `EL-n` | artifact ids, listed in `designs`; the Design's `block` is the task's. The Spec-to-Design link lives here only |
+| `AcceptanceRecord` | `plan`, `spec`, `task`, `verifies[].ac` | one `Plan`, its `Spec`, one `T-n`, the task's `AC-n` | artifact ids, `T-n`, `AC-n`; `verifies[].tests[]` names test cases of the `TestOutcome` by string |
 | any | prose | `Glossary` terms | by using the term; `aliases` never appear in documents |
 
 ## Project files

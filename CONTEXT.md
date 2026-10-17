@@ -559,6 +559,17 @@ The pack process from a **Spec** and its **Design**s to a **Plan**: one ReviewLo
 the Designs listed by the caller, checked by `plan-consistency`.
 _Avoid_: planning phase, task breakdown, plan-all
 
+**Build process**:
+The pack process from a **Plan** task to code and its evidence: ReviewLoop `build-one` per `T-n`, the
+**Builder** writing an **AcceptanceRecord**, `run-tests` a **TestOutcome**, checked by
+`acceptance-evidence`.
+_Avoid_: implementation phase, coding stage, build-all
+
+**Builder**:
+Who builds a **Plan** task: by default the developer with their own coding agent, answering a
+`cli-human/v1` form; in an unattended Namespace, the agent the Executor `builder` is overridden to.
+_Avoid_: developer (for the role), coder, implementer, code agent
+
 **Architecture process**:
 The pack process from a **Prd** and the domain kinds of its contexts to the **Architecture** and its
 **Adr**s: ReviewLoop `architect`, once per product, checked by `architecture-consistency` and a human.
@@ -608,13 +619,14 @@ _Avoid_: tasks.md, work breakdown, implementation plan, task (for the kind; a Ta
 
 **AcceptanceRecord**:
 **Artifact kind** of the SDLC pack, one per built **Plan** task: for each `AC-n` the task is verified by,
-the tests the builder says prove it. A claim, checked against a **TestRun**.
-_Avoid_: test report, implementation report, record (alone)
+the tests the builder says prove it. A claim, checked against a **TestOutcome**.
+_Avoid_: test report, implementation report
 
-**TestRun**:
-**Artifact kind** of the SDLC pack: what the project's own tests did in one run, read from JUnit XML,
-one entry per test case with its status. The evidence an **AcceptanceRecord** is checked against.
-_Avoid_: test report, test result, CI run
+**TestOutcome**:
+**Artifact kind** of the SDLC pack: what the project's own tests did once, read from JUnit XML, one
+entry per test case with its status, plus the commit tested. The evidence an **AcceptanceRecord** is
+checked against.
+_Avoid_: TestRun (a Run is the engine's), test report, test result, CI run
 
 **Spec**:
 **Artifact kind** of the SDLC pack, one per `CAP-n` of a **Prd**: stories `US-n` (Connextra)
