@@ -19,7 +19,7 @@ ReviewLoop architect, run once per product with the contexts, models and glossar
 
 | Member | Content |
 |---|---|
-| Prompt `architecture-rules` | arc42 as the pack reads it: the Prd is the requirements by reference; every context realised by a level 1 block; strategy decisions cite `QG-n` and `C-n`; every quality goal has a scenario; one Adr per `S-n`, in order |
+| Prompt `architecture-rules` | arc42 as the pack reads it: the Prd is the requirements by reference; every context realised by a level 1 block; strategy decisions cite `QG-n` and `C-n`; every quality goal has a scenario, each with its `method` and `provenAt`, a `build` one a `test` or a `fitness` one; one Adr per `S-n`, in order |
 | Executor `architecture-agent` | `claude-code/v1`, read-only, its own name for per-Namespace override |
 | Task `write-architecture` | inputs `prd`, `rules`, `contexts`, `domainModels`, `glossaries` (artifacts), `previous`, `previousAdrs` (the last round's Adrs, carried by the loop), `feedback`; outputs `architecture` (id `<prd>-architecture`) and `adrs` (artifacts, prefix `<prd>-adr`) |
 | Task `confirm-architecture` | human on `cli-human/v1`: reads the Architecture and its Adrs; approve, or one finding per `BB-n`, `S-n`, `QG-n`, `C-n`, `QS-n` or Adr id |

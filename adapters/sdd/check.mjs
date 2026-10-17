@@ -373,7 +373,7 @@ export function checkPlan({ plan, spec, architecture, designs = {}, ids = {} }) 
   const requirements = new Set((spec?.requirements ?? []).map((r) => r.id))
   const scenarios = new Set((spec?.stories ?? []).flatMap((s) => (s.acceptance ?? []).map((a) => a.id)))
   // the quality scenarios a task must verify: the Spec cites them and the Architecture proves them at build
-  const stages = new Map((architecture?.qualityScenarios ?? []).map((q) => [q.id, q.stage]))
+  const provenAt = new Map((architecture?.qualityScenarios ?? []).map((q) => [q.id, q.provenAt]))
   const cited = new Set((spec?.qualities ?? []).map((q) => q.scenario))
   const blocks = new Set((architecture?.buildingBlocks ?? []).map((b) => b.id))
   if (ids.spec && plan.spec !== ids.spec) bad('spec-mismatch', `spec ${plan.spec} is not ${ids.spec}, the Spec evaluated`)
@@ -396,7 +396,7 @@ export function checkPlan({ plan, spec, architecture, designs = {}, ids = {} }) 
       verified.add(a)
       if (a.startsWith('QS-')) {
         if (!cited.has(a)) bad('unknown-scenario', `${t.id}: quality scenario ${a} is not one the Spec cites`)
-        else if (stages.get(a) !== 'build') bad('scenario-not-build', `${t.id}: quality scenario ${a} is proven at ${stages.get(a) ?? 'no stage'} in the Architecture, not at build`)
+        else if (provenAt.get(a) !== 'build') bad('scenario-not-build', `${t.id}: quality scenario ${a} is proven at ${provenAt.get(a) ?? 'no time the Architecture names'}, not at build`)
       } else if (!scenarios.has(a)) bad('unknown-scenario', `${t.id}: scenario ${a} is not in the Spec`)
     }
     for (const d of t.dependsOn ?? []) {
@@ -415,7 +415,7 @@ export function checkPlan({ plan, spec, architecture, designs = {}, ids = {} }) 
   }
   for (const id of requirements) if (!covered.has(id)) bad('requirement-unplanned', `requirement ${id} is covered by no task`)
   for (const id of scenarios) if (!verified.has(id)) bad('scenario-unverified', `scenario ${id} verifies no task`)
-  for (const id of cited) if (stages.get(id) === 'build' && !verified.has(id)) bad('scenario-unverified', `quality scenario ${id} is proven at build but verifies no task`)
+  for (const id of cited) if (provenAt.get(id) === 'build' && !verified.has(id)) bad('scenario-unverified', `quality scenario ${id} is proven at build but verifies no task`)
   for (const d of listed) if (!used.has(d)) bad('design-unused', `design ${d} is listed but no task realises an element of it`)
 
   sequence(bad, 'T', taskIds)
@@ -446,7 +446,7 @@ export function checkAcceptance({ record, testOutcome, plan, spec, previous, pre
   const task = (plan?.tasks ?? []).find((t) => t.id === record.task)
   if (!task) bad('unknown-task', `task ${record.task} is not a task of the Plan`)
   const due = new Set(task?.verifiedBy ?? [])
-  // a QS-n the Spec cites; its stage is the Plan check's, which reads the Architecture
+  // a QS-n the Spec cites; when it is proven is the Plan check's, which reads the Architecture
   const scenarios = new Set([...(spec?.stories ?? []).flatMap((s) => (s.acceptance ?? []).map((a) => a.id)), ...(spec?.qualities ?? []).map((q) => q.scenario)])
 
   const matching = (name) => cases.filter((c) => c.name === name || `${c.classname} > ${c.name}` === name)

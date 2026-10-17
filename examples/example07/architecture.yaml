@@ -78,11 +78,11 @@ spec:
     domainModels: [room-booking-model]
     decisions: []
     qualityScenarios:
-      - {id: QS-1, qualityGoal: QG-1, stimulus: two employees confirm the same room and slot within the same second, source: employees, response: one booking is made; the other sees No Available Room Found, measure: zero overlapping bookings in the history table, method: test, stage: build}
-      - {id: QS-2, qualityGoal: QG-1, stimulus: the core restarts during the no-show window, response: the release still happens within one minute of the window's end, measure: release time minus window end under 60 seconds, method: chaos, stage: release}
-      - {id: QS-3, qualityGoal: QG-2, stimulus: an employee scans the door QR, response: the booking is checked in or the room claimed with no further input beyond SSO, measure: under 5 seconds on the office network, method: load, stage: release}
-      - {id: QS-4, qualityGoal: QG-2, stimulus: a booking is cancelled or released, response: the door and floor screens show the room free, measure: within 60 seconds, method: test, stage: build}
-      - {id: QS-5, qualityGoal: QG-3, stimulus: office management changes the check-in window to 15 minutes, response: the next release uses it, measure: no deployment, method: test, stage: build}
+      - {id: QS-1, qualityGoal: QG-1, stimulus: two employees confirm the same room and slot within the same second, source: employees, response: one booking is made; the other sees No Available Room Found, measure: zero overlapping bookings in the history table, method: test, provenAt: build}
+      - {id: QS-2, qualityGoal: QG-1, stimulus: the core restarts during the no-show window, response: the release still happens within one minute of the window's end, measure: release time minus window end under 60 seconds, method: chaos, provenAt: release}
+      - {id: QS-3, qualityGoal: QG-2, stimulus: an employee scans the door QR, response: the booking is checked in or the room claimed with no further input beyond SSO, measure: under 5 seconds on the office network, method: load, provenAt: release}
+      - {id: QS-4, qualityGoal: QG-2, stimulus: a booking is cancelled or released, response: the door and floor screens show the room free, measure: within 60 seconds, method: test, provenAt: build}
+      - {id: QS-5, qualityGoal: QG-3, stimulus: office management changes the check-in window to 15 minutes, response: the next release uses it, measure: no deployment, method: test, provenAt: build}
     risks:
       - {id: RK-1, kind: risk, statement: "The scheduler misses a release while the core is down for longer than the window.", probability: low, impact: medium, mitigation: QS-2; the scheduler catches up on restart from the history table}
     glossaries: [room-booking-glossary]

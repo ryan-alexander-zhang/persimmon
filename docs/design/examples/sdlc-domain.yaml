@@ -563,28 +563,28 @@ spec:
         response: the claim is either fully submitted or not at all; the employee sees which
         measure: zero half-submitted claims in a quarter
         method: chaos
-        stage: release
+        provenAt: release
       - id: QS-2
         qualityGoal: QG-1
         stimulus: Finance revises the routing table
         response: claims submitted after the revision route by the new table; earlier claims keep their recorded row
         measure: every claim's route explainable by its recorded row and table revision
         method: test
-        stage: build
+        provenAt: build
       - id: QS-3
         qualityGoal: QG-2
         stimulus: an employee opens another employee's claim by URL
         response: refused and logged
         measure: zero cross-employee reads outside the approver and finance roles
         method: test
-        stage: build
+        provenAt: build
       - id: QS-4
         qualityGoal: QG-3
         stimulus: an approver opens a claim with eight lines and eight receipts
         response: the claim, every receipt thumbnail and every justification render on one screen
         measure: under 2 seconds on the office network
         method: load
-        stage: release
+        provenAt: release
     risks:
       - id: RK-1
         kind: risk

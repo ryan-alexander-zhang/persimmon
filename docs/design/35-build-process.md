@@ -170,16 +170,19 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
   project updated its unedited AGENTS.md to the new pack text. Found in UAT.
 
 - A quality scenario names its `method` (`test`, `fitness`, `load`, `chaos`, `observe`) and its
-  `stage` (`build`, `release`, `runtime`), both required, so the architect says how and when each
+  `provenAt` (`build`, `release`, `runtime`), both required, so the architect says how and when each
   measure is proven. A `build` scenario is a `test` or a `fitness` one, the two methods a JUnit test
   can prove; the schema refuses another. `release` and `runtime` are declared and checked by
-  nothing yet: no release process exists. The method names are the template's verification axis.
-  The worked example and examples 07 and 08 were labelled by hand after their runs. Found in design
-  review.
+  nothing yet: no release process exists. The method names are the template's verification axis;
+  the field is `provenAt`, not the template's `stage`, which the glossary avoids for a Phase. The
+  worked example and examples 07 and 08 were labelled by hand after their runs. Both are required,
+  so a project holding an Architecture revision without them is refused when `persimmon init`
+  re-applies the pack, with no migration (`01-kind-definition.md`): the pack is pre-release, and an
+  optional pair would let an architect skip the question. Found in design review and audit.
 - A `build` quality scenario the Spec cites is a scenario of the Plan like an `AC-n`: a task's
   `verifiedBy` names it, the record proves it with a row, and `checkAcceptance` holds the row to a
   passing test with no new rule. The record's row key is `scenario`, not `ac`, for both; the Plan
-  check already called an `AC-n` a scenario. The stage is the Plan check's to read, since it has the
+  check already called an `AC-n` a scenario. When it is proven is the Plan check's to read, since it has the
   Architecture; the Gate checks only that the Spec still cites the `QS-n`. The Plans of examples 07
   and 08 predate the rule and verify no `QS-n`. Found in design review.
 
@@ -198,5 +201,5 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
 5. `build-rules`, Executor `builder`, Task `implement`, `build-work`, `build-one`, `build-all`.
 6. AGENTS.md: section 8 scoped to an Executor's agent, section 6 the builder's steps.
 7. A live UAT: one Plan task of a small project, built the default way, then by the override.
-8. A quality scenario's `method` and `stage`.
+8. A quality scenario's `method` and `provenAt`.
 9. A `build` quality scenario verifies a Plan task and is proven by a record row.

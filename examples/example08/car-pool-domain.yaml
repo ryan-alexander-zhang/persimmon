@@ -2499,43 +2499,43 @@ spec:
         stimulus: Two employees try to reserve the same car for overlapping slots within the same second.
         response: The system accepts the first reservation and refuses the second, citing BR-3.
         measure: 0 overlapping accepted reservations across 10,000 concurrent-reservation test runs (SC-1).
-        method: load
-        stage: release
+        method: test
+        provenAt: build
       - id: QS-2
         qualityGoal: QG-1
         stimulus: An employee requests a car whose next service is due before the requested slot ends.
         response: The car is excluded from the available-cars results.
         measure: 100% of such cars excluded across a full day's search traffic (SC-2).
-        method: test
-        stage: build
+        method: observe
+        provenAt: runtime
       - id: QS-3
         qualityGoal: QG-2
         stimulus: The fleet coordinator classifies a damage report as unsafe for a car holding three future reservations.
         response: The car is taken out of service at once, its three future reservations are cancelled, and the three employees are notified.
         measure: 0 uncancelled future reservations remain on the car within 1 minute of classification (SC-6).
         method: test
-        stage: build
+        provenAt: build
       - id: QS-4
         qualityGoal: QG-3
         stimulus: The fleet coordinator looks up a car's plate, seats, gearbox, van flag, mileage, service status, and state.
         response: The fleet record returns all seven fields from the single system of record; no spreadsheet is consulted.
         measure: 12 of 12 cars have complete fleet records (SC-8).
         method: observe
-        stage: runtime
+        provenAt: runtime
       - id: QS-5
         qualityGoal: QG-4
         stimulus: An employee submits a trip request for 4 seats, no van, automatic gearbox, for a free afternoon slot.
         response: The system returns only cars meeting the fit criteria that are free, in service, and not service-due before the slot ends.
         measure: Search results render within 2 seconds for the 12-car fleet.
         method: load
-        stage: release
+        provenAt: release
       - id: QS-6
         qualityGoal: QG-5
         stimulus: A reservation's start time passes with no pickup recorded.
         response: The reservation is released automatically so another employee can take the car.
         measure: Released within 30 minutes of the reservation's start, every time (SC-3).
         method: test
-        stage: build
+        provenAt: build
     risks:
       - id: RK-1
         kind: risk

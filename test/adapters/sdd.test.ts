@@ -596,13 +596,13 @@ describe('sdd/v1 over a Plan', () => {
     expect(await planCodes((a) => { a.plan.tasks[3].verifiedBy = ['AC-9'] })).toEqual(['unknown-scenario', 'scenario-unverified'])
   })
 
-  it('a build-stage quality scenario the Spec cites verifies a task; one not cited or not at build is refused (35-build-process.md)', async () => {
+  it('a build quality scenario the Spec cites verifies a task; one not cited or not at build is refused (35-build-process.md)', async () => {
     const qs = (a: ReturnType<typeof planExample>) => a.architecture.qualityScenarios.find((q: { id: string }) => q.id === 'QS-3')
     expect(await planCodes((a) => { a.plan.tasks[0].verifiedBy = ['AC-1', 'AC-3'] })).toEqual(['scenario-unverified'])
     expect(await planCodes((a) => { a.plan.tasks[0].verifiedBy.push('QS-2') })).toEqual(['unknown-scenario']) // build, but not cited
     expect(await planCodes((a) => { a.plan.tasks[0].verifiedBy.push('QS-1') })).toEqual(['scenario-not-build']) // cited, at release
     const released = structuredClone(planExample())
-    Object.assign(qs(released), { method: 'load', stage: 'release' })
+    Object.assign(qs(released), { method: 'load', provenAt: 'release' })
     released.plan.tasks[0].verifiedBy = ['AC-1', 'AC-3']
     expect((await adapter({ id: 4009, op: 'evaluate', payload: planPayload(released) })).result.passed).toBe(true) // a release scenario is not the build's
   })

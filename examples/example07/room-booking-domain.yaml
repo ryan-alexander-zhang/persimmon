@@ -1379,35 +1379,35 @@ spec:
         response: The Room Schedule accepts the first commit and refuses the second with no overlapping booking created (BR-7).
         measure: Zero double-booking incidents recorded on the schedule (SC-1).
         method: test
-        stage: build
+        provenAt: build
       - id: QS-2
         qualityGoal: QG-2
         stimulus: A booking's owner cancels it before the start time, or does not check in within 10 minutes of the start.
         response: The Room Schedule releases the booking, and the Room Status View, queried from the same store, immediately reflects the room as free.
         measure: The room shows as free to other employees within one minute of the cancellation or no-show release (SC-2, SC-3).
         method: test
-        stage: build
+        provenAt: build
       - id: QS-3
         qualityGoal: QG-3
         stimulus: An employee opens a room's door screen or the floor screen without having made any booking.
         response: The screen displays that room's current status, holder, held-until time and what's next, queried directly from the Room Booking Service.
         measure: Every room's current status is visible on its door screen and on the floor screen (SC-5).
         method: test
-        stage: build
+        provenAt: build
       - id: QS-4
         qualityGoal: QG-4
         stimulus: The end of the month arrives.
         response: The Room Booking Service compiles utilisation per room, no-show rate per team, and peak hours from the month's booking history in its own store and delivers it to office management.
         measure: A monthly report is delivered covering all three measures (SC-6).
         method: test
-        stage: build
+        provenAt: build
       - id: QS-5
         qualityGoal: QG-5
         stimulus: Office management decides to change the no-show check-in window from 10 to 15 minutes (BR-9).
         response: An operator edits the check-in window as configuration data in the Room Booking Service.
         measure: The new window takes effect with no code change and no redeployment.
         method: test
-        stage: build
+        provenAt: build
     glossaries:
       - room-booking-glossary
     risks:

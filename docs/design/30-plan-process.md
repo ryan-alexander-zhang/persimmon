@@ -44,7 +44,7 @@ maps artifact id to content, paired by `index.mjs` from `inputs.designs.refs[i]`
 | `spec-mismatch`, `architecture-mismatch` | `spec` or `architecture` is not the id of the input bound (`inputs.spec.ref.id`, `inputs.architecture.ref.id`); a content carries no id of its own |
 | `design-duplicate` | an id listed twice in `designs[]` |
 | `unknown-requirement`, `unknown-scenario` | a `covers` or `verifiedBy` id the Spec lacks; a `QS-n` the Spec's `qualities` do not cite |
-| `scenario-not-build` | a `verifiedBy` `QS-n` whose Architecture `stage` is not `build` |
+| `scenario-not-build` | a `verifiedBy` `QS-n` whose Architecture `provenAt` is not `build` |
 | `requirement-unplanned`, `scenario-unverified` | an `FR-n` no task covers; an `AC-n`, or a `build` `QS-n` the Spec cites, no task verifies |
 | `unknown-block` | a task's `block` is no `BB-n` of the Architecture |
 | `unknown-task`, `dependency-forward` | `dependsOn` names no task; names one not earlier (itself included) |

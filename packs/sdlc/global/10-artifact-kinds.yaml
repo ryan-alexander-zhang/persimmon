@@ -626,7 +626,7 @@ spec:
             description: "arc42 10: at least one per quality goal"
             items:
               type: object
-              required: [id, qualityGoal, stimulus, response, measure, method, stage]
+              required: [id, qualityGoal, stimulus, response, measure, method, provenAt]
               additionalProperties: false
               properties:
                 id: {type: string, pattern: "^QS-[0-9]+$"}
@@ -637,8 +637,8 @@ spec:
                 response: {type: string, minLength: 1}
                 measure: {type: string, minLength: 1, description: "a number or an observable fact"}
                 method: {enum: [test, fitness, load, chaos, observe], description: "how the measure is proven: a behaviour test, a structural test, a load run, fault injection, or watching production"}
-                stage: {enum: [build, release, runtime], description: "when it is proven: build is every Plan task's Gate, by a passing test"}
-              if: {properties: {stage: {const: build}}}
+                provenAt: {enum: [build, release, runtime], description: "when it is proven; build: at the Gate of each Plan task whose verifiedBy names it, by a passing test"}
+              if: {required: [provenAt], properties: {provenAt: {const: build}}}
               then: {properties: {method: {enum: [test, fitness]}}}
           risks:
             type: array
@@ -1117,7 +1117,7 @@ spec:
                 description: {type: string}
                 block: {type: string, pattern: "^BB-[0-9]+$", description: "the one building block this task changes; work on two blocks is two tasks"}
                 covers: {type: array, items: {type: string, pattern: "^FR-[0-9]+$"}, description: "Spec requirements this task implements"}
-                verifiedBy: {type: array, items: {type: string, pattern: "^(AC|QS)-[0-9]+$"}, description: "Spec acceptance scenarios, and build-stage quality scenarios the Spec cites, that pass once this task is done"}
+                verifiedBy: {type: array, items: {type: string, pattern: "^(AC|QS)-[0-9]+$"}, description: "Spec acceptance scenarios, and quality scenarios the Spec cites that are proven at build, that pass once this task is done"}
                 elements:
                   type: array
                   description: "what of which Design this task realises"

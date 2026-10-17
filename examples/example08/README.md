@@ -187,5 +187,5 @@ persimmon validate car-pool-domain.yaml        # 36 lines `ok`
 
 `persimmon create` takes one document per file; split the file to load it, or read it as it is.
 
-Each quality scenario's `method` and `stage` were added by hand after the run, when the kind made them required
+Each quality scenario's `method` and `provenAt` were added by hand after the run, when the kind made them required
 (35-build-process.md); the Plans predate them.

@@ -162,5 +162,5 @@ capabilities and the storming context name it, and the BoundedContext lists the 
 Every artifact in it is at revision 1: the rounds of the Prd (two) and the storming (five)
 collapsed into the revision that passed.
 
-Each quality scenario's `method` and `stage` were added by hand after the run, when the kind made them required
+Each quality scenario's `method` and `provenAt` were added by hand after the run, when the kind made them required
 (35-build-process.md); the Plans predate them.

@@ -559,6 +559,12 @@ The pack process from a **Spec** and its **Design**s to a **Plan**: one ReviewLo
 the Designs listed by the caller, checked by `plan-consistency`.
 _Avoid_: planning phase, task breakdown, plan-all
 
+**Quality scenario**:
+An Architecture element `QS-n` under a quality goal: stimulus, response, a measure, the `method` that
+proves it (`test`, `fitness`, `load`, `chaos`, `observe`) and when (`provenAt`: `build`, `release`,
+`runtime`). A Spec cites the ones its capability is held to; a `build` one verifies a **Plan** task.
+_Avoid_: NFR, non-functional requirement, stage (for `provenAt`)
+
 **Build process**:
 The pack process from a **Plan** task to code and its evidence: ReviewLoop `build-one` per `T-n`, the
 **Builder** writing an **AcceptanceRecord**, `run-tests` a **TestOutcome**, checked by
