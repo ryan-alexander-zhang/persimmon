@@ -18,7 +18,7 @@ brief ─▶ author-prd ─▶ Prd: subdomains[] (core | supporting | generic), 
          derive-all per context ─▶ BoundedContext: subdomain, capabilities[]; Glossary; DomainModel
       ─▶ architect                     unchanged inputs; every capability in exactly one context
       ─▶ spec-all per context          + context: a Spec's capability is one its BoundedContext lists
-      ─▶ design-all, design-system, plan-all                                              unchanged
+      ─▶ design-all, design-system, plan-all, build-all                                   unchanged
 ```
 
 ## Prd

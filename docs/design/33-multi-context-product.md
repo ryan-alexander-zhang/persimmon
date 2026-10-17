@@ -18,6 +18,7 @@ brief ─▶ author-prd (productId, contextIds) ─▶ Prd <product>-prd, Busine
       ─▶ architect: contexts, domainModels, glossaries by `kind:` query, rules one        unchanged but the query
       ─▶ spec-all per context (its capability ids, its model), design-all per context    unchanged, run per context
       ─▶ design-system once, design-all ui over the client blocks, plan-all once          unchanged
+      ─▶ build-all per Plan (35-build-process.md)                                       unchanged
 ```
 
 ## Why product-level rules
@@ -50,7 +51,7 @@ are migrated by the rename alone, said in their README.
 | Prompt `storming-big-picture` | (superseded, `34-subdomains.md`) the Prd's capability contexts are the storming contexts, with the ids the Prd uses, so `derive-all` publishes the BoundedContexts the capabilities cite (already said; restated with the list) |
 | Prompt `derive-domain-rules` | invariants and `rules` citations take the rules tagged with this context, or untagged |
 | (`spec-all` takes the BoundedContext too, `34-subdomains.md`) `spec-all`, `design-all` | unchanged: one run per context, with that context's capability ids or blocks and its DomainModel and Glossary; a Workflow cannot read a Prd to pick a capability's context, so the caller does (`27-spec-process.md`, `29-design-process.md` rows stand) |
-| `architect`, `design-system`, `plan-all` | unchanged |
+| `architect`, `design-system`, `plan-all`, `build-all` | unchanged |
 
 ## `kind:` query at `run`
 

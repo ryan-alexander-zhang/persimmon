@@ -63,12 +63,13 @@ describe('scenario: build one Plan task', () => {
     taskRun = inbox()[0]!.replace(/\.yaml$/, '')
     const second = parse(readFileSync(join(dir, '.persimmon', 'inbox', `${taskRun}.yaml`), 'utf8'))
     expect(second.inputs.feedback.value.passed).toBe(false)
-    expect(JSON.stringify(second.inputs.feedback.value)).toContain('test-missing') // the findings reach the builder
+    expect(second.inputs.feedback.value.results.evidence.findings.map((f: { code: string }) => f.code)).toEqual(['test-missing']) // the findings reach the builder
+    expect(second.inputs.previousOutcome.ref).toMatchObject({ kind: 'TestOutcome', id: 'submit-a-claim-plan-t-1-tests', revision: 1 }) // carried beside the record
+    expect(second.reading.map((r: { kind: string }) => r.kind).slice(-2)).toEqual(['AcceptanceRecord', 'TestOutcome']) // the builder reads what failed
 
     out = []
     expect(await run('complete', taskRun, '--file', file('r2.yaml', [{ outputs: { record } }]))).toBe(0)
     expect(out.find((l) => l.startsWith('WorkflowRun   build-one-'))).toMatch(/Succeeded/)
-    expect(out.join('\n')).not.toContain('rounds-3')
     out = []
     expect(await run('get', 'TestOutcome/submit-a-claim-plan-t-1-tests')).toBe(0)
     expect(out.join('\n')).toContain('exitCode: 0')

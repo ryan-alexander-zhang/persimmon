@@ -246,7 +246,7 @@ that kept its own `AGENTS.md` or `CLAUDE.md` carries section 8 itself.
   new one. A storming context id and every `contextId` input are DNS labels of at most 40
   characters, so `<context>-prd-cap-n-plan` stays an Id; a Design is `<architecture>-<bb-n>-<type>`
   because `BB-n` numbers are per Architecture. Found in audit.
-- The four `-all` loops (`derive-all`, `spec-all`, `design-all`, `plan-all`) keep only the cursor
+- The five `-all` loops (`derive-all`, `spec-all`, `design-all`, `plan-all`, `build-all`) keep only the cursor
   `index` in `repeat` state and read the list as `inputs.<list>[state.index - 1]`: a step binding
   inside a `repeat` sees `inputs` as any step does, so the copy of the list into state (a second
   schema, `fromInput` in `initial`, `fromState` in `next`) said nothing the input did not. Found in
@@ -265,7 +265,7 @@ that kept its own `AGENTS.md` or `CLAUDE.md` carries section 8 itself.
   Proven live: `design-all` for example08's Reservation API wrote `businessRules: car-pool-rules`
   from the `rules` input and passed `design-consistency` in round one (3m24s). Found in UAT
   (example08).
-- The four `-all` loops end `step_failed` when an iteration died before its Gate ran, and
+- The five `-all` loops end `step_failed` when an iteration died before its Gate ran, and
   `<x>_inconsistent` only when the Gate rejected the last round (`when: steps.each.phase ==
   "Succeeded"`, `dispatch: first`): four `design-all` runs died in the agent CLI and every WorkflowRun
   said `design_inconsistent`, the one Failed reason the loop had; the cause sat two levels down in

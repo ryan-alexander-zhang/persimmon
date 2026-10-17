@@ -40,6 +40,8 @@ function evaluate(payload) {
     const record = required(artifacts, 'record')
     const notARecord = checkAcceptance({ record }).filter((f) => f.code === 'not-a-record')
     if (notARecord.length) return { passed: false, findings: notARecord, evidence: [] }
+    // test-dropped reads the last round's record and tests together; one without the other would silently check nothing
+    if (!artifacts.previous !== !artifacts.previousOutcome) throw invalid('artifacts.previous and artifacts.previousOutcome come together')
     const ids = { plan: payload.inputs?.plan?.ref?.id, spec: payload.inputs?.spec?.ref?.id, taskId: payload.inputs?.taskId?.value }
     const findings = checkAcceptance({ record, testOutcome: required(artifacts, 'testOutcome'), plan: required(artifacts, 'plan'), spec: required(artifacts, 'spec'), previous: artifacts.previous?.content, previousOutcome: artifacts.previousOutcome?.content, ids })
     return { passed: passes(findings), findings, evidence: [] }

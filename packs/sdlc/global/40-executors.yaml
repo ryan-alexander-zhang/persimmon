@@ -115,7 +115,7 @@ spec:
 # Who builds a Plan task (35-build-process.md): by default the developer with their own coding agent, answering the form in
 # .persimmon/inbox/ with `persimmon complete <taskRun> --file record.yaml`. An unattended Namespace overrides this Executor by
 # name: adapter claude-code/v1, type agent, sandbox workspace-write, networkAccess allowlist [api.anthropic.com], and
-# allowedTools for its test command.
+# allowedTools for its test command. Task implement passes `effort`, a claude-code parameter; codex/v1 takes `reasoningEffort`.
 apiVersion: persimmon.ai/v1
 kind: Executor
 metadata: {name: builder}

@@ -768,7 +768,7 @@ spec:
         glossary: {fromInput: glossary}
         rules: {fromInput: rules}
         repository: {fromInput: repository}
-      timeout: 2400h
+      timeout: 2400h   # a ceiling for the whole repeat, as spec-all's: ten tasks at a loop's full 240h
       repeat:
         state:
           index: {type: {kind: value, schema: {type: integer, minimum: 1}}}

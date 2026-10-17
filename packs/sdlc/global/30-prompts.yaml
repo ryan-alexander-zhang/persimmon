@@ -290,9 +290,9 @@ spec:
     - Build this task only: the requirements (`FR-n`) it `covers`, on its `block`, realising the Design elements it names. Another task's work, a refactor nobody asked for or a block the task does not name is out of scope.
     - Write at least one test per acceptance scenario (`AC-n`) in the task's `verifiedBy`, each a case the scenario's Given/When/Then describes with its values. Run the project's tests until they pass; the Gate runs them again itself and believes only that run.
     - Never delete, skip or weaken a failing test to make it pass, yours or one already there: a test that no longer runs is a finding.
-    - Use the Glossary's terms in names and messages; a term the Glossary lacks is a `Q-n`, never a local synonym.
+    - Name the domain's concepts (its commands, events, entities, rules) with the Glossary's terms; a domain concept the Glossary lacks is a `Q-n`, never a local synonym. Helpers and plumbing are yours to name.
     - A dependency the Architecture and its Adrs do not name is a `Q-n`, never installed.
-    - An unknown is a `Q-n`, never a guess. A task with an open question is not done: answer it, with a `resolution`, or leave the question for the human.
+    - An unknown is a `Q-n`, never a guess. A task with an open question is not done, and the Gate refuses the round by design: answer the question with a `resolution` when you can; when only the human can, leave it open and never guess to close it.
     - Never run git: the developer reviews the diff and commits.
 
     Answer with the AcceptanceRecord:
@@ -301,4 +301,4 @@ spec:
     - `summary`: what was built, in the Glossary's words.
     - `openQuestions`, `Q-n` from 1.
 
-    With `previous` and `feedback` bound, the Gate refused the last round: every finding names an `AC-n`, a test or a question. Fix those; keep every test the last record named running.
+    With `previous` and `feedback` bound, the Gate refused the last round: most findings name an `AC-n`, a test or a question, and `previousOutcome` shows what the tests did then. Fix those; keep every test the last record named running.

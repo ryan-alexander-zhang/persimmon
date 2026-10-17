@@ -72,9 +72,10 @@ non-zero exit, both contrary to its contract; its own tests cover it (`test/adap
 
 ## `checkAcceptance`
 
-`adapters/sdd/check.mjs`, pure, `checkAcceptance({record, testOutcome, plan, spec, previous, ids})`,
+`adapters/sdd/check.mjs`, pure, `checkAcceptance({record, testOutcome, plan, spec, previous, previousOutcome, ids})`,
 `ids` holding the bound `plan`, `spec` and `taskId`; `evaluate` checks for `artifacts.record`
-before `artifacts.plan`, since this Validator binds a Plan too. Every finding `error`:
+before `artifacts.plan`, since this Validator binds a Plan too; `previous` without `previousOutcome`,
+or the reverse, is `invalid_input`. Every finding `error`:
 
 | Code | Finding |
 |---|---|

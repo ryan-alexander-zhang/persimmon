@@ -445,10 +445,10 @@ spec:
   executorRef: {kind: Executor, name: builder}
   action:
     instructions: |
-      Build the Plan task whose id is `taskId` in the repository, following the build rules in your context, then
-      answer with its AcceptanceRecord. `plan` and `spec` in the record are the artifact ids of the inputs with those
-      names; `task` is `taskId`. With `previous` and `feedback` bound, fix what the findings name and change nothing
-      else.
+      Build the Plan task whose id is `taskId` in the directory the `repository` input names, where the tests then
+      run, following the build rules in your context; then answer with its AcceptanceRecord. `plan` and `spec` in the
+      record are the artifact ids of the inputs with those names; `task` is `taskId`. With `previous`,
+      `previousOutcome` and `feedback` bound, fix what the findings name and change nothing else.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: build-rules}}
       - {kind: artifact, input: plan}
@@ -462,4 +462,7 @@ spec:
     workspace: {input: repository}
     parameters: {effort: high}
   timeout: 72h   # a human's: the developer builds it in their own session
+  retryPolicy: # for an agent override: a transient API refusal gets another attempt; unknown_result is never retried under nonIdempotent
+    maxAttempts: 3
+    backoff: {strategy: exponential, initial: 1m, max: 5m, jitter: none}
   sideEffects: nonIdempotent   # it writes the repository

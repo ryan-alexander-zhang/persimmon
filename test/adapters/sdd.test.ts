@@ -698,9 +698,13 @@ describe('sdd/v1 over an AcceptanceRecord', () => {
     neverRan.previous = { ...neverRan.record, verifies: [{ ac: 'AC-1', tests: ['claim > a wrong name'] }] } // last round named a test that never ran
     neverRan.previousOutcome = neverRan.testOutcome
     expect((await adapter({ id: 5008, op: 'evaluate', payload: recordPayload(neverRan) })).result.passed).toBe(true) // fixing the name is not dropping a test
-    expect(await recordCodes((a) => { a.record.verifies[0].tests = ['gone']; a.previous = structuredClone(a.record) })).toEqual(['test-missing']) // still named now: missing, not dropped
+    const half = structuredClone(recordExample())
+    half.previous = half.record // without its outcome, test-dropped could check nothing
+    expect(await adapter({ id: 5009, op: 'evaluate', payload: recordPayload(half) })).toMatchObject({ ok: false, error: { code: 'invalid_input', message: 'artifacts.previous and artifacts.previousOutcome come together' } })
+    expect(await recordCodes((a) => { a.record.verifies[0].tests = ['gone']; a.previous = structuredClone(a.record); a.previousOutcome = a.testOutcome })).toEqual(['test-missing']) // still named now: missing, not dropped
     const same = structuredClone(recordExample())
     same.previous = structuredClone(same.record)
+    same.previousOutcome = same.testOutcome
     expect((await adapter({ id: 5007, op: 'evaluate', payload: recordPayload(same) })).result.passed).toBe(true) // last round's tests still run
     expect(await recordCodes((a) => { a.record.openQuestions = [{ id: 'Q-1', question: 'which currency?' }] })).toEqual(['question-open'])
     const r = await adapter({ id: 5004, op: 'evaluate', payload: recordPayload((() => { const a = structuredClone(recordExample()); a.record.openQuestions = [{ id: 'Q-1', question: 'which currency?', resolution: 'EUR' }]; return a })()) })
