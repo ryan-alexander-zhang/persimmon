@@ -413,7 +413,7 @@ _Avoid_: API, engine API, SDK
 
 **Pack**:
 A directory of definitions applied together: `global/` as **Global**, `namespaced/` (Triggers)
-into a **Namespace**. Overridable by name in a Namespace. Two ship: the **SDLC pack**
+into a **Namespace**; `files/` copied into the project by `init`. Overridable by name in a Namespace. Two ship: the **SDLC pack**
 `persimmon init` applies and the **Demo pack** applied by hand. A pack ships artifact kinds as
 KindDefinitions and adds no Resource kind of its own.
 _Avoid_: bundle, library, preset, plugin

@@ -22,6 +22,7 @@ WorkflowRun in team-a ── snapshot walk resolves Namespace, then Global ─�
 |---|---|
 | `global/NN-*.yaml` | Global definitions, multi-document files, applied in file-name order; the author orders dependencies |
 | `namespaced/*.yaml` | Namespaced kinds (Triggers); applied with `-n <namespace>`; `persimmon init` does this into `defaultNamespace` only for the pack it installs |
+| `files/*` | project files: `persimmon init` copies each into the project directory when no file of that name is there; never applied, never stored |
 
 ## Lifecycle
 
@@ -40,6 +41,7 @@ snapshot walk rooted in that Namespace (`04-snapshot.md`). Overrides are ordinar
 | Rule | Enforcer |
 |---|---|
 | an override's input and output port names and types equal the shadowed definition's | static checker at admission |
+| `init` never overwrites a project file: one present is kept and reported `kept <file>`; `CLAUDE.md` becomes a symlink to `AGENTS.md` only when `init` wrote `AGENTS.md` and no `CLAUDE.md` is there; `.persimmon/` is appended to `.gitignore`, created when absent, unless a line already names it | `persimmon init` |
 | a Namespace that needs its own credentials overrides the Executor (`13-executor.md`) | convention |
 
 ## Demo pack content
@@ -117,6 +119,11 @@ Credentials the pack Executors bind are Global names resolved at run time.
   `transient_network` (no Adapter emits `rate_limit`); `lint-script` is dropped, its
   `./scripts/lint.sh` never shipped; `research` declares `workspace: {input: repository}`, else its
   `file` context read the project's README instead of the repository's. Found in UAT.
+- A pack ships project files in `files/`, which `init` copies when absent: the rules a project's
+  agents read belong with the process that defines the artifacts, and `init` had created no
+  `.gitignore`, so `.persimmon/` was committed unless the user knew to ignore it. `init` creates no
+  git repository: persimmon runs in existing repositories too. A file present is never merged; a
+  3-way update like `ainpt update` waits for a user who needs it. Found in design review.
 
 ## Examples
 

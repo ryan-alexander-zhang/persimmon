@@ -77,6 +77,20 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
 | `Plan` | `designs[]`, `tasks[].elements[]` | the `Design`s and their `EL-n` | artifact ids, listed in `designs`; the Design's `block` is the task's. The Spec-to-Design link lives here only |
 | any | prose | `Glossary` terms | by using the term; `aliases` never appear in documents |
 
+## Project files
+
+`packs/sdlc/files/AGENTS.md` is the project's agent rules; `init` places it, with `CLAUDE.md` a
+symlink to it (`20-pack.md`). Every agent in the project reads it: a human's coding agent, and the
+pack's own agents, which run in the project directory.
+
+| Section | Content |
+|---|---|
+| 1-4 | Think Before Coding, Simplicity First, Surgical Changes, Goal-Driven Execution: the ai-native-project-template's wording; a new dependency or a build is an `Adr` |
+| 5 Language Consistency | each context's `Glossary` artifact is its glossary; a conflicting or missing term is resolved in the Glossary, never by a local synonym |
+| 6 Artifact Workflow | the run order (`author-prd`, `domain-discovery`, `architect`, `spec-all`, `design-all`, `plan-all`); artifacts live in the store, read with `persimmon get`, an exported file is a copy; a finding is fixed upstream; an unknown is a `Q-n`; code only against artifacts whose run succeeded, `get --behind` for stale ones |
+| 7 Output Discipline | the template's wording |
+| 8 Persimmon Tasks | an agent a Task runs follows its Task's Prompt over this file, never runs git, writes only where its Task allows |
+
 ## Rules
 
 | Rule | Enforcer |
@@ -269,6 +283,11 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
   real brief with a human at the Gates, so a regression in a prompt, a Task context or a Validator shows
   against artifacts the pack once wrote. The hand-written expense claims example stays: it covers `DecisionTable`,
   which no process produces yet, and a baseline Adr taken before the Architecture. Found in UAT.
+- The project's `AGENTS.md` is pack content, not a fence per Task workspace: the pack's agents run
+  in the project directory and read it, so one file carries the coding rules and the rules for a
+  Task's agent (section 8). example02 and example04 keep their own `AGENTS.md`: a Task workspace
+  inside the persimmon checkout needs its fence, and their rules name the example's files. Found in
+  design review.
 
 ## Examples
 
