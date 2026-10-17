@@ -85,7 +85,7 @@ Run every command inside `examples/example04`.
 ### 1. Install
 
 ```sh
-persimmon init                                    # wrote persimmon.yaml, then the shipped Adapters and the built-in SDLC pack (its `local-reviewer` is the approve step)
+persimmon init                                    # wrote persimmon.yaml, the shipped Adapters, the built-in SDLC pack (its `local-reviewer` is the approve step), then AGENTS.md, CLAUDE.md and .gitignore
 persimmon validate templates.yaml sdlc.yaml       # every line ok
 persimmon apply templates.yaml sdlc.yaml          # 25 created
 persimmon skill install vitest-style --into app   # installed into app/.agents/skills and app/.claude/skills
@@ -157,7 +157,7 @@ error is rejected and the coder gets the whole verdict as `previous`.
 ## Reset
 
 ```sh
-rm -rf .persimmon persimmon.yaml app/src app/test app/coverage app/reports app/.agents app/.claude
+rm -rf .persimmon persimmon.yaml AGENTS.md CLAUDE.md .gitignore app/src app/test app/coverage app/reports app/.agents app/.claude
 git checkout app/package.json
 ```
 

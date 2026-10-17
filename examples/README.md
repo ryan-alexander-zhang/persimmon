@@ -1,7 +1,8 @@
 # Examples
 
 Each directory is one persimmon project that teaches one scenario. Run the CLI inside it;
-`persimmon init` generates `.persimmon/` and `persimmon.yaml` there, both ignored by git.
+`persimmon init` generates `.persimmon/`, `persimmon.yaml`, `AGENTS.md`, a `CLAUDE.md` link to it and
+a `.gitignore` there, all ignored by the checkout's git.
 Every example has a `README.md` with the steps, the expected output and how to reset.
 
 | Example | Scenario | Agents |

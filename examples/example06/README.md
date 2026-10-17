@@ -135,7 +135,7 @@ own.
 ## Reset
 
 ```sh
-rm -rf .persimmon persimmon.yaml
+rm -rf .persimmon persimmon.yaml AGENTS.md CLAUDE.md .gitignore
 ```
 
 ## Known limits

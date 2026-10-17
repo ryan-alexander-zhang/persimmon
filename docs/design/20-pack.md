@@ -41,7 +41,7 @@ snapshot walk rooted in that Namespace (`04-snapshot.md`). Overrides are ordinar
 | Rule | Enforcer |
 |---|---|
 | an override's input and output port names and types equal the shadowed definition's | static checker at admission |
-| `init` never overwrites a project file: one present is kept and reported `kept <file>`; `CLAUDE.md` becomes a symlink to `AGENTS.md` only when `init` wrote `AGENTS.md` and no `CLAUDE.md` is there; `.persimmon/` is appended to `.gitignore`, created when absent, unless a line already names it | `persimmon init` |
+| `init` places the files after the pack applied, so a pack that fails leaves none; only regular files, no dotfile; it never overwrites a project file: one present, a dangling symlink too, is kept and reported `kept <file>`; `CLAUDE.md` becomes a symlink to `AGENTS.md` only when `init` wrote `AGENTS.md` and no `CLAUDE.md` is there, and a `CLAUDE.md` of the project's is reported as not linked; `.persimmon/` is appended to `.gitignore`, created when absent, unless a line already names it | `persimmon init` |
 | a Namespace that needs its own credentials overrides the Executor (`13-executor.md`) | convention |
 
 ## Demo pack content
@@ -113,7 +113,8 @@ Credentials the pack Executors bind are Global names resolved at run time.
   Executors bind Global credential names (`github-token`, `registry-token`). Found in
   implementation.
 - `examples/<nn>/` are projects, not packs: hand-written definitions plus a `README.md` the user
-  follows, `persimmon init` run inside the directory, generated state ignored. The SDLC pack is
+  follows, `persimmon init` run inside the directory, generated state (`.persimmon/`, `persimmon.yaml`, the
+  pack's files, `.gitignore`) ignored by the checkout's `.gitignore`. The SDLC pack is
   installed by `init`; the demo pack and the examples are applied by the user, one scenario each. Found in UAT.
 - Pack content matches the shipped Adapters: `retryOn` names `timeout`, `agent_failed`,
   `transient_network` (no Adapter emits `rate_limit`); `lint-script` is dropped, its

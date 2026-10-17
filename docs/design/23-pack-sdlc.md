@@ -80,16 +80,17 @@ All in group `sdd.persimmon.ai`, Namespaced, Immutable, revisioned, `snapshot: "
 ## Project files
 
 `packs/sdlc/files/AGENTS.md` is the project's agent rules; `init` places it, with `CLAUDE.md` a
-symlink to it (`20-pack.md`). Every agent in the project reads it: a human's coding agent, and the
-pack's own agents, which run in the project directory.
+symlink to it (`20-pack.md`). When `init` placed both, every agent in the project reads it: a
+human's coding agent, and the pack's own agents, which run in the project directory; a project
+that kept its own `AGENTS.md` or `CLAUDE.md` carries section 8 itself.
 
 | Section | Content |
 |---|---|
-| 1-4 | Think Before Coding, Simplicity First, Surgical Changes, Goal-Driven Execution: the ai-native-project-template's wording; a new dependency or a build is an `Adr` |
+| 1-4 | Think Before Coding, Simplicity First, Surgical Changes, Goal-Driven Execution: the ai-native-project-template's wording; a new dependency or a build is an `Adr` for the next `architect` run, the only writer of Adrs |
 | 5 Language Consistency | each context's `Glossary` artifact is its glossary; a conflicting or missing term is resolved in the Glossary, never by a local synonym |
-| 6 Artifact Workflow | the run order (`author-prd`, `domain-discovery`, `architect`, `spec-all`, `design-all`, `plan-all`); artifacts live in the store, read with `persimmon get`, an exported file is a copy; a finding is fixed upstream; an unknown is a `Q-n`; code only against artifacts whose run succeeded, `get --behind` for stale ones |
-| 7 Output Discipline | the template's wording |
-| 8 Persimmon Tasks | an agent a Task runs follows its Task's Prompt over this file, never runs git, writes only where its Task allows |
+| 6 Artifact Workflow | the run order (`author-prd`, `domain-discovery`, `architect`, `spec-all`, `design-all`, `design-system` before a `ui` `design-all`, `plan-all`); artifacts live in the store, read with `persimmon get`, an exported file is a copy; a finding is fixed upstream; an unknown is a `Q-n`; code only against a revision its Gate passed (a loop out of rounds still publishes its rejected revision), `get --behind` for stale ones |
+| 7 Output Discipline | the template's wording, scoped to replies to a human: a Task's documents keep the length their Prompt asks |
+| 8 Persimmon Tasks | an agent a Task runs follows its Task's Prompt over this file; never asks, since a pack agent runs with no one to answer and an agent that stops returns no output: an unknown goes into its output; never runs git or a `persimmon` command, whose store the engine holds; writes only where its Task allows |
 
 ## Rules
 

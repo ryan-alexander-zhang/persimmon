@@ -122,7 +122,7 @@ caused, and `announce/1.2.1.txt` is there.
 ## Reset
 
 ```sh
-rm -rf .persimmon persimmon.yaml build announce paused.yaml notes2.yaml loop.yaml
+rm -rf .persimmon persimmon.yaml AGENTS.md CLAUDE.md .gitignore build announce paused.yaml notes2.yaml loop.yaml
 ```
 
 ## Known limits

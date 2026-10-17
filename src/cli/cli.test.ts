@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, readlinkSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { parse, parseAllDocuments, stringify } from 'yaml'
@@ -185,9 +185,25 @@ describe('persimmon CLI', () => {
     expect(readFileSync(join(dir, '.gitignore'), 'utf8')).toBe('node_modules\n.persimmon/\n')
   })
 
+  it('init writes AGENTS.md beside a CLAUDE.md of the project\'s and says it is not linked; a dangling link is kept; /.persimmon counts as ignored', async () => {
+    writeFileSync(join(dir, 'CLAUDE.md'), 'mine\n')
+    writeFileSync(join(dir, '.gitignore'), '/.persimmon\n')
+    expect([await run('init'), err]).toEqual([0, []])
+    expect(out.filter((l) => /^(wrote|kept|ignored) /.test(l))).toEqual(['wrote persimmon.yaml', 'wrote AGENTS.md', 'kept CLAUDE.md (not linked to AGENTS.md: claude-code agents do not read it)'])
+    expect([readFileSync(join(dir, 'CLAUDE.md'), 'utf8'), readFileSync(join(dir, '.gitignore'), 'utf8')]).toEqual(['mine\n', '/.persimmon\n'])
+    rmSync(join(dir, 'AGENTS.md'))
+    rmSync(join(dir, 'CLAUDE.md'))
+    symlinkSync('gone.md', join(dir, 'AGENTS.md'))
+    out = []
+    expect(await run('init')).toBe(0)
+    expect(out.filter((l) => /^(wrote|kept|ignored) /.test(l))).toEqual(['kept AGENTS.md']) // lstat: a dangling link is present, never written through
+    expect(readlinkSync(join(dir, 'AGENTS.md'))).toBe('gone.md')
+  })
+
   it('init with another pack applies its namespaced/ Triggers; the SDLC pack validates as a file set before any of it is stored', async () => {
     expect([await init({ cwd: dir, out: (l) => out.push(l), err: (l) => err.push(l) }, { pack: 'packs/demo' }), err]).toEqual([0, []])
     expect(out).toContain('created Trigger/on-prd-published') // the pack's Triggers listen in defaultNamespace
+    expect(out.filter((l) => /^(wrote|kept|ignored) /.test(l))).toEqual(['wrote persimmon.yaml', 'ignored .persimmon/ in .gitignore']) // no files/, still ignored
     out = []
     expect(await run('get', 'Workflow')).toBe(0)
     expect(out).toEqual(['Workflow/prd-approval', 'Workflow/prd-create']) // the SDLC pack is not in this store

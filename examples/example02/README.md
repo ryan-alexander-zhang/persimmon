@@ -44,7 +44,7 @@ Run every command inside `examples/example02`.
 ### 1. Create the project and install the definitions
 
 ```sh
-persimmon init                             # wrote persimmon.yaml, then the shipped Adapters and the built-in SDLC pack (unused here)
+persimmon init                             # wrote persimmon.yaml, the shipped Adapters, the built-in SDLC pack (unused here), then AGENTS.md, CLAUDE.md and .gitignore
 persimmon validate spec-to-code.yaml       # every line ok
 persimmon apply spec-to-code.yaml          # 16 created
 ```
@@ -137,7 +137,7 @@ said, `> <tool> <input>` for each call and `< <result>` for what came back.
 ## Reset
 
 ```sh
-rm -rf .persimmon persimmon.yaml app/src app/test app/coverage
+rm -rf .persimmon persimmon.yaml AGENTS.md CLAUDE.md .gitignore app/src app/test app/coverage
 git checkout app/package.json              # a coder may add a bin entry despite AGENTS.md
 ```
 

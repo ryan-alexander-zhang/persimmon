@@ -1,4 +1,4 @@
-import { appendFileSync, copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
+import { appendFileSync, constants, copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, symlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Resource } from '../resource/types.js'
@@ -26,17 +26,21 @@ const present = (p: string) => {
 
 /** The pack's `files/` into the project, each only when absent; `CLAUDE.md` links to an `AGENTS.md` init wrote (20-pack.md). */
 function placeFiles(cli: Cli, dir: string): void {
-  for (const f of existsSync(dir) ? readdirSync(dir).sort() : []) {
+  // regular files only: a directory or a dotfile (.DS_Store) in files/ is not a project file
+  const files = existsSync(dir) ? readdirSync(dir, { withFileTypes: true }).filter((e) => e.isFile() && !e.name.startsWith('.')).map((e) => e.name).sort() : []
+  for (const f of files) {
     if (present(join(cli.cwd, f))) {
       cli.out(`kept ${f}`)
       continue
     }
-    copyFileSync(join(dir, f), join(cli.cwd, f))
+    copyFileSync(join(dir, f), join(cli.cwd, f), constants.COPYFILE_EXCL)
     cli.out(`wrote ${f}`)
-    if (f === 'AGENTS.md' && !present(join(cli.cwd, 'CLAUDE.md'))) {
-      symlinkSync('AGENTS.md', join(cli.cwd, 'CLAUDE.md'))
+    if (f !== 'AGENTS.md') continue
+    const claude = join(cli.cwd, 'CLAUDE.md')
+    if (!present(claude)) {
+      symlinkSync('AGENTS.md', claude)
       cli.out('wrote CLAUDE.md -> AGENTS.md')
-    }
+    } else if (!(lstatSync(claude).isSymbolicLink() && readlinkSync(claude) === 'AGENTS.md')) cli.out('kept CLAUDE.md (not linked to AGENTS.md: claude-code agents do not read it)')
   }
   const ignore = join(cli.cwd, '.gitignore')
   const text = existsSync(ignore) ? readFileSync(ignore, 'utf8') : ''
@@ -71,10 +75,9 @@ export async function init(cli: Cli, o: { pack?: string } = {}): Promise<number>
     cli.out('wrote persimmon.yaml')
   }
   const dir = o.pack ?? packDir()
-  placeFiles(cli, join(dir, 'files'))
   const global = yamlFiles(join(dir, 'global'))
   const namespaced = yamlFiles(join(dir, 'namespaced'))
-  return withEngine(cli, async (engine) => {
+  const code = await withEngine(cli, async (engine) => {
     const a = await applyDocs(cli, engine, shippedAdapters(), { global: true })
     if (global.length === 0) {
       cli.out(`no pack at ${dir}`)
@@ -86,4 +89,7 @@ export async function init(cli: Cli, o: { pack?: string } = {}): Promise<number>
     const c = namespaced.length ? await applyDocs(cli, engine, loadDocs(namespaced) as Resource[], { namespace: engine.dispatch.defaultNamespace }) : 0
     return a || b || c
   })
+  // after the pack applied: a pack that fails leaves no files behind
+  if (code === 0) placeFiles(cli, join(dir, 'files'))
+  return code
 }

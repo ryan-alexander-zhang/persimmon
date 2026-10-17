@@ -131,7 +131,7 @@ persimmon logs TaskRun/idea-to-prd-<hex>-write     # under logs: what claude sai
 ## Reset
 
 ```sh
-rm -rf .persimmon persimmon.yaml
+rm -rf .persimmon persimmon.yaml AGENTS.md CLAUDE.md .gitignore
 ```
 
 ## Known limits

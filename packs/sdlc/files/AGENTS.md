@@ -24,9 +24,9 @@ Before implementing:
 - If you write 200 lines and it could be 50, rewrite it.
 - Reuse before build, in this order: this repo, the framework or starters,
   present dependencies, a maintained open-source library. Build only when none
-  fits; record why in an `Adr`.
-- Every new dependency is an `Adr`: what it supplies, what was compared,
-  why it won.
+  fits; record why: an `Adr` the next `architect` run takes.
+- Every new dependency is an `Adr` for the next `architect` run: what it supplies,
+  what was compared, why it won.
 
 Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
 
@@ -76,24 +76,27 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 ## 6. Artifact Workflow
 
 - The run order: `author-prd`, `domain-discovery`, `architect`, `spec-all`, `design-all`,
-  `plan-all`. Each artifact cites upstream only.
-- Read an artifact with `persimmon get <Kind>/<id>`; `--files <dir>` exports it. An exported
-  file is a copy: change the artifact through its process, never the copy.
+  `design-system` before a `ui` `design-all`, `plan-all`. Each artifact cites upstream only.
+- Read an artifact with `persimmon get <Kind>/<id>`; `--files <dir>` exports its representations,
+  for a kind that has them. An exported file is a copy: change the artifact through its process, never the copy.
 - A Gate's finding is fixed where it points, upstream; never worked around downstream.
 - An unknown is a `Q-n`, never an assumption. What only a domain owner can settle waits for
   the human at a Gate.
-- Write code only against artifacts whose run succeeded. `persimmon get <Kind> --behind`
-  lists the ones that read an outdated input.
+- Write code only against a revision its Gate passed: `persimmon tree <run>` shows `passed`;
+  a loop out of rounds still publishes its rejected revision. `persimmon get <Kind> --behind`
+  lists the revisions that read an outdated input.
 
 ## 7. Output Discipline
 
 One sentence when one sentence answers it; expand only on request. Formatting as
 short as the content: prose for short answers, no headings or bullets over a single
-conclusion. Documents too.
+conclusion. This governs replies to a human, not the documents a Task writes.
 
 ## 8. Persimmon Tasks
 
 An agent a persimmon Task runs:
 - follows its Task's Prompt where it differs from this file;
-- never runs git;
+- never asks and never stops to ask: an unknown goes into its output, a `Q-n` or a hotspot,
+  as its Prompt says;
+- never runs git and runs no `persimmon` command: it reads only its Task's context;
 - writes only where its Task allows, and answers through its output.

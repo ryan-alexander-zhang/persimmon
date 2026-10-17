@@ -68,7 +68,7 @@ Initialize a project, then start a run:
 
 ```sh
 cd <your project>
-persimmon init                                  # creates .persimmon/, persimmon.yaml, AGENTS.md, shipped Adapters and the SDLC pack
+persimmon init                                  # creates .persimmon/, persimmon.yaml, shipped Adapters, the SDLC pack, AGENTS.md (CLAUDE.md links to it), ignores .persimmon/
 persimmon run <Workflow> --input k=v --follow   # starts a WorkflowRun and prints each phase change until done or parked
 ```
 
