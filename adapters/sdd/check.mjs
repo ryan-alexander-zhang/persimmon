@@ -430,7 +430,8 @@ const red = (c) => c.status === 'failed' || c.status === 'errored'
  * record is the builder's claim, the outcome the evidence. `ids`: {plan, spec, taskId} bound beside it; `previous` and
  * `previousOutcome`: the last round's record and tests; a test it named that ran then must still run. A test is named by string equality with a case's `name` or with
  * `classname > name`, never split; cases with the same classname and name (a retried or parameterized test) are one test, red
- * if any of them is. Every finding `error`. */
+ * if any of them is. `baseline`: the tests before build-all; a case red there and red still is tolerated. Every finding
+ * `error` but `suite-baseline` (info) and `baseline-dirty` (warning). */
 export function checkAcceptance({ record, testOutcome, plan, spec, previous, previousOutcome, baseline, ids = {} }) {
   if (!record || !record.task || !Array.isArray(record.verifies)) {
     return [{ severity: 'error', code: 'not-a-record', message: 'content is not an AcceptanceRecord: it has no task or no verifies array' }]
@@ -486,7 +487,11 @@ export function checkAcceptance({ record, testOutcome, plan, spec, previous, pre
     else bad('suite-failed', `${c.classname} > ${c.name} ${c.status}${c.message ? `: ${c.message}` : ''}`)
   }
   if (tolerated.size) findings.push({ severity: 'info', code: 'suite-baseline', message: `${tolerated.size} test case${tolerated.size > 1 ? 's' : ''} red in the baseline, red still: ${[...tolerated].join('; ')}` })
-  if (testOutcome.exitCode !== 0 && !cases.some(red)) bad('suite-exit', `the tests exited ${testOutcome.exitCode} with no test case failing: killed part way, or failed after the tests`)
+  // persimmon never reverts: a baseline taken over uncommitted changes may tolerate a red an earlier build left
+  if (tolerated.size && baseline.dirty) findings.push({ severity: 'warning', code: 'baseline-dirty', message: 'the baseline ran over uncommitted changes: a red it tolerates may be one an earlier build left' })
+  // a tolerated red explains a non-zero exit only when the baseline exited the same: a suite killed or failing after its tests still shows
+  const onlyTolerated = cases.filter(red).every((c) => !named.has(c) && tolerated.has(`${c.classname} > ${c.name}`))
+  if (testOutcome.exitCode !== 0 && onlyTolerated && testOutcome.exitCode !== (cases.some(red) ? baseline.exitCode : 0)) bad('suite-exit', `the tests exited ${testOutcome.exitCode} with no test case failing${cases.some(red) ? ` beyond the baseline's, which exited ${baseline.exitCode}` : ''}: killed part way, or failed after the tests`)
   for (const q of record.openQuestions ?? []) if (!q.resolution) bad('question-open', `${q.id} is open: ${q.question}`)
   return findings
 }

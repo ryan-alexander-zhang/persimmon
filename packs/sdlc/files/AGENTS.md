@@ -92,7 +92,8 @@ Building a Plan task (`build-all`), as the developer's own agent reading an inbo
 - The run waits on you at each task: `.persimmon/inbox/<taskRun>.yaml` is the brief, its
   `reading` the build rules, the Plan, the Spec, the Architecture, the Designs, the Glossary
   and the business rules; in a later round also the last record and what the tests did, with
-  the findings in `inputs.feedback`.
+  the findings in `inputs.feedback`. Under `build-all` it also holds the baseline TestOutcome,
+  the tests `build-all` ran before the first task: a test red there is not yours.
 - The build rules win over sections 1-5 for a build task: a dependency the Architecture does not
   name is a `Q-n`, never installed.
 - Build in the directory `inputs.repository.ref.locator.path` names: the tests run there, with

@@ -710,7 +710,7 @@ describe('sdd/v1 over an AcceptanceRecord', () => {
     expect(await recordCodes((a) => { tests(a)[2]!.status = 'failed'; a.testOutcome.exitCode = 1 })).toEqual(['suite-failed'])
     expect(await recordCodes((a) => { a.testOutcome.exitCode = 137 })).toEqual(['suite-exit'])
     // the baseline (35-build-process.md): a case red before the build and red still is tolerated, as info; one green there is a break
-    const old = (a: Record<string, any>) => { tests(a)[2]!.status = 'failed'; a.testOutcome.exitCode = 1; a.baseline = structuredClone(a.testOutcome) }
+    const old = (a: Record<string, any>) => { tests(a)[2]!.status = 'failed'; a.testOutcome.exitCode = 1; a.baseline = { ...structuredClone(a.testOutcome), dirty: false } }
     const known = structuredClone(recordExample())
     old(known)
     known.testOutcome.tests.push({ ...known.testOutcome.tests[2] }) // retried: one case still
@@ -719,6 +719,11 @@ describe('sdd/v1 over an AcceptanceRecord', () => {
     expect(await recordCodes((a) => { old(a); a.baseline.tests[2].status = 'passed' })).toEqual(['suite-failed']) // green before: a regression
     expect(await recordCodes((a) => { old(a); a.baseline.tests.splice(2, 1) })).toEqual(['suite-failed']) // not there before: a new break
     expect(await recordCodes((a) => { old(a); a.record.verifies[0].tests = [tests(a)[2]!.name] })).toEqual(['test-failed']) // a named test passes, red before or not
+    expect(await recordCodes((a) => { old(a); a.testOutcome.exitCode = 137 })).toEqual(['suite-baseline', 'suite-exit']) // killed: the old red explains exit 1, not 137
+    const dirty = structuredClone(recordExample())
+    old(dirty)
+    dirty.baseline.dirty = true
+    expect((await adapter({ id: 5012, op: 'evaluate', payload: recordPayload(dirty) })).result).toMatchObject({ passed: true, findings: [{ code: 'suite-baseline' }, { severity: 'warning', code: 'baseline-dirty' }] })
     const older = (a: Record<string, any>) => ({ ...a.testOutcome, tests: [...tests(a), { classname: 'test/claim.test.ts', name: 'claim > an older test', status: 'passed' }] })
     expect(await recordCodes((a) => { a.previous = { ...a.record, verifies: [{ scenario: 'AC-1', tests: ['claim > an older test'] }] }; a.previousOutcome = older(a) })).toEqual(['test-dropped'])
     const neverRan = structuredClone(recordExample())

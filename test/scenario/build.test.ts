@@ -1,4 +1,4 @@
-// End to end on SQLite: build-one over T-1 of the worked example (35-build-process.md). The builder is the human
+// End to end on SQLite: build-one, then build-all, over T-1 of the worked example (35-build-process.md). The builder is the human
 // (cli-human/v1, answered with `persimmon complete --file`), the tests run on junit/v1 with a Namespace override of
 // test-runner, the auditor is a human too by an override of auditor, and build-gate checks the record against the
 // tests and the audit: round one is refused by both, round two passes.
@@ -12,7 +12,7 @@ import { runCli } from '../../src/cli/index.js'
 const domain = parseAllDocuments(readFileSync('docs/design/examples/sdlc-domain.yaml', 'utf8')).map((d) => d.toJS())
 const one = (kind: string) => domain.find((d) => d.kind === kind)
 
-describe('scenario: build one Plan task', () => {
+describe('scenario: build a Plan task', () => {
   let dir: string
   let repo: string
   let out: string[]
@@ -106,6 +106,7 @@ describe('scenario: build one Plan task', () => {
     const taskRun = inbox()[0]!.replace(/\.yaml$/, '')
     const form = parse(readFileSync(join(dir, '.persimmon', 'inbox', `${taskRun}.yaml`), 'utf8'))
     expect(form.inputs.baseline.ref).toMatchObject({ kind: 'TestOutcome', id: 'submit-a-claim-plan-baseline' }) // the builder sees what was red before
+    expect(form.reading.map((r: { kind: string }) => r.kind).at(-1)).toBe('TestOutcome') // in its context, not only its inputs
     expect(await run('complete', taskRun, '--file', file('r1.yaml', [{ outputs: { record: one('AcceptanceRecord').spec.content } }]))).toBe(0)
     out = []
     await audit('a1.yaml', [])

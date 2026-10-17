@@ -639,8 +639,8 @@ _Avoid_: test report, implementation report
 **TestOutcome**:
 **Artifact kind** of the SDLC pack: what the project's own tests did once, read from JUnit XML, one
 entry per test case with its status, plus the commit tested. The evidence an **AcceptanceRecord** is
-checked against. The one `build-all` takes before any task is the baseline: a case red there and red
-still is not the build's.
+checked against. The one `build-all` takes before any task is the baseline TestOutcome: a case red
+there and red still is not the build's. Always so named: a bare "baseline" is the arc42 baseline.
 _Avoid_: TestRun (a Run is the engine's), test report, test result, CI run
 
 **Spec**:

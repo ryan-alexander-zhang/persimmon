@@ -738,7 +738,7 @@ spec:
       glossary: {fromInput: glossary}
       rules: {fromInput: rules}
       repository: {fromInput: repository}
-      baseline: {fromInput: baseline, onMissing: omit}
+      baseline: {fromInput: baseline}
     timeout: 76h
   review:
     uses: {kind: Gate, name: build-gate}
@@ -751,7 +751,7 @@ spec:
       previousOutcome: {fromInput: previousOutcome}
       taskId: {fromInput: taskId}
       audit: {fromStep: {stepRef: produce, output: audit}}
-      baseline: {fromInput: baseline, onMissing: omit}
+      baseline: {fromInput: baseline}
     timeout: 5m
   subject: record
   previous: previous
@@ -811,8 +811,11 @@ spec:
         maxIterations: 20
   transitions:
     - id: to-each
-      from: [{stepRef: baseline, outcomes: [Succeeded]}]
-      to: [{stepRef: each}]
+      from: [{stepRef: baseline, outcomes: [Succeeded, Failed]}]
+      to:
+        - {stepRef: each, when: 'steps.baseline.phase == "Succeeded"'}
+        - {terminal: Failed, reason: step_failed} # the test command could not run; steps.baseline.error names the cause
+      dispatch: first
     - id: done
       from: [{stepRef: each, outcomes: [Succeeded, Failed]}]
       to:
