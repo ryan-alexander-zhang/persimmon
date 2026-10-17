@@ -656,6 +656,7 @@ spec:
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: AcceptanceRecord}}, required: false}
     previousOutcome: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+    baseline: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false}
   outputs:
     record: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: AcceptanceRecord}}}
     testOutcome: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}}
@@ -680,6 +681,7 @@ spec:
         previous: {fromInput: previous, onMissing: omit}
         previousOutcome: {fromInput: previousOutcome, onMissing: omit}
         feedback: {fromInput: feedback, onMissing: omit}
+        baseline: {fromInput: baseline, onMissing: omit}
       timeout: 72h
     - id: tests
       uses: {kind: Task, name: run-tests}
@@ -724,6 +726,7 @@ spec:
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     repository: {type: {kind: externalResource, provider: git, type: repository}}
+    baseline: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the tests before build-all; run alone, the suite is green before it"}
   produce:
     uses: {kind: Workflow, name: build-work}
     inputs:
@@ -735,6 +738,7 @@ spec:
       glossary: {fromInput: glossary}
       rules: {fromInput: rules}
       repository: {fromInput: repository}
+      baseline: {fromInput: baseline, onMissing: omit}
     timeout: 76h
   review:
     uses: {kind: Gate, name: build-gate}
@@ -747,6 +751,7 @@ spec:
       previousOutcome: {fromInput: previousOutcome}
       taskId: {fromInput: taskId}
       audit: {fromStep: {stepRef: produce, output: audit}}
+      baseline: {fromInput: baseline, onMissing: omit}
     timeout: 5m
   subject: record
   previous: previous
@@ -755,7 +760,8 @@ spec:
   maxRounds: 3
   timeout: 240h
 ---
-# build-all: every listed Plan task in order (35-build-process.md); `tasks` in ascending T-n, which the Plan's own order is.
+# build-all: the tests once as the baseline, then every listed Plan task in order (35-build-process.md); `tasks` in
+# ascending T-n, which the Plan's own order is.
 apiVersion: persimmon.ai/v1
 kind: Workflow
 metadata: {name: build-all}
@@ -773,8 +779,14 @@ spec:
     built: {type: {kind: value, schema: {type: integer}}}
   outputBindings:
     built: {expression: "steps.each.iterations"}
-  entry: [each]
+  entry: [baseline]
   steps:
+    - id: baseline
+      uses: {kind: Task, name: run-baseline}
+      inputs:
+        plan: {fromInput: plan}
+        repository: {fromInput: repository}
+      timeout: 2h
     - id: each
       uses: {kind: ReviewLoop, name: build-one}
       inputs:
@@ -786,6 +798,7 @@ spec:
         glossary: {fromInput: glossary}
         rules: {fromInput: rules}
         repository: {fromInput: repository}
+        baseline: {fromStep: {stepRef: baseline, output: baseline}}
       timeout: 2400h   # a ceiling for the whole repeat, as spec-all's: ten tasks at a loop's full 240h
       repeat:
         state:
@@ -797,6 +810,9 @@ spec:
         until: "!iteration.outputs.passed || iteration.index >= inputs.tasks.size()"
         maxIterations: 20
   transitions:
+    - id: to-each
+      from: [{stepRef: baseline, outcomes: [Succeeded]}]
+      to: [{stepRef: each}]
     - id: done
       from: [{stepRef: each, outcomes: [Succeeded, Failed]}]
       to:
@@ -804,4 +820,4 @@ spec:
         - {terminal: Failed, reason: build_inconsistent, when: 'steps.each.phase == "Succeeded"'} # the Gate rejected the last round
         - {terminal: Failed, reason: step_failed} # the iteration died before its Gate ran; steps.each.error names the cause
       dispatch: first
-  timeout: 2400h
+  timeout: 2402h

@@ -240,6 +240,7 @@ spec:
     previousOutcome: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the last round's tests; round one has none"}
     taskId: {type: {kind: value, schema: {type: string, pattern: "^T-[0-9]+$"}}}
     audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}, description: "the auditor's verdict on the record"}
+    baseline: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the tests before the build; build-one run alone has none"}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
   validators:
@@ -253,6 +254,7 @@ spec:
         previous: {fromInput: previous, onMissing: omit}
         previousOutcome: {fromInput: previousOutcome, onMissing: omit}
         taskId: {fromInput: taskId}
+        baseline: {fromInput: baseline, onMissing: omit}
     - name: audit
       ref: {kind: Validator, name: acceptance-audited}
       inputs:

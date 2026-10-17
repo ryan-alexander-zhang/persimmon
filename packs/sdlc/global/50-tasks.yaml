@@ -492,6 +492,7 @@ spec:
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: AcceptanceRecord}}, required: false}
     previousOutcome: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "what the tests did last round"}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+    baseline: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the tests before build-all: a case red there is not this task's"}
   outputs:
     record: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: AcceptanceRecord}}, id: {expression: "inputs.plan.id + '-' + inputs.taskId.lowerAscii()"}}
   executorRef: {kind: Executor, name: builder}
@@ -511,6 +512,7 @@ spec:
       - {kind: artifact, input: rules}
       - {kind: artifact, input: previous}
       - {kind: artifact, input: previousOutcome}
+      - {kind: artifact, input: baseline}
     workspace: {input: repository}
     parameters: {effort: high}
   timeout: 72h   # a human's: the developer builds it in their own session
