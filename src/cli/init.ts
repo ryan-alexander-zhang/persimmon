@@ -25,12 +25,23 @@ const present = (p: string) => {
   }
 }
 
+/** `.persimmon/files.json`: file name → digest init wrote; unreadable or not an object is empty, so every file counts as unrecorded and is kept */
+function readRecord(path: string): Record<string, string> {
+  try {
+    const r: unknown = JSON.parse(readFileSync(path, 'utf8'))
+    return r && typeof r === 'object' && !Array.isArray(r) ? (r as Record<string, string>) : {}
+  } catch {
+    return {}
+  }
+}
+
 /** The pack's `files/` into the project when absent, or over one init wrote that nobody edited (its digest in `.persimmon/files.json`); `CLAUDE.md` links to an `AGENTS.md` init wrote (20-pack.md). */
 function placeFiles(cli: Cli, dir: string): void {
   // regular files only: a directory or a dotfile (.DS_Store) in files/ is not a project file
   const files = existsSync(dir) ? readdirSync(dir, { withFileTypes: true }).filter((e) => e.isFile() && !e.name.startsWith('.')).map((e) => e.name).sort() : []
   const record = join(cli.cwd, '.persimmon', 'files.json')
-  const written: Record<string, string> = existsSync(record) ? JSON.parse(readFileSync(record, 'utf8')) : {}
+  const written = readRecord(record)
+  const before = JSON.stringify(written)
   for (const f of files) {
     const to = join(cli.cwd, f)
     const pack = readFileSync(join(dir, f))
@@ -58,7 +69,7 @@ function placeFiles(cli: Cli, dir: string): void {
       cli.out('wrote CLAUDE.md -> AGENTS.md')
     } else if (!(lstatSync(claude).isSymbolicLink() && readlinkSync(claude) === 'AGENTS.md')) cli.out('kept CLAUDE.md (not linked to AGENTS.md: claude-code agents do not read it)')
   }
-  if (files.length) writeFileSync(record, `${JSON.stringify(written, null, 2)}\n`)
+  if (JSON.stringify(written) !== before) writeFileSync(record, `${JSON.stringify(written, null, 2)}\n`)
   const ignore = join(cli.cwd, '.gitignore')
   const text = existsSync(ignore) ? readFileSync(ignore, 'utf8') : ''
   if (text.split('\n').some((l) => l.trim().replace(/^\//, '').replace(/\/$/, '') === '.persimmon')) return

@@ -206,6 +206,19 @@ describe('persimmon CLI', () => {
     out = []
     expect(await run('init')).toBe(0)
     expect([placed(), JSON.parse(readFileSync(record, 'utf8'))]).toEqual([['kept AGENTS.md'], { 'AGENTS.md': digestOf(Buffer.from(pack)) }])
+    writeFileSync(join(dir, 'other.md'), 'an older pack\n')
+    rmSync(join(dir, 'AGENTS.md'))
+    symlinkSync('other.md', join(dir, 'AGENTS.md'))
+    writeFileSync(record, JSON.stringify({ 'AGENTS.md': digestOf(Buffer.from('an older pack\n')) }))
+    out = []
+    expect(await run('init')).toBe(0)
+    expect([placed(), readFileSync(join(dir, 'other.md'), 'utf8')]).toEqual([['kept AGENTS.md'], 'an older pack\n']) // a live link is never written through
+    for (const bad of ['{', 'null', '"x"', '[]']) {
+      rmSync(join(dir, 'AGENTS.md'))
+      writeFileSync(record, bad)
+      out = []
+      expect([await run('init'), err, placed()]).toEqual([0, [], ['wrote AGENTS.md']]) // an unreadable record is empty
+    }
   })
 
   it('init writes AGENTS.md beside a CLAUDE.md of the project\'s and says it is not linked; a dangling link is kept; /.persimmon counts as ignored', async () => {
