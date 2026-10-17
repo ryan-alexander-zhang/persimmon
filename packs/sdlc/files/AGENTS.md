@@ -117,5 +117,5 @@ reading a `.persimmon/inbox/` file in section 6:
 - follows its Task's Prompt where it differs from this file;
 - never asks and never stops to ask: an unknown goes into its output, a `Q-n` or a hotspot,
   as its Prompt says;
-- never runs git and runs no `persimmon` command: it reads only its Task's context;
+- never runs git and runs no `persimmon` command: it reads only its Task's context and workspace;
 - writes only where its Task allows, and answers through its output.

@@ -226,7 +226,7 @@ spec:
   policy: {strategy: all}
   timeout: 72h
 ---
-# build-gate: the evidence of one built Plan task (35-build-process.md); a human review of the diff is the project's, before it commits.
+# build-gate: the evidence of one built Plan task and the auditor's verdict on it (35-build-process.md); a human review of the diff is the project's, before it commits.
 apiVersion: persimmon.ai/v1
 kind: Gate
 metadata: {name: build-gate}

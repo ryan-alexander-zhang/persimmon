@@ -422,7 +422,7 @@ spec:
   timeout: 2h   # a ceiling: a project's override of test-runner cannot change it, and a run ends when its tests end
   sideEffects: idempotent
 ---
-# Whether each test a record names proves its scenario (35-build-process.md): a judge that reads the repository, so a Task in
+# Whether each test a record names proves its scenario (35-build-process.md): the auditor reads the repository, so a Task in
 # build-work and not a Validator's, whose inputs exclude it (14-gate.md). The Gate's acceptance-audited reads the answer.
 apiVersion: persimmon.ai/v1
 kind: Task

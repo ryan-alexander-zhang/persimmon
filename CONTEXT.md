@@ -579,8 +579,9 @@ Who builds a **Plan** task: by default the developer with their own coding agent
 _Avoid_: developer (for the role), coder, implementer, code agent
 
 **Auditor**:
-Who judges whether each test an **AcceptanceRecord** names proves its scenario: the agent the
-Executor `auditor` runs, read only, in Task `audit-acceptance`. Judges fit, never pass or fail.
+Who judges whether each test an **AcceptanceRecord** names proves its scenario: an agent on the
+Executor `auditor`, read only, in Task `audit-acceptance`. An error of its fails the round; whether
+a test passed is never its question.
 _Avoid_: reviewer (a human at a Gate), judge, LLM validator
 
 **Architecture process**:

@@ -15,7 +15,9 @@ ReviewLoop build-one
   produce: Workflow build-work
              Task implement (Executor builder: cli-human/v1; a Namespace override: claude-code/v1) ─▶ AcceptanceRecord
              Task run-tests (Executor test-runner: junit/v1, the project's command) ─▶ TestOutcome
+             Task audit-acceptance (Executor auditor: claude-code/v1, read only) ─▶ audit (ValidationResult)
   review:  Gate build-gate = Validator acceptance-evidence (sdd/v1: record, testOutcome, plan, spec, previous, previousOutcome, taskId)
+                           + Validator acceptance-audited (cel: audit)
   previous, the last testOutcome (carried) and feedback fed back; maxRounds 3
 ```
 
@@ -36,7 +38,7 @@ ReviewLoop build-one
 | Task `implement` | inputs `plan`, `taskId` (value), `spec`, `architecture`, `designs` (artifacts), `glossary`, `rules`, `repository` (the workspace), `previous`, `previousOutcome` (what the tests did last round), `feedback`; output `record`, id `<plan>-<t-n>`; `workspace: {input: repository}`; `sideEffects: nonIdempotent` (it writes the repository); `timeout: 72h`, a human's |
 | Task `run-tests` | inputs `record`, `repository`; output `testOutcome`, id `<record>-tests`; `workspace: {input: repository}`; the `record` input pins the record in the outcome's provenance; `sideEffects: idempotent`; `timeout: 2h`, a ceiling an Executor override cannot raise |
 | Prompt `audit-rules` | for each row of the record, read the named tests in the repository and judge whether they prove the scenario: an `AC-n`'s Given/When/Then with its values, a `QS-n`'s stimulus and its response and measure as one run decides it (the Spec's `delta` replacing what it tightens), a `fitness` one the structure; a test that asserts nothing the scenario says, mocks the thing under test or proves another scenario is `test-unfit`; pass and fail are `acceptance-evidence`'s, not the auditor's; never edit a file |
-| Executor `auditor` | `claude-code/v1`, `type: agent`, `sandbox: read-only`, `model: claude-sonnet-5`: a judge reading a few tests; a Namespace overrides it by name for another model or agent, or with `cli-human/v1` to judge by hand |
+| Executor `auditor` | `claude-code/v1`, `type: agent`, `sandbox: read-only`, `model: claude-sonnet-5`: an auditor reads a few tests; a Namespace overrides it by name for another model or agent |
 | Task `audit-acceptance` | inputs `record`, `testOutcome`, `plan`, `taskId`, `spec`, `architecture`, `repository` (the workspace, read only); output `audit`, a `ValidationResult` value; `workspace: {input: repository}`; `sideEffects: none`; `timeout: 1h` |
 | Validator `acceptance-evidence` | `sdd/v1` over `record`, `testOutcome`, `plan`, `spec`, optionally `previous` and `previousOutcome` (the last round's record and tests), and the value `taskId`; the findings below |
 | Validator `acceptance-audited` | `cel` over the value `audit`: passed when no finding is an `error`, the auditor's findings as they are; the auditor's own `passed` is not read |
@@ -114,7 +116,7 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
 | persimmon never commits: the developer reviews the diff and commits | convention; AGENTS.md section 8 for an Executor's agent |
 | `tasks` in ascending `T-n`: `dependency-forward` makes document order the build order (`23-pack-sdlc.md`) | `plan-consistency` |
 | a bug is a Spec revision with a new `AC-n`, then a Plan revision, then `build-one` | convention (`23-pack-sdlc.md`: a brownfield change is a Spec revision) |
-| `persimmon complete` drains the run: `run-tests`, the Gate and the next round run inside the call, so the developer's agent runs it in the background or without a time limit | AGENTS.md section 6 |
+| `persimmon complete` drains the run: `run-tests`, the auditor (an agent call of up to an hour), the Gate and the next round run inside the call, so the developer's agent runs it in the background or without a time limit | AGENTS.md section 6 |
 
 ## Decisions
 
@@ -148,8 +150,7 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
   entry with its content. Found in design review.
 - Deferred: a baseline outcome for a suite already red; an auditor reviewing a draft before a human
   confirms it, which needs a Gate's Validators to run in order (all run at once, `14-gate.md`).
-  Found in design review. Each lands on this process once it runs.
-  Found in design review.
+  Each lands on this process once it runs. Found in design review.
 - The Executor's command is `configuration.program`, not `command`: the shared runner reserves
   `configuration.command` for the conformance suite's stand-in and refuses it on an applied
   Executor. A glob in `junit` was dropped: maven and gradle write one directory, and a directory
@@ -211,9 +212,14 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
   any other. A value, not a new kind: the verdict is run state the GateResult already carries.
   `passed` is recomputed from the findings, so an auditor answering `passed: true` beside an
   error cannot pass the round. It runs every round, a red one too: one agent call a round, the
-  price of a judge. It judges the names `acceptance-evidence` resolves, not pass or fail. The
-  default model is `claude-sonnet-5`, not the pack's `claude-opus-5`: it reads a few tests and
-  answers one finding list. Found in design review.
+  price of an auditor. It judges the names `acceptance-evidence` resolves, not whether a test
+  passed. The default model is `claude-sonnet-5`, not the pack's `claude-opus-5`: it reads a few
+  tests and answers one finding list. A test it cannot find in the source (a generated or
+  parameterized name) is a warning, never an error the builder could not fix. An auditor that
+  fails (three failed attempts in its hour, or an answer the schema refuses) fails `build-work` and
+  so `build-one`, as a failed test run does: a judgement missing is not a pass. A human auditor is
+  not offered: the Task's hour is an agent's, and the developer's agent answering it would grade
+  its own tests. Found in design review and audit.
 - Proven live on `claude-sonnet-5`: `build-one` over `T-1`, the human builder naming for `QS-3` a real,
   passing test that never applies its stimulus. `acceptance-evidence` passed it; the auditor refused
   it in 18s with `test-unfit`, naming what the test lacks and the test that proves `QS-3`. Round two

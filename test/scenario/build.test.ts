@@ -81,7 +81,7 @@ describe('scenario: build one Plan task', () => {
     out = []
     expect(await run('complete', taskRun, '--file', file('r2.yaml', [{ outputs: { record } }]))).toBe(0)
     out = []
-    await audit('a2.yaml', [{ severity: 'warning', code: 'test-unfit', message: 'AC-3: a value close to the scenario\'s' }]) // a warning passes
+    await audit('a2.yaml', [{ severity: 'warning', code: 'test-doubt', message: 'AC-3: a value close to the scenario\'s' }]) // a warning passes
     expect(out.find((l) => l.startsWith('WorkflowRun   build-one-'))).toMatch(/Succeeded/)
     out = []
     expect(await run('get', 'TestOutcome/submit-a-claim-plan-t-1-tests')).toBe(0)

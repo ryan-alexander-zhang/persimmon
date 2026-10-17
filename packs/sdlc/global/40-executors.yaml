@@ -124,9 +124,8 @@ spec:
   adapter: cli-human/v1
   configuration: {}
 ---
-# Who audits a built Plan task (35-build-process.md): an agent reading the named tests, read only. A judge reading a few tests,
-# so a smaller model than the pack's writers; a Namespace overrides it by name for another model or agent, or with
-# cli-human/v1 to judge by hand.
+# Who audits a built Plan task (35-build-process.md): an agent reading the named tests, read only. It reads a few tests, so a
+# smaller model than the pack's writers; a Namespace overrides it by name for another model or agent.
 apiVersion: persimmon.ai/v1
 kind: Executor
 metadata: {name: auditor}
