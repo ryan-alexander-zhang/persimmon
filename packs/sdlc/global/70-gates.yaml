@@ -225,3 +225,30 @@ spec:
         designSystem: {fromInput: designSystem}
   policy: {strategy: all}
   timeout: 72h
+---
+# build-gate: the evidence of one built Plan task (35-build-process.md); a human review of the diff is the project's, before it commits.
+apiVersion: persimmon.ai/v1
+kind: Gate
+metadata: {name: build-gate}
+spec:
+  inputs:
+    record: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: AcceptanceRecord}}}
+    testOutcome: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}}
+    plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}}
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: AcceptanceRecord}}, required: false, description: "the last round's record; round one has none"}
+    taskId: {type: {kind: value, schema: {type: string, pattern: "^T-[0-9]+$"}}}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
+  validators:
+    - name: evidence
+      ref: {kind: Validator, name: acceptance-evidence}
+      inputs:
+        record: {fromInput: record}
+        testOutcome: {fromInput: testOutcome}
+        plan: {fromInput: plan}
+        spec: {fromInput: spec}
+        previous: {fromInput: previous, onMissing: omit}
+        taskId: {fromInput: taskId}
+  policy: {strategy: all}
+  timeout: 5m

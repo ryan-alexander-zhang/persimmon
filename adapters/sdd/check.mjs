@@ -416,6 +416,58 @@ export function checkPlan({ plan, spec, architecture, designs = {}, ids = {} }) 
   return findings
 }
 
+const red = (c) => c.status === 'failed' || c.status === 'errored'
+
+/** One AcceptanceRecord against the TestOutcome of its round, the Plan task it builds and the Spec (35-build-process.md): the
+ * record is the builder's claim, the outcome the evidence. `ids`: {plan, spec, taskId} bound beside it; `previous`: the last
+ * round's record, whose named tests must still run. A test is named by string equality with a case's `name` or with
+ * `classname > name`, never split. Every finding `error`. */
+export function checkAcceptance({ record, testOutcome, plan, spec, previous, ids = {} }) {
+  if (!record || !record.task || !Array.isArray(record.verifies)) {
+    return [{ severity: 'error', code: 'not-a-record', message: 'content is not an AcceptanceRecord: it has no task or no verifies array' }]
+  }
+  const cases = testOutcome?.tests ?? []
+  if (cases.length === 0) return [{ severity: 'error', code: 'suite-empty', message: `no test case ran (exit ${testOutcome?.exitCode}): ${testOutcome?.outputTail ?? ''}` }]
+  const findings = []
+  const bad = (code, message) => findings.push({ severity: 'error', code, message })
+
+  if (ids.taskId && record.task !== ids.taskId) bad('task-mismatch', `task ${record.task} is not ${ids.taskId}, the task built`)
+  if (ids.plan && record.plan !== ids.plan) bad('plan-mismatch', `plan ${record.plan} is not ${ids.plan}, the Plan evaluated`)
+  if (ids.spec && record.spec !== ids.spec) bad('spec-mismatch', `spec ${record.spec} is not ${ids.spec}, the Spec evaluated`)
+  if (ids.spec && plan?.spec && plan.spec !== ids.spec) bad('spec-mismatch', `the Plan builds ${plan.spec}, not ${ids.spec}, the Spec evaluated`)
+  const task = (plan?.tasks ?? []).find((t) => t.id === record.task)
+  if (!task) bad('unknown-task', `task ${record.task} is not a task of the Plan`)
+  const due = new Set(task?.verifiedBy ?? [])
+  const scenarios = new Set((spec?.stories ?? []).flatMap((s) => (s.acceptance ?? []).map((a) => a.id)))
+
+  const matching = (name) => cases.filter((c) => c.name === name || `${c.classname} > ${c.name}` === name)
+  const named = new Set()
+  const seen = new Set()
+  for (const row of record.verifies) {
+    if (seen.has(row.ac)) bad('ac-duplicate', `${row.ac} has two rows`)
+    seen.add(row.ac)
+    if (task && !due.has(row.ac)) bad('unknown-ac', scenarios.has(row.ac) ? `${row.ac} does not verify ${record.task}` : `${row.ac} is not in the Spec: the Spec was revised after the Plan`)
+    for (const name of row.tests ?? []) {
+      const m = matching(name)
+      if (m.length === 0) bad('test-missing', `${row.ac}: no test case is named ${name}`)
+      else if (m.length > 1) bad('test-ambiguous', `${row.ac}: ${m.length} test cases are named ${name}; name it as classname > name`)
+      else {
+        named.add(m[0])
+        if (red(m[0])) bad('test-failed', `${row.ac}: ${name} ${m[0].status}${m[0].message ? `: ${m[0].message}` : ''}`)
+        else if (m[0].status === 'skipped') bad('test-skipped', `${row.ac}: ${name} was skipped`)
+      }
+    }
+  }
+  for (const ac of due) if (!seen.has(ac)) bad('ac-unrecorded', `${ac} verifies ${record.task} but the record names no test for it`)
+  const current = new Set(record.verifies.flatMap((r) => r.tests ?? []))
+  const dropped = new Set((previous?.verifies ?? []).flatMap((r) => r.tests ?? []).filter((n) => !current.has(n) && matching(n).length === 0))
+  for (const name of dropped) bad('test-dropped', `${name}, named last round, no longer runs`)
+  for (const c of cases) if (!named.has(c) && red(c)) bad('suite-failed', `${c.classname} > ${c.name} ${c.status}${c.message ? `: ${c.message}` : ''}`)
+  if (testOutcome.exitCode !== 0 && !cases.some(red)) bad('suite-exit', `the tests exited ${testOutcome.exitCode} with no test case failing: killed part way, or failed after the tests`)
+  for (const q of record.openQuestions ?? []) if (!q.resolution) bad('question-open', `${q.id} is open: ${q.question}`)
+  return findings
+}
+
 /** One Architecture against the Prd it serves, the BoundedContexts, DomainModels and Glossaries it lists (artifact ids given by
  * `ids`, paired from the artifacts inputs), the BusinessRules the Prd cites and the Adrs it applies (31-architecture-process.md).
  * `ids`: {prd, contexts[], domainModels[], glossaries[], adrs[]}; `adrs` maps an Adr id to its content, `contexts` a BoundedContext

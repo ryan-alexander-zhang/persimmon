@@ -1,6 +1,7 @@
 // sdd/v1: the evaluator Role (19-adapter-roles.md) over the SDLC pack (23-pack-sdlc.md), in four modes.
 // Given a Spec, `evaluate` runs `checkSpec` on it and the Prd, DomainModel, Architecture and BusinessRules it cites and
 // the BoundedContext bound;
+// given an AcceptanceRecord, it runs `checkAcceptance` on it, the TestOutcome, the Plan and the Spec (35-build-process.md);
 // given a Prd, it runs `checkPrd` on it and the BusinessRules of its context; given a Design, it runs `checkDesign` on
 // it and the Architecture, DomainModel and BusinessRules it cites (a ui Design: the DesignSystem bound and the API Designs
 // instead of the DomainModel); given a Plan, it runs `checkPlan` on it, the Spec,
@@ -8,7 +9,7 @@
 // and no Spec, Design or Plan, it runs `checkArchitecture` on it, the Prd, the rules, the contexts, models, glossaries and
 // Adrs (artifacts ports, paired the same way). It answers a ValidationResult (10-ports.md). No Engine callbacks.
 import { createInterface } from 'node:readline'
-import { checkArchitecture, checkCoverage, checkDesign, checkPlan, checkPrd, checkSpec } from './check.mjs'
+import { checkAcceptance, checkArchitecture, checkCoverage, checkDesign, checkPlan, checkPrd, checkSpec } from './check.mjs'
 
 const describe = {
   adapterId: 'sdd/v1',
@@ -34,6 +35,15 @@ const boundDesigns = (payload, artifacts) => {
 
 function evaluate(payload) {
   const artifacts = payload?.artifacts ?? {}
+  if (artifacts.record) {
+    // before the Plan branch: this Validator binds a Plan too (35-build-process.md)
+    const record = required(artifacts, 'record')
+    const notARecord = checkAcceptance({ record }).filter((f) => f.code === 'not-a-record')
+    if (notARecord.length) return { passed: false, findings: notARecord, evidence: [] }
+    const ids = { plan: payload.inputs?.plan?.ref?.id, spec: payload.inputs?.spec?.ref?.id, taskId: payload.inputs?.taskId?.value }
+    const findings = checkAcceptance({ record, testOutcome: required(artifacts, 'testOutcome'), plan: required(artifacts, 'plan'), spec: required(artifacts, 'spec'), previous: artifacts.previous?.content, ids })
+    return { passed: passes(findings), findings, evidence: [] }
+  }
   if (artifacts.plan) {
     const plan = required(artifacts, 'plan')
     const notAPlan = checkPlan({ plan }).filter((f) => f.code === 'not-a-plan')

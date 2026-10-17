@@ -153,7 +153,7 @@ name`; a name is never split (vitest's own `name` holds ` > `).
 
 - `docs/design/examples/sdlc-domain.yaml`: `AcceptanceRecord/submit-a-claim-plan-t-1`, the tests
   proving `AC-1` and `AC-3` of `T-1`, and `TestOutcome/submit-a-claim-plan-t-1-tests`, the vitest
-  run they are named in, three test cases passed.
+  run they are named in, three test cases passed; pass `checkAcceptance` (`test/adapters/sdd.test.ts`).
 
 ## Units
 

@@ -202,3 +202,22 @@ spec:
     taskRef: {kind: Task, name: confirm-design-system}
     resultOutput: result
   timeout: 72h
+---
+# acceptance-evidence: sdd/v1 checks an AcceptanceRecord against the TestOutcome of its round, the Plan task and the Spec
+# (35-build-process.md): the record is the builder's claim, the outcome the evidence.
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: acceptance-evidence}
+spec:
+  inputs:
+    record: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: AcceptanceRecord}}}
+    testOutcome: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}}
+    plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}}
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: AcceptanceRecord}}, required: false, description: "the last round's record: a test it named that no longer runs is test-dropped"}
+    taskId: {type: {kind: value, schema: {type: string, pattern: "^T-[0-9]+$"}}, required: false, description: "the task built; the record's `task` must be it"}
+  evaluator:
+    type: adapter
+    adapter: sdd/v1
+    configuration: {}
+  timeout: 1m
