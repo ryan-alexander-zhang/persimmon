@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, readlinkSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { parse, parseAllDocuments, stringify } from 'yaml'
@@ -163,6 +163,27 @@ describe('persimmon CLI', () => {
     expect(await run('apply', file('run.yaml', [run1]), '--global')).toBe(1) // Namespaced kind
     expect(err.at(-1)).toMatch(/--global does not apply/)
   }, 30_000)
+
+  it('init places the pack files when absent, links CLAUDE.md to the AGENTS.md it wrote, and ignores .persimmon/ once (20-pack.md)', async () => {
+    const placed = () => out.filter((l) => /^(wrote|kept|ignored) /.test(l))
+    expect([await run('init'), err]).toEqual([0, []])
+    expect(placed()).toEqual(['wrote persimmon.yaml', 'wrote AGENTS.md', 'wrote CLAUDE.md -> AGENTS.md', 'ignored .persimmon/ in .gitignore'])
+    expect(readFileSync(join(dir, 'AGENTS.md'), 'utf8')).toBe(readFileSync('packs/sdlc/files/AGENTS.md', 'utf8'))
+    expect(readlinkSync(join(dir, 'CLAUDE.md'))).toBe('AGENTS.md')
+    expect(readFileSync(join(dir, '.gitignore'), 'utf8')).toBe('.persimmon/\n')
+    out = []
+    expect(await run('init')).toBe(0)
+    expect(placed()).toEqual(['kept AGENTS.md']) // never overwritten, never ignored twice
+  })
+
+  it('init keeps a project\'s own AGENTS.md, links no CLAUDE.md to it, and appends to its .gitignore', async () => {
+    writeFileSync(join(dir, 'AGENTS.md'), 'mine\n')
+    writeFileSync(join(dir, '.gitignore'), 'node_modules')
+    expect([await run('init'), err]).toEqual([0, []])
+    expect(out.filter((l) => /^(kept|ignored) /.test(l))).toEqual(['kept AGENTS.md', 'ignored .persimmon/ in .gitignore'])
+    expect([readFileSync(join(dir, 'AGENTS.md'), 'utf8'), existsSync(join(dir, 'CLAUDE.md'))]).toEqual(['mine\n', false])
+    expect(readFileSync(join(dir, '.gitignore'), 'utf8')).toBe('node_modules\n.persimmon/\n')
+  })
 
   it('init with another pack applies its namespaced/ Triggers; the SDLC pack validates as a file set before any of it is stored', async () => {
     expect([await init({ cwd: dir, out: (l) => out.push(l), err: (l) => err.push(l) }, { pack: 'packs/demo' }), err]).toEqual([0, []])

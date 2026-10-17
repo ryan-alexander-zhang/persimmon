@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs'
+import { appendFileSync, copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Resource } from '../resource/types.js'
@@ -12,6 +12,37 @@ const root = () => join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 /** `packs/sdlc` next to the package root, wherever the binary runs from; `packs/demo` is applied by hand. */
 export function packDir(): string {
   return join(root(), 'packs', 'sdlc')
+}
+
+/** lstat, not exists: a dangling symlink is a file present */
+const present = (p: string) => {
+  try {
+    lstatSync(p)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** The pack's `files/` into the project, each only when absent; `CLAUDE.md` links to an `AGENTS.md` init wrote (20-pack.md). */
+function placeFiles(cli: Cli, dir: string): void {
+  for (const f of existsSync(dir) ? readdirSync(dir).sort() : []) {
+    if (present(join(cli.cwd, f))) {
+      cli.out(`kept ${f}`)
+      continue
+    }
+    copyFileSync(join(dir, f), join(cli.cwd, f))
+    cli.out(`wrote ${f}`)
+    if (f === 'AGENTS.md' && !present(join(cli.cwd, 'CLAUDE.md'))) {
+      symlinkSync('AGENTS.md', join(cli.cwd, 'CLAUDE.md'))
+      cli.out('wrote CLAUDE.md -> AGENTS.md')
+    }
+  }
+  const ignore = join(cli.cwd, '.gitignore')
+  const text = existsSync(ignore) ? readFileSync(ignore, 'utf8') : ''
+  if (text.split('\n').some((l) => l.trim().replace(/^\//, '').replace(/\/$/, '') === '.persimmon')) return
+  appendFileSync(ignore, `${text && !text.endsWith('\n') ? '\n' : ''}.persimmon/\n`)
+  cli.out('ignored .persimmon/ in .gitignore')
 }
 
 const yamlFiles = (dir: string) => (existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.yaml')).sort().map((f) => join(dir, f)) : [])
@@ -31,7 +62,7 @@ export function shippedAdapters(): Resource[] {
     })
 }
 
-/** `persimmon init`: create `.persimmon/`, a default `persimmon.yaml`, apply the SDLC pack (20-pack.md). */
+/** `persimmon init`: create `.persimmon/`, a default `persimmon.yaml`, place the pack's files, apply the SDLC pack (20-pack.md). */
 export async function init(cli: Cli, o: { pack?: string } = {}): Promise<number> {
   mkdirSync(join(cli.cwd, '.persimmon', 'inbox'), { recursive: true })
   const cfg = join(cli.cwd, 'persimmon.yaml')
@@ -40,6 +71,7 @@ export async function init(cli: Cli, o: { pack?: string } = {}): Promise<number>
     cli.out('wrote persimmon.yaml')
   }
   const dir = o.pack ?? packDir()
+  placeFiles(cli, join(dir, 'files'))
   const global = yamlFiles(join(dir, 'global'))
   const namespaced = yamlFiles(join(dir, 'namespaced'))
   return withEngine(cli, async (engine) => {
