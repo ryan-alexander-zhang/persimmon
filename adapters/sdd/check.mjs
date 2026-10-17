@@ -431,7 +431,7 @@ const red = (c) => c.status === 'failed' || c.status === 'errored'
  * `previousOutcome`: the last round's record and tests; a test it named that ran then must still run. A test is named by string equality with a case's `name` or with
  * `classname > name`, never split; cases with the same classname and name (a retried or parameterized test) are one test, red
  * if any of them is. Every finding `error`. */
-export function checkAcceptance({ record, testOutcome, plan, spec, previous, previousOutcome, ids = {} }) {
+export function checkAcceptance({ record, testOutcome, plan, spec, previous, previousOutcome, baseline, ids = {} }) {
   if (!record || !record.task || !Array.isArray(record.verifies)) {
     return [{ severity: 'error', code: 'not-a-record', message: 'content is not an AcceptanceRecord: it has no task or no verifies array' }]
   }
@@ -477,7 +477,15 @@ export function checkAcceptance({ record, testOutcome, plan, spec, previous, pre
   const ranBefore = (n) => (previousOutcome?.tests ?? []).some((c) => c.name === n || `${c.classname} > ${c.name}` === n)
   const dropped = new Set((previous?.verifies ?? []).flatMap((r) => r.tests ?? []).filter((n) => !current.has(n) && ranBefore(n) && matching(n).length === 0))
   for (const name of dropped) bad('test-dropped', `${name}, named last round, no longer runs`)
-  for (const c of cases) if (!named.has(c) && red(c)) bad('suite-failed', `${c.classname} > ${c.name} ${c.status}${c.message ? `: ${c.message}` : ''}`)
+  // a case red before the build is not the build's: tolerated while still red, listed; one the baseline lacks or had green is a break
+  const redBefore = new Set((baseline?.tests ?? []).filter(red).map((c) => `${c.classname} > ${c.name}`))
+  const tolerated = new Set()
+  for (const c of cases) {
+    if (named.has(c) || !red(c)) continue
+    if (redBefore.has(`${c.classname} > ${c.name}`)) tolerated.add(`${c.classname} > ${c.name}`)
+    else bad('suite-failed', `${c.classname} > ${c.name} ${c.status}${c.message ? `: ${c.message}` : ''}`)
+  }
+  if (tolerated.size) findings.push({ severity: 'info', code: 'suite-baseline', message: `${tolerated.size} test case${tolerated.size > 1 ? 's' : ''} red in the baseline, red still: ${[...tolerated].join('; ')}` })
   if (testOutcome.exitCode !== 0 && !cases.some(red)) bad('suite-exit', `the tests exited ${testOutcome.exitCode} with no test case failing: killed part way, or failed after the tests`)
   for (const q of record.openQuestions ?? []) if (!q.resolution) bad('question-open', `${q.id} is open: ${q.question}`)
   return findings

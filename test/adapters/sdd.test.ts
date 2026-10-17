@@ -709,6 +709,16 @@ describe('sdd/v1 over an AcceptanceRecord', () => {
   it('fails a red test no row names, a non-zero exit with nothing red, a test the last round named that no longer runs, an open question', async () => {
     expect(await recordCodes((a) => { tests(a)[2]!.status = 'failed'; a.testOutcome.exitCode = 1 })).toEqual(['suite-failed'])
     expect(await recordCodes((a) => { a.testOutcome.exitCode = 137 })).toEqual(['suite-exit'])
+    // the baseline (35-build-process.md): a case red before the build and red still is tolerated, as info; one green there is a break
+    const old = (a: Record<string, any>) => { tests(a)[2]!.status = 'failed'; a.testOutcome.exitCode = 1; a.baseline = structuredClone(a.testOutcome) }
+    const known = structuredClone(recordExample())
+    old(known)
+    known.testOutcome.tests.push({ ...known.testOutcome.tests[2] }) // retried: one case still
+    const tolerated = await adapter({ id: 5011, op: 'evaluate', payload: recordPayload(known) })
+    expect(tolerated.result).toMatchObject({ passed: true, findings: [{ severity: 'info', code: 'suite-baseline', message: '1 test case red in the baseline, red still: test/claim.test.ts > claim > a drafted claim starts with no lines' }] })
+    expect(await recordCodes((a) => { old(a); a.baseline.tests[2].status = 'passed' })).toEqual(['suite-failed']) // green before: a regression
+    expect(await recordCodes((a) => { old(a); a.baseline.tests.splice(2, 1) })).toEqual(['suite-failed']) // not there before: a new break
+    expect(await recordCodes((a) => { old(a); a.record.verifies[0].tests = [tests(a)[2]!.name] })).toEqual(['test-failed']) // a named test passes, red before or not
     const older = (a: Record<string, any>) => ({ ...a.testOutcome, tests: [...tests(a), { classname: 'test/claim.test.ts', name: 'claim > an older test', status: 'passed' }] })
     expect(await recordCodes((a) => { a.previous = { ...a.record, verifies: [{ scenario: 'AC-1', tests: ['claim > an older test'] }] }; a.previousOutcome = older(a) })).toEqual(['test-dropped'])
     const neverRan = structuredClone(recordExample())

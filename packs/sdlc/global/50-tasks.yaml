@@ -404,6 +404,23 @@ spec:
   timeout: 72h
   sideEffects: none
 ---
+# The project's tests before build-all builds any task (35-build-process.md): the cases red here are not the build's to fix.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: run-baseline}
+spec:
+  inputs:
+    plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}}
+    repository: {type: {kind: externalResource, provider: git, type: repository}, description: "the project's code, before the build"}
+  outputs:
+    baseline: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, id: {expression: "inputs.plan.id + '-baseline'"}}
+  executorRef: {kind: Executor, name: test-runner}
+  action:
+    instructions: Run the project's tests in the repository and answer what their JUnit XML says.
+    workspace: {input: repository}
+  timeout: 2h   # as run-tests'
+  sideEffects: idempotent
+---
 # The project's own tests after a build round (35-build-process.md): the evidence the AcceptanceRecord is checked against.
 # `record` is an input so the TestOutcome's provenance pins the record it followed.
 apiVersion: persimmon.ai/v1

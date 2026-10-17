@@ -217,6 +217,7 @@ spec:
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: AcceptanceRecord}}, required: false, description: "the last round's record"}
     previousOutcome: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the last round's tests: a test the last record named that ran then and runs no more is test-dropped"}
     taskId: {type: {kind: value, schema: {type: string, pattern: "^T-[0-9]+$"}}, required: false, description: "the task built; the record's `task` must be it"}
+    baseline: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the tests before the build: a case red there and red still is tolerated"}
   evaluator:
     type: adapter
     adapter: sdd/v1
