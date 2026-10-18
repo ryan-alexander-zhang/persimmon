@@ -899,8 +899,8 @@ describe('sdd/v1 over a DomainModel: coverage', () => {
     const outside = structuredClone(content('DomainModel'))
     outside.externalSystems = [{ name: 'Ledger', emits: [outside.events[0].name] }]
     expect((await findings(outside, [])).findings.find((f) => f.message.startsWith(`event ${outside.events[0].name}:`))).toEqual({ severity: 'info', code: 'unrealised-internal', message: `event ${outside.events[0].name}: emitted by Ledger, outside the model; no Design of expenses-model publishes it` })
-    expect(names.filter((n) => n.startsWith('readModel '))).toEqual(['readModel Export Status View'])
-    expect(names.filter((n) => n.startsWith('aggregate '))).toEqual(['aggregate AG-1', 'aggregate AG-2', 'aggregate AG-3']) // no data-schema Design yet
+    expect(names.filter((n) => n.startsWith('readModel '))).toEqual([]) // GET /claims/exports realises Export Status View
+    expect(names.filter((n) => n.startsWith('aggregate '))).toEqual(['aggregate AG-2', 'aggregate AG-3']) // GET /claims/{claimId} realises AG-1; no data-schema Design yet
     expect(names.filter((n) => n.startsWith('event ')).length).toBe(content('DomainModel').events.length) // no async-api Design yet
     expect(r.findings[0].message).toBe('command Set Risk Flag: no Design of expenses-model realises it')
   })

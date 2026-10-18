@@ -930,7 +930,7 @@ spec:
       mediaType: application/openapi+yaml
       content: |
         openapi: 3.1.0
-        info: {title: Claims API, version: "1", description: the caller is the SSO identity; an employee sees their own claims, an approver those routed to them, finance every claim}
+        info: {title: Claims API, version: "1", description: the caller is the SSO identity; an employee sees their own claims, an approver those routed to them, finance the export status of every approved claim}
         components:
           parameters:
             claimId: {name: claimId, in: path, required: true, schema: {type: string}}
@@ -960,6 +960,7 @@ spec:
                 lines: {type: array, items: {$ref: "#/components/schemas/ClaimLine"}}
             ClaimSummary: {type: object, required: [id, total], properties: {id: {type: string}, total: {type: number}, submissionDate: {type: string, format: date}}}
             ClaimToDecide: {type: object, required: [id, total, riskFlag], properties: {id: {type: string}, total: {type: number}, riskFlag: {type: boolean}}}
+            ExportStatus: {type: object, required: [id, total], properties: {id: {type: string}, total: {type: number}, exportRecord: {type: string, description: the export record of the claim; absent while it waits}}}
             Trip: {type: object, required: [days, destinationCountry, date], properties: {days: {type: integer, minimum: 1}, destinationCountry: {type: string}, date: {type: string, format: date, description: the first day; the per diem line's date}}}
             Refusal: {type: object, required: [findings], properties: {findings: {type: array, minItems: 1, items: {$ref: "#/components/schemas/Finding"}}}}
             Decision: {type: object, required: [reason], properties: {reason: {type: string}}}
@@ -977,8 +978,20 @@ spec:
             get:
               operationId: claimsToDecide
               responses: {"200": {description: the claims routed to the caller as approver, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/ClaimToDecide"}}}}}}
+          /claims/exports:
+            get:
+              operationId: exportStatus
+              responses: {"200": {description: every approved claim, exported or waiting, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/ExportStatus"}}}}}}
+          /claims/{claimId}:
+            parameters: [{$ref: "#/components/parameters/claimId"}]
+            get:
+              operationId: getClaim
+              responses: {"200": {description: the claim with its lines and findings, for its employee, its approver or finance, content: {application/json: {schema: {$ref: "#/components/schemas/Claim"}}}}}
           /claims/{claimId}/lines/{lineId}/receipt:
             parameters: [{$ref: "#/components/parameters/claimId"}, {$ref: "#/components/parameters/lineId"}]
+            get:
+              operationId: getReceipt
+              responses: {"200": {description: the receipt as stored, read by its digest, content: {application/octet-stream: {schema: {type: string, format: binary}}}}}
             put:
               operationId: attachReceipt
               requestBody: {required: true, content: {application/octet-stream: {schema: {type: string, format: binary}}}}
@@ -1014,7 +1027,9 @@ spec:
             post:
               operationId: rejectClaim
               requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/Decision"}}}}
-              responses: {"200": {description: rejected with the reason, content: {application/json: {schema: {$ref: "#/components/schemas/Claim"}}}}}
+              responses:
+                "200": {description: rejected with the reason, content: {application/json: {schema: {$ref: "#/components/schemas/Claim"}}}}
+                "422": {description: refused; the caller is the claim's employee, content: {application/json: {schema: {$ref: "#/components/schemas/Refusal"}}}}
     elements:
       - {id: EL-1, name: POST /claims, realises: {kind: command, name: Draft Claim}}
       - {id: EL-2, name: "PUT /claims/{claimId}/lines/{lineId}/receipt", realises: {kind: command, name: Attach Receipt}}
@@ -1023,8 +1038,11 @@ spec:
       - {id: EL-5, name: "POST /claims/{claimId}/trips", realises: {kind: command, name: Add Trip}, rules: [BR-4]}
       - {id: EL-6, name: "POST /claims/{claimId}/route", realises: {kind: command, name: Route Claim}, rules: [BR-7, BR-8, BR-10]}
       - {id: EL-7, name: "POST /claims/{claimId}/approval", realises: {kind: command, name: Approve Claim}, rules: [BR-3, BR-5]}
-      - {id: EL-8, name: "POST /claims/{claimId}/rejection", realises: {kind: command, name: Reject Claim}}
+      - {id: EL-8, name: "POST /claims/{claimId}/rejection", realises: {kind: command, name: Reject Claim}, rules: [BR-5]}
       - {id: EL-9, name: GET /claims/to-decide, realises: {kind: readModel, name: Claims To Decide View}}
+      - {id: EL-10, name: GET /claims/exports, realises: {kind: readModel, name: Export Status View}}
+      - {id: EL-11, name: "GET /claims/{claimId}", realises: {kind: aggregate, name: AG-1}}
+      - {id: EL-12, name: "GET /claims/{claimId}/lines/{lineId}/receipt", realises: {kind: aggregate, name: AG-1}}
     rules: [BR-2, BR-3, BR-4, BR-5, BR-7, BR-8, BR-10]
     decisions: [adr-receipts-as-blobs, adr-routing-in-core]
     openQuestions:
