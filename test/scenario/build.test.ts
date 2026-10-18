@@ -35,12 +35,12 @@ describe('scenario: build a Plan task', () => {
     rmSync(repo, { recursive: true, force: true })
   })
 
-  // init, the upstream, a test-runner writing the three T-1 tests passing (and `extra` cases), a human auditor
+  // init, the upstream, a test-runner writing the five T-1 tests passing (and `extra` cases), a human auditor
   const setup = async (extra = '') => {
     expect(await run('init')).toBe(0)
     const upstream = ['Plan', 'Spec', 'Architecture', 'Design', 'Glossary', 'BusinessRules'].map(one)
     for (const [i, doc] of upstream.entries()) expect(await run('create', file(`upstream-${i}.yaml`, [doc]))).toBe(0) // create stores one document
-        const junit = '<testsuites><testsuite name="claim"><testcase classname="test/claim.test.ts" name="claim &gt; a 30 EUR meals line without a receipt is not complete and names BR-2"/><testcase classname="test/claim.test.ts" name="claim &gt; a per diem line needs no receipt"/><testcase classname="test/claim.test.ts" name="claim &gt; attaching a receipt to another employee&apos;s claim by URL is refused and logged"/>' + extra + '</testsuite></testsuites>'
+        const junit = '<testsuites><testsuite name="claim"><testcase classname="test/claim.test.ts" name="claim &gt; a 30 EUR meals line without a receipt is not complete and names BR-2"/><testcase classname="test/claim.test.ts" name="claim &gt; a per diem line needs no receipt"/><testcase classname="test/claim.test.ts" name="claim &gt; attaching a receipt to another employee&apos;s claim by URL is refused and logged"/><testcase classname="test/claim.test.ts" name="claim &gt; drafting a claim records each line&apos;s amount, date and category"/><testcase classname="test/claim.test.ts" name="claim &gt; a 25.00 EUR taxi line without a receipt is not complete and names BR-2"/>' + extra + '</testsuite></testsuites>'
     const runner = { apiVersion: 'persimmon.ai/v1', kind: 'Executor', metadata: { name: 'test-runner', namespace: 'default' }, spec: { type: 'script', adapter: 'junit/v1', configuration: { program: [process.execPath, '-e', `require('node:fs').writeFileSync('junit.xml', ${JSON.stringify(junit)})`], junit: 'junit.xml' } } }
     expect(await run('apply', file('runner.yaml', [runner]), '-n', 'default')).toBe(0)
     const auditor = { apiVersion: 'persimmon.ai/v1', kind: 'Executor', metadata: { name: 'auditor', namespace: 'default' }, spec: { type: 'human', adapter: 'cli-human/v1', configuration: {} } }

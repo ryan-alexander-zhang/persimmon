@@ -121,5 +121,5 @@ nothing: the schema refuses those (`minItems: 1`).
 ## Examples
 
 - `docs/design/examples/sdlc-domain.yaml`: the `Spec` of `CAP-1`: three stories, six
-  requirements, seven scenarios; passes `checkSpec` against the Prd, DomainModel, Architecture and
+  requirements, nine scenarios; passes `checkSpec` against the Prd, DomainModel, Architecture and
   BusinessRules beside it (`test/adapters/sdd.test.ts`).

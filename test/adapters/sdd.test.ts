@@ -142,9 +142,9 @@ describe('sdd/v1', () => {
     expect(await codes((a) => { a.spec.requirements[5].id = 'FR-2' })).toEqual(['unknown-requirement', 'id-sequence']) // FR-2 twice: the second is not above FR-5
     expect(await codes((a) => { a.spec.stories[1].id = 'US-5' })).toEqual(['id-sequence'])
     expect(await codes((a) => { a.spec.stories[1].acceptance[0].id = 'AC-1' })).toEqual(['id-sequence']) // AC-1 under US-1 and US-2: unique across the Spec
-    expect(await codes((a) => { a.spec.stories[0].acceptance[1].id = 'AC-9' })).toEqual(['id-sequence']) // AC-1, AC-9, AC-3: increasing within the story
+    expect(await codes((a) => { a.spec.stories[0].acceptance[2].id = 'AC-0' })).toEqual(['id-sequence']) // AC-1, AC-2, AC-0: increasing within the story
     const added = structuredClone(example())
-    added.spec.stories[0].acceptance.push({ ...added.spec.stories[0].acceptance[0], id: 'AC-8' }) // a revision's new scenario under the first story
+    added.spec.stories[0].acceptance.push({ ...added.spec.stories[0].acceptance[0], id: 'AC-10' }) // a revision's new scenario under the first story
     expect((await adapter({ id: ++id, op: 'evaluate', payload: payload(added) })).result).toMatchObject({ passed: true, findings: [] })
     expect(await codes((a) => { a.spec.openQuestions[0].id = 'Q-2' })).toEqual(['id-sequence']) // Q-2, Q-2, Q-3: the duplicate is the second
   })
@@ -597,18 +597,18 @@ describe('sdd/v1 over a Plan', () => {
 
   it('fails a requirement or scenario the Spec lacks, and one no task covers or verifies', async () => {
     expect(await planCodes((a) => { a.plan.tasks[3].covers = ['FR-9'] })).toEqual(['unknown-requirement', 'requirement-unplanned'])
-    expect(await planCodes((a) => { a.plan.tasks[3].verifiedBy = ['AC-9'] })).toEqual(['unknown-scenario', 'scenario-unverified'])
+    expect(await planCodes((a) => { a.plan.tasks[3].verifiedBy = ['AC-99'] })).toEqual(['unknown-scenario', 'scenario-unverified'])
   })
 
   it('a build quality scenario the Spec cites verifies a task; one not cited or not at build is refused (35-build-process.md)', async () => {
     const qs = (a: ReturnType<typeof planExample>) => a.architecture.qualityScenarios.find((q: { id: string }) => q.id === 'QS-3')
-    expect(await planCodes((a) => { a.plan.tasks[0].verifiedBy = ['AC-1', 'AC-3'] })).toEqual(['scenario-unverified'])
+    expect(await planCodes((a) => { a.plan.tasks[0].verifiedBy = ['AC-1', 'AC-3', 'AC-8', 'AC-9'] })).toEqual(['scenario-unverified'])
     expect(await planCodes((a) => { a.plan.tasks[0].verifiedBy.push('QS-2') })).toEqual(['unknown-scenario']) // build, but not cited
     expect(await planCodes((a) => { a.plan.tasks[0].verifiedBy.push('QS-1') })).toEqual(['scenario-not-build']) // cited, at release
     expect(await planCodes((a) => { a.spec.qualities.push({ scenario: 'QS-9' }); a.plan.tasks[0].verifiedBy.push('QS-9') })).toEqual(['unknown-scenario']) // cited, but the Architecture has none
     const released = structuredClone(planExample())
     Object.assign(qs(released), { method: 'load', provenAt: 'release' })
-    released.plan.tasks[0].verifiedBy = ['AC-1', 'AC-3']
+    released.plan.tasks[0].verifiedBy = ['AC-1', 'AC-3', 'AC-8', 'AC-9']
     expect((await adapter({ id: 4009, op: 'evaluate', payload: planPayload(released) })).result.passed).toBe(true) // a release scenario is not the build's
   })
 

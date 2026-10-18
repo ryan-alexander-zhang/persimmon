@@ -839,6 +839,18 @@ spec:
             given: [a drafted claim with one per diem line of 120 EUR and no receipt]
             when: [the employee opens the claim]
             then: [the claim shows as complete]
+          # AC-8 and AC-9 came after AC-7, found by the auditor (27-spec-process.md): a scenario added later takes the next
+          # number under its own story
+          - id: AC-8
+            title: Drafting a claim records each line
+            given: [no claim of the employee]
+            when: [the employee drafts a claim with one taxi line of 24.99 EUR dated 2026-03-02 and no receipt]
+            then: [the claim shows one taxi line of 24.99 EUR dated 2026-03-02, the claim shows as complete]
+          - id: AC-9
+            title: A 25.00 EUR taxi line without a receipt shows the claim as not complete
+            given: [a drafted claim with one taxi line of 25.00 EUR and no receipt]
+            when: [the employee opens the claim]
+            then: [the claim shows as not complete, naming the taxi line and BR-2]
       - id: US-2
         role: employee
         goal: submit a claim and learn at once which line and which rule hold it back
@@ -1032,7 +1044,7 @@ spec:
         description: The Claim aggregate, its lines, the BR-2 completeness check as a read of the claim, and the two operations that build a draft.
         block: BB-1
         covers: [FR-1, FR-2]
-        verifiedBy: [AC-1, AC-3, QS-3]  # QS-3: the receipt URL names a claim id; another employee's is refused
+        verifiedBy: [AC-1, AC-3, AC-8, AC-9, QS-3]  # QS-3: the receipt URL names a claim id; another employee's is refused
         elements:
           - {design: claims-api, element: EL-1}
           - {design: claims-api, element: EL-2}
@@ -1080,6 +1092,10 @@ spec:
         tests: [claim > a 30 EUR meals line without a receipt is not complete and names BR-2]
       - scenario: AC-3
         tests: [claim > a per diem line needs no receipt]
+      - scenario: AC-8
+        tests: ["claim > drafting a claim records each line's amount, date and category"]
+      - scenario: AC-9
+        tests: [claim > a 25.00 EUR taxi line without a receipt is not complete and names BR-2]
       - scenario: QS-3
         tests: ["claim > attaching a receipt to another employee's claim by URL is refused and logged"]
     summary: The Claim aggregate holds its lines; a drafted claim reads as complete only when every line BR-2 requires a receipt for has one.
@@ -1101,3 +1117,5 @@ spec:
       - {classname: test/claim.test.ts, name: claim > a per diem line needs no receipt, status: passed}
       - {classname: test/claim.test.ts, name: claim > a drafted claim starts with no lines, status: passed}
       - {classname: test/claim.test.ts, name: "claim > attaching a receipt to another employee's claim by URL is refused and logged", status: passed}
+      - {classname: test/claim.test.ts, name: "claim > drafting a claim records each line's amount, date and category", status: passed}
+      - {classname: test/claim.test.ts, name: claim > a 25.00 EUR taxi line without a receipt is not complete and names BR-2, status: passed}
