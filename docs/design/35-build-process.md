@@ -151,8 +151,9 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
   evidence, not the code. Found in design review and audit.
 - The task brief is the `cli-human/v1` form, not a new verb: it already carries every context
   entry with its content. Found in design review.
-- Deferred: an auditor reviewing a draft before a human confirms it. A Gate's `after` orders it now
-  (`14-gate.md`); each draft kind needs its own audit Prompt. Found in design review.
+- An auditor reviewing a draft before a human confirms it is the draft Gates' own (`23-pack-sdlc.md`):
+  a draft is an artifact, so its auditor is a `task` Validator, ordered by `after` (`14-gate.md`).
+  Found in design review.
 - The Executor's command is `configuration.program`, not `command`: the shared runner reserves
   `configuration.command` for the conformance suite's stand-in and refuses it on an applied
   Executor. A glob in `junit` was dropped: maven and gradle write one directory, and a directory

@@ -290,6 +290,23 @@ that kept its own `AGENTS.md` or `CLAUDE.md` carries section 8 itself.
   real brief with a human at the Gates, so a regression in a prompt, a Task context or a Validator shows
   against artifacts the pack once wrote. The hand-written expense claims example stays: it covers `DecisionTable`,
   which no process produces yet, and a baseline Adr taken before the Architecture. Found in UAT.
+- A draft's auditor is a `task` Validator in the draft's Gate, `<kind>-audited` over Task
+  `audit-<kind>` on the Executor `auditor`, for a Prd, a Spec, an Architecture and a Design: the
+  deterministic check decides form and citation, and nothing decided meaning (whether an `AC-n`
+  can be decided by one test, whether two rules can both hold) before a human, or for a Spec and a
+  Design no human at all. A Validator, not a Task in `produce` as the build's auditor is: a draft
+  is an artifact a Validator's inputs take, and only a Gate's `after` runs it once the check
+  passed, so no agent call is spent on a draft the check refuses; `confirmed` runs after both, so
+  the human never reads a draft the auditor refused. Its `passed` is the Task's answer and no
+  `cel` recomputes it, so the Task's output schema ties it to its findings: `passed` is false
+  exactly when a finding is an `error`, and an answer that says otherwise fails the Task as a
+  schema violation, never passes. One Prompt, `draft-audit-rules`, with a part per kind: the
+  shared stance (an error only for a defect the writer can fix in this draft, naming its id; a
+  doubt is a warning; never rewrite) is one text. Plan and storming have none: `plan-consistency`
+  decides most of a Plan and the build's auditor reads its tests; a human confirms each storming
+  phase. A Namespace that wants no auditor overrides the Gate by name. Its warnings on a passing
+  draft are in the GateResult, not in the human's form: every validator's inputs are bound at
+  Created (`14-gate.md`), a known gap. Found in design review (`35-build-process.md`).
 - The project's `AGENTS.md` is pack content, not a fence per Task workspace: the pack's agents run
   in the project directory and read it, so one file carries the coding rules and the rules for a
   Task's agent (section 8). example02 and example04 keep their own `AGENTS.md`: a Task workspace
