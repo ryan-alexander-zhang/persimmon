@@ -57,4 +57,25 @@ describe('scenario: a draft audited before it passes', () => {
     expect(await answer(inbox()[0]!, 'a2.yaml', audit([{ severity: 'warning', code: 'scope-doubt', message: 'AC-2: beyond CAP-1' }]))).toBe(0)
     expect(out.find((l) => l.startsWith('WorkflowRun   spec-one-'))).toMatch(/Succeeded/)
   })
+
+  it('prd-gate: the human confirms only a Prd the check and the auditor passed', { timeout: 60_000 }, async () => {
+    expect(await run('init')).toBe(0)
+    expect(await run('apply', file('humans.yaml', [human('prd-agent'), human('auditor')]), '-n', 'default')).toBe(0)
+    out = []
+    expect(await run('run', 'author-prd', '--input', 'brief=Employees claim expenses.', '--input', 'productId=expense-claims', '--follow')).toBe(0)
+    const draft = { prd: { ...one('Prd').spec.content, businessRules: 'expense-claims-rules' }, rules: one('BusinessRules').spec.content }
+    expect(await answer(inbox()[0]!, 'p1.yaml', draft)).toBe(0)
+    const [auditor] = inbox()
+    expect(form(auditor!).reading.map((r: { kind: string }) => r.kind)).toEqual(['Prompt', 'Prd', 'BusinessRules'])
+    expect(await answer(auditor!, 'a1.yaml', audit([{ severity: 'error', code: 'rule-misplaced', message: 'BR-1: constrains nothing CAP-2 does' }]))).toBe(0)
+    const [writer] = inbox() // refused before the human: no confirm-prd form
+    expect(form(writer!).inputs.feedback.value.results).toMatchObject({ audit: { findings: [{ code: 'rule-misplaced' }] }, confirmed: { findings: [{ code: 'skipped' }] } })
+    expect(await answer(writer!, 'p2.yaml', draft)).toBe(0)
+    expect(await answer(inbox()[0]!, 'a2.yaml', audit([]))).toBe(0)
+    const [human2] = inbox()
+    expect(form(human2!).reading.map((r: { kind: string }) => r.kind)).toEqual(['Prd', 'BusinessRules']) // confirm-prd, after both
+    out = []
+    expect(await answer(human2!, 'c.yaml', { result: { kind: 'value', value: { passed: true, findings: [], evidence: [] } } })).toBe(0)
+    expect(out.find((l) => l.startsWith('WorkflowRun   author-prd-'))).toMatch(/Succeeded/)
+  })
 })

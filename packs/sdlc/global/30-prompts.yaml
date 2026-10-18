@@ -354,3 +354,11 @@ spec:
     - `requirement-unproven` (error): an `FR-n` whose response no `AC-n` observes: no scenario applies its trigger or state and checks its response.
     - `boundary-untested` (warning): a threshold of a rule the capability enforces with no scenario at or beside it.
     - `scope-doubt` (warning): behaviour the Prd capability's description does not ask for.
+
+    ## A Prd
+
+    The Prd of one product, beside the BusinessRules it cites; a human confirms it after you.
+    - `rule-conflict` (error): two active rules that cannot both hold for one case the Prd describes, naming both `BR-n` and the case.
+    - `rule-misplaced` (error): a `BR-n` a capability lists whose statement constrains nothing that capability does (a rule on another capability's subject, or on another subdomain's).
+    - `capability-overlap` (warning): two `CAP-n` whose descriptions do the same thing.
+    - `vague-term` (warning): a capability, rule or success criterion resting on a word no one can check ("fast", "easy", "appropriate").
