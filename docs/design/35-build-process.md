@@ -247,6 +247,16 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
   asserts. A warning, not an error: refusing them is a policy an unattended Namespace may want
   later, by its own Validator. After `decided_by: agent` of the ai-native project template.
   Found in design review and audit.
+- Proven live on `claude-sonnet-5`, the whole chain: `build-all` over `T-1` to `T-4` with the agent
+  builder override, on a project whose one old test was red. The baseline tolerated it every round
+  (`suite-baseline`), `T-1` proved `QS-3` with a cross-employee read test, the auditor passed each
+  record (8s to 34s), and every task passed in round one, 9m14s; no file outside `src/`, no git.
+  `question-agent-resolved` named three answers of the agent. Two of them deferred to the human
+  ("left open for the human", "a human should confirm this shape") yet were `resolution`s, so
+  `question-open` passed a question the human still had to answer. The build rule now says a
+  `resolution` is the answer built on, never a note that the question waits. No check reads the
+  wording: the warning shows every agent resolution, and a heuristic on prose would refuse real
+  answers. Found in UAT.
 - Proven live on `claude-sonnet-5`: `build-one` over `T-1`, the human builder naming for `QS-3` a real,
   passing test that never applies its stimulus. `acceptance-evidence` passed it; the auditor refused
   it in 18s with `test-unfit`, naming what the test lacks and the test that proves `QS-3`. Round two

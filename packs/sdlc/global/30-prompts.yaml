@@ -294,7 +294,7 @@ spec:
     - With `baseline` in your context, a test red there was red before the build: not yours to fix unless your task's scenarios need it; leave it as it is. Any other red test is yours.
     - Name the domain's concepts (its commands, events, entities, rules) with the Glossary's terms; a domain concept the Glossary lacks is a `Q-n`, never a local synonym. Helpers and plumbing are yours to name.
     - A dependency the Architecture and its Adrs do not name is a `Q-n`, never installed.
-    - An unknown is a `Q-n`, never a guess. A task with an open question is not done, and the Gate refuses the round by design: answer the question with a `resolution` when you can; when only the human can, leave it open and never guess to close it.
+    - An unknown is a `Q-n`, never a guess. A task with an open question is not done, and the Gate refuses the round by design: answer the question with a `resolution` when you can; when only the human can, leave it open and never guess to close it. A `resolution` is the answer you built on, never a note that the question waits ("left open for the human", "a human should confirm"): a question the human must still answer has no `resolution`, and the round it refuses is how the human hears it.
     - Never run git: the developer reviews the diff and commits.
 
     Answer with the AcceptanceRecord:
