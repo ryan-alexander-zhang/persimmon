@@ -316,7 +316,9 @@ that kept its own `AGENTS.md` or `CLAUDE.md` carries section 8 itself.
   defect in one pass: after it a Design run reported four errors where it had reported one or two,
   a Prd run two, and still not every defect it had found before. With the defects fixed the example
   passes every auditor, warnings riding to the human's form; a Design audit took 6m02s, inside its
-  30m. Found in UAT.
+  30m. It does not stay passed: the next run refused the same unchanged rules (BR-3 against BR-8), so
+  an auditor's verdict on one draft varies run to run, and a passing round is a sample, not a
+  fixpoint. Found in UAT.
 - The project's `AGENTS.md` is pack content, not a fence per Task workspace: the pack's agents run
   in the project directory and read it, so one file carries the coding rules and the rules for a
   Task's agent (section 8). example02 and example04 keep their own `AGENTS.md`: a Task workspace
