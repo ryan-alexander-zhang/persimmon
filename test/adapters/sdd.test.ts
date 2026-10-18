@@ -141,7 +141,11 @@ describe('sdd/v1', () => {
     expect(await codes((a) => { a.spec.requirements[5].id = 'FR-7' })).toEqual(['unknown-requirement', 'requirement-uncovered']) // a gap is allowed: a removed item
     expect(await codes((a) => { a.spec.requirements[5].id = 'FR-2' })).toEqual(['unknown-requirement', 'id-sequence']) // FR-2 twice: the second is not above FR-5
     expect(await codes((a) => { a.spec.stories[1].id = 'US-5' })).toEqual(['id-sequence'])
-    expect(await codes((a) => { a.spec.stories[1].acceptance[0].id = 'AC-1' })).toEqual(['id-sequence']) // AC-n runs across stories: the second story's first criterion is AC-4
+    expect(await codes((a) => { a.spec.stories[1].acceptance[0].id = 'AC-1' })).toEqual(['id-sequence']) // AC-1 under US-1 and US-2: unique across the Spec
+    expect(await codes((a) => { a.spec.stories[0].acceptance[1].id = 'AC-9' })).toEqual(['id-sequence']) // AC-1, AC-9, AC-3: increasing within the story
+    const added = structuredClone(example())
+    added.spec.stories[0].acceptance.push({ ...added.spec.stories[0].acceptance[0], id: 'AC-8' }) // a revision's new scenario under the first story
+    expect((await adapter({ id: ++id, op: 'evaluate', payload: payload(added) })).result).toMatchObject({ passed: true, findings: [] })
     expect(await codes((a) => { a.spec.openQuestions[0].id = 'Q-2' })).toEqual(['id-sequence']) // Q-2, Q-2, Q-3: the duplicate is the second
   })
 

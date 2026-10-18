@@ -85,7 +85,7 @@ export function checkSpec({ spec, prd, domainModel, architecture, rules, context
 
   const covered = new Set()
   const storyIds = []
-  const criterionIds = []
+  const criterionStory = new Map() // AC-n → the story it is under: unique across the Spec, increasing within its story
   for (const story of spec.stories) {
     storyIds.push(story.id)
     if (!users.has(story.role)) bad('unknown-role', `${story.id}: role ${story.role} is not a Prd user`)
@@ -96,7 +96,11 @@ export function checkSpec({ spec, prd, domainModel, architecture, rules, context
     for (const c of story.commands ?? []) if (!commands.has(c)) bad('unknown-command', `${story.id}: command ${c} is not in the DomainModel`)
     for (const e of story.events ?? []) if (!events.has(e)) bad('unknown-event', `${story.id}: event ${e} is not in the DomainModel`)
     for (const r of story.readModels ?? []) if (!readModels.has(r)) bad('unknown-read-model', `${story.id}: read model ${r} is not in the DomainModel`)
-    for (const ac of story.acceptance ?? []) criterionIds.push(ac.id)
+    sequence(bad, 'AC', (story.acceptance ?? []).map((ac) => ac.id))
+    for (const ac of story.acceptance ?? []) {
+      if (criterionStory.has(ac.id) && criterionStory.get(ac.id) !== story.id) bad('id-sequence', `${ac.id} is under ${criterionStory.get(ac.id)} and ${story.id}: ids are unique`)
+      criterionStory.set(ac.id, story.id)
+    }
   }
   for (const id of requirementIds) if (!covered.has(id)) bad('requirement-uncovered', `requirement ${id} is covered by no story`)
   for (const r of capability?.rules ?? []) {
@@ -106,7 +110,6 @@ export function checkSpec({ spec, prd, domainModel, architecture, rules, context
 
   sequence(bad, 'FR', requirementIds)
   sequence(bad, 'US', storyIds)
-  sequence(bad, 'AC', criterionIds)
   sequence(bad, 'Q', (spec.openQuestions ?? []).map((q) => q.id))
   return findings
 }
