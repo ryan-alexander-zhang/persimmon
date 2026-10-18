@@ -21,15 +21,15 @@ const describe = {
 // a warning rides in the result and fails nothing: passed is no error finding (29-design-process.md)
 const passes = (findings) => !findings.some((f) => f.severity === 'error')
 // a resolution an agent wrote (35-build-process.md): who produced the document is its provenance actor, a `service` for an
-// Adapter's publish (05-revisioned-kind.md). One the last round already had, or one the Gate's feedback names the question
-// of, a human gave at the Gate and the agent copied: not told again. A warning, so a human reads it, never a refusal.
+// Adapter's publish (05-revisioned-kind.md). One the last round already had was told then. Whether a human gave it at the Gate
+// cannot be read (a GateResult does not say which finding a human wrote), so the warning says who wrote it, not who decided.
+// A warning, so a human reads it, never a refusal.
 const agentAnswers = (payload, doc) => {
   if (doc?.provenance?.actor?.kind !== 'service') return []
   const before = new Map((payload.artifacts?.previous?.content?.openQuestions ?? []).map((q) => [q.id, q.resolution]))
-  const feedback = JSON.stringify(payload.inputs?.feedback?.value ?? '')
   return (doc.content?.openQuestions ?? [])
-    .filter((q) => q.resolution && before.get(q.id) !== q.resolution && !new RegExp(`\\b${q.id}\\b`).test(feedback))
-    .map((q) => ({ severity: 'warning', code: 'question-agent-resolved', message: `${q.id} was resolved by ${doc.provenance.actor.id}, with no human answer before it: ${q.question} — ${q.resolution}` }))
+    .filter((q) => q.resolution && before.get(q.id) !== q.resolution)
+    .map((q) => ({ severity: 'warning', code: 'question-agent-resolved', message: `${q.id}'s resolution was written by ${doc.provenance.actor.id}; check a human gave it: ${q.question} — ${q.resolution}` }))
 }
 const done = (payload, findings, doc) => {
   const all = [...findings, ...agentAnswers(payload, doc)]

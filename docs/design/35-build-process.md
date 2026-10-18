@@ -238,8 +238,9 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
   findings, warns `question-agent-resolved` of a `Q-n` resolved in a document an Adapter published,
   naming the agent and its answer; the human reads it in the GateResult and the tree after the
   Gate, before the diff is committed (a Gate's Validators run at once, so a confirmation form is
-  answered before the warning exists). One the last round already had, or one the Gate's feedback
-  names the question of, is a human's answer the agent copied: not told. The build rules let an
+  answered before the warning exists). One the last round already had was told then. Whether a
+  human gave it at the Gate cannot be read, since a GateResult does not say which finding a human
+  wrote, so the warning names who wrote it and asks the reader to check. The build rules let an
   agent builder answer what it can, and an unattended Namespace runs on that. Who produced the
   document is its `provenance.actor` (`05-revisioned-kind.md`), not a field the agent fills, but
   the actor names the channel, not the author: a developer's coding agent answering the inbox
@@ -257,6 +258,12 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
   `resolution` is the answer built on, never a note that the question waits. No check reads the
   wording: the warning shows every agent resolution, and a heuristic on prose would refuse real
   answers. Found in UAT.
+- Rerun live over `T-3` after the rule: round one left the director clause of `BR-3` open and was
+  refused `question-open`; round two answered it (the clause is Approve Claim's, which no task of
+  this Plan builds) and passed, `question-agent-resolved` showing the answer, 3m04s. That is the
+  design: a refusal asks the agent to answer what it can, and what it answers is told. A first cut
+  skipped the warning when the Gate's feedback named the `Q-n`, taking that for a human's answer;
+  a Validator's own `question-open` names it too, so it went. Found in UAT.
 - Proven live on `claude-sonnet-5`: `build-one` over `T-1`, the human builder naming for `QS-3` a real,
   passing test that never applies its stimulus. `acceptance-evidence` passed it; the auditor refused
   it in 18s with `test-unfit`, naming what the test lacks and the test that proves `QS-3`. Round two

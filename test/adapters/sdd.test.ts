@@ -752,15 +752,11 @@ describe('sdd/v1 over an AcceptanceRecord', () => {
       p.artifacts.record.provenance = { ...provenance, actor }
       return adapter({ id: ++id, op: 'evaluate', payload: p })
     }
-    expect((await by({ kind: 'service', id: 'claude-code/v1' })).result).toEqual({ passed: true, evidence: [], findings: [{ severity: 'warning', code: 'question-agent-resolved', message: 'Q-1 was resolved by claude-code/v1, with no human answer before it: which currency? — EUR' }] })
+    expect((await by({ kind: 'service', id: 'claude-code/v1' })).result).toEqual({ passed: true, evidence: [], findings: [{ severity: 'warning', code: 'question-agent-resolved', message: "Q-1's resolution was written by claude-code/v1; check a human gave it: which currency? — EUR" }] })
     expect((await by({ kind: 'user', id: 'local' })).result).toEqual({ passed: true, findings: [], evidence: [] })
-    // a human's answer the agent copied: the Gate's feedback named Q-1, or the last round already had it
     answered.previous = { ...structuredClone(answered.record), openQuestions: [{ id: 'Q-1', question: 'which currency?' }] }
     answered.previousOutcome = answered.testOutcome
-    const fed = recordPayload(answered)
-    fed.artifacts.record.provenance = { ...provenance, actor: { kind: 'service', id: 'claude-code/v1' } }
-    ;(fed.inputs as Record<string, unknown>).feedback = { kind: 'value', value: { passed: false, results: { confirm: { passed: false, findings: [{ severity: 'error', message: 'Q-1: EUR, every claim' }], evidence: [] } } } }
-    expect((await adapter({ id: ++id, op: 'evaluate', payload: fed })).result.findings).toEqual([])
+    expect((await by({ kind: 'service', id: 'claude-code/v1' })).result.findings.map((f: { code: string }) => f.code)).toEqual(['question-agent-resolved']) // newly resolved this round
     answered.previous.openQuestions[0].resolution = 'EUR'
     expect((await by({ kind: 'service', id: 'claude-code/v1' })).result.findings).toEqual([]) // carried from the last round: told then
   })
