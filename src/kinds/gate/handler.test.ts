@@ -71,6 +71,25 @@ describe('gate Handler', () => {
     expect(failed.actions.filter((a) => a.type === 'cancelResource')).toHaveLength(1)
   })
 
+  // after (14-gate.md): humanReview waits for structure; it starts when structure passes, is skipped when it does not
+  it('starts a validator with after once its predecessors pass, and skips it when one does not', () => {
+    const ordered: Closure = { ...closure, resources: closure.resources.map((x) => (x.kind === 'Gate' ? { ...x, spec: { ...x.spec, validators: (x.spec as { validators: { name: string }[] }).validators.map((v) => (v.name === 'humanReview' ? { ...v, after: ['structure'] } : v)) } } : x)) }
+    const h = gateHandler({ ...deps(), closure: () => ordered })
+    const want = example('run-gaterun')
+    const runs = want.status.validationRuns as Record<string, { name: string }>
+    const first = h.reconcile(input(gateRun() as unknown as Resource, { type: 'Created', dedupeKey: 'created' })) as ReconcileResult
+    expect(Object.keys(clean(first.statusPatch).validationRuns)).toEqual(['structure', 'security']) // humanReview waits
+    const r = { ...gateRun(), status: { phase: 'Running', validationRuns: { structure: runs.structure, security: runs.security } } }
+    const child = (name: string, passed: boolean) => ({ ref: runs[name] as never, terminal: true, status: { phase: 'Succeeded', result: { passed, findings: [], evidence: [] } } })
+    const finished = (name: string) => ({ type: 'ChildFinished', dedupeKey: 'c', payload: { ref: { ...runs[name], uid: 'u' }, value: 'Succeeded' } })
+    const go = h.reconcile(input(r as unknown as Resource, finished('structure'), [child('structure', true), { ...child('security', true), terminal: false, status: { phase: 'Running' } }])) as ReconcileResult
+    expect(created(go).map((x) => x.metadata.name)).toEqual([runs.humanReview!.name]) // started now
+    expect(Object.keys(clean(go.statusPatch).validationRuns)).toEqual(['structure', 'security', 'humanReview'])
+    const skipped = h.reconcile(input(r as unknown as Resource, finished('security'), [child('structure', false), child('security', true)])) as ReconcileResult
+    expect(created(skipped)).toEqual([])
+    expect(clean(skipped.statusPatch)).toMatchObject({ phase: 'Succeeded', outputs: { result: { value: { passed: false, results: { humanReview: { passed: false, findings: [{ severity: 'info', code: 'skipped', message: 'not run: structure did not pass' }] } } } } } }) // quorum 2: a skipped one never passes
+  })
+
   it('validate checks bindings, duplicates and quorum', () => {
     const d = deps()
     const validators: Record<string, unknown> = { 'prd-structure': example('validator-cel'), 'prd-human-review': example('validator-task'), 'prd-security-scan': example('validator-evaluator') }
@@ -82,6 +101,10 @@ describe('gate Handler', () => {
     g.spec.policy = { strategy: 'quorum', count: 9 }
     g.spec.validators[1].name = 'structure'
     expect(h.validate(g).findings.map((f) => f.message)).toEqual(['producer type differs from consumer type', 'optional Gate input security feeds a required input without a default', 'required input minRequirements unbound', 'duplicate validator structure', 'quorum count 9 > 3 validators'])
+    const later = example('gate-prd-approval')
+    later.spec.validators[0].after = ['security']
+    later.spec.validators[1].after = ['humanReview']
+    expect(h.validate(later).findings.map((f) => f.message)).toEqual(['security is not an earlier validator of this Gate', 'humanReview is not an earlier validator of this Gate']) // later, or itself
   })
 })
 

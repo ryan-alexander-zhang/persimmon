@@ -49,6 +49,12 @@ $defs:
                   type: object
                   propertyNames: {$ref: "ports.yaml#/$defs/PortName"}
                   additionalProperties: {$ref: "#/$defs/ValidatorBinding"}
+                after:
+                  type: array
+                  minItems: 1
+                  uniqueItems: true
+                  items: {$ref: "ports.yaml#/$defs/PortName"}
+                  description: earlier validators of this list that must pass before this one starts (14-gate.md)
           policy:
             type: object
             required: [strategy]

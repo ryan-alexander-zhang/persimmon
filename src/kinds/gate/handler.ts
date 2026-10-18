@@ -35,6 +35,8 @@ export function gateHandler(deps: HandlerDeps): HandlerImpl {
       const names = new Set<string>()
       for (const [i, v] of spec.validators.entries()) {
         if (names.has(v.name)) bad(`/spec/validators/${i}/name`, `duplicate validator ${v.name}`)
+        // earlier in the list only, so no cycle can be written (14-gate.md)
+        for (const a of v.after ?? []) if (!names.has(a)) bad(`/spec/validators/${i}/after`, `${a} is not an earlier validator of this Gate`)
         names.add(v.name)
         const def = deps.getResource('Validator', resource.metadata.namespace, v.ref.name) as Validator | undefined
         if (!def) {
@@ -83,39 +85,44 @@ export function gateHandler(deps: HandlerDeps): HandlerImpl {
       const cancelRemaining = (): Action[] =>
         input.context.children.filter((c) => !c.terminal).map((c) => ({ type: 'cancelResource', ref: c.ref }))
 
+      /** One ValidationRun for validator `v`, its inputs bound now; a PortError is the caller's to fail on. */
+      const start = (v: GateSpec['validators'][number], inputs: RuntimeValues): { action: Action; ref: ObjectRef } => {
+        const validator = fromClosure(closure, 'Validator', ns, v.ref.name) as unknown as Validator | undefined
+        if (!validator) throw new Error(`Validator ${v.ref.name} not in the snapshot`)
+        let bound: RuntimeValues
+        try {
+          bound = checkInputs(validator.spec.inputs ?? {}, bind(v.inputs ?? {}, { inputs }, siteOf({ inputs: gate.spec.inputs ?? {} })))
+        } catch (e) {
+          if (e instanceof PortError) throw new PortError(`validator ${v.name}: ${e.message}`)
+          throw e
+        }
+        const name = `${run.metadata.name}-${v.name.toLowerCase()}`
+        const deadline = rfc3339(new Date(Math.min(Date.parse(run.spec.deadline), now.getTime() + durationMs(validator.spec.timeout))))
+        const address = { ...run.spec.address, stepRef: `${run.spec.address.stepRef}/${v.name}`, logicalExecutionId: `${run.spec.address.logicalExecutionId}/${v.name}` }
+        const resource: Resource = {
+          apiVersion: 'persimmon.ai/v1',
+          kind: 'ValidationRun',
+          metadata: { name, namespace: ns },
+          spec: { validatorRef: v.ref, gateRunRef: refOf(run), name: v.name, address, deadline, inputs: bound },
+        }
+        return { action: { type: 'createResource', resource, snapshot: 'inherit', owned: true }, ref: refOf(resource) }
+      }
+
       switch (ev.type) {
         case 'Created': {
-          let inputs: RuntimeValues
-          try {
-            inputs = checkInputs(gate.spec.inputs ?? {}, run.spec.inputs)
-          } catch (e) {
-            if (e instanceof PortError) return finish({ phase: 'Failed', error: err('invalid_input', e.message)})
-            throw e
-          }
-          const site = siteOf({ inputs: gate.spec.inputs ?? {} })
           const validationRuns: Record<string, ObjectRef> = {}
           const actions: Action[] = []
-          for (const v of gate.spec.validators) {
-            const validator = fromClosure(closure, 'Validator', ns, v.ref.name) as unknown as Validator | undefined
-            if (!validator) throw new Error(`Validator ${v.ref.name} not in the snapshot`)
-            let bound: RuntimeValues
-            try {
-              bound = checkInputs(validator.spec.inputs ?? {}, bind(v.inputs ?? {}, { inputs }, site))
-            } catch (e) {
-              if (e instanceof PortError) return finish({ phase: 'Failed', error: err('invalid_input', `validator ${v.name}: ${e.message}`)})
-              throw e
+          try {
+            const inputs = checkInputs(gate.spec.inputs ?? {}, run.spec.inputs)
+            for (const v of gate.spec.validators) {
+              if (v.after?.length) continue // started once its predecessors pass
+              const s = start(v, inputs)
+              actions.push(s.action)
+              validationRuns[v.name] = s.ref
             }
-            const name = `${run.metadata.name}-${v.name.toLowerCase()}`
-            const deadline = rfc3339(new Date(Math.min(Date.parse(run.spec.deadline), now.getTime() + durationMs(validator.spec.timeout))))
-            const address = { ...run.spec.address, stepRef: `${run.spec.address.stepRef}/${v.name}`, logicalExecutionId: `${run.spec.address.logicalExecutionId}/${v.name}` }
-            const resource: Resource = {
-              apiVersion: 'persimmon.ai/v1',
-              kind: 'ValidationRun',
-              metadata: { name, namespace: ns },
-              spec: { validatorRef: v.ref, gateRunRef: refOf(run), name: v.name, address, deadline, inputs: bound },
-            }
-            actions.push({ type: 'createResource', resource, snapshot: 'inherit', owned: true })
-            validationRuns[v.name] = refOf(resource)
+          } catch (e) {
+            if (e instanceof PortError) return finish({ phase: 'Failed', error: err('invalid_input', e.message) })
+            throw e
           }
           actions.push({ type: 'setTimer', key: 'deadline', at: run.spec.deadline })
           return { statusPatch: { phase: 'Running', validationRuns }, actions }
@@ -124,16 +131,46 @@ export function gateHandler(deps: HandlerDeps): HandlerImpl {
         case 'ChildFinished': {
           const byName = new Map(input.context.children.map((c) => [c.ref.name, c]))
           const results: Record<string, ValidationResult> = {}
+          const validationRuns = { ...status.validationRuns }
+          const actions: Action[] = []
+          let waiting = false
+          // in list order: a validator's `after` are earlier, so their results are known by the time it is reached
           for (const v of gate.spec.validators) {
-            const ref = status.validationRuns[v.name]
-            const child = ref && byName.get(ref.name)
+            const ref = validationRuns[v.name]
+            if (!ref) {
+              const before = (v.after ?? []).map((a) => results[a])
+              if (before.some((r) => r === undefined)) {
+                waiting = true // a predecessor still runs
+                continue
+              }
+              const failed = (v.after ?? []).find((a) => !results[a]!.passed)
+              if (failed) {
+                results[v.name] = { passed: false, findings: [{ severity: 'info', code: 'skipped', message: `not run: ${failed} did not pass` }], evidence: [] }
+                continue
+              }
+              try {
+                const s = start(v, checkInputs(gate.spec.inputs ?? {}, run.spec.inputs))
+                actions.push(s.action)
+                validationRuns[v.name] = s.ref
+              } catch (e) {
+                if (e instanceof PortError) return finish({ phase: 'Failed', error: err('invalid_input', e.message) }, cancelRemaining())
+                throw e
+              }
+              waiting = true
+              continue
+            }
+            const child = byName.get(ref.name)
             const st = child?.status as { phase?: string; result?: ValidationResult; error?: ReconcileError } | undefined
-            const phase = ref?.name === ev.payload.ref.name ? ev.payload.value : st?.phase
+            const phase = ref.name === ev.payload.ref.name ? ev.payload.value : st?.phase
             if (phase === 'Failed') return finish({ phase: 'Failed', error: st?.error ?? err('validator_failed', `${v.name} failed`) }, cancelRemaining())
             if (phase === 'Cancelled') return finish({ phase: 'Failed', error: err('validator_cancelled', `${v.name} was cancelled`) }, cancelRemaining())
-            if (phase !== 'Succeeded' || !st?.result) return { actions: [] } // still waiting for the rest
+            if (phase !== 'Succeeded' || !st?.result) {
+              waiting = true // still running
+              continue
+            }
             results[v.name] = st.result
           }
+          if (waiting) return actions.length ? { statusPatch: { validationRuns }, actions } : { actions: [] }
           const passedCount = Object.values(results).filter((r) => r.passed).length
           const policy = gate.spec.policy ?? { strategy: 'all' }
           const passed = policy.strategy === 'all' ? passedCount === gate.spec.validators.length : policy.strategy === 'any' ? passedCount >= 1 : passedCount >= (policy.count ?? 1)
