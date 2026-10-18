@@ -82,8 +82,8 @@ publishes and commits, so the human Actor lands on every artifact (`05-revisione
 
 | Event | Behaviour |
 |---|---|
-| Created | `createResource(ValidationRun)` per validator with inputs bound per `14-gate.md`, `address`, `deadline`; `setTimer(deadline, spec.deadline)`; Running |
-| ChildFinished | record in `validationRuns.<name>`; all Succeeded → `outputs.result` per `policy`, Succeeded; any Failed → Failed with its error; any Cancelled → Failed `validator_cancelled` |
+| Created | every validator's inputs bound per `14-gate.md`; `createResource(ValidationRun)` per validator without `after`, with `address`, `deadline`; `setTimer(deadline, spec.deadline)`; Running |
+| ChildFinished | record in `validationRuns.<name>`; a validator whose `after` all passed is started, one whose `after` did not all pass is skipped (`14-gate.md`); all Succeeded or skipped → `outputs.result` per `policy`, Succeeded; any Failed → Failed with its error; any Cancelled → Failed `validator_cancelled` |
 | TimerFired(deadline) | `cancelResource` remaining; Failed `timeout` |
 | CancelRequested | `cancelResource` remaining; Cancelled |
 

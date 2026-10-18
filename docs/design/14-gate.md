@@ -6,7 +6,7 @@ A Gate decides; a Validator asks a question; the Executor behind a Validator's T
 A human, an agent and a script Executor are one shape behind a Validator.
 
 ```text
-Gate {inputs, validators[], policy} ──▶ GateRun ──▶ ValidationRun per validator ──▶ outputs.result: GateResult
+Gate {inputs, validators[], policy} ──▶ GateRun ──▶ ValidationRun per validator run ──▶ outputs.result: GateResult
                                                           │
              Validator.evaluator ─────────────────────────┤
                cel     {expression}               ───────▶ engine evaluates
@@ -29,8 +29,8 @@ Step contract: `inputsPath: spec.inputs`, `outputsPath: spec.outputs`, `runKind:
 
 | Case | Behaviour |
 |---|---|
-| GateRun starts | one ValidationRun per validator without `after`, all at once; deadline `min(step deadline, gate timeout, validator timeout)`, the validator's timeout counted from its own start |
-| a ValidationRun Succeeded | each validator not started whose `after` have all Succeeded: started if every one passed, else skipped with the result `{passed: false, findings: [{severity: info, code: skipped, message: "not run: <name> did not pass"}], evidence: []}` |
+| GateRun starts | every validator's inputs bound, a misbound one failing the GateRun `invalid_input`; one ValidationRun per validator without `after`, all at once; deadline `min(step deadline, gate timeout, validator timeout)`, the validator's timeout counted from its own start |
+| a ValidationRun Succeeded | each validator not started whose `after` have all Succeeded or been skipped: started if every one passed, else skipped with the result `{passed: false, findings: [{severity: info, code: skipped, message: "not run: <name> did not pass"}], evidence: []}` |
 | every validator Succeeded or skipped | `result.passed` per `policy` over all `len(validators)` results, a skipped one never passing; no short-circuit among those that run; GateRun Succeeded |
 | a ValidationRun Failed | GateRun Failed with that error |
 | a ValidationRun Cancelled | GateRun Failed with `validator_cancelled` |
@@ -101,7 +101,8 @@ A `task` Validator's TaskRun has invocation address
   not pass is skipped with a synthetic `passed: false` result, not left out, so `policy` still
   counts every validator and a skipped one never passes `any` or `quorum`. A predecessor that
   Failed or was Cancelled fails the Gate as before. No `after` means all at once, so every Gate
-  written before is unchanged. A Gate-wide `sequential` flag was rejected: it orders validators
+  written before is unchanged. Under `policy: any`, `after` cannot change the verdict and only
+  spends the later validator: a warning. A Gate-wide `sequential` flag was rejected: it orders validators
   that need not wait, and the pack's Gates want the checks together and the human after them.
   Found in design review (`35-build-process.md`, an auditor before a human).
 

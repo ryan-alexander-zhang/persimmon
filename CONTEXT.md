@@ -255,8 +255,8 @@ _Avoid_: plugin, tool, extension, package
 **Gate**:
 A **Definition** kind and step kind that decides: runs **Validators** under a `policy`, emits
 fixed output `result: GateResult`. A Gate decides; a Validator asks; the Executor answers. Its
-Validators run at once, but for one with `after`, which starts once the earlier ones it names passed
-and is skipped when one did not.
+Validators run at once, except one with `after`: it starts once the earlier ones it names pass, and
+is skipped, its result `passed: false`, when one does not.
 _Avoid_: check, checkpoint, review
 
 **Validator**:

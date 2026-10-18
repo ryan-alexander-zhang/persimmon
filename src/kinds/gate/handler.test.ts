@@ -79,6 +79,9 @@ describe('gate Handler', () => {
     const runs = want.status.validationRuns as Record<string, { name: string }>
     const first = h.reconcile(input(gateRun() as unknown as Resource, { type: 'Created', dedupeKey: 'created' })) as ReconcileResult
     expect(Object.keys(clean(first.statusPatch).validationRuns)).toEqual(['structure', 'security']) // humanReview waits
+    const misbound: Closure = { ...ordered, resources: ordered.resources.map((x) => (x.kind === 'Gate' ? { ...x, spec: { ...x.spec, validators: (x.spec as { validators: { name: string; inputs?: unknown }[] }).validators.map((v) => (v.name === 'humanReview' ? { ...v, inputs: {} } : v)) } } : x)) }
+    const bad = gateHandler({ ...deps(), closure: () => misbound }).reconcile(input(gateRun() as unknown as Resource, { type: 'Created', dedupeKey: 'created' })) as ReconcileResult
+    expect(clean(bad.statusPatch)).toMatchObject({ phase: 'Failed', error: { code: 'invalid_input' } }) // bound at Created though it would start later
     const r = { ...gateRun(), status: { phase: 'Running', validationRuns: { structure: runs.structure, security: runs.security } } }
     const child = (name: string, passed: boolean) => ({ ref: runs[name] as never, terminal: true, status: { phase: 'Succeeded', result: { passed, findings: [], evidence: [] } } })
     const finished = (name: string) => ({ type: 'ChildFinished', dedupeKey: 'c', payload: { ref: { ...runs[name], uid: 'u' }, value: 'Succeeded' } })
@@ -105,6 +108,10 @@ describe('gate Handler', () => {
     later.spec.validators[0].after = ['security']
     later.spec.validators[1].after = ['humanReview']
     expect(h.validate(later).findings.map((f) => f.message)).toEqual(['security is not an earlier validator of this Gate', 'humanReview is not an earlier validator of this Gate']) // later, or itself
+    const any = example('gate-prd-approval')
+    any.spec.policy = { strategy: 'any' }
+    any.spec.validators[1].after = ['structure']
+    expect(h.validate(any).findings.map((f) => f.code)).toEqual(['after_any'])
   })
 })
 

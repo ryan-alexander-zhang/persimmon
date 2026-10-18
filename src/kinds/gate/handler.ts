@@ -37,6 +37,7 @@ export function gateHandler(deps: HandlerDeps): HandlerImpl {
         if (names.has(v.name)) bad(`/spec/validators/${i}/name`, `duplicate validator ${v.name}`)
         // earlier in the list only, so no cycle can be written (14-gate.md)
         for (const a of v.after ?? []) if (!names.has(a)) bad(`/spec/validators/${i}/after`, `${a} is not an earlier validator of this Gate`)
+        if (v.after?.length && spec.policy?.strategy === 'any') f.push({ severity: 'warning', code: 'after_any', path: `/spec/validators/${i}/after`, message: `under policy any, after cannot change the verdict: a passing ${v.after[0]} already passes the Gate` })
         names.add(v.name)
         const def = deps.getResource('Validator', resource.metadata.namespace, v.ref.name) as Validator | undefined
         if (!def) {
@@ -115,8 +116,8 @@ export function gateHandler(deps: HandlerDeps): HandlerImpl {
           try {
             const inputs = checkInputs(gate.spec.inputs ?? {}, run.spec.inputs)
             for (const v of gate.spec.validators) {
+              const s = start(v, inputs) // bound now for every validator, so a misbound one fails the Gate even if it is later skipped
               if (v.after?.length) continue // started once its predecessors pass
-              const s = start(v, inputs)
               actions.push(s.action)
               validationRuns[v.name] = s.ref
             }

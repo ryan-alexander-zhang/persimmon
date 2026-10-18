@@ -151,8 +151,8 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
   evidence, not the code. Found in design review and audit.
 - The task brief is the `cli-human/v1` form, not a new verb: it already carries every context
   entry with its content. Found in design review.
-- Deferred: an auditor reviewing a draft before a human confirms it, which needs a Gate's Validators to run in order (all run at once, `14-gate.md`).
-  Each lands on this process once it runs. Found in design review.
+- Deferred: an auditor reviewing a draft before a human confirms it. A Gate's `after` orders it now
+  (`14-gate.md`); each draft kind needs its own audit Prompt. Found in design review.
 - The Executor's command is `configuration.program`, not `command`: the shared runner reserves
   `configuration.command` for the conformance suite's stand-in and refuses it on an applied
   Executor. A glob in `junit` was dropped: maven and gradle write one directory, and a directory
@@ -237,8 +237,9 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
 - A resolution an agent wrote is told, not refused: every `sdd/v1` document check, beside its own
   findings, warns `question-agent-resolved` of a `Q-n` resolved in a document an Adapter published,
   naming the agent and its answer; the human reads it in the GateResult and the tree after the
-  Gate, before the diff is committed (a Gate's Validators run at once, so a confirmation form is
-  answered before the warning exists). One the last round already had was told then. Whether a
+  Gate, before the diff is committed. A confirmation that runs `after` the check starts once the
+  warning exists, but its form does not show the check's findings, so the tree is where it is
+  read. One the last round already had was told then. Whether a
   human gave it at the Gate cannot be read, since a GateResult does not say which finding a human
   wrote, so the warning names who wrote it and asks the reader to check. The build rules let an
   agent builder answer what it can, and an unattended Namespace runs on that. Who produced the
