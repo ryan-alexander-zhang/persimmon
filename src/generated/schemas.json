@@ -1683,45 +1683,67 @@
     }
    },
    "ValidatorBinding": {
-    "allOf": [
+    "oneOf": [
      {
-      "$ref": "ports.yaml#/$defs/Binding"
-     }
-    ],
-    "not": {
-     "anyOf": [
-      {
-       "required": [
-        "fromStep"
-       ]
-      },
-      {
-       "required": [
-        "fromState"
-       ]
-      },
-      {
-       "required": [
-        "fromIterationOutput"
-       ]
-      },
-      {
-       "required": [
-        "fromEvent"
-       ]
-      },
-      {
-       "required": [
-        "fromArtifact"
-       ]
-      },
-      {
-       "required": [
-        "fromQuery"
+      "allOf": [
+       {
+        "$ref": "ports.yaml#/$defs/Binding"
+       }
+      ],
+      "not": {
+       "anyOf": [
+        {
+         "required": [
+          "fromStep"
+         ]
+        },
+        {
+         "required": [
+          "fromState"
+         ]
+        },
+        {
+         "required": [
+          "fromIterationOutput"
+         ]
+        },
+        {
+         "required": [
+          "fromEvent"
+         ]
+        },
+        {
+         "required": [
+          "fromArtifact"
+         ]
+        },
+        {
+         "required": [
+          "fromQuery"
+         ]
+        },
+        {
+         "required": [
+          "fromValidator"
+         ]
+        }
        ]
       }
-     ]
-    }
+     },
+     {
+      "type": "object",
+      "required": [
+       "fromValidator"
+      ],
+      "additionalProperties": false,
+      "properties": {
+       "fromValidator": {
+        "$ref": "ports.yaml#/$defs/PortName"
+       }
+      },
+      "description": "the ValidationResult of a validator this one's after names, as a value (14-gate.md)"
+     }
+    ]
    },
    "Gate": {
     "type": "object",

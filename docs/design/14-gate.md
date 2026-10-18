@@ -20,7 +20,7 @@ Gate {inputs, validators[], policy} ──▶ GateRun ──▶ ValidationRun pe
 |---|---|
 | `inputs` | Ports (`10-ports.md`); `artifact` and `value` only |
 | `outputs` | fixed: `result: {kind: value, schema: {$ref: persimmon.ai/v1#/GateResult}}` |
-| `validators[]` | `{name, ref, inputs, after?}`; `ref` is a LocalDefinitionRef to a Validator (`x-persimmon-ref`); `inputs` are `literal`, `fromInput` or `expression` Bindings over the Gate's inputs; `after` names earlier validators of the list that must pass before this one starts |
+| `validators[]` | `{name, ref, inputs, after?}`; `ref` is a LocalDefinitionRef to a Validator (`x-persimmon-ref`); `inputs` are `literal`, `fromInput` or `expression` Bindings over the Gate's inputs, or `fromValidator`: the result of a validator its `after` names; `after` names earlier validators of the list that must pass before this one starts |
 | `policy` | `{strategy: all \| any \| quorum, count?}`; default `all`; `count` with `quorum` only |
 | `timeout` | Duration for the whole GateRun |
 
@@ -29,8 +29,8 @@ Step contract: `inputsPath: spec.inputs`, `outputsPath: spec.outputs`, `runKind:
 
 | Case | Behaviour |
 |---|---|
-| GateRun starts | every validator's inputs bound, a misbound one failing the GateRun `invalid_input`; one ValidationRun per validator without `after`, all at once; deadline `min(step deadline, gate timeout, validator timeout)`, the validator's timeout counted from its own start |
-| a ValidationRun Succeeded | each validator not started whose `after` have all Succeeded or been skipped: started if every one passed, else skipped with the result `{passed: false, findings: [{severity: info, code: skipped, message: "not run: <name> did not pass"}], evidence: []}` |
+| GateRun starts | every validator's inputs bound but `fromValidator` ones, a misbound one failing the GateRun `invalid_input`; one ValidationRun per validator without `after`, all at once; deadline `min(step deadline, gate timeout, validator timeout)`, the validator's timeout counted from its own start |
+| a ValidationRun Succeeded | each validator not started whose `after` have all Succeeded or been skipped: started if every one passed, binding each `fromValidator` input to that validator's result as `{kind: value, value}`; else skipped with the result `{passed: false, findings: [{severity: info, code: skipped, message: "not run: <name> did not pass"}], evidence: []}` |
 | every validator Succeeded or skipped | `result.passed` per `policy` over all `len(validators)` results, a skipped one never passing; no short-circuit among those that run; GateRun Succeeded |
 | a ValidationRun Failed | GateRun Failed with that error |
 | a ValidationRun Cancelled | GateRun Failed with `validator_cancelled` |
@@ -105,6 +105,13 @@ A `task` Validator's TaskRun has invocation address
   spends the later validator: a warning. A Gate-wide `sequential` flag was rejected: it orders validators
   that need not wait, and the pack's Gates want the checks together and the human after them.
   Found in design review (`35-build-process.md`, an auditor before a human).
+- A later validator may read an earlier one's result: `{fromValidator: <name>}` binds that
+  ValidationResult as a value input, so a human confirming after an auditor reads the auditor's
+  warnings beside the draft. The name must be in its `after`, so the result exists and passed when
+  it starts; it is bound then, every other input still at the GateRun's start, so a misbound
+  `fromInput` still fails before any validator runs. A skipped validator binds nothing. The auditor
+  moved into the producing step instead, as the build's, loses `after`: its call is spent on a draft
+  the check refuses. Found in design review (`23-pack-sdlc.md`, an auditor's warnings unseen).
 
 ## Examples
 
