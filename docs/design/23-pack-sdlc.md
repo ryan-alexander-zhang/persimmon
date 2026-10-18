@@ -312,7 +312,9 @@ that kept its own `AGENTS.md` or `CLAUDE.md` carries section 8 itself.
   quality scenario its method cannot decide, a contract field a schema cannot fill), and none
   refused falsely in six runs; the human confirming an Architecture read the auditor's verdict in
   the form. A fixed defect lets the next run reach a deeper one, so a Prd or a Design passes after
-  more rounds than `maxRounds` allows a draft with several gaps. Found in UAT.
+  more rounds than `maxRounds` allows a draft with several gaps. So the shared rules ask for every
+  defect in one pass: after it a Design run reported four errors where it had reported one or two,
+  a Prd run two, and still not every defect it had found before. Found in UAT.
 - The project's `AGENTS.md` is pack content, not a fence per Task workspace: the pack's agents run
   in the project directory and read it, so one file carries the coding rules and the rules for a
   Task's agent (section 8). example02 and example04 keep their own `AGENTS.md`: a Task workspace
