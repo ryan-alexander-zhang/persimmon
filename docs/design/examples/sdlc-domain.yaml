@@ -131,7 +131,7 @@ spec:
       - id: BR-1
         type: fact
         factType: claim has approver
-        statement: A claim must have exactly one approver, the one Identity reports for the employee on the day the claim is submitted, or, when a line of the claim is over its category's policy limit, the first director above that approver in the employee's reporting line.
+        statement: A claim must have exactly one approver, the one Identity reports for the employee on the day the claim is submitted, or, when a line of the claim is over its category's policy limit, the first director above that approver in the employee's reporting line; when no one is above the employee, the finance lead Identity names.
         rationale: Reporting lines change; the approver must not change under a claim in flight.
         source: Finance policy FP-12 §3
         status: active
@@ -379,6 +379,7 @@ spec:
         question: >-
           Who is the approver of a director's own claim? BR-5 forbids self-approval and BR-1 takes the approver from
           Identity; the top of the reporting line has none.
+        resolution: The finance lead Identity names (BR-1).
       - id: Q-2
         question: Is the 90-day submission window (BR-6, deprecated) coming back? Finance mentioned reinstating it next fiscal year.
 ---
