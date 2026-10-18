@@ -10,7 +10,7 @@ human confirms each phase in the editor, and the design-level model is projected
 ```text
 Pipeline domain-discovery
   bigPicture: ReviewLoop storm-big-picture ─┐ produce: Task event-storm (level literal)
-  process:    ReviewLoop storm-process      ├ review:  Gate storming-gate = Validator eventstorming-grammar (level, prd) + storming-confirmed (human)
+  process:    ReviewLoop storm-process      ├ review:  Gate storming-gate = Validator eventstorming-grammar (level, prd), then storming-confirmed (human, after the grammar passed)
   design:     ReviewLoop storm-design      ─┘ previous and feedback fed back; base = the phase before
   derive:     Workflow derive-all: repeat over the design phase's `contexts` ─▶ Workflow derive-one per context
                  derive: Task derive-domain ─▶ BoundedContext, Glossary, DomainModel
@@ -40,7 +40,7 @@ thing is defined.
 | Task `event-storm` | inputs `prd`, `rules` (optional, the BusinessRules the Prd cites), `level`, `base` (the phase before), `previous` (this phase's last round), `feedback`; outputs `model`, `contexts` (the ids in order); an unknown is a hotspot, never a question |
 | Task `confirm-storming` | human on `cli-human/v1`: open the model in `persimmon ui`, approve or reject with one finding per node, edge or context |
 | Validators | `eventstorming-grammar` with `level` and the `prd` (`checkSubdomains`, `34-subdomains.md`); `storming-confirmed` over `confirm-storming`; `domain-consistency`: `eventstorming/v1` with `model`, `domainModel`, `context`, `boundedContext` and `prd`, the grammar's `checkBoundedContext` beside `checkDerived` |
-| Gates | `storming-gate` (grammar and confirmed, `all`); `derived-gate` (consistency, binding the derived BoundedContext and the Prd) |
+| Gates | `storming-gate` (grammar and confirmed, `all`, `confirmed` `after: [grammar]`); `derived-gate` (consistency, binding the derived BoundedContext and the Prd) |
 | ReviewLoops `storm-big-picture`, `storm-process`, `storm-design` | `produce` `event-storm` with the level as a literal, `review` `storming-gate`, `maxRounds: 3`; `process` and `design` take `base` from the phase before; all three take `rules` (optional) |
 | Task `derive-domain` | inputs `model`, `contextId`, `prd`, `rules` (optional); outputs `context`, `glossary`, `domainModel`; a projection, invents nothing |
 | ReviewLoop `derive-one` | `produce` `derive-domain`, `review` `derived-gate` with the produced BoundedContext and the Prd, `maxRounds: 2`; the consistency findings go back as `feedback` with the last `domainModel` as `previous` and the last BoundedContext as `previousContext` (`carry`) |

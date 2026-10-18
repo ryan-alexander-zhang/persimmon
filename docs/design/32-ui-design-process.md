@@ -10,7 +10,7 @@ live Plans showed ("No Design for BB-6 (Door Status Screen) is in context", exam
 ```text
 ReviewLoop design-system, once per product
   produce: Task write-design-system (design-system-agent) ─▶ DesignSystem <prd>-design-system
-  review:  Gate design-system-gate = Validator design-system-lint (designmd/v1) + design-system-confirmed (human)
+  review:  Gate design-system-gate = Validator design-system-lint (designmd/v1), then design-system-confirmed (human, after the lint passed)
   previous and feedback fed back; maxRounds 3
 Workflow design-all with type ui, over the client blocks ─▶ ReviewLoop design-one per block, designSystem and the block's API Designs bound
   produce: Task design-asset (design-agent) ─▶ Design <architecture>-bb-n-ui
@@ -66,7 +66,7 @@ an invented one. No `interface`: a client block provides none.
 | Task `confirm-design-system` | human on `cli-human/v1`: reads the DESIGN.md; approve, or one finding per section or token that must change |
 | Validator `design-system-lint` | `designmd/v1` over `designSystem`, `failOnWarning: true` |
 | Validator `design-system-confirmed` | over `confirm-design-system` |
-| Gate `design-system-gate` | lint and confirmed, `all`, 72h |
+| Gate `design-system-gate` | lint and confirmed, `all`, 72h; `confirmed` `after: [lint]` (`14-gate.md`) |
 | ReviewLoop `design-system` | `produce` `write-design-system`, `review` `design-system-gate`, `maxRounds: 3` |
 | Prompt `design-rules` | gains the `ui` paragraph above |
 | Task `design-asset`, ReviewLoop `design-one`, Workflow `design-all` | `type` enum gains `ui`; inputs `designSystem` and `designs` (artifacts: the `http-api` Designs of the interfaces the block requires) `required: {expression: "inputs.type == 'ui'"}`, `domainModel` and `glossary` `required: {expression: "inputs.type != 'ui'"}` (`10-ports.md`): a run that lacks what its `type` needs is refused at `run`; threaded through with `onMissing: omit` where the engine does not add it (a Workflow step, a Gate's Validator binding; the loop adds it to `produce` and `review`, `21-composition.md`); `design-all` with `type: ui` runs over the client blocks listed |

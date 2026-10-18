@@ -11,7 +11,7 @@ before any Spec.
 ```text
 ReviewLoop architect, run once per product with the contexts, models and glossaries listed by the caller (artifacts ports)
   produce: Task write-architecture (architecture-agent) ─▶ Architecture <prd>-architecture, Adr <prd>-adr-1, <prd>-adr-2, ... (an artifacts output, 12-task.md)
-  review:  Gate architecture-gate = Validator architecture-consistency (sdd/v1) + architecture-confirmed (human)
+  review:  Gate architecture-gate = Validator architecture-consistency (sdd/v1), then architecture-confirmed (human, after consistency passed)
   previous and feedback fed back; maxRounds 3
 ```
 
@@ -24,7 +24,7 @@ ReviewLoop architect, run once per product with the contexts, models and glossar
 | Task `write-architecture` | inputs `prd`, `rules`, `contexts`, `domainModels`, `glossaries` (artifacts), `previous`, `previousAdrs` (the last round's Adrs, carried by the loop), `feedback`; outputs `architecture` (id `<prd>-architecture`) and `adrs` (artifacts, prefix `<prd>-adr`) |
 | Task `confirm-architecture` | human on `cli-human/v1`: reads the Architecture and its Adrs; approve, or one finding per `BB-n`, `S-n`, `QG-n`, `C-n`, `QS-n` or Adr id |
 | Validators | `architecture-consistency`: `sdd/v1` over `architecture`, `prd`, `rules`, `contexts`, `domainModels`, `glossaries`, `adrs` (`rules-mismatch` when the Architecture's `businessRules` is not the artifact bound); `architecture-confirmed` over `confirm-architecture` |
-| Gate `architecture-gate` | consistency and confirmed, `all`, 72h |
+| Gate `architecture-gate` | consistency and confirmed, `all`, 72h; `confirmed` `after: [consistency]` (`14-gate.md`) |
 | ReviewLoop `architect` | `produce` `write-architecture`, `review` `architecture-gate`, `maxRounds: 3`; the subject is the Architecture; the Adrs ride beside it as a second output, come back as `previousAdrs` (`carry`, `21-composition.md`) and are republished whole each round, each a copy of its last revision unless a finding names it |
 
 Run: `persimmon run architect --input 'prd={...}' --input 'rules={...}' --input contexts=@contexts.yaml --input domainModels=@models.yaml --input glossaries=@glossaries.yaml`,

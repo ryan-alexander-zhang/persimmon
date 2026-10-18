@@ -11,7 +11,7 @@ Pack content plus a second mode of the `sdd/v1` Adapter.
 ```text
 ReviewLoop author-prd
   produce: Task draft-prd (prd-agent) ─▶ Prd, BusinessRules
-  review:  Gate prd-gate = Validator prd-consistency (sdd/v1: prd, rules) + prd-confirmed (confirm-prd, human)
+  review:  Gate prd-gate = Validator prd-consistency (sdd/v1: prd, rules), then prd-confirmed (confirm-prd, human, after consistency passed)
   previous (the Prd) and feedback fed back; maxRounds 3
 ```
 
@@ -32,7 +32,7 @@ form is refused by the engine when wrong and the method is a Prompt a Namespace 
 | Task `draft-prd` | inputs `brief` (text), `productId` (the id stem), `rules` and `glossary` (optional, the product's current ones), `previous` (the last Prd), `previousRules` (the last round's rules, carried by the loop), `feedback`; outputs `prd` (with the `subdomains` the brief describes) and `rules` (the product's BusinessRules: the input artifact's rules carried forward plus the brief's) |
 | Task `confirm-prd` | human on `cli-human/v1`: reads the Prd and the rules at the terminal, approves or rejects with one finding per id |
 | Validators | `prd-consistency`: `sdd/v1` over `prd` and `rules` (`rules-mismatch` when the Prd's `businessRules` is not the artifact bound), and from round two `previousRules` and `feedback` (`rule-drift`: a rule dropped, or changed in statement or status, that no finding of the last verdict names); `prd-confirmed`: over `confirm-prd` |
-| Gate `prd-gate` | both, `all` |
+| Gate `prd-gate` | both, `all`; `confirmed` `after: [consistency]`, so the human confirms only a consistent draft (`14-gate.md`) |
 | ReviewLoop `author-prd` | `produce` `draft-prd`, `review` `prd-gate`, `maxRounds: 3`; the subject is the Prd; `carry: {rules: previousRules}`, and the review reads `previousRules` and `feedback` (`21-composition.md`) |
 
 ## `checkPrd`

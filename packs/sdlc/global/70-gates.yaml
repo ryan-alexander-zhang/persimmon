@@ -18,6 +18,7 @@ spec:
         prd: {fromInput: prd}
     - name: confirmed
       ref: {kind: Validator, name: storming-confirmed}
+      after: [grammar]   # the human confirms only what the check passed (14-gate.md)
       inputs:
         model: {fromInput: model}
   policy: {strategy: all}
@@ -97,6 +98,7 @@ spec:
         feedback: {fromInput: feedback, onMissing: omit}
     - name: confirmed
       ref: {kind: Validator, name: prd-confirmed}
+      after: [consistency]   # the human confirms only what the check passed (14-gate.md)
       inputs:
         prd: {fromInput: prd}
         rules: {fromInput: rules}
@@ -199,6 +201,7 @@ spec:
         adrs: {fromInput: adrs}
     - name: confirmed
       ref: {kind: Validator, name: architecture-confirmed}
+      after: [consistency]   # the human confirms only what the check passed (14-gate.md)
       inputs:
         architecture: {fromInput: architecture}
         adrs: {fromInput: adrs}
@@ -221,6 +224,7 @@ spec:
         designSystem: {fromInput: designSystem}
     - name: confirmed
       ref: {kind: Validator, name: design-system-confirmed}
+      after: [lint]   # the human confirms only what the check passed (14-gate.md)
       inputs:
         designSystem: {fromInput: designSystem}
   policy: {strategy: all}
