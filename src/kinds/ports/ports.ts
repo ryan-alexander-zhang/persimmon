@@ -58,7 +58,7 @@ const pointer = (root: unknown, path: string): unknown => path.split('/').reduce
 
 function validatorFor(schema: JsonSchema | { $ref: string }): ValidateFunction {
   const ref = (schema as { $ref?: string }).$ref
-  return ref ? (ajv.getSchema(wellKnownPointer(ref)) as ValidateFunction) : ajv.compile(schema)
+  return ref ? (ajv.getSchema(wellKnownPointer(ref)) as ValidateFunction) : ajv.compile(inlineSchema(schema)!) // a well-known $ref at any depth (10-ports.md)
 }
 
 /** Equality after `$ref` expansion; no subtyping (10-ports.md). */

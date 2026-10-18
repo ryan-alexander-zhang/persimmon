@@ -100,6 +100,9 @@ describe('port types', () => {
     const validationResult = { kind: 'value' as const, schema: { $ref: 'persimmon.ai/v1#/ValidationResult' } }
     expect(() => checkOutputs({ result: { type: validationResult } }, { result: validation })).not.toThrow()
     expect(() => checkOutputs({ result: { type: validationResult } }, { result: num })).toThrow(/result:/)
+    const nested = { kind: 'value' as const, schema: { allOf: [{ $ref: 'persimmon.ai/v1#/ValidationResult' }, { properties: { passed: { const: true } } }] } }
+    expect(() => checkOutputs({ result: { type: nested } }, { result: validation })).not.toThrow() // a well-known $ref below the top resolves too
+    expect(() => checkOutputs({ result: { type: nested } }, { result: { kind: 'value', value: { passed: true } } })).toThrow(/result:/)
   })
 })
 
