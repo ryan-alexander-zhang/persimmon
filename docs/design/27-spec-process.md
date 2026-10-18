@@ -113,8 +113,10 @@ nothing: the schema refuses those (`minItems: 1`).
   `FR-1` (no scenario records a line) and `boundary-untested` `BR-2` (no scenario at 25 EUR); the
   same Spec with an `FR-1` scenario passed, two warnings riding. Round two could not add that scenario
   to `US-1`: ids increase in document order and a revision never renumbers, so a new scenario goes
-  under the last story only, and `id-sequence` refused it; a known gap of the id rule, open. Found in
-  UAT.
+  under the last story only, and `id-sequence` refused it. So `AC-n` increases within its story and is
+  unique across the Spec: a revision's new scenario takes the next number under the story it
+  belongs to. Only `AC-n` nests across a list another id orders; `T-n` keeps document order as
+  build order. Found in UAT.
 
 ## Examples
 
