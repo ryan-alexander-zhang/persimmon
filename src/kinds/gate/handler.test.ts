@@ -93,6 +93,29 @@ describe('gate Handler', () => {
     expect(clean(skipped.statusPatch)).toMatchObject({ phase: 'Succeeded', outputs: { result: { value: { passed: false, results: { humanReview: { passed: false, findings: [{ severity: 'info', code: 'skipped', message: 'not run: structure did not pass' }] } } } } } }) // quorum 2: a skipped one never passes
   })
 
+  // fromValidator (14-gate.md): humanReview reads structure's result, bound once it starts
+  it('binds a fromValidator input to the earlier result when the validator starts, not at Created', () => {
+    const result = { kind: 'value', schema: { $ref: 'persimmon.ai/v1#/ValidationResult' } }
+    const reading: Closure = {
+      ...closure,
+      resources: closure.resources.map((x) =>
+        x.kind === 'Gate'
+          ? { ...x, spec: { ...x.spec, validators: (x.spec as { validators: { name: string; inputs?: object }[] }).validators.map((v) => (v.name === 'humanReview' ? { ...v, after: ['structure'], inputs: { ...v.inputs, structure: { fromValidator: 'structure' } } } : v)) } }
+          : x.kind === 'Validator' && x.metadata.name === 'prd-human-review'
+            ? { ...x, spec: { ...x.spec, inputs: { ...(x.spec as { inputs: object }).inputs, structure: { type: result } } } }
+            : x,
+      ),
+    }
+    const h = gateHandler({ ...deps(), closure: () => reading })
+    const runs = example('run-gaterun').status.validationRuns as Record<string, { name: string }>
+    const first = h.reconcile(input(gateRun() as unknown as Resource, { type: 'Created', dedupeKey: 'created' })) as ReconcileResult
+    expect(Object.keys(clean(first.statusPatch).validationRuns)).toEqual(['structure', 'security']) // a required fromValidator input is no misbinding at Created
+    const r = { ...gateRun(), status: { phase: 'Running', validationRuns: { structure: runs.structure, security: runs.security } } }
+    const warned = { passed: true, findings: [{ severity: 'warning', code: 'doubt', message: 'm' }], evidence: [] }
+    const go = h.reconcile(input(r as unknown as Resource, { type: 'ChildFinished', dedupeKey: 'c', payload: { ref: { ...runs.structure, uid: 'u' }, value: 'Succeeded' } }, [{ ref: runs.structure as never, terminal: true, status: { phase: 'Succeeded', result: warned } }, { ref: runs.security as never, terminal: false, status: { phase: 'Running' } }])) as ReconcileResult
+    expect(clean(created(go)[0]!.spec).inputs.structure).toEqual({ kind: 'value', value: warned }) // the human reads the warning
+  })
+
   it('validate checks bindings, duplicates and quorum', () => {
     const d = deps()
     const validators: Record<string, unknown> = { 'prd-structure': example('validator-cel'), 'prd-human-review': example('validator-task'), 'prd-security-scan': example('validator-evaluator') }
@@ -112,6 +135,9 @@ describe('gate Handler', () => {
     any.spec.policy = { strategy: 'any' }
     any.spec.validators[1].after = ['structure']
     expect(h.validate(any).findings.map((f) => f.code)).toEqual(['after_any'])
+    const reads = example('gate-prd-approval')
+    reads.spec.validators[1].inputs = { prd: { fromValidator: 'structure' } }
+    expect(h.validate(reads).findings.map((f) => f.message)).toEqual(['fromValidator structure is not in after', 'fromValidator feeds a port of kind artifact; a result is a value'])
   })
 })
 

@@ -7,7 +7,7 @@ import type { Bindings, InputSpec, OutputSpec, RuntimeValues } from '../ports/ty
 export interface GateSpec {
   inputs?: Record<string, InputSpec>
   outputs: Record<string, OutputSpec>
-  validators: { name: string; ref: LocalDefinitionRef; inputs?: Bindings; after?: string[] }[]
+  validators: { name: string; ref: LocalDefinitionRef; inputs?: Record<string, Bindings[string] | { fromValidator: string }>; after?: string[] }[]
   policy?: { strategy: 'all' | 'any' | 'quorum'; count?: number }
   timeout: string
 }

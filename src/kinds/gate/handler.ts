@@ -8,7 +8,7 @@ import type { ObjectRef, Resource, RevisionRef } from '../../resource/types.js'
 import type { Closure, Entry } from '../../snapshot/walk.js'
 import { fromClosure, type HandlerDeps } from '../deps.js'
 import { bind, celContext, checkInputs, optional, overrideFindings, PortError, requiredFindings, sameType, siteOf } from '../ports/ports.js'
-import type { InputSpec, RuntimeValues } from '../ports/types.js'
+import type { Bindings, InputSpec, RuntimeValue, RuntimeValues } from '../ports/types.js'
 import { rfc3339 } from '../task/handler.js'
 import type { Gate, GateResult, GateRun, GateSpec, ValidationResult, ValidationRun, Validator, ValidatorSpec } from './types.js'
 
@@ -50,7 +50,11 @@ export function gateHandler(deps: HandlerDeps): HandlerImpl {
             if (!optional(spec2)) bad(`/spec/validators/${i}/inputs`, `required input ${port} unbound`)
             continue
           }
-          if ('fromInput' in b) {
+          if ('fromValidator' in b) {
+            // its result exists and passed only once the validator started after it (14-gate.md)
+            if (!v.after?.includes(b.fromValidator)) bad(`/spec/validators/${i}/inputs/${port}`, `fromValidator ${b.fromValidator} is not in after`)
+            if (spec2.type.kind !== 'value') bad(`/spec/validators/${i}/inputs/${port}`, `fromValidator feeds a port of kind ${spec2.type.kind}; a result is a value`)
+          } else if ('fromInput' in b) {
             const src = spec.inputs?.[b.fromInput]
             if (!src) bad(`/spec/validators/${i}/inputs/${port}`, `unknown Gate input ${b.fromInput}`)
             else {
@@ -86,13 +90,19 @@ export function gateHandler(deps: HandlerDeps): HandlerImpl {
       const cancelRemaining = (): Action[] =>
         input.context.children.filter((c) => !c.terminal).map((c) => ({ type: 'cancelResource', ref: c.ref }))
 
-      /** One ValidationRun for validator `v`, its inputs bound now; a PortError is the caller's to fail on. */
-      const start = (v: GateSpec['validators'][number], inputs: RuntimeValues): { action: Action; ref: ObjectRef } => {
+      /** One ValidationRun for validator `v`, its inputs bound now; a PortError is the caller's to fail on. Without
+       * `results` (at Created) its `fromValidator` inputs are left out, as their results do not exist yet. */
+      const start = (v: GateSpec['validators'][number], inputs: RuntimeValues, results?: Record<string, ValidationResult>): { action: Action; ref: ObjectRef } => {
         const validator = fromClosure(closure, 'Validator', ns, v.ref.name) as unknown as Validator | undefined
         if (!validator) throw new Error(`Validator ${v.ref.name} not in the snapshot`)
+        const entries = Object.entries(v.inputs ?? {})
+        const plain = Object.fromEntries(entries.filter(([, b]) => !('fromValidator' in b))) as Bindings
+        const late = entries.flatMap(([p, b]) => ('fromValidator' in b ? [[p, b.fromValidator] as const] : []))
+        const ports = results ? validator.spec.inputs ?? {} : Object.fromEntries(Object.entries(validator.spec.inputs ?? {}).filter(([p]) => !late.some(([l]) => l === p)))
         let bound: RuntimeValues
         try {
-          bound = checkInputs(validator.spec.inputs ?? {}, bind(v.inputs ?? {}, { inputs }, siteOf({ inputs: gate.spec.inputs ?? {} })))
+          const earlier = Object.fromEntries(results ? late.map(([p, name]) => [p, { kind: 'value', value: results[name] } as RuntimeValue]) : [])
+          bound = checkInputs(ports, { ...bind(plain, { inputs }, siteOf({ inputs: gate.spec.inputs ?? {} })), ...earlier })
         } catch (e) {
           if (e instanceof PortError) throw new PortError(`validator ${v.name}: ${e.message}`)
           throw e
@@ -150,7 +160,7 @@ export function gateHandler(deps: HandlerDeps): HandlerImpl {
                 continue
               }
               try {
-                const s = start(v, checkInputs(gate.spec.inputs ?? {}, run.spec.inputs))
+                const s = start(v, checkInputs(gate.spec.inputs ?? {}, run.spec.inputs), results)
                 actions.push(s.action)
                 validationRuns[v.name] = s.ref
               } catch (e) {
