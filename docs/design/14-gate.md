@@ -109,7 +109,6 @@ A `task` Validator's TaskRun has invocation address
 
 - `test/scenario/gate-order.test.ts`: a human validator `after` a `cel` check; a failing check
   skips the human, so no inbox form appears; a passing one asks them.
-
 - [`examples/gate-prd-approval.yaml`](examples/gate-prd-approval.yaml): three Validators,
   `quorum` 2; validates against `#/$defs/Gate`
 - [`examples/kind-definition-gate.yaml`](examples/kind-definition-gate.yaml): Gate
