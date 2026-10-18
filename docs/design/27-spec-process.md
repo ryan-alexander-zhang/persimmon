@@ -108,6 +108,14 @@ nothing: the schema refuses those (`minItems: 1`).
   event, "no available room found", because nothing had said the two differ and the model had no
   other shape to reach for. Found in UAT.
 
+- The auditor live (`claude-sonnet-5`, 2m03s a call): over the worked example's Spec with `AC-1` made vague it
+  refused `ac-undecidable` `AC-1` and found two gaps the example always had, `requirement-unproven`
+  `FR-1` (no scenario records a line) and `boundary-untested` `BR-2` (no scenario at 25 EUR); the
+  same Spec with an `FR-1` scenario passed, two warnings riding. Round two could not add that scenario
+  to `US-1`: ids increase in document order and a revision never renumbers, so a new scenario goes
+  under the last story only, and `id-sequence` refused it; a known gap of the id rule, open. Found in
+  UAT.
+
 ## Examples
 
 - `docs/design/examples/sdlc-domain.yaml`: the `Spec` of `CAP-1`: three stories, six
