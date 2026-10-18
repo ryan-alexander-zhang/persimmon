@@ -71,9 +71,10 @@ describe('scenario: a draft audited before it passes', () => {
     const [writer] = inbox() // refused before the human: no confirm-prd form
     expect(form(writer!).inputs.feedback.value.results).toMatchObject({ audit: { findings: [{ code: 'rule-misplaced' }] }, confirmed: { findings: [{ code: 'skipped' }] } })
     expect(await answer(writer!, 'p2.yaml', draft)).toBe(0)
-    expect(await answer(inbox()[0]!, 'a2.yaml', audit([]))).toBe(0)
+    expect(await answer(inbox()[0]!, 'a2.yaml', audit([{ severity: 'warning', code: 'vague-term', message: 'SC-1: "quickly"' }]))).toBe(0)
     const [human2] = inbox()
     expect(form(human2!).reading.map((r: { kind: string }) => r.kind)).toEqual(['Prd', 'BusinessRules']) // confirm-prd, after both
+    expect(form(human2!).inputs.audit.value).toMatchObject({ passed: true, findings: [{ code: 'vague-term' }] }) // the auditor's warning, in the human's form (fromValidator)
     out = []
     expect(await answer(human2!, 'c.yaml', { result: { kind: 'value', value: { passed: true, findings: [], evidence: [] } } })).toBe(0)
     expect(out.find((l) => l.startsWith('WorkflowRun   author-prd-'))).toMatch(/Succeeded/)

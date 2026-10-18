@@ -304,9 +304,9 @@ that kept its own `AGENTS.md` or `CLAUDE.md` carries section 8 itself.
   shared stance (an error only for a defect the writer can fix in this draft, naming its id; a
   doubt is a warning; never rewrite) is one text. Plan and storming have none: `plan-consistency`
   decides most of a Plan and the build's auditor reads its tests; a human confirms each storming
-  phase. A Namespace that wants no auditor overrides the Gate by name. Its warnings on a passing
-  draft are in the GateResult, not in the human's form: every validator's inputs are bound at
-  Created (`14-gate.md`), a known gap. Found in design review (`35-build-process.md`).
+  phase. A Namespace that wants no auditor overrides the Gate by name. Its verdict on a passing
+  draft reaches the human's form as the confirm Task's `audit` input (`fromValidator`, `14-gate.md`),
+  so its warnings are judged, not lost in the GateResult. Found in design review (`35-build-process.md`).
 - The project's `AGENTS.md` is pack content, not a fence per Task workspace: the pack's agents run
   in the project directory and read it, so one file carries the coding rules and the rules for a
   Task's agent (section 8). example02 and example04 keep their own `AGENTS.md`: a Task workspace

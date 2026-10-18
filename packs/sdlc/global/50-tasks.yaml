@@ -190,6 +190,7 @@ spec:
   inputs:
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}, required: false, description: "the auditor's verdict, passed, read before the human (23-pack-sdlc.md)"}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
   executorRef: {kind: Executor, name: local-reviewer}
@@ -199,6 +200,8 @@ spec:
       cut; the Validator checks ids and citations beside you. Approve, or reject with one finding per G-n,
       CAP-n, SC-n, Q-n or BR-n that must change, naming the id in the finding's message. A finding that changes the
       answer of a Q-n whose answer became a rule names that BR-n too, so the rule may change with it.
+      `audit`, when bound, is the auditor's verdict on this draft: it passed, and each warning is a doubt for you to judge,
+      not a defect already decided.
     context:
       - {kind: artifact, input: prd}
       - {kind: artifact, input: rules}
@@ -338,6 +341,7 @@ spec:
   inputs:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}}
+    audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}, required: false, description: "the auditor's verdict, passed, read before the human (23-pack-sdlc.md)"}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
   executorRef: {kind: Executor, name: local-reviewer}
@@ -347,6 +351,8 @@ spec:
       goals and their order, and the constraints; the Validator checks ids and citations beside you. Approve, or
       reject with one finding per BB-n, S-n, QG-n, C-n, QS-n or Adr id that must change, naming the id in the
       finding's message.
+      `audit`, when bound, is the auditor's verdict on this draft: it passed, and each warning is a doubt for you to judge,
+      not a defect already decided.
     context:
       - {kind: artifact, input: architecture}
       - {kind: artifact, input: adrs}

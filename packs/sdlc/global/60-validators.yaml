@@ -85,6 +85,7 @@ spec:
   inputs:
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}, required: false, description: "the auditor's verdict, passed, read before the human (23-pack-sdlc.md)"}
   evaluator:
     type: task
     taskRef: {kind: Task, name: confirm-prd}
@@ -171,6 +172,7 @@ spec:
   inputs:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}}
+    audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}, required: false, description: "the auditor's verdict, passed, read before the human (23-pack-sdlc.md)"}
   evaluator:
     type: task
     taskRef: {kind: Task, name: confirm-architecture}

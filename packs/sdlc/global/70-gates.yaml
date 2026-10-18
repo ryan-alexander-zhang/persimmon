@@ -117,6 +117,7 @@ spec:
       inputs:
         prd: {fromInput: prd}
         rules: {fromInput: rules}
+        audit: {fromValidator: audit}   # the auditor's warnings in the human's form
   policy: {strategy: all}
   timeout: 72h
 ---
@@ -237,6 +238,7 @@ spec:
       inputs:
         architecture: {fromInput: architecture}
         adrs: {fromInput: adrs}
+        audit: {fromValidator: audit}   # the auditor's warnings in the human's form
   policy: {strategy: all}
   timeout: 72h
 ---
