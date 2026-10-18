@@ -20,7 +20,7 @@ Gate {inputs, validators[], policy} ──▶ GateRun ──▶ ValidationRun pe
 |---|---|
 | `inputs` | Ports (`10-ports.md`); `artifact` and `value` only |
 | `outputs` | fixed: `result: {kind: value, schema: {$ref: persimmon.ai/v1#/GateResult}}` |
-| `validators[]` | `{name, ref, inputs}`; `ref` is a LocalDefinitionRef to a Validator (`x-persimmon-ref`); `inputs` are `literal`, `fromInput` or `expression` Bindings over the Gate's inputs |
+| `validators[]` | `{name, ref, inputs, after?}`; `ref` is a LocalDefinitionRef to a Validator (`x-persimmon-ref`); `inputs` are `literal`, `fromInput` or `expression` Bindings over the Gate's inputs; `after` names earlier validators of the list that must pass before this one starts |
 | `policy` | `{strategy: all \| any \| quorum, count?}`; default `all`; `count` with `quorum` only |
 | `timeout` | Duration for the whole GateRun |
 
@@ -29,8 +29,9 @@ Step contract: `inputsPath: spec.inputs`, `outputsPath: spec.outputs`, `runKind:
 
 | Case | Behaviour |
 |---|---|
-| GateRun starts | one ValidationRun per validator, all at once; deadline `min(step deadline, gate timeout, validator timeout)` |
-| every ValidationRun Succeeded | `result.passed` per `policy` over all `len(validators)` results; no short-circuit; GateRun Succeeded |
+| GateRun starts | one ValidationRun per validator without `after`, all at once; deadline `min(step deadline, gate timeout, validator timeout)`, the validator's timeout counted from its own start |
+| a ValidationRun Succeeded | each validator not started whose `after` have all Succeeded: started if every one passed, else skipped with the result `{passed: false, findings: [{severity: info, code: skipped, message: "not run: <name> did not pass"}], evidence: []}` |
+| every validator Succeeded or skipped | `result.passed` per `policy` over all `len(validators)` results, a skipped one never passing; no short-circuit among those that run; GateRun Succeeded |
 | a ValidationRun Failed | GateRun Failed with that error |
 | a ValidationRun Cancelled | GateRun Failed with `validator_cancelled` |
 | GateRun past `timeout` | remaining ValidationRuns Cancelled; GateRun Failed with `timeout` |
@@ -92,6 +93,17 @@ A `task` Validator's TaskRun has invocation address
   runtime check is what binds (reference rule 14; kept).
 - Gate and Validator are `scope: Any`. `validateConfig` dropped for the evaluator Role too.
 - Demo instance names are free text; `CONTEXT.md` governs design prose, not example names.
+- A validator may wait for others: `after` names earlier validators of the list, and it starts only
+  once each of them Succeeded with `passed: true`. A human confirming a draft the deterministic
+  check refuses answers a question nobody needs answered, and an agent auditor's call is wasted on
+  it; with `after` the check runs first and the human only on a consistent draft. Earlier in the
+  list only, as a Plan's `dependsOn`: no cycle can be written. A validator whose predecessor did
+  not pass is skipped with a synthetic `passed: false` result, not left out, so `policy` still
+  counts every validator and a skipped one never passes `any` or `quorum`. A predecessor that
+  Failed or was Cancelled fails the Gate as before. No `after` means all at once, so every Gate
+  written before is unchanged. A Gate-wide `sequential` flag was rejected: it orders validators
+  that need not wait, and the pack's Gates want the checks together and the human after them.
+  Found in design review (`35-build-process.md`, an auditor before a human).
 
 ## Examples
 
