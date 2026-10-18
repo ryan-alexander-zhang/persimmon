@@ -866,9 +866,9 @@ spec:
             then: [the claim is recorded as submitted with today's date as submission date]
           - id: AC-5
             title: A line over its policy limit without a justification refuses the submission
-            given: [a complete claim with one equipment line of 900 EUR, policy limit 500 EUR, no justification]
+            given: [a complete claim with one equipment line of 900 EUR and its receipt, policy limit 500 EUR, no justification]
             when: [the employee submits the claim]
-            then: [the submission is refused, the refusal names the equipment line and BR-3, the claim and its lines are unchanged]
+            then: [the submission is refused, the refusal names the equipment line and BR-3, the claim, its line and its receipt are unchanged]
           - id: AC-6
             title: A missing receipt refuses the submission
             given: [a claim with one meals line of 30 EUR and no receipt]

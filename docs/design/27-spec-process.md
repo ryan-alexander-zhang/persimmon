@@ -116,7 +116,10 @@ nothing: the schema refuses those (`minItems: 1`).
   under the last story only, and `id-sequence` refused it. So `AC-n` increases within its story and is
   unique across the Spec: a revision's new scenario takes the next number under the story it
   belongs to. Only `AC-n` nests across a list another id orders; `T-n` keeps document order as
-  build order. Found in UAT.
+  build order. With `AC-8` and `AC-9` added the auditor refused `FR-5` (no scenario puts a receipt in
+  play during a refusal), which an earlier run over the same `FR-5` had passed: its recall varies
+  run to run, so a passing audit is not a proof of no gap. With `AC-5` holding a receipt it passed,
+  two warnings riding. Found in UAT.
 
 ## Examples
 
