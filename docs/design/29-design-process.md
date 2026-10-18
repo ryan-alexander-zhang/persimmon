@@ -11,7 +11,8 @@ findings back once. A Design is shared by every capability of the block; no Spec
 ```text
 Workflow design-all: repeat over `blocks` with one `type` ─▶ ReviewLoop design-one per block
   produce: Task design-asset (design-agent) ─▶ Design
-  review:  Gate design-gate = Validator design-consistency (sdd/v1: design, architecture, domainModel, rules)
+  review:  Gate design-gate = Validator design-consistency (sdd/v1: design, architecture, domainModel, rules),
+           then design-audited (Task audit-design, Executor auditor, after consistency passed)
   previous and feedback fed back; maxRounds 2
 ```
 
@@ -23,12 +24,13 @@ Workflow design-all: repeat over `blocks` with one `type` ─▶ ReviewLoop desi
 | Executor `design-agent` | `claude-code/v1`, read-only, its own name for per-Namespace override |
 | Task `design-asset` | inputs `architecture`, `blockId`, `type`, `interface` (optional: which provided interface, else the block's first), `domainModel` and `glossary` (required unless `type` is `ui`), `rules`, `designSystem` and `designs` (required when it is), `previous`, `feedback`; output `design` |
 | Validator `design-consistency` | `sdd/v1` over `design`, `architecture`, `domainModel` and `glossary` (optional), `rules`, and for a `ui` Design `designSystem` and `designs`; the Design rule row of `23-pack-sdlc.md` as findings, the document's field names held to the Glossary (`alias-used`, `term-unknown`), and a `ui` screen's Actions and Layout prose read past the index (`32-ui-design-process.md`) |
-| Gate `design-gate` | consistency only |
-| ReviewLoop `design-one` | `produce` `design-asset`, `review` `design-gate`, `maxRounds: 2`; takes `interface` too, so a block with two provided interfaces gets its second Design from a direct run |
+| Validator `design-audited` | `task` over `audit-design` (inputs `design`, `architecture`, `rules`, and `domainModel` or, for `ui`, `designs`; Executor `auditor`; the Prompt `draft-audit-rules`, part "A Design": `rule-unenforced` and `contract-mismatch` errors, `contract-gap` warnings; `23-pack-sdlc.md`) |
+| Gate `design-gate` | consistency, then `audit` `after: [consistency]`, `all`, 35m |
+| ReviewLoop `design-one` | `produce` `design-asset`, `review` `design-gate` (35m), `maxRounds: 2`, 140m; takes `interface` too, so a block with two provided interfaces gets its second Design from a direct run |
 | Workflow `design-all` | `repeat` over `blocks` (BB-n ids) for one `type`, as `spec-all` repeats over capabilities; a block the loop could not design ends the run `design_inconsistent`, an iteration that died before its Gate ran `step_failed`; output `written` |
 | Validator `domain-coverage` | `sdd/v1` over `domainModel` and `designs` (every Design; the ones naming the model are read): each name the model owns with no element realising it is `unrealised`, a warning, or `unrealised-internal`, an info, for a command a policy invokes or an event an external system emits |
 | Gate `coverage-gate`, Workflow `design-coverage` | the Gate alone, no Task: `persimmon run design-coverage --input domainModel=<ref> --follow`, the step querying the Designs that name the model (`fromQuery`, `10-ports.md`); output `passed`, the tree lists every gap |
-| Workflow `design-check` | `design-gate` alone over one stored Design: `persimmon run design-check --input design=<ref> --input architecture=<ref> --input rules=<ref> --input domainModel=<ref> --input glossary=<ref> --follow` (a `ui` Design: `designSystem=<ref>` and `designs=kind:Design` instead of `domainModel` and `glossary`); for a Design `get Design --behind` names, or a hand-edited one; output `passed`, the tree lists every finding. `glossary` left out is not a finding: the field names go unchecked, as the Validator's port says |
+| Workflow `design-check` | `design-gate` alone over one stored Design, its auditor too (35m): `persimmon run design-check --input design=<ref> --input architecture=<ref> --input rules=<ref> --input domainModel=<ref> --input glossary=<ref> --follow` (a `ui` Design: `designSystem=<ref>` and `designs=kind:Design` instead of `domainModel` and `glossary`); for a Design `get Design --behind` names, or a hand-edited one; output `passed`, the tree lists every finding. `glossary` left out is not a finding: the field names go unchecked, as the Validator's port says |
 
 ## `checkDesign`
 

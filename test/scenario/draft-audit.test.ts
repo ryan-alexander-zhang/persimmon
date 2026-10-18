@@ -100,4 +100,19 @@ describe('scenario: a draft audited before it passes', () => {
     expect(inbox()).toEqual([]) // the human is never asked
     expect(out.find((l) => l.startsWith('WorkflowRun   judge-'))).toMatch(/Succeeded/)
   })
+
+  it('design-gate: the auditor reads a Design beside its DomainModel; a warning passes', { timeout: 60_000 }, async () => {
+    expect(await run('init')).toBe(0)
+    for (const [i, doc] of ['Design', 'Architecture', 'BusinessRules', 'DomainModel', 'Glossary'].map(one).entries()) expect(await run('create', file(`up-${i}.yaml`, [doc]))).toBe(0)
+    expect(await run('apply', file('humans.yaml', [human('auditor')]), '-n', 'default')).toBe(0)
+    out = []
+    expect(await run('run', 'design-check', '--input', `design=${ref('Design', 'claims-api')}`, '--input', `architecture=${ref('Architecture', 'expense-claims-architecture')}`, '--input', `rules=${ref('BusinessRules', 'expenses-rules')}`,
+      '--input', `domainModel=${ref('DomainModel', 'expenses-model')}`, '--input', `glossary=${ref('Glossary', 'expenses-glossary')}`, '--follow')).toBe(0)
+    const [auditor] = inbox()
+    expect(form(auditor!).reading.map((r: { kind: string }) => r.kind)).toEqual(['Prompt', 'Design', 'Architecture', 'BusinessRules', 'DomainModel']) // no API Designs bound: none read
+    out = []
+    expect(await answer(auditor!, 'a1.yaml', audit([{ severity: 'warning', code: 'contract-gap', message: 'EL-1: no 409 defined' }]))).toBe(0)
+    expect(out.find((l) => l.startsWith('WorkflowRun   design-check-'))).toMatch(/Succeeded/)
+    expect(out.join('\n')).toContain('contract-gap')
+  })
 })

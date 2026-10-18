@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { parse, parseAllDocuments, stringify } from 'yaml'
@@ -108,7 +108,7 @@ describe('persimmon CLI', () => {
 
     out = []
     expect(await run('get', 'Task')).toBe(0)
-    expect(out.length).toBe(24) // the SDLC pack's nineteen and the demo pack's five
+    expect(out.length).toBe(25) // the SDLC pack's twenty and the demo pack's five
     expect(await run('delete', 'Task/write-prd')).toBe(1) // referenced by prd-create
     expect(err.at(-1)).toMatch(/referenced/)
 
@@ -245,7 +245,7 @@ describe('persimmon CLI', () => {
     expect(out).toEqual(['Workflow/prd-approval', 'Workflow/prd-create']) // the SDLC pack is not in this store
     out = [] // so a Workflow stepping into a ReviewLoop of the same files resolves on validate's second pass only (08-store.md)
     expect([await run('validate', ...sdlcPack), out.filter((l) => !l.startsWith('ok'))]).toEqual([0, []])
-    expect(out.length).toBe(107)
+    expect(out.length).toBe(109)
   })
 
   it('get --behind lists the latest revision whose pinned inputs moved on; a carried previous input and a run\'s own later output are not behind', async () => {
@@ -369,14 +369,18 @@ describe('persimmon CLI', () => {
     for (const kind of ['Architecture', 'BusinessRules', 'DomainModel', 'Glossary', 'Design']) expect(await run('create', file(`${kind}.yaml`, [docs.find((d) => d.kind === kind)]))).toBe(0)
     const ref = (kind: string, id: string) => `${kind[0]!.toLowerCase()}${kind.slice(1)}={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: ${kind}, id: ${id}, revision: 1}}`
     const refs = [ref('Design', 'claims-api'), ref('Architecture', 'expense-claims-architecture'), ref('DomainModel', 'expenses-model'), ref('Glossary', 'expenses-glossary'), 'rules={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules, id: expenses-rules, revision: 1}}']
+    const auditor = { apiVersion: 'persimmon.ai/v1', kind: 'Executor', metadata: { name: 'auditor', namespace: 'default' }, spec: { type: 'human', adapter: 'cli-human/v1', configuration: {} } }
+    expect(await run('apply', file('auditor.yaml', [auditor]), '-n', 'default')).toBe(0) // the auditor after the check (23-pack-sdlc.md), answered here
     out = []
     expect(await run('run', 'design-check', ...refs.flatMap((r) => ['--input', r]), '--follow')).toBe(0)
-    expect(out.some((l) => /^WorkflowRun\s+design-check-[0-9a-f]{6}\s+Succeeded/.test(l))).toBe(true)
-    expect(out).toContain('  passed  true')
     const name = out.find((l) => l.startsWith('created WorkflowRun/'))!.slice('created '.length)
+    const audit = readdirSync(join(dir, '.persimmon', 'inbox'))[0]!.replace(/\.yaml$/, '')
+    expect(await run('complete', audit, '--file', file('audit.yaml', [{ outputs: { audit: { kind: 'value', value: { passed: true, findings: [], evidence: [] } } } }]))).toBe(0)
     out = []
     expect(await run('tree', name)).toBe(0)
-    expect(out.map((l) => l.trim()).filter((l) => l.startsWith('warning term-unknown: '))).toEqual(['warning term-unknown: rule: no term or fact type of the Glossary names it', 'warning term-unknown: route: no term or fact type of the Glossary names it', 'warning term-unknown: reason: no term or fact type of the Glossary names it']) // the Glossary bound: the field check runs
+    expect(out.some((l) => /^WorkflowRun\s+design-check-[0-9a-f]{6}\s+Succeeded/.test(l))).toBe(true)
+    expect(out).toContain('  passed  true')
+    expect(out.map((l) => l.replace(/^[\s│]+/, '')).filter((l) => l.startsWith('warning term-unknown: '))).toEqual(['warning term-unknown: rule: no term or fact type of the Glossary names it', 'warning term-unknown: route: no term or fact type of the Glossary names it', 'warning term-unknown: reason: no term or fact type of the Glossary names it']) // the Glossary bound: the field check runs
     // a Design whose block the Architecture lacks: the Gate rejects, the run Succeeds with passed false, the finding in the tree
     const bad = structuredClone(docs.find((d) => d.kind === 'Design'))
     bad.spec.content.block = 'BB-9'

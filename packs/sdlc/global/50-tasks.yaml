@@ -439,6 +439,37 @@ spec:
   timeout: 2h   # a ceiling: a project's override of test-runner cannot change it, and a run ends when its tests end
   sideEffects: idempotent
 ---
+# A Design's meaning, judged after design-consistency passed (23-pack-sdlc.md), as design-gate's Validator design-audited;
+# a ui Design has the API Designs it calls instead of the DomainModel.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: audit-design}
+spec:
+  inputs:
+    design: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: false, description: "every type but ui"}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "a ui Design: the API Designs it calls"}
+  outputs:
+    audit: {type: {kind: value, schema: {allOf: [{$ref: "persimmon.ai/v1#/ValidationResult"}, {if: {required: [findings], properties: {findings: {contains: {required: [severity], properties: {severity: {const: error}}}}}}, then: {properties: {passed: {const: false}}}, else: {properties: {passed: {const: true}}}}]}}}
+  executorRef: {kind: Executor, name: auditor}
+  action:
+    instructions: |
+      Audit the Design `design` following the draft audit rules in your context, their part for a Design.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: draft-audit-rules}}
+      - {kind: artifact, input: design}
+      - {kind: artifact, input: architecture}
+      - {kind: artifact, input: rules}
+      - {kind: artifact, input: domainModel}
+      - {kind: artifact, input: designs}
+  timeout: 30m
+  retryPolicy: # a transient API refusal gets another attempt
+    maxAttempts: 3
+    backoff: {strategy: exponential, initial: 1m, max: 5m, jitter: none}
+  sideEffects: none
+---
 # An Architecture's meaning, judged after architecture-consistency passed and before the human (23-pack-sdlc.md), as
 # architecture-gate's Validator architecture-audited.
 apiVersion: persimmon.ai/v1

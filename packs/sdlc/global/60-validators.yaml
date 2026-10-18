@@ -284,3 +284,20 @@ spec:
     taskRef: {kind: Task, name: audit-architecture}
     resultOutput: audit
   timeout: 30m
+---
+# design-audited: the auditor's judgement of a Design's meaning (23-pack-sdlc.md), after the check in design-gate.
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: design-audited}
+spec:
+  inputs:
+    design: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: false, description: "every type but ui"}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "a ui Design: the API Designs it calls"}
+  evaluator:
+    type: task
+    taskRef: {kind: Task, name: audit-design}
+    resultOutput: audit
+  timeout: 30m

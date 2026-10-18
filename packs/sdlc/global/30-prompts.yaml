@@ -370,3 +370,10 @@ spec:
     - `strategy-unfit` (error): an `S-n` whose approach does nothing for a `QG-n` it `addresses`.
     - `adr-unargued` (warning): an Adr whose decision its drivers and rejected alternatives do not argue.
     - `responsibility-overlap` (warning): two blocks owning one responsibility.
+
+    ## A Design
+
+    One contract or schema of one block (its `document` and the `elements` indexing it), beside the Architecture, the BusinessRules, and the DomainModel or, for a `ui` Design, the API Designs it calls.
+    - `rule-unenforced` (error): a `BR-n` an element cites that the document lets break: a field the rule bounds with no constraint on it, an operation with no refusal for the rule's violation, a screen that offers what the rule forbids.
+    - `contract-mismatch` (error): an `EL-n` whose part of the document does not do what the thing it `realises` does: an operation that changes nothing for a command, an event payload without the fact the event records, a screen calling no operation for the command it realises.
+    - `contract-gap` (warning): an error case, a status or a field the document leaves undefined.

@@ -367,12 +367,12 @@ spec:
       rules: {fromInput: rules}
       designSystem: {fromInput: designSystem}
       designs: {fromInput: designs}
-    timeout: 5m
+    timeout: 35m
   subject: design
   previous: previous
   feedback: feedback
   maxRounds: 2
-  timeout: 90m
+  timeout: 140m
 ---
 apiVersion: persimmon.ai/v1
 kind: Workflow
@@ -490,7 +490,7 @@ spec:
         glossary: {fromInput: glossary, onMissing: omit}
         designSystem: {fromInput: designSystem, onMissing: omit}
         designs: {fromInput: designs, onMissing: omit}
-      timeout: 5m
+      timeout: 35m
   transitions:
     - id: done
       from: [{stepRef: check, outcomes: [Succeeded, Failed]}]

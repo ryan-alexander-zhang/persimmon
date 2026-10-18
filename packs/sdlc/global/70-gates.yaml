@@ -145,8 +145,17 @@ spec:
         rules: {fromInput: rules}
         designSystem: {fromInput: designSystem, onMissing: omit}
         designs: {fromInput: designs, onMissing: omit}
+    - name: audit
+      ref: {kind: Validator, name: design-audited}
+      after: [consistency]   # no agent call on a draft the check refuses (23-pack-sdlc.md)
+      inputs:
+        design: {fromInput: design}
+        architecture: {fromInput: architecture}
+        rules: {fromInput: rules}
+        domainModel: {fromInput: domainModel, onMissing: omit}
+        designs: {fromInput: designs, onMissing: omit}
   policy: {strategy: all}
-  timeout: 5m
+  timeout: 35m   # the check, then the auditor's 30m
 ---
 apiVersion: persimmon.ai/v1
 kind: Gate
