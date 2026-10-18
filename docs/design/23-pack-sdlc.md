@@ -307,6 +307,12 @@ that kept its own `AGENTS.md` or `CLAUDE.md` carries section 8 itself.
   phase. A Namespace that wants no auditor overrides the Gate by name. Its verdict on a passing
   draft reaches the human's form as the confirm Task's `audit` input (`fromValidator`, `14-gate.md`),
   so its warnings are judged, not lost in the GateResult. Found in design review (`35-build-process.md`).
+- The draft auditors live over the worked example, which every check passes: each refused it on a
+  real defect the hand-written example always had (two rules no claim can satisfy together, a
+  quality scenario its method cannot decide, a contract field a schema cannot fill), and none
+  refused falsely in six runs; the human confirming an Architecture read the auditor's verdict in
+  the form. A fixed defect lets the next run reach a deeper one, so a Prd or a Design passes after
+  more rounds than `maxRounds` allows a draft with several gaps. Found in UAT.
 - The project's `AGENTS.md` is pack content, not a fence per Task workspace: the pack's agents run
   in the project directory and read it, so one file carries the coding rules and the rules for a
   Task's agent (section 8). example02 and example04 keep their own `AGENTS.md`: a Task workspace

@@ -130,7 +130,7 @@ spec:
       - id: BR-1
         type: fact
         factType: claim has approver
-        statement: A claim must have exactly one approver, the one Identity reports for the employee on the day the claim is submitted.
+        statement: A claim must have exactly one approver, the one Identity reports for the employee on the day the claim is submitted, or, when a line of the claim is over its category's policy limit, the first director above that approver in the employee's reporting line.
         rationale: Reporting lines change; the approver must not change under a claim in flight.
         source: Finance policy FP-12 §3
         status: active
@@ -343,7 +343,8 @@ spec:
         name: Route and decide a claim
         description: >-
           A submitted claim is routed by the claim routing decision: a flagged claim to Finance, an incomplete one
-          back to the employee, a small clean one approved at once, the rest to the approver. The approver sees the
+          back to the employee, a small clean one approved at once, the rest to the approver, a director when a line is
+          over its policy limit. The approver sees the
           claim, every receipt, and every line that needed a justification, and approves or rejects it with a reason.
         priority: P1
         subdomain: expenses
@@ -563,7 +564,7 @@ spec:
         stimulus: the core restarts during a submission
         source: operations
         response: the claim is either fully submitted or not at all; the employee sees which
-        measure: zero half-submitted claims in a quarter
+        measure: no claim half-submitted in 100 restarts injected mid-submission
         method: chaos
         provenAt: release
       - id: QS-2
@@ -938,7 +939,7 @@ spec:
               allOf:
                 - {$ref: "#/components/schemas/ClaimLineDraft"}
                 - {type: object, required: [id, receipt], properties: {id: {type: string}, receipt: {type: boolean, description: a receipt is attached}}}
-            Finding: {type: object, required: [lineId, rule], properties: {lineId: {type: string}, rule: {type: string, pattern: "^BR-[0-9]+$"}}}
+            Finding: {type: object, required: [rule], properties: {lineId: {type: string, description: the line the rule is broken on; absent for a rule over the whole claim (BR-5)}, rule: {type: string, pattern: "^BR-[0-9]+$"}}}
             Claim:
               type: object
               required: [id, employee, total, complete, findings, lines]
@@ -954,7 +955,7 @@ spec:
                 route: {enum: [finance-review, return-to-employee, auto-approve, approver]}
                 lines: {type: array, items: {$ref: "#/components/schemas/ClaimLine"}}
             ClaimSummary: {type: object, required: [id, total], properties: {id: {type: string}, total: {type: number}, submissionDate: {type: string, format: date}, riskFlag: {type: boolean}}}
-            Trip: {type: object, required: [days, destinationCountry], properties: {days: {type: integer}, destinationCountry: {type: string}}}
+            Trip: {type: object, required: [days, destinationCountry, date], properties: {days: {type: integer}, destinationCountry: {type: string}, date: {type: string, format: date, description: the first day; the per diem line's date}}}
             Refusal: {type: object, required: [findings], properties: {findings: {type: array, minItems: 1, items: {$ref: "#/components/schemas/Finding"}}}}
             Decision: {type: object, required: [reason], properties: {reason: {type: string}}}
         paths:
