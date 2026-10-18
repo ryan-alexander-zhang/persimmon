@@ -362,3 +362,11 @@ spec:
     - `rule-misplaced` (error): a `BR-n` a capability lists whose statement constrains nothing that capability does (a rule on another capability's subject, or on another subdomain's).
     - `capability-overlap` (warning): two `CAP-n` whose descriptions do the same thing.
     - `vague-term` (warning): a capability, rule or success criterion resting on a word no one can check ("fast", "easy", "appropriate").
+
+    ## An Architecture
+
+    The Architecture of one product and the Adrs it applies, beside the Prd and the BusinessRules; a human confirms it after you.
+    - `scenario-undecidable` (error): a `QS-n` its `method` cannot decide at its `provenAt`: a measure without a value or a threshold, a `test` at `build` whose measure needs production traffic or weeks, a `fitness` one naming no structure a tool can read.
+    - `strategy-unfit` (error): an `S-n` whose approach does nothing for a `QG-n` it `addresses`.
+    - `adr-unargued` (warning): an Adr whose decision its drivers and rejected alternatives do not argue.
+    - `responsibility-overlap` (warning): two blocks owning one responsibility.

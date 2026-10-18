@@ -268,3 +268,19 @@ spec:
     taskRef: {kind: Task, name: audit-prd}
     resultOutput: audit
   timeout: 30m
+---
+# architecture-audited: the auditor's judgement of an Architecture's meaning (23-pack-sdlc.md), after the check in architecture-gate.
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: architecture-audited}
+spec:
+  inputs:
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}}
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+  evaluator:
+    type: task
+    taskRef: {kind: Task, name: audit-architecture}
+    resultOutput: audit
+  timeout: 30m

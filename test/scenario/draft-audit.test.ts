@@ -78,4 +78,26 @@ describe('scenario: a draft audited before it passes', () => {
     expect(await answer(human2!, 'c.yaml', { result: { kind: 'value', value: { passed: true, findings: [], evidence: [] } } })).toBe(0)
     expect(out.find((l) => l.startsWith('WorkflowRun   author-prd-'))).toMatch(/Succeeded/)
   })
+
+  it('architecture-gate: a refusing auditor skips the human', { timeout: 60_000 }, async () => {
+    expect(await run('init')).toBe(0)
+    for (const [i, doc] of ['Prd', 'BusinessRules', 'DomainModel', 'Architecture', 'Glossary', 'BoundedContext'].map(one).concat(domain.filter((d) => d.kind === 'Adr')).entries()) expect(await run('create', file(`up-${i}.yaml`, [doc]))).toBe(0)
+    const kinds = { architecture: 'Architecture', adrs: 'Adr*', prd: 'Prd', rules: 'BusinessRules', contexts: 'BoundedContext*', domainModels: 'DomainModel*', glossaries: 'Glossary*' }
+    const type = (k: string) => ({ kind: k.endsWith('*') ? 'artifacts' : 'artifact', artifactKind: { apiVersion: 'sdd.persimmon.ai/v1', kind: k.replace('*', '') } })
+    const judge = { apiVersion: 'persimmon.ai/v1', kind: 'Workflow', metadata: { name: 'judge' }, spec: {
+      inputs: Object.fromEntries(Object.entries(kinds).map(([n, k]) => [n, { type: type(k) }])), outputs: { passed: { type: { kind: 'value', schema: { type: 'boolean' } } } }, outputBindings: { passed: { expression: 'steps.gate.outputs.result.passed' } },
+      entry: ['gate'], steps: [{ id: 'gate', uses: { kind: 'Gate', name: 'architecture-gate' }, inputs: Object.fromEntries(Object.keys(kinds).map((n) => [n, { fromInput: n }])), timeout: '72h' }],
+      transitions: [{ id: 'done', from: [{ stepRef: 'gate', outcomes: ['Succeeded'] }], to: [{ terminal: 'Succeeded' }] }], timeout: '73h' } }
+    expect(await run('apply', file('judge.yaml', [judge, human('auditor')]), '-n', 'default')).toBe(0)
+    const many = (k: string, ids: string[]) => `{kind: artifacts, refs: [${ids.map((id) => `{apiVersion: sdd.persimmon.ai/v1, kind: ${k}, id: ${id}, revision: 1}`).join(', ')}]}`
+    out = []
+    expect(await run('run', 'judge', '--input', `architecture=${ref('Architecture', 'expense-claims-architecture')}`, '--input', `adrs=${many('Adr', ['adr-receipts-as-blobs', 'adr-routing-in-core'])}`, '--input', `prd=${ref('Prd', 'expense-claims')}`, '--input', `rules=${ref('BusinessRules', 'expenses-rules')}`,
+      '--input', `contexts=${many('BoundedContext', ['expenses'])}`, '--input', 'domainModels={kind: artifacts, refs: []}', '--input', `glossaries=${many('Glossary', ['expenses-glossary'])}`, '--follow')).toBe(0)
+    const [auditor] = inbox()
+    expect(form(auditor!).reading.map((r: { kind: string }) => r.kind)).toEqual(['Prompt', 'Architecture', 'Adr', 'Adr', 'Prd', 'BusinessRules'])
+    out = []
+    expect(await answer(auditor!, 'a1.yaml', audit([{ severity: 'error', code: 'scenario-undecidable', message: 'QS-1: no threshold' }]))).toBe(0)
+    expect(inbox()).toEqual([]) // the human is never asked
+    expect(out.find((l) => l.startsWith('WorkflowRun   judge-'))).toMatch(/Succeeded/)
+  })
 })

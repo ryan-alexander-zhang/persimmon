@@ -439,6 +439,35 @@ spec:
   timeout: 2h   # a ceiling: a project's override of test-runner cannot change it, and a run ends when its tests end
   sideEffects: idempotent
 ---
+# An Architecture's meaning, judged after architecture-consistency passed and before the human (23-pack-sdlc.md), as
+# architecture-gate's Validator architecture-audited.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: audit-architecture}
+spec:
+  inputs:
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}}
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+  outputs:
+    audit: {type: {kind: value, schema: {allOf: [{$ref: "persimmon.ai/v1#/ValidationResult"}, {if: {required: [findings], properties: {findings: {contains: {required: [severity], properties: {severity: {const: error}}}}}}, then: {properties: {passed: {const: false}}}, else: {properties: {passed: {const: true}}}}]}}}
+  executorRef: {kind: Executor, name: auditor}
+  action:
+    instructions: |
+      Audit the Architecture `architecture` following the draft audit rules in your context, their part for an Architecture.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: draft-audit-rules}}
+      - {kind: artifact, input: architecture}
+      - {kind: artifact, input: adrs}
+      - {kind: artifact, input: prd}
+      - {kind: artifact, input: rules}
+  timeout: 30m
+  retryPolicy: # a transient API refusal gets another attempt
+    maxAttempts: 3
+    backoff: {strategy: exponential, initial: 1m, max: 5m, jitter: none}
+  sideEffects: none
+---
 # A Prd's meaning, judged after prd-consistency passed and before the human (23-pack-sdlc.md), as prd-gate's Validator
 # prd-audited.
 apiVersion: persimmon.ai/v1
