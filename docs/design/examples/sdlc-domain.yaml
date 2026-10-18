@@ -334,7 +334,8 @@ spec:
         description: >-
           An employee builds a claim from claim lines, attaches a receipt to each line that needs one, and submits
           it. The claim refuses submission while a rule is broken and says which line and which rule, so a claim
-          that reaches an approver is already complete.
+          that reaches an approver is already complete. The employee sees each of their claims with its total and
+          submission date.
         priority: P1
         subdomain: expenses
         rules: [BR-2, BR-3]
