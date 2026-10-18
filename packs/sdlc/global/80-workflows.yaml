@@ -239,12 +239,12 @@ spec:
       architecture: {fromInput: architecture}
       rules: {fromInput: rules}
       context: {fromInput: context}
-    timeout: 5m
+    timeout: 35m
   subject: spec
   previous: previous
   feedback: feedback
   maxRounds: 2
-  timeout: 90m
+  timeout: 140m
 ---
 apiVersion: persimmon.ai/v1
 kind: Workflow

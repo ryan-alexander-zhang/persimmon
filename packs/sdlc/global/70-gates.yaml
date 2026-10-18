@@ -74,8 +74,17 @@ spec:
         rules: {fromInput: rules}
         context: {fromInput: context}
         capabilityId: {fromInput: capabilityId}
+    - name: audit
+      ref: {kind: Validator, name: spec-audited}
+      after: [consistency]   # no agent call on a Spec the check refuses (23-pack-sdlc.md)
+      inputs:
+        spec: {fromInput: spec}
+        prd: {fromInput: prd}
+        rules: {fromInput: rules}
+        domainModel: {fromInput: domainModel}
+        architecture: {fromInput: architecture}
   policy: {strategy: all}
-  timeout: 5m
+  timeout: 35m   # the check, then the auditor's 30m
 ---
 apiVersion: persimmon.ai/v1
 kind: Gate

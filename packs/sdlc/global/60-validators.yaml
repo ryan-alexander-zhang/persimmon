@@ -237,3 +237,20 @@ spec:
     expression: |
       {"passed": inputs.audit.findings.all(f, f.severity != "error"), "findings": inputs.audit.findings, "evidence": []}
   timeout: 1m
+---
+# spec-audited: the auditor's judgement of a Spec's meaning (23-pack-sdlc.md), after spec-consistency in spec-gate.
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: spec-audited}
+spec:
+  inputs:
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+  evaluator:
+    type: task
+    taskRef: {kind: Task, name: audit-spec}
+    resultOutput: audit
+  timeout: 30m

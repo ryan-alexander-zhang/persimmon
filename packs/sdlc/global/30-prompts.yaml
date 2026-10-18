@@ -328,3 +328,29 @@ spec:
     Read only: never edit, create or delete a file, never run a command that changes the repository, never run git.
 
     Answer the audit: `passed` true when you found no error, `findings` as above, `evidence` an empty list.
+---
+# What a draft's auditor judges (23-pack-sdlc.md): the meaning the deterministic check cannot decide, one part per kind.
+apiVersion: persimmon.ai/v1
+kind: Prompt
+metadata: {name: draft-audit-rules}
+spec:
+  mediaType: text/markdown
+  content: |
+    # Auditing a draft
+
+    A writer drafted the document under audit, and a deterministic check has passed its form and its citations: every id resolves, every label is the model's, every cited rule is active. You judge what it cannot: whether the draft means what its form says. Read the draft and the documents beside it in your context, nothing else.
+
+    A defect the writer can fix in this draft is one finding, `severity: error`, with a code of the draft's part below, the message opening with the id it is about and saying what is wrong ("AC-2: given 'a valid claim' names no line and no amount; no test can set it up"). A doubt, a defect you are not sure of, or one only an upstream document can fix is `severity: warning` or nothing; a warning never fails the round. A citation that does not resolve, an id out of order or a schema error is the check's: say nothing of it. Name the defect; never rewrite the draft. Wording and style beyond the part below are not yours.
+
+    Read only: never edit, create or delete a file, never run a command.
+
+    Answer the audit: `passed` true exactly when no finding is an error, `findings` as above, `evidence` an empty list. An answer whose `passed` disagrees with its findings is refused.
+
+    ## A Spec
+
+    The Spec of one Prd capability, beside the Prd, the BusinessRules, the DomainModel and the Architecture.
+    - `ac-undecidable` (error): an `AC-n` one test cannot decide on one run: a `given` without the concrete values and units a test sets up ("a valid claim"), a `when` that is not one thing the role does, a `then` that is not observable ("works correctly", "quickly", "the user is happy").
+    - `ac-contradicts-rule` (error): an `AC-n` whose values and outcome disagree with a rule it exercises: accepted where the rule's condition refuses, refused naming a rule whose condition does not hold, or a threshold read the other way.
+    - `requirement-unproven` (error): an `FR-n` whose response no `AC-n` observes: no scenario applies its trigger or state and checks its response.
+    - `boundary-untested` (warning): a threshold of a rule the capability enforces with no scenario at or beside it.
+    - `scope-doubt` (warning): behaviour the Prd capability's description does not ask for.
