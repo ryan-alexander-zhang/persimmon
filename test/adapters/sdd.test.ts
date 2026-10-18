@@ -467,7 +467,7 @@ describe('sdd/v1 over a Design', () => {
     expect(alias.findings.filter((f: { code: string }) => f.code === 'alias-used').map((f: { message: string }) => f.message)).toEqual(['expense: expense is an alias; the Glossary names claim line', 'expenseReport: expense report is deprecated; the Glossary names claim'])
     // a plural of a term, an id in any case, an array and a field named `properties` are not findings; a name is reported once per document
     const fine = await withGlossary((c) => c.replace('properties: {reason: {type: string}}', 'properties: {receipts: {type: boolean}, tripId: {type: string}, LINE_ID: {type: string}, legs: {type: array, items: {type: string}}, properties: {type: string, format: date}, rule: {type: string}}'))
-    expect(label(fine)).toEqual(['warning:term-unknown:rule', 'warning:term-unknown:route', 'warning:term-unknown:properties'])
+    expect(label(fine)).toEqual(['warning:term-unknown:rule', 'warning:term-unknown:route', 'warning:term-unknown:reason', 'warning:term-unknown:properties'])
     // the name as written is looked up before its singular: `caps` is the alias `cap`, not a plural of nothing
     const caps = await withGlossary((c) => c.replace('properties: {reason: {type: string}}', 'properties: {caps: {type: number}}'))
     expect(label(caps)).toContain('error:alias-used:caps')

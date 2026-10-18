@@ -107,6 +107,7 @@ spec:
       - {name: claim has total, subject: claim, predicate: has, object: {type: decimal, unit: EUR}, status: active}
       - {name: claim has submission date, subject: claim, predicate: has, object: {type: date}, status: active}
       - {name: claim is complete, subject: claim, predicate: is, object: {type: boolean}, description: "every claim line that needs a receipt has one", status: active}
+      - {name: claim has line over policy limit, subject: claim, predicate: has, object: {type: boolean}, description: "a claim line above its category's policy limit (BR-3)", status: active}
       - {name: claim line has amount, subject: claim line, predicate: has, object: {type: decimal, unit: EUR}, status: active}
       - {name: claim line has date, subject: claim line, predicate: has, object: {type: date}, status: active}
       - {name: claim line has receipt, subject: claim line, predicate: has, object: {type: boolean}, status: active}
@@ -206,20 +207,20 @@ spec:
         status: deprecated
       - id: BR-7
         type: decision
-        statement: A submitted claim must be considered routed to auto-approve if it is complete, has no risk flag, and its total is 5000 EUR or less.
-        rationale: Nine of ten claims are small and clean; an approver's minute is for the rest.
+        statement: A submitted claim must be considered routed to auto-approve if it has no risk flag, no line over its policy limit, and its total is 5000 EUR or less.
+        rationale: Nine of ten claims are small and clean; an approver's minute is for the rest. A line over its limit needs a director (BR-3), so never auto-approves. A submitted claim is complete (BR-2 refuses the submission otherwise).
         source: Finance policy FP-12 §4, 2026 revision
         effectiveFrom: 2026-01-01
         status: active
         logic:
           inputs:
-            - {name: complete, factType: claim is complete}
             - {name: risk, factType: claim has risk flag}
+            - {name: overLimit, factType: claim has line over policy limit}
             - {name: total, factType: claim has total}
           when:
             all:
-              - {field: complete, op: eq, value: true}
               - {field: risk, op: eq, value: false}
+              - {field: overLimit, op: eq, value: false}
               - {field: total, op: lte, value: 5000}
           then: {decision: {route: auto-approve}}
       - id: BR-8
@@ -236,9 +237,9 @@ spec:
       - id: BR-9
         type: decision
         statement: A submitted claim must be considered routed to return-to-employee if it has no risk flag and is not complete.
-        rationale: An approver never sees a claim a receipt would have fixed.
+        rationale: "An approver never sees a claim a receipt would have fixed. Withdrawn: the submission refuses a claim that is not complete (BR-2), so no submitted claim is; the refusal returns it to the employee."
         source: Finance policy FP-12 §4
-        status: active
+        status: deprecated
         logic:
           inputs:
             - {name: risk, factType: claim has risk flag}
@@ -250,20 +251,21 @@ spec:
           then: {decision: {route: return-to-employee}}
       - id: BR-10
         type: decision
-        statement: A submitted claim must be considered routed to approver if it has no risk flag, is complete, and its total is above 5000 EUR.
-        rationale: Large clean claims are an approver's call.
+        statement: A submitted claim must be considered routed to approver if it has no risk flag and its total is above 5000 EUR or a line is over its policy limit.
+        rationale: Large claims and lines over their limit are an approver's call; the approver of the latter is a director (BR-1, BR-3).
         source: Finance policy FP-12 §4
         status: active
         logic:
           inputs:
             - {name: risk, factType: claim has risk flag}
-            - {name: complete, factType: claim is complete}
+            - {name: overLimit, factType: claim has line over policy limit}
             - {name: total, factType: claim has total}
           when:
             all:
               - {field: risk, op: eq, value: false}
-              - {field: complete, op: eq, value: true}
-              - {field: total, op: gt, value: 5000}
+              - any:
+                  - {field: total, op: gt, value: 5000}
+                  - {field: overLimit, op: eq, value: true}
           then: {decision: {route: approver}}
       - id: BR-11
         type: constraint
@@ -284,19 +286,19 @@ spec:
     owner: Finance operations
     source: Finance policy FP-12 §4, Internal control IC-7
     status: active
-    cites: [BR-2, BR-7, BR-8, BR-9, BR-10]
+    cites: [BR-3, BR-7, BR-8, BR-10]
     inputs:
       - {name: risk, factType: claim has risk flag}
-      - {name: complete, factType: claim is complete}
+      - {name: overLimit, factType: claim has line over policy limit}
       - {name: total, factType: claim has total}
     outputs:
-      - {name: route, type: enum, values: [finance-review, return-to-employee, auto-approve, approver]}
+      - {name: route, type: enum, values: [finance-review, auto-approve, approver]}
     hitPolicy: unique
-    rows:
-      - {id: R-1, when: {risk: "true", complete: "-", total: "-"}, then: {route: finance-review}, cites: [BR-8]}
-      - {id: R-2, when: {risk: "false", complete: "false", total: "-"}, then: {route: return-to-employee}, cites: [BR-9], note: "complete is BR-2 applied to every claim line"}
-      - {id: R-3, when: {risk: "false", complete: "true", total: "<= 5000"}, then: {route: auto-approve}, cites: [BR-7]}
-      - {id: R-4, when: {risk: "false", complete: "true", total: "> 5000"}, then: {route: approver}, cites: [BR-10], note: "BR-3 may still demand a director"}
+    rows: # R-2 routed an incomplete claim back (BR-9, withdrawn); its id stays unused
+      - {id: R-1, when: {risk: "true", overLimit: "-", total: "-"}, then: {route: finance-review}, cites: [BR-8]}
+      - {id: R-3, when: {risk: "false", overLimit: "false", total: "<= 5000"}, then: {route: auto-approve}, cites: [BR-7]}
+      - {id: R-4, when: {risk: "false", overLimit: "false", total: "> 5000"}, then: {route: approver}, cites: [BR-10]}
+      - {id: R-5, when: {risk: "false", overLimit: "true", total: "-"}, then: {route: approver}, cites: [BR-10, BR-3], note: "the approver is a director (BR-1)"}
 ---
 apiVersion: sdd.persimmon.ai/v1
 kind: Prd
@@ -342,13 +344,12 @@ spec:
       - id: CAP-2
         name: Route and decide a claim
         description: >-
-          A submitted claim is routed by the claim routing decision: a flagged claim to Finance, an incomplete one
-          back to the employee, a small clean one approved at once, the rest to the approver, a director when a line is
-          over its policy limit. The approver sees the
+          A submitted claim is routed by the claim routing decision: a flagged claim to Finance, a small clean one
+          approved at once, the rest to the approver, a director when a line is over its policy limit. The approver sees the
           claim, every receipt, and every line that needed a justification, and approves or rejects it with a reason.
         priority: P1
         subdomain: expenses
-        rules: [BR-1, BR-3, BR-5, BR-7, BR-8, BR-9, BR-10]
+        rules: [BR-1, BR-3, BR-5, BR-7, BR-8, BR-10]
       - id: CAP-3
         name: Per diem lines
         description: >-
@@ -421,10 +422,10 @@ spec:
     status: accepted
     deciders: [Finance operations, platform team]
     context: >-
-      The route of a submitted claim is the claim routing DecisionTable (BR-7 to BR-10). A client could compute it to
+      The route of a submitted claim is the claim routing DecisionTable (BR-7, BR-8, BR-10). A client could compute it to
       show the employee the outcome while typing, which an approver's minute (SC-4) would welcome; but a client is
       outside Finance's control and the table changes yearly. Taken beside the Architecture, outside the architect loop; its QS-5 holds it at build.
-    drivers: [BR-7, BR-8, BR-9, BR-10]
+    drivers: [BR-7, BR-8, BR-10]
     enforcedBy: [QS-5]
     decision: >-
       The claims core evaluates the claim routing table at submission and records the route and the row that fired on
@@ -906,6 +907,7 @@ spec:
         question: Is a claim line's amount entered in the currency paid (the Glossary term) or in EUR (the fact type and BR-2)? Accounting converts at booking.
       - id: Q-3
         question: CAP-1 refuses a submission that breaks BR-2, so no submitted claim is incomplete; CAP-2 and BR-9 route an incomplete claim back to the employee. Which holds?
+        resolution: CAP-1's; BR-9 is withdrawn and the refusal returns the claim to the employee.
 ---
 # The Design of BB-1's claims API, one asset for CAP-1, CAP-2 and CAP-4: every command and read model the block's
 # responsibility names, as OpenAPI 3.1 embedded whole; the elements index says what each operation realises. The caller
@@ -933,7 +935,7 @@ spec:
             claimId: {name: claimId, in: path, required: true, schema: {type: string}}
             lineId: {name: lineId, in: path, required: true, schema: {type: string}}
           schemas:
-            ClaimDraft: {type: object, required: [lines], properties: {lines: {type: array, items: {$ref: "#/components/schemas/ClaimLineDraft"}}}}
+            ClaimDraft: {type: object, required: [lines], properties: {lines: {type: array, items: {allOf: [{$ref: "#/components/schemas/ClaimLineDraft"}, {not: {required: [category], properties: {category: {const: per diem}}}}], description: a per diem line only a trip adds (BR-4)}}}}
             ClaimLineDraft: {type: object, required: [amount, date, category], properties: {amount: {type: number}, date: {type: string, format: date}, category: {enum: [travel, meals, lodging, equipment, per diem, other]}, justification: {type: string}}}
             ClaimLine:
               allOf:
@@ -952,10 +954,12 @@ spec:
                 submissionDate: {type: string, format: date}
                 approver: {type: string}
                 riskFlag: {type: boolean}
-                route: {enum: [finance-review, return-to-employee, auto-approve, approver]}
+                route: {enum: [finance-review, auto-approve, approver]}
+                reason: {type: string, description: the reason of the approval or rejection}
                 lines: {type: array, items: {$ref: "#/components/schemas/ClaimLine"}}
-            ClaimSummary: {type: object, required: [id, total], properties: {id: {type: string}, total: {type: number}, submissionDate: {type: string, format: date}, riskFlag: {type: boolean}}}
-            Trip: {type: object, required: [days, destinationCountry, date], properties: {days: {type: integer}, destinationCountry: {type: string}, date: {type: string, format: date, description: the first day; the per diem line's date}}}
+            ClaimSummary: {type: object, required: [id, total], properties: {id: {type: string}, total: {type: number}, submissionDate: {type: string, format: date}}}
+            ClaimToDecide: {type: object, required: [id, total, riskFlag], properties: {id: {type: string}, total: {type: number}, riskFlag: {type: boolean}}}
+            Trip: {type: object, required: [days, destinationCountry, date], properties: {days: {type: integer, minimum: 1}, destinationCountry: {type: string}, date: {type: string, format: date, description: the first day; the per diem line's date}}}
             Refusal: {type: object, required: [findings], properties: {findings: {type: array, minItems: 1, items: {$ref: "#/components/schemas/Finding"}}}}
             Decision: {type: object, required: [reason], properties: {reason: {type: string}}}
         paths:
@@ -971,7 +975,7 @@ spec:
           /claims/to-decide:
             get:
               operationId: claimsToDecide
-              responses: {"200": {description: the claims routed to the caller as approver, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/ClaimSummary"}}}}}}
+              responses: {"200": {description: the claims routed to the caller as approver, content: {application/json: {schema: {type: array, items: {$ref: "#/components/schemas/ClaimToDecide"}}}}}}
           /claims/{claimId}/lines/{lineId}/receipt:
             parameters: [{$ref: "#/components/parameters/claimId"}, {$ref: "#/components/parameters/lineId"}]
             put:
@@ -1016,11 +1020,11 @@ spec:
       - {id: EL-3, name: "POST /claims/{claimId}/submission", realises: {kind: command, name: Submit Claim}, rules: [BR-2, BR-3]}
       - {id: EL-4, name: GET /claims/mine, realises: {kind: readModel, name: My Claims View}}
       - {id: EL-5, name: "POST /claims/{claimId}/trips", realises: {kind: command, name: Add Trip}, rules: [BR-4]}
-      - {id: EL-6, name: "POST /claims/{claimId}/route", realises: {kind: command, name: Route Claim}, rules: [BR-7, BR-8, BR-9, BR-10]}
+      - {id: EL-6, name: "POST /claims/{claimId}/route", realises: {kind: command, name: Route Claim}, rules: [BR-7, BR-8, BR-10]}
       - {id: EL-7, name: "POST /claims/{claimId}/approval", realises: {kind: command, name: Approve Claim}, rules: [BR-3, BR-5]}
       - {id: EL-8, name: "POST /claims/{claimId}/rejection", realises: {kind: command, name: Reject Claim}}
       - {id: EL-9, name: GET /claims/to-decide, realises: {kind: readModel, name: Claims To Decide View}}
-    rules: [BR-2, BR-3, BR-4, BR-5, BR-7, BR-8, BR-9, BR-10]
+    rules: [BR-2, BR-3, BR-4, BR-5, BR-7, BR-8, BR-10]
     decisions: [adr-receipts-as-blobs, adr-routing-in-core]
     openQuestions:
       - id: Q-1
