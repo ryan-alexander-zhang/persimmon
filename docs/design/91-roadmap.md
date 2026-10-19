@@ -58,6 +58,10 @@ later     eager joins · retention policy · policy resource · external event s
 | a listing of the `D-n` no Issue cites | `35-build-process.md` | v1: the `defect-reported` warning is the only reminder; nothing makes a reported defect become an Issue |
 | one defect reported by several records merged | `35-build-process.md` | v1: each record of a `build-all` reports the same old red test again; the human writes one Issue |
 | an Issue's `blocks`, `found` and `fixedBy` resolved against the store | `35-build-process.md` | v1: schema only; the Issue is written by hand, outside any Gate |
+| the `release` test tier: a full mutation run, the full `e2e` matrix, `release` quality scenarios | `36-test-levels.md` | needs a release process; v1 declares the tier only |
+| a Change set per task, from a tree snapshot before each `implement` | `36-test-levels.md` | v1: measured from the baseline's `head`, so a later task's holds the earlier tasks' changes |
+| test levels in parallel, each in its own workspace | `36-test-levels.md` | v1: one after the other in the round's workspace, cheapest first |
+| coverage from JaCoCo XML or lcov; mutation for Python's tools | `36-test-levels.md` | v1: Cobertura XML and mutation-testing-elements JSON only; a project converts |
 
 ## Layer 3
 
