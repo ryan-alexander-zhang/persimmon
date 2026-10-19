@@ -327,7 +327,9 @@ that kept its own `AGENTS.md` or `CLAUDE.md` carries section 8 itself.
   skipped judged nothing, so the next round audits as round one. Nothing compares items
   mechanically: the auditor is held to the rule by its Prompt, as to its codes. An advisory
   auditor on a human's Gate was rejected: it stops sparing the human a draft the auditor refuses.
-  Found in UAT (a Prd refused on rules unchanged since a round that passed).
+  Found in UAT (a Prd refused on rules unchanged since a round that passed). Live over a Spec with
+  one planted defect: round one refused it, round two with it fixed and nothing else changed passed
+  in 56s against round one's 2m03s; no `found-late` arose, so that code is unobserved live.
 - The project's `AGENTS.md` is pack content, not a fence per Task workspace: the pack's agents run
   in the project directory and read it, so one file carries the coding rules and the rules for a
   Task's agent (section 8). example02 and example04 keep their own `AGENTS.md`: a Task workspace
