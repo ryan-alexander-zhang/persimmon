@@ -1,0 +1,31 @@
+# The Issue step 10 writes for the defect the build of Cancel a Booking reported (35-build-process.md). Lines are the
+# starter app's as committed.
+apiVersion: sdd.persimmon.ai/v1
+kind: Issue
+metadata: {name: back-to-back-booking-refused.r1}
+spec:
+  identity: {id: back-to-back-booking-refused, revision: 1}
+  content:
+    title: A booking that starts when another ends is refused as overlapping
+    found: {record: room-booking-prd-cap-2-plan-t-1, defect: D-1}
+    observed: With Room A booked 10:00 to 11:00, Book Room for 11:00 to 12:00 is refused under BR-7.
+    expected: The 11:00 to 12:00 booking is recorded; slots that only touch do not overlap (BR-7, CAP-1 AC-13).
+    trigger: Any Book Room whose slot starts exactly when an active booking of the only fitting room ends, or ends when one starts.
+    impact:
+      affected: Every back-to-back booking of a room, the common case of meetings on the hour.
+      ongoing: true
+      severity: The employee is told no room is free when one is, which defeats G-1; no wrong booking is recorded.
+    rootCause:
+      statement: The overlap query compares with inclusive bounds (start_time <= requested end AND end_time >= requested start), so two slots sharing an endpoint count as overlapping. Half-open slots need strict bounds.
+      at: [app/src/room-schedule.js:27]
+    scope:
+      - {site: app/src/room-schedule.js:27, affected: true, note: the BR-7 overlap check in Book Room}
+      - {site: app/src/room-schedule.js:40, affected: false, note: "the Room Status View's current booking: start inclusive, end exclusive, already half-open"}
+      - {site: app/src/room-schedule.js:41, affected: false, note: the next booking is strictly after now}
+    reproduction:
+      test: Book Room > books a slot that starts when the last one ends (BR-7)
+      failure: expected undefined to match object { Object (roomId, startTime) }
+    verdict: code-nonconformant
+    blocks:
+      - {artifact: room-booking-prd-cap-1-plan, items: [T-2]}
+    status: open

@@ -1,0 +1,9 @@
+# Step 9 unattended: the builder is Claude Code instead of your own coding agent at the inbox (35-build-process.md).
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: builder}
+spec:
+  type: agent
+  adapter: claude-code/v1
+  configuration: {model: claude-sonnet-5, sandbox: workspace-write, allowedTools: ["Bash(npm test:*)", "Bash(npx vitest:*)"]}
+  security: {networkAccess: allowlist, allowedHosts: [api.anthropic.com]}

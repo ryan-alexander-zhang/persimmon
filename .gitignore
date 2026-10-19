@@ -203,3 +203,6 @@ examples/example04/app/*
 !examples/example04/app/vitest.config.mjs
 !examples/example04/app/AGENTS.md
 !examples/example04/app/CLAUDE.md
+# example07: the starter app is source; what its tests write is not
+examples/example07/app/junit.xml
+examples/example07/app/package-lock.json

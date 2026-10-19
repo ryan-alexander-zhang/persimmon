@@ -1,28 +1,30 @@
-# example07: brief to Plan with the SDLC pack, a human at every Gate
+# example07: brief to code with the SDLC pack, a human at every Gate
 
 You give a one-page brief. The pack writes the Prd and its business rules, storms the domain in
 three levels, derives the bounded context, its glossary and domain model, writes one Spec per
-capability, one Design per building block and type, and one Plan per Spec. You sit at the Gates:
-approve, or reject with findings the next round must fix. Nothing is yours to write but the brief.
+capability, one Design per building block and type, and one Plan per Spec, then builds one Plan into
+the starter app in [`app/`](app/). You sit at the Gates: approve, or reject with findings the next
+round must fix. Nothing is yours to write but the brief.
 
 ```text
-brief ─▶ author-prd ─▶ domain-discovery ─▶ architect ─▶ spec-all ─▶ design-all ─▶ design-system ─▶ design-all (ui) ─▶ plan-all
-          Prd, rules    EventStorming ×3       Architecture,  Spec ×6     Design ×2     DesignSystem      Design ×3          Plan ×6
-          you confirm   you confirm each       Adrs; you confirm                       you confirm
+brief ─▶ author-prd ─▶ domain-discovery ─▶ architect ─▶ spec-all ─▶ design-all ─▶ design-system ─▶ design-all (ui) ─▶ plan-all ─▶ build-all
+          Prd, rules    EventStorming ×3       Architecture,  Spec ×6     Design ×2     DesignSystem      Design ×3          Plan ×6     code, AcceptanceRecord ×3
+          you confirm   you confirm each       Adrs; you confirm                       you confirm                                     a defect reported, an Issue
                         BoundedContext,
                         Glossary, DomainModel
 ```
 
 [`room-booking-domain.yaml`](room-booking-domain.yaml) is what one run of these steps produced on
 `claude-sonnet-5`: thirty artifacts, the Architecture and its five Adrs, the DesignSystem and the three `ui` Designs included. Read it to see the shapes, or
-load it into a project without running anything (step 8).
+load it into a project without running anything (step 8) and build from there (step 9).
 
 ## Prerequisites
 
 - `persimmon` on your PATH: `npm install && npm install -g .` in the repository root
   ([Installation](../../README.md#installation))
 - `claude` CLI installed and logged in
-- about 65 minutes of wall clock and your attention at nine Gates
+- Node.js 22.13 or later for step 9: the starter app stores on `node:sqlite`
+- about 65 minutes of wall clock and your attention at nine Gates, plus about 6 minutes for step 9 unattended
 
 ## Steps
 
@@ -153,9 +155,12 @@ persimmon run plan-all --input 'prd=...' --input 'capabilities=[CAP-1, CAP-2, CA
 ```sh
 persimmon init
 persimmon validate room-booking-domain.yaml        # 30 lines `ok`
+mkdir -p .persimmon/upstream
+awk '/^---$/{n++; next} {print > (".persimmon/upstream/" sprintf("%02d", n) ".yaml")}' room-booking-domain.yaml
+for f in .persimmon/upstream/*.yaml; do persimmon create "$f"; done   # 30 lines `created`
 ```
 
-`persimmon create` takes one document per file; split the file to load it, or read it as it is.
+`persimmon create` takes one document per file, so the file is split first.
 Edited by hand after this recording: the Prd names one subdomain, `room-booking` (supporting), its
 capabilities and the storming context name it, and the BoundedContext lists the six capabilities
 (`34-subdomains.md`); the recording named the context in the Prd instead.
@@ -164,3 +169,79 @@ collapsed into the revision that passed.
 
 Each quality scenario's `method` and `provenAt` were added by hand after the run, when the kind made them required
 (35-build-process.md); the Plans predate them.
+
+### 9. Build Cancel a Booking into the starter app
+
+[`app/`](app/) is the booking core of Book a Room (CAP-1), written by hand on `node:sqlite`: Book
+Room against BR-1 to BR-7 and the Room Status View. It carries one defect on purpose: the BR-7
+overlap check counts a booking that starts when another ends as overlapping, so
+`Book Room > books a slot that starts when the last one ends (BR-7)` is red. That test is CAP-1's
+`AC-13`, not Cancel a Booking's.
+
+```sh
+(cd app && npm install)
+persimmon run build-all --input 'plan={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: Plan, namespace: default, id: room-booking-prd-cap-2-plan, revision: 1}}' \
+  --input 'tasks=[T-1, T-2, T-3]' \
+  --input 'spec={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: Spec, namespace: default, id: room-booking-prd-cap-2, revision: 1}}' \
+  --input 'architecture={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture, namespace: default, id: room-booking-prd-architecture, revision: 1}}' \
+  --input 'designs={kind: artifacts, refs: [{apiVersion: sdd.persimmon.ai/v1, kind: Design, id: room-booking-prd-architecture-bb-1-data-schema, revision: 1}, {apiVersion: sdd.persimmon.ai/v1, kind: Design, id: room-booking-prd-architecture-bb-1-http-api, revision: 1}]}' \
+  --input 'glossary={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary, namespace: default, id: room-booking-glossary, revision: 1}}' \
+  --input 'rules={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules, namespace: default, id: room-booking-rules, revision: 1}}' \
+  --input repository=app --follow
+```
+
+The run first takes the baseline: the app's tests before any task, the BR-7 test red among them.
+Then it parks on the builder once per task. By default the builder is you with your own coding
+agent: point it at the form the run names in `.persimmon/inbox/` (`AGENTS.md` section 6 tells it
+what to do). To run the build unattended instead, `persimmon apply build-overrides.yaml` first: the
+builder becomes Claude Code on `claude-sonnet-5`.
+
+What to watch for: the red BR-7 test is not this Plan's. The baseline tolerates it
+(`suite-baseline`), and the builder reports it in the record as a defect, `D-1`, instead of fixing
+it or asking about it. The Gate passes the round and shows it:
+
+```text
+WorkflowRun   build-all-<hex>                      Succeeded 5m58s
+├─ baseline   TaskRun   junit/v1                   Succeeded    1s
+│     TestOutcome/room-booking-prd-cap-2-plan-baseline.r1
+├─ each-1   WorkflowRun                            Succeeded 3m33s
+│  └─ rounds-1   WorkflowRun                       Succeeded 3m33s
+│     ├─ produce   WorkflowRun                     Succeeded 3m33s
+│     │  ├─ implement   TaskRun   claude-code/v1   Succeeded 3m15s
+│     │  │     AcceptanceRecord/room-booking-prd-cap-2-plan-t-1.r1
+│     │  ├─ tests   TaskRun   junit/v1             Succeeded    0s
+│     │  └─ audit   TaskRun   claude-code/v1       Succeeded   16s
+│     └─ review   GateRun                          passed       0s
+│        └─ evidence   ValidationRun               passed       0s
+│              info suite-baseline: 1 test case red in the baseline, red still: test/book-room.test.js > Book Room > books a slot that starts when the last one ends (BR-7)
+│              warning defect-reported: D-1 at src/room-schedule.js:27 (overlapping query) — ...: bookRoom's BR-7 overlap check ... uses start_time <= ? AND end_time >= ? ...
+├─ each-2 ...                                      Succeeded 1m20s   (the same D-1 warning)
+└─ each-3 ...                                      Succeeded 1m04s   (the same D-1 warning)
+```
+
+That is the unattended run on `claude-sonnet-5`: every task passed in round one, the BR-7 query was
+left as it was, and each of the three records reported the same defect. One defect, one Issue.
+
+### 10. Investigate the defect as an Issue
+
+The `D-n` is a report, not an investigation. Write the Issue: root cause, every site of it, the
+test that reproduces it, whether the code or the Spec was wrong, what the fix revises. Here the
+Spec is right (`AC-13` asks for the back-to-back booking), so the code was non-conformant and the
+fix is a rebuild of the CAP-1 task that `AC-13` verifies, `T-2`, with no Spec revision.
+[`issue.yaml`](issue.yaml) is that Issue:
+
+```sh
+persimmon create issue.yaml
+persimmon get Issue/back-to-back-booking-refused
+```
+
+When the fix's AcceptanceRecord passes its Gate, write the next revision (`.r2`, `revision: 2`)
+with `status: resolved`, `fixedBy` naming that record, `detectionGap` and `residual`; the kind
+refuses a `resolved` Issue without them.
+
+### Reset
+
+```sh
+rm -rf .persimmon persimmon.yaml AGENTS.md CLAUDE.md .gitignore     # the project init wrote
+git checkout -- app && git clean -fd app                            # the starter app as committed
+```

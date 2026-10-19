@@ -1,0 +1,12 @@
+{
+  "name": "room-booking",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.13" },
+  "scripts": {
+    "test": "vitest run --reporter=default --reporter=junit --outputFile.junit=junit.xml"
+  },
+  "devDependencies": {
+    "vitest": "5.0.1"
+  }
+}
