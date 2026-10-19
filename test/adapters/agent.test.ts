@@ -14,6 +14,7 @@ const stubs = mkdtempSync(join(tmpdir(), 'persimmon-stubs-'))
 const cwd = mkdtempSync(join(tmpdir(), 'persimmon-agent-cwd-'))
 const socketPath = join(stubs, 'engine.sock')
 const calls: { name: string; args: unknown }[] = []
+const stored: Record<string, unknown> = {} // artifact content getArtifact answers by id
 let server: Server
 
 const stub = (name: string, body: string) => {
@@ -63,7 +64,7 @@ beforeAll(async () => {
       const args = JSON.parse(data)
       calls.push({ name, args })
       const result =
-        name === 'getArtifact' ? { spec: { identity: { id: args.id, revision: args.revision }, content: { title: 'Research', findings: [] } } }
+        name === 'getArtifact' ? { spec: { identity: { id: args.id, revision: args.revision }, content: stored[args.id] ?? { title: 'Research', findings: [] } } }
         : name === 'putBlob' ? { uri: 'blob://x', digest: 'sha256:' + 'a'.repeat(64) }
         : name === 'publishArtifact' && args.content.title === 'BAD' ? undefined
         : name === 'publishArtifact' ? { ...args.kind, namespace: 'demo', id: args.id, revision: 1 }
@@ -443,7 +444,7 @@ describe('junit/v1', () => {
     const r = await adapter('junit', { id: 41, op: 'execute', payload: p(dir) }, { JUNIT: junitXml, CODE: '1' })
     expect(last(r)).toMatchObject({ ok: true, result: { outputs: { testOutcome: { kind: 'artifact', ref: { id: 'p-t-1-tests' } } } } })
     const [pub] = published()
-    expect(pub!.content).toEqual({ command: program, exitCode: 1, tests: [{ classname: 'test/claim.test.ts', name: 'claim > ac 1', status: 'passed' }, { classname: 'test/claim.test.ts', name: 'claim > ac 3', status: 'failed', message: 'expected complete' }] })
+    expect(pub!.content).toEqual({ command: program, exitCode: 1, tests: [{ classname: 'test/claim.test.ts', name: 'claim > ac 1', status: 'passed' }, { classname: 'test/claim.test.ts', name: 'claim > ac 3', status: 'failed', message: 'expected complete' }], selection: { mode: 'full', reason: 'no Change set: no baseline commit' }, newRed: 1 })
     expect(pub!.inputs).toEqual([record]) // provenance: the record the run followed
     rmSync(dir, { recursive: true })
   })
@@ -558,6 +559,103 @@ describe('junit/v1', () => {
     expect(() => testCases('<testsuites><testsuite>')).toThrow()
     expect(reportPath('/w', 'target/surefire-reports')).toBe('/w/target/surefire-reports')
     for (const bad of ['.', '../x', '/abs.xml']) expect(() => reportPath('/w', bad)).toThrow(/inside the workspace/)
+  })
+
+  // 36-test-levels.md: a git workspace whose baseline commit is `base`, the record naming `named`
+  const gitWs = () => {
+    const dir = ws()
+    const git = (...a: string[]) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', ...a], { cwd: dir, encoding: 'utf8' }).trim()
+    git('init', '-q')
+    mkdirSync(join(dir, 'src'))
+    mkdirSync(join(dir, 'docs'))
+    writeFileSync(join(dir, 'src', 'claim.ts'), 'a\nb\nc\n')
+    writeFileSync(join(dir, 'docs', 'guide.md'), 'x\n')
+    writeFileSync(join(dir, '.gitignore'), 'junit*.xml\nran*\n')
+    git('add', '.')
+    git('commit', '-qm', 'base')
+    return { dir, head: git('rev-parse', 'HEAD') }
+  }
+  const baselineRef = { apiVersion: 'sdd.persimmon.ai/v1', kind: 'TestOutcome', namespace: 'demo', id: 'p-baseline', revision: 1 }
+  const round = (dir: string, configuration: Record<string, unknown>, head: string, named: unknown[] = []) => {
+    stored['p-baseline'] = { command: ['t'], exitCode: 0, head, tests: [{ classname: 'old', name: 'red before', status: 'failed' }] }
+    stored['p-t-1'] = { task: 'T-1', verifies: [{ scenario: 'AC-1', tests: named }] }
+    const r = p(dir, configuration)
+    r.inputs = { ...r.inputs, baseline: { kind: 'artifact', ref: baselineRef } } as never
+    return r
+  }
+  // writes junit.xml with the given cases, and `ran` with its own argv, so a test sees what ran and how
+  const tests = (...cases: string[]) => [process.execPath, '-e', `const fs = require('node:fs'); fs.appendFileSync('ran', JSON.stringify(process.argv.slice(1)) + '\\n'); fs.writeFileSync('junit.xml', '<testsuites><testsuite>${cases.join('')}</testsuite></testsuites>')`]
+
+  it('selects by the Change set: untouched runs nothing, a named test the narrowed run missed runs everything again (36-test-levels.md)', async () => {
+    const { dir, head } = gitWs()
+    writeFileSync(join(dir, 'docs', 'guide.md'), 'y\n') // outside paths
+    calls.length = 0
+    const config = { program: tests('<testcase classname="c" name="all"/>'), junit: 'junit.xml', paths: ['src/**'], affected: [...tests('<testcase classname="c" name="near"/>'), '--', '--base={base}', '{files}'] }
+    await adapter('junit', { id: 60, op: 'execute', payload: round(dir, config, head) })
+    expect(published()[0]!.content).toEqual({ command: config.program, exitCode: 0, tests: [], selection: { mode: 'none', reason: 'untouched' }, head, dirty: true })
+    expect(existsSync(join(dir, 'ran'))).toBe(false) // never ran
+
+    writeFileSync(join(dir, 'src', 'claim.ts'), 'a\nB\nc\n')
+    writeFileSync(join(dir, 'src', 'new.ts'), 'n\n')
+    calls.length = 0
+    await adapter('junit', { id: 61, op: 'execute', payload: round(dir, config, head, ['all']) })
+    const ran = readFileSync(join(dir, 'ran'), 'utf8').trim().split('\n').map((l) => JSON.parse(l))
+    expect(ran[0]).toEqual([`--base=${head}`, 'src/claim.ts', 'src/new.ts']) // narrowed to the changed files under paths
+    expect(ran).toHaveLength(2) // `all` was not among the narrowed run's: everything again
+    expect(published()[0]!.content).toMatchObject({ command: config.program, tests: [{ name: 'all', status: 'passed' }], selection: { mode: 'full', reason: '1 named test not selected: all' }, newRed: 0 })
+    rmSync(dir, { recursive: true })
+  })
+
+  it('selects in pure terms: tiers, held, fullOn, paths, a named test (36-test-levels.md)', async () => {
+    // @ts-expect-error plain module
+    const { select, changeSet, expand, newRed } = await import('../../adapters/junit/select.mjs')
+    const changes = new Map([['src/a.ts', new Set([1])], ['package-lock.json', new Set([2])]])
+    const config = { paths: ['src/**'], affected: ['x'] }
+    expect(select({ tier: 'baseline', level: 'e2e', config })).toEqual({ mode: 'full', reason: 'baseline' })
+    expect(select({ tier: 'plan', level: 'unit', config: {} }).mode).toBe('none') // the last round ran it all
+    expect(select({ tier: 'plan', level: 'unit', config })).toEqual({ mode: 'full', reason: 'plan tier' })
+    expect(select({ tier: 'round', level: 'api', config, changes, held: 'unit' })).toEqual({ mode: 'none', reason: 'held: unit' })
+    expect(select({ tier: 'round', level: 'api', config })).toEqual({ mode: 'full', reason: 'no Change set: no baseline commit' })
+    expect(select({ tier: 'round', level: 'api', config: { ...config, fullOn: ['package-lock.json'] }, changes })).toEqual({ mode: 'full', reason: 'fullOn: package-lock.json' })
+    expect(select({ tier: 'round', level: 'api', config, changes })).toEqual({ mode: 'affected', reason: '1 changed file' })
+    expect(select({ tier: 'round', level: 'api', config: { paths: ['src/**'] }, changes })).toEqual({ mode: 'full', reason: '1 changed file' })
+    expect(select({ tier: 'round', level: 'api', config: { paths: ['web/**'] }, changes })).toEqual({ mode: 'none', reason: 'untouched' })
+    expect(select({ tier: 'round', level: 'api', config: { paths: ['web/**'] }, changes, named: ['t'] })).toEqual({ mode: 'full', reason: '1 named test' })
+    expect(expand(['a', '--only-changed={base}', '{files}'], { base: 'abc', files: ['x', 'y'] })).toEqual(['a', '--only-changed=abc', 'x', 'y'])
+    expect(newRed([{ classname: 'a', name: 'b', status: 'failed' }, { classname: 'a', name: 'c', status: 'errored' }], { tests: [{ classname: 'a', name: 'b', status: 'failed' }] })).toBe(1)
+    const { dir, head } = gitWs()
+    writeFileSync(join(dir, 'src', 'claim.ts'), 'a\nB\nc\nd\n')
+    rmSync(join(dir, 'docs', 'guide.md'))
+    writeFileSync(join(dir, 'src', 'new.ts'), 'n\nm')
+    expect(changeSet(dir, head)).toEqual(new Map([['docs/guide.md', new Set()], ['src/claim.ts', new Set([2, 4])], ['src/new.ts', new Set([1, 2])]]))
+    rmSync(dir, { recursive: true })
+  })
+
+  it('levels: one TestOutcome per configured level in order, each after a new red held (36-test-levels.md)', async () => {
+    const { dir, head } = gitWs()
+    writeFileSync(join(dir, 'src', 'claim.ts'), 'a\nB\nc\n')
+    const levels = { e2e: { program: tests('<testcase classname="e" name="flow"/>'), junit: 'junit.xml' }, integration: { program: tests('<testcase classname="i" name="db"><failure message="no row"/></testcase>'), junit: 'junit.xml' } }
+    const payload = (unit: Record<string, unknown>) => {
+      stored['p-t-1'] = { task: 'T-1', verifies: [{ scenario: 'AC-1', tests: ['u'] }] }
+      stored['p-t-1-tests'] = unit
+      stored['p-baseline-levels-1'] = { command: ['t'], exitCode: 0, head, level: 'integration', tests: [] }
+      const r = p(dir, { levels })
+      r.task.outputs = { outcomes: { type: { kind: 'artifacts', artifactKind: outcome } } } as never
+      r.task.outputIds = { outcomes: 'p-t-1-levels' } as never
+      r.inputs = { ...r.inputs, testOutcome: { kind: 'artifact', ref: { ...record, kind: 'TestOutcome', id: 'p-t-1-tests' } }, baselines: { kind: 'artifacts', refs: [{ ...baselineRef, id: 'p-baseline-levels-1' }] } } as never
+      return r
+    }
+    calls.length = 0
+    let r = await adapter('junit', { id: 62, op: 'execute', payload: payload({ newRed: 1, selection: { mode: 'full', reason: 'x' } }) })
+    expect(last(r).result.outputs.outcomes.refs.map((x: { id: string }) => x.id)).toEqual(['p-t-1-levels-1', 'p-t-1-levels-2'])
+    expect(published().map((x) => [x.content.level, x.content.selection])).toEqual([['integration', { mode: 'none', reason: 'held: unit' }], ['e2e', { mode: 'none', reason: 'held: unit' }]])
+    calls.length = 0
+    r = await adapter('junit', { id: 63, op: 'execute', payload: payload({ newRed: 0, selection: { mode: 'full', reason: 'x' } }) })
+    expect(published().map((x) => [x.content.level, x.content.selection, x.content.newRed])).toEqual([['integration', { mode: 'full', reason: '1 changed file' }, 1], ['e2e', { mode: 'none', reason: 'held: integration' }, undefined]])
+    const wrong = p(dir, { levels })
+    const w = await adapter('junit', { id: 64, op: 'execute', payload: wrong })
+    expect(last(w)).toMatchObject({ ok: false, error: { code: 'invalid_input', message: expect.stringContaining('artifacts output with levels') } })
+    rmSync(dir, { recursive: true })
   })
 })
 
