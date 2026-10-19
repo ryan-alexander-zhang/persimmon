@@ -57,7 +57,7 @@ const filesOf = (dir, where, log) => {
 /** `<NS>__<NAME>` upper case, `-` becomes `_`: the same grammar the engine uses for its own credential env. */
 const envName = (name) => name.toUpperCase().replaceAll('-', '_').replace('/', '__')
 
-/** driver: {adapterId, executorTypes?, contextKinds?, skillFormats?, configurationSchema, parametersSchema, conformance?: {configuration} the suite sends when the user passes none (22-conformance.md), command(ctx) -> [cmd, args], input?(ctx) -> stdin text, skillDir?: where the CLI discovers skills, relative to the workspace (`.claude/skills`), parse({stdout, stderr, exitCode, dir, configuration, workspace, payload}) -> {outputs, summary?}, prepare?(ctx): runs in the workspace before the program, anyExit?: true when the program's exit code is part of its answer, never a failure (`junit/v1`), transcript?: true when stdout is the agent's transcript, or (line) -> text | undefined to turn a structured stdout line into a log line} */
+/** driver: {adapterId, executorTypes?, contextKinds?, skillFormats?, configurationSchema, parametersSchema, conformance?: {configuration} the suite sends when the user passes none (22-conformance.md), command(ctx) -> [cmd, args], input?(ctx) -> stdin text, skillDir?: where the CLI discovers skills, relative to the workspace (`.claude/skills`), parse({stdout, stderr, exitCode, dir, configuration, workspace, payload}) -> {outputs, summary?} or {next: [cmd, args]}, another program to run before the answer, or a promise of either, prepare?(ctx): awaited in the workspace before the command is chosen, ctx.call the Engine callback; an answer it returns stands in for running the program, anyExit?: true when the program's exit code is part of its answer, never a failure (`junit/v1`), transcript?: true when stdout is the agent's transcript, or (line) -> text | undefined to turn a structured stdout line into a log line} */
 export function serve(driver) {
   const out = (o) => process.stdout.write(JSON.stringify(o) + '\n')
   createInterface({ input: process.stdin }).once('line', async (line) => {
@@ -118,25 +118,32 @@ async function attempt(driver, payload, log, cwd, files, ports) {
   let answer
   try {
     if (!driver.input) checkSkills(context, driver.skillFormats ?? ['claude-code-skill/v1'], cwd, driver.skillDir ?? '.claude/skills', log)
-    const ctx = { configuration, parameters: task.parameters ?? {}, schema, dir, payload, workspace: cwd }
-    let [cmd, args] = driver.command(ctx)
-    if (configuration.command) {
-      // the conformance suite's stand-in for the CLI; never honoured for an applied Executor (22-conformance.md)
-      if (process.env.PERSIMMON_ADAPTER_CONFORMANCE !== '1') throw new AdapterError('invalid_input', 'configuration.command is honoured only by the conformance suite', false)
-      if (!Array.isArray(configuration.command) || !configuration.command.length || !configuration.command.every((s) => typeof s === 'string' && s)) throw new AdapterError('invalid_input', 'configuration.command must be a non-empty array of strings', false)
-      const [program, ...pre] = configuration.command
-      ;[cmd, args] = [program, [...pre, ...args]]
+    const ctx = { configuration, parameters: task.parameters ?? {}, schema, dir, payload, workspace: cwd, call }
+    // before the command is chosen, so it can choose it; an answer here stands in for running the program (36-test-levels.md)
+    answer = await driver.prepare?.(ctx)
+    if (!answer) {
+      let [cmd, args] = driver.command(ctx)
+      if (configuration.command) {
+        // the conformance suite's stand-in for the CLI; never honoured for an applied Executor (22-conformance.md)
+        if (process.env.PERSIMMON_ADAPTER_CONFORMANCE !== '1') throw new AdapterError('invalid_input', 'configuration.command is honoured only by the conformance suite', false)
+        if (!Array.isArray(configuration.command) || !configuration.command.length || !configuration.command.every((s) => typeof s === 'string' && s)) throw new AdapterError('invalid_input', 'configuration.command must be a non-empty array of strings', false)
+        const [program, ...pre] = configuration.command
+        ;[cmd, args] = [program, [...pre, ...args]]
+      }
+      const stdin = driver.input ? driver.input(ctx) : await buildPrompt(task, inputs, context, call, driver.skillDir ?? '.claude/skills', files, ports)
+      for (;;) {
+        let ran
+        try {
+          ran = await run(cmd, args, stdin, { credentials, deadline, idempotencyKey: taskRun.idempotencyKey, log, transcript: driver.transcript, cwd, anyExit: driver.anyExit })
+        } catch (e) {
+          if (e.stdout?.trim()) driver.errorFrom?.(e.stdout) // throws the agent's own error message when it printed one
+          throw e
+        }
+        answer = await driver.parse({ ...ran, dir, configuration, workspace: cwd, payload })
+        if (!answer?.next) break
+        ;[cmd, args] = answer.next // one more program toward the same answer, under the same deadline (36-test-levels.md)
+      }
     }
-    const stdin = driver.input ? driver.input(ctx) : await buildPrompt(task, inputs, context, call, driver.skillDir ?? '.claude/skills', files, ports)
-    driver.prepare?.(ctx)
-    let ran
-    try {
-      ran = await run(cmd, args, stdin, { credentials, deadline, idempotencyKey: taskRun.idempotencyKey, log, transcript: driver.transcript, cwd, anyExit: driver.anyExit })
-    } catch (e) {
-      if (e.stdout?.trim()) driver.errorFrom?.(e.stdout) // throws the agent's own error message when it printed one
-      throw e
-    }
-    answer = driver.parse({ ...ran, dir, configuration, workspace: cwd, payload })
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
