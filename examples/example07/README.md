@@ -235,9 +235,26 @@ persimmon create issue.yaml
 persimmon get Issue/back-to-back-booking-refused
 ```
 
-When the fix's AcceptanceRecord passes its Gate, write the next revision (`.r2`, `revision: 2`)
-with `status: resolved`, `fixedBy` naming that record, `detectionGap` and `residual`; the kind
-refuses a `resolved` Issue without them.
+The fix rebuilds CAP-1's `T-2` on the same app; its record must prove every scenario of the task,
+`AC-13` among them:
+
+```sh
+persimmon run build-one --input 'plan={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: Plan, namespace: default, id: room-booking-prd-cap-1-plan, revision: 1}}' \
+  --input taskId=T-2 \
+  --input 'spec={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: Spec, namespace: default, id: room-booking-prd-cap-1, revision: 1}}' \
+  --input 'architecture=<as in step 9>' --input 'glossary=<as in step 9>' --input 'rules=<as in step 9>' \
+  --input 'designs={kind: artifacts, refs: [{apiVersion: sdd.persimmon.ai/v1, kind: Design, id: room-booking-prd-architecture-bb-1-http-api, revision: 1}, {apiVersion: sdd.persimmon.ai/v1, kind: Design, id: room-booking-prd-architecture-bb-1-data-schema, revision: 1}, {apiVersion: sdd.persimmon.ai/v1, kind: Design, id: room-booking-prd-architecture-bb-5-ui, revision: 1}]}' \
+  --input repository=app --follow
+```
+
+Unattended on `claude-sonnet-5` it passed in round one, 6m36s: the overlap query took strict
+bounds, all nineteen tests green, `AC-13` named. Then the Issue's next revision,
+[`issue-resolved.yaml`](issue-resolved.yaml): `status: resolved`, `fixedBy` naming that record,
+`detectionGap` and `residual`. The kind refuses a `resolved` Issue without them.
+
+```sh
+persimmon create issue-resolved.yaml
+```
 
 ### Reset
 

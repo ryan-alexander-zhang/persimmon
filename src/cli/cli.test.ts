@@ -75,7 +75,7 @@ describe('persimmon CLI', () => {
     expect([await run('validate', 'examples/example07/room-booking-domain.yaml'), out.filter((l) => !l.startsWith('ok'))]).toEqual([0, []])
     expect(out.length).toBe(30)
     out = [] // and the Issue its build stage writes (examples/example07/README.md step 10)
-    expect([await run('validate', 'examples/example07/issue.yaml'), out]).toEqual([0, ['ok    Issue/back-to-back-booking-refused.r1']])
+    expect([await run('validate', 'examples/example07/issue.yaml', 'examples/example07/issue-resolved.yaml'), out]).toEqual([0, ['ok    Issue/back-to-back-booking-refused.r1', 'ok    Issue/back-to-back-booking-refused.r2']])
     out = [] // the car pool over two contexts (33-multi-context-product.md)
     expect([await run('validate', 'examples/example08/car-pool-domain.yaml'), out.filter((l) => !l.startsWith('ok'))]).toEqual([0, []])
     expect(out.length).toBe(36)
