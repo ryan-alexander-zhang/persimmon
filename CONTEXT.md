@@ -647,6 +647,21 @@ checked against. The one `build-all` takes before any task is the baseline TestO
 there and red still is not the build's. Always so named: a bare "baseline" is the arc42 baseline.
 _Avoid_: TestRun (a Run is the engine's), test report, test result, CI run
 
+**Defect**:
+Wrong behaviour of the code that a **Builder** sees and its task does not cover: in code built
+before, in an earlier task, behind a test red in the baseline **TestOutcome**. A `D-n` of the
+**AcceptanceRecord**: what was seen, what was expected and what says so, where. Reported, never fixed
+in that task, never investigated there: the investigation is an **Issue**.
+_Avoid_: bug (for the `D-n`), finding (a Gate's), `Q-n` (an unknown, not a defect)
+
+**Issue**:
+**Artifact kind** of the SDLC pack, one per investigated **Defect**: observed and expected, root
+cause, every site with that cause, the test that reproduces it, whether the code broke the **Spec**
+or the Spec was wrong or missing, and the artifacts the fix revises (`blocks`). Written by hand with
+`persimmon create`; a new revision changes its `status`. The fix takes the path of any change: a
+Spec revision when the Spec was wrong, a Plan revision, `build-one`.
+_Avoid_: bug report, ticket, incident, defect (for the investigated one)
+
 **Spec**:
 **Artifact kind** of the SDLC pack, one per `CAP-n` of a **Prd**: stories `US-n` (Connextra)
 covering requirements `FR-n` (EARS) that enforce rules `BR-n`, acceptance scenarios `AC-n`
@@ -661,6 +676,11 @@ _Avoid_: feature spec, requirements doc, spec.md
   capitalised **Tool** or "the event storming tool"; the Executor type is always `tool` in code font.
 - **Spec vs `spec`.** The SDLC pack's kind and every Resource's envelope field. Resolution: the
   kind is always `Spec` or "a Spec"; the field is always `spec` in code font or `spec.content`.
+- **Issue vs `issues`.** The SDLC pack's kind and the EventStorming relation (`actor issues
+  command`). Resolution: the kind is always capitalised `Issue`; the relation always `issues` in code font.
+- **Defect.** A `D-n` of an AcceptanceRecord, and the auditors' Prompts' word for any fault they
+  name in a draft or a record. Resolution: capitalised **Defect** is the `D-n`; what an auditor names is
+  a finding.
 
 - **ArtifactRef vs RevisionRef.** Same shape. Framework says RevisionRef; reference well-known
   schemas exposed `persimmon.ai/v1#/ArtifactRef`. Resolution: **RevisionRef** everywhere,
