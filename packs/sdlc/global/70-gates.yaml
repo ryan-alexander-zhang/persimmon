@@ -297,6 +297,8 @@ spec:
     taskId: {type: {kind: value, schema: {type: string, pattern: "^T-[0-9]+$"}}}
     audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}, description: "the auditor's verdict on the record"}
     baseline: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the tests before the build; build-one run alone has none"}
+    levelOutcomes: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the other test levels' outcomes this round (36-test-levels.md)"}
+    levelBaselines: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the other test levels' outcomes before the build"}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
   validators:
@@ -311,6 +313,8 @@ spec:
         previousOutcome: {fromInput: previousOutcome, onMissing: omit}
         taskId: {fromInput: taskId}
         baseline: {fromInput: baseline, onMissing: omit}
+        levelOutcomes: {fromInput: levelOutcomes, onMissing: omit}
+        levelBaselines: {fromInput: levelBaselines, onMissing: omit}
     - name: audit
       ref: {kind: Validator, name: acceptance-audited}
       inputs:

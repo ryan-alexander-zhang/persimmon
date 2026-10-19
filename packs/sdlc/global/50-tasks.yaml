@@ -428,7 +428,8 @@ spec:
   sideEffects: idempotent
 ---
 # The project's own tests after a build round (35-build-process.md): the evidence the AcceptanceRecord is checked against.
-# `record` is an input so the TestOutcome's provenance pins the record it followed.
+# `record` is an input so the TestOutcome's provenance pins the record it followed; `baseline` gives the Change set its base
+# commit and the red that is not new (36-test-levels.md).
 apiVersion: persimmon.ai/v1
 kind: Task
 metadata: {name: run-tests}
@@ -436,6 +437,7 @@ spec:
   inputs:
     record: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: AcceptanceRecord}}}
     repository: {type: {kind: externalResource, provider: git, type: repository}, description: "the project's code, where the build round wrote"}
+    baseline: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the unit tests before build-all; run alone, none: every test runs"}
   outputs:
     testOutcome: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, id: {expression: "inputs.record.id + '-tests'"}}
   executorRef: {kind: Executor, name: test-runner}
@@ -443,6 +445,47 @@ spec:
     instructions: Run the project's tests in the repository and answer what their JUnit XML says.
     workspace: {input: repository}
   timeout: 2h   # a ceiling: a project's override of test-runner cannot change it, and a run ends when its tests end
+  sideEffects: idempotent
+---
+# The project's other test levels (36-test-levels.md), one TestOutcome per level level-runner configures, none when it has none.
+# A record is a round, each level selecting by the Change set and held after a new red, the unit one's too; no record nor
+# baselines, the baselines before build-all; baselines and no record, the plan tier after the last task, every level in full.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: run-levels}
+spec:
+  inputs:
+    plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}}
+    repository: {type: {kind: externalResource, provider: git, type: repository}, description: "the project's code"}
+    record: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: AcceptanceRecord}}, required: false, description: "the round's record: the tests it names run"}
+    testOutcome: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the round's unit tests: a new red there holds every level"}
+    baselines: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "each level's tests before build-all"}
+  outputs:
+    outcomes: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, id: {expression: "has(inputs.record) ? inputs.record.id + '-levels' : inputs.plan.id + (has(inputs.baselines) ? '-final-levels' : '-baseline-levels')"}}
+  executorRef: {kind: Executor, name: level-runner}
+  action:
+    instructions: Run each test level of the project in the repository and answer what its JUnit XML says.
+    workspace: {input: repository}
+  timeout: 4h   # integration, api and e2e one after the other
+  sideEffects: idempotent
+---
+# The plan tier's unit tests, after build-all's last task (36-test-levels.md): every one when affected narrows the rounds, none
+# otherwise, since the last round ran them all over the same tree.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: run-final}
+spec:
+  inputs:
+    plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}}
+    repository: {type: {kind: externalResource, provider: git, type: repository}, description: "the project's code, every task built"}
+    baseline: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, description: "the unit tests before build-all"}
+  outputs:
+    final: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, id: {expression: "inputs.plan.id + '-final'"}}
+  executorRef: {kind: Executor, name: test-runner}
+  action:
+    instructions: Run the project's tests in the repository and answer what their JUnit XML says.
+    workspace: {input: repository}
+  timeout: 2h   # as run-tests'
   sideEffects: idempotent
 ---
 # A Design's meaning, judged after design-consistency passed (23-pack-sdlc.md), as design-gate's Validator design-audited;
@@ -591,6 +634,7 @@ spec:
     spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     repository: {type: {kind: externalResource, provider: git, type: repository}, description: "the project's code, read only"}
+    levelOutcomes: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the other test levels' outcomes this round (36-test-levels.md)"}
   outputs:
     audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
   executorRef: {kind: Executor, name: auditor}
@@ -605,6 +649,7 @@ spec:
       - {kind: artifact, input: plan}
       - {kind: artifact, input: spec}
       - {kind: artifact, input: architecture}
+      - {kind: artifact, input: levelOutcomes}
     workspace: {input: repository}
   timeout: 1h
   retryPolicy: # a transient API refusal gets another attempt

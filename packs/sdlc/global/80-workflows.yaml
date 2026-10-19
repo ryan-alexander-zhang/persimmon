@@ -665,13 +665,16 @@ spec:
     previousOutcome: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
     baseline: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false}
+    levelBaselines: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the other test levels before build-all (36-test-levels.md)"}
   outputs:
     record: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: AcceptanceRecord}}}
     testOutcome: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}}
+    levelOutcomes: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}}
     audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
   outputBindings:
     record: {fromStep: {stepRef: implement, output: record}}
     testOutcome: {fromStep: {stepRef: tests, output: testOutcome}}
+    levelOutcomes: {fromStep: {stepRef: levels, output: outcomes}}
     audit: {fromStep: {stepRef: audit, output: audit}}
   entry: [implement]
   steps:
@@ -696,7 +699,17 @@ spec:
       inputs:
         record: {fromStep: {stepRef: implement, output: record}}
         repository: {fromInput: repository}
+        baseline: {fromInput: baseline, onMissing: omit}
       timeout: 2h
+    - id: levels
+      uses: {kind: Task, name: run-levels}
+      inputs:
+        plan: {fromInput: plan}
+        repository: {fromInput: repository}
+        record: {fromStep: {stepRef: implement, output: record}}
+        testOutcome: {fromStep: {stepRef: tests, output: testOutcome}}
+        baselines: {fromInput: levelBaselines, onMissing: omit}
+      timeout: 4h
     - id: audit
       uses: {kind: Task, name: audit-acceptance}
       inputs:
@@ -707,18 +720,22 @@ spec:
         spec: {fromInput: spec}
         architecture: {fromInput: architecture}
         repository: {fromInput: repository}
+        levelOutcomes: {fromStep: {stepRef: levels, output: outcomes}}
       timeout: 1h
   transitions:
     - id: to-tests
       from: [{stepRef: implement, outcomes: [Succeeded]}]
       to: [{stepRef: tests}]
-    - id: to-audit
+    - id: to-levels
       from: [{stepRef: tests, outcomes: [Succeeded]}]
+      to: [{stepRef: levels}]
+    - id: to-audit
+      from: [{stepRef: levels, outcomes: [Succeeded]}]
       to: [{stepRef: audit}]
     - id: done
       from: [{stepRef: audit, outcomes: [Succeeded]}]
       to: [{terminal: Succeeded}]
-  timeout: 76h
+  timeout: 80h
 ---
 # One Plan task built and checked against its tests (35-build-process.md), up to three rounds; the findings go back to the builder.
 apiVersion: persimmon.ai/v1
@@ -735,6 +752,7 @@ spec:
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     repository: {type: {kind: externalResource, provider: git, type: repository}}
     baseline: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the tests before build-all; run alone, the suite is green before it"}
+    levelBaselines: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the other test levels before build-all (36-test-levels.md)"}
   produce:
     uses: {kind: Workflow, name: build-work}
     inputs:
@@ -747,7 +765,8 @@ spec:
       rules: {fromInput: rules}
       repository: {fromInput: repository}
       baseline: {fromInput: baseline}
-    timeout: 76h
+      levelBaselines: {fromInput: levelBaselines}
+    timeout: 80h
   review:
     uses: {kind: Gate, name: build-gate}
     inputs:
@@ -760,6 +779,8 @@ spec:
       taskId: {fromInput: taskId}
       audit: {fromStep: {stepRef: produce, output: audit}}
       baseline: {fromInput: baseline}
+      levelOutcomes: {fromStep: {stepRef: produce, output: levelOutcomes}}
+      levelBaselines: {fromInput: levelBaselines}
     timeout: 5m
   subject: record
   previous: previous
@@ -795,6 +816,12 @@ spec:
         plan: {fromInput: plan}
         repository: {fromInput: repository}
       timeout: 2h
+    - id: level-baselines
+      uses: {kind: Task, name: run-levels}
+      inputs:
+        plan: {fromInput: plan}
+        repository: {fromInput: repository}
+      timeout: 4h
     - id: each
       uses: {kind: ReviewLoop, name: build-one}
       inputs:
@@ -807,6 +834,7 @@ spec:
         rules: {fromInput: rules}
         repository: {fromInput: repository}
         baseline: {fromStep: {stepRef: baseline, output: baseline}}
+        levelBaselines: {fromStep: {stepRef: level-baselines, output: outcomes}}
       timeout: 2400h   # a ceiling for the whole repeat, as spec-all's: ten tasks at a loop's full 240h
       repeat:
         state:
@@ -818,11 +846,17 @@ spec:
         until: "!iteration.outputs.passed || iteration.index >= inputs.tasks.size()"
         maxIterations: 20
   transitions:
-    - id: to-each
+    - id: to-level-baselines
       from: [{stepRef: baseline, outcomes: [Succeeded, Failed]}]
       to:
-        - {stepRef: each, when: 'steps.baseline.phase == "Succeeded"'}
+        - {stepRef: level-baselines, when: 'steps.baseline.phase == "Succeeded"'}
         - {terminal: Failed, reason: step_failed} # the test command could not run; steps.baseline.error names the cause
+      dispatch: first
+    - id: to-each
+      from: [{stepRef: level-baselines, outcomes: [Succeeded, Failed]}]
+      to:
+        - {stepRef: each, when: 'steps["level-baselines"].phase == "Succeeded"'}
+        - {terminal: Failed, reason: step_failed}
       dispatch: first
     - id: done
       from: [{stepRef: each, outcomes: [Succeeded, Failed]}]
@@ -831,4 +865,4 @@ spec:
         - {terminal: Failed, reason: build_inconsistent, when: 'steps.each.phase == "Succeeded"'} # the Gate rejected the last round
         - {terminal: Failed, reason: step_failed} # the iteration died before its Gate ran; steps.each.error names the cause
       dispatch: first
-  timeout: 2402h
+  timeout: 2406h

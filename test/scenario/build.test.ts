@@ -118,6 +118,32 @@ describe('scenario: build a Plan task', () => {
     expect(out.join('\n')).toContain('suite-baseline')
   })
 
+  it('an api level configured on level-runner runs after the unit tests and proves a row that names it (36-test-levels.md)', { timeout: 60_000 }, async () => {
+    await setup()
+    const api = '<testsuites><testsuite name="api"><testcase classname="claims.bru" name="POST /claims refuses a line without a receipt"/></testsuite></testsuites>'
+    const levels = { apiVersion: 'persimmon.ai/v1', kind: 'Executor', metadata: { name: 'level-runner', namespace: 'default' }, spec: { type: 'script', adapter: 'junit/v1', configuration: { levels: { api: { program: [process.execPath, '-e', `require('node:fs').writeFileSync('junit-api.xml', ${JSON.stringify(api)})`], junit: 'junit-api.xml' } } } } }
+    expect(await run('apply', file('levels.yaml', [levels]), '-n', 'default')).toBe(0)
+    out = []
+    expect(await run('run', 'build-all', '--input', `plan=${ref('Plan', 'submit-a-claim-plan')}`, '--input', 'tasks=[T-1]', '--input', `spec=${ref('Spec', 'submit-a-claim')}`, '--input', `architecture=${ref('Architecture', 'expense-claims-architecture')}`,
+      '--input', `designs={kind: artifacts, refs: [{apiVersion: sdd.persimmon.ai/v1, kind: Design, id: claims-api, revision: 1}]}`, '--input', `glossary=${ref('Glossary', 'expenses-glossary')}`, '--input', `rules=${ref('BusinessRules', 'expenses-rules')}`, '--input', `repository=${repo}`, '--follow')).toBe(0)
+    const taskRun = inbox()[0]!.replace(/\.yaml$/, '')
+    const record = structuredClone(one('AcceptanceRecord').spec.content)
+    record.verifies[0].tests.push({ name: 'POST /claims refuses a line without a receipt', level: 'api' })
+    expect(await run('complete', taskRun, '--file', file('r1.yaml', [{ outputs: { record } }]))).toBe(0)
+    out = []
+    expect(inbox()).toHaveLength(1)
+    const form = parse(readFileSync(join(dir, '.persimmon', 'inbox', `${inbox()[0]}`), 'utf8'))
+    expect(form.reading.map((r: { kind: string }) => r.kind)).toEqual(['Prompt', 'AcceptanceRecord', 'TestOutcome', 'Plan', 'Spec', 'Architecture', 'TestOutcome']) // the auditor reads the api outcome too
+    expect([await run('complete', inbox()[0]!.replace(/\.yaml$/, ''), '--file', file('a1.yaml', [{ outputs: { audit: { kind: 'value', value: { passed: true, findings: [], evidence: [] } } } }]))]).toEqual([0])
+    expect(out.find((l) => l.startsWith('WorkflowRun   build-all-'))).toMatch(/Succeeded/)
+    out = []
+    expect(await run('get', 'TestOutcome/submit-a-claim-plan-t-1-levels-1')).toBe(0)
+    expect(out.join('\n')).toMatch(/level: api/)
+    expect(out.join('\n')).toMatch(/mode: full/) // not a git repository: no Change set, so every test
+    out = []
+    expect(await run('get', 'TestOutcome/submit-a-claim-plan-baseline-levels-1')).toBe(0) // its own baseline, before the build
+  })
+
   it('a defect the builder reports passes the round with a warning; the developer investigates it as an Issue (35-build-process.md)', { timeout: 60_000 }, async () => {
     await setup('<testcase classname="test/legacy.test.ts" name="legacy &gt; an old export"><failure message="was red before"/></testcase>')
     out = []
