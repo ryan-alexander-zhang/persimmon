@@ -1144,3 +1144,35 @@ spec:
       - {classname: test/claim.test.ts, name: "claim > attaching a receipt to another employee's claim by URL is refused and logged", status: passed}
       - {classname: test/claim.test.ts, name: "claim > drafting a claim records each line's amount, date and category", status: passed}
       - {classname: test/claim.test.ts, name: claim > a 25.00 EUR taxi line without a receipt is not complete and names BR-2, status: passed}
+---
+# A defect the developer found reading the T-2 diff, investigated (35-build-process.md): no Spec says an amount is in cents,
+# so the fix is a Spec revision with a new AC-n, then the Plan's, then build-one. Open until that record's Gate passes.
+apiVersion: sdd.persimmon.ai/v1
+kind: Issue
+metadata: {name: claim-line-amount-below-a-cent.r1}
+spec:
+  identity: {id: claim-line-amount-below-a-cent, revision: 1}
+  content:
+    title: A 24.995 EUR line shows as 25.00 EUR yet needs no receipt
+    observed: A taxi line entered as 24.995 EUR shows as 25.00 EUR, and the claim shows as complete without a receipt.
+    expected: The amount the claim shows is the amount BR-2 compares, so a line shown as 25.00 EUR needs a receipt (BR-2, AC-9).
+    trigger: A line amount with more than two decimals, typed into the Draft Claim request.
+    impact:
+      affected: Every claim line entered with sub-cent precision; none seen in production yet.
+      ongoing: true
+      severity: A tax audit finds a reimbursed cost of 25 EUR or more with no receipt, which BR-2 exists to prevent.
+    rootCause:
+      statement: The line keeps the amount as entered, a float, and BR-2 compares that float; only the display rounds to cents. Nothing fixes an amount's precision at the boundary.
+      at: [src/claim.ts:41, src/claim.ts:58]
+    scope:
+      - {site: src/claim.ts:58, affected: true, note: the BR-2 completeness check}
+      - {site: src/claim.ts:41, affected: true, note: Draft Claim stores the amount as given}
+      - {site: src/claim.ts:73, affected: false, note: "the claim total sums the shown amounts, already rounded"}
+    reproduction:
+      test: claim > a 24.995 EUR taxi line without a receipt is not complete and names BR-2
+      failure: expected the claim not complete, got complete
+    verdict: spec-missing
+    blocks:
+      - {artifact: submit-a-claim, items: [FR-1]}
+      - {artifact: submit-a-claim-plan, items: [T-1]}
+    status: open
