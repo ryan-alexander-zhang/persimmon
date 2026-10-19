@@ -64,6 +64,7 @@ Read top to bottom within a layer; a file depends only on files above it.
 | `docs/design/33-multi-context-product.md` | one product over several bounded contexts: product-level `BusinessRules`, `productId` on the Prd process, the `kind:` query at `run`, `spec-all` and `design-all` per context; its context tags and `contextIds` superseded by 34 | draft |
 | `docs/design/34-subdomains.md` | the Prd names typed subdomains, the storming cuts the bounded contexts: `subdomain` on capabilities, rules, storming contexts (DSL 4.1) and BoundedContexts, `capabilities` on a BoundedContext, `context` on `spec-all` | draft |
 | `docs/design/35-build-process.md` | a Plan task to code and evidence: `implement` by the builder (`cli-human/v1`, or an Executor override), `run-tests` on `junit/v1` and a baseline before `build-all`, the `sdd/v1` acceptance check, the auditor (`audit-acceptance`), `build-one` per `T-n`, a Defect reported in the record and investigated as an Issue | draft |
+| `docs/design/36-test-levels.md` | the build's tests split by test level (`unit`, `integration`, `api`, `e2e`) on their own Executors, coverage and mutation over the Change set, the `round` tier selecting by the Change set, the `plan` tier in full after the last task | draft |
 | `docs/design/28-prd-process.md` | brief to `Prd`: the writing Task that also writes the rules, the `sdd/v1` Prd check, a human gate, `author-prd` | draft |
 
 ## Cross-cutting
