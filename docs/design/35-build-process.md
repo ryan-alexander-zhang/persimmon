@@ -291,6 +291,14 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
   never sits on a human Executor (`12-task.md`), the default builder, and it would make the
   builder investigate inside its round. A known ceiling: nothing makes a `D-n` become an Issue
   but the warning; a listing of the `D-n` no Issue cites is the upgrade. Found in design review.
+- Proven live on `claude-sonnet-5`, example07 step 9: `build-all` over the three tasks of Cancel a
+  Booking with the agent builder override, on a starter whose CAP-1 BR-7 check refuses a
+  back-to-back booking, its test red in the baseline. The first run passed `T-1` in round one with
+  no `defects`: the agent left the red test as the baseline bullet said ("leave it as it is"), edited
+  the very query that held the defect for its own `status` filter, and reported nothing; that
+  bullet now ends "and report it as a defect". Rerun: every task passed in round one, 5m58s, each
+  record reported `D-1` at the right line, the query was left as it was, no `Q-n`. The same defect
+  arrives once per record, three times here; the human writes one Issue. Found in UAT.
 
 ## Examples
 
