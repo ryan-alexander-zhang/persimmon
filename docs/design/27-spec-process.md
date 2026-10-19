@@ -26,7 +26,7 @@ Workflow spec-all: repeat over `capabilities` ─▶ ReviewLoop spec-one per CAP
 | Task `write-spec` | inputs `prd`, `capabilityId`, `architecture`, `context` (the BoundedContext, `34-subdomains.md`), `domainModel`, `glossary`, `rules`, `previous`, `feedback`; output `spec` |
 | Validator `spec-consistency` | `sdd/v1` over `spec`, `prd`, `domainModel`, `architecture`, `rules`, and optionally `context` and the value `capabilityId`; the rule row of `23-pack-sdlc.md` as findings, `rules-mismatch` when the Spec's `businessRules` is not the artifact bound |
 | Prompt `draft-audit-rules`, part "A Spec" | what the auditor judges that `spec-consistency` cannot (`23-pack-sdlc.md`): `ac-undecidable`, `ac-contradicts-rule` and `requirement-unproven` errors; `boundary-untested` and `scope-doubt` warnings |
-| Task `audit-spec` | inputs `spec`, `prd`, `rules`, `domainModel`, `architecture`; Executor `auditor`; output `audit`, a ValidationResult whose schema ties `passed` to "no `error` finding"; 30m, three attempts |
+| Task `audit-spec` | inputs `spec`, `prd`, `rules`, `domainModel`, `architecture`, and from round two `previous` and `feedback` (`spec-one`'s `review` binds them; `23-pack-sdlc.md`); Executor `auditor`; output `audit`, a ValidationResult whose schema ties `passed` to "no `error` finding"; 30m, three attempts |
 | Validator `spec-audited` | `task` over `audit-spec`, `resultOutput: audit` |
 | Gate `spec-gate` | consistency, then `audit` `after: [consistency]`, `all`, 35m; a human sign-off is an Approval the project adds |
 | ReviewLoop `spec-one` | `produce` `write-spec`, `review` `spec-gate` (35m), `maxRounds: 2`, 140m; the findings go back as `feedback` with the last `spec` as `previous` |

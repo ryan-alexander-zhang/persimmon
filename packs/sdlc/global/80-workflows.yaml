@@ -239,6 +239,8 @@ spec:
       architecture: {fromInput: architecture}
       rules: {fromInput: rules}
       context: {fromInput: context}
+      previous: {fromInput: previous}
+      feedback: {fromInput: feedback}
     timeout: 35m
   subject: spec
   previous: previous
@@ -319,6 +321,7 @@ spec:
       rules: {fromStep: {stepRef: produce, output: rules}}
       previousRules: {fromInput: previousRules} # the last round's rules, so the gate refuses a rule changed unasked; absent in round one
       feedback: {fromInput: feedback}
+      previous: {fromInput: previous}
     timeout: 72h
   subject: prd
   previous: previous
@@ -367,6 +370,8 @@ spec:
       rules: {fromInput: rules}
       designSystem: {fromInput: designSystem}
       designs: {fromInput: designs}
+      previous: {fromInput: previous}
+      feedback: {fromInput: feedback}
     timeout: 35m
   subject: design
   previous: previous
@@ -604,6 +609,9 @@ spec:
       contexts: {fromInput: contexts}
       domainModels: {fromInput: domainModels}
       glossaries: {fromInput: glossaries}
+      previous: {fromInput: previous}
+      previousAdrs: {fromInput: previousAdrs}
+      feedback: {fromInput: feedback}
     timeout: 72h
   subject: architecture
   previous: previous

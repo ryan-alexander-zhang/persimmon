@@ -61,6 +61,8 @@ spec:
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     context: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext}}}
     capabilityId: {type: {kind: value, schema: {type: string, pattern: "^CAP-[0-9]+$"}}}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, required: false, description: "the last round's Spec; round one has none"}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict"}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
   validators:
@@ -83,6 +85,8 @@ spec:
         rules: {fromInput: rules}
         domainModel: {fromInput: domainModel}
         architecture: {fromInput: architecture}
+        previous: {fromInput: previous, onMissing: omit}
+        feedback: {fromInput: feedback, onMissing: omit}
   policy: {strategy: all}
   timeout: 35m   # the check, then the auditor's 30m
 ---
@@ -95,6 +99,7 @@ spec:
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     previousRules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false, description: "the last round's rules (28-prd-process.md); round one has none"}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict: the findings that may change a rule"}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false, description: "the last round's Prd; round one has none"}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
   validators:
@@ -111,6 +116,9 @@ spec:
       inputs:
         prd: {fromInput: prd}
         rules: {fromInput: rules}
+        previous: {fromInput: previous, onMissing: omit}
+        previousRules: {fromInput: previousRules, onMissing: omit}
+        feedback: {fromInput: feedback, onMissing: omit}
     - name: confirmed
       ref: {kind: Validator, name: prd-confirmed}
       after: [consistency, audit]   # the human confirms only what the check and the auditor passed (14-gate.md)
@@ -133,6 +141,8 @@ spec:
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: false}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "the last round's Design; round one has none"}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict"}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
   validators:
@@ -155,6 +165,8 @@ spec:
         rules: {fromInput: rules}
         domainModel: {fromInput: domainModel, onMissing: omit}
         designs: {fromInput: designs, onMissing: omit}
+        previous: {fromInput: previous, onMissing: omit}
+        feedback: {fromInput: feedback, onMissing: omit}
   policy: {strategy: all}
   timeout: 35m   # the check, then the auditor's 30m
 ---
@@ -211,6 +223,9 @@ spec:
     contexts: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext}}}
     domainModels: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
     glossaries: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}, required: false, description: "the last round's Architecture; round one has none"}
+    previousAdrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}, required: false, description: "the last round's Adrs"}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict"}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
   validators:
@@ -232,6 +247,9 @@ spec:
         adrs: {fromInput: adrs}
         prd: {fromInput: prd}
         rules: {fromInput: rules}
+        previous: {fromInput: previous, onMissing: omit}
+        previousAdrs: {fromInput: previousAdrs, onMissing: omit}
+        feedback: {fromInput: feedback, onMissing: omit}
     - name: confirmed
       ref: {kind: Validator, name: architecture-confirmed}
       after: [consistency, audit]   # the human confirms only what the check and the auditor passed (14-gate.md)

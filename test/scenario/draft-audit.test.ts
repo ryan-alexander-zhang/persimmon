@@ -53,6 +53,9 @@ describe('scenario: a draft audited before it passes', () => {
     const [writer] = inbox()
     expect(form(writer!).inputs.feedback.value.results.audit).toMatchObject({ passed: false, findings: [{ code: 'ac-undecidable' }] }) // the writer reads it
     expect(await answer(writer!, 's2.yaml', { spec })).toBe(0)
+    const round2 = form(inbox()[0]!)
+    expect(round2.reading.map((r: { kind: string }) => r.kind)).toEqual(['Prompt', 'Spec', 'Prd', 'BusinessRules', 'DomainModel', 'Architecture', 'Spec']) // the last round's Spec beside the draft
+    expect(round2.inputs.feedback.value.results.audit.findings).toMatchObject([{ code: 'ac-undecidable' }]) // and what the last audit named: only that, or a change, may block
     out = []
     expect(await answer(inbox()[0]!, 'a2.yaml', audit([{ severity: 'warning', code: 'scope-doubt', message: 'AC-2: beyond CAP-1' }]))).toBe(0)
     expect(out.find((l) => l.startsWith('WorkflowRun   spec-one-'))).toMatch(/Succeeded/)
