@@ -87,6 +87,13 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - Write code only against a revision its Gate passed: `persimmon tree <run>` shows `passed`;
   a loop out of rounds still publishes its rejected revision. `persimmon get <Kind> --behind`
   lists the revisions that read an outdated input.
+- A defect, wrong behaviour of the code, is investigated as an `Issue` before it is fixed: root
+  cause from first principles, every site sharing it, a test red for that reason, whether the code
+  or the Spec was wrong, the artifacts the fix revises (`blocks`). Write it with `persimmon create
+  <file>`, a revision document: `kind: Issue`, `metadata.name: <id>.r<n>`, `spec: {identity: {id,
+  revision: <n>}, content}`; its schema: `persimmon get KindDefinition/issues.sdd.persimmon.ai`.
+  The fix: a Spec revision with a new `AC-n` when the Spec was wrong or missing, a Plan revision,
+  `build-one`; the Issue's next revision is `resolved` and cites that record in `fixedBy`.
 
 Building a Plan task (`build-all`), as the developer's own agent reading an inbox form:
 - The run waits on you at each task: `.persimmon/inbox/<taskRun>.yaml` is the brief, its
@@ -99,6 +106,9 @@ Building a Plan task (`build-all`), as the developer's own agent reading an inbo
 - Build in the directory `inputs.repository.ref.locator.path` names: the tests run there, with
   the project's own test setup, which you use as it is and never change. Ask the
   developer how to build; a domain unknown is a `Q-n` the Gate holds for the human.
+- Wrong behaviour the task does not cover is a `D-n` in the record's `defects`, never fixed in
+  this task; the Gate warns `defect-reported`. Once the task's Gate passed, tell the developer and
+  write each `D-n` as an `Issue` with `found: {record, defect}`.
 - Answer with a file holding `outputs: {record: <the AcceptanceRecord>}` and run
   `persimmon complete <taskRun> --file <file>` from the project directory, in the background or
   with no time limit: it runs the tests and the Gate before it returns. The next round or task
@@ -119,4 +129,6 @@ reading a `.persimmon/inbox/` file in section 6:
 - never asks and never stops to ask: an unknown goes into its output, a `Q-n` or a hotspot,
   as its Prompt says;
 - never runs git and runs no `persimmon` command: it reads only its Task's context and workspace;
-- writes only where its Task allows, and answers through its output.
+- writes only where its Task allows, and answers through its output;
+- never fixes wrong behaviour outside its Task: it reports it in its output where the output has
+  a place for it, a `D-n` of an AcceptanceRecord.
