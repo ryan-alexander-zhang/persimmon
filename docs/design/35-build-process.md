@@ -318,6 +318,18 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
   one reader after it, went unsaid. A warning fails nothing, so the auditor's scope stays the rows;
   the developer investigates it as an Issue, as a `D-n`. Its code is lower case: a finding, not a
   record's Defect. Found in a wording review.
+- Repeated live, the default builder three times over the whole Cancel a Booking Plan, each a fresh
+  Claude Code session on `claude-sonnet-5` told only to build what the run parks on: every run
+  succeeded (8m57s, 9m40s, 15m56s), the BR-7 query was left as it was in all three, and every `T-1`
+  record reported it as `D-1` at the right line. Two sessions repeated it in each later record; one
+  reported only what it saw new, a defect its own `T-3` then fixed. The auditor's `defect-seen` fired
+  twice in that run, both real: the query `T-3` was about to fix, and the overlap query counting a
+  cancelled booking. Two of three sessions wrote the Issue after the run, both
+  `code-nonconformant`, one site in scope; one named CAP-1's `T-2` in `blocks`, the other the Plan
+  it was building. The third told the developer the `D-n` were theirs to turn into Issues. The
+  extra rounds were the Plan's, not the defect's: `T-1` is verified by `AC-1` to `AC-3`, so its
+  Gate refused a record without them. Reporting is reliable; writing the Issue is not, which the
+  roadmap's listing of the `D-n` no Issue cites covers. Found in UAT.
 
 ## Examples
 
