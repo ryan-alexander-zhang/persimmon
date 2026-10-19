@@ -429,20 +429,52 @@ export function checkPlan({ plan, spec, architecture, designs = {}, ids = {} }) 
 
 const red = (c) => c.status === 'failed' || c.status === 'errored'
 
-/** One AcceptanceRecord against the TestOutcome of its round, the Plan task it builds and the Spec (35-build-process.md): the
- * record is the builder's claim, the outcome the evidence. `ids`: {plan, spec, taskId} bound beside it; `previous` and
- * `previousOutcome`: the last round's record and tests; a test it named that ran then must still run. A test is named by string equality with a case's `name` or with
+/** One level's suite against its baseline (35-build-process.md): a red case no row names is a break unless the baseline had it red;
+ * a non-zero exit no red case explains is a suite killed or failing after its tests. `named`: the cases rows name. Messages
+ * carry `prefix`, the level when it is not unit. */
+function suiteFindings(outcome, baseline, named, prefix, bad, findings) {
+  const cases = outcome.tests ?? []
+  // a case red before the build is not the build's: tolerated while still red, listed; one the baseline lacks or had green is a break
+  const redBefore = new Set((baseline?.tests ?? []).filter(red).map((c) => `${c.classname} > ${c.name}`))
+  const tolerated = new Set()
+  for (const c of cases) {
+    if (named.has(c) || !red(c)) continue
+    if (redBefore.has(`${c.classname} > ${c.name}`)) tolerated.add(`${c.classname} > ${c.name}`)
+    else bad('suite-failed', `${prefix}${c.classname} > ${c.name} ${c.status}${c.message ? `: ${c.message}` : ''}`)
+  }
+  if (tolerated.size) findings.push({ severity: 'info', code: 'suite-baseline', message: `${prefix}${tolerated.size} test case${tolerated.size > 1 ? 's' : ''} red in the baseline, red still: ${[...tolerated].join('; ')}` })
+  // persimmon never reverts: a baseline taken over uncommitted changes may tolerate a red an earlier build left
+  if (tolerated.size && baseline.dirty) findings.push({ severity: 'warning', code: 'baseline-dirty', message: `${prefix}the baseline ran over uncommitted changes: a red it tolerates may be one an earlier build left` })
+  // a tolerated red explains a non-zero exit only when the baseline exited the same: a suite killed or failing after its tests still shows
+  const onlyTolerated = cases.filter(red).every((c) => !named.has(c) && tolerated.has(`${c.classname} > ${c.name}`))
+  if (outcome.exitCode !== 0 && onlyTolerated && outcome.exitCode !== (cases.some(red) ? baseline.exitCode : 0)) bad('suite-exit', `${prefix}the tests exited ${outcome.exitCode} with no test case failing${cases.some(red) ? ` beyond the baseline's, which exited ${baseline.exitCode}` : ''}: killed part way, or failed after the tests`)
+}
+
+const levelOf = (o) => o?.level ?? 'unit'
+const ran = (o) => o && o.selection?.mode !== 'none'
+const empty = (o, prefix) => `${prefix}no test case ran (exit ${o?.exitCode}): ${o?.outputTail ?? ''}`
+/** A row's test as {name, level}: a bare name is a unit test (36-test-levels.md). */
+const testRef = (t) => (typeof t === 'string' ? { name: t, level: 'unit' } : t)
+
+/** One AcceptanceRecord against the TestOutcomes of its round, the Plan task it builds and the Spec (35-build-process.md): the
+ * record is the builder's claim, the outcomes the evidence. `ids`: {plan, spec, taskId} bound beside it; `previous` and
+ * `previousOutcome`: the last round's record and unit tests; a unit test it named that ran then must still run. A test is named by string equality with a case's `name` or with
  * `classname > name`, never split; cases with the same classname and name (a retried or parameterized test) are one test, red
- * if any of them is. `baseline`: the tests before build-all; a case red there and red still is tolerated. Every finding
- * `error` but `suite-baseline` (info), `baseline-dirty` and `defect-reported` (warning). */
-export function checkAcceptance({ record, testOutcome, plan, spec, previous, previousOutcome, baseline, ids = {} }) {
+ * if any of them is. `baseline`: the tests before build-all; a case red there and red still is tolerated. `levelOutcomes` and
+ * `levelBaselines`: the other test levels' (36-test-levels.md), paired by `level`; a row's `{name, level}` resolves in its level's
+ * outcome, and the unit outcome carries the coverage and mutation minimums. Every finding `error` but `suite-baseline` and
+ * `level-held` (info), `baseline-dirty` and `defect-reported` (warning). */
+export function checkAcceptance({ record, testOutcome, plan, spec, previous, previousOutcome, baseline, levelOutcomes = [], levelBaselines = [], ids = {} }) {
   if (!record || !record.task || !Array.isArray(record.verifies)) {
     return [{ severity: 'error', code: 'not-a-record', message: 'content is not an AcceptanceRecord: it has no task or no verifies array' }]
   }
   const cases = testOutcome?.tests ?? []
-  if (cases.length === 0) return [{ severity: 'error', code: 'suite-empty', message: `no test case ran (exit ${testOutcome?.exitCode}): ${testOutcome?.outputTail ?? ''}` }]
+  if (cases.length === 0 && ran(testOutcome ?? {})) return [{ severity: 'error', code: 'suite-empty', message: empty(testOutcome, '') }]
   const findings = []
   const bad = (code, message) => findings.push({ severity: 'error', code, message })
+  const outcomes = new Map([['unit', testOutcome], ...levelOutcomes.map((o) => [levelOf(o), o])])
+  const baselines = new Map([['unit', baseline], ...levelBaselines.map((o) => [levelOf(o), o])])
+  const prefixOf = (level) => (level === 'unit' ? '' : `${level}: `)
 
   if (ids.taskId && record.task !== ids.taskId) bad('task-mismatch', `task ${record.task} is not ${ids.taskId}, the task built`)
   if (ids.plan && record.plan !== ids.plan) bad('plan-mismatch', `plan ${record.plan} is not ${ids.plan}, the Plan evaluated`)
@@ -454,7 +486,7 @@ export function checkAcceptance({ record, testOutcome, plan, spec, previous, pre
   // a QS-n the Spec cites; when it is proven is the Plan check's, which reads the Architecture
   const scenarios = new Set([...(spec?.stories ?? []).flatMap((s) => (s.acceptance ?? []).map((a) => a.id)), ...(spec?.qualities ?? []).map((q) => q.scenario)])
 
-  const matching = (name) => cases.filter((c) => c.name === name || `${c.classname} > ${c.name}` === name)
+  const matching = (name, level = 'unit') => (outcomes.get(level)?.tests ?? []).filter((c) => c.name === name || `${c.classname} > ${c.name}` === name)
   const tests = (m) => new Set(m.map((c) => `${c.classname} > ${c.name}`)).size
   const named = new Set()
   const seen = new Set()
@@ -464,11 +496,24 @@ export function checkAcceptance({ record, testOutcome, plan, spec, previous, pre
     if (seen.has(id)) bad('scenario-duplicate', `${id} has two rows`)
     seen.add(id)
     if (task && !due.has(id)) bad('unknown-scenario', `${id} does not verify ${record.task}`)
-    for (const name of row.tests ?? []) {
-      const m = matching(name)
+    for (const { name, level } of (row.tests ?? []).map(testRef)) {
+      const o = outcomes.get(level)
+      const where = level === 'unit' ? '' : `${level} `
+      // a held level ran nothing: the red before it already fails the round, told once as level-held
+      if (o?.selection?.mode === 'none' && o.selection.reason.startsWith('held')) continue
+      if (!o) {
+        bad('test-missing', `${id}: no ${level} test ran: the project configures no ${level} level`)
+        continue
+      }
+      if (!ran(o)) {
+        bad('test-missing', `${id}: ${name}: the ${level} tests did not run (${o.selection.reason})`)
+        continue
+      }
+      if ((o.tests ?? []).length === 0) continue // that level's suite-empty says why
+      const m = matching(name, level)
       for (const c of m) named.add(c)
-      if (m.length === 0) bad('test-missing', `${id}: no test case is named ${name}`)
-      else if (tests(m) > 1) bad('test-ambiguous', `${id}: ${tests(m)} test cases are named ${name}; name it as classname > name`)
+      if (m.length === 0) bad('test-missing', `${id}: no ${where}test case is named ${name}`)
+      else if (tests(m) > 1) bad('test-ambiguous', `${id}: ${tests(m)} ${where}test cases are named ${name}; name it as classname > name`)
       else if (m.some(red)) {
         const r = m.find(red)
         bad('test-failed', `${id}: ${name} ${r.status}${r.message ? `: ${r.message}` : ''}`)
@@ -476,29 +521,41 @@ export function checkAcceptance({ record, testOutcome, plan, spec, previous, pre
     }
   }
   for (const id of due) if (!seen.has(id)) bad('scenario-unrecorded', `${id} verifies ${record.task} but the record names no test for it`)
-  const current = new Set(record.verifies.flatMap((r) => r.tests ?? []))
-  // a name the last round got wrong never ran: only a test that ran then can be dropped now
+  // the unit tests only: previousOutcome is the unit one; a name the last round got wrong never ran, so only a test that ran then can be dropped now
+  const unitNames = (r) => (r?.verifies ?? []).flatMap((x) => (x.tests ?? []).map(testRef)).filter((t) => t.level === 'unit').map((t) => t.name)
+  const current = new Set(unitNames(record))
   const ranBefore = (n) => (previousOutcome?.tests ?? []).some((c) => c.name === n || `${c.classname} > ${c.name}` === n)
-  const dropped = new Set((previous?.verifies ?? []).flatMap((r) => r.tests ?? []).filter((n) => !current.has(n) && ranBefore(n) && matching(n).length === 0))
+  const dropped = new Set(unitNames(previous).filter((n) => !current.has(n) && ranBefore(n) && matching(n).length === 0))
   for (const name of dropped) bad('test-dropped', `${name}, named last round, no longer runs`)
-  // a case red before the build is not the build's: tolerated while still red, listed; one the baseline lacks or had green is a break
-  const redBefore = new Set((baseline?.tests ?? []).filter(red).map((c) => `${c.classname} > ${c.name}`))
-  const tolerated = new Set()
-  for (const c of cases) {
-    if (named.has(c) || !red(c)) continue
-    if (redBefore.has(`${c.classname} > ${c.name}`)) tolerated.add(`${c.classname} > ${c.name}`)
-    else bad('suite-failed', `${c.classname} > ${c.name} ${c.status}${c.message ? `: ${c.message}` : ''}`)
+  if (ran(testOutcome)) suiteFindings(testOutcome, baseline, named, '', bad, findings)
+  measures(testOutcome, bad)
+  for (const [level, o] of outcomes) {
+    if (level === 'unit') continue
+    if (o.selection?.mode === 'none') {
+      if (o.selection.reason.startsWith('held')) findings.push({ severity: 'info', code: 'level-held', message: `${level} ran nothing, ${o.selection.reason}: fix the red first` })
+      continue
+    }
+    if ((o.tests ?? []).length === 0) bad('suite-empty', empty(o, prefixOf(level)))
+    else suiteFindings(o, baselines.get(level), named, prefixOf(level), bad, findings)
   }
-  if (tolerated.size) findings.push({ severity: 'info', code: 'suite-baseline', message: `${tolerated.size} test case${tolerated.size > 1 ? 's' : ''} red in the baseline, red still: ${[...tolerated].join('; ')}` })
-  // persimmon never reverts: a baseline taken over uncommitted changes may tolerate a red an earlier build left
-  if (tolerated.size && baseline.dirty) findings.push({ severity: 'warning', code: 'baseline-dirty', message: 'the baseline ran over uncommitted changes: a red it tolerates may be one an earlier build left' })
-  // a tolerated red explains a non-zero exit only when the baseline exited the same: a suite killed or failing after its tests still shows
-  const onlyTolerated = cases.filter(red).every((c) => !named.has(c) && tolerated.has(`${c.classname} > ${c.name}`))
-  if (testOutcome.exitCode !== 0 && onlyTolerated && testOutcome.exitCode !== (cases.some(red) ? baseline.exitCode : 0)) bad('suite-exit', `the tests exited ${testOutcome.exitCode} with no test case failing${cases.some(red) ? ` beyond the baseline's, which exited ${baseline.exitCode}` : ''}: killed part way, or failed after the tests`)
   for (const q of record.openQuestions ?? []) if (!q.resolution) bad('question-open', `${q.id} is open: ${q.question}`)
   // wrong behaviour the task does not cover: reported, never this task's to fix, so told every round and never refused
   for (const d of record.defects ?? []) findings.push({ severity: 'warning', code: 'defect-reported', message: `${d.id} at ${d.where}: ${d.observed}; expected ${d.expected}` })
   return findings
+}
+
+/** The unit level's minimums over the Change set, as its outcome records them (36-test-levels.md). */
+function measures(unit, bad) {
+  const c = unit?.coverage
+  if (c?.error) bad('coverage-unread', `coverage not measured: ${c.error}`)
+  else if (c?.total && (c.covered / c.total) * 100 < c.min) {
+    bad('coverage-low', `${Math.floor((c.covered / c.total) * 1000) / 10}% of ${c.total} changed lines covered, below ${c.min}%; uncovered: ${(c.uncovered ?? []).map((u) => `${u.file}:${u.lines}`).join('; ')}`)
+  }
+  const m = unit?.mutation
+  if (m?.error) bad('mutation-exit', `mutation not measured: ${m.error}`)
+  else if (m?.score !== undefined && m.score < m.min) {
+    bad('mutation-low', `mutation score ${m.score}% on the changed lines, below ${m.min}%; survivors: ${(m.survivors ?? []).map((s) => `${s.file}:${s.line} ${s.mutator}`).join('; ')}`)
+  }
 }
 
 /** One Architecture against the Prd it serves, the BoundedContexts, DomainModels and Glossaries it lists (artifact ids given by

@@ -772,6 +772,45 @@ describe('sdd/v1 over an AcceptanceRecord', () => {
     answered.previous.openQuestions[0].resolution = 'EUR'
     expect((await by({ kind: 'service', id: 'claude-code/v1' })).result.findings).toEqual([]) // carried from the last round: told then
   })
+
+  // 36-test-levels.md: the other levels' outcomes beside the unit one, paired by level
+  const api = (cases: Record<string, unknown>[], over: Record<string, unknown> = {}) => ({ command: ['bru', 'run'], exitCode: cases.some((c) => c.status === 'failed') ? 1 : 0, level: 'api', selection: { mode: 'full', reason: '1 changed file' }, tests: cases, ...over })
+  const levelCodes = async (a: Record<string, any>, levelOutcomes: unknown[], levelBaselines: unknown[] = []) => {
+    const p = recordPayload(a) as any
+    p.artifacts.levelOutcomes = levelOutcomes.map((content) => ({ content, provenance }))
+    p.artifacts.levelBaselines = levelBaselines.map((content) => ({ content, provenance }))
+    return (await adapter({ id: ++id, op: 'evaluate', payload: p })).result.findings.map((f: { code: string; message: string }) => `${f.code}: ${f.message}`)
+  }
+
+  it('resolves a row\'s {name, level} in that level\'s outcome; another level\'s break is its own suite-failed (36-test-levels.md)', async () => {
+    const a = structuredClone(recordExample())
+    a.record.verifies[0].tests.push({ name: 'POST /claims refuses a line without a receipt', level: 'api' })
+    expect(await levelCodes(a, [api([{ classname: 'claims', name: 'POST /claims refuses a line without a receipt', status: 'passed' }])])).toEqual([])
+    expect(await levelCodes(a, [api([{ classname: 'claims', name: 'POST /claims refuses a line without a receipt', status: 'failed', message: '200' }])])).toEqual(['test-failed: AC-1: POST /claims refuses a line without a receipt failed: 200'])
+    expect(await levelCodes(a, [api([{ classname: 'claims', name: 'other', status: 'passed' }])])).toEqual(['test-missing: AC-1: no api test case is named POST /claims refuses a line without a receipt'])
+    expect(await levelCodes(a, [])).toEqual(['test-missing: AC-1: no api test ran: the project configures no api level'])
+    expect(await levelCodes(a, [api([], { selection: { mode: 'none', reason: 'untouched' } })])).toEqual(['test-missing: AC-1: POST /claims refuses a line without a receipt: the api tests did not run (untouched)'])
+    const both = [{ classname: 'claims', name: 'POST /claims refuses a line without a receipt', status: 'passed' }, { classname: 'claims', name: 'GET /claims', status: 'failed', message: '500' }]
+    expect(await levelCodes(a, [api(both)])).toEqual(['suite-failed: api: claims > GET /claims failed: 500'])
+    expect(await levelCodes(a, [api(both)], [api([{ classname: 'claims', name: 'GET /claims', status: 'failed' }])])).toEqual(['suite-baseline: api: 1 test case red in the baseline, red still: claims > GET /claims']) // its own baseline tolerates it
+    expect(await levelCodes(a, [api([], { exitCode: 2, outputTail: 'ECONNREFUSED' })])).toEqual(['suite-empty: api: no test case ran (exit 2): ECONNREFUSED'])
+  })
+
+  it('a held level is told once, its rows not missing; the unit level holds its coverage and mutation minimums (36-test-levels.md)', async () => {
+    const a = structuredClone(recordExample())
+    a.record.verifies[0].tests.push({ name: 'GET /claims', level: 'api' })
+    expect(await levelCodes(a, [api([], { selection: { mode: 'none', reason: 'held: unit' } })])).toEqual(['level-held: api ran nothing, held: unit: fix the red first'])
+    const measured = structuredClone(recordExample())
+    measured.testOutcome.coverage = { min: 90, covered: 8, total: 10, uncovered: [{ file: 'src/claim.ts', lines: '12-13' }] }
+    measured.testOutcome.mutation = { min: 80, killed: 3, survived: 1, noCoverage: 0, timeout: 0, score: 75, survivors: [{ file: 'src/claim.ts', line: 12, mutator: 'EqualityOperator' }] }
+    expect(await levelCodes(measured, [])).toEqual(['coverage-low: 80% of 10 changed lines covered, below 90%; uncovered: src/claim.ts:12-13', 'mutation-low: mutation score 75% on the changed lines, below 80%; survivors: src/claim.ts:12 EqualityOperator'])
+    measured.testOutcome.coverage = { min: 90, covered: 0, total: 0, uncovered: [] } // no executable line changed
+    measured.testOutcome.mutation = { min: 80, killed: 0, survived: 0, noCoverage: 0, timeout: 0, survivors: [] } // no mutant on it
+    expect(await levelCodes(measured, [])).toEqual([])
+    measured.testOutcome.coverage = { min: 90, error: 'cov.xml not read' }
+    measured.testOutcome.mutation = { min: 80, error: 'mutation.json not read' }
+    expect(await levelCodes(measured, [])).toEqual(['coverage-unread: coverage not measured: cov.xml not read', 'mutation-exit: mutation not measured: mutation.json not read'])
+  })
 })
 
 describe('sdd/v1 over an Architecture', () => {
