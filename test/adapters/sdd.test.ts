@@ -796,6 +796,16 @@ describe('sdd/v1 over an AcceptanceRecord', () => {
     expect(await levelCodes(a, [api([], { exitCode: 2, outputTail: 'ECONNREFUSED' })])).toEqual(['suite-empty: api: no test case ran (exit 2): ECONNREFUSED'])
   })
 
+  it('the plan tier: every level that ran against its baseline, no record; a level that ran nothing says nothing (36-test-levels.md)', async () => {
+    const p = { ...payload({ final: { ...content('TestOutcome'), selection: { mode: 'none', reason: 'the last round ran every unit test over the same tree' }, tests: [] }, baseline: content('TestOutcome') }), inputs: {} } as any
+    p.artifacts.levelOutcomes = [api([{ classname: 'claims', name: 'GET /claims', status: 'failed', message: '500' }, { classname: 'claims', name: 'old', status: 'failed' }])].map((c) => ({ content: c, provenance }))
+    p.artifacts.levelBaselines = [api([{ classname: 'claims', name: 'old', status: 'failed' }])].map((c) => ({ content: c, provenance }))
+    const r = (await adapter({ id: ++id, op: 'evaluate', payload: p })).result
+    expect([r.passed, r.findings.map((f: { code: string; message: string }) => `${f.code}: ${f.message}`)]).toEqual([false, ['suite-failed: api: claims > GET /claims failed: 500', 'suite-baseline: api: 1 test case red in the baseline, red still: claims > old']])
+    p.artifacts.levelOutcomes = []
+    expect((await adapter({ id: ++id, op: 'evaluate', payload: p })).result).toEqual({ passed: true, findings: [], evidence: [] })
+  })
+
   it('a held level is told once, its rows not missing; the unit level holds its coverage and mutation minimums (36-test-levels.md)', async () => {
     const a = structuredClone(recordExample())
     a.record.verifies[0].tests.push({ name: 'GET /claims', level: 'api' })

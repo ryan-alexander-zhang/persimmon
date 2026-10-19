@@ -228,6 +228,23 @@ spec:
     configuration: {}
   timeout: 1m
 ---
+# plan-regression: every test level after build-all's last task against its baseline (36-test-levels.md); no record, so a red
+# case the baseline did not have red is a regression some task left, which the developer investigates as an Issue.
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: plan-regression}
+spec:
+  inputs:
+    final: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, description: "the unit tests after the last task"}
+    baseline: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, description: "the unit tests before build-all"}
+    levelOutcomes: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the other test levels after the last task"}
+    levelBaselines: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the other test levels before build-all"}
+  evaluator:
+    type: adapter
+    adapter: sdd/v1
+    configuration: {}
+  timeout: 1m
+---
 # acceptance-audited: the auditor's verdict (Task audit-acceptance in build-work, 35-build-process.md) as the round's; passed is
 # recomputed from the findings, so an answer saying passed beside an error cannot pass.
 apiVersion: persimmon.ai/v1

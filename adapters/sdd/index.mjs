@@ -2,6 +2,7 @@
 // Given a Spec, `evaluate` runs `checkSpec` on it and the Prd, DomainModel, Architecture and BusinessRules it cites and
 // the BoundedContext bound;
 // given an AcceptanceRecord, it runs `checkAcceptance` on it, the TestOutcome, the Plan and the Spec (35-build-process.md);
+// given a final TestOutcome and no record, `checkRegression` on every level's against its baseline (36-test-levels.md);
 // given a Prd, it runs `checkPrd` on it and the BusinessRules of its context; given a Design, it runs `checkDesign` on
 // it and the Architecture, DomainModel and BusinessRules it cites (a ui Design: the DesignSystem bound and the API Designs
 // instead of the DomainModel); given a Plan, it runs `checkPlan` on it, the Spec,
@@ -9,7 +10,7 @@
 // and no Spec, Design or Plan, it runs `checkArchitecture` on it, the Prd, the rules, the contexts, models, glossaries and
 // Adrs (artifacts ports, paired the same way). It answers a ValidationResult (10-ports.md). No Engine callbacks.
 import { createInterface } from 'node:readline'
-import { checkAcceptance, checkArchitecture, checkCoverage, checkDesign, checkPlan, checkPrd, checkSpec } from './check.mjs'
+import { checkAcceptance, checkArchitecture, checkCoverage, checkDesign, checkPlan, checkPrd, checkRegression, checkSpec } from './check.mjs'
 
 const describe = {
   adapterId: 'sdd/v1',
@@ -60,6 +61,12 @@ function evaluate(payload) {
     const ids = { plan: payload.inputs?.plan?.ref?.id, spec: payload.inputs?.spec?.ref?.id, taskId: payload.inputs?.taskId?.value }
     const findings = checkAcceptance({ record, testOutcome: required(artifacts, 'testOutcome'), plan: required(artifacts, 'plan'), spec: required(artifacts, 'spec'), previous: artifacts.previous?.content, previousOutcome: artifacts.previousOutcome?.content, baseline: artifacts.baseline?.content, levelOutcomes: (artifacts.levelOutcomes ?? []).map((a) => a.content), levelBaselines: (artifacts.levelBaselines ?? []).map((a) => a.content), ids })
     return done(payload, findings, artifacts.record)
+  }
+  if (artifacts.final) {
+    // the plan tier: every level after the last task against its baseline, no record (36-test-levels.md)
+    const list = (name) => (artifacts[name] ?? []).map((a) => a.content)
+    const findings = checkRegression({ final: required(artifacts, 'final'), baseline: required(artifacts, 'baseline'), levelOutcomes: list('levelOutcomes'), levelBaselines: list('levelBaselines') })
+    return { passed: passes(findings), findings, evidence: [] }
   }
   if (artifacts.plan) {
     const plan = required(artifacts, 'plan')

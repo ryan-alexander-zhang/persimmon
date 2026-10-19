@@ -118,6 +118,9 @@ Building a Plan task (`build-all`), as the developer's own agent reading an inbo
   with no time limit: it runs the tests and the Gate before it returns. The next round or task
   then waits on you, unless the tree it prints shows the run ended.
 - Never run git; once the Gate passed, the developer reviews the diff and commits.
+- After the last task `build-all` runs every test level in full once more; a red no round showed
+  ends the run `plan_regressed`. No task is to blame: tell the developer and investigate it as an
+  `Issue`, its `reproduction` the red test.
 
 ## 7. Output Discipline
 

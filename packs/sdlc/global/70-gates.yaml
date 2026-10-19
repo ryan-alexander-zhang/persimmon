@@ -321,3 +321,26 @@ spec:
         audit: {fromInput: audit}
   policy: {strategy: all}
   timeout: 5m
+---
+# The plan tier's Gate (36-test-levels.md): build-all's last task built, every test level in full against its baseline.
+apiVersion: persimmon.ai/v1
+kind: Gate
+metadata: {name: regression-gate}
+spec:
+  inputs:
+    final: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}}
+    baseline: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}}
+    levelOutcomes: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false}
+    levelBaselines: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
+  validators:
+    - name: regression
+      ref: {kind: Validator, name: plan-regression}
+      inputs:
+        final: {fromInput: final}
+        baseline: {fromInput: baseline}
+        levelOutcomes: {fromInput: levelOutcomes, onMissing: omit}
+        levelBaselines: {fromInput: levelBaselines, onMissing: omit}
+  policy: {strategy: all}
+  timeout: 5m

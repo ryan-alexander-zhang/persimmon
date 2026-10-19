@@ -144,6 +144,26 @@ describe('scenario: build a Plan task', () => {
     expect(await run('get', 'TestOutcome/submit-a-claim-plan-baseline-levels-1')).toBe(0) // its own baseline, before the build
   })
 
+  it('the plan tier runs every level in full after the last task: a red no round showed fails the run plan_regressed (36-test-levels.md)', { timeout: 60_000 }, async () => {
+    await setup()
+    // the api suite counts its runs: the baseline and the round pass, the plan tier's third run breaks
+    const count = `const fs = require('node:fs'); const n = (fs.existsSync('runs') ? Number(fs.readFileSync('runs', 'utf8')) : 0) + 1; fs.writeFileSync('runs', String(n)); fs.writeFileSync('junit-api.xml', '<testsuites><testsuite><testcase classname="claims.bru" name="GET /claims">' + (n > 2 ? '<failure message="500"/>' : '') + '</testcase></testsuite></testsuites>'); process.exit(n > 2 ? 1 : 0)`
+    const levels = { apiVersion: 'persimmon.ai/v1', kind: 'Executor', metadata: { name: 'level-runner', namespace: 'default' }, spec: { type: 'script', adapter: 'junit/v1', configuration: { levels: { api: { program: [process.execPath, '-e', count], junit: 'junit-api.xml' } } } } }
+    expect(await run('apply', file('levels.yaml', [levels]), '-n', 'default')).toBe(0)
+    out = []
+    expect(await run('run', 'build-all', '--input', `plan=${ref('Plan', 'submit-a-claim-plan')}`, '--input', 'tasks=[T-1]', '--input', `spec=${ref('Spec', 'submit-a-claim')}`, '--input', `architecture=${ref('Architecture', 'expense-claims-architecture')}`,
+      '--input', `designs={kind: artifacts, refs: [{apiVersion: sdd.persimmon.ai/v1, kind: Design, id: claims-api, revision: 1}]}`, '--input', `glossary=${ref('Glossary', 'expenses-glossary')}`, '--input', `rules=${ref('BusinessRules', 'expenses-rules')}`, '--input', `repository=${repo}`, '--follow')).toBe(0)
+    expect(await run('complete', inbox()[0]!.replace(/\.yaml$/, ''), '--file', file('r1.yaml', [{ outputs: { record: one('AcceptanceRecord').spec.content } }]))).toBe(0)
+    out = []
+    expect(await run('complete', inbox()[0]!.replace(/\.yaml$/, ''), '--file', file('a1.yaml', [{ outputs: { audit: { kind: 'value', value: { passed: true, findings: [], evidence: [] } } } }]))).toBe(0) // the auditor
+    expect(out.find((l) => l.startsWith('WorkflowRun   build-all-'))).toMatch(/Failed/)
+    expect(out.join('\n')).toContain('plan_regressed')
+    expect(out.join('\n')).toContain('suite-failed: api: claims.bru > GET /claims failed: 500')
+    out = []
+    expect(await run('get', 'TestOutcome/submit-a-claim-plan-final')).toBe(0)
+    expect(out.join('\n')).toMatch(/mode: none/) // every round ran the unit tests in full over this tree
+  })
+
   it('a defect the builder reports passes the round with a warning; the developer investigates it as an Issue (35-build-process.md)', { timeout: 60_000 }, async () => {
     await setup('<testcase classname="test/legacy.test.ts" name="legacy &gt; an old export"><failure message="was red before"/></testcase>')
     out = []

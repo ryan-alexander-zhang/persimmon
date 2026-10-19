@@ -544,6 +544,22 @@ export function checkAcceptance({ record, testOutcome, plan, spec, previous, pre
   return findings
 }
 
+/** The plan tier (36-test-levels.md): every level's tests after build-all's last task against its baseline, no record. A level
+ * that ran nothing, the unit one when every round ran it in full, says nothing. Every finding `error` but `suite-baseline` (info)
+ * and `baseline-dirty` (warning). */
+export function checkRegression({ final, baseline, levelOutcomes = [], levelBaselines = [] }) {
+  const findings = []
+  const bad = (code, message) => findings.push({ severity: 'error', code, message })
+  const baselines = new Map(levelBaselines.map((o) => [levelOf(o), o]))
+  for (const [o, base] of [[final, baseline], ...levelOutcomes.map((o) => [o, baselines.get(levelOf(o))])]) {
+    if (!ran(o)) continue
+    const prefix = levelOf(o) === 'unit' ? '' : `${levelOf(o)}: `
+    if ((o.tests ?? []).length === 0) bad('suite-empty', empty(o, prefix))
+    else suiteFindings(o, base, new Set(), prefix, bad, findings)
+  }
+  return findings
+}
+
 /** The unit level's minimums over the Change set, as its outcome records them (36-test-levels.md). */
 function measures(unit, bad) {
   const c = unit?.coverage

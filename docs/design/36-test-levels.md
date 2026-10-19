@@ -17,7 +17,7 @@ Workflow build-all
   each:            repeat over tasks ─▶ ReviewLoop build-one per T-n                                    tier round
   final:           Task run-final    (Executor test-runner)                      ─▶ TestOutcome <plan>-final      tier plan
   final-levels:    Task run-levels   (Executor level-runner, every level, full)  ─▶ TestOutcome <plan>-final-levels-<n>
-  plan:            Gate plan-gate = Validator plan-regression (sdd/v1); refused ─▶ Failed plan_regressed
+  plan:            Gate regression-gate = Validator plan-regression (sdd/v1); refused ─▶ Failed plan_regressed
 
 Workflow build-work (one round)
   implement ─▶ AcceptanceRecord
@@ -45,7 +45,7 @@ Workflow build-work (one round)
 | Task `run-final` | inputs `plan`, `repository`, `baseline`; output `final`, id `<plan>-final`; Executor `test-runner` |
 | `build-work`, `build-one` | `run-levels` after `run-tests`; outputs and Gate inputs `levelOutcomes` and `levelBaselines` |
 | Validator `acceptance-evidence` | takes `levelOutcomes` and `levelBaselines`, paired by `level`; resolves a row's test in its level's outcome; findings below |
-| Gate `plan-gate`, Validator `plan-regression` | `sdd/v1` over `final`, `baseline`, `levelOutcomes`, `levelBaselines`: `checkRegression`, `suite-empty`, `suite-failed`, `suite-baseline`, `suite-exit` per level, as `checkAcceptance` reads them |
+| Gate `regression-gate`, Validator `plan-regression` | `sdd/v1` over `final`, `baseline`, `levelOutcomes`, `levelBaselines`: `checkRegression`, `suite-empty`, `suite-failed`, `suite-baseline`, `suite-exit` per level, as `checkAcceptance` reads them |
 | Task `audit-acceptance` | adds `levelOutcomes`, so the auditor reads every level's names |
 | Prompt `audit-rules` | adds: a scenario whose When crosses the API or the UI, proven only by a `unit` test, is `test-unfit` |
 
@@ -177,6 +177,6 @@ The table in `35-build-process.md` holds, read per level. New or changed:
 4. Mutation over the Change set from a mutation-testing-elements report.
 5. `checkAcceptance` per level: `level-held`, `coverage-low`, `coverage-unread`, `mutation-low`, `mutation-exit`.
 6. `level-runner` and `run-levels` in `junit/v1`; `levelOutcomes` through `build-work`, `build-one`, `build-gate` and `audit-acceptance`.
-7. The `plan` tier: `run-final`, `checkRegression`, `plan-regression`, `plan-gate`, `plan_regressed` in `build-all`; AGENTS.md section 6.
+7. The `plan` tier: `run-final`, `checkRegression`, `plan-regression`, `regression-gate`, `plan_regressed` in `build-all`; AGENTS.md section 6.
 8. `audit-rules`: a boundary-crossing scenario proven by a `unit` test is `test-unfit`.
 9. A live UAT: a project with all four levels and Stryker, a task touching only the domain (`unit` and mutation run, the rest `untouched`), then one touching the API.

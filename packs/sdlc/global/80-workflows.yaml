@@ -790,7 +790,8 @@ spec:
   timeout: 240h
 ---
 # build-all: the tests once as the baseline, then every listed Plan task in order (35-build-process.md); `tasks` in
-# ascending T-n, which the Plan's own order is.
+# ascending T-n, which the Plan's own order is. After the last task, the plan tier: every test level in full against its
+# baseline, a new red failing the run plan_regressed (36-test-levels.md).
 apiVersion: persimmon.ai/v1
 kind: Workflow
 metadata: {name: build-all}
@@ -845,6 +846,28 @@ spec:
           index: {expression: "state.index + 1"}
         until: "!iteration.outputs.passed || iteration.index >= inputs.tasks.size()"
         maxIterations: 20
+    - id: final # the plan tier (36-test-levels.md): every level in full once more, the backstop for what a round's selection missed
+      uses: {kind: Task, name: run-final}
+      inputs:
+        plan: {fromInput: plan}
+        repository: {fromInput: repository}
+        baseline: {fromStep: {stepRef: baseline, output: baseline}}
+      timeout: 2h
+    - id: final-levels
+      uses: {kind: Task, name: run-levels}
+      inputs:
+        plan: {fromInput: plan}
+        repository: {fromInput: repository}
+        baselines: {fromStep: {stepRef: level-baselines, output: outcomes}}
+      timeout: 4h
+    - id: plan
+      uses: {kind: Gate, name: regression-gate}
+      inputs:
+        final: {fromStep: {stepRef: final, output: final}}
+        baseline: {fromStep: {stepRef: baseline, output: baseline}}
+        levelOutcomes: {fromStep: {stepRef: final-levels, output: outcomes}}
+        levelBaselines: {fromStep: {stepRef: level-baselines, output: outcomes}}
+      timeout: 5m
   transitions:
     - id: to-level-baselines
       from: [{stepRef: baseline, outcomes: [Succeeded, Failed]}]
@@ -858,11 +881,29 @@ spec:
         - {stepRef: each, when: 'steps["level-baselines"].phase == "Succeeded"'}
         - {terminal: Failed, reason: step_failed}
       dispatch: first
-    - id: done
+    - id: built
       from: [{stepRef: each, outcomes: [Succeeded, Failed]}]
       to:
-        - {terminal: Succeeded, when: 'steps.each.phase == "Succeeded" && steps.each.outputs.passed'}
+        - {stepRef: final, when: 'steps.each.phase == "Succeeded" && steps.each.outputs.passed'}
         - {terminal: Failed, reason: build_inconsistent, when: 'steps.each.phase == "Succeeded"'} # the Gate rejected the last round
         - {terminal: Failed, reason: step_failed} # the iteration died before its Gate ran; steps.each.error names the cause
       dispatch: first
-  timeout: 2406h
+    - id: to-final-levels
+      from: [{stepRef: final, outcomes: [Succeeded, Failed]}]
+      to:
+        - {stepRef: final-levels, when: 'steps.final.phase == "Succeeded"'}
+        - {terminal: Failed, reason: step_failed}
+      dispatch: first
+    - id: to-plan
+      from: [{stepRef: final-levels, outcomes: [Succeeded, Failed]}]
+      to:
+        - {stepRef: plan, when: 'steps["final-levels"].phase == "Succeeded"'}
+        - {terminal: Failed, reason: step_failed}
+      dispatch: first
+    - id: done
+      from: [{stepRef: plan, outcomes: [Succeeded]}]
+      to:
+        - {terminal: Succeeded, when: 'steps.plan.outputs.result.passed'}
+        - {terminal: Failed, reason: plan_regressed} # a red no task's round showed: investigated as an Issue (36-test-levels.md)
+      dispatch: first
+  timeout: 2414h
