@@ -39,7 +39,7 @@ ReviewLoop build-one
 | Task `implement` | inputs `plan`, `taskId` (value), `spec`, `architecture`, `designs` (artifacts), `glossary`, `rules`, `repository` (the workspace), `previous`, `previousOutcome` (what the tests did last round), `feedback`, `baseline` (the tests before `build-all`, optional); output `record`, id `<plan>-<t-n>`; `workspace: {input: repository}`; `sideEffects: nonIdempotent` (it writes the repository); `timeout: 72h`, a human's |
 | Task `run-baseline` | inputs `plan`, `repository`; output `baseline`, a TestOutcome, id `<plan>-baseline`; Executor `test-runner`; `workspace: {input: repository}`; `sideEffects: idempotent`; `timeout: 2h`; the project's tests before any task is built |
 | Task `run-tests` | inputs `record`, `repository`; output `testOutcome`, id `<record>-tests`; `workspace: {input: repository}`; the `record` input pins the record in the outcome's provenance; `sideEffects: idempotent`; `timeout: 2h`, a ceiling an Executor override cannot raise |
-| Prompt `audit-rules` | for each row of the record, read the named tests in the repository and judge whether they prove the scenario: an `AC-n`'s Given/When/Then with its values, a `QS-n`'s stimulus and its response and measure as one run decides it (the Spec's `delta` replacing what it tightens), a `fitness` one the structure; a test that asserts nothing the scenario says, mocks the thing under test or proves another scenario is `test-unfit`; pass and fail are `acceptance-evidence`'s, not the auditor's; never edit a file |
+| Prompt `audit-rules` | for each row of the record, read the named tests in the repository and judge whether they prove the scenario: an `AC-n`'s Given/When/Then with its values, a `QS-n`'s stimulus and its response and measure as one run decides it (the Spec's `delta` replacing what it tightens), a `fitness` one the structure; a test that asserts nothing the scenario says, mocks the thing under test or proves another scenario is `test-unfit`; wrong behaviour it sees in the code it read that no row covers and no `D-n` reports is a `defect-seen` warning; pass and fail are `acceptance-evidence`'s, not the auditor's; never edit a file |
 | Executor `auditor` | `claude-code/v1`, `type: agent`, `sandbox: read-only`, `model: claude-sonnet-5`: an auditor reads a few tests; a Namespace overrides it by name for another model or agent |
 | Task `audit-acceptance` | inputs `record`, `testOutcome`, `plan`, `taskId`, `spec`, `architecture`, `repository` (the workspace, read only); output `audit`, a `ValidationResult` value; `workspace: {input: repository}`; `sideEffects: none`; `timeout: 1h` |
 | Validator `acceptance-evidence` | `sdd/v1` over `record`, `testOutcome`, `plan`, `spec`, optionally `previous` and `previousOutcome` (the last round's record and tests) and `baseline`, and the value `taskId`; the findings below |
@@ -312,6 +312,12 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
   session that ran `persimmon complete` in the background ended its one-shot turn before the Gate;
   the run went on, but nothing answered the next task: a headless session runs it in the
   foreground. Found in UAT.
+- The acceptance auditor tells a defect it sees: wrong behaviour in the code it read that no row
+  covers and no `D-n` reports is a `defect-seen` warning, never an error. It read the code a test
+  calls and was told the rest was not its own, so a defect the builder kept to itself, seen by the
+  one reader after it, went unsaid. A warning fails nothing, so the auditor's scope stays the rows;
+  the developer investigates it as an Issue, as a `D-n`. Its code is lower case: a finding, not a
+  record's Defect. Found in a wording review.
 
 ## Examples
 
