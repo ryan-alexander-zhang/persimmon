@@ -648,9 +648,9 @@ there and red still is not the build's. Always so named: a bare "baseline" is th
 _Avoid_: TestRun (a Run is the engine's), test report, test result, CI run
 
 **Test level**:
-Which kind of test a test case is: `unit`, `integration`, `api` or `e2e`. One Executor per level;
-one **TestOutcome** per level and run. Coverage and mutation are measures of the `unit` level, not
-levels.
+Which kind of test a test case is: `unit`, `integration`, `api` or `e2e`. One **TestOutcome** per
+level and run: `unit` on the Executor `test-runner`, the others on `level-runner`. Coverage and
+mutation are measures of the `unit` level, recorded in its TestOutcome, not levels.
 _Avoid_: test type, test kind, test layer, suite (for the level), stage
 
 **Test tier**:
@@ -662,12 +662,6 @@ _Avoid_: phase (a Pipeline's or a Run's), stage, test stage, gate (for the tier)
 The files and lines that differ from the baseline **TestOutcome**'s `head`, untracked files
 included: what a `round` tier selects tests by and measures coverage and mutation over.
 _Avoid_: diff (git's output), delta (a Spec's field), changes
-
-**MutationOutcome**:
-**Artifact kind** of the SDLC pack: what one mutation run did over the **Change set**, read from a
-mutation-testing-elements report, one entry per mutant with its status, plus the score and its
-minimum. Checked beside the `unit` **TestOutcome**.
-_Avoid_: mutation report, mutation score (for the kind), TestOutcome (it holds no test case)
 
 **Defect**:
 Wrong behaviour of the code that a **Builder** sees and its task does not cover: in code built
