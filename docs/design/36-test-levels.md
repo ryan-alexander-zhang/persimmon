@@ -55,7 +55,9 @@ Workflow build-work (one round)
 
 ## Selection
 
-`junit/v1` and `mutation/v1` select in `prepare`, before the program runs. Configuration:
+`junit/v1` and `mutation/v1` select in `prepare`, before the program runs. The shared runner
+awaits `prepare` before `command`, passes it the Engine callback `call`, and takes an answer from it
+in place of running the program (a `none` selection). Configuration:
 
 | Field | Rule |
 |---|---|
@@ -119,6 +121,13 @@ The table in `35-build-process.md` holds, read per level. New or changed:
 - Selection lives in the runner's `prepare`, not in Workflow `when`s: a `when` reads a step's
   outputs, which are references, not the content of a TestOutcome, and the globs are the Executor's,
   which no Workflow reads. The Workflow decides only whether a level is enabled. Found in design review.
+- The runner's `prepare` moves before `command`, is awaited and gets `call`: it was synchronous,
+  ran after the command was chosen and had no callback, so it could neither read the record nor
+  pick `affected[]`. A spike made the move and fetched the record there with `getArtifact`: its
+  content reached the command line, and every adapter test passed with the move. `junit/v1` is the
+  only driver with a `prepare`. The engine already serves `getArtifact` to a call token. Not in the
+  spike: `prepare` answering without running the program, and `run-baseline`, which has no record.
+  Found in a spike.
 - The Change set is measured from the baseline's `head`, not from the start of each task:
   persimmon never commits, so a task's own changes have no commit to diff from. `T-3`'s Change set
   holds `T-1`'s and `T-2`'s, which already passed, a known ceiling; a tree snapshot before each
@@ -152,7 +161,7 @@ The table in `35-build-process.md` holds, read per level. New or changed:
 ## Units
 
 1. `TestOutcome` `level`, `selection` and `coverage`; the record row's `{name, level}`; the `MutationOutcome` kind; examples.
-2. The Change set and selection in `junit/v1`'s `prepare`; the record and baselines read through the Engine callback.
+2. The runner's `prepare` awaited before `command`, with `call`, and able to answer without running; then the Change set and selection in `junit/v1`'s `prepare`, the record and baselines read through `call`.
 3. Coverage over the Change set from a Cobertura report.
 4. `checkAcceptance` per level: `level-held`, `coverage-low`, `coverage-unread`.
 5. Executors `integration-runner`, `api-runner`, `e2e-runner`; Tasks `run-integration`, `run-api`, `run-e2e`; `levels` through `build-work`, `build-one` and `build-all`.
