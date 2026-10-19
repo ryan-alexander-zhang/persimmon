@@ -1,6 +1,6 @@
 # Build process
 
-status: draft · layer: 2 (`23-pack-sdlc.md`, `27-spec-process.md`, `30-plan-process.md`) · schema: the `AcceptanceRecord` and `TestOutcome` kinds in `packs/sdlc/global/10-artifact-kinds.yaml`
+status: draft · layer: 2 (`23-pack-sdlc.md`, `27-spec-process.md`, `30-plan-process.md`) · schema: the `AcceptanceRecord`, `TestOutcome` and `Issue` kinds in `packs/sdlc/global/10-artifact-kinds.yaml`
 
 From a Plan task to code and the evidence that it does what the Spec says: the builder writes the
 code and tests of one `T-n` in the project's repository and names the test that proves each `AC-n`
@@ -25,14 +25,15 @@ ReviewLoop build-one
 
 | Kind | Content |
 |---|---|
-| `AcceptanceRecord` | `plan`, `spec` (artifact ids), `task` (`T-n`), `verifies[]` (`scenario`: `AC-n` or `QS-n`, `tests[]`, `minItems: 1`: test names as JUnit gives them), `summary`, `openQuestions[]` (`Q-n`, `resolution?`); what the builder says proves each scenario |
+| `AcceptanceRecord` | `plan`, `spec` (artifact ids), `task` (`T-n`), `verifies[]` (`scenario`: `AC-n` or `QS-n`, `tests[]`, `minItems: 1`: test names as JUnit gives them), `summary`, `openQuestions[]` (`Q-n`, `resolution?`), `defects?[]` (`D-n`, `observed`, `expected`, `where`): wrong behaviour the task does not cover, reported; what the builder says proves each scenario |
 | `TestOutcome` | `command`, `exitCode`, `head?` (the commit), `dirty?` (uncommitted changes), `tests[]` (`classname`, `name`, `status`: `passed`, `failed`, `errored`, `skipped`, `message?`), `outputTail?`, present exactly when no test case was read; what the project's tests did, read from JUnit XML |
+| `Issue` | `title`, `found?` (`{record, defect}`: the AcceptanceRecord and `D-n` it investigates), `observed`, `expected` (and what says so: an `AC-n`, `FR-n`, `BR-n` or an invariant), `trigger`, `impact` (`affected`, `ongoing`, `since?`, `severity`: why it ranks there), `rootCause` (`statement`, `at[]` (`file:line`), `introducedBy?`), `scope[]` (`site`, `affected`, `note?`: every site of the mechanism), `reproduction` (`{test, failure}`: a test red for that reason, or `{why}` it cannot be one), `verdict` (`code-nonconformant`, `spec-wrong`, `spec-missing`), `blocks[]` (`artifact`, `items?[]`: what the fix revises, `minItems: 1`), `status` (`open`, `resolved`, `wontfix`), `fixedBy?[]` (AcceptanceRecord ids), `detectionGap?`, `residual?`, `reason?`; `resolved` requires `fixedBy`, `detectionGap` and `residual`, `wontfix` requires `reason`; one investigated Defect, written by hand |
 
 ## Process
 
 | Member | Content |
 |---|---|
-| Prompt `build-rules` | one task per round, its block only; at least one test per `AC-n` and `QS-n`, named in `record`; a failing test is never deleted, skipped or weakened; a dependency the Architecture and its Adrs do not name is a `Q-n`, never installed; an unknown is a `Q-n`, never a guess; no git; the code uses the Glossary's terms |
+| Prompt `build-rules` | one task per round, its block only; at least one test per `AC-n` and `QS-n`, named in `record`; a failing test is never deleted, skipped or weakened; a dependency the Architecture and its Adrs do not name is a `Q-n`, never installed; an unknown is a `Q-n`, never a guess; wrong behaviour the task does not cover is a `D-n`, reported and never fixed; no git; the code uses the Glossary's terms |
 | Executor `builder` | `cli-human/v1`, `type: human`: the form in `.persimmon/inbox/<taskRun>.yaml` is the task brief, every context entry with its content (`20-pack.md`); the developer's agent reads it, builds, and answers with `persimmon complete <taskRun> --file record.yaml` holding `{outputs: {record: <content>}}` |
 | Executor `test-runner` | `junit/v1`, `type: script`, configuration `{program, junit}`: the project's test command and the JUnit XML it writes (a file, or a directory of `.xml` files); the pack's `{program: [npm, test], junit: junit.xml}` is a placeholder a project overrides by name (`mvn test` with `target/surefire-reports`, `pytest --junitxml=junit.xml`) |
 | Task `implement` | inputs `plan`, `taskId` (value), `spec`, `architecture`, `designs` (artifacts), `glossary`, `rules`, `repository` (the workspace), `previous`, `previousOutcome` (what the tests did last round), `feedback`, `baseline` (the tests before `build-all`, optional); output `record`, id `<plan>-<t-n>`; `workspace: {input: repository}`; `sideEffects: nonIdempotent` (it writes the repository); `timeout: 72h`, a human's |
@@ -103,6 +104,7 @@ or the reverse, is `invalid_input`. Every finding `error` but `suite-baseline` (
 | `baseline-dirty` | warning: a red was tolerated and the baseline ran over uncommitted changes, so that red may be one an earlier build left |
 | `suite-exit` | `exitCode` is not 0 while no test case failed or errored, or only tolerated ones did and the baseline exited otherwise: the suite was killed part way, or failed after its tests (a coverage threshold, a build step) |
 | `question-open` | an open question without a `resolution`: code built on an unknown is not done |
+| `defect-reported` | warning: one per `D-n`, every round it is in the record; the human reads it in the tree |
 
 A row names a test by string equality with the test case's `name`, or with `classname + ' > ' +
 name`; a name is never split (vitest's own `name` holds ` > `). Cases with the same `classname` and
@@ -118,7 +120,9 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
 | whether a named test verifies its `AC-n` or `QS-n` is judged by a reader, not by the check | `audit-acceptance`, through `acceptance-audited`; the developer reading the diff |
 | persimmon never commits: the developer reviews the diff and commits | convention; AGENTS.md section 8 for an Executor's agent |
 | `tasks` in ascending `T-n`: `dependency-forward` makes document order the build order (`23-pack-sdlc.md`) | `plan-consistency` |
-| a bug is a Spec revision with a new `AC-n`, then a Plan revision, then `build-one` | convention (`23-pack-sdlc.md`: a brownfield change is a Spec revision) |
+| wrong behaviour the task does not cover is a `D-n`: reported, never fixed in that task | `build-rules`; `defect-reported` |
+| a `D-n`, or a defect found outside a build, is investigated as an `Issue`, written with `persimmon create`, before it is fixed | AGENTS.md section 6; convention |
+| a fix is a Spec revision with a new `AC-n` when the Spec was wrong or missing, then a Plan revision, then `build-one`; its record names the reproducing test, and the Issue's next revision cites it in `fixedBy` | convention (`23-pack-sdlc.md`: a brownfield change is a Spec revision) |
 | `persimmon complete` drains the run: `run-tests`, the auditor (an agent call of up to an hour), the Gate and the next round run inside the call, so the developer's agent runs it in the background or without a time limit | AGENTS.md section 6 |
 
 ## Decisions
@@ -270,6 +274,23 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
   passing test that never applies its stimulus. `acceptance-evidence` passed it; the auditor refused
   it in 18s with `test-unfit`, naming what the test lacks and the test that proves `QS-3`. Round two
   named that test and passed, 1m13s in all. The auditor wrote no file. Found in UAT.
+- Wrong behaviour the builder sees outside its task is reported in the record, `D-n`, and
+  investigated by hand as an `Issue`. Before, it had no channel: a `Q-n` is an unknown and an open
+  one refuses the round, so a builder either blocked its task on code it was not building or
+  closed the question to pass, and on the agent override, unattended, a defect it kept to itself
+  was lost. The report is cheap and in scope: what was seen, what was expected, where; the round
+  is not spent on someone else's root cause, and `defect-reported` is a warning, so it fails
+  nothing. The investigation is the `Issue`, after the ai-native project template's issue doc:
+  root cause, the sweep of every site of it, a reproducing test first, the verdict on whether the
+  Spec or the code was wrong, the artifacts it blocks. Its ids are store ids, not doc ids; its
+  `introducedBy` is optional, since a builder never runs git; its verification is the
+  AcceptanceRecord whose Gate passed with the reproducing test, `fixedBy`, not prose. The
+  developer's agent writes it with `persimmon create`, which stores a revision written by hand
+  (`18-artifact.md`): no Task produces it, so an Executor's agent, which runs no `persimmon`
+  command, only reports. An `issues` output on `implement` was compared: an `artifacts` output
+  never sits on a human Executor (`12-task.md`), the default builder, and it would make the
+  builder investigate inside its round. A known ceiling: nothing makes a `D-n` become an Issue
+  but the warning; a listing of the `D-n` no Issue cites is the upgrade. Found in design review.
 
 ## Examples
 
@@ -292,3 +313,4 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
 11. The auditor: Prompt `audit-rules`, Executor `auditor`, Task `audit-acceptance` in `build-work`, Validator `acceptance-audited` in `build-gate`.
 12. The baseline: Task `run-baseline`, `checkAcceptance`'s `baseline`, the wiring through `build-all`.
 13. A question an agent answered: the producer in `provenance.actor`, the `question-agent-resolved` warning.
+14. A Defect and an Issue: the record's `defects`, the `Issue` kind, the `defect-reported` warning, `build-rules`, AGENTS.md sections 6 and 8.
