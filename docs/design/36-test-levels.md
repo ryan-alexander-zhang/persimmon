@@ -59,9 +59,9 @@ program. A level's configuration:
 |---|---|
 | `paths[]` | globs, relative to the workspace, of the code this level tests; default `["**"]` |
 | `fullOn[]` | globs whose change runs the level in full: lockfiles, build files, the test setup; default none |
-| `affected[]` | optional: the program narrowed to the Change set; `{base}` becomes the baseline's `head`, `{files}` one argument per changed file under `paths`; absent, the level runs `program` |
+| `affected[]` | optional: the program narrowed to the Change set; `{base}` becomes the baseline's `head`, a `{files}` argument one argument per changed file under `paths`, `{files}` inside an argument those files joined by commas; absent, the level runs `program` |
 | `coverage?` | `{report, min}`: a Cobertura XML file the program writes, the minimum percent of the Change set's executable lines it covers; `unit` only |
-| `mutation?` | `{program, report, min}`: the mutation command, `{files}` as in `affected`, the mutation-testing-elements JSON it writes, the minimum score over the Change set's lines; `unit` only, run after the tests when `newRed` is 0 |
+| `mutation?` | `{program, report, min, paths?}`: the mutation command, `{files}` as in `affected` (Stryker's `--mutate={files}`), the mutation-testing-elements JSON it writes, the minimum score over the Change set's lines, the source to mutate (default the level's `paths`; never the tests); `unit` only, run after the tests when `newRed` is 0 and a changed file under its `paths` is left |
 
 The Change set is `git diff --unified=0 <baseline head>` plus every untracked, unignored file
 (`git ls-files --others --exclude-standard`), all its lines changed. A Task with a record runs a
@@ -168,6 +168,19 @@ The table in `35-build-process.md` holds, read per level. New or changed:
   which needs a release process first. Found in design review.
 - A level's baseline is taken in full, once per `build-all`, as `unit`'s is: a slow `e2e` suite costs
   one more run, and without it an old red `e2e` test blocks every task. Found in design review.
+- `{files}` inside an argument joins the files with commas, and mutation takes its own `paths`:
+  Stryker's `--mutate` is one comma-separated argument, and the unit level's `paths` name the tests
+  too, since a changed test should run them, while a test file is never mutated. Mutation is skipped
+  when no changed source is left to mutate. Found in UAT preparation, against Stryker 10.
+- Proven live, no agent: `build-all` over the worked example's `T-1` on a claims app with all four
+  levels, real tools: vitest 3 with its JUnit reporter and v8 coverage as Cobertura, Stryker 10 on its
+  vitest runner, a Testcontainers test on `alpine`, a Bruno collection behind a script starting the
+  app, Playwright 1.64 with its `webServer`. The baselines ran every level in full. The round, one
+  changed source file: `vitest related src/claim.js`, coverage 6 of 6 changed lines, Stryker mutating
+  that file only, 92.86 percent over 14 mutants on the changed lines; `integration` and `e2e`
+  `untouched`; `api` in full for the test the record named, `{name, level: api}`. The plan tier ran
+  every level in full, the Gate passed, the run succeeded. Bruno names a case by its `test()` with
+  the request URL as `classname`, so a record names it by `name`. Found in UAT.
 
 ## Units
 
