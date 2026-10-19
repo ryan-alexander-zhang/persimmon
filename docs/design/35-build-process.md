@@ -299,6 +299,19 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
   bullet now ends "and report it as a defect". Rerun: every task passed in round one, 5m58s, each
   record reported `D-1` at the right line, the query was left as it was, no `Q-n`. The same defect
   arrives once per record, three times here; the human writes one Issue. Found in UAT.
+- The fix, live: `build-one` over CAP-1's `T-2` on the same app, the agent override, passed in
+  round one, 6m36s: strict bounds in the overlap query, every test green, `AC-13` named; the
+  Issue's `resolved` revision cites that record in `fixedBy`. The default builder, live: a fresh
+  Claude Code session told only to build what the run parks on, following AGENTS.md. The first
+  reported a different defect (one a later task of its own Plan covers) and not the old red test:
+  section 6 said "a test red there is not yours" and stopped, as the build rules had. With section
+  6 pointing at the `D-n`, a second session reported it, passed in round one, then investigated
+  it as an Issue with `persimmon create` (verdict `code-nonconformant`, blocking CAP-1's `T-2`, the
+  same as the hand-written one) and told the developer, 6m44s. Its first create omitted the
+  `apiVersion` section 6 never gave, and its sweep named one site; section 6 now gives both. A
+  session that ran `persimmon complete` in the background ended its one-shot turn before the Gate;
+  the run went on, but nothing answered the next task: a headless session runs it in the
+  foreground. Found in UAT.
 
 ## Examples
 
