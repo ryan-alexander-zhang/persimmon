@@ -117,4 +117,32 @@ describe('scenario: build a Plan task', () => {
     expect(out.find((l) => l.startsWith('WorkflowRun   build-all-'))).toMatch(/Succeeded/) // one round: the old red test is tolerated
     expect(out.join('\n')).toContain('suite-baseline')
   })
+
+  it('a defect the builder reports passes the round with a warning; the developer investigates it as an Issue (35-build-process.md)', { timeout: 60_000 }, async () => {
+    await setup('<testcase classname="test/legacy.test.ts" name="legacy &gt; an old export"><failure message="was red before"/></testcase>')
+    out = []
+    expect(await run('run', 'build-all', '--input', `plan=${ref('Plan', 'submit-a-claim-plan')}`, '--input', 'tasks=[T-1]', '--input', `spec=${ref('Spec', 'submit-a-claim')}`, '--input', `architecture=${ref('Architecture', 'expense-claims-architecture')}`,
+      '--input', `designs={kind: artifacts, refs: [{apiVersion: sdd.persimmon.ai/v1, kind: Design, id: claims-api, revision: 1}]}`, '--input', `glossary=${ref('Glossary', 'expenses-glossary')}`, '--input', `rules=${ref('BusinessRules', 'expenses-rules')}`, '--input', `repository=${repo}`, '--follow')).toBe(0)
+    const taskRun = inbox()[0]!.replace(/\.yaml$/, '')
+    const record = { ...one('AcceptanceRecord').spec.content, defects: [{ id: 'D-1', observed: 'the export writes no header row', expected: 'a header row (legacy > an old export)', where: 'legacy > an old export' }] }
+    expect(await run('complete', taskRun, '--file', file('r1.yaml', [{ outputs: { record } }]))).toBe(0)
+    out = []
+    await audit('a1.yaml', [])
+    expect(out.find((l) => l.startsWith('WorkflowRun   build-all-'))).toMatch(/Succeeded/) // reported, never this task's: one round
+    expect(out.join('\n')).toContain('warning defect-reported: D-1 at legacy > an old export: the export writes no header row')
+
+    const issue = (revision: number, content: Record<string, unknown>) => ({ apiVersion: 'sdd.persimmon.ai/v1', kind: 'Issue', metadata: { name: `export-header-missing.r${revision}` }, spec: { identity: { id: 'export-header-missing', revision }, content } })
+    const open = {
+      title: 'The export writes no header row', found: { record: 'submit-a-claim-plan-t-1', defect: 'D-1' },
+      observed: 'the export writes no header row', expected: 'a header row', trigger: 'any export',
+      impact: { affected: 'every export', ongoing: true, severity: 'a reader cannot tell the columns apart' },
+      rootCause: { statement: 'the writer starts at the first claim', at: ['src/export.ts:12'] }, scope: [{ site: 'src/export.ts:12', affected: true }],
+      reproduction: { test: 'legacy > an old export', failure: 'was red before' }, verdict: 'code-nonconformant', blocks: [{ artifact: 'submit-a-claim-plan' }], status: 'open',
+    }
+    expect(await run('create', file('issue-1.yaml', [issue(1, open)]))).toBe(0)
+    out = []
+    expect(await run('create', file('issue-2.yaml', [issue(2, { ...open, status: 'resolved' })]))).not.toBe(0) // resolved names its proof
+    expect(out.join('\n')).toContain('fixedBy')
+    expect(await run('create', file('issue-2.yaml', [issue(2, { ...open, status: 'resolved', fixedBy: ['submit-a-claim-plan-t-1'], detectionGap: 'no test read the header', residual: 'none' })]))).toBe(0)
+  })
 })
