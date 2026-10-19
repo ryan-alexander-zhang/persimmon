@@ -621,7 +621,7 @@ describe('junit/v1', () => {
     expect(select({ tier: 'round', level: 'api', config: { paths: ['src/**'] }, changes })).toEqual({ mode: 'full', reason: '1 changed file' })
     expect(select({ tier: 'round', level: 'api', config: { paths: ['web/**'] }, changes })).toEqual({ mode: 'none', reason: 'untouched' })
     expect(select({ tier: 'round', level: 'api', config: { paths: ['web/**'] }, changes, named: ['t'] })).toEqual({ mode: 'full', reason: '1 named test' })
-    expect(expand(['a', '--only-changed={base}', '{files}'], { base: 'abc', files: ['x', 'y'] })).toEqual(['a', '--only-changed=abc', 'x', 'y'])
+    expect(expand(['a', '--only-changed={base}', '{files}', '--mutate={files}'], { base: 'abc', files: ['x', 'y'] })).toEqual(['a', '--only-changed=abc', 'x', 'y', '--mutate=x,y'])
     expect(newRed([{ classname: 'a', name: 'b', status: 'failed' }, { classname: 'a', name: 'c', status: 'errored' }], { tests: [{ classname: 'a', name: 'b', status: 'failed' }] })).toBe(1)
     const { dir, head } = gitWs()
     writeFileSync(join(dir, 'src', 'claim.ts'), 'a\nB\nc\nd\n')

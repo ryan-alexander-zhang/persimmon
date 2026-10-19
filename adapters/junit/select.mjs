@@ -48,8 +48,9 @@ export function select({ tier, level, config, changes, named = [], held }) {
   return { mode: 'none', reason: 'untouched' }
 }
 
-/** A program with `{base}` replaced by the baseline commit and a `{files}` argument by one argument per file. */
-export const expand = (program, { base = '', files = [] }) => program.flatMap((a) => (a === '{files}' ? files : [a.replaceAll('{base}', base)]))
+/** A program with `{base}` replaced by the baseline commit, a `{files}` argument by one argument per file, and `{files}` inside an
+ * argument by the files joined with commas (Stryker's `--mutate={files}`). */
+export const expand = (program, { base = '', files = [] }) => program.flatMap((a) => (a === '{files}' ? files : [a.replaceAll('{base}', base).replaceAll('{files}', files.join(','))]))
 
 /** The names a record gives for one level: a bare name is a unit test. */
 export const namedFor = (record, level) => (record?.verifies ?? []).flatMap((r) => r.tests ?? []).filter((t) => (typeof t === 'string' ? level === 'unit' : t.level === level)).map((t) => (typeof t === 'string' ? t : t.name))

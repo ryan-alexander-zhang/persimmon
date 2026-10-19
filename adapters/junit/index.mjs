@@ -43,7 +43,7 @@ const unitSchema = {
   properties: {
     ...level,
     coverage: { type: 'object', required: ['report', 'min'], additionalProperties: false, properties: { report: report('Cobertura XML'), min } },
-    mutation: { type: 'object', required: ['program', 'report', 'min'], additionalProperties: false, properties: { program: { ...programSchema, description: 'the mutation command: {base} and a {files} argument as in affected' }, report: report('mutation-testing-elements JSON'), min } },
+    mutation: { type: 'object', required: ['program', 'report', 'min'], additionalProperties: false, properties: { program: { ...programSchema, description: 'the mutation command: {base} and {files} as in affected' }, report: report('mutation-testing-elements JSON'), min, paths: { ...globs, description: 'globs of the source to mutate, never the tests; default the level\'s paths' } } },
   },
 }
 
@@ -130,7 +130,7 @@ serve({
     const l = run.levels[run.i]
     const clean = (text) => redact(text, payload.credentials) // the program had the credentials; what it printed is stored
     if (l.measuring) {
-      const m = mutation({ workspace, report: l.mutation.report, min: l.mutation.min, changes: run.changes, paths: l.paths, command: l.command })
+      const m = mutation({ workspace, report: l.mutation.report, min: l.mutation.min, changes: run.changes, paths: l.mutation.paths ?? l.paths, command: l.command })
       if (m.error) m.error = clean(`${m.error} (exit ${exitCode})\n${tail(`${stdout}\n${stderr}`)}`.trim())
       l.outcome.mutation = m
       return advance(workspace)
@@ -154,11 +154,12 @@ serve({
     const round = !run.list && run.tier === 'round'
     if (round && l.coverage) outcome.coverage = coverage({ workspace, report: l.coverage.report, min: l.coverage.min, changes: run.changes, paths: l.paths })
     answered(outcome, l)
-    // mutants only kill against tests with no new red
-    if (round && l.mutation && tests.length && outcome.newRed === 0) {
+    // mutants only kill against tests with no new red, and only in changed source
+    const mutate = touched(run.changes, l.mutation?.paths ?? l.paths, workspace)
+    if (round && l.mutation && tests.length && outcome.newRed === 0 && (!run.changes || mutate.length)) {
       l.measuring = true
       rmSync(reportPath(workspace, l.mutation.report), { force: true })
-      l.command = expand(l.mutation.program, { base: run.base, files: touched(run.changes, l.paths, workspace) })
+      l.command = expand(l.mutation.program, { base: run.base, files: mutate })
       return { next: [l.command[0], l.command.slice(1)] }
     }
     return advance(workspace)
