@@ -344,6 +344,8 @@ spec:
 
     A defect the writer can fix in this draft is one finding, `severity: error`, with a code of the draft's part below, the message opening with the id it is about and saying what is wrong ("AC-2: given 'a valid claim' names no line and no amount; no test can set it up"). A doubt, a defect you are not sure of, or one only an upstream document can fix is `severity: warning` or nothing; a warning never fails the round. A citation that does not resolve, an id out of order or a schema error is the check's: say nothing of it. Name the defect; never rewrite the draft. Wording and style beyond the part below are not yours.
 
+    From round two, `previous` is the last round's draft and `feedback` its verdict, the last audit under `feedback.results.audit`. Then an error is only for an item that differs from `previous`, or a defect the last audit named that is still there. A defect in an item unchanged since `previous` that the last audit did not name is `severity: warning`, `code: found-late`: the last round passed it, and a round lost on it would never end the loop. When the last audit did not run (its one finding is `skipped`), nothing was judged: audit as in round one.
+
     Read only: never edit, create or delete a file, never run a command.
 
     Answer the audit: `passed` true exactly when no finding is an error, `findings` as above, `evidence` an empty list. An answer whose `passed` disagrees with its findings is refused.

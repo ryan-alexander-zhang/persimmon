@@ -319,6 +319,15 @@ that kept its own `AGENTS.md` or `CLAUDE.md` carries section 8 itself.
   30m. It does not stay passed: the next run refused the same unchanged rules (BR-3 against BR-8), so
   an auditor's verdict on one draft varies run to run, and a passing round is a sample, not a
   fixpoint. Found in UAT.
+- From round two the auditor reads the last draft and the last verdict (`previous`, `feedback`, and
+  `previousRules` or `previousAdrs` beside a Prd or an Architecture, bound by the loop's `review`), and
+  raises an error only on an item that changed or on a defect the last audit named that is still
+  there; a new defect in an unchanged item is a `found-late` warning the human reads. Round one finds
+  everything it can, and nothing found later can block, so a loop ends. A last audit that was
+  skipped judged nothing, so the next round audits as round one. Nothing compares items
+  mechanically: the auditor is held to the rule by its Prompt, as to its codes. An advisory
+  auditor on a human's Gate was rejected: it stops sparing the human a draft the auditor refuses.
+  Found in UAT (a Prd refused on rules unchanged since a round that passed).
 - The project's `AGENTS.md` is pack content, not a fence per Task workspace: the pack's agents run
   in the project directory and read it, so one file carries the coding rules and the rules for a
   Task's agent (section 8). example02 and example04 keep their own `AGENTS.md`: a Task workspace
