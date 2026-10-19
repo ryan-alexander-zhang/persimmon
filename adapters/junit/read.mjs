@@ -7,7 +7,7 @@ import { DOMParser } from '@xmldom/xmldom'
 export function reportPath(workspace, junit) {
   const at = resolve(workspace, junit)
   const rel = relative(resolve(workspace), at)
-  if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) throw new Error(`junit ${junit} must name a file or directory inside the workspace`)
+  if (rel === '' || rel.startsWith('..') || isAbsolute(rel)) throw new Error(`${junit} must name a file or directory inside the workspace`)
   return at
 }
 

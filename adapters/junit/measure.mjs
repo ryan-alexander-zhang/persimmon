@@ -1,0 +1,86 @@
+// The unit level's measures over the Change set for junit/v1 (36-test-levels.md): coverage from a Cobertura report, mutation
+// from a mutation-testing-elements report; apart from index.mjs so tests import it without starting the Adapter.
+import { readFileSync, realpathSync } from 'node:fs'
+import { isAbsolute, matchesGlob, relative, resolve } from 'node:path'
+import { DOMParser } from '@xmldom/xmldom'
+
+const list = (nodes) => Array.from({ length: nodes.length }, (_, i) => nodes.item(i))
+const under = (file, paths = ['**']) => paths.some((g) => matchesGlob(file, g))
+
+/** Sorted line numbers as ranges: 3-5,9. */
+export function ranges(lines) {
+  const out = []
+  for (const n of [...lines].sort((a, b) => a - b)) {
+    const last = out.at(-1)
+    if (last && n === last[1] + 1) last[1] = n
+    else out.push([n, n])
+  }
+  return out.map(([a, b]) => (a === b ? `${a}` : `${a}-${b}`)).join(',')
+}
+
+/** A report's path as the Change set names it: relative to the workspace, the real path tried too (a temp dir behind a symlink). */
+function inWorkspace(workspace, path, roots, changes) {
+  const bases = [...new Set([resolve(workspace), realpathSync(workspace)])]
+  const candidates = isAbsolute(path) ? bases.map((b) => relative(b, path)) : [path, ...roots.flatMap((r) => bases.map((b) => relative(b, resolve(b, r, path))))]
+  return candidates.find((c) => changes.has(c)) ?? candidates[0]
+}
+
+/** The changed executable lines the unit tests ran: {min, covered, total, uncovered[]}, or {min, error}. */
+export function coverage({ workspace, report, min, changes, paths }) {
+  if (!changes) return { min, error: 'no Change set to measure: no baseline commit' }
+  let doc
+  try {
+    doc = new DOMParser({ onError: (level, message) => { if (level !== 'warning') throw new Error(message) } }).parseFromString(readFileSync(resolve(workspace, report), 'utf8'), 'text/xml')
+  } catch (e) {
+    return { min, error: `${report} not read: ${e.message}` }
+  }
+  if (doc.documentElement?.nodeName !== 'coverage') return { min, error: `${report} is not a Cobertura report` }
+  const roots = list(doc.getElementsByTagName('source')).map((s) => s.textContent.trim())
+  const executable = new Map() // file → line → run
+  for (const c of list(doc.getElementsByTagName('class'))) {
+    const file = inWorkspace(workspace, c.getAttribute('filename'), roots, changes)
+    const lines = executable.get(file) ?? executable.set(file, new Map()).get(file)
+    for (const l of list(c.getElementsByTagName('line'))) lines.set(Number(l.getAttribute('number')), lines.get(Number(l.getAttribute('number'))) || Number(l.getAttribute('hits')) > 0)
+  }
+  let covered = 0
+  let total = 0
+  const uncovered = []
+  for (const [file, changed] of changes) {
+    const lines = executable.get(file)
+    if (!lines || !under(file, paths)) continue // a file the report omits counts no line
+    const missed = [...changed].filter((n) => lines.has(n) && !lines.get(n))
+    total += [...changed].filter((n) => lines.has(n)).length
+    covered += [...changed].filter((n) => lines.get(n)).length
+    if (missed.length) uncovered.push({ file, lines: ranges(missed) })
+  }
+  return { min, covered, total, uncovered }
+}
+
+const statuses = { Killed: 'killed', Survived: 'survived', NoCoverage: 'noCoverage', Timeout: 'timeout' } // errors and ignored ones score nothing
+
+/** The mutants on the Change set's lines: counts, the score and the survivors, or {min, command, error}. Every mutant without a Change set. */
+export function mutation({ workspace, report, min, changes, paths, command }) {
+  let json
+  try {
+    json = JSON.parse(readFileSync(resolve(workspace, report), 'utf8'))
+  } catch (e) {
+    return { min, command, error: `${report} not read: ${e.message}` }
+  }
+  if (!json || typeof json.files !== 'object') return { min, command, error: `${report} is not a mutation-testing-elements report` }
+  const counts = { killed: 0, survived: 0, noCoverage: 0, timeout: 0 }
+  const survivors = []
+  for (const [path, f] of Object.entries(json.files)) {
+    const file = inWorkspace(workspace, path, [], changes ?? new Map())
+    const changed = changes?.get(file)
+    if (!under(file, paths) || (changes && !changed)) continue
+    for (const m of f.mutants ?? []) {
+      const line = m.location?.start?.line
+      const status = statuses[m.status]
+      if (!status || (changed && !changed.has(line))) continue
+      counts[status]++
+      if (status === 'survived' || status === 'noCoverage') survivors.push({ file, line, mutator: m.mutatorName })
+    }
+  }
+  const scored = counts.killed + counts.timeout + counts.survived + counts.noCoverage
+  return { min, command, ...counts, ...(scored ? { score: Math.round(((counts.killed + counts.timeout) / scored) * 10000) / 100 } : {}), survivors }
+}

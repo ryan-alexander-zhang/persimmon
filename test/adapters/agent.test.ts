@@ -631,6 +631,49 @@ describe('junit/v1', () => {
     rmSync(dir, { recursive: true })
   })
 
+  it('measures coverage and mutation over the Change set only (36-test-levels.md)', async () => {
+    // @ts-expect-error plain module
+    const { coverage, mutation, ranges } = await import('../../adapters/junit/measure.mjs')
+    const dir = ws()
+    const changes = new Map([['src/a.ts', new Set([1, 2, 3, 4, 9])], ['src/b.ts', new Set([1])], ['docs/x.md', new Set([1])]])
+    // paths relative to a source root, one absolute; a line outside the Change set and a file outside paths count nothing
+    writeFileSync(join(dir, 'cov.xml'), `<?xml version="1.0"?><coverage><sources><source>${dir}/src</source></sources><packages><package><classes>
+      <class filename="a.ts"><lines><line number="1" hits="2"/><line number="2" hits="0"/><line number="3" hits="0"/><line number="4" hits="1"/><line number="7" hits="0"/></lines></class>
+      <class filename="${dir}/src/b.ts"><lines><line number="1" hits="1"/></lines></class></classes></package></packages></coverage>`)
+    expect(coverage({ workspace: dir, report: 'cov.xml', min: 90, changes, paths: ['src/**'] })).toEqual({ min: 90, covered: 3, total: 5, uncovered: [{ file: 'src/a.ts', lines: '2-3' }] })
+    expect(coverage({ workspace: dir, report: 'none.xml', min: 90, changes }).error).toContain('none.xml not read')
+    expect(coverage({ workspace: dir, report: 'cov.xml', min: 90 })).toEqual({ min: 90, error: 'no Change set to measure: no baseline commit' })
+    expect(ranges([9, 1, 2, 3, 5])).toBe('1-3,5,9')
+    const mutant = (line: number, status: string) => ({ id: `${line}${status}`, mutatorName: 'EqualityOperator', location: { start: { line, column: 1 }, end: { line, column: 2 } }, status })
+    writeFileSync(join(dir, 'mutation.json'), JSON.stringify({ schemaVersion: '2', thresholds: { high: 80, low: 60 }, files: { 'src/a.ts': { language: 'typescript', source: '', mutants: [mutant(1, 'Killed'), mutant(2, 'Survived'), mutant(3, 'Timeout'), mutant(4, 'NoCoverage'), mutant(4, 'CompileError'), mutant(7, 'Survived')] }, [`${dir}/docs/x.md`]: { language: 'md', source: '', mutants: [mutant(1, 'Survived')] } } }))
+    expect(mutation({ workspace: dir, report: 'mutation.json', min: 90, changes, paths: ['src/**'], command: ['stryker'] })).toEqual({
+      min: 90, command: ['stryker'], killed: 1, survived: 1, noCoverage: 1, timeout: 1, score: 50,
+      survivors: [{ file: 'src/a.ts', line: 2, mutator: 'EqualityOperator' }, { file: 'src/a.ts', line: 4, mutator: 'EqualityOperator' }],
+    })
+    expect(mutation({ workspace: dir, report: 'mutation.json', min: 90, command: ['stryker'] })).toMatchObject({ survived: 3 }) // no Change set: every mutant
+    writeFileSync(join(dir, 'bad.json'), '{}')
+    expect(mutation({ workspace: dir, report: 'bad.json', min: 90, command: [] }).error).toContain('not a mutation-testing-elements report')
+
+    // the unit runner: tests, coverage, then mutation once no red is new
+    const g = gitWs()
+    writeFileSync(join(g.dir, 'src', 'claim.ts'), 'a\nB\nc\n')
+    const cov = `<coverage><packages><package><classes><class filename="src/claim.ts"><lines><line number="2" hits="0"/></lines></class></classes></package></packages></coverage>`
+    const program = [process.execPath, '-e', `const fs = require('node:fs'); fs.writeFileSync('junit.xml', '<testsuites><testsuite><testcase classname="c" name="t"/></testsuite></testsuites>'); fs.writeFileSync('cov.xml', '${cov}')`]
+    const report = { files: { 'src/claim.ts': { mutants: [mutant(2, 'Killed')] } } }
+    const mutate = [process.execPath, '-e', `require('node:fs').writeFileSync('mutation.json', process.argv[1])`, '--', JSON.stringify(report), '{files}']
+    calls.length = 0
+    await adapter('junit', { id: 65, op: 'execute', payload: round(g.dir, { program, junit: 'junit.xml', coverage: { report: 'cov.xml', min: 90 }, mutation: { program: mutate, report: 'mutation.json', min: 80 } }, g.head) })
+    const content = published()[0]!.content
+    expect(content.coverage).toEqual({ min: 90, covered: 0, total: 1, uncovered: [{ file: 'src/claim.ts', lines: '2' }] })
+    expect(content.mutation).toMatchObject({ min: 80, killed: 1, score: 100, command: expect.arrayContaining(['src/claim.ts']) })
+    for (const f of ['../cov.xml', '/tmp/cov.xml']) {
+      const r = await adapter('junit', { id: 66, op: 'execute', payload: round(g.dir, { program, junit: 'junit.xml', coverage: { report: f, min: 90 } }, g.head) })
+      expect(last(r)).toMatchObject({ ok: false, error: { code: 'invalid_input', message: expect.stringContaining('inside the workspace') } }) // deleted before a run, so never outside
+    }
+    rmSync(dir, { recursive: true })
+    rmSync(g.dir, { recursive: true })
+  })
+
   it('levels: one TestOutcome per configured level in order, each after a new red held (36-test-levels.md)', async () => {
     const { dir, head } = gitWs()
     writeFileSync(join(dir, 'src', 'claim.ts'), 'a\nB\nc\n')

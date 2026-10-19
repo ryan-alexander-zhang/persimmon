@@ -7,6 +7,7 @@ import { execFileSync } from 'node:child_process'
 import { readFileSync, rmSync } from 'node:fs'
 import { AdapterError, redact, serve } from '../lib/agent.mjs'
 import { isReport, reportPath, reports, testCases } from './read.mjs'
+import { coverage, mutation } from './measure.mjs'
 import { changeSet, expand, namedFor, newRed, select, touched, unmatched } from './select.mjs'
 
 const tailLines = 50
@@ -34,6 +35,17 @@ const level = {
   affected: { ...programSchema, description: 'the program narrowed to the Change set: {base} the baseline commit, a {files} argument the changed files under paths' },
 }
 const levelSchema = { type: 'object', required: ['program', 'junit'], additionalProperties: false, properties: level }
+const min = { type: 'number', minimum: 0, maximum: 100, description: 'the minimum percent over the Change set' }
+const report = (what) => ({ type: 'string', minLength: 1, description: `the ${what} report it writes, relative to the workspace` })
+// the unit level's measures, taken in a round over the Change set
+const unitSchema = {
+  ...levelSchema,
+  properties: {
+    ...level,
+    coverage: { type: 'object', required: ['report', 'min'], additionalProperties: false, properties: { report: report('Cobertura XML'), min } },
+    mutation: { type: 'object', required: ['program', 'report', 'min'], additionalProperties: false, properties: { program: { ...programSchema, description: 'the mutation command: {base} and a {files} argument as in affected' }, report: report('mutation-testing-elements JSON'), min } },
+  },
+}
 
 // one attempt per Adapter process: what prepare decided, what each level answered
 let run
@@ -57,6 +69,7 @@ function advance(workspace) {
 
 function start(workspace, l, program) {
   for (const f of reports(workspace, l.junit)) if (isReport(f)) rmSync(f, { force: true }) // a stale report must not answer this run; other XML stays
+  if (l.coverage) rmSync(reportPath(workspace, l.coverage.report), { force: true })
   l.command = program
   return [program[0], program.slice(1)]
 }
@@ -75,7 +88,7 @@ serve({
   transcript: true, // the suite's output is the log
   configurationSchema: {
     oneOf: [
-      levelSchema,
+      unitSchema,
       { type: 'object', required: ['levels'], additionalProperties: false, properties: { levels: { type: 'object', additionalProperties: false, properties: Object.fromEntries(order.map((l) => [l, levelSchema])) } } },
     ],
   },
@@ -90,7 +103,7 @@ serve({
     if (list !== (spec.type.kind === 'artifacts')) throw new AdapterError('invalid_input', `junit/v1 answers ${list ? 'an artifacts output with levels' : 'an artifact output with one program'}; ${port} is ${spec.type.kind}`, false)
     const levels = list ? order.filter((l) => c.levels[l]).map((l) => ({ level: l, ...c.levels[l] })) : [{ level: 'unit', ...c }]
     try {
-      for (const l of levels) reportPath(workspace, l.junit)
+      for (const l of levels) for (const f of [l.junit, l.coverage?.report, l.mutation?.report].filter(Boolean)) reportPath(workspace, f) // deleted before a run: never outside the workspace
     } catch (e) {
       throw new AdapterError('invalid_input', e.message, false)
     }
@@ -116,6 +129,12 @@ serve({
   parse({ stdout, stderr, exitCode, workspace, payload }) {
     const l = run.levels[run.i]
     const clean = (text) => redact(text, payload.credentials) // the program had the credentials; what it printed is stored
+    if (l.measuring) {
+      const m = mutation({ workspace, report: l.mutation.report, min: l.mutation.min, changes: run.changes, paths: l.paths, command: l.command })
+      if (m.error) m.error = clean(`${m.error} (exit ${exitCode})\n${tail(`${stdout}\n${stderr}`)}`.trim())
+      l.outcome.mutation = m
+      return advance(workspace)
+    }
     let tests = []
     let unreadable = ''
     try {
@@ -132,7 +151,16 @@ serve({
     }
     const outcome = { command: l.command, exitCode, tests, selection: l.selection, newRed: newRed(tests, l.baseline) }
     if (tests.length === 0) outcome.outputTail = clean(tail(`${stdout}\n${stderr}`) + unreadable) || `no test case read from ${l.junit}`
+    const round = !run.list && run.tier === 'round'
+    if (round && l.coverage) outcome.coverage = coverage({ workspace, report: l.coverage.report, min: l.coverage.min, changes: run.changes, paths: l.paths })
     answered(outcome, l)
+    // mutants only kill against tests with no new red
+    if (round && l.mutation && tests.length && outcome.newRed === 0) {
+      l.measuring = true
+      rmSync(reportPath(workspace, l.mutation.report), { force: true })
+      l.command = expand(l.mutation.program, { base: run.base, files: touched(run.changes, l.paths, workspace) })
+      return { next: [l.command[0], l.command.slice(1)] }
+    }
     return advance(workspace)
   },
 })
