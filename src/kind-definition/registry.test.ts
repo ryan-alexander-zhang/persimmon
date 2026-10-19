@@ -168,4 +168,24 @@ describe('the SDLC pack Design kind', () => {
     delete load.spec.content.qualityScenarios[0].provenAt
     expect(() => reg.validateResource(load)).toThrow(/qualityScenarios\/0 must have required property 'provenAt'/)
   })
+
+  it('a TestOutcome names its level and selection; a none one ran nothing and has no output tail (36-test-levels.md)', () => {
+    const reg = new KindRegistry()
+    for (const k of packKinds) reg.register(k)
+    const outcome = (content: Record<string, unknown>) => ({ apiVersion: 'sdd.persimmon.ai/v1', kind: 'TestOutcome', metadata: { name: 'p-t-1-tests.r1', namespace: 'demo' }, spec: { identity: { id: 'p-t-1-tests', revision: 1 }, content: { command: ['npm', 'test'], exitCode: 0, ...content } } })
+    const ran = { tests: [{ classname: 'a', name: 'b', status: 'passed' }], level: 'unit', selection: { mode: 'affected', reason: 'src/claim.ts' }, newRed: 0, coverage: { min: 90, covered: 9, total: 10, uncovered: [{ file: 'src/claim.ts', lines: '12' }] }, mutation: { min: 90, killed: 9, survived: 1, noCoverage: 0, timeout: 0, score: 90, survivors: [{ file: 'src/claim.ts', line: 12, mutator: 'EqualityOperator' }] } }
+    expect(() => reg.validateResource(outcome(ran))).not.toThrow()
+    expect(() => reg.validateResource(outcome({ tests: [], level: 'e2e', selection: { mode: 'none', reason: 'untouched' } }))).not.toThrow()
+    expect(() => reg.validateResource(outcome({ tests: [], level: 'e2e', selection: { mode: 'none', reason: 'untouched' }, outputTail: 'x' }))).toThrow(/must NOT be valid/)
+    expect(() => reg.validateResource(outcome({ tests: [], selection: { mode: 'full', reason: 'no baseline' } }))).toThrow(/must have required property 'outputTail'/)
+    expect(() => reg.validateResource(outcome({ ...ran, level: 'smoke' }))).toThrow(/level must be equal to one of the allowed values/)
+  })
+
+  it('a record row names a unit test by its name and another level\'s test with the level (36-test-levels.md)', () => {
+    const reg = new KindRegistry()
+    for (const k of packKinds) reg.register(k)
+    const record = (tests: unknown[]) => ({ apiVersion: 'sdd.persimmon.ai/v1', kind: 'AcceptanceRecord', metadata: { name: 'p-t-1.r1', namespace: 'demo' }, spec: { identity: { id: 'p-t-1', revision: 1 }, content: { plan: 'p', spec: 's', task: 'T-1', verifies: [{ scenario: 'AC-1', tests }], summary: 'x', openQuestions: [] } } })
+    expect(() => reg.validateResource(record(['claim > ac 1', { name: 'submit a claim', level: 'api' }]))).not.toThrow()
+    expect(() => reg.validateResource(record([{ name: 'submit a claim' }]))).toThrow(/must match a schema in anyOf/)
+  })
 })

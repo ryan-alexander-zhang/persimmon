@@ -1173,7 +1173,19 @@ spec:
               additionalProperties: false
               properties:
                 scenario: {type: string, pattern: "^(AC|QS)-[0-9]+$"}
-                tests: {type: array, minItems: 1, items: {type: string, minLength: 1}, description: "test case names as the JUnit XML gives them: `name`, or `classname > name`"}
+                tests:
+                  type: array
+                  minItems: 1
+                  description: "test case names as the JUnit XML gives them: `name`, or `classname > name`; a bare name is a unit test, another level's names it (36-test-levels.md)"
+                  items:
+                    anyOf:
+                      - {type: string, minLength: 1}
+                      - type: object
+                        required: [name, level]
+                        additionalProperties: false
+                        properties:
+                          name: {type: string, minLength: 1}
+                          level: {enum: [unit, integration, api, e2e]}
           summary: {type: string, minLength: 1, description: "what was built, in the Glossary's words"}
           openQuestions:
             type: array
@@ -1202,7 +1214,8 @@ spec:
   snapshot: "None"
 ---
 # What the project's own tests did once, read from JUnit XML by junit/v1: the evidence an AcceptanceRecord is
-# checked against. head and dirty pin the commit tested; persimmon never commits (35-build-process.md).
+# checked against. head and dirty pin the commit tested; persimmon never commits (35-build-process.md). One per test
+# level and run; the unit one carries coverage and mutation over the Change set (36-test-levels.md).
 apiVersion: persimmon.ai/v1
 kind: KindDefinition
 metadata: {name: testoutcomes.sdd.persimmon.ai}
@@ -1232,8 +1245,44 @@ spec:
                 name: {type: string, minLength: 1}
                 status: {enum: [passed, failed, errored, skipped]}
                 message: {type: string}
-          outputTail: {type: string, description: "the last lines of output when no test case was read, a compile error; present exactly then"}
-        if: {properties: {tests: {maxItems: 0}}}
+          outputTail: {type: string, description: "the last lines of output when no test case was read, a compile error; present exactly then, never on a `none` selection"}
+          level: {enum: [unit, integration, api, e2e], description: "the test level run (36-test-levels.md); absent is unit"}
+          selection:
+            type: object
+            description: "what the Change set made the runner run: nothing, the affected tests or every test, and why"
+            required: [mode, reason]
+            additionalProperties: false
+            properties:
+              mode: {enum: [none, affected, full]}
+              reason: {type: string, minLength: 1}
+          newRed: {type: integer, minimum: 0, description: "red cases its baseline did not have red, every red one without a baseline: what holds the next level"}
+          coverage:
+            type: object
+            description: "the unit tests' coverage of the Change set's executable lines, from a Cobertura report; error when it was not read"
+            required: [min]
+            additionalProperties: false
+            properties:
+              min: {type: number, minimum: 0, maximum: 100}
+              covered: {type: integer, minimum: 0}
+              total: {type: integer, minimum: 0}
+              uncovered: {type: array, items: {type: object, required: [file, lines], additionalProperties: false, properties: {file: {type: string}, lines: {type: string, description: "ranges: 3-5,9"}}}}
+              error: {type: string}
+          mutation:
+            type: object
+            description: "the mutants on the Change set's lines, from a mutation-testing-elements report; error when it was not read"
+            required: [min]
+            additionalProperties: false
+            properties:
+              min: {type: number, minimum: 0, maximum: 100}
+              command: {type: array, items: {type: string}}
+              killed: {type: integer, minimum: 0}
+              survived: {type: integer, minimum: 0}
+              noCoverage: {type: integer, minimum: 0}
+              timeout: {type: integer, minimum: 0}
+              score: {type: number, minimum: 0, maximum: 100, description: "killed and timed out over those and the survived and uncovered, percent"}
+              survivors: {type: array, items: {type: object, required: [file, line, mutator], additionalProperties: false, properties: {file: {type: string}, line: {type: integer}, mutator: {type: string}}}}
+              error: {type: string}
+        if: {properties: {tests: {maxItems: 0}}, not: {required: [selection], properties: {selection: {properties: {mode: {const: none}}}}}}
         then: {required: [outputTail]}
         else: {not: {required: [outputTail]}}
   mutability: Immutable
