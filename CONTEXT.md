@@ -647,6 +647,28 @@ checked against. The one `build-all` takes before any task is the baseline TestO
 there and red still is not the build's. Always so named: a bare "baseline" is the arc42 baseline.
 _Avoid_: TestRun (a Run is the engine's), test report, test result, CI run
 
+**Test level**:
+Which kind of test a test case is: `unit`, `integration`, `api` or `e2e`. One Executor per level;
+one **TestOutcome** per level and run. Coverage and mutation are measures of the `unit` level, not
+levels.
+_Avoid_: test type, test kind, test layer, suite (for the level), stage
+
+**Test tier**:
+When a **Test level** runs: `round` (every `build-one` round, on the **Change set**), `plan` (once
+after `build-all`'s last task, every enabled level in full) or `release`.
+_Avoid_: phase (a Pipeline's or a Run's), stage, test stage, gate (for the tier)
+
+**Change set**:
+The files and lines that differ from the baseline **TestOutcome**'s `head`, untracked files
+included: what a `round` tier selects tests by and measures coverage and mutation over.
+_Avoid_: diff (git's output), delta (a Spec's field), changes
+
+**MutationOutcome**:
+**Artifact kind** of the SDLC pack: what one mutation run did over the **Change set**, read from a
+mutation-testing-elements report, one entry per mutant with its status, plus the score and its
+minimum. Checked beside the `unit` **TestOutcome**.
+_Avoid_: mutation report, mutation score (for the kind), TestOutcome (it holds no test case)
+
 **Defect**:
 Wrong behaviour of the code that a **Builder** sees and its task does not cover: in code built
 before, in an earlier task, behind a test red in the baseline **TestOutcome**. A `D-n` of the
@@ -681,6 +703,9 @@ _Avoid_: feature spec, requirements doc, spec.md
 - **Defect.** A `D-n` of an AcceptanceRecord, and the auditors' Prompts' word for any fault they
   name in a draft or a record. Resolution: capitalised **Defect** is the `D-n`; what an auditor names is
   a finding.
+- **Level.** A **Test level**, an Architecture building block's level, an EventStorming
+  `meta.level`. Resolution: prose always says "test level"; the bare field `level` is the
+  TestOutcome's and the record row's only.
 
 - **ArtifactRef vs RevisionRef.** Same shape. Framework says RevisionRef; reference well-known
   schemas exposed `persimmon.ai/v1#/ArtifactRef`. Resolution: **RevisionRef** everywhere,
