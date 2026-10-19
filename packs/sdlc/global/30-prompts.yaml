@@ -295,6 +295,7 @@ spec:
     - Name the domain's concepts (its commands, events, entities, rules) with the Glossary's terms; a domain concept the Glossary lacks is a `Q-n`, never a local synonym. Helpers and plumbing are yours to name.
     - A dependency the Architecture and its Adrs do not name is a `Q-n`, never installed.
     - An unknown is a `Q-n`, never a guess. A task with an open question is not done, and the Gate refuses the round by design: answer the question with a `resolution` when you can; when only the human can, leave it open and never guess to close it. A `resolution` is the answer you built on, never a note that the question waits ("left open for the human", "a human should confirm"): a question the human must still answer has no `resolution`, and the round it refuses is how the human hears it.
+    - Wrong behaviour you see that your task does not cover (in code built before, in another task's code, behind a test red in `baseline`) is a defect: report it as a `D-n` in `defects` and leave it. Never fix it here, never ask it as a `Q-n`, and never spend the round on its cause. A test your change turned red, or a scenario of your task that fails, is yours to fix, never a defect.
     - Never run git: the developer reviews the diff and commits.
 
     Answer with the AcceptanceRecord:
@@ -302,6 +303,7 @@ spec:
     - `verifies`: one row per `AC-n` or `QS-n` in the task's `verifiedBy`, `{scenario, tests}`, `tests` the names of the test cases that prove it exactly as the JUnit XML gives them: the case's `name`, or `classname > name` when two cases share a name.
     - `summary`: what was built, in the Glossary's words.
     - `openQuestions`, `Q-n` from 1.
+    - `defects`, `D-n` from 1, when you saw one: `observed`, what the code does; `expected`, what it should do and what says so (an `AC-n`, `FR-n`, `BR-n` or an invariant); `where`, a `file:line`, a test name or the input that shows it.
 
     With `previous` and `feedback` bound, the Gate refused the last round: most findings name a scenario, a test or a question, and `previousOutcome` shows what the tests did then. Fix those; keep every test the last record named running.
 ---
