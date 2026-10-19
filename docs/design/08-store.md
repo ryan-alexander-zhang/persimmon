@@ -224,11 +224,10 @@ imports into a server unchanged.
   producer does not. Proven on the car pool: both DomainModels behind Prd r4 and rules r4, every
   Plan behind the two Designs revised after it, the Prd not behind the rules its own round wrote.
   Found in UAT.
-- The local store waits up to 5s for a write lock (`busy_timeout`) instead of failing. Two runs in
-  one project are two processes over one file, and a run's every transaction is short, but
-  without the wait the second writer failed at once with `database is locked`, and a read during
-  a run did too. The leases and outbox claims already let two holders share the work; only the
-  lock was missing. Found in UAT: two `spec-all` runs, one per BoundedContext.
+- The local store waits up to 5s for a write lock (`busy_timeout`) instead of failing. One engine
+  drives a project (`engine.lock`), but a read verb in a second terminal opens the same file, and
+  without the wait it failed at once with `database is locked` whenever the run was mid-commit.
+  A run's every transaction is short. Found in UAT: `persimmon get` beside a following run.
 
 ## Examples
 

@@ -116,7 +116,7 @@ describe('SqliteStore.resources', () => {
 })
 
 describe('SqliteStore over one file from two processes', () => {
-  it('waits for a write lock another process holds instead of failing', async () => {
+  it('waits for a write lock another process holds, as a run does beside a read verb, instead of failing', async () => {
     const path = join(mkdtempSync(join(tmpdir(), 'persimmon-')), 'store.db')
     const store = new SqliteStore(path, { blobs: memoryBlobs() })
     const holder = spawn(process.execPath, ['-e', `

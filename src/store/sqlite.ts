@@ -90,7 +90,7 @@ export class SqliteStore implements Store {
 
   constructor(path: string, options: SqliteStoreOptions) {
     this.#db = new DatabaseSync(path)
-    // busy_timeout: another process's run holds the write lock for one short transaction; wait for it instead of failing
+    // busy_timeout: a read verb beside a run meets its short write transactions; wait for them instead of failing
     this.#db.exec('pragma busy_timeout = 5000; pragma journal_mode = wal; pragma foreign_keys = on;')
     this.#db.exec(schema)
     this.#now = options.now ?? (() => new Date())
