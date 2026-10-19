@@ -1,4 +1,7 @@
-import { readFileSync } from 'node:fs'
+import { spawn } from 'node:child_process'
+import { mkdtempSync, readFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { parse } from 'yaml'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { Resource } from '../resource/types.js'
@@ -109,5 +112,20 @@ describe('SqliteStore.resources', () => {
     store.audit.append(rec)
     store.audit.append({ ...rec, change: 'delete' })
     expect(store.audit.read(rec.uid).map((r) => r.change)).toEqual(['status', 'delete'])
+  })
+})
+
+describe('SqliteStore over one file from two processes', () => {
+  it('waits for a write lock another process holds instead of failing', async () => {
+    const path = join(mkdtempSync(join(tmpdir(), 'persimmon-')), 'store.db')
+    const store = new SqliteStore(path, { blobs: memoryBlobs() })
+    const holder = spawn(process.execPath, ['-e', `
+      const db = new (require('node:sqlite').DatabaseSync)(${JSON.stringify(path)})
+      db.exec('begin immediate'); console.log('locked')
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 400)
+      db.exec('commit')`])
+    await new Promise((resolve) => holder.stdout.once('data', resolve))
+    expect(store.leases.acquire('uid-1', 'me', 1000)).toBe(true)
+    store.close()
   })
 })
