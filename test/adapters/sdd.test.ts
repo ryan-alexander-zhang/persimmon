@@ -747,6 +747,14 @@ describe('sdd/v1 over an AcceptanceRecord', () => {
     expect(r.result.passed).toBe(true) // a resolved question passes
   })
 
+  // a defect the task does not cover is reported, never this task's to fix (35-build-process.md)
+  it('warns of each defect the record reports and passes', async () => {
+    const a = structuredClone(recordExample())
+    a.record.defects = [{ id: 'D-1', observed: 'a 24.995 EUR line needs no receipt', expected: 'one shown as 25.00 EUR does (BR-2)', where: 'src/claim.ts:58' }]
+    const r = await adapter({ id: ++id, op: 'evaluate', payload: recordPayload(a) })
+    expect(r.result).toEqual({ passed: true, evidence: [], findings: [{ severity: 'warning', code: 'defect-reported', message: 'D-1 at src/claim.ts:58: a 24.995 EUR line needs no receipt; expected one shown as 25.00 EUR does (BR-2)' }] })
+  })
+
   // an answer an agent gave in a human's place is told to the human, never refused (35-build-process.md)
   it('warns of a question an agent answered, read from the provenance actor; a human\'s answer is not one', async () => {
     const answered = structuredClone(recordExample())

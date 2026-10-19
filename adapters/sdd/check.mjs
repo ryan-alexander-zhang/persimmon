@@ -434,7 +434,7 @@ const red = (c) => c.status === 'failed' || c.status === 'errored'
  * `previousOutcome`: the last round's record and tests; a test it named that ran then must still run. A test is named by string equality with a case's `name` or with
  * `classname > name`, never split; cases with the same classname and name (a retried or parameterized test) are one test, red
  * if any of them is. `baseline`: the tests before build-all; a case red there and red still is tolerated. Every finding
- * `error` but `suite-baseline` (info) and `baseline-dirty` (warning). */
+ * `error` but `suite-baseline` (info), `baseline-dirty` and `defect-reported` (warning). */
 export function checkAcceptance({ record, testOutcome, plan, spec, previous, previousOutcome, baseline, ids = {} }) {
   if (!record || !record.task || !Array.isArray(record.verifies)) {
     return [{ severity: 'error', code: 'not-a-record', message: 'content is not an AcceptanceRecord: it has no task or no verifies array' }]
@@ -496,6 +496,8 @@ export function checkAcceptance({ record, testOutcome, plan, spec, previous, pre
   const onlyTolerated = cases.filter(red).every((c) => !named.has(c) && tolerated.has(`${c.classname} > ${c.name}`))
   if (testOutcome.exitCode !== 0 && onlyTolerated && testOutcome.exitCode !== (cases.some(red) ? baseline.exitCode : 0)) bad('suite-exit', `the tests exited ${testOutcome.exitCode} with no test case failing${cases.some(red) ? ` beyond the baseline's, which exited ${baseline.exitCode}` : ''}: killed part way, or failed after the tests`)
   for (const q of record.openQuestions ?? []) if (!q.resolution) bad('question-open', `${q.id} is open: ${q.question}`)
+  // wrong behaviour the task does not cover: reported, never this task's to fix, so told every round and never refused
+  for (const d of record.defects ?? []) findings.push({ severity: 'warning', code: 'defect-reported', message: `${d.id} at ${d.where}: ${d.observed}; expected ${d.expected}` })
   return findings
 }
 
