@@ -4,7 +4,7 @@ import { Check, X } from "lucide-react";
 import { useMemo } from "react";
 import { edges as flowEdges, type PhaseView, type State } from "./lib/flow";
 
-const LANE = 250;
+const LANE = 270;
 const STEP = 108;
 
 type StationData = { view: PhaseView; selected: boolean };
@@ -57,7 +57,7 @@ function Station({ data }: NodeProps<Node<StationData>>) {
   return (
     <button
       type="button"
-      className={`flex w-[210px] cursor-pointer items-center gap-3 rounded-xl border-[1.5px] px-3.5 py-3 text-left transition-shadow ${ring[view.state]} ${selected ? "shadow-[0_0_0_3px_var(--color-ink)]" : "hover:shadow-md"}`}
+      className={`flex w-[236px] cursor-pointer items-center gap-3 rounded-xl border-[1.5px] px-3.5 py-3 text-left transition-shadow ${ring[view.state]} ${selected ? "shadow-[0_0_0_3px_var(--color-ink)]" : "hover:shadow-md"}`}
       aria-label={`${view.phase.title}: ${view.detail}`}
     >
       <Handle type="target" position={Position.Top} className="!border-0 !bg-transparent" />
