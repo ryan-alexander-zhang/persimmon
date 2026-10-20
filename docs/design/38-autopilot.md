@@ -31,11 +31,12 @@ autopilot = autopilot-doc then autopilot-code
 | Rule | Enforcer |
 |---|---|
 | the run order is `AGENTS.md` section 6's; each run takes the latest revision whose Gate passed | skill |
-| a human Gate (`confirm-prd`, `confirm-storming`, `confirm-architecture`, `confirm-design-system`, `confirm-test-design`) is answered by a new Reviewer subagent per form, given only the form path and the review checklist | skill |
+| a human Gate (`confirm-prd`, `confirm-storming`, `confirm-architecture`, `confirm-design-system`, `confirm-harness`, `confirm-test-design`) is answered by a new Reviewer subagent per form, given only the form path and the review checklist | skill |
 | the Reviewer subagent settles a `Q-n` only a domain owner could by rejecting with the decision as a finding, as the human would (`example07` step 2); every such decision is in the report | skill |
 | a loop out of rounds is started again once over what did not pass, the same inputs, its Gate judging again; out of rounds a second time, a Failed run for another reason or a reconcile error stops the Autopilot with a report | skill |
 | before the first `build-all` the orchestrator does what the pack leaves to the developer: when the project has no app, it scaffolds one on the Architecture's technology and Adrs, with a unit test command that writes JUnit XML; then `setup-tests`, whose Tester records every level's tool in the TestHarness, and `test-design-all`, whose TestDesigns each `build-all` binds with the harness; the project must already be a git repository | skill |
 | a Tester form is answered by a new tester subagent, never the builder subagent of that task | skill |
+| a build round refused on an open `Q-n` (`question-open`) has it decided by a new Reviewer subagent, as a human Gate's would be; the orchestrator gives the decisions to the next round's builder and tester subagents, and the builder writes each as its `Q-n`'s `resolution`; every decision is in the report | skill |
 | a `D-n` whose task passed becomes an `Issue`, its fix a `build-one`, then the Issue's `resolved` revision; one fix attempt per Issue, then stop; an Issue that finds the Spec wrong or missing stops it, a Spec revision being the developer's call | skill |
 | `plan_regressed` is an Issue with the red test as its `reproduction`, fixed the same way | skill |
 | the report names every Prd, Architecture, Adr, Spec, Plan and AcceptanceRecord revision, every `Q-n` an agent resolved, every Issue and the files changed; the developer reviews the diff and commits | skill |
@@ -73,5 +74,11 @@ autopilot = autopilot-doc then autopilot-code
 - A tester subagent per Tester form, apart from the builder subagent: the tests are written from
   the cases, before the code for the api level, and a context that saw the build would write tests
   that pass it rather than tests that judge it (`39-test-process.md`).
+- A builder's or a Tester's open `Q-n` is decided by a Reviewer subagent, and the decision reaches
+  the next round's subagents in their prompt. `build-gate` has no human Validator, so its refusal
+  on `question-open` asked a human who was not there: in the live run the next round's builder saw
+  only the refusal, and the question was settled by the stand-in human outside the Autopilot. A
+  human Validator on every build round would park each round on a person; the refusal already
+  marks the rounds that need one. Found in UAT.
 - The Autopilot never runs git, as no agent in the pack does: the developer commits the diff once,
   after reading the report.
