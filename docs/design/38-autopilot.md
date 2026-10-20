@@ -9,9 +9,11 @@ the same verbs a developer types, and puts a fresh subagent where the human sat.
 
 ```text
 idea ─▶ autopilot-doc ───────────────────────────────────────────────────────────────▶ autopilot-code ─────────────────────────────▶ report
-        brief.md, author-prd, domain-discovery, architect, spec-all, design-all,        build-all per Plan, D-n ─▶ Issue ─▶ build-one,
-        design-system, design-all (ui), plan-all                                        Issue resolved
+        brief.md, author-prd, domain-discovery, architect, spec-all, design-all,        scaffold, setup-tests, test-design-all,
+        design-system, design-all (ui), plan-all                                        build-all per Plan, D-n ─▶ Issue ─▶ build-one,
+                                                                                        Issue resolved
         each human Gate form ─▶ Reviewer subagent                                       each builder form ─▶ builder subagent
+                                                                                        each Tester form ─▶ tester subagent
 autopilot = autopilot-doc then autopilot-code
 ```
 
@@ -21,17 +23,19 @@ autopilot = autopilot-doc then autopilot-code
 |---|---|---|
 | orchestrator (the developer's agent running the skill) | writes the brief, starts each run with `--follow`, reads `persimmon tree` for the artifacts the next run takes, hands each parked form to a subagent, runs `persimmon complete <taskRun> --file` on its answer, writes Issues, reports | answers a form itself; runs git |
 | Reviewer subagent | reads one human Gate's form (`.persimmon/inbox/<taskRun>.yaml`) and the run's tree, writes the answer file: `{passed, findings, evidence}` on the form's value port | took part in the authoring; approves past a check's error; runs `persimmon` |
-| builder subagent | builds one `implement` form's task and writes its answer file, as `AGENTS.md` section 6 says | runs git or `persimmon`; fixes a `D-n` |
+| builder subagent | builds one `implement` form's task and writes its answer file, as `AGENTS.md` section 6 says | runs git or `persimmon`; fixes a `D-n`; edits a Tester's test |
+| tester subagent | answers one Tester form (`write-harness`, `write-api-tests`, `write-e2e-tests`) and writes its answer file, as `AGENTS.md` section 6 says (`39-test-process.md`) | saw the builder's context; runs git or `persimmon`; changes the app's code |
 
 ## Rules
 
 | Rule | Enforcer |
 |---|---|
 | the run order is `AGENTS.md` section 6's; each run takes the latest revision whose Gate passed | skill |
-| a human Gate (`confirm-prd`, `confirm-storming`, `confirm-architecture`, `confirm-design-system`) is answered by a new Reviewer subagent per form, given only the form path and the review checklist | skill |
+| a human Gate (`confirm-prd`, `confirm-storming`, `confirm-architecture`, `confirm-design-system`, `confirm-test-design`) is answered by a new Reviewer subagent per form, given only the form path and the review checklist | skill |
 | the Reviewer subagent settles a `Q-n` only a domain owner could by rejecting with the decision as a finding, as the human would (`example07` step 2); every such decision is in the report | skill |
 | a loop out of rounds is started again once over what did not pass, the same inputs, its Gate judging again; out of rounds a second time, a Failed run for another reason or a reconcile error stops the Autopilot with a report | skill |
-| before the first `build-all` the orchestrator does what the pack leaves to the developer: when the project has no app, it scaffolds one on the Architecture's technology and Adrs, with a unit test command that writes JUnit XML, and overrides Executor `test-runner` with that command; the project must already be a git repository | skill |
+| before the first `build-all` the orchestrator does what the pack leaves to the developer: when the project has no app, it scaffolds one on the Architecture's technology and Adrs, with a unit test command that writes JUnit XML; then `setup-tests`, whose Tester records every level's tool in the TestHarness, and `test-design-all`, whose TestDesigns each `build-all` binds with the harness; the project must already be a git repository | skill |
+| a Tester form is answered by a new tester subagent, never the builder subagent of that task | skill |
 | a `D-n` whose task passed becomes an `Issue`, its fix a `build-one`, then the Issue's `resolved` revision; one fix attempt per Issue, then stop; an Issue that finds the Spec wrong or missing stops it, a Spec revision being the developer's call | skill |
 | `plan_regressed` is an Issue with the red test as its `reproduction`, fixed the same way | skill |
 | the report names every Prd, Architecture, Adr, Spec, Plan and AcceptanceRecord revision, every `Q-n` an agent resolved, every Issue and the files changed; the developer reviews the diff and commits | skill |
@@ -62,7 +66,12 @@ autopilot = autopilot-doc then autopilot-code
   only: Codex reads `.agents/skills/`, a second copy added when a Codex user asks.
 - An idea has no app, and the pack expects the developer's own app and test setup, which a builder
   never changes. The orchestrator stands in for the developer there too: one scaffold from the
-  Architecture and its Adrs, one `test-runner` override, before the baseline. Only the unit level:
-  the other levels are added when a quality scenario needs them.
+  Architecture and its Adrs, with a unit test command. The test levels are then the Tester's:
+  `setup-tests` records each level the Designs need with the tool the Architecture names, so the
+  api and e2e levels exist before the first case needs them (`39-test-process.md`). The
+  `test-runner` override the first cut wrote is gone: `junit/v1` reads the harness.
+- A tester subagent per Tester form, apart from the builder subagent: the tests are written from
+  the cases, before the code for the api level, and a context that saw the build would write tests
+  that pass it rather than tests that judge it (`39-test-process.md`).
 - The Autopilot never runs git, as no agent in the pack does: the developer commits the diff once,
   after reading the report.
