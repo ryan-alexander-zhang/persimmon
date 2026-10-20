@@ -1,0 +1,608 @@
+# Tasks of the Rewrite pack (12-task.md, 40-pack-rewrite.md). The readers read the source checkout, their workspace; the Tester
+# writes in the project; parity-run/v1 measures and computes; a human decides through a typed `decisions` value.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: survey-source}
+spec:
+  inputs:
+    source: {type: {kind: externalResource, provider: git, type: repository}, description: "the Source system's checkout at one commit, outside the project, read only"}
+    brief: {type: {kind: value, schema: {type: string, minLength: 1}}}
+    productId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}, description: "the id stem of every artifact of the rewrite"}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}, required: false}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+  outputs:
+    inventory: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}, id: {expression: "inputs.productId + '-inventory'"}}
+  executorRef: {kind: Executor, name: source-reader}
+  action:
+    instructions: |
+      Survey the Source system in your working directory, following the reading method and the Survey rules in your context,
+      and answer its SourceInventory's first revision. `source.repository` is the `source` input's repository and
+      `source.commit` the commit checked out (`git rev-parse HEAD`). With `previous` and `feedback` bound, fix what the
+      findings name and change nothing else.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: source-reading}}
+      - {kind: prompt, ref: {kind: Prompt, name: survey-rules}}
+      - {kind: artifact, input: previous}
+    workspace: {input: source}
+    parameters: {effort: high}
+  timeout: 2h
+  retryPolicy: # a transient API refusal gets another attempt
+    maxAttempts: 3
+    backoff: {strategy: exponential, initial: 1m, max: 5m, jitter: none}
+  sideEffects: none
+---
+# The source index every check of a loop binds, so no Gate reads the checkout (40-pack-rewrite.md).
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: index-source}
+spec:
+  inputs:
+    source: {type: {kind: externalResource, provider: git, type: repository}, description: "the Source system's checkout"}
+  outputs:
+    sourceIndex: {type: {kind: value, schema: {type: object}}}
+  executorRef: {kind: Executor, name: source-runner}
+  action:
+    instructions: Index the checkout.
+    workspace: {input: source}
+  timeout: 10m
+  sideEffects: idempotent
+---
+# The human cuts the Survey into Slices (40-pack-rewrite.md): a typed value, never a finding the ledger would parse.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: cut-slices}
+spec:
+  inputs:
+    inventory: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict: what the check found in the last cut"}
+  outputs:
+    decisions:
+      type:
+        kind: value
+        schema:
+          type: object
+          required: [approved, findings, slices]
+          additionalProperties: false
+          properties:
+            approved: {type: boolean, description: "the Survey is right and the cut is final"}
+            findings: {type: array, items: {$ref: "persimmon.ai/v1#/Finding"}, description: "what the reader must fix in the Survey, each naming its id"}
+            slices:
+              type: array
+              items:
+                type: object
+                required: [id, name, entryPoints, order]
+                additionalProperties: false
+                properties:
+                  id: {type: string, pattern: "^SL-[0-9]+$"}
+                  name: {type: string, minLength: 1}
+                  entryPoints: {type: array, minItems: 1, items: {type: string, pattern: "^EP-[0-9]+$"}}
+                  order: {type: integer, minimum: 1}
+  executorRef: {kind: Executor, name: local-reviewer}
+  action:
+    instructions: |
+      Cut the Survey into Slices: sets of entry points rewritten, checked and cut over together, in the order they are
+      rewritten. Start from the reader's proposal among the `openQuestions`. Every entry point in exactly one Slice; ids
+      `SL-1`, `SL-2`, ... in order. A Slice is small enough for one agent and one review (about 30 guards, about 10 files);
+      cut along shared data, the least connected first. Approve when the Survey is right, or reject with one finding per
+      `EP-n`, `EN-n` or `EX-n` the reader must fix; the cut is recorded either way.
+    context:
+      - {kind: artifact, input: inventory}
+  timeout: 72h
+  sideEffects: none
+---
+# The ParityLedger's next revision, computed (40-pack-rewrite.md): never written by an agent. Only characterize measures the
+# source; recover-prd and parity bind no runs, and the Slice's measurements carry.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: compute-ledger}
+spec:
+  inputs:
+    inventory: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}}
+    productId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}
+    slice: {type: {kind: value, schema: {type: string, pattern: "^SL-[0-9]+$"}}, required: false, description: "absent on the Survey's revision"}
+    ledger: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: ParityLedger}}, required: false, description: "the last approved revision; absent on the Survey's"}
+    decisions: {type: {kind: value, schema: {type: object}}, required: false, description: "this stage's human decisions"}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
+    written: {type: {kind: value, schema: {type: object}}, required: false, description: "characterize: the suite"}
+    runs: {type: {kind: value, schema: {type: array}}, required: false, description: "characterize: the source's runs"}
+    coverage: {type: {kind: value, schema: {type: object}}, required: false, description: "characterize: the source's coverage"}
+    mutantResults: {type: {kind: value, schema: {type: array}}, required: false, description: "characterize: the mutants"}
+    rewriteRuns: {type: {kind: value, schema: {type: array}}, required: false, description: "parity: the suite's runs on the rewrite"}
+  outputs:
+    ledger: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: ParityLedger}}, id: {expression: "inputs.productId + '-parity'"}}
+  executorRef: {kind: Executor, name: source-runner}
+  action:
+    instructions: Compute the ledger's next revision.
+  timeout: 10m
+  sideEffects: none
+---
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: inventory-source}
+spec:
+  inputs:
+    source: {type: {kind: externalResource, provider: git, type: repository}, description: "the Source system's checkout, read only"}
+    brief: {type: {kind: value, schema: {type: string, minLength: 1}}}
+    productId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}
+    slice: {type: {kind: value, schema: {type: string, pattern: "^SL-[0-9]+$"}}}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}, description: "the last approved revision: the Survey and the Slices before this one"}
+    ledger: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: ParityLedger}}, description: "the last approved revision: the cut names the Slice's entry points"}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}, required: false}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+  outputs:
+    inventory: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}, id: {expression: "inputs.productId + '-inventory'"}}
+  executorRef: {kind: Executor, name: source-reader}
+  action:
+    instructions: |
+      Read the Slice `slice` of the Source system in your working directory, its entry points as the ledger's `slices` cut
+      them, following the reading method and the inventory rules in your context. Answer the inventory's next revision:
+      `base` whole, every id kept, plus the Slice's items, `slice` set to the Slice. Start from `previous` when bound, and
+      fix what `feedback` found and nothing else.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: source-reading}}
+      - {kind: prompt, ref: {kind: Prompt, name: inventory-rules}}
+      - {kind: artifact, input: ledger}
+      - {kind: artifact, input: base}
+      - {kind: artifact, input: previous}
+    workspace: {input: source}
+    parameters: {effort: high}
+  timeout: 2h
+  retryPolicy: # a transient API refusal gets another attempt
+    maxAttempts: 3
+    backoff: {strategy: exponential, initial: 1m, max: 5m, jitter: none}
+  sideEffects: none
+---
+# The second reader, blind to the first: no `previous`, no inventory of this Slice (40-pack-rewrite.md).
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: reread-source}
+spec:
+  inputs:
+    source: {type: {kind: externalResource, provider: git, type: repository}, description: "the Source system's checkout, read only"}
+    brief: {type: {kind: value, schema: {type: string, minLength: 1}}}
+    slice: {type: {kind: value, schema: {type: string, pattern: "^SL-[0-9]+$"}}}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}, description: "the last approved revision, before this Slice"}
+    ledger: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: ParityLedger}}}
+  outputs:
+    second: {type: {kind: value, schema: {type: object, required: [guards]}}, description: "the second reading, in the inventory's shape"}
+  executorRef: {kind: Executor, name: second-reader}
+  action:
+    instructions: |
+      Read the Slice `slice` of the Source system in your working directory, its entry points as the ledger's `slices` cut
+      them, following the second reading's order and the inventory rules in your context. Answer `second`: the Slice's
+      items in the inventory's shape, `guards` above all, each with its exact `where`.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: source-reading}}
+      - {kind: prompt, ref: {kind: Prompt, name: inventory-rules}}
+      - {kind: prompt, ref: {kind: Prompt, name: reread-source}}
+      - {kind: artifact, input: ledger}
+      - {kind: artifact, input: base}
+    workspace: {input: source}
+    parameters: {effort: high}
+  timeout: 2h
+  retryPolicy: # a transient API refusal gets another attempt
+    maxAttempts: 3
+    backoff: {strategy: exponential, initial: 1m, max: 5m, jitter: none}
+  sideEffects: none
+---
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: audit-inventory}
+spec:
+  inputs:
+    inventory: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}}
+    slice: {type: {kind: value, schema: {type: string, pattern: "^SL-[0-9]+$"}}}
+    source: {type: {kind: externalResource, provider: git, type: repository}, description: "the Source system's checkout, read only"}
+  outputs:
+    audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
+  executorRef: {kind: Executor, name: auditor}
+  action:
+    instructions: |
+      Audit the inventory's items of the Slice `slice` against the code in your working directory, following the audit
+      rules in your context, their part for an inventory.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: rewrite-audit-rules}}
+      - {kind: artifact, input: inventory}
+    workspace: {input: source}
+  timeout: 1h
+  retryPolicy: # a transient API refusal gets another attempt
+    maxAttempts: 3
+    backoff: {strategy: exponential, initial: 1m, max: 5m, jitter: none}
+  sideEffects: none
+---
+# The Tester writes the Characterization tests of one Slice from the inventory, before any rule is recovered (40-pack-rewrite.md).
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: write-characterization}
+spec:
+  inputs:
+    inventory: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}}
+    ledger: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: ParityLedger}}, description: "the last approved revision: the cut, and the suite earlier Slices set up"}
+    slice: {type: {kind: value, schema: {type: string, pattern: "^SL-[0-9]+$"}}}
+    brief: {type: {kind: value, schema: {type: string, minLength: 1}}, description: "how the source runs, or that it does not; where records are"}
+    source: {type: {kind: externalResource, provider: git, type: repository}, description: "the Source system's checkout, read only: its path is locator.path"}
+    repository: {type: {kind: externalResource, provider: git, type: repository}, description: "the project, where the suite is written"}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict: each open item and why"}
+  outputs:
+    written:
+      type:
+        kind: value
+        schema:
+          type: object
+          required: [files, suite]
+          additionalProperties: false
+          properties:
+            files: {type: array, items: {type: string, minLength: 1}}
+            suite: {type: object, required: [levels, drivers, conventions], description: "the levels, the drivers and the conventions, the ParityLedger's suite shape"}
+            unreachable: {type: array, items: {type: object, required: [ref, evidence], additionalProperties: false, properties: {ref: {type: string, pattern: "^(GD|DC|ST|EX)-[0-9]+$"}, evidence: {type: string, minLength: 1}}}, description: "items no input can reach, proposed dead for a human"}
+  executorRef: {kind: Executor, name: tester}
+  action:
+    instructions: |
+      Write the Characterization tests of the Slice `slice` in the directory the `repository` input names, following the
+      characterization rules in your context: every item of the Slice in the inventory, through the source's Protocol
+      driver, against the Source system at the `source` input's `locator.path`. Keep the suite earlier Slices set up (the
+      ledger's `suite`) and add to it. Answer `written`: the files you wrote, the suite's levels with their commands, and
+      the items no input can reach. With `feedback` bound, fix what the findings name and change nothing else.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: characterize-rules}}
+      - {kind: artifact, input: inventory}
+      - {kind: artifact, input: ledger}
+    workspace: {input: repository}
+  timeout: 72h   # a human's: the developer's agent writes them in its own session
+  retryPolicy: # a transient API refusal gets another attempt
+    maxAttempts: 3
+    backoff: {strategy: exponential, initial: 1m, max: 5m, jitter: none}
+  sideEffects: nonIdempotent   # it writes the repository
+---
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: run-source}
+spec:
+  inputs:
+    written: {type: {kind: value, schema: {type: object}}, description: "the suite write-characterization answered"}
+    source: {type: {kind: externalResource, provider: git, type: repository}, description: "the Source system's checkout, still the indexed commit"}
+    sourceIndex: {type: {kind: value, schema: {type: object}}}
+    repository: {type: {kind: externalResource, provider: git, type: repository}, description: "the project, where the suite runs"}
+  outputs:
+    runs: {type: {kind: value, schema: {type: array}}}
+    coverage: {type: {kind: value, schema: {type: object}}}
+  executorRef: {kind: Executor, name: source-runner}
+  action:
+    instructions: Run the suite's levels on the source.
+    workspace: {input: repository}
+  timeout: 2h
+  sideEffects: idempotent
+---
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: write-mutants}
+spec:
+  inputs:
+    inventory: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}}
+    slice: {type: {kind: value, schema: {type: string, pattern: "^SL-[0-9]+$"}}}
+    written: {type: {kind: value, schema: {type: object}}}
+    runs: {type: {kind: value, schema: {type: array}}}
+    coverage: {type: {kind: value, schema: {type: object}}, description: "the lines the source's run reached: a mutant only for a reached item"}
+    source: {type: {kind: externalResource, provider: git, type: repository}, description: "the Source system's checkout, read only: its path is locator.path"}
+    repository: {type: {kind: externalResource, provider: git, type: repository}}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+  outputs:
+    mutants: {type: {kind: value, schema: {type: array, items: {type: object, required: [ref, patch], additionalProperties: false, properties: {ref: {type: string, pattern: "^(GD|DC|ST|EX)-[0-9]+$"}, patch: {type: string, minLength: 1, description: "a unified diff against the checkout, paths from its root"}}}}}}
+  executorRef: {kind: Executor, name: tester}
+  action:
+    instructions: |
+      Write one mutant per item of the Slice `slice` that the run reached, following the mutant rules in your context, as
+      a patch against the Source system at the `source` input's `locator.path`; never apply it there. With `feedback`
+      bound, rewrite the mutants the findings name.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: mutant-rules}}
+      - {kind: artifact, input: inventory}
+    workspace: {input: repository}
+  timeout: 72h
+  retryPolicy: # a transient API refusal gets another attempt
+    maxAttempts: 3
+    backoff: {strategy: exponential, initial: 1m, max: 5m, jitter: none}
+  sideEffects: none
+---
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: run-mutants}
+spec:
+  inputs:
+    written: {type: {kind: value, schema: {type: object}}}
+    source: {type: {kind: externalResource, provider: git, type: repository}, description: "the Source system's checkout: cloned to a scratch copy, never changed"}
+    sourceIndex: {type: {kind: value, schema: {type: object}}}
+    mutants: {type: {kind: value, schema: {type: array}}}
+    runs: {type: {kind: value, schema: {type: array}}}
+    inventory: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}}
+    repository: {type: {kind: externalResource, provider: git, type: repository}, description: "the project, where the suite runs"}
+  outputs:
+    mutantResults: {type: {kind: value, schema: {type: array}}}
+  executorRef: {kind: Executor, name: source-runner}
+  action:
+    instructions: Run each mutant's citing tests on a scratch copy of the source.
+    workspace: {input: repository}
+  timeout: 6h
+  sideEffects: idempotent
+---
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: audit-mutants}
+spec:
+  inputs:
+    mutants: {type: {kind: value, schema: {type: array}}}
+    mutantResults: {type: {kind: value, schema: {type: array}}}
+    inventory: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}}
+    source: {type: {kind: externalResource, provider: git, type: repository}, description: "the Source system's checkout, read only"}
+  outputs:
+    audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
+  executorRef: {kind: Executor, name: auditor}
+  action:
+    instructions: |
+      Audit the mutants against the code in your working directory, following the audit rules in your context, their part
+      for mutants.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: rewrite-audit-rules}}
+      - {kind: artifact, input: inventory}
+    workspace: {input: source}
+  timeout: 1h
+  retryPolicy: # a transient API refusal gets another attempt
+    maxAttempts: 3
+    backoff: {strategy: exponential, initial: 1m, max: 5m, jitter: none}
+  sideEffects: none
+---
+# The Prd and the rules of one Slice recovered from the evidence (40-pack-rewrite.md): draft-prd's output ports and ids, so every
+# later run reads them as an authored pair.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: recover-prd}
+spec:
+  inputs:
+    inventory: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}}
+    ledger: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: ParityLedger}}, description: "the characterization's: the recorded answers, each item's account"}
+    slice: {type: {kind: value, schema: {type: string, pattern: "^SL-[0-9]+$"}}}
+    brief: {type: {kind: value, schema: {type: string, minLength: 1}}, description: "the default Disposition among the rest"}
+    productId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false, description: "the product's last approved Prd: an earlier Slice's"}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false, description: "the product's last approved rules"}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false}
+    previousRules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false, description: "the rules the last round answered; the loop carries them"}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+  outputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, id: {expression: "inputs.productId + '-prd'"}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, id: {expression: "inputs.productId + '-rules'"}}
+  executorRef: {kind: Executor, name: prd-agent}
+  action:
+    instructions: |
+      Recover the Prd and the BusinessRules of the Slice `slice` from the inventory and the ledger, following the recovery
+      rules and the Prd rules in your context. Carry `prd` and `rules` forward whole when bound; the Prd's `businessRules`
+      is `<productId>-rules`. With `previous` and `feedback` bound, start from `previous` and `previousRules`, fix what the
+      findings name and change nothing else; never renumber, reorder or reword a rule unasked.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: recover-rules}}
+      - {kind: prompt, ref: {kind: Prompt, name: prd-rules}}
+      - {kind: artifact, input: inventory}
+      - {kind: artifact, input: ledger}
+      - {kind: artifact, input: prd}
+      - {kind: artifact, input: rules}
+      - {kind: artifact, input: previous}
+      - {kind: artifact, input: previousRules}
+    parameters: {effort: high}
+  timeout: 30m
+  retryPolicy: # a transient API refusal gets another attempt
+    maxAttempts: 3
+    backoff: {strategy: exponential, initial: 1m, max: 5m, jitter: none}
+  sideEffects: none
+---
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: audit-recovery}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    inventory: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}}
+    ledger: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: ParityLedger}}}
+  outputs:
+    audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
+  executorRef: {kind: Executor, name: auditor}
+  action:
+    instructions: Audit the recovered Prd and rules following the audit rules in your context, their part for a recovery.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: rewrite-audit-rules}}
+      - {kind: artifact, input: prd}
+      - {kind: artifact, input: rules}
+      - {kind: artifact, input: inventory}
+      - {kind: artifact, input: ledger}
+  timeout: 30m
+  retryPolicy: # a transient API refusal gets another attempt
+    maxAttempts: 3
+    backoff: {strategy: exponential, initial: 1m, max: 5m, jitter: none}
+  sideEffects: none
+---
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: decide-recovery}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    inventory: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}}
+    ledger: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: ParityLedger}}}
+    audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}, description: "the auditor's verdict on this recovery"}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+  outputs:
+    decisions:
+      type:
+        kind: value
+        schema:
+          type: object
+          required: [approved, findings, dispositions, dead, plumbing, accepted, readers]
+          additionalProperties: false
+          properties:
+            approved: {type: boolean}
+            findings: {type: array, items: {$ref: "persimmon.ai/v1#/Finding"}, description: "what the Prd agent must fix, each naming its id"}
+            dispositions:
+              type: array
+              items:
+                type: object
+                required: [ref, disposition]
+                additionalProperties: false
+                properties:
+                  ref: {type: string, pattern: "^(CAP|BR|AB)-[0-9]+$"}
+                  disposition: {enum: [keep, change, drop]}
+                  reason: {type: string, minLength: 1}
+            dead: {type: array, items: {type: object, required: [ref, evidence], additionalProperties: false, properties: {ref: {type: string, pattern: "^(GD|DC|ST|EX)-[0-9]+$"}, evidence: {type: string, minLength: 1}}}}
+            plumbing: {type: array, items: {type: string, pattern: "^PP-[0-9]+$"}, description: "the plumbing patterns accepted"}
+            accepted: {type: array, items: {type: object, required: [ref, reason], additionalProperties: false, properties: {ref: {type: string, pattern: "^(GD|DC|ST|EX|AB)-[0-9]+$"}, reason: {type: string, minLength: 1}}}, description: "items left open, each with why no test can reach it"}
+            readers: {type: array, items: {type: object, required: [ref, resolution], additionalProperties: false, properties: {ref: {type: string, minLength: 1}, resolution: {type: string, minLength: 1}}}, description: "each reader-disagreement settled"}
+  executorRef: {kind: Executor, name: local-reviewer}
+  action:
+    instructions: |
+      Decide the Slice's recovery, following the recovery review in your context: the Disposition of each capability,
+      rule or absence that is not `keep`, the items dead with their evidence, the plumbing patterns accepted, the items
+      accepted open with why, and each reader disagreement. Approve when the Prd and rules are right and nothing open is
+      left undecided, or reject with one finding per id the Prd agent must fix. `audit` is the auditor's verdict.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: recovery-review}}
+      - {kind: artifact, input: prd}
+      - {kind: artifact, input: rules}
+      - {kind: artifact, input: ledger}
+      - {kind: artifact, input: inventory}
+  timeout: 72h
+  sideEffects: none
+---
+# The rewrite's Protocol driver (40-pack-rewrite.md): on every Slice, so no step branches on prose; with the interface kept, no file.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: write-rewrite-driver}
+spec:
+  inputs:
+    ledger: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: ParityLedger}}, description: "its suite names the source's driver"}
+    slice: {type: {kind: value, schema: {type: string, pattern: "^SL-[0-9]+$"}}}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, description: "the Slice's Designs: the operations each entry point lands on"}
+    repository: {type: {kind: externalResource, provider: git, type: repository}}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+  outputs:
+    written:
+      type:
+        kind: value
+        schema:
+          type: object
+          required: [files, driver]
+          additionalProperties: false
+          properties:
+            files: {type: array, items: {type: string, minLength: 1}}
+            driver:
+              type: object
+              required: [methods]
+              additionalProperties: false
+              properties:
+                kept: {type: boolean, description: "the interface is kept: the source's driver serves, no file"}
+                methods:
+                  type: array
+                  items:
+                    type: object
+                    required: [name, entryPoint, element]
+                    additionalProperties: false
+                    properties:
+                      name: {type: string, minLength: 1}
+                      entryPoint: {type: string, pattern: "^EP-[0-9]+$"}
+                      element: {type: string, pattern: "^EL-[0-9]+$"}
+  executorRef: {kind: Executor, name: tester}
+  action:
+    instructions: |
+      Write the rewrite's Protocol driver for the Slice `slice` in the directory the `repository` input names, following the
+      driver rules in your context: one method per operation of the source's driver (the ledger's `suite.drivers.source`),
+      mapping the rewrite's interface as the Designs define it onto the same observations. Answer `written`. With `feedback`
+      bound, fix what the findings name and change nothing else.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: driver-rules}}
+      - {kind: artifact, input: ledger}
+      - {kind: artifact, input: designs}
+    workspace: {input: repository}
+  timeout: 72h
+  retryPolicy: # a transient API refusal gets another attempt
+    maxAttempts: 3
+    backoff: {strategy: exponential, initial: 1m, max: 5m, jitter: none}
+  sideEffects: nonIdempotent   # it writes the repository
+---
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: audit-driver}
+spec:
+  inputs:
+    written: {type: {kind: value, schema: {type: object}}, description: "the driver write-rewrite-driver answered"}
+    ledger: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: ParityLedger}}}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
+    repository: {type: {kind: externalResource, provider: git, type: repository}}
+  outputs:
+    audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
+  executorRef: {kind: Executor, name: auditor}
+  action:
+    instructions: |
+      Audit the rewrite driver `written` names in your working directory, following the audit rules in your context, their
+      part for a rewrite driver. With `written.driver.kept`, check only that each method's entry point lands on its element.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: rewrite-audit-rules}}
+      - {kind: prompt, ref: {kind: Prompt, name: driver-rules}}
+      - {kind: artifact, input: ledger}
+      - {kind: artifact, input: designs}
+    workspace: {input: repository}
+  timeout: 1h
+  retryPolicy: # a transient API refusal gets another attempt
+    maxAttempts: 3
+    backoff: {strategy: exponential, initial: 1m, max: 5m, jitter: none}
+  sideEffects: none
+---
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: run-rewrite}
+spec:
+  inputs:
+    ledger: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: ParityLedger}}, description: "its suite is what runs"}
+    harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, description: "its app starts the rewrite"}
+    repository: {type: {kind: externalResource, provider: git, type: repository}, description: "the project: the rewrite and the suite"}
+  outputs:
+    runs: {type: {kind: value, schema: {type: array}}}
+  executorRef: {kind: Executor, name: source-runner}
+  action:
+    instructions: Run the suite's levels on the rewrite.
+    workspace: {input: repository}
+  timeout: 2h
+  sideEffects: idempotent
+---
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: review-parity}
+spec:
+  inputs:
+    ledger: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: ParityLedger}}, description: "the revision that compared the rewrite: its differences and verdict"}
+    written: {type: {kind: value, schema: {type: object}}, description: "the rewrite driver"}
+    audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}, description: "the auditor's verdict on the driver"}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+  outputs:
+    decisions:
+      type:
+        kind: value
+        schema:
+          type: object
+          required: [approved, findings]
+          additionalProperties: false
+          properties:
+            approved: {type: boolean}
+            findings: {type: array, items: {$ref: "persimmon.ai/v1#/Finding"}}
+            driver: {type: object, required: [confirmed], additionalProperties: false, properties: {confirmed: {type: boolean}}}
+            concerns: {type: object, required: [accepted, reason], additionalProperties: false, properties: {accepted: {type: boolean}, reason: {type: string, minLength: 1}}}
+  executorRef: {kind: Executor, name: local-reviewer}
+  action:
+    instructions: |
+      Review the Slice's parity. Each difference without a cause is an Issue: the rule was recovered wrong, the test reads
+      the source wrong, or the rewrite is wrong; never fixed by changing the Source system. Confirm the rewrite driver
+      renames and reshapes only (`driver.confirmed`). A verdict of `concerns` passes only when you accept it with a reason
+      (`concerns`). Approve, or reject with one finding per test or id that must change.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: driver-rules}}
+      - {kind: artifact, input: ledger}
+  timeout: 72h
+  sideEffects: none

@@ -283,6 +283,7 @@ describe('persimmon CLI', () => {
     expect(out).toContain('created KindDefinition/sourceinventories.rewrite.persimmon.ai')
     expect(out).toContain('created KindDefinition/parityledgers.rewrite.persimmon.ai')
     expect(out).toContain('created KindDefinition/prds.sdd.persimmon.ai')
+    for (const loop of ['survey', 'inventory', 'characterize', 'recover-prd', 'parity']) expect(out).toContain(`created ReviewLoop/${loop}`)
   })
 
   it('init --pack names a pack under packs/, and refuses one that is not there or a name that leaves packs/', async () => {

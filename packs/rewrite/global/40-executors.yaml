@@ -1,0 +1,42 @@
+# Executors of the Rewrite pack (13-executor.md, 40-pack-rewrite.md). The Tester, the Prd agent, the auditor and the local
+# reviewer are the SDLC pack's, used by name. Global; a Namespace overrides one by name for its own model or credentials.
+# The two readers have separate names so a Namespace can put a different model on each: the second reader is a coverage aid.
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: source-reader}
+spec:
+  type: agent
+  adapter: claude-code/v1
+  configuration:
+    model: claude-opus-5
+    sandbox: read-only      # it reads the source checkout, its workspace, and answers JSON; it never changes the checkout
+  security:
+    networkAccess: allowlist
+    allowedHosts: [api.anthropic.com]
+---
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: second-reader}
+spec:
+  type: agent
+  adapter: claude-code/v1
+  configuration:
+    model: claude-opus-5
+    sandbox: read-only      # as source-reader's: the checkout read, never changed
+  security:
+    networkAccess: allowlist
+    allowedHosts: [api.anthropic.com]
+---
+# The source index, the suite's runs on the source and on the rewrite, the mutants, the ledger (40-pack-rewrite.md). The suite's
+# level commands start whatever the levels need; mutants run in a scratch clone under .persimmon/scratch/, never the checkout.
+# exclusive: two worktrees sharing one store never run the source's app or the rewrite's at once, as level-runner's.
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: source-runner}
+spec:
+  type: script
+  adapter: parity-run/v1
+  exclusive: tests
+  configuration: {}
+  security:
+    networkAccess: deny   # declarative on parity-run/v1, as on junit/v1: the suite's own commands start the app

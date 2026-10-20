@@ -1,0 +1,594 @@
+# The Rewrite pack's run order (40-pack-rewrite.md): the Survey once, then per Slice inventory, characterize, recover-prd, the
+# SDLC pack's run order for the Slice's capabilities, and parity. Every agent and human step runs in a loop's produce; every
+# Gate is pure. The `rewrite` skill starts each with the product's last approved artifacts.
+# A value a human or the Tester answers is checked against its Task's own schema when answered; downstream it travels on
+# plain `object` ports, bound by expression, so the three human Tasks' different decisions feed one compute-ledger port.
+apiVersion: persimmon.ai/v1
+kind: Workflow
+metadata: {name: survey-work}
+spec:
+  inputs:
+    source: {type: {kind: externalResource, provider: git, type: repository}}
+    brief: {type: {kind: value, schema: {type: string, minLength: 1}}}
+    productId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}, required: false}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+  outputs:
+    inventory: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}}
+    sourceIndex: {type: {kind: value, schema: {type: object}}}
+    decisions: {type: {kind: value, schema: {type: object}}}
+    ledger: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: ParityLedger}}}
+  outputBindings:
+    inventory: {fromStep: {stepRef: survey, output: inventory}}
+    sourceIndex: {fromStep: {stepRef: index, output: sourceIndex}}
+    decisions: {expression: "steps.cut.outputs.decisions"}
+    ledger: {fromStep: {stepRef: ledger, output: ledger}}
+  entry: [survey]
+  steps:
+    - id: survey
+      uses: {kind: Task, name: survey-source}
+      inputs:
+        source: {fromInput: source}
+        brief: {fromInput: brief}
+        productId: {fromInput: productId}
+        previous: {fromInput: previous, onMissing: omit}
+        feedback: {fromInput: feedback, onMissing: omit}
+      timeout: 2h
+    - id: index
+      uses: {kind: Task, name: index-source}
+      inputs:
+        source: {fromInput: source}
+      timeout: 10m
+    - id: cut
+      uses: {kind: Task, name: cut-slices}
+      inputs:
+        inventory: {fromStep: {stepRef: survey, output: inventory}}
+        feedback: {fromInput: feedback, onMissing: omit}
+      timeout: 72h
+    - id: ledger
+      uses: {kind: Task, name: compute-ledger}
+      inputs:
+        inventory: {fromStep: {stepRef: survey, output: inventory}}
+        productId: {fromInput: productId}
+        decisions: {expression: "steps.cut.outputs.decisions"}
+      timeout: 10m
+  transitions:
+    - {id: to-index, from: [{stepRef: survey, outcomes: [Succeeded]}], to: [{stepRef: index}]}
+    - {id: to-cut, from: [{stepRef: index, outcomes: [Succeeded]}], to: [{stepRef: cut}]}
+    - {id: to-ledger, from: [{stepRef: cut, outcomes: [Succeeded]}], to: [{stepRef: ledger}]}
+    - {id: done, from: [{stepRef: ledger, outcomes: [Succeeded]}], to: [{terminal: Succeeded}]}
+  timeout: 80h
+---
+# The Survey, once per rewrite: every entry point of the whole source, the human's cut, the ledger's first revision.
+apiVersion: persimmon.ai/v1
+kind: ReviewLoop
+metadata: {name: survey}
+spec:
+  inputs:
+    source: {type: {kind: externalResource, provider: git, type: repository}, description: "the Source system's checkout at one commit, outside the project"}
+    brief: {type: {kind: value, schema: {type: string, minLength: 1}}}
+    productId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}
+  produce:
+    uses: {kind: Workflow, name: survey-work}
+    inputs:
+      source: {fromInput: source}
+      brief: {fromInput: brief}
+      productId: {fromInput: productId}
+    timeout: 80h
+  review:
+    uses: {kind: Gate, name: survey-gate}
+    inputs:
+      inventory: {fromStep: {stepRef: produce, output: inventory}}
+      sourceIndex: {fromStep: {stepRef: produce, output: sourceIndex}}
+      decisions: {fromStep: {stepRef: produce, output: decisions}}
+    timeout: 5m
+  subject: inventory
+  previous: previous
+  feedback: feedback
+  maxRounds: 2
+  timeout: 200h
+---
+apiVersion: persimmon.ai/v1
+kind: Workflow
+metadata: {name: inventory-work}
+spec:
+  inputs:
+    source: {type: {kind: externalResource, provider: git, type: repository}}
+    brief: {type: {kind: value, schema: {type: string, minLength: 1}}}
+    productId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}
+    slice: {type: {kind: value, schema: {type: string, pattern: "^SL-[0-9]+$"}}}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}}
+    ledger: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: ParityLedger}}}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}, required: false}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+  outputs:
+    inventory: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}}
+    second: {type: {kind: value, schema: {type: object, required: [guards]}}}
+    sourceIndex: {type: {kind: value, schema: {type: object}}}
+    audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
+  outputBindings:
+    inventory: {fromStep: {stepRef: read, output: inventory}}
+    second: {fromStep: {stepRef: reread, output: second}}
+    sourceIndex: {fromStep: {stepRef: index, output: sourceIndex}}
+    audit: {fromStep: {stepRef: audit, output: audit}}
+  entry: [read]
+  steps:
+    - id: read
+      uses: {kind: Task, name: inventory-source}
+      inputs:
+        source: {fromInput: source}
+        brief: {fromInput: brief}
+        productId: {fromInput: productId}
+        slice: {fromInput: slice}
+        base: {fromInput: base}
+        ledger: {fromInput: ledger}
+        previous: {fromInput: previous, onMissing: omit}
+        feedback: {fromInput: feedback, onMissing: omit}
+      timeout: 2h
+    - id: reread # blind to the first reader: no previous, no inventory of this Slice
+      uses: {kind: Task, name: reread-source}
+      inputs:
+        source: {fromInput: source}
+        brief: {fromInput: brief}
+        slice: {fromInput: slice}
+        base: {fromInput: base}
+        ledger: {fromInput: ledger}
+      timeout: 2h
+    - id: index
+      uses: {kind: Task, name: index-source}
+      inputs:
+        source: {fromInput: source}
+      timeout: 10m
+    - id: audit
+      uses: {kind: Task, name: audit-inventory}
+      inputs:
+        inventory: {fromStep: {stepRef: read, output: inventory}}
+        slice: {fromInput: slice}
+        source: {fromInput: source}
+      timeout: 1h
+  transitions:
+    - {id: to-reread, from: [{stepRef: read, outcomes: [Succeeded]}], to: [{stepRef: reread}]}
+    - {id: to-index, from: [{stepRef: reread, outcomes: [Succeeded]}], to: [{stepRef: index}]}
+    - {id: to-audit, from: [{stepRef: index, outcomes: [Succeeded]}], to: [{stepRef: audit}]}
+    - {id: done, from: [{stepRef: audit, outcomes: [Succeeded]}], to: [{terminal: Succeeded}]}
+  timeout: 6h
+---
+# One Slice's inventory, read twice and audited: `base` and `ledger` are the last approved revisions.
+apiVersion: persimmon.ai/v1
+kind: ReviewLoop
+metadata: {name: inventory}
+spec:
+  inputs:
+    source: {type: {kind: externalResource, provider: git, type: repository}}
+    brief: {type: {kind: value, schema: {type: string, minLength: 1}}}
+    productId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}
+    slice: {type: {kind: value, schema: {type: string, pattern: "^SL-[0-9]+$"}}}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}, description: "the last approved inventory"}
+    ledger: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: ParityLedger}}, description: "the last approved ledger: the cut"}
+  produce:
+    uses: {kind: Workflow, name: inventory-work}
+    inputs:
+      source: {fromInput: source}
+      brief: {fromInput: brief}
+      productId: {fromInput: productId}
+      slice: {fromInput: slice}
+      base: {fromInput: base}
+      ledger: {fromInput: ledger}
+    timeout: 6h
+  review:
+    uses: {kind: Gate, name: inventory-gate}
+    inputs:
+      inventory: {fromStep: {stepRef: produce, output: inventory}}
+      sourceIndex: {fromStep: {stepRef: produce, output: sourceIndex}}
+      slice: {fromInput: slice}
+      ledger: {fromInput: ledger}
+      second: {fromStep: {stepRef: produce, output: second}}
+      audit: {fromStep: {stepRef: produce, output: audit}}
+    timeout: 5m
+  subject: inventory
+  previous: previous
+  feedback: feedback
+  maxRounds: 2
+  timeout: 24h
+---
+apiVersion: persimmon.ai/v1
+kind: Workflow
+metadata: {name: characterize-work}
+spec:
+  inputs:
+    source: {type: {kind: externalResource, provider: git, type: repository}}
+    repository: {type: {kind: externalResource, provider: git, type: repository}}
+    brief: {type: {kind: value, schema: {type: string, minLength: 1}}}
+    productId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}
+    slice: {type: {kind: value, schema: {type: string, pattern: "^SL-[0-9]+$"}}}
+    inventory: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}}
+    ledger: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: ParityLedger}}}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+  outputs:
+    ledger: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: ParityLedger}}}
+    written: {type: {kind: value, schema: {type: object}}}
+    sourceIndex: {type: {kind: value, schema: {type: object}}}
+    runs: {type: {kind: value, schema: {type: array}}}
+    coverage: {type: {kind: value, schema: {type: object}}}
+    mutantResults: {type: {kind: value, schema: {type: array}}}
+    audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
+  outputBindings:
+    ledger: {fromStep: {stepRef: ledger, output: ledger}}
+    written: {expression: "steps.write.outputs.written"}
+    sourceIndex: {fromStep: {stepRef: index, output: sourceIndex}}
+    runs: {fromStep: {stepRef: run, output: runs}}
+    coverage: {fromStep: {stepRef: run, output: coverage}}
+    mutantResults: {fromStep: {stepRef: mutate, output: mutantResults}}
+    audit: {fromStep: {stepRef: audit, output: audit}}
+  entry: [index]
+  steps:
+    - id: index
+      uses: {kind: Task, name: index-source}
+      inputs:
+        source: {fromInput: source}
+      timeout: 10m
+    - id: write
+      uses: {kind: Task, name: write-characterization}
+      inputs:
+        inventory: {fromInput: inventory}
+        ledger: {fromInput: ledger}
+        slice: {fromInput: slice}
+        brief: {fromInput: brief}
+        source: {fromInput: source}
+        repository: {fromInput: repository}
+        feedback: {fromInput: feedback, onMissing: omit}
+      timeout: 72h
+    - id: run
+      uses: {kind: Task, name: run-source}
+      inputs:
+        written: {expression: "steps.write.outputs.written"}
+        source: {fromInput: source}
+        sourceIndex: {fromStep: {stepRef: index, output: sourceIndex}}
+        repository: {fromInput: repository}
+      timeout: 2h
+    - id: mutants
+      uses: {kind: Task, name: write-mutants}
+      inputs:
+        inventory: {fromInput: inventory}
+        slice: {fromInput: slice}
+        written: {expression: "steps.write.outputs.written"}
+        runs: {fromStep: {stepRef: run, output: runs}}
+        coverage: {fromStep: {stepRef: run, output: coverage}}
+        source: {fromInput: source}
+        repository: {fromInput: repository}
+        feedback: {fromInput: feedback, onMissing: omit}
+      timeout: 72h
+    - id: mutate
+      uses: {kind: Task, name: run-mutants}
+      inputs:
+        written: {expression: "steps.write.outputs.written"}
+        source: {fromInput: source}
+        sourceIndex: {fromStep: {stepRef: index, output: sourceIndex}}
+        mutants: {expression: "steps.mutants.outputs.mutants"}
+        runs: {fromStep: {stepRef: run, output: runs}}
+        inventory: {fromInput: inventory}
+        repository: {fromInput: repository}
+      timeout: 6h
+    - id: audit
+      uses: {kind: Task, name: audit-mutants}
+      inputs:
+        mutants: {expression: "steps.mutants.outputs.mutants"}
+        mutantResults: {fromStep: {stepRef: mutate, output: mutantResults}}
+        inventory: {fromInput: inventory}
+        source: {fromInput: source}
+      timeout: 1h
+    - id: ledger # the ledger the gate checks is computed from this round's runs, never the last round's
+      uses: {kind: Task, name: compute-ledger}
+      inputs:
+        inventory: {fromInput: inventory}
+        productId: {fromInput: productId}
+        slice: {fromInput: slice}
+        ledger: {fromInput: ledger}
+        written: {expression: "steps.write.outputs.written"}
+        runs: {fromStep: {stepRef: run, output: runs}}
+        coverage: {fromStep: {stepRef: run, output: coverage}}
+        mutantResults: {fromStep: {stepRef: mutate, output: mutantResults}}
+      timeout: 10m
+  transitions:
+    - {id: to-write, from: [{stepRef: index, outcomes: [Succeeded]}], to: [{stepRef: write}]}
+    - {id: to-run, from: [{stepRef: write, outcomes: [Succeeded]}], to: [{stepRef: run}]}
+    - {id: to-mutants, from: [{stepRef: run, outcomes: [Succeeded]}], to: [{stepRef: mutants}]}
+    - {id: to-mutate, from: [{stepRef: mutants, outcomes: [Succeeded]}], to: [{stepRef: mutate}]}
+    - {id: to-audit, from: [{stepRef: mutate, outcomes: [Succeeded]}], to: [{stepRef: audit}]}
+    - {id: to-ledger, from: [{stepRef: audit, outcomes: [Succeeded]}], to: [{stepRef: ledger}]}
+    - {id: done, from: [{stepRef: ledger, outcomes: [Succeeded]}], to: [{terminal: Succeeded}]}
+  timeout: 160h
+---
+# One Slice characterized: the suite, its runs on the source, the mutants, the ledger closed over every item its Oracle can pin.
+apiVersion: persimmon.ai/v1
+kind: ReviewLoop
+metadata: {name: characterize}
+spec:
+  inputs:
+    source: {type: {kind: externalResource, provider: git, type: repository}}
+    repository: {type: {kind: externalResource, provider: git, type: repository}, description: "the project: the rewrite's repository, where the suite is written"}
+    brief: {type: {kind: value, schema: {type: string, minLength: 1}}}
+    productId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}
+    slice: {type: {kind: value, schema: {type: string, pattern: "^SL-[0-9]+$"}}}
+    inventory: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}, description: "the Slice's approved inventory"}
+    ledger: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: ParityLedger}}, description: "the last approved ledger"}
+  produce:
+    uses: {kind: Workflow, name: characterize-work}
+    inputs:
+      source: {fromInput: source}
+      repository: {fromInput: repository}
+      brief: {fromInput: brief}
+      productId: {fromInput: productId}
+      slice: {fromInput: slice}
+      inventory: {fromInput: inventory}
+      ledger: {fromInput: ledger}
+    timeout: 160h
+  review:
+    uses: {kind: Gate, name: characterize-gate}
+    inputs:
+      ledger: {fromStep: {stepRef: produce, output: ledger}}
+      inventory: {fromInput: inventory}
+      sourceIndex: {fromStep: {stepRef: produce, output: sourceIndex}}
+      coverage: {fromStep: {stepRef: produce, output: coverage}}
+      runs: {fromStep: {stepRef: produce, output: runs}}
+      slice: {fromInput: slice}
+      audit: {fromStep: {stepRef: produce, output: audit}}
+    timeout: 5m
+  subject: ledger
+  feedback: feedback
+  maxRounds: 3
+  timeout: 500h
+---
+apiVersion: persimmon.ai/v1
+kind: Workflow
+metadata: {name: recover-work}
+spec:
+  inputs:
+    brief: {type: {kind: value, schema: {type: string, minLength: 1}}}
+    productId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}
+    slice: {type: {kind: value, schema: {type: string, pattern: "^SL-[0-9]+$"}}}
+    inventory: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}}
+    ledger: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: ParityLedger}}}
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false}
+    previousRules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+  outputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
+    decisions: {type: {kind: value, schema: {type: object}}}
+    ledger: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: ParityLedger}}}
+  outputBindings:
+    prd: {fromStep: {stepRef: recover, output: prd}}
+    rules: {fromStep: {stepRef: recover, output: rules}}
+    audit: {fromStep: {stepRef: audit, output: audit}}
+    decisions: {expression: "steps.decide.outputs.decisions"}
+    ledger: {fromStep: {stepRef: ledger, output: ledger}}
+  entry: [recover]
+  steps:
+    - id: recover
+      uses: {kind: Task, name: recover-prd}
+      inputs:
+        inventory: {fromInput: inventory}
+        ledger: {fromInput: ledger}
+        slice: {fromInput: slice}
+        brief: {fromInput: brief}
+        productId: {fromInput: productId}
+        prd: {fromInput: prd, onMissing: omit}
+        rules: {fromInput: rules, onMissing: omit}
+        previous: {fromInput: previous, onMissing: omit}
+        previousRules: {fromInput: previousRules, onMissing: omit}
+        feedback: {fromInput: feedback, onMissing: omit}
+      timeout: 30m
+    - id: audit
+      uses: {kind: Task, name: audit-recovery}
+      inputs:
+        prd: {fromStep: {stepRef: recover, output: prd}}
+        rules: {fromStep: {stepRef: recover, output: rules}}
+        inventory: {fromInput: inventory}
+        ledger: {fromInput: ledger}
+      timeout: 30m
+    - id: decide
+      uses: {kind: Task, name: decide-recovery}
+      inputs:
+        prd: {fromStep: {stepRef: recover, output: prd}}
+        rules: {fromStep: {stepRef: recover, output: rules}}
+        inventory: {fromInput: inventory}
+        ledger: {fromInput: ledger}
+        audit: {fromStep: {stepRef: audit, output: audit}}
+        feedback: {fromInput: feedback, onMissing: omit}
+      timeout: 72h
+    - id: ledger # measures nothing: the characterization's measurements carry, every account recomputed with the decisions
+      uses: {kind: Task, name: compute-ledger}
+      inputs:
+        inventory: {fromInput: inventory}
+        productId: {fromInput: productId}
+        slice: {fromInput: slice}
+        ledger: {fromInput: ledger}
+        rules: {fromStep: {stepRef: recover, output: rules}}
+        decisions: {expression: "steps.decide.outputs.decisions"}
+      timeout: 10m
+  transitions:
+    - {id: to-audit, from: [{stepRef: recover, outcomes: [Succeeded]}], to: [{stepRef: audit}]}
+    - {id: to-decide, from: [{stepRef: audit, outcomes: [Succeeded]}], to: [{stepRef: decide}]}
+    - {id: to-ledger, from: [{stepRef: decide, outcomes: [Succeeded]}], to: [{stepRef: ledger}]}
+    - {id: done, from: [{stepRef: ledger, outcomes: [Succeeded]}], to: [{terminal: Succeeded}]}
+  timeout: 80h
+---
+# One Slice's Prd and rules recovered and decided; `prd` and `rules` are the product's last approved, an earlier Slice's.
+apiVersion: persimmon.ai/v1
+kind: ReviewLoop
+metadata: {name: recover-prd}
+spec:
+  inputs:
+    brief: {type: {kind: value, schema: {type: string, minLength: 1}}}
+    productId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}
+    slice: {type: {kind: value, schema: {type: string, pattern: "^SL-[0-9]+$"}}}
+    inventory: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}}
+    ledger: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: ParityLedger}}, description: "the characterization's"}
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false, description: "the product's last approved Prd; the first Slice has none"}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false, description: "the product's last approved rules"}
+  produce:
+    uses: {kind: Workflow, name: recover-work}
+    inputs:
+      brief: {fromInput: brief}
+      productId: {fromInput: productId}
+      slice: {fromInput: slice}
+      inventory: {fromInput: inventory}
+      ledger: {fromInput: ledger}
+      prd: {fromInput: prd}
+      rules: {fromInput: rules}
+    timeout: 80h
+  review:
+    uses: {kind: Gate, name: recover-gate}
+    inputs:
+      prd: {fromStep: {stepRef: produce, output: prd}}
+      rules: {fromStep: {stepRef: produce, output: rules}}
+      previousRules: {fromInput: previousRules}
+      feedback: {fromInput: feedback}
+      inventory: {fromInput: inventory}
+      ledger: {fromStep: {stepRef: produce, output: ledger}}
+      lastPrd: {fromInput: prd}
+      decisions: {fromStep: {stepRef: produce, output: decisions}}
+      slice: {fromInput: slice}
+      audit: {fromStep: {stepRef: produce, output: audit}}
+    timeout: 5m
+  subject: prd
+  previous: previous
+  feedback: feedback
+  carry: {rules: previousRules} # the rules come back beside the Prd, as author-prd's
+  maxRounds: 3
+  timeout: 240h
+---
+apiVersion: persimmon.ai/v1
+kind: Workflow
+metadata: {name: parity-work}
+spec:
+  inputs:
+    repository: {type: {kind: externalResource, provider: git, type: repository}}
+    productId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}
+    slice: {type: {kind: value, schema: {type: string, pattern: "^SL-[0-9]+$"}}}
+    inventory: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}}
+    ledger: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: ParityLedger}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
+    harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+  outputs:
+    ledger: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: ParityLedger}}}
+    driver: {type: {kind: value, schema: {type: object}}}
+    audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
+    decisions: {type: {kind: value, schema: {type: object}}}
+  outputBindings:
+    ledger: {fromStep: {stepRef: ledger, output: ledger}}
+    driver: {expression: "steps.driver.outputs.written.driver"}
+    audit: {fromStep: {stepRef: audit, output: audit}}
+    decisions: {expression: "steps.review.outputs.decisions"}
+  entry: [driver]
+  steps:
+    - id: driver
+      uses: {kind: Task, name: write-rewrite-driver}
+      inputs:
+        ledger: {fromInput: ledger}
+        slice: {fromInput: slice}
+        designs: {fromInput: designs}
+        repository: {fromInput: repository}
+        feedback: {fromInput: feedback, onMissing: omit}
+      timeout: 72h
+    - id: audit
+      uses: {kind: Task, name: audit-driver}
+      inputs:
+        written: {expression: "steps.driver.outputs.written"}
+        ledger: {fromInput: ledger}
+        designs: {fromInput: designs}
+        repository: {fromInput: repository}
+      timeout: 1h
+    - id: run
+      uses: {kind: Task, name: run-rewrite}
+      inputs:
+        ledger: {fromInput: ledger}
+        harness: {fromInput: harness}
+        repository: {fromInput: repository}
+      timeout: 2h
+    - id: compared # the differences for the human to review
+      uses: {kind: Task, name: compute-ledger}
+      inputs:
+        inventory: {fromInput: inventory}
+        productId: {fromInput: productId}
+        slice: {fromInput: slice}
+        ledger: {fromInput: ledger}
+        rules: {fromInput: rules}
+        rewriteRuns: {fromStep: {stepRef: run, output: runs}}
+      timeout: 10m
+    - id: review
+      uses: {kind: Task, name: review-parity}
+      inputs:
+        ledger: {fromStep: {stepRef: compared, output: ledger}}
+        written: {expression: "steps.driver.outputs.written"}
+        audit: {fromStep: {stepRef: audit, output: audit}}
+        feedback: {fromInput: feedback, onMissing: omit}
+      timeout: 72h
+    - id: ledger # the same comparison with the human's decisions: the revision the gate checks
+      uses: {kind: Task, name: compute-ledger}
+      inputs:
+        inventory: {fromInput: inventory}
+        productId: {fromInput: productId}
+        slice: {fromInput: slice}
+        ledger: {fromInput: ledger}
+        rules: {fromInput: rules}
+        rewriteRuns: {fromStep: {stepRef: run, output: runs}}
+        decisions: {expression: "steps.review.outputs.decisions"}
+      timeout: 10m
+  transitions:
+    - {id: to-audit, from: [{stepRef: driver, outcomes: [Succeeded]}], to: [{stepRef: audit}]}
+    - {id: to-run, from: [{stepRef: audit, outcomes: [Succeeded]}], to: [{stepRef: run}]}
+    - {id: to-compared, from: [{stepRef: run, outcomes: [Succeeded]}], to: [{stepRef: compared}]}
+    - {id: to-review, from: [{stepRef: compared, outcomes: [Succeeded]}], to: [{stepRef: review}]}
+    - {id: to-ledger, from: [{stepRef: review, outcomes: [Succeeded]}], to: [{stepRef: ledger}]}
+    - {id: done, from: [{stepRef: ledger, outcomes: [Succeeded]}], to: [{terminal: Succeeded}]}
+  timeout: 160h
+---
+# One Slice's rewrite held to its source: the suite through the rewrite's driver against the rewrite, every difference with
+# its cause, the verdict. `ledger` is the recovery's, `prd` and `rules` the Slice's approved ones.
+apiVersion: persimmon.ai/v1
+kind: ReviewLoop
+metadata: {name: parity}
+spec:
+  inputs:
+    repository: {type: {kind: externalResource, provider: git, type: repository}, description: "the project: the rewrite and the suite"}
+    productId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}
+    slice: {type: {kind: value, schema: {type: string, pattern: "^SL-[0-9]+$"}}}
+    inventory: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}}
+    ledger: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: ParityLedger}}}
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, description: "the Slice's Designs"}
+    harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}}
+  produce:
+    uses: {kind: Workflow, name: parity-work}
+    inputs:
+      repository: {fromInput: repository}
+      productId: {fromInput: productId}
+      slice: {fromInput: slice}
+      inventory: {fromInput: inventory}
+      ledger: {fromInput: ledger}
+      rules: {fromInput: rules}
+      designs: {fromInput: designs}
+      harness: {fromInput: harness}
+    timeout: 160h
+  review:
+    uses: {kind: Gate, name: parity-gate}
+    inputs:
+      ledger: {fromStep: {stepRef: produce, output: ledger}}
+      slice: {fromInput: slice}
+      driver: {fromStep: {stepRef: produce, output: driver}}
+      prd: {fromInput: prd}
+      audit: {fromStep: {stepRef: produce, output: audit}}
+      decisions: {fromStep: {stepRef: produce, output: decisions}}
+    timeout: 5m
+  subject: ledger
+  feedback: feedback
+  maxRounds: 2
+  timeout: 340h

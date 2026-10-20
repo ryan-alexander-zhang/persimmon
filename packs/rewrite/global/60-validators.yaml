@@ -1,0 +1,94 @@
+# Validators of the Rewrite pack (14-gate.md, 40-pack-rewrite.md): parity/v1 runs one check per Validator, named by mode; the
+# auditors' verdicts are read by the SDLC pack's acceptance-audited, by name; a human's decision is a typed value a cel reads.
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: survey-consistency}
+spec:
+  inputs:
+    inventory: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}}
+    sourceIndex: {type: {kind: value, schema: {type: object}}}
+    decisions: {type: {kind: value, schema: {type: object}}, description: "cut-slices' answer: the cut"}
+  evaluator:
+    type: adapter
+    adapter: parity/v1
+    configuration: {mode: survey}
+  timeout: 1m
+---
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: inventory-consistency}
+spec:
+  inputs:
+    inventory: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}}
+    sourceIndex: {type: {kind: value, schema: {type: object}}}
+    slice: {type: {kind: value, schema: {type: string, pattern: "^SL-[0-9]+$"}}}
+    ledger: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: ParityLedger}}, description: "the cut"}
+    second: {type: {kind: value, schema: {type: object, required: [guards]}}, description: "the second reader's guards"}
+  evaluator:
+    type: adapter
+    adapter: parity/v1
+    configuration: {mode: inventory}
+  timeout: 1m
+---
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: ledger-closure}
+spec:
+  inputs:
+    ledger: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: ParityLedger}}}
+    inventory: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}}
+    sourceIndex: {type: {kind: value, schema: {type: object}}}
+    coverage: {type: {kind: value, schema: {type: object}}}
+    runs: {type: {kind: value, schema: {type: array}}}
+    slice: {type: {kind: value, schema: {type: string, pattern: "^SL-[0-9]+$"}}}
+  evaluator:
+    type: adapter
+    adapter: parity/v1
+    configuration: {mode: closure}
+  timeout: 1m
+---
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: recovery-consistency}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    inventory: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}}
+    ledger: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: ParityLedger}}, description: "the revision computed with this round's decisions"}
+    lastPrd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false, description: "the product's last approved Prd: a capability it had may leave only by a drop"}
+    decisions: {type: {kind: value, schema: {type: object}}}
+    slice: {type: {kind: value, schema: {type: string, pattern: "^SL-[0-9]+$"}}}
+  evaluator:
+    type: adapter
+    adapter: parity/v1
+    configuration: {mode: recovery}
+  timeout: 1m
+---
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: parity-consistency}
+spec:
+  inputs:
+    ledger: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: ParityLedger}}, description: "the revision computed with the rewrite's runs and review-parity's decisions"}
+    slice: {type: {kind: value, schema: {type: string, pattern: "^SL-[0-9]+$"}}}
+    driver: {type: {kind: value, schema: {type: object}}, description: "the rewrite driver's methods"}
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, description: "its nonGoals: an entry point dropped needs no method"}
+  evaluator:
+    type: adapter
+    adapter: parity/v1
+    configuration: {mode: parity}
+  timeout: 1m
+---
+# decided: a human's typed decision, approved or not, its findings the feedback; recomputed so no approval passes beside an error.
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: decided}
+spec:
+  inputs:
+    decisions: {type: {kind: value, schema: {type: object}}, description: "a human Task's answer, validated against its own schema when answered"}
+  evaluator:
+    type: cel
+    expression: |
+      {"passed": inputs.decisions.approved && inputs.decisions.findings.all(f, f.severity != "error"), "findings": inputs.decisions.findings, "evidence": []}
+  timeout: 1m

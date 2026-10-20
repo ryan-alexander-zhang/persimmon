@@ -1,0 +1,163 @@
+# Gates of the Rewrite pack (14-gate.md, 40-pack-rewrite.md): pure, over the loop's artifacts and values; every agent and every
+# human step ran in produce before them.
+apiVersion: persimmon.ai/v1
+kind: Gate
+metadata: {name: survey-gate}
+spec:
+  inputs:
+    inventory: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}}
+    sourceIndex: {type: {kind: value, schema: {type: object}}}
+    decisions: {type: {kind: value, schema: {type: object}}}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
+  validators:
+    - name: consistency
+      ref: {kind: Validator, name: survey-consistency}
+      inputs:
+        inventory: {fromInput: inventory}
+        sourceIndex: {fromInput: sourceIndex}
+        decisions: {fromInput: decisions}
+    - name: decided
+      ref: {kind: Validator, name: decided}
+      inputs:
+        decisions: {fromInput: decisions}
+  policy: {strategy: all}
+  timeout: 5m
+---
+apiVersion: persimmon.ai/v1
+kind: Gate
+metadata: {name: inventory-gate}
+spec:
+  inputs:
+    inventory: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}}
+    sourceIndex: {type: {kind: value, schema: {type: object}}}
+    slice: {type: {kind: value, schema: {type: string, pattern: "^SL-[0-9]+$"}}}
+    ledger: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: ParityLedger}}}
+    second: {type: {kind: value, schema: {type: object, required: [guards]}}}
+    audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
+  validators:
+    - name: consistency
+      ref: {kind: Validator, name: inventory-consistency}
+      inputs:
+        inventory: {fromInput: inventory}
+        sourceIndex: {fromInput: sourceIndex}
+        slice: {fromInput: slice}
+        ledger: {fromInput: ledger}
+        second: {fromInput: second}
+    - name: audit
+      ref: {kind: Validator, name: acceptance-audited}
+      inputs:
+        audit: {fromInput: audit}
+  policy: {strategy: all}
+  timeout: 5m
+---
+apiVersion: persimmon.ai/v1
+kind: Gate
+metadata: {name: characterize-gate}
+spec:
+  inputs:
+    ledger: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: ParityLedger}}}
+    inventory: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}}
+    sourceIndex: {type: {kind: value, schema: {type: object}}}
+    coverage: {type: {kind: value, schema: {type: object}}}
+    runs: {type: {kind: value, schema: {type: array}}}
+    slice: {type: {kind: value, schema: {type: string, pattern: "^SL-[0-9]+$"}}}
+    audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}, description: "the auditor's verdict on the mutants"}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
+  validators:
+    - name: closure
+      ref: {kind: Validator, name: ledger-closure}
+      inputs:
+        ledger: {fromInput: ledger}
+        inventory: {fromInput: inventory}
+        sourceIndex: {fromInput: sourceIndex}
+        coverage: {fromInput: coverage}
+        runs: {fromInput: runs}
+        slice: {fromInput: slice}
+    - name: audit
+      ref: {kind: Validator, name: acceptance-audited}
+      inputs:
+        audit: {fromInput: audit}
+  policy: {strategy: all}
+  timeout: 5m
+---
+apiVersion: persimmon.ai/v1
+kind: Gate
+metadata: {name: recover-gate}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    previousRules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false, description: "the last round's rules; round one has none"}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict: the findings that may change a rule"}
+    inventory: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}}
+    ledger: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: ParityLedger}}}
+    lastPrd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false, description: "the product's last approved Prd; the first Slice has none"}
+    decisions: {type: {kind: value, schema: {type: object}}}
+    slice: {type: {kind: value, schema: {type: string, pattern: "^SL-[0-9]+$"}}}
+    audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
+  validators:
+    - name: prd
+      ref: {kind: Validator, name: prd-consistency}
+      inputs:
+        prd: {fromInput: prd}
+        rules: {fromInput: rules}
+        previousRules: {fromInput: previousRules, onMissing: omit}
+        feedback: {fromInput: feedback, onMissing: omit}
+    - name: recovery
+      ref: {kind: Validator, name: recovery-consistency}
+      inputs:
+        prd: {fromInput: prd}
+        rules: {fromInput: rules}
+        inventory: {fromInput: inventory}
+        ledger: {fromInput: ledger}
+        lastPrd: {fromInput: lastPrd, onMissing: omit}
+        decisions: {fromInput: decisions}
+        slice: {fromInput: slice}
+    - name: audit
+      ref: {kind: Validator, name: acceptance-audited}
+      inputs:
+        audit: {fromInput: audit}
+    - name: decided
+      ref: {kind: Validator, name: decided}
+      inputs:
+        decisions: {fromInput: decisions}
+  policy: {strategy: all}
+  timeout: 5m
+---
+apiVersion: persimmon.ai/v1
+kind: Gate
+metadata: {name: parity-gate}
+spec:
+  inputs:
+    ledger: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: ParityLedger}}}
+    slice: {type: {kind: value, schema: {type: string, pattern: "^SL-[0-9]+$"}}}
+    driver: {type: {kind: value, schema: {type: object}}}
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}, description: "the auditor's verdict on the driver"}
+    decisions: {type: {kind: value, schema: {type: object}}}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
+  validators:
+    - name: parity
+      ref: {kind: Validator, name: parity-consistency}
+      inputs:
+        ledger: {fromInput: ledger}
+        slice: {fromInput: slice}
+        driver: {fromInput: driver}
+        prd: {fromInput: prd}
+    - name: audit
+      ref: {kind: Validator, name: acceptance-audited}
+      inputs:
+        audit: {fromInput: audit}
+    - name: decided
+      ref: {kind: Validator, name: decided}
+      inputs:
+        decisions: {fromInput: decisions}
+  policy: {strategy: all}
+  timeout: 5m

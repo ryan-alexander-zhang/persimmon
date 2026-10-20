@@ -1,0 +1,279 @@
+# Prompts of the Rewrite pack (15-prompt-skill.md, 40-pack-rewrite.md): the method, one Prompt per Task, overridable by name in a
+# Namespace. The agent extracts; parity/v1 and the ledger decide.
+apiVersion: persimmon.ai/v1
+kind: Prompt
+metadata: {name: source-reading}
+spec:
+  mediaType: text/markdown
+  content: |
+    # Reading a Source system for its rules
+
+    The working directory is a checkout of the Source system at one commit. Read it; never change, build or run it. Every fact
+    you record is the code's, in the source's own names. A README, a comment or a name is what someone said, not what the code
+    does: check a README's stated stack, versions and behaviour against the code, and record what the code does.
+
+    Use whatever analysis the checkout allows (grep, ripgrep, the language's own tools if present); read every file a path you
+    follow reaches, not a sample.
+
+    Where rules hide, per stack:
+
+    - Java, Kotlin, C#: validators and annotations (`@NotNull`, `@Size`, `@Pattern`, `[Required]`), ORM mappings and their
+      constraints (`unique`, `nullable`, cascade), SQL in strings and mapper XML, stored procedures and triggers, configuration
+      and feature flags, reflection and dependency wiring that picks an implementation, scheduled jobs and their order, message
+      handlers, report queries, `Optional` chains, stream filters, `switch` expressions and other branches with no `if`.
+    - Python, Ruby, JavaScript: decorators, model validators, signals and callbacks, middleware order, truthiness tests,
+      `or` defaults, `try`/`except` used as a branch, dictionary dispatch.
+    - SQL and schema: `CHECK`, `UNIQUE`, foreign keys with `ON DELETE`, defaults, triggers, views that filter rows.
+    - COBOL and JCL: `EVALUATE`/`WHEN`, `IF`, `INVALID KEY`, `AT END`, `NOT ON SIZE ERROR`, 88-level condition names (a test of
+      the name is a test of its values; record the 88's declaration as a second `where`), `OPEN OUTPUT` on an indexed file as a
+      truncate, `RETURN-CODE` and the JCL `COND` that reads it, reference modification (`WS-DATE(1:4)`), signed overpunch in
+      data, IDCAMS `DEFINE` `KEYS` and `UNIQUEKEY`, GDG `LIMIT` as retention, scheduler files as job order.
+
+    Also rules: statement order where swapping two statements changes the result (a balance updated before a check reads it);
+    an unconditional write that outlives the request; a field written and read nowhere (an absence: a check the source could
+    make from it and does not).
+---
+apiVersion: persimmon.ai/v1
+kind: Prompt
+metadata: {name: survey-rules}
+spec:
+  mediaType: text/markdown
+  content: |
+    # The Survey: every entry point of the whole source, no guard
+
+    Answer the SourceInventory's first revision. List every entry point of every kind across the whole checkout:
+    `http` (a route, a servlet, a controller action), `message` (a consumer, a listener), `job` (a batch program, a scheduled
+    task, a JCL step), `cli`, `ui` (a screen, a CICS transaction, a form), `report`. For each, `reaches`: the files a call from
+    it can reach (follow calls, includes, copybooks, mapper files), the entities it reads or writes (`EN-n`), the external
+    systems it calls or is called by (`EX-n`). Record each entity and external system once, with its `where`.
+
+    Read no guard: `guards`, `declarations`, `absences`, `plumbingPatterns`, `stateChanges` and `tests` are `[]` here; the
+    Slices read them. Every list of the inventory is present, `[]` when empty. `unread` names each directory you did not read
+    and why (generated, vendored, fixtures, build output). `openQuestions` asks what the code cannot answer.
+
+    Ids: `EP-1`, `EP-2`, ... in document order, likewise `EN-n`, `EX-n`, `Q-n`; never reuse or skip one.
+
+    In `openQuestions`, propose Slices as one `Q-n`: sets of entry points rewritten and cut over together, cut along shared
+    data, smallest and least connected first, each small enough for one agent's context (about 30 guards, about 10 files). An
+    entity two proposed Slices both write is a contract between them: name it. The human cuts the Slices; you propose.
+---
+apiVersion: persimmon.ai/v1
+kind: Prompt
+metadata: {name: inventory-rules}
+spec:
+  mediaType: text/markdown
+  content: |
+    # The inventory of one Slice: facts only
+
+    Read every file the Slice's entry points reach and record what the code does, in the source's names, before any
+    interpretation. Keep every item the inventory you were given already has, with its id: you add the Slice's items.
+
+    - `guards[]`: one per decision: a branch that refuses, computes or decides. `condition` is what the code tests;
+      `outcome` what follows on each side. `where` runs from the deciding statement to the end of its last arm
+      (`src/A.java:41-58`), never a whole file; a condition name or constant the test reads is a second `where` at its
+      declaration. `in` lists the entry points it sits under. `role`: `rule` (a business decision), `plumbing` (a null
+      check, a file status, a retry, a log level), `unknown` when you cannot tell; never guess `plumbing` to shorten the list.
+      `volatile`: `time` only when the condition reads the clock (`now()`, `CURRENT-DATE`), never for a date the input
+      carries; `random`, `order` (iteration order of an unordered collection), `concurrency`.
+    - `declarations[]`: a rule with no branch: a key, a uniqueness, a retention (GDG `LIMIT`, a purge job), an ordering
+      (job order, statement order), a schema constraint, a value in data or configuration, a `contract` (the layout of an
+      entity another Slice reads).
+    - `stateChanges[]`: every write that outlives the request: a row, a session attribute, a file, a message, an email;
+      `change` create, update, delete, status (a status field changed) or send; `from` its entry points.
+    - `absences[]`: a check the source could make and does not (an account closed and still debited).
+    - `plumbingPatterns[]`: identical plumbing as one `PP-n`: the pattern, two or more example guards, `where` every
+      occurrence, so a branch line it covers needs no guard of its own.
+    - `tests[]`: the source's own tests and what each covers.
+    - `unread[]`: generated, vendored and fixture code you did not read, each with its reason.
+    - `openQuestions[]`: what the code cannot answer.
+
+    Every list is present, `[]` when empty. Ids count up across Slices: the next free number of each prefix, in document
+    order; never renumber an earlier Slice's item. A later Slice cites an earlier Slice's `EN-n` or `ST-n` and never
+    redefines it. `slice` is the Slice you read.
+
+    A check holds you to the source: every `where` must name a file and lines the index has, and every branch line of a file
+    the Slice reaches must sit inside some guard's or plumbing pattern's line `where`. A finding naming a line you missed is a
+    guard you missed.
+---
+apiVersion: persimmon.ai/v1
+kind: Prompt
+metadata: {name: reread-source}
+spec:
+  mediaType: text/markdown
+  content: |
+    # The second reading
+
+    You are a second reader of the same Slice, blind to the first: read in another order. Start from the data: the schema,
+    the DDL, the copybooks and record layouts, the mapper files, the job definitions and scheduler files, the configuration;
+    then the code that reads and writes each, then the entry points. Record the same facts by the same inventory rules,
+    `guards` above all: each with its exact `where`. Your ids need not match the first reader's; a check compares the two by
+    overlapping lines, and every guard of yours that overlaps nothing the first reader recorded goes to a human.
+---
+apiVersion: persimmon.ai/v1
+kind: Prompt
+metadata: {name: characterize-rules}
+spec:
+  mediaType: text/markdown
+  content: |
+    # Characterization tests: record, never judge
+
+    The expected value of every test is what the Source system answered, a bug included. You do not decide what is right; a
+    human does later, and a rule changed on purpose moves its tests then.
+
+    - Write the suite in the project (the rewrite's repository), never in the checkout. Reach the source through the path the
+      level commands receive in `PERSIMMON_SOURCE`.
+    - Tests assert observations through the source's Protocol driver: one class that turns the source's interface (HTML, a
+      JSON body, a screen map, an output file, a row in a table) into plain observation objects. A test never parses a wire
+      format itself; the rewrite gets its own driver later and the same test runs against both.
+    - Name each test with the `EP-n` it drives and the ids of the items it targets: `test_EP3_GD11_add_in_stock`. An id in the
+      name is how the ledger knows what a test pins.
+    - Per guard, an input on each side of its boundary (the boundary value itself, one either side). Where the toolchain has a
+      property-based tool, generate inputs as well. Per state change and outbound system, assert the row, the message, the
+      file, the email through the driver.
+    - A `time` guard: control the clock and test each side of its date. A `random` guard: fix the seed.
+    - Data reset before each test by the level's `reset` command; the suite's own fixture runs it between tests, and
+      `conventions` says how.
+    - Each run writes its JUnit XML and an observations JSON file, `{<test name>: <what it observed>}`, so the source's answers
+      are recorded without reading a test.
+    - Levels: `app` starts the source's app and drives its interface; `units` calls the source's code through its own
+      toolchain when the app cannot start; `records` replays input and output pairs the developer gave and runs on the rewrite
+      only. A level the source cannot run is left out; with none, `levels` is `{}`.
+    - When no input can reach an outcome, say so for that item with the evidence (a guard behind a constant, a branch
+      unreachable from every entry point): a human decides it `dead`.
+
+    A check holds you to this: every item its Oracle can pin must have a test citing it whose mutant fails it. A finding
+    naming an item not reached, or reached and not pinned, needs a test that reaches it and asserts its outcome.
+---
+apiVersion: persimmon.ai/v1
+kind: Prompt
+metadata: {name: mutant-rules}
+spec:
+  mediaType: text/markdown
+  content: |
+    # Mutants: one patch per reached item
+
+    For each item the run reached, write one patch that changes what it decides, as a unified diff against the checkout at
+    its commit, paths relative to the repository root:
+
+    - a guard: negate its condition or move its boundary (`>` to `>=`, `0` to `1`);
+    - a handler or an arm: remove it;
+    - a state change or an outbound call: delete the write or the send;
+    - a declaration: drop it (the constraint, the key, the configured value).
+
+    Change only lines inside the item's `where`; insert nothing outside it; create, rename or delete no file. Never add a
+    crash: no new `throw`, `raise`, `exit`, `panic`, `abort`, `STOP RUN`, division by zero, null dereference or endless
+    loop. A mutant must build, start and run; it must change an outcome a test can observe through the driver. A patch that
+    breaks any of this is `invalid` and pins nothing; an auditor samples them.
+---
+apiVersion: persimmon.ai/v1
+kind: Prompt
+metadata: {name: recover-rules}
+spec:
+  mediaType: text/markdown
+  content: |
+    # Recovering the Prd and the rules from the evidence
+
+    Write the Prd and the BusinessRules of the Slice's capabilities from the inventory and the ledger. Evidence ranks:
+    observed (a Characterization test's recorded answer) over read (the code at an item's `where`) over said (docs,
+    comments, names). Where they disagree, the observed wins and the disagreement is a `Q-n`.
+
+    - A rule states one item or several in RuleSpeak ("A cart line must ...", "An order may only ... if ...") with
+      `source: "inventory: GD-n, DC-n, ST-n"`, and names the tests that show it in `examples`.
+    - Plumbing is no rule. A guard of role `unknown` is a rule until a human decides otherwise.
+    - Behaviour the tests show that no item explains is a `Q-n`.
+    - Every absence gets a proposed Disposition in a `Q-n`: keep (the rewrite does not check either) or change (a new rule).
+    - A capability per coherent set of entry points; its description names its `EP-n`. An entry point no capability names
+      and no non-goal lists is a finding.
+    - The product's last approved Prd and rules are carried forward whole: every `CAP-n` and `BR-n` keeps its id and text;
+      this Slice adds the next numbers. A capability leaves only by a `drop` Disposition, to `nonGoals` with its reason.
+    - Dispositions decided: `keep` leaves the rule as recovered; `change` deprecates it and adds a rule with
+      `source: "decision: <why>"`; `drop` moves the capability to `nonGoals`. Until a human decides, the brief's default
+      Disposition holds.
+---
+apiVersion: persimmon.ai/v1
+kind: Prompt
+metadata: {name: recovery-review}
+spec:
+  mediaType: text/markdown
+  content: |
+    # Reviewing a recovery
+
+    For the human deciding a Slice's recovery, and for a Reviewer subagent answering for them.
+
+    1. Accuracy first: does each rule say what its items' code does and what its tests recorded? A rule the tests contradict
+       is wrong, whatever the code seems to say.
+    2. Then each Disposition. `keep` is the default; `change` names the new rule; `drop` names its reason and moves the
+       capability to `nonGoals`.
+    3. `dead` needs the evidence the ledger shows: no input reaches the outcome. "Probably unused" is not evidence.
+    4. An open item accepted names why no test can reach it; accepting is the last resort, since it ships an unchecked rule.
+    5. Each `reader-disagreement`: whether the second reader's guard is real (`resolution` says which).
+    6. Approve only when nothing open is left undecided.
+---
+apiVersion: persimmon.ai/v1
+kind: Prompt
+metadata: {name: driver-rules}
+spec:
+  mediaType: text/markdown
+  content: |
+    # The rewrite's Protocol driver
+
+    The rewrite driver turns the rewrite's interface into the same observation objects the source's driver answers, so every
+    Characterization test runs unchanged against the rewrite. It renames, reshapes, selects and converts formats only:
+
+    - never arithmetic, never a branch on a value, never a default for a missing value: a driver that computes moves a rule
+      into test code and hides a difference;
+    - one old operation may become several calls; two old operations may share one call, each selecting its part;
+    - one method per operation of the source's driver, each citing the `EP-n` it serves and the Design element (`EL-n`) it
+      lands on; an entry point dropped by a Disposition has no method.
+
+    With the interface kept, write no file: answer `driver.kept: true` and still map each entry point to its Design element.
+---
+apiVersion: persimmon.ai/v1
+kind: Prompt
+metadata: {name: rewrite-audit-rules}
+spec:
+  mediaType: text/markdown
+  content: |
+    # Auditing a rewrite step
+
+    A deterministic check has passed or will pass what it can read: ids, lines, coverage, mutant results. You judge what it
+    cannot, by reading the code a step's answer names. Report every defect you find, each its own finding, the message
+    opening with the id it is about. A defect the step's writer can fix is `severity: error`; a doubt is `warning`. Read
+    only: never edit, create or delete a file; run no command that changes anything.
+
+    Answer the audit: `passed` true exactly when no finding is an error, `evidence` an empty list.
+
+    ## An inventory (`audit-inventory`)
+
+    The workspace is the source checkout. Sample guards against the code at their `where`, plumbing labels first, since a
+    rule mislabelled plumbing is the cheapest way to lose one:
+    - `plumbing-is-rule` (error): a guard of role `plumbing`, or one a `PP-n` covers, whose outcome a user or another system
+      would notice (a refusal, a different amount, a different status).
+    - `where-wrong` (error): a guard whose `where` does not hold its deciding statement and every arm.
+    - `fact-wrong` (error): a `condition`, `outcome` or `statement` the code does not say.
+    - `unread-unexplained` (error): a directory the Slice reaches that is neither read (no item cites a file in it) nor in
+      `unread` with a reason.
+
+    ## Mutants (`audit-mutants`)
+
+    The workspace is the source checkout. Sample the patches, killed ones first:
+    - `mutant-crash` (error): a patch whose change crashes rather than decides otherwise (a division by zero, a null
+      dereference, an endless loop, an exception by another name).
+    - `mutant-unobservable` (error): a patch that changes nothing a test can observe through the driver.
+    - `mutant-off-item` (error): a patch that changes another item's decision than the one it names.
+
+    ## A recovery (`audit-recovery`)
+
+    The Prd and the rules beside the inventory and the ledger:
+    - `rule-contradicted` (error): a rule a recorded answer in the ledger contradicts.
+    - `rule-unfounded` (error): a rule its cited items' code does not support.
+    - `capability-without-entry-point` (error): a capability whose description names no `EP-n`.
+    - `item-unexplained` (warning): a rule-role guard no rule cites and no `Q-n` asks about.
+
+    ## A rewrite driver (`audit-driver`)
+
+    The workspace is the project. Read every method of the rewrite driver:
+    - `driver-computes` (error): arithmetic, a branch on a value, a default for a missing value, or a call the operation does
+      not need.
+    - `driver-misses` (error): an operation of the source's driver with no method, or a method citing an entry point it does
+      not serve.
