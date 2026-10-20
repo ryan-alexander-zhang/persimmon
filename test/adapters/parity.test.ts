@@ -315,6 +315,65 @@ describe('parity-run/v1 over stdio', () => {
     expect(r.result.outputs.sourceIndex.value).toMatchObject({ commit: git(source, 'rev-parse', 'HEAD'), root: source, dirty: [], project: { root: project }, files: { 'A.java': { lines: 1, branchLines: [1] } } })
   })
 
+  it('run-source: resets, runs each level on the source with its path, and answers tests, observations and mapped coverage', async () => {
+    const source = realpathSync(mkdtempSync(join(tmpdir(), 'parity-run-src-')))
+    git(source, 'init', '-q')
+    writeFileSync(join(source, 'A.java'), 'class A {\n  int f(int x) { if (x > 0) return 1; return 0; }\n}\n')
+    git(source, 'add', 'A.java')
+    git(source, 'commit', '-qm', 'a')
+    const project = realpathSync(mkdtempSync(join(tmpdir(), 'parity-run-prj-')))
+    // the suite: two tests, one red, what each observed, and lcov naming the source file by its absolute path
+    writeFileSync(join(project, 'suite.mjs'), [
+      "import { mkdirSync, writeFileSync, existsSync } from 'node:fs'",
+      "mkdirSync('build', { recursive: true })",
+      "writeFileSync('build/app.xml', '<testsuite><testcase name=\"test_EP1_GD1_a\"/><testcase name=\"test_EP1_b\"><failure message=\"no\"/></testcase></testsuite>')",
+      "writeFileSync('build/app.json', JSON.stringify({ test_EP1_GD1_a: { total: '1.00' }, reset: existsSync('reset.flag') }))",
+      "writeFileSync('build/app.lcov', `SF:${process.env.PERSIMMON_SOURCE}/A.java\\nDA:2,3\\nDA:3,0\\nend_of_record\\n`)",
+      'process.exit(1)', // a red suite is an answer
+    ].join('\n'))
+    const index = indexSource(source, project)
+    const level = { tool: 'node', run: 'node suite.mjs', one: 'node suite.mjs {test}', reset: "node -e \"require('fs').writeFileSync('reset.flag','1')\"", junit: 'build/app.xml', observations: 'build/app.json', testDir: '.', coverage: 'build/app.lcov' }
+    const withInputs = (levels: Record<string, unknown>) => {
+      const r: any = execute(project, { runs: { type: { kind: 'value', schema: { type: 'array' } } }, coverage: { type: { kind: 'value', schema: { type: 'object' } } } })
+      r.payload.inputs = {
+        written: { kind: 'value', value: { files: [], suite: { levels, drivers: { source: 'drivers/source.mjs' }, conventions: '' } } },
+        source: { kind: 'externalResource', ref: { provider: 'git', type: 'repository', id: 'src', locator: { path: source }, version: index.commit } },
+        sourceIndex: { kind: 'value', value: index },
+      }
+      return r
+    }
+    const r = await stdio('parity-run', withInputs({ app: level, records: { ...level, run: 'false' } }), project)
+    expect(r.result.outputs.runs.value).toEqual([{ level: 'app', command: ['env', `PERSIMMON_SOURCE=${source}`, 'PERSIMMON_TARGET=source', 'sh', '-c', 'node suite.mjs'], exitCode: 1, head: index.commit, tests: [{ name: 'test_EP1_GD1_a', status: 'passed' }, { name: 'test_EP1_b', status: 'failed' }], observations: { test_EP1_GD1_a: { total: '1.00' }, reset: true } }])
+    expect(r.result.outputs.coverage.value).toEqual({ files: { 'A.java': { 2: { hits: 3 }, 3: { hits: 0 } } }, unmapped: [] })
+    const none = await stdio('parity-run', withInputs({ records: level }), project)
+    expect([none.result.outputs.runs.value, none.result.outputs.coverage.value]).toEqual([[], { files: {}, unmapped: [] }]) // nothing runs on the source: the Oracle will be static
+    const outside = await stdio('parity-run', withInputs({ app: { ...level, junit: '../elsewhere.xml' } }), project)
+    expect(outside.error).toMatchObject({ code: 'invalid_input', message: expect.stringContaining('inside the workspace') })
+
+    // a reset that fails leaves the data unknown: the level does not run, and the run says why
+    const badReset = await stdio('parity-run', withInputs({ app: { ...level, reset: 'echo cannot reset; exit 3' } }), project)
+    expect(badReset.result.outputs.runs.value).toEqual([{ level: 'app', command: ['env', `PERSIMMON_SOURCE=${source}`, 'PERSIMMON_TARGET=source', 'sh', '-c', 'echo cannot reset; exit 3'], exitCode: 3, head: index.commit, tests: [], observations: {}, reason: 'reset exited 3: the level did not run', outputTail: 'cannot reset' }])
+
+    // a suite that writes no report says so, with the output's tail
+    const silent = await stdio('parity-run', withInputs({ app: { ...level, reset: undefined, run: 'echo nothing here' } }), project)
+    expect(silent.result.outputs.runs.value[0]).toMatchObject({ tests: [], reason: 'no test read from build/app.xml', outputTail: 'nothing here' })
+
+    // what the run had as a secret never reaches the ledger through an observation
+    const secret = withInputs({ app: { ...level, reset: undefined, run: `node suite.mjs; node -e "require('fs').writeFileSync('build/app.json', JSON.stringify({ test_EP1_GD1_a: { token: process.env.GITHUB_TOKEN } }))"` } })
+    secret.payload.credentials = { 'github-token': 'ghp-very-secret' } // the runner hands it to the suite as GITHUB_TOKEN
+    const leaked = await stdio('parity-run', secret, project)
+    expect(leaked.result.outputs.runs.value[0].observations).toEqual({ test_EP1_GD1_a: { token: '[redacted]' } })
+    expect(JSON.stringify(leaked.result.outputs)).not.toContain('ghp-very-secret')
+
+    // the checkout changed since it was indexed, or no project workspace: refused before anything runs
+    writeFileSync(join(source, 'A.java'), 'class A {}\n')
+    const moved = await stdio('parity-run', withInputs({ app: level }), project)
+    expect(moved.error).toMatchObject({ code: 'invalid_input', message: expect.stringContaining('A.java changed') })
+    const noWorkspace = withInputs({ app: level })
+    delete noWorkspace.payload.workspace
+    expect((await stdio('parity-run', noWorkspace, project)).error).toMatchObject({ code: 'invalid_input', message: expect.stringContaining('action.workspace names the project') })
+  })
+
   it('refuses a Task with no workspace, or one that asks for another output', async () => {
     const noWorkspace = await stdio('parity-run', execute(undefined, asks))
     expect(noWorkspace.error).toMatchObject({ code: 'invalid_input', message: expect.stringContaining('action.workspace') })

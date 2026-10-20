@@ -112,6 +112,11 @@ const lineCount = (buf) => {
   return buf.length && buf[buf.length - 1] !== 10 ? n + 1 : n
 }
 
+/** The checkout's commit and the tracked files it changed, read now: what a run measured is the commit's only if both hold. */
+export function sourceState(dir) {
+  return { commit: git(dir, 'rev-parse', 'HEAD'), dirty: git(dir, 'status', '--porcelain', '--untracked-files=no', '-z').split('\0').filter(Boolean).map((l) => l.slice(3)) }
+}
+
 /** `{commit, dirty, root, gitCommonDir, project: {root, gitCommonDir}, files: {<path>: {lines, branchLines}}}`: every
  * tracked regular file of the checkout; binary files skipped, symlinks not followed; paths relative to the repository root. */
 export function indexSource(sourceDir, projectDir) {
