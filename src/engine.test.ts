@@ -364,6 +364,8 @@ it('project directories share one store: each drives and recovers only the Runs 
     await b.start() // reads the definitions main applied
     const { resource: run } = await a.create(fresh(example('run-workflowrun')))
     expect(run.metadata.annotations?.['persimmon.ai/project-directory']).toBe(main)
+    const { resource: trigger } = await a.apply(example('trigger-on-prd-published')) // a subscribing kind fires Runs that inherit its directory
+    expect(trigger.metadata.annotations?.['persimmon.ai/project-directory']).toBe(main)
     await b.drain() // the tree's engine leaves main's run alone
     expect(b.store.runLog.read(run.metadata.uid!).filter((e) => !e.appliedAt)).toHaveLength(1)
     // main reconciles up to its first adapter call, then stops as a killed process would

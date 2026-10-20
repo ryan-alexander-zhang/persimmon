@@ -524,6 +524,10 @@ describe('persimmon CLI', () => {
     out = []
     expect(await run('get', 'WorkflowRun')).toBe(0)
     expect(out.some((l) => /^WorkflowRun\/on-prd-published-/.test(l))).toBe(true) // artifact.published reached on-prd-published
+    const fired = out.find((l) => /^WorkflowRun\/on-prd-published-/.test(l))!.split(/\s/)[0]!
+    out = []
+    expect(await run('get', fired)).toBe(0)
+    expect(parse(out.join('\n')).metadata.annotations['persimmon.ai/project-directory']).toBe(dir) // the Trigger's directory, inherited (08-store.md)
     // a ref on an artifact port must be in the store before the run exists
     expect(await run('run', 'prd-approval', '--input', 'prd={kind: artifact, ref: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement, namespace: default, id: spec-1, revision: 9}}')).toBe(1)
     expect(err.at(-1)).toMatch(/--input prd: ProductRequirement spec-1 revision 9 is not in the store/)
