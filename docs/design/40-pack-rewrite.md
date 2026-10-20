@@ -204,8 +204,12 @@ JPetStore pilot a stock guard's line ran in 20 passing tests and none read its o
 The difference check never rests on observations alone. Every test that passed on the source is
 recorded in `answers[]`, its observation `null` when the run wrote none; on the rewrite, a test of
 those that failed, did not run, or observed otherwise than recorded is a difference. A test that
-failed on the source is no witness: its entry point is `unreached`. An item a later inventory
-revision no longer lists stays in the ledger, `open`, until a human decides it.
+failed on the source is no witness: its entry point is `unreached`, the Slice's first when it cites
+none. A recorded test that observed nothing (its observation `null`) rests on its status alone: its
+entry point is `unreached` too, so the verdict is at best `concerns`. `run-rewrite` runs every
+recorded test, every Slice's, so an earlier Slice's regression shows; a test it leaves out is a
+difference. A difference an Issue explains keeps that cause while it persists. An item a later
+inventory revision no longer lists stays in the ledger, `open`, until a human decides it.
 
 ## Protocol drivers
 
