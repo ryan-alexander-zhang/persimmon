@@ -218,7 +218,7 @@ spec:
     Tasks (`tasks`, `T-n` from 1), each:
     - `block`: the one Architecture building block the task changes. Work on two blocks is two tasks.
     - `covers`: the Spec requirements (`FR-n`) this task implements; `verifiedBy`: the Spec acceptance scenarios (`AC-n`) that pass once it is done, and the quality scenarios (`QS-n`) the Spec's `qualities` cite whose Architecture `provenAt` is `build`, each on the task that builds what its stimulus exercises. Together the tasks cover every `FR-n` and verify every `AC-n` and every such `QS-n` of the Spec; nothing outside the Spec is planned.
-    - `elements`: for each Design in your context whose `block` is this task's, the `EL-n` this task realises, as `{design, element}` where `design` is the Design's artifact id. A block whose Design is not in your context gets no elements and a `Q-n` saying which Design is missing.
+    - `elements`: for each Design in your context whose `block` is this task's, the `EL-n` this task realises, as `{design, element}` where `design` is the Design's artifact id. A block whose Design is not in your context gets no elements and a `Q-n` saying which Design is missing. Every element that realises a command or read model a story of the Spec names, or the aggregate the DomainModel in your context says handles such a command (the read the commands answer with), is realised by some task, the first that needs it.
     - `dependsOn`: earlier tasks only; document order is build order. A task that touches data before the API that serves it, an aggregate before the view updated from its events.
     - `title` and `description`: what is built, in Glossary words; no estimate, owner, file path or technology the Architecture does not name.
 

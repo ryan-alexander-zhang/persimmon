@@ -37,7 +37,7 @@ is a question in the brief, for the Prd's `Q-n`.
 6. When the Architecture has client blocks: `design-system` (`prd`, `architecture`), then
    `design-all` with `type=ui` over the client blocks: `designSystem`, and `designs` the
    `http-api` Designs they call, `architecture`, `rules`.
-7. `plan-all`: `prd`, every `capabilities` id, `architecture`, `designs` (every Design).
+7. `plan-all`: `prd`, every `capabilities` id, `architecture`, `designs` (every Design), `domainModel` (the product's).
 
 Read the Architecture with `persimmon get Architecture/<id>` to pick the blocks and types of steps
 5 and 6.

@@ -366,7 +366,7 @@ export function checkCoverage({ domainModel, designs = {}, ids = {} }) {
 // One Plan against the Spec it builds, the Architecture its tasks name blocks of, and the Designs it realises elements
 // of; `designs` is artifact id → content, paired by the caller from inputs.designs.refs and artifacts.designs.
 // `ids` are the bound inputs' artifact ids, `{spec, architecture}`, which a content never carries.
-export function checkPlan({ plan, spec, architecture, designs = {}, ids = {} }) {
+export function checkPlan({ plan, spec, architecture, designs = {}, domainModel, ids = {} }) {
   if (!plan || !Array.isArray(plan.tasks) || !plan.spec) {
     return [{ severity: 'error', code: 'not-a-plan', message: 'content is not a Plan: it has no tasks array or no spec' }]
   }
@@ -421,6 +421,14 @@ export function checkPlan({ plan, spec, architecture, designs = {}, ids = {} }) 
   for (const id of scenarios) if (!verified.has(id)) bad('scenario-unverified', `scenario ${id} verifies no task`)
   for (const id of cited) if (provenAt.get(id) === 'build' && !verified.has(id)) bad('scenario-unverified', `quality scenario ${id} is proven at build but verifies no task`)
   for (const d of listed) if (!used.has(d)) bad('design-unused', `design ${d} is listed but no task realises an element of it`)
+  // the elements the capability needs: its stories' commands and read models, and the aggregates handling those commands
+  const commands = (spec?.stories ?? []).flatMap((s) => s.commands ?? [])
+  const needed = new Set([...commands, ...(spec?.stories ?? []).flatMap((s) => s.readModels ?? [])])
+  for (const a of domainModel?.aggregates ?? []) if ((a.commands ?? []).some((c) => commands.includes(c.name ?? c))) needed.add(a.id).add(a.name)
+  const realised = new Set(plan.tasks.flatMap((t) => (t.elements ?? []).map((e) => `${e.design} ${e.element}`)))
+  for (const [id, d] of Object.entries(designs)) {
+    for (const e of d?.elements ?? []) if (needed.has(e.realises?.name) && !realised.has(`${id} ${e.id}`)) bad('element-unplanned', `${id} ${e.id} (${e.name}) realises ${e.realises.name}, which the capability needs, but no task realises it`)
+  }
 
   sequence(bad, 'T', taskIds)
   sequence(bad, 'Q', (plan.openQuestions ?? []).map((q) => q.id))

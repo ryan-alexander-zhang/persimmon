@@ -89,7 +89,7 @@ function evaluate(payload) {
     if (notAPlan.length) return { passed: false, findings: notAPlan, evidence: [] }
     const designs = boundDesigns(payload, artifacts)
     const ids = { spec: payload.inputs?.spec?.ref?.id, architecture: payload.inputs?.architecture?.ref?.id }
-    const findings = checkPlan({ plan, spec: required(artifacts, 'spec'), architecture: required(artifacts, 'architecture'), designs, ids })
+    const findings = checkPlan({ plan, spec: required(artifacts, 'spec'), architecture: required(artifacts, 'architecture'), designs, domainModel: artifacts.domainModel?.content, ids })
     return done(payload, findings, artifacts.plan)
   }
   if (artifacts.domainModel && artifacts.designs && !artifacts.design && !artifacts.spec) {

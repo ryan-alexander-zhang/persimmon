@@ -1073,6 +1073,8 @@ spec:
         elements:
           - {design: claims-api, element: EL-1}
           - {design: claims-api, element: EL-2}
+          - {design: claims-api, element: EL-11}  # the claim's read, which Draft Claim and Attach Receipt answer with
+          - {design: claims-api, element: EL-12}
       - id: T-2
         title: Receipt store put and get by digest
         description: Store a receipt by content, hand back its digest for the claim line; the claim's access rule applies on get.

@@ -619,12 +619,19 @@ describe('sdd/v1 over a Plan', () => {
   })
 
   it('fails an element of a design not listed, not evaluated, of another block, or missing', async () => {
-    expect(await planCodes((a) => { a.plan.tasks[0].elements![0].design = 'ghost' })).toEqual(['unknown-design'])
-    expect(await planCodes((a) => { a.plan.designs.push('ghost'); a.plan.tasks[0].elements![0].design = 'ghost' })).toEqual(['design-unread'])
-    expect(await planCodes(() => {}, [{ ...designRef, id: 'other' }])).toEqual(['design-unread', 'design-unread', 'design-unread', 'design-unread'])
-    expect(await planCodes((a) => { a.plan.tasks[0].block = 'BB-2' })).toEqual(['design-block', 'design-block'])
-    expect(await planCodes((a) => { a.plan.tasks[0].elements![0].element = 'EL-99' })).toEqual(['unknown-element'])
+    expect(await planCodes((a) => { a.plan.tasks[0].elements![0].design = 'ghost' })).toEqual(['unknown-design', 'element-unplanned']) // EL-1 of claims-api is then in no task
+    expect(await planCodes((a) => { a.plan.designs.push('ghost'); a.plan.tasks[0].elements![0].design = 'ghost' })).toEqual(['design-unread', 'element-unplanned'])
+    expect(await planCodes(() => {}, [{ ...designRef, id: 'other' }])).toEqual([...Array(6).fill('design-unread'), ...Array(4).fill('element-unplanned')])
+    expect(await planCodes((a) => { a.plan.tasks[0].block = 'BB-2' })).toEqual(['design-block', 'design-block', 'design-block', 'design-block'])
+    expect(await planCodes((a) => { a.plan.tasks[0].elements![0].element = 'EL-99' })).toEqual(['unknown-element', 'element-unplanned'])
     expect(await planCodes((a) => { a.plan.designs.push('spare') })).toEqual(['design-unused'])
+  })
+
+  it('fails a Design element the capability needs that no task realises (30-plan-process.md)', async () => {
+    expect(await planCodes((a) => { a.plan.tasks[3].elements = [] })).toEqual(['element-unplanned']) // EL-4 realises My Claims View, a story's read model
+    const reads = (a: any) => { a.plan.tasks[0].elements = a.plan.tasks[0].elements.slice(0, 2) } // EL-11 and EL-12 read the Claim, AG-1
+    expect((await adapter({ id: 4010, op: 'evaluate', payload: planPayload((() => { const a = structuredClone(planExample()); reads(a); return a })()) })).result.passed).toBe(true) // no DomainModel: the aggregate is not known
+    expect(await planCodes((a: any) => { a.domainModel = content('DomainModel'); reads(a) })).toEqual(['element-unplanned', 'element-unplanned'])
   })
 
   it('fails a spec or architecture that is not the one evaluated, and a design listed twice', async () => {

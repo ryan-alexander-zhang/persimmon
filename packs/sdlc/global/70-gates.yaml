@@ -197,6 +197,7 @@ spec:
     spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
+    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: false}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
   validators:
@@ -207,6 +208,7 @@ spec:
         spec: {fromInput: spec}
         architecture: {fromInput: architecture}
         designs: {fromInput: designs}
+        domainModel: {fromInput: domainModel, onMissing: omit}
   policy: {strategy: all}
   timeout: 5m
 ---
