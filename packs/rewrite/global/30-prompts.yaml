@@ -105,8 +105,8 @@ spec:
 
     You are a second reader of the same Slice, blind to the first: read in another order. Start from the data: the schema,
     the DDL, the copybooks and record layouts, the mapper files, the job definitions and scheduler files, the configuration;
-    then the code that reads and writes each, then the entry points. Record the same facts by the same inventory rules,
-    `guards` above all: each with its exact `where`. Your ids need not match the first reader's; a check compares the two by
+    then the code that reads and writes each, then the entry points. Record the Slice's facts only, by the same inventory
+    rules, `guards` above all: each with its exact `where` and the entry points it sits under in `in`. Your ids need not match the first reader's; a check compares the two by
     overlapping lines, and every guard of yours that overlaps nothing the first reader recorded goes to a human.
 ---
 apiVersion: persimmon.ai/v1

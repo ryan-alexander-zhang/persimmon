@@ -228,6 +228,10 @@ describe('checkInventory', () => {
     second.guards.splice(1, 1)
     const found = checkInventory({ inventory, index: index(inventory), slices: slices(), slice: 'SL-1', second })
     expect(found.map((f: { severity: string; code: string; message: string }) => [f.severity, f.code, f.message])).toEqual([['warning', 'reader-disagreement', "the first reader's GD-2 at src/main/java/org/mybatis/jpetstore/service/CatalogService.java:152-152 overlaps no guard of the other reader"]])
+    const later = slices()
+    later.push({ id: 'SL-3', name: 'elsewhere', entryPoints: ['EP-5'], order: 3 })
+    const elsewhere = { ...inventory, guards: inventory.guards.map((g: { in: string[] }) => ({ ...g, in: ['EP-1'] })) } // an earlier Slice's guards only
+    expect(checkInventory({ inventory: elsewhere, index: index(inventory), slices: later, slice: 'SL-3', second: { guards: [] } }).filter((f: { code: string }) => f.code === 'reader-disagreement')).toEqual([])
   })
 })
 

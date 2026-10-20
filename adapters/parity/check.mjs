@@ -141,8 +141,9 @@ function branches(inventory, index, slices, slice, coverage) {
 }
 
 /** reader-disagreement: a guard of one reader whose line where overlaps nothing the other recorded; a warning the human settles. */
-function readers(inventory, second) {
-  const spans = (inv) => (inv.guards ?? []).map((g) => ({ id: g.id, at: (g.where ?? []).map(parseWhere).filter((w) => w?.from !== undefined) }))
+/** The two readers' guards of the Slice compared by overlapping lines: an earlier Slice's guard is no disagreement. */
+function readers(inventory, second, eps) {
+  const spans = (inv) => (inv.guards ?? []).filter((g) => !g.in || g.in.some((ep) => eps.includes(ep))).map((g) => ({ id: g.id, at: (g.where ?? []).map(parseWhere).filter((w) => w?.from !== undefined) }))
   const overlaps = (a, b) => a.at.some((x) => b.at.some((y) => x.path === y.path && x.from <= y.to && y.from <= x.to))
   const [first, other] = [spans(inventory), spans(second)]
   const lone = (mine, theirs, who) => mine.filter((g) => g.at.length && !theirs.some((o) => overlaps(g, o))).map((g) => warning('reader-disagreement', `${who} reader's ${g.id} at ${g.at.map((w) => `${w.path}:${w.from}-${w.to}`).join(', ')} overlaps no guard of the other reader`))
@@ -178,7 +179,7 @@ export function checkInventory({ inventory, index, slices, slice, second }) {
     ...locations(inventory, index),
     ...lost,
     ...(lost.length ? [] : branches(inventory, index, slices, slice)),
-    ...(second ? readers(inventory, second) : []),
+    ...(second ? readers(inventory, second, slices.find((s) => s.id === slice)?.entryPoints ?? []) : []),
   ]
 }
 
