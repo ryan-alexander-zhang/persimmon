@@ -384,7 +384,7 @@ spec:
 
     `spec` and `harness` are the artifact ids of the inputs with those names. `openQuestions`, `Q-n` from 1: a scenario no level can reach, an operation no Design has. A question is the human's to answer when they confirm the cases: leave it without a `resolution`. A `resolution` is only an answer a finding in `feedback` gave, in its words; never one you decide, and never in the human's name.
 
-    Ids `TC-n`, `Q-n` unique and increasing; a revision keeps every id in place and never reuses one.
+    Ids `TC-n`, `Q-n` unique and increasing; a revision keeps every id in place and never reuses one. With `base` bound, the Spec's TestDesign before this run, start from it: every case keeps its id and changes only where the Spec, the Plan, the Designs or the harness now ask; a new case takes the next id; a case no longer needed is removed and its id never used again. Tests in the repository are found by these ids.
 
     With `previous` and `feedback` bound, the check, the auditor or the human refused the last TestDesign: a finding naming a case or a scenario is fixed there; one answering a `Q-n` gives that question its `resolution`, in the finding's words, and changes the cases the answer changes. Change nothing else.
 ---

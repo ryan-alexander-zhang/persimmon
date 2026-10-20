@@ -399,6 +399,7 @@ spec:
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, required: false, description: "the TestDesign this one replaces"}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, required: false, description: "the last round's TestDesign; round one has none"}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict"}
   outputs:
@@ -410,6 +411,7 @@ spec:
         testDesign: {fromInput: testDesign}
         plan: {fromInput: plan}
         designs: {fromInput: designs}
+        base: {fromInput: base, onMissing: omit}
         spec: {fromInput: spec}
         architecture: {fromInput: architecture}
         rules: {fromInput: rules}

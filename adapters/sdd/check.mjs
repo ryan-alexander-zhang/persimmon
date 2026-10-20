@@ -507,8 +507,9 @@ export function checkHarness({ harness, seed, levelOutcomes = [], ids = {} }) {
 
 /** One TestDesign against its Spec, the Architecture's quality scenarios, the BusinessRules, the TestHarness and the Plan
  * (39-test-process.md): an api step's `METHOD /path` is a Design element its case's task, or one before it, realises.
- * `designs` maps a Design id to its content. `ids`: {spec, harness} bound. Every finding `error`. */
-export function checkTestDesign({ testDesign, spec, architecture, rules, harness, plan, designs = {}, ids = {} }) {
+ * `designs` maps a Design id to its content; `base`, the TestDesign this one replaces, whose ids it keeps. `ids`: {spec,
+ * harness} bound. Every finding `error`. */
+export function checkTestDesign({ testDesign, spec, architecture, rules, harness, plan, designs = {}, base, ids = {} }) {
   if (!testDesign || !Array.isArray(testDesign.cases) || !testDesign.spec) {
     return [{ severity: 'error', code: 'not-a-test-design', message: 'content is not a TestDesign: it has no cases array or no spec' }]
   }
@@ -544,6 +545,11 @@ export function checkTestDesign({ testDesign, spec, architecture, rules, harness
       const op = /^[A-Z]+ \S+/.exec(s.action ?? '')?.[0]
       if (realisedAt.get(op) > at) bad('step-premature', `${c.id}: ${op} is built by ${tasks[realisedAt.get(op)].id}, after ${tasks[at].id}, the task of this case`)
     }
+  }
+  const anchors = (c) => (c?.verifies ?? []).filter((v) => /^(AC|QS)-/.test(v))
+  for (const b of base?.cases ?? []) {
+    const now = anchors(testDesign.cases.find((c) => c.id === b.id))
+    if (now.length && !anchors(b).some((v) => now.includes(v))) bad('case-renumbered', `${b.id} verified ${anchors(b).join(', ')} in the TestDesign it replaces and now verifies ${now.join(', ')}: a case keeps its id`)
   }
   for (const id of acs) if (!verified.has(id)) bad('scenario-uncovered', `${id}: no case verifies it`)
   for (const id of cited) if (provenAt.get(id) === 'build' && !verified.has(id)) bad('scenario-uncovered', `quality scenario ${id} is proven at build but no case verifies it`)

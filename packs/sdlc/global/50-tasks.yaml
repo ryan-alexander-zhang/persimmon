@@ -798,6 +798,7 @@ spec:
   inputs:
     spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
     plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}, description: "the Spec's Plan: the task each case is built in, and what the tasks before it build"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, required: false, description: "the Spec's TestDesign before this run: start from it and keep its ids"}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, description: "the product's Designs: the operations and screens a case's steps name"}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
@@ -822,6 +823,7 @@ spec:
       - {kind: artifact, input: glossary}
       - {kind: artifact, input: rules}
       - {kind: artifact, input: harness}
+      - {kind: artifact, input: base}
       - {kind: artifact, input: previous}
     parameters: {effort: high}
   timeout: 30m

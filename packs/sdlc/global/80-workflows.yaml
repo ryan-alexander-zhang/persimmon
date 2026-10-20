@@ -1122,6 +1122,7 @@ spec:
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, required: false, description: "the Spec's TestDesign before this run, whose ids the cases keep"}
   produce:
     uses: {kind: Task, name: design-tests}
     inputs:
@@ -1132,6 +1133,7 @@ spec:
       glossary: {fromInput: glossary}
       rules: {fromInput: rules}
       harness: {fromInput: harness}
+      base: {fromInput: base, onMissing: omit}
     timeout: 30m
   review:
     uses: {kind: Gate, name: test-design-gate}
@@ -1143,6 +1145,7 @@ spec:
       designs: {fromInput: designs}
       rules: {fromInput: rules}
       harness: {fromInput: harness}
+      base: {fromInput: base, onMissing: omit}
       previous: {fromInput: previous}
       feedback: {fromInput: feedback}
     timeout: 72h
@@ -1177,6 +1180,7 @@ spec:
       inputs:
         spec: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}, id: "inputs.prd.id + '-' + inputs.capabilities[state.index - 1].lowerAscii()"}}
         plan: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}, id: "inputs.prd.id + '-' + inputs.capabilities[state.index - 1].lowerAscii() + '-plan'"}}
+        base: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}, id: "inputs.prd.id + '-' + inputs.capabilities[state.index - 1].lowerAscii() + '-tests'"}, onMissing: omit}
         architecture: {fromInput: architecture}
         designs: {fromInput: designs}
         glossary: {fromInput: glossary}

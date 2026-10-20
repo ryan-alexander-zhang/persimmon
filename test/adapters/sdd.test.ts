@@ -1021,6 +1021,11 @@ describe('sdd/v1 over the Test process', () => {
     const open = td(); open.openQuestions = [{ id: 'Q-1', question: 'which receipt formats?' }]; expect(designFindings(open)).toEqual([]) // the human's, at the Gate
     const late = td(); late.cases[0].steps.push({ action: 'POST /claims/{claimId}/submission' }) // TC-1 is T-1's; T-3 builds submission
     expect(checkTestDesign({ testDesign: late, spec: content('Spec'), architecture: content('Architecture'), rules: content('BusinessRules'), harness: content('TestHarness'), plan: content('Plan'), designs: { 'claims-api': content('Design') } }).map((f: any) => [f.code, f.message])).toEqual([['step-premature', 'TC-1: POST /claims/{claimId}/submission is built by T-3, after T-1, the task of this case']])
+    const run = (testDesign: any, base: any) => checkTestDesign({ testDesign, spec: content('Spec'), architecture: content('Architecture'), rules: content('BusinessRules'), harness: content('TestHarness'), base }).map((f: any) => [f.code, f.message])
+    const swapped = td(); [swapped.cases[0].id, swapped.cases[1].id] = ['TC-2', 'TC-1']; swapped.cases.reverse() // written again from scratch, TC-1 and TC-2 trade places
+    expect(run(swapped, td()).filter(([c]: string[]) => c === 'case-renumbered')).toEqual([['case-renumbered', 'TC-1 verified AC-1 in the TestDesign it replaces and now verifies AC-2: a case keeps its id'], ['case-renumbered', 'TC-2 verified AC-2 in the TestDesign it replaces and now verifies AC-1: a case keeps its id']])
+    const kept = td(); kept.cases[0].title = 'reworded'; kept.cases = kept.cases.filter((c: any) => c.id !== 'TC-7'); kept.cases.push({ ...td().cases[6], id: 'TC-11' }) // a reworded case, a removed one, a new id
+    expect(run(kept, td())).toEqual([])
     const other = td(); other.spec = 'other'; other.harness = 'other'; expect(designFindings(other)).toEqual(['spec-mismatch', 'harness-mismatch'])
     expect(checkTestDesign({ testDesign: { title: 'x' } }).map((f: { code: string }) => f.code)).toEqual(['not-a-test-design'])
   })
