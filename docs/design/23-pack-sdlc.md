@@ -109,6 +109,7 @@ that kept its own `AGENTS.md` or `CLAUDE.md` carries section 8 itself.
 
 | Rule | Enforcer |
 |---|---|
+| a `Q-n` of a TestHarness, a TestDesign or an AcceptanceRecord whose answer changes an upstream artifact (settles its open `Q-n`, or corrects its words) names it in `upstream`, `<artifact id>` or `<artifact id> Q-n`; each such answer is told as a `question-upstream` warning, a revision the developer owes upstream through that artifact's process | `harness-rules`, `test-design-rules`, `build-rules`; every `sdd/v1` document check |
 | a `Q-n` resolved in a document an Adapter published is an agent's answer in a human's place, told to the human as a `question-agent-resolved` warning unless the last round had it; who produced it is `provenance.actor`, the channel that published it, not a field the agent fills | every `sdd/v1` document check (`35-build-process.md`) |
 | ids (`BR-n`, `R-n`, `G-n`, `CAP-n`, `SC-n`, `Q-n`, `QG-n`, `C-n`, `S-n`, `BB-n`, `REL-n`, `RT-n`, `CC-n`, `QS-n`, `RK-n`, `US-n`, `FR-n`, `AC-n`) unique in a document and increasing in document order (`AC-n`: within its story, since scenarios nest under stories and a revision's new one may belong to any), from 1 on a first draft, never reused across revisions: a removed item leaves a gap, a new one takes the next number; term and fact type `name`s unique in a Glossary, never reused; a revision keeps every id and name and fixes in place | author Prompt; `spec-consistency` for `US-n`, `FR-n`, `AC-n`, `Q-n` of a Spec; `prd-consistency` for `G-n`, `CAP-n`, `SC-n`, `Q-n` of a Prd and `BR-n` of the rules it writes; Validator later for the rest |
 | a term's `aliases` never name another term; a `relationships[]` entry's `role` fits its `pattern` (conformist, anticorruption-layer: downstream; open-host-service, published-language: upstream; shared-kernel, partnership, separate-ways: peer; customer-supplier: either) | Validator later |
@@ -342,6 +343,15 @@ that kept its own `AGENTS.md` or `CLAUDE.md` carries section 8 itself.
   Found in UAT (a Prd refused on rules unchanged since a round that passed). Live over a Spec with
   one planted defect: round one refused it, round two with it fixed and nothing else changed passed
   in 56s against round one's 2m03s; no `found-late` arose, so that code is unobserved live.
+- A decision made downstream is told upstream, not applied there. In the live run the build's
+  human decided that a claim line's amount is in EUR, yet the Glossary still said "the currency
+  paid" and the Spec's and the Design's own questions on it stayed open; the TestDesign's answers
+  (a taxi line is `travel`, the claim's read built in `T-1`) lived only in the TestDesign. A
+  downstream answer names the artifact it changes, `upstream`, and the check warns
+  `question-upstream`, which reaches the developer in the tree and the Autopilot's report. The
+  revision itself stays the developer's call through that artifact's own process, as a Spec
+  revision already is (`35-build-process.md`): a downstream run rewriting a Spec would skip the
+  Spec's Gate. Found in UAT.
 - The project's `AGENTS.md` is pack content, not a fence per Task workspace: the pack's agents run
   in the project directory and read it, so one file carries the coding rules and the rules for a
   Task's agent (section 8). example02 and example04 keep their own `AGENTS.md`: a Task workspace
