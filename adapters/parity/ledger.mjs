@@ -121,7 +121,6 @@ export function computeLedger({ inventory, inventoryRef, last, slice, decisions:
 
   // only characterize measures the source: a later stage carries what it measured, so no later run measures it differently
   const measuring = runs !== undefined
-  const was = (ref) => base.items.find((i) => i.ref === ref && i.slice === slice)
   // the Oracle of each entry point: the strongest level a test citing it passed on; a test red on the source witnesses nothing
   const tests = (runs ?? []).flatMap((r) => r.tests.map((t) => ({ ...t, level: r.level, observations: r.observations ?? {} })))
   const passed = tests.filter((t) => t.status === 'passed')
@@ -139,7 +138,12 @@ export function computeLedger({ inventory, inventoryRef, last, slice, decisions:
   const owner = new Map(base.items.map((i) => [i.ref, i.slice]))
   const listed = itemsOf(inventory)
   const mine = listed.filter((i) => (owner.get(i.ref) ?? slice) === slice)
-  const items = mine.map((item) => {
+  // an item's account: this Slice's measured now when this stage measures, every other item's measurements carried, and every
+  // account recomputed with every decision so far, since a later Slice's human may decide an earlier Slice's item
+  const compute = (item, at) => {
+    const fresh = measuring && at === slice
+    // without the rules (characterize binds none), an earlier Slice's item keeps the rules it was last ruled by
+    const ruledBefore = !rules && at !== slice
     const itemOracle = item.eps.length ? strongest(item.eps.map((ep) => eps[ep] ?? 'static')) : best
     const citing = allRules.filter((r) => ruleRefs(r).includes(item.ref))
     const { measured, reached } = measure(item.where, coverage)
@@ -147,9 +151,9 @@ export function computeLedger({ inventory, inventoryRef, last, slice, decisions:
     const killsHere = (m) => m.result === 'killed' && (m.failed ?? []).some((n) => cites(n, item.ref) && passed.some((t) => t.name === n))
     const strength = (m) => (killsHere(m) ? 4 : { killed: 3, survived: 2, invalid: 1 }[m.result] ?? 0)
     const run = mutants.filter((m) => m.ref === item.ref).sort((a, b) => strength(b) - strength(a))[0]
-    const last = was(item.ref)
+    const last = base.items.find((i) => i.ref === item.ref && i.slice === at)
     const x = {
-      ...(measuring ? {
+      ...(fresh ? {
         reached,
         pinnable: (itemOracle === 'running' || itemOracle === 'partial') && measured && !item.volatile,
         mutant: run?.result,
@@ -157,8 +161,8 @@ export function computeLedger({ inventory, inventoryRef, last, slice, decisions:
         pinned: run?.result === 'killed' && (run.failed ?? []).some((n) => cites(n, item.ref) && passed.some((t) => t.name === n)),
         tests: names.filter((n) => cites(n, item.ref) || item.eps.some((ep) => cites(n, ep))),
       } : { reached: last?.reached ?? false, pinnable: last?.pinnable ?? false, pinned: last?.pinned ?? false, mutant: last?.mutant === 'none' ? undefined : last?.mutant, tests: last?.tests ?? [] }),
-      rules: citing.filter((r) => r.status === 'active').map((r) => r.id),
-      disposition: dispositionOf(item.ref, citing, decided),
+      rules: ruledBefore ? (last?.rules ?? []) : citing.filter((r) => r.status === 'active').map((r) => r.id),
+      disposition: ruledBefore ? (decided(item.ref) ?? last?.disposition) : dispositionOf(item.ref, citing, decided),
       dead: (decisions.dead ?? []).find((d) => d.ref === item.ref)?.evidence,
       accepted: (decisions.accepted ?? []).find((d) => d.ref === item.ref)?.reason,
       reader: (decisions.readers ?? []).find((d) => d.ref === item.ref)?.resolution,
@@ -167,14 +171,24 @@ export function computeLedger({ inventory, inventoryRef, last, slice, decisions:
     const [acct, reason] = account(item, x)
     const mutable = item.kind === 'guard' || item.kind === 'declaration' || item.kind === 'effect' // plumbing and absences are decided, not mutated
     return Object.fromEntries(Object.entries({
-      ref: item.ref, slice, reached: x.reached, pinnable: x.pinnable, pinned: x.pinned, mutant: mutable ? (x.mutant ?? (x.pinnable ? 'none' : undefined)) : undefined,
+      ref: item.ref, slice: at, reached: x.reached, pinnable: x.pinnable, pinned: x.pinned, mutant: mutable ? (x.mutant ?? (x.pinnable ? 'none' : undefined)) : undefined,
       tests: x.tests, rules: x.rules, disposition: x.disposition,
       dead: x.dead, accepted: x.accepted, plumbing: x.plumbing, reader: x.reader, account: acct, reason,
     }).filter(([, v]) => v !== undefined))
-  })
-  // an item the Slice held that this inventory revision no longer lists stays, open, until a human decides it
-  const gone = base.items.filter((i) => i.slice === slice && !listed.some((l) => l.ref === i.ref)).map((i) => (i.dead || i.disposition === 'drop' ? i : { ...i, account: 'open', reason: 'the inventory no longer lists it' }))
-  ledger.items = [...base.items.filter((i) => i.slice !== slice), ...items, ...gone]
+  }
+  // an item a Slice held that this inventory revision no longer lists stays, open, until a human decides it
+  const gone = (i) => {
+    const dead = i.dead ?? (decisions.dead ?? []).find((d) => d.ref === i.ref)?.evidence
+    const dropped = i.disposition === 'drop' || decided(i.ref) === 'drop'
+    return dead || dropped ? { ...i, ...(dead ? { dead, account: 'complete' } : { disposition: 'drop', account: 'complete' }), reason: undefined } : { ...i, account: 'open', reason: 'the inventory no longer lists it' }
+  }
+  const def = (ref) => listed.find((l) => l.ref === ref)
+  const strip = (i) => Object.fromEntries(Object.entries(i).filter(([, v]) => v !== undefined))
+  ledger.items = [
+    ...base.items.filter((i) => i.slice !== slice).map((i) => (def(i.ref) ? compute(def(i.ref), i.slice) : strip(gone(i)))),
+    ...mine.map((item) => compute(item, slice)),
+    ...base.items.filter((i) => i.slice === slice && !def(i.ref)).map((i) => strip(gone(i))),
+  ]
 
   // every test that passed on the source, recorded once, never edited; its observation null when the run wrote none
   const known = new Set(ledger.answers.map((a) => a.test))

@@ -214,6 +214,14 @@ describe('computeLedger', () => {
     expect(overruled.decisions.dispositions).toEqual([{ ref: 'AB-1', disposition: 'drop' }]) // a later decision on the same ref replaces it
   })
 
+  it('a later Slice\'s decision on an earlier Slice\'s item recomputes its account; its measurements and rules carry', () => {
+    const open = slice({ mutants: [] })
+    expect(item(open, 'GD-2').account).toBe('open')
+    open.slices.push({ id: 'SL-3', name: 'again', entryPoints: ['EP-2'], order: 3 })
+    const next = computeLedger({ inventory: named('jpetstore-inventory.r2'), inventoryRef: { id: 'jpetstore-inventory', revision: 3 }, last: open, slice: 'SL-3', runs: [], mutants: [], decisions: { dead: [{ ref: 'GD-2', evidence: 'no input reaches it' }] } })
+    expect(item(next, 'GD-2')).toMatchObject({ slice: 'SL-1', account: 'complete', dead: 'no input reaches it', rules: item(open, 'GD-2').rules, reached: item(open, 'GD-2').reached })
+  })
+
   it('an item keeps the Slice whose inventory first listed it', () => {
     const ledger = slice()
     ledger.slices.push({ id: 'SL-3', name: 'again', entryPoints: ['EP-2'], order: 3 })
