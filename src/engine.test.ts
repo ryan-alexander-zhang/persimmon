@@ -324,6 +324,22 @@ describe('Engine', () => {
     expect((research.status as { error: { code: string } }).error.code).toBe('schema_violation') // the fake answered: the call went out
     expect(engine.store.leases.acquire('exclusive/tests', 'next', 1)).toBe(true) // released with the answer
   })
+
+  it('an exclusive name held by a dead engine expires after leaseTtl, and the waiting call goes out (03-reconcile.md)', async () => {
+    process.env.PERSIMMON_CRED_DEMO__GITHUB_TOKEN = 'ghp-test'
+    await engine.start()
+    await engine.apply(fakeAdapter('claude-code/v1'))
+    for (const n of ['kind-definition-productrequirement', 'kind-definition-researchreport']) await engine.apply(example(n))
+    for (const r of closure.resources.filter((r) => r.kind !== 'KindDefinition') as Resource[]) await engine.apply(fresh(r.kind === 'Executor' ? { ...r, spec: { ...r.spec, exclusive: 'tests' } } : r))
+    expect(engine.store.leases.acquire('exclusive/tests', 'dead-engine/x/k', engine.dispatch.leaseTtlMs)).toBe(true) // its process is gone and never renews
+    await engine.create(fresh(example('run-workflowrun')))
+    const draining = engine.drain()
+    await vi.waitFor(() => expect(engine.store.runLog.outstandingCalls()).toHaveLength(1), { timeout: 5000 })
+    clock += engine.dispatch.leaseTtlMs + 1
+    await draining // the next poll takes the expired name
+    const research = engine.store.resources.get({ kind: 'TaskRun', namespace: 'demo', name: 'prd-create-001-research' })!
+    expect((research.status as { error: { code: string } }).error.code).toBe('schema_violation') // the fake answered: the call went out
+  })
 })
 
 it('a deep cwd gets a short socket path under the temp dir (sun_path limit)', () => {
