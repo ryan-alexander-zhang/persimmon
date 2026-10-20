@@ -134,11 +134,15 @@ present, empty when nothing was found, so two readers' inventories compare field
 ## The source index
 
 `index-source` reads the checkout into a value every check of the loop binds, so no Gate needs the
-checkout: `{commit, root, gitCommonDir, project: {root, gitCommonDir}, files: {<path>: {lines,
-branchLines[]}}}`. `root` and `project.root` are real paths, symlinks resolved; `gitCommonDir`
-tells a worktree of the same repository apart from a second clone. `branchLines` are the lines the
-language's branch keywords start a branch on, calibrated per language (COBOL with `INVALID KEY`,
-`AT END`, `WHEN`, without `END-IF`, `ELSE` and comment lines). `parity-run/v1` runs in the project
+checkout: `{commit, dirty[], root, gitCommonDir, project: {root, gitCommonDir}, files: {<path>:
+{lines, branchLines[] | null}}}`. `dirty` names every tracked file that differs from the commit, since
+the facts must be the commit's. `root` and `project.root` are real paths, symlinks resolved;
+`gitCommonDir` tells a worktree of the same repository apart from a second clone. Every tracked
+regular file is indexed; a symlink is not followed. `branchLines` are the lines the language's
+branch keywords start a branch on, calibrated per language (COBOL fixed and free format, with
+`INVALID KEY`, `AT END`, `WHEN`, without `END-IF`, `ELSE`, comments and data names that contain a
+keyword; strings and comments spanning lines left out), and `null` when the index cannot read them:
+a language with no keyword table, a file too large to scan. `parity-run/v1` runs in the project
 directory, so it knows `project.root` without an input.
 
 ## Decisions
@@ -284,8 +288,9 @@ Adapter process answering one Role (`adapters/lib/agent.mjs` serves `executor` o
 | Code | Finding | In |
 |---|---|---|
 | `source-inside-project` | `sourceIndex.root` inside `project.root` or the reverse, or the two share a `gitCommonDir`: a rewrite in place is a refactor | every gate with a `sourceIndex` |
-| `source-moved` | `sourceIndex.commit` is not the inventory's | same |
-| `inventory-location` | a file `where` naming a file the index lacks, or a line past its end | `inventory-consistency` |
+| `source-moved` | `sourceIndex.commit` is not the inventory's, or `dirty` names a changed file | same |
+| `inventory-location` | a file `where` or a `reaches.files` path naming a file the index lacks, a line past its end, a range that runs backwards; a Slice the cut lacks | `survey-consistency`, `inventory-consistency` |
+| `branch-unread` (warning) | a file the Slice reaches whose branch lines the index could not read; its guards rest on the readers alone | `inventory-consistency` |
 | `inventory-reference` | an id the inventory lacks, in any field that cites one | `survey-consistency`, `inventory-consistency` |
 | `id-sequence` | `SL-n`, `EP-n`, `ST-n`, `GD-n`, `DC-n`, `AB-n`, `PP-n`, `EN-n`, `EX-n`, `Q-n` not unique and increasing in document order | same |
 | `slice-cut` | an entry point in no Slice or in two | `survey-consistency` |
