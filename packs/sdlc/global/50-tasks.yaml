@@ -268,6 +268,7 @@ spec:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, description: "every Design of the blocks the Spec touches"}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: false, description: "which aggregate handles each of the Spec's commands"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}, required: false, description: "the Spec's Plan before this run: start from it and keep its task ids"}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
   outputs:
@@ -286,6 +287,7 @@ spec:
       - {kind: artifact, input: architecture}
       - {kind: artifact, input: designs}
       - {kind: artifact, input: domainModel}
+      - {kind: artifact, input: base}
       - {kind: artifact, input: previous}
     parameters: {effort: high}
   timeout: 30m

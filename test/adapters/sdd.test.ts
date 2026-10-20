@@ -634,6 +634,18 @@ describe('sdd/v1 over a Plan', () => {
     expect(await planCodes((a: any) => { a.domainModel = content('DomainModel'); reads(a) })).toEqual(['element-unplanned', 'element-unplanned'])
   })
 
+  it('warns of a task whose id now names other work than in the Plan it replaces (30-plan-process.md)', async () => {
+    const run = async (mutate: (a: any) => void) => {
+      const a: any = structuredClone(planExample()); a.base = content('Plan'); mutate(a)
+      return (await adapter({ id: ++id, op: 'evaluate', payload: planPayload(a) })).result
+    }
+    expect(await run(() => {})).toEqual({ passed: true, findings: [], evidence: [] })
+    expect(await run((a) => { a.plan.tasks[0].title = 'Draft a claim'; a.plan.tasks[0].elements.pop() })).toEqual({ passed: true, findings: [], evidence: [] }) // a task may change
+    const swapped = await run((a) => { const [t1, t2] = a.plan.tasks; a.plan.tasks[1] = { ...t1, id: 'T-2', dependsOn: [] }; a.plan.tasks[0] = { ...t2, id: 'T-1', dependsOn: [] } })
+    expect(swapped.passed).toBe(true) // told, not refused
+    expect(swapped.findings.map((f: any) => [f.severity, f.code])).toEqual([['warning', 'task-renumbered'], ['warning', 'task-renumbered']])
+  })
+
   it('fails a spec or architecture that is not the one evaluated, and a design listed twice', async () => {
     expect(await planCodes((a) => { a.plan.spec = 'other' })).toEqual(['spec-mismatch'])
     expect(await planCodes((a) => { a.plan.architecture = 'other' })).toEqual(['architecture-mismatch'])

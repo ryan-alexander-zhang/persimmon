@@ -365,8 +365,9 @@ export function checkCoverage({ domainModel, designs = {}, ids = {} }) {
 
 // One Plan against the Spec it builds, the Architecture its tasks name blocks of, and the Designs it realises elements
 // of; `designs` is artifact id → content, paired by the caller from inputs.designs.refs and artifacts.designs.
-// `ids` are the bound inputs' artifact ids, `{spec, architecture}`, which a content never carries.
-export function checkPlan({ plan, spec, architecture, designs = {}, domainModel, ids = {} }) {
+// `ids` are the bound inputs' artifact ids, `{spec, architecture}`, which a content never carries. `domainModel`: which
+// aggregate handles each command; `base`: the Plan this one replaces, whose task ids it keeps.
+export function checkPlan({ plan, spec, architecture, designs = {}, domainModel, base, ids = {} }) {
   if (!plan || !Array.isArray(plan.tasks) || !plan.spec) {
     return [{ severity: 'error', code: 'not-a-plan', message: 'content is not a Plan: it has no tasks array or no spec' }]
   }
@@ -430,6 +431,13 @@ export function checkPlan({ plan, spec, architecture, designs = {}, domainModel,
     for (const e of d?.elements ?? []) if (needed.has(e.realises?.name) && !realised.has(`${id} ${e.id}`)) bad('element-unplanned', `${id} ${e.id} (${e.name}) realises ${e.realises.name}, which the capability needs, but no task realises it`)
   }
 
+  // a task of the Plan this one replaces keeps its id: its AcceptanceRecord is <plan>-<t-n> (30-plan-process.md)
+  const work = (t) => [...(t.covers ?? []), ...(t.verifiedBy ?? []), ...(t.elements ?? []).map((e) => `${e.design} ${e.element}`)]
+  for (const b of base?.tasks ?? []) {
+    const now = plan.tasks.find((t) => t.id === b.id)
+    // a warning: a new task an old one needs can only come first under a lower id, so renumbering may be right, and is told
+    if (now && (now.block !== b.block || !work(b).some((w) => work(now).includes(w)))) findings.push({ severity: 'warning', code: 'task-renumbered', message: `${b.id} was "${b.title}" in the Plan it replaces and is now "${now.title}": its AcceptanceRecord now names other work` })
+  }
   sequence(bad, 'T', taskIds)
   sequence(bad, 'Q', (plan.openQuestions ?? []).map((q) => q.id))
   return findings

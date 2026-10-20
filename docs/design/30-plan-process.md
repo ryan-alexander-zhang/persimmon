@@ -36,7 +36,7 @@ where `designs.yaml` is a YAML list of RevisionRefs (`08-store.md`). Run all:
 
 `adapters/sdd/check.mjs`, pure, `checkPlan({plan, spec, architecture, designs, domainModel, base, ids})` where `designs`
 maps artifact id to content, paired by `index.mjs` from `inputs.designs.refs[i]` and
-`artifacts.designs[i]`; every finding `error`:
+`artifacts.designs[i]`; every finding `error` but `task-renumbered` (warning):
 
 | Code | Finding |
 |---|---|
@@ -50,7 +50,7 @@ maps artifact id to content, paired by `index.mjs` from `inputs.designs.refs[i]`
 | `unknown-task`, `dependency-forward` | `dependsOn` names no task; names one not earlier (itself included) |
 | `unknown-design`, `design-unread`, `design-unused` | an element's `design` not in `designs[]`; listed but not among the Designs evaluated; listed but no task realises an element of it |
 | `design-block`, `unknown-element` | the Design's `block` is not the task's; the `EL-n` is not in the Design |
-| `task-renumbered` | with `base` bound, a `T-n` of the base now on another block, or whose `covers`, `verifiedBy` and elements share nothing with the task holding that id now |
+| `task-renumbered` | warning: with `base` bound, a `T-n` of the base now on another block, or whose `covers`, `verifiedBy` and elements share nothing with the task holding that id now |
 | `element-unplanned` | an element of a Design evaluated that realises a command or read model a story of the Spec names, or, with `domainModel` bound, the aggregate handling such a command, and that no task realises |
 | `id-sequence` | `T-n`, `Q-n` not unique and increasing |
 
@@ -90,8 +90,10 @@ The Adapter picks the mode from the payload: `artifacts.plan` first (a Plan payl
   live run a fresh `plan-one` split four tasks into six: the old `T-2`, the receipt store, became
   `T-3`, and `T-2` now meant the claim's read, so the AcceptanceRecord `submit-a-claim-plan-t-2`
   named other work in each revision. The check compares a task by its block and by what it covers,
-  verifies and realises, since a task may rightly grow or shrink. As the TestDesign's `base`
-  (`39-test-process.md`). Found in UAT.
+  verifies and realises, since a task may rightly grow or shrink. A warning, not an error, unlike
+  the TestDesign's `case-renumbered` (`39-test-process.md`): document order is build order, so a new
+  task an old one needs can come first only under a lower id, and the Plan Gate has no human to
+  overrule a refusal. Found in UAT.
 - `verifiedBy` and `covers` may both be empty on a task (groundwork), but every `FR-n`, `AC-n` and cited
   `build` `QS-n` of the Spec must be in some task: coverage is a Spec-level rule, not a task-level one. Found in
   design review.

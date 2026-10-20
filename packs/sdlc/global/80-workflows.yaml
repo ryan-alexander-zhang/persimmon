@@ -520,6 +520,7 @@ spec:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: false, description: "which aggregate handles each of the Spec's commands"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}, required: false, description: "the Spec's Plan before this run, whose task ids the tasks keep"}
   produce:
     uses: {kind: Task, name: write-plan}
     inputs:
@@ -527,6 +528,7 @@ spec:
       architecture: {fromInput: architecture}
       designs: {fromInput: designs}
       domainModel: {fromInput: domainModel, onMissing: omit}
+      base: {fromInput: base, onMissing: omit}
     timeout: 30m
   review:
     uses: {kind: Gate, name: plan-gate}
@@ -536,6 +538,7 @@ spec:
       architecture: {fromInput: architecture}
       designs: {fromInput: designs}
       domainModel: {fromInput: domainModel, onMissing: omit}
+      base: {fromInput: base, onMissing: omit}
     timeout: 5m
   subject: plan
   previous: previous
@@ -568,6 +571,7 @@ spec:
         architecture: {fromInput: architecture}
         designs: {fromInput: designs}
         domainModel: {fromInput: domainModel, onMissing: omit}
+        base: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}, id: "inputs.prd.id + '-' + inputs.capabilities[state.index - 1].lowerAscii() + '-plan'"}, onMissing: omit}
       timeout: 12h
       repeat:
         state:
