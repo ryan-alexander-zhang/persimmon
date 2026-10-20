@@ -176,6 +176,7 @@ One per Source system, a revision per step per Slice.
 | `answers[]` | `{test, observed}`: what the source answered, recorded when the test passed on it, never edited |
 | `differences[]` | `{test, source, rewrite, cause?: {rule BR-n} \| {issue}}` |
 | `unreached[]` | `{ref, slice, why}` |
+| `decisions?` | `{dispositions[], dead[], plumbing[], accepted[], readers[]}`: every typed decision so far, as the human Tasks answered them, a later one for the same `ref` replacing an earlier; each revision recomputes every account with all of them, since a stage's human Task answers that stage's decisions only |
 | `driver?`, `concerns?` | `{confirmed}`, `{accepted, reason}`: `review-parity`'s decisions, as given |
 | `rewrite?` | `{tests, head?}`: how many recorded tests the rewrite run compared, and the rewrite's commit; absent until `parity`, so the parity gate never passes a ledger no rewrite was compared against |
 | `verdict?` | `{result: pass\|concerns\|fail, rule}`: the Slice's, over its items, unreached entries and differences; absent on the Survey's |
