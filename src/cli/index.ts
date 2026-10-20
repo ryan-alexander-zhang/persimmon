@@ -7,7 +7,7 @@ import { digest } from './digest.js'
 import { skillInstall } from './skill.js'
 import { get, logs } from './get.js'
 import { tree } from './tree.js'
-import { init } from './init.js'
+import { init, namedPackDir } from './init.js'
 import { adapterList, adapterTest, del, resume } from './misc.js'
 import { complete, signal } from './signal.js'
 import { ui } from './ui.js'
@@ -27,7 +27,7 @@ const usage = `usage: persimmon <verb> [args]
   tree <kind>/<name> [-n ns]                        a run, what it produced, and every run it owns, nested
   skill install <name> --into <dir> [--for claude|codex] [--force] [-n ns | --global]   copy a verified Skill where the agent CLIs find it
   digest <dir>                                      the bundle digest a Skill declares for that directory
-  init
+  init [--pack <name>]                              --pack: also install packs/<name> after the SDLC pack (the rewrite pack)
   ui [--port <n>]                                   the local API and the built tools on 127.0.0.1 (default port 4747)
   delete <kind>/<name> [-n ns | --global]
   adapter install <manifest> | adapter list | adapter test <id> [--config <file>] [--live]   conformance suite, one line per rule`
@@ -76,6 +76,7 @@ function parseCliArgs(argv: string[]) {
       force: { type: 'boolean' },
       behind: { type: 'boolean' },
       files: { type: 'string' },
+      pack: { type: 'string' },
       server: { type: 'string' },
       help: { type: 'boolean', short: 'h' },
     },
@@ -126,7 +127,7 @@ async function dispatchVerb(cli: Cli, verb: string, rest: string[], values: Retu
         if (rest[0] === 'install' && rest[1]) return await skillInstall(cli, rest[1], { ...where, ...(values.into ? { into: values.into } : {}), ...(values.for ? { for: values.for } : {}), ...(values.force ? { force: true } : {}) })
         throw new Error('skill: install <name> --into <dir> [--for claude|codex]')
       case 'init':
-        return await init(cli)
+        return await init(cli, values.pack !== undefined ? { also: namedPackDir(values.pack) } : {})
       case 'ui':
         return await ui(cli, values.port ? { port: Number(values.port) } : {})
       case 'delete':

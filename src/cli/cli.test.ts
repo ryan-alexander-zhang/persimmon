@@ -252,6 +252,42 @@ describe('persimmon CLI', () => {
     expect(Object.keys(JSON.parse(readFileSync(join(project, '.persimmon', 'files.json'), 'utf8')))).toEqual(['.claude/skills/x/SKILL.md'])
   })
 
+  it("init --pack installs a second pack after the SDLC pack, its files after the SDLC pack's (20-pack.md)", async () => {
+    const pack = join(dir, 'second')
+    mkdirSync(join(pack, 'global'), { recursive: true })
+    writeFileSync(join(pack, 'global', '30-prompts.yaml'), 'apiVersion: persimmon.ai/v1\nkind: Prompt\nmetadata: {name: second-rules}\nspec: {mediaType: text/markdown, content: second}\n')
+    mkdirSync(join(pack, 'files', '.claude', 'skills', 'second'), { recursive: true })
+    writeFileSync(join(pack, 'files', '.claude', 'skills', 'second', 'SKILL.md'), 'second\n')
+    writeFileSync(join(pack, 'files', 'AGENTS.md'), "not the SDLC pack's\n")
+    expect([await init({ cwd: dir, out: (l) => out.push(l), err: (l) => err.push(l) }, { also: pack }), err]).toEqual([0, []])
+    expect(out).toContain('created Prompt/second-rules')
+    expect(out).toContain('created Prompt/storming-dsl') // the SDLC pack, applied first
+    expect(out).toContain('wrote .claude/skills/second/SKILL.md')
+    expect(readFileSync(join(dir, 'AGENTS.md'), 'utf8')).toBe(readFileSync('packs/sdlc/files/AGENTS.md', 'utf8')) // a file both ship is the SDLC pack's
+    expect(out).toContain("kept AGENTS.md (an earlier pack's)")
+    out = []
+    expect(await init({ cwd: dir, out: (l) => out.push(l), err: (l) => err.push(l) }, { also: pack })).toBe(0) // again: the record's SDLC digest does not let the second pack update it
+    expect(readFileSync(join(dir, 'AGENTS.md'), 'utf8')).toBe(readFileSync('packs/sdlc/files/AGENTS.md', 'utf8'))
+  })
+
+  it('init --pack refuses a second pack that redefines a definition of the SDLC pack, before anything is applied', async () => {
+    const pack = join(dir, 'second')
+    mkdirSync(join(pack, 'global'), { recursive: true })
+    writeFileSync(join(pack, 'global', '30-prompts.yaml'), 'apiVersion: persimmon.ai/v1\nkind: Prompt\nmetadata: {name: storming-dsl}\nspec: {mediaType: text/markdown, content: mine}\n')
+    await expect(init({ cwd: dir, out: (l) => out.push(l), err: (l) => err.push(l) }, { also: pack })).rejects.toThrow(/redefines Prompt\/storming-dsl/)
+    expect(existsSync(join(dir, '.persimmon'))).toBe(false)
+  })
+
+  it('init --pack names a pack under packs/, and refuses one that is not there or a name that leaves packs/', async () => {
+    expect(await run('init', '--pack', 'nope')).toBe(1)
+    expect(err.join('\n')).toMatch(/no pack at .*packs\/nope/)
+    err = []
+    expect(await run('init', '--pack', '../src')).toBe(1)
+    expect(await run('init', '--pack', '')).toBe(1)
+    expect(err.join('\n')).toMatch(/--pack takes a pack's directory name/)
+    expect(await run('init', '--pack', 'sdlc')).toBe(1) // the SDLC pack again redefines every one of its definitions
+  })
+
   it('init with another pack applies its namespaced/ Triggers; the SDLC pack validates as a file set before any of it is stored', async () => {
     expect([await init({ cwd: dir, out: (l) => out.push(l), err: (l) => err.push(l) }, { pack: 'packs/demo' }), err]).toEqual([0, []])
     expect(out).toContain('created Trigger/on-prd-published') // the pack's Triggers listen in defaultNamespace

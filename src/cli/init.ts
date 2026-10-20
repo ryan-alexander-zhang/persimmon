@@ -36,13 +36,19 @@ function readRecord(path: string): Record<string, string> {
 }
 
 /** The pack's `files/` into the project when absent, or over one init wrote that nobody edited (its digest in `.persimmon/files.json`); `CLAUDE.md` links to an `AGENTS.md` init wrote (20-pack.md). */
-function placeFiles(cli: Cli, dir: string): void {
+function placeFiles(cli: Cli, dir: string, claimed: Set<string>): void {
   // regular files at any depth, by their path below files/; a dotfile (.DS_Store) is not a project file, a dot directory (.claude/) holds them
   const files = existsSync(dir) ? readdirSync(dir, { recursive: true, withFileTypes: true }).filter((e) => e.isFile() && !e.name.startsWith('.')).map((e) => relative(dir, join(e.parentPath, e.name))).sort() : []
   const record = join(cli.cwd, '.persimmon', 'files.json')
   const written = readRecord(record)
   const before = JSON.stringify(written)
   for (const f of files) {
+    // the record knows a digest, not a pack: a file an earlier pack ships stays that pack's
+    if (claimed.has(f)) {
+      cli.out(`kept ${f} (an earlier pack's)`)
+      continue
+    }
+    claimed.add(f)
     const to = join(cli.cwd, f)
     const pack = readFileSync(join(dir, f))
     const packDigest = digestOf(pack)
@@ -95,30 +101,49 @@ export function shippedAdapters(): Resource[] {
     })
 }
 
-/** `persimmon init`: create `.persimmon/`, a default `persimmon.yaml`, place the pack's files, apply the SDLC pack (20-pack.md). */
-export async function init(cli: Cli, o: { pack?: string } = {}): Promise<number> {
+/** `persimmon init --pack <name>`: the pack at `packs/<name>`, installed after the SDLC pack (20-pack.md). */
+export function namedPackDir(name: string): string {
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(name)) throw new Error(`--pack takes a pack's directory name under packs/, not ${JSON.stringify(name)}`)
+  return join(root(), 'packs', name)
+}
+
+const keysOf = (dir: string) => new Set((loadDocs([...yamlFiles(join(dir, 'global')), ...yamlFiles(join(dir, 'namespaced'))]) as Resource[]).map((d) => `${d.kind}/${d.metadata.name}`))
+
+/** `persimmon init`: create `.persimmon/`, a default `persimmon.yaml`, place the pack's files, apply the SDLC pack, then `also` when given (20-pack.md). */
+export async function init(cli: Cli, o: { pack?: string; also?: string } = {}): Promise<number> {
+  if (o.also !== undefined) {
+    if (yamlFiles(join(o.also, 'global')).length === 0) throw new Error(`no pack at ${o.also}`)
+    // a second pack uses the first's definitions by name; redefining one would change the first pack under its users
+    const first = keysOf(o.pack ?? packDir())
+    const clash = [...keysOf(o.also)].filter((k) => first.has(k))
+    if (clash.length) throw new Error(`${o.also} redefines ${clash.join(', ')} of the pack installed before it`)
+  }
   mkdirSync(join(cli.cwd, '.persimmon', 'inbox'), { recursive: true })
   const cfg = join(cli.cwd, 'persimmon.yaml')
   if (!existsSync(cfg)) {
     writeFileSync(cfg, 'mode: local\nstore: {sqlite: .persimmon/persimmon.db}\nblobs: .persimmon/blobs\ndefaultNamespace: default\n')
     cli.out('wrote persimmon.yaml')
   }
-  const dir = o.pack ?? packDir()
-  const global = yamlFiles(join(dir, 'global'))
-  const namespaced = yamlFiles(join(dir, 'namespaced'))
+  const dirs = [o.pack ?? packDir(), ...(o.also !== undefined ? [o.also] : [])]
   const code = await withEngine(cli, async (engine) => {
     const a = await applyDocs(cli, engine, shippedAdapters(), { global: true })
-    if (global.length === 0) {
-      cli.out(`no pack at ${dir}`)
-      return a
+    for (const dir of dirs) {
+      const global = yamlFiles(join(dir, 'global'))
+      const namespaced = yamlFiles(join(dir, 'namespaced'))
+      if (global.length === 0) {
+        cli.out(`no pack at ${dir}`)
+        return a
+      }
+      // a user Adapter may be installed after init, so its Executors may not resolve yet (13-executor.md apply rule, skipped here)
+      const b = await applyDocs(cli, engine, loadDocs(global) as Resource[], { global: true, skipAdapterValidation: true })
+      // the pack's Triggers listen in defaultNamespace; another Namespace applies them with -n
+      const c = namespaced.length ? await applyDocs(cli, engine, loadDocs(namespaced) as Resource[], { namespace: engine.dispatch.defaultNamespace }) : 0
+      if (a || b || c) return a || b || c
     }
-    // a user Adapter may be installed after init, so its Executors may not resolve yet (13-executor.md apply rule, skipped here)
-    const b = await applyDocs(cli, engine, loadDocs(global) as Resource[], { global: true, skipAdapterValidation: true })
-    // the pack's Triggers listen in defaultNamespace; another Namespace applies them with -n
-    const c = namespaced.length ? await applyDocs(cli, engine, loadDocs(namespaced) as Resource[], { namespace: engine.dispatch.defaultNamespace }) : 0
-    return a || b || c
+    return a
   })
-  // after the pack applied: a pack that fails leaves no files behind
-  if (code === 0) placeFiles(cli, join(dir, 'files'))
+  // after every pack applied: a pack that fails leaves no files behind; the SDLC pack's first, so a file both ship is its
+  const claimed = new Set<string>()
+  if (code === 0) for (const dir of dirs) placeFiles(cli, join(dir, 'files'), claimed)
   return code
 }
