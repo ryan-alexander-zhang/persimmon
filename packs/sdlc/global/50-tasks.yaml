@@ -8,6 +8,7 @@ spec:
     level: {type: {kind: value, schema: {type: string, enum: [big-picture, process, design]}}}
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}, required: false}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
+    inventory: {type: {kind: value, schema: {type: object}}, required: false, description: "the content of a Rewrite pack SourceInventory (40-pack-rewrite.md): the existing system's facts; a value, so this pack names no kind of another"}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
   outputs:
@@ -22,7 +23,10 @@ spec:
       and fix what `feedback` found (each finding names a node, an edge or a context). Publish the whole model as `model` with `meta.level` equal to `level`, and
       answer `contexts` with the ids of `contexts[]` in order. Ask nothing: an unknown is a hotspot. The BusinessRules
       in your context are the rules the Prd cites by `BR-n`: a limit, a window or a permission a rule states is a
-      constraint or a policy parameter, never a hotspot.
+      constraint or a policy parameter, never a hotspot. With `inventory` bound, the product is an existing system
+      being rewritten: a domain event is one of its state changes in the source's own words, a pivotal event a `status`
+      change, a command one of its entry points; cut contexts by language and events, never by the source's packages,
+      and mark a part with no model boundary `bigBallOfMud`.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: storming-dsl}}
       - {kind: prompt, ref: {kind: Prompt, name: storming-big-picture}}
@@ -302,6 +306,8 @@ spec:
     glossaries: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}, required: false}
     previousAdrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}, required: false, description: "the Adrs the last round answered; the loop carries them (21-composition.md)"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}, required: false, description: "the product's last Architecture, when a later Rewrite pack Slice extends it (40-pack-rewrite.md)"}
+    baseAdrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}, required: false, description: "the Adrs that Architecture applies"}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
   outputs:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}, id: {expression: "inputs.prd.id + '-architecture'"}}
@@ -317,7 +323,9 @@ spec:
       nothing else; answer the whole Architecture and every Adr again. Each Adr you answer starts as a verbatim copy of
       the one in `previousAdrs` with its id: a finding that names the Adr, or the `S-n` it backs, changes it; a strategy
       the findings drop keeps its slot as a `superseded` Adr; a new strategy takes the next number. Never reword an Adr
-      unasked.
+      unasked. With `previous` unbound and `base` bound, start from `base` and `baseAdrs` as you would from
+      `previous` and `previousAdrs`: keep every block, relation and Adr that still holds and extend them for the
+      contexts and capabilities they do not cover yet.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: architecture-rules}}
       - {kind: artifact, input: prd}
@@ -327,6 +335,8 @@ spec:
       - {kind: artifact, input: glossaries}
       - {kind: artifact, input: previous}
       - {kind: artifact, input: previousAdrs}
+      - {kind: artifact, input: base}
+      - {kind: artifact, input: baseAdrs}
     parameters: {effort: high}
   timeout: 30m
   retryPolicy: # a transient API refusal (19-adapter-roles.md) gets another attempt within the step deadline; a dead login is permission_denied and never retried

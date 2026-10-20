@@ -7,11 +7,15 @@ spec:
   inputs:
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
+    inventory: {type: {kind: value, schema: {type: object}}, required: false}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}, required: false}
   produce:
     uses: {kind: Task, name: event-storm}
     inputs:
       prd: {fromInput: prd}
       rules: {fromInput: rules}
+      inventory: {fromInput: inventory}
+      base: {fromInput: base}
       level: {literal: big-picture}
     timeout: 30m
   review:
@@ -34,12 +38,14 @@ spec:
   inputs:
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
+    inventory: {type: {kind: value, schema: {type: object}}, required: false}
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
   produce:
     uses: {kind: Task, name: event-storm}
     inputs:
       prd: {fromInput: prd}
       rules: {fromInput: rules}
+      inventory: {fromInput: inventory}
       base: {fromInput: base}
       level: {literal: process}
     timeout: 30m
@@ -63,12 +69,14 @@ spec:
   inputs:
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
+    inventory: {type: {kind: value, schema: {type: object}}, required: false}
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
   produce:
     uses: {kind: Task, name: event-storm}
     inputs:
       prd: {fromInput: prd}
       rules: {fromInput: rules}
+      inventory: {fromInput: inventory}
       base: {fromInput: base}
       level: {literal: design}
     timeout: 30m
@@ -170,6 +178,8 @@ spec:
   inputs:
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
+    inventory: {type: {kind: value, schema: {type: object}}, required: false, description: "a Rewrite pack SourceInventory's content (40-pack-rewrite.md)"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}, required: false, description: "the product's last model, when a later Rewrite pack Slice storms on top of it"}
   outputs:
     model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
     derived: {type: {kind: value, schema: {type: integer}}}
@@ -179,13 +189,14 @@ spec:
   phases:
     - id: big-picture
       uses: {kind: ReviewLoop, name: storm-big-picture}
-      inputs: {prd: {fromInput: prd}, rules: {fromInput: rules}}
+      inputs: {prd: {fromInput: prd}, rules: {fromInput: rules}, inventory: {fromInput: inventory, onMissing: omit}, base: {fromInput: base, onMissing: omit}}
       timeout: 240h
     - id: process
       uses: {kind: ReviewLoop, name: storm-process}
       inputs:
         prd: {fromInput: prd}
         rules: {fromInput: rules}
+        inventory: {fromInput: inventory, onMissing: omit}
         base: {fromStep: {stepRef: big-picture, output: model}}
       timeout: 240h
     - id: design
@@ -193,6 +204,7 @@ spec:
       inputs:
         prd: {fromInput: prd}
         rules: {fromInput: rules}
+        inventory: {fromInput: inventory, onMissing: omit}
         base: {fromStep: {stepRef: process, output: model}}
       timeout: 240h
     - id: derive
@@ -590,6 +602,8 @@ spec:
     contexts: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext}}}
     domainModels: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
     glossaries: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}, required: false, description: "the product's last Architecture, when a later Rewrite pack Slice extends it"}
+    baseAdrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}, required: false}
   produce:
     uses: {kind: Task, name: write-architecture}
     inputs:
@@ -598,6 +612,8 @@ spec:
       contexts: {fromInput: contexts}
       domainModels: {fromInput: domainModels}
       glossaries: {fromInput: glossaries}
+      base: {fromInput: base}
+      baseAdrs: {fromInput: baseAdrs}
     timeout: 30m
   review:
     uses: {kind: Gate, name: architecture-gate}
