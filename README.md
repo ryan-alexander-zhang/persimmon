@@ -89,6 +89,27 @@ Write verbs run the engine in process and drain before they exit. Read verbs (`g
 `describe`, `logs`, `tree`, `validate`) only look. Set `PERSIMMON_DEBUG=1` to print reconcile
 errors.
 
+One project directory drives one run at a time. To run two ideas at once, give each its own git
+worktree and point every worktree at one shared store, so every document lands in one place and
+only the code is merged:
+
+```sh
+# persimmon.yaml, committed
+store: {sqlite: ~/.persimmon/projects/<name>/persimmon.db}
+blobs: ~/.persimmon/projects/<name>/blobs
+```
+
+```sh
+git worktree add ../<name>-idea2 && cd ../<name>-idea2
+persimmon init                                  # keeps the committed persimmon.yaml
+persimmon run author-prd --input productId=<another id> --input brief=@brief.md --follow
+```
+
+Each idea takes its own `productId`. A run moves only from the directory that started it, so
+answer its `complete` there, and let a worktree's runs finish before removing it. To keep an
+existing project's documents, move `.persimmon/persimmon.db` and `.persimmon/blobs` to the shared
+path first.
+
 ## Example: from idea to approved PRD
 
 `persimmon init` installs the SDLC pack (`docs/design/23-pack-sdlc.md`, example07). This
