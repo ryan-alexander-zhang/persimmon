@@ -1109,6 +1109,11 @@ describe('sdd/v1 over the Test process', () => {
   it('the Adapter dispatches a TestDesign and a TestHarness to their checks', async () => {
     const r = await adapter({ id: ++id, op: 'evaluate', payload: payload({ testDesign: content('TestDesign'), spec: content('Spec'), architecture: content('Architecture'), rules: content('BusinessRules'), harness: content('TestHarness'), plan: content('Plan') }) })
     expect(r.result).toEqual({ passed: true, findings: [], evidence: [] })
+    // an answer the last round had was told then: with previous bound only a new one is (39-test-process.md)
+    const answered = { ...content('TestDesign'), openQuestions: [{ id: 'Q-1', question: 'which formats?', resolution: 'PNG and PDF' }, { id: 'Q-2', question: 'which limit?', resolution: '500 EUR' }] }
+    const told = payload({ testDesign: answered, spec: content('Spec'), architecture: content('Architecture'), rules: content('BusinessRules'), harness: content('TestHarness'), plan: content('Plan'), previous: { ...answered, openQuestions: [answered.openQuestions[0], { id: 'Q-2', question: 'which limit?' }] } })
+    told.artifacts.testDesign.provenance = { ...provenance, actor: { kind: 'service', id: 'claude-code/v1' } }
+    expect((await adapter({ id: ++id, op: 'evaluate', payload: told })).result.findings.map((f: { message: string }) => f.message.slice(0, 3))).toEqual(['Q-2'])
     const h = await adapter({ id: ++id, op: 'evaluate', payload: payload({ harness: content('TestHarness'), seed: unit([]) }) })
     expect(h.result.findings.map((f: { code: string }) => f.code)).toEqual(['suite-empty', 'level-unrun'])
   })

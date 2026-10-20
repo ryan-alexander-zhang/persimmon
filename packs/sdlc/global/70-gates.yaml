@@ -366,6 +366,7 @@ spec:
     seed: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}}
     levelOutcomes: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, required: false, description: "the last round's harness; round one has none"}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
   validators:
@@ -373,6 +374,7 @@ spec:
       ref: {kind: Validator, name: harness-evidence}
       inputs:
         harness: {fromInput: harness}
+        previous: {fromInput: previous, onMissing: omit}
         seed: {fromInput: seed}
         levelOutcomes: {fromInput: levelOutcomes}
         architecture: {fromInput: architecture}
@@ -412,6 +414,7 @@ spec:
         plan: {fromInput: plan}
         designs: {fromInput: designs}
         base: {fromInput: base, onMissing: omit}
+        previous: {fromInput: previous, onMissing: omit}
         spec: {fromInput: spec}
         architecture: {fromInput: architecture}
         rules: {fromInput: rules}
