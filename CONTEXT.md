@@ -755,8 +755,8 @@ The process pack for rebuilding an existing system in a new repository (`packs/r
 `40-pack-rewrite.md`): the persimmon project is the rewrite's repository, never the **Source
 system**'s. It recovers the knowledge in the Source system's code into SDLC pack artifacts, **Slice**
 by Slice, and rebuilds each Slice on the SDLC pack's processes. Installed beside the SDLC pack; uses
-its kinds and processes by name and copies none. Changing the Source system in its own repository
-is a refactor, not a rewrite, and not this pack's.
+its kinds and processes by name and copies none. Group `rewrite.persimmon.ai`. Changing the Source
+system in its own repository is a refactor, not a rewrite, and not this pack's.
 _Avoid_: migration pack, modernization pack, brownfield pack, reverse pack, refactor (an in-place change)
 
 **Source system**:
@@ -816,9 +816,10 @@ human). **Domain discovery** then runs on that Prd.
 _Avoid_: reverse engineering (for the process), extraction phase, archaeology
 
 **Disposition**:
-What a rewrite does with one recovered `CAP-n` or `BR-n`: `keep`, `change` or `drop`, decided by a
-human at the **Recovery process**'s Gate. `keep` leaves it; `change` deprecates the rule and adds
-one sourced from the decision; `drop` moves the capability to the Prd's `nonGoals`.
+What a rewrite does with one recovered `CAP-n`, `BR-n` or absence `AB-n`: `keep`, `change` or
+`drop`, decided by a human in the **Recovery process** as a typed value, never a Gate finding. `keep`
+leaves it; `change` deprecates the rule and adds one sourced from the decision; `drop` moves the
+capability to the Prd's `nonGoals`.
 _Avoid_: parity policy (for one item), triage, verdict
 
 **ParityLedger**:
