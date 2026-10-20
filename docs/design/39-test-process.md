@@ -75,11 +75,11 @@ several cases; one case may have several tests.
 | Validator `harness-evidence` | `sdd/v1`, `checkHarness`, below |
 | Task `confirm-harness`, Validator `harness-confirmed` | the human reads the harness once its seed tests pass and answers each open `Q-n`, on `local-reviewer` |
 | Prompt `test-design-rules` | at least one case per `AC-n` and per `build` `QS-n` the Spec cites; the level from the boundary the scenario's When crosses: the API `api`, a screen `e2e`, a store or a queue `integration`, a rule inside one block `unit`; steps and data from the Designs' operations and screens, the Glossary's terms; `P0` when a failure loses data, money or access or stops the capability's main path, `P1` a variant of the main path or a rule's edge, `P2` a secondary path, `P3` the rest; `P0` is `automated`; a case the harness's tools cannot run is `manual`, the reason in `preconditions`; a case's steps use only the operations its Plan task, or a task before it, builds |
-| Task `design-tests` | inputs `spec`, `plan`, `architecture`, `designs` (artifacts), `glossary`, `rules`, `harness`, `previous`, `feedback`; output `testDesign`, id `<spec>-tests`; read only |
-| Validator `test-design-consistency` | `sdd/v1`, `checkTestDesign`, below; inputs add `plan` and `designs` |
+| Task `design-tests` | inputs `spec`, `plan`, `base?` (the Spec's TestDesign before this run), `architecture`, `designs` (artifacts), `glossary`, `rules`, `harness`, `previous`, `feedback`; output `testDesign`, id `<spec>-tests`; read only |
+| Validator `test-design-consistency` | `sdd/v1`, `checkTestDesign`, below; inputs add `plan`, `designs` and `base?` |
 | Task `audit-test-design`, Validator `test-design-audited` | `draft-audit-rules`, its part for a TestDesign: a case's level stops short of the boundary its scenario's When crosses, its steps do not reach its expected, its expected is not the scenario's Then with its values (`case-unfit`) |
 | Task `confirm-test-design`, Validator `test-design-confirmed` | the human reads the cases before code exists, on `local-reviewer` |
-| ReviewLoop `test-design-one`, Workflow `test-design-all` | `maxRounds: 3`; `repeat` over `capabilities` as `plan-all`, the Spec of `CAP-n` bound by id |
+| ReviewLoop `test-design-one`, Workflow `test-design-all` | `maxRounds: 3`; `repeat` over `capabilities` as `plan-all`, the Spec of `CAP-n` bound by id, and `base` to its TestDesign `<spec>-tests` when one exists (`fromArtifact`, `onMissing: omit`) |
 | Task `select-cases` | inputs `plan`, `taskId`, `spec`, `testDesign?`, `feedback?`; output `cases` (value): the task's qualified case ids by level, the `manual` ones, and `write: {api, e2e}`, true in round one when the task has cases of that level and later when a finding names one |
 | Prompt `test-writing-rules` | write only the cases given, one test per case unless its `data` holds several rows; the test's title holds `<CAP-n>/TC-n`; follow the level's `conventions` and its seed test; the level's tool as the harness names it, never another; run each test with the level's `one`; a test of a case the code does not yet do is red, never skipped; never edit a file outside the level's `testDir` |
 | Tasks `write-api-tests`, `write-e2e-tests` | inputs `plan`, `taskId`, `spec`, `designs`, `testDesign`, `harness`, `cases`, `repository`, `feedback?`; output `written` (value: `files[]`, `cases[]`); `write-e2e-tests` starts the app with the harness's `app.start` and walks each step in the browser before it writes the test, as Playwright's generator does |
@@ -117,6 +117,7 @@ Every finding `error`:
 | `level-unavailable` | a case's level the harness has not |
 | `steps-missing` | an `api`, `e2e` or `manual` case without steps |
 | `p0-manual` | a `P0` case that is `manual` |
+| `case-renumbered` | with `base` bound, a `TC-n` of the base whose `AC-n` and `QS-n` share none with the case holding that id now |
 | `step-premature` | an `api` step whose `METHOD /path` is a Design element only a Plan task after the case's task realises; the case's task is the first whose `verifiedBy` holds a scenario it verifies |
 | `id-sequence` | `TC-n` not unique and increasing |
 
@@ -234,6 +235,12 @@ no case has none to miss.
   seed and conventions covered only a `2xx` answer; the Tester's test of a `403` failed on the
   client throwing, the builder answered `204` to make it pass and raised a question, and a round
   went to settle what one line of the harness should have said. Found in UAT.
+- A TestDesign written again starts from the one it replaces, `base`, and keeps every case's id.
+  In the live run a fresh `test-design-one` wrote the cases from scratch: `TC-5` became `TC-4`
+  and `TC-10` became `TC-11`, and the Tester had to retitle tests that already passed, since a
+  test is found by its case's id. Within one loop `previous` already kept the ids; across runs
+  nothing did. The check compares by the scenarios a case verifies, since a case's title and steps
+  may rightly change. Found in UAT.
 - Not adopted: `TestRun` and `TestResult` kinds (a TestOutcome is already one run of one level at
   one commit); a test plan document (ISO 29119-3's agile example puts its content in the plan, here
   the Plan and the harness); a `waived` verdict (it needs a human sign-off of its own, later); a test
