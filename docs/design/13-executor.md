@@ -77,6 +77,10 @@ the Adapter process; Executor-level ones are per-attempt secrets for the work.
   name, not the Executor, so two Executors may share one; a project that overrides an Executor
   by name restates it. The wait counts against the attempt's `timeout`: the attempt timer is the
   Handler's and the dispatcher does not move it. Found in use.
+- `tree` shows a running TaskRun whose call waits for its `exclusive` name, and the project
+  directory of the Run that holds it: the wait is not a phase, so a waiting level looked like a
+  running one. The holder of an exclusive Lease is `<engine>/<uid>/<idempotencyKey>`, so the
+  holding Run is known. Found in review.
 
 
 ## Examples

@@ -32,7 +32,7 @@ server mode is a design error.
 | BlobStore | `put(bytes, mediaType)` → `{uri, digest}` · `get(uri)` | content-addressed (`05-revisioned-kind.md`) |
 | Outbox | `enqueue(event)` in-transaction · `claim(limit, holder, ttl)` · `ack(eventId)` | a claimed event is invisible to other holders until `ttl` (`06-outbox.md`) |
 | TimerStore | `set(uid, key, at)` · `clear(uid, key)` · `due(now)` | same key replaces |
-| LeaseStore | `acquire(uid, holder, ttl)` · `renew` · `release` | one holder per `uid` |
+| LeaseStore | `acquire(uid, holder, ttl)` · `renew` · `release` · `holder(uid)` | one holder per `uid`; `holder` names the live one |
 | TokenStore | `issue(scope, expiry?)` → token · `verify(token)` → scope · `revoke(scope)` | reconcile, call and adapter tokens (`07-adapter.md`) |
 | AuditLog | `append(record)` | one record per write and per `signal` (`00-resource.md`) |
 | CredentialStore | `resolve(name)` → secret | read-only for the engine; never persisted in Resources, snapshots, RunLog, logs |
@@ -105,9 +105,9 @@ A Namespaced Resource may bind only its own Namespace's names and Global names.
 | `persimmon get <Kind>/<name> --files <dir> [-n ns \| --global]` | writes every representation of the revision into `<dir>` as `<name>.<ext>`, the extension from the media type (`text/html` `html`, `image/svg+xml` `svg`, `text/markdown` `md`, `text/vnd.mermaid` `mmd`), one `wrote <path>  <mediaType>  <bytes>` line each; a revision with none is refused (`18-artifact.md`) |
 | `persimmon skill install <name> --into <dir> [--for claude \| codex]` | fetch and verify a Skill, copy its bundle into the workspace's native skill directories (`15-prompt-skill.md`); replaces an earlier install, refuses a hand-made directory under that name unless `--force` |
 | `persimmon digest <dir>` | the Skill bundle digest of a directory (`15-prompt-skill.md`), to paste into `spec.digest` |
-| `persimmon tree <kind>/<name>` | a run and every run it owns, nested by `ownerReferences`, oldest first; a child is labelled by its name minus its owner's, then its kind, then a TaskRun's Adapter; right column: phase (`passed` \| `rejected` for a Gate or Validator verdict) and elapsed time (creation to the last attempt's `finishedAt` for a TaskRun, else to the last RunLog entry; to now while live); under a run: its error, the `complete` command it waits for, a rejected Validator's findings, the artifacts a TaskRun published as `<Kind>/<id>.r<n>`; a footer lists the root's outputs |
+| `persimmon tree <kind>/<name>` | a run and every run it owns, nested by `ownerReferences`, oldest first; a child is labelled by its name minus its owner's, then its kind, then a TaskRun's Adapter; right column: phase (`passed` \| `rejected` for a Gate or Validator verdict) and elapsed time (creation to the last attempt's `finishedAt` for a TaskRun, else to the last RunLog entry; to now while live); under a run: its error, the `complete` command it waits for, the `exclusive` name a call waits for and the directory holding it (`13-executor.md`), a rejected Validator's findings, the artifacts a TaskRun published as `<Kind>/<id>.r<n>`; a footer lists the root's outputs |
 | `persimmon init` | local mode: create `.persimmon/` and `.persimmon/inbox/`, write `persimmon.yaml`, install the shipped Adapters, apply the SDLC pack's `global/`, and `namespaced/` when the pack has one, then copy the pack's `files/` when absent or written by `init` and unedited, link `CLAUDE.md` to an `AGENTS.md` it wrote and ignore `.persimmon/` in `.gitignore` (`20-pack.md`) |
-| `persimmon complete <taskRun> [--file <result.yaml>]` | local mode: `signal` for a `cli-human/v1` attempt as the local Actor; `--file` holds `{outputs}`, an artifact port's value its content, or the `{taskResult, publish}` envelope; drains, then prints the `tree` of the run the Task belongs to, in both modes |
+| `persimmon complete <taskRun> [--file <result.yaml>]` | local mode: `signal` for a `cli-human/v1` attempt as the local Actor, from the TaskRun's project directory only; `--file` holds `{outputs}`, an artifact port's value its content, or the `{taskResult, publish}` envelope; drains, then prints the `tree` of the run the Task belongs to, in both modes |
 | `persimmon delete <kind>/<name>` | refused while referenced (`00-resource.md`) |
 | `persimmon serve` | roadmap: server mode daemon; the API is these verbs over https |
 
@@ -240,6 +240,12 @@ imports into a server unchanged.
   and the socket stay per directory, so two runs at once take two directories. A Run whose
   directory moved or was removed stays where it stopped. Found in use: two PRDs at once in two
   worktrees, whose separate stores could not be merged back.
+- A Trigger belongs to its project directory as a Run does: stamped when written without an owner,
+  so the Runs it fires inherit the directory and only that engine fires it. Unstamped, a Trigger's
+  run had no directory, any engine drove it, and its agent built in whichever worktree drained
+  first. Found in review.
+- `complete` refuses a TaskRun of another project directory and names it: the answer would wait
+  there unseen, and the inbox form it reads lives in that directory. Found in review.
 
 ## Examples
 
