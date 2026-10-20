@@ -663,6 +663,8 @@ describe('junit/v1', () => {
     expect(mutation({ workspace: dir, report: 'report.js', min: 90, changes: deep, paths: ['src/**'], command: [] })).toMatchObject({ killed: 1, score: 100 }) // PIT's html2 report
     writeFileSync(join(dir, 'gremlins.json'), JSON.stringify({ go_module: 'example.com/claims', files: [{ file_name: 'claim.go', mutations: [{ type: 'CONDITIONALS_BOUNDARY', status: 'LIVED', line: 3, column: 9 }, { type: 'ARITHMETIC_BASE', status: 'KILLED', line: 3, column: 2 }, { type: 'INVERT_NEGATIVES', status: 'NOT VIABLE', line: 3, column: 4 }] }] }))
     expect(mutation({ workspace: dir, report: 'gremlins.json', min: 90, changes: new Map([['claims/claim.go', new Set([3])]]), command: [] })).toEqual({ min: 90, command: [], killed: 1, survived: 1, noCoverage: 0, timeout: 0, score: 50, survivors: [{ file: 'claims/claim.go', line: 3, mutator: 'CONDITIONALS_BOUNDARY' }] }) // Gremlins, Go
+    writeFileSync(join(dir, 'skipped.json'), JSON.stringify({ go_module: 'm', files: [{ file_name: 'claim.go', mutations: [{ type: 'CONDITIONALS_BOUNDARY', status: 'SKIPPED', line: 3, column: 9 }] }] }))
+    expect(mutation({ workspace: dir, report: 'skipped.json', min: 90, changes: new Map([['claims/claim.go', new Set([3])]]), command: [] }).error).toContain('1 mutant on the changed lines, none run') // never a pass unmeasured
     const twins = new Map([['a/Claim.java', new Set([3])], ['b/Claim.java', new Set([3])]])
     writeFileSync(join(dir, 'twin.json'), JSON.stringify({ files: { 'x/Claim.java': { mutants: [mutant(3, 'Survived')] } } }))
     expect(mutation({ workspace: dir, report: 'twin.json', min: 90, changes: twins, command: [] }).error).toContain('resolves to no changed file')

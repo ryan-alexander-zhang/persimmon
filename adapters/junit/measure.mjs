@@ -87,7 +87,7 @@ export function coverage({ workspace, report, min, changes, paths }) {
 }
 
 const statuses = { Killed: 'killed', Survived: 'survived', NoCoverage: 'noCoverage', Timeout: 'timeout' } // errors and ignored ones score nothing
-const gremlins = { KILLED: 'Killed', LIVED: 'Survived', 'NOT COVERED': 'NoCoverage', 'TIMED OUT': 'Timeout' } // NOT VIABLE, SKIPPED: nothing
+const gremlins = { KILLED: 'Killed', LIVED: 'Survived', 'NOT COVERED': 'NoCoverage', 'TIMED OUT': 'Timeout', 'NOT VIABLE': 'CompileError', SKIPPED: 'Ignored' }
 
 /** Gremlins' own report (Go): files[] of {file_name, mutations[] {type, status, line}}, as a mutation-testing-elements one. */
 const fromGremlins = (json) => ({ files: Object.fromEntries(json.files.map((f) => [f.file_name, { mutants: (f.mutations ?? []).map((m) => ({ mutatorName: m.type, location: { start: { line: m.line } }, status: gremlins[m.status] })) }])) })
@@ -110,17 +110,24 @@ export function mutation({ workspace, report, min, changes, paths, command }) {
   const files = Object.entries(json.files).map(([path, f]) => [inWorkspace(workspace, path, [], changes ?? new Map()), f])
   const lost = changes && unmapped(new Set(files.map(([file]) => file)), changes, paths)
   if (lost) return { min, command, error: lost }
+  let unscored = 0
   for (const [file, f] of files) {
     const changed = changes?.get(file)
     if (!under(file, paths) || (changes && !changed)) continue
     for (const m of f.mutants ?? []) {
       const line = m.location?.start?.line
       const status = statuses[m.status]
-      if (!status || (changed && !changed.has(line))) continue
+      if (changed && !changed.has(line)) continue
+      if (!status) {
+        unscored++
+        continue
+      }
       counts[status]++
       if (status === 'survived' || status === 'noCoverage') survivors.push({ file, line, mutator: m.mutatorName })
     }
   }
   const scored = counts.killed + counts.timeout + counts.survived + counts.noCoverage
+  // mutants on the change, none run against the tests (skipped, ignored, not compiling): the change went untested
+  if (!scored && unscored) return { min, command, error: `${unscored} mutant${unscored > 1 ? 's' : ''} on the changed lines, none run against the tests: skipped, ignored or not compiling` }
   return { min, command, ...counts, ...(scored ? { score: Math.round(((counts.killed + counts.timeout) / scored) * 10000) / 100 } : {}), survivors }
 }
