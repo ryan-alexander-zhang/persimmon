@@ -72,6 +72,19 @@ Any kind, from its content and schema, set as prose to read rather than a form.
 | a nested object | an indented block of the same rules |
 | EventStorming | the same, and "Open the board" to the Editor at that revision |
 
+## Changes between rounds
+
+In a review of revision 2 or later, each document shows what changed since the revision before
+it, the one the last round reviewed. A switch beside the document's title turns it off; it starts on.
+
+| Change | Shown as |
+|---|---|
+| words added or removed in a passage | added underlined in green, removed struck through in red, word by word |
+| a short field changed | the new value, the old one struck through beside it |
+| an element added or removed | matched by its `id`, so a reordered list is no change: an added element tagged "Added", a removed one faded and tagged "Removed" |
+| a list entry added or removed | the entry tagged the same way |
+| a section with no change | folded to its heading and "unchanged", opened on a click |
+
 ## Verdict
 
 Shown when every output of the parked Task is a ValidationResult value port, as on the four
@@ -137,6 +150,11 @@ but `POST /api/inbox`.
   low saturation, so the eye finds the gate first. Fonts are the system's: the Tool runs offline.
 - React Flow for the map: already a dependency of the Editor; nothing else added. A fixed layout,
   not an automatic one: eight phases in a known order need no graph layout library.
+- Changes between rounds compare the two revisions' documents, not their JSON: blocks pair by the
+  anchor a finding would name, so an element follows its `id` and a reordered list shows no change,
+  and only prose is diffed word by word. The word diff is the `diff` package (jsdiff 9.0.0): no
+  dependencies of its own, its own types, maintained; a hand-written longest common subsequence was
+  the alternative, and the repository reuses a maintained library before it builds one. Found in UAT.
 - Polling every 3 s: loopback, request-response, and a drain changes a run within seconds.
 - The UI answers the gate, superseding decision 350; reject needs a finding; a non-verdict form is
   answered with `persimmon complete`; only this project directory's parked TaskRuns are offered
