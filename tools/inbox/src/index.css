@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+body {
+  background: #fafaf9;
+  color: #1c1917;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+/* Only the innermost item under the pointer is outlined and offers its comment button (37-inbox.md). */
+.item:hover:not(:has(.item:hover)) {
+  outline: 2px solid #fdba74;
+  outline-offset: 2px;
+  border-radius: 0.375rem;
+}
+.item > .note-button {
+  opacity: 0;
+}
+.item:hover:not(:has(.item:hover)) > .note-button,
+.item > .note-button:focus-visible {
+  opacity: 1;
+}

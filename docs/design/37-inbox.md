@@ -8,7 +8,7 @@ same answer `persimmon complete` gives, without leaving the browser and without 
 for the project lock.
 
 ```text
-persimmon run … --follow ──▶ parked on you: persimmon complete <taskRun>   (or open persimmon ui)
+persimmon run … --follow ──▶ answer in the Inbox (persimmon ui), or here: persimmon complete <taskRun>
 persimmon ui ──▶ / ──▶ /tools/inbox/
   GET  /api/inbox                       TaskRuns Waiting on a human that this project directory drives
   GET  /api/inbox/<ns>/<taskRun>        the cli-human/v1 form: instructions, reading[], inputs, outputs
@@ -21,10 +21,10 @@ browser: list ──▶ page per Reading entry ──▶ hover an item ──▶
 
 | Part | Behaviour |
 |---|---|
-| list | headed by the project directory, so two worktrees' Inboxes are told apart; the parked TaskRuns, newest first: Task name, Namespace, deadline; refreshed every 5 s, so the next gate a drain parks appears without a reload |
-| header | the Task's `instructions`, then each value input as a callout (`audit` on `confirm-prd`: the auditor's warnings, read before the human) |
+| list | headed by the project directory, so two worktrees' Inboxes are told apart; the parked TaskRuns, newest first: Task name, Namespace, deadline; refreshed every 5 s, so the next gate a drain parks appears without a reload; the first opens when none is open, and `#<ns>/<taskRun>` keeps the open one across a reload |
+| header | the Task's `instructions`, a YAML block's wrapped lines joined into paragraphs, then each value input as a callout (`audit` on `confirm-prd`: the auditor's warnings, read before the human) |
 | reading | one section per `reading[]` entry, in order, titled `<Kind> <id> r<n>`; a Prompt as text; an entry with `error` shows the error |
-| render | any kind, generically, from the content and the kind schema: an object is a section of labelled fields, the label the property name in words with its schema `description` on hover; an array of objects is a list of cards, one per element, titled by its `id` when it has one; an array of scalars is a bullet list; a string keeps its line breaks |
+| render | any kind, generically, from the content and the kind schema: an object is a section of labelled fields, the label the property name in words with its schema `description` on hover; an array of objects is a list of cards, one per element, titled by its `id` and a short `name`, `title`, `label` or `statement`, which are not repeated below; an array of scalars is a bullet list; a labelled value sits beside its label; a string keeps its line breaks |
 | EventStorming | the same page, plus a link to the Editor at the revision read (`/tools/eventstorming/?ns=&id=&rev=`) for the board |
 
 ## Verdict
@@ -35,8 +35,8 @@ Tasks of the SDLC pack. Any other form shows the Reading and says to answer with
 | Action | Behaviour |
 |---|---|
 | hover | the innermost item under the pointer is outlined and shows a comment button: a card, a field, a list entry |
-| click | a text box opens under the item; Enter keeps the finding, Escape drops it; a kept finding shows as a chip on the item and in the findings tray, removable |
-| anchor | the finding's message starts with the item's `id` (`CAP-2: …`, `BR-4: …`), else with the artifact id and the item's JSON Pointer (`claims-prd /goals/1: …`): the `confirm-*` instructions ask for the id in the message, and ValidationResult has no path field |
+| click | a text box opens under the item's title, or under a value; Enter keeps the finding, Shift+Enter breaks the line, Escape drops it; a kept finding shows on the item and as a chip in the footer, removable from both |
+| anchor | the finding's message starts with the nearest `id` and the JSON Pointer below it (`CAP-2: …`, `BR-4 /statement: …`), else with the artifact id and the item's JSON Pointer (`claims-prd /nonGoals/1: …`): the `confirm-*` instructions ask for the id in the message, and ValidationResult has no path field |
 | general | one finding box for what no item holds |
 | approve | one click; the findings go with it as notes, `severity: info`, `code: note_<n>` |
 | reject | enabled with one finding or more, so a ReviewLoop round always has something to fix; findings `severity: error`, `code: blocking_<n>` |
@@ -62,7 +62,7 @@ Added to `src/server/api.ts` (`25-ui.md`), under the same Host and content-type 
 | the Inbox and the dispatcher agree on which Runs this engine drives: one predicate | `owns` exported from `src/reconcile/dispatch.ts` |
 | agent content is rendered as text by React, never as HTML; a representation stays on its sandboxed route (`25-ui.md`) | `tools/inbox` renders `spec.content` only |
 | the content-to-page tree and the finding builder are pure and tested without a DOM | `tools/inbox/src/lib/*.test.ts` |
-| the inbox directory is the CLI's, `.persimmon/inbox` under the project | `persimmon ui` passes it to `serve` |
+| the inbox directory is `.persimmon/inbox` under the engine's project directory, where `cli-human/v1` writes it | `formPath` in `cli/signal` |
 
 ## Decisions
 
