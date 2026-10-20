@@ -489,12 +489,15 @@ describe('parity-run/v1 over stdio', () => {
       "writeFileSync(`build/${process.argv[2]}.json`, JSON.stringify({ [`test_EP1_${process.argv[2]}`]: { on: process.env.PERSIMMON_TARGET } }))",
     ].join('\n'))
     const level = (name: string) => ({ tool: 'node', run: `node suite.mjs ${name}`, one: 'node suite.mjs {test}', junit: `build/${name}.xml`, observations: `build/${name}.json`, testDir: '.' })
-    const eng = await engine({ harness: { architecture: 'a', levels: {}, app: { start: 'npm start', ready: 'http://localhost:8080/health' } }, bare: { architecture: 'a', levels: {} } }, [])
+    const artifacts: Record<string, unknown> = { harness: { architecture: 'a', levels: {}, app: { start: 'npm start', ready: 'http://localhost:8080/health' } }, bare: { architecture: 'a', levels: {} } }
+    const eng = await engine(artifacts, [])
     const harness = (id: string) => ({ kind: 'artifact', ref: { apiVersion: 'sdd.persimmon.ai/v1', kind: 'TestHarness', namespace: 'demo', id, revision: 1 } })
+    let n = 0
     const run = (levels: Record<string, unknown>, h?: unknown) => {
       const r: any = execute(project, { runs: { type: { kind: 'value', schema: { type: 'array' } } } })
       r.payload.engine = { endpoint: eng.endpoint, token: 'ct-1' }
-      r.payload.inputs = { written: { kind: 'value', value: { files: [], suite: { levels, drivers: { source: 's' }, conventions: '' } } }, ...(h ? { harness: h } : {}) }
+      artifacts[`parity-${++n}`] = { suite: { levels, drivers: { source: 's' }, conventions: '' } } // the suite the ledger recorded at characterization
+      r.payload.inputs = { ledger: ref('ParityLedger', `parity-${n}`, 1), ...(h ? { harness: h } : {}) }
       return stdio('parity-run', r, project)
     }
     try {

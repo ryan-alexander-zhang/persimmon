@@ -6,7 +6,7 @@
 // coverage mapped onto the index. A red suite is an answer, never a failure: the ledger records it.
 // `mutantResults`: run-mutants applies each of the Tester's patches to a scratch clone of the checkout, never the checkout,
 // and reruns one by one the tests green on the source that cite the patched item, each after the level's reset.
-// `runs` alone: run-rewrite runs every level (`app`, `units`, `records`) with PERSIMMON_TARGET=rewrite and the TestHarness's
+// `runs` alone: run-rewrite runs the ledger's suite, every level (`app`, `units`, `records`) with PERSIMMON_TARGET=rewrite and the TestHarness's
 // start command and ready URL. `ledger`: compute-ledger answers the ParityLedger's next revision.
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, rmSync } from 'node:fs'
@@ -191,9 +191,10 @@ async function runMutants(payload, workspace, call) {
  * once it is up. A `units` test runs through the rewrite's driver to the rewrite's code. */
 async function runRewrite(payload, workspace, call) {
   const inputs = payload.inputs ?? {}
-  const suite = inputs.written?.value?.suite
   if (!payload.workspace) refuse('the suite runs in the project: action.workspace names the project, never the engine directory by default')
-  if (!suite?.levels) refuse('the suite inputs.written names is required: written.suite.levels')
+  if (inputs.ledger?.kind !== 'artifact') refuse('run-rewrite needs inputs.ledger, the ParityLedger whose suite it runs')
+  const suite = (await call('getArtifact', inputs.ledger.ref)).spec.content?.suite
+  if (!suite?.levels) refuse('the ledger holds no suite: compute-ledger after characterization records it')
   checkLevels(suite)
   if (inputs.harness?.kind !== 'artifact') refuse('run-rewrite needs inputs.harness, the TestHarness whose app starts the rewrite')
   const app = (await call('getArtifact', inputs.harness.ref)).spec.content?.app
@@ -249,7 +250,7 @@ async function computeLedgerTask(payload, call) {
   // anything computeLedger throws past these checks is a bug, retried, never the Task's input
   return computeLedger({
     inventory: inventory.content, inventoryRef: { id: inventory.ref.id, revision: inventory.ref.revision }, last, slice,
-    decisions: value('decisions') ?? {}, suite: value('written')?.suite, runs: value('runs') ?? [], coverage: value('coverage')?.files, mutants: value('mutantResults') ?? [],
+    decisions: value('decisions') ?? {}, suite: value('written')?.suite, runs: value('runs'), coverage: value('coverage')?.files, mutants: value('mutantResults') ?? [],
     rules: rules?.content, rulesRef: rules ? { id: rules.ref.id, revision: rules.ref.revision } : undefined, rewrite: value('rewriteRuns') ? { runs: value('rewriteRuns') } : undefined,
   })
 }

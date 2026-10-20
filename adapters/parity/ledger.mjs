@@ -7,6 +7,7 @@ import { parseWhere } from './check.mjs'
 const rank = { running: 3, partial: 2, recorded: 1, static: 0 }
 const levelOracle = { app: 'running', units: 'partial', records: 'recorded' }
 const strongest = (oracles) => oracles.reduce((a, b) => (rank[b] > rank[a] ? b : a), 'static')
+const noWitness = 'no test passed on the source, its units or its records'
 
 /** Whether a test's name cites an id: `EP-2`, `EP_2` or `EP2` as a whole word, so `GD2` never cites `GD-21` nor `EP2A` `EP-2`. */
 export function cites(name, id) {
@@ -94,9 +95,10 @@ export function mergeDecisions(earlier = {}, now = {}) {
  * The next ledger revision. `slice` absent: the Survey's, holding the human's cut. Otherwise the Slice's: every item the
  * inventory lists or the ledger held for the Slice, its account, the Oracle of each of its entry points, the source's
  * answers, with `rewrite` the differences, then the Slice's verdict. `runs` are run-source's, `[{level, tests, observations}]`;
+ * absent, the stage measured nothing and the last revision's measurements of the Slice carry over, only the accounts recomputed;
  * `coverage` the mapped files, undefined when no report ran; `mutants` run-mutants', `[{ref, result, failed[]}]`.
  */
-export function computeLedger({ inventory, inventoryRef, last, slice, decisions: stage = {}, suite, runs = [], coverage, mutants = [], rules, rulesRef, rewrite }) {
+export function computeLedger({ inventory, inventoryRef, last, slice, decisions: stage = {}, suite, runs, coverage, mutants = [], rules, rulesRef, rewrite }) {
   if (!inventoryRef) throw new Error('inventoryRef is required: a ledger pins the inventory revision it was computed from')
   const base = last ?? { source: inventory.source, slices: [], entryPoints: [], items: [], answers: [], differences: [], unreached: [] }
   const ledger = { ...structuredClone(base), source: inventory.source, inventory: inventoryRef }
@@ -116,13 +118,17 @@ export function computeLedger({ inventory, inventoryRef, last, slice, decisions:
   const cut = ledger.slices.find((s) => s.id === slice)
   if (!cut) throw new Error(`${slice} is no Slice of the ledger's cut`)
 
+  // only characterize measures the source: a later stage carries what it measured, so no later run measures it differently
+  const measuring = runs !== undefined
+  const was = (ref) => base.items.find((i) => i.ref === ref && i.slice === slice)
   // the Oracle of each entry point: the strongest level a test citing it passed on; a test red on the source witnesses nothing
-  const tests = runs.flatMap((r) => r.tests.map((t) => ({ ...t, level: r.level, observations: r.observations ?? {} })))
+  const tests = (runs ?? []).flatMap((r) => r.tests.map((t) => ({ ...t, level: r.level, observations: r.observations ?? {} })))
   const passed = tests.filter((t) => t.status === 'passed')
   // a record runs against the rewrite only: a records test that ran there holds its entry point's Oracle, whatever it answered
   const records = (rewrite?.runs ?? []).filter((r) => r.level === 'records').flatMap((r) => r.tests)
   const held = [...passed, ...records.map((t) => ({ ...t, level: 'records' }))]
-  const eps = Object.fromEntries(cut.entryPoints.map((ep) => [ep, strongest(held.filter((t) => cites(t.name, ep)).map((t) => levelOracle[t.level] ?? 'static'))]))
+  const carried = (ep) => (measuring ? [] : [base.entryPoints.find((e) => e.id === ep)?.oracle ?? 'static'])
+  const eps = Object.fromEntries(cut.entryPoints.map((ep) => [ep, strongest([...carried(ep), ...held.filter((t) => cites(t.name, ep)).map((t) => levelOracle[t.level] ?? 'static')])]))
   ledger.entryPoints = [...ledger.entryPoints.filter((e) => !(e.id in eps)), ...cut.entryPoints.map((id) => ({ id, oracle: eps[id] }))].sort((a, b) => Number(a.id.slice(3)) - Number(b.id.slice(3)))
   const best = strongest(Object.values(eps))
 
@@ -140,12 +146,16 @@ export function computeLedger({ inventory, inventoryRef, last, slice, decisions:
     const killsHere = (m) => m.result === 'killed' && (m.failed ?? []).some((n) => cites(n, item.ref) && passed.some((t) => t.name === n))
     const strength = (m) => (killsHere(m) ? 4 : { killed: 3, survived: 2, invalid: 1 }[m.result] ?? 0)
     const run = mutants.filter((m) => m.ref === item.ref).sort((a, b) => strength(b) - strength(a))[0]
+    const last = was(item.ref)
     const x = {
-      reached,
-      pinnable: (itemOracle === 'running' || itemOracle === 'partial') && measured && !item.volatile,
-      mutant: run?.result,
-      // only a test citing the item, and green on the source, kills it: a test red there witnesses nothing
-      pinned: run?.result === 'killed' && (run.failed ?? []).some((n) => cites(n, item.ref) && passed.some((t) => t.name === n)),
+      ...(measuring ? {
+        reached,
+        pinnable: (itemOracle === 'running' || itemOracle === 'partial') && measured && !item.volatile,
+        mutant: run?.result,
+        // only a test citing the item, and green on the source, kills it: a test red there witnesses nothing
+        pinned: run?.result === 'killed' && (run.failed ?? []).some((n) => cites(n, item.ref) && passed.some((t) => t.name === n)),
+        tests: names.filter((n) => cites(n, item.ref) || item.eps.some((ep) => cites(n, ep))),
+      } : { reached: last?.reached ?? false, pinnable: last?.pinnable ?? false, pinned: last?.pinned ?? false, mutant: last?.mutant === 'none' ? undefined : last?.mutant, tests: last?.tests ?? [] }),
       rules: citing.filter((r) => r.status === 'active').map((r) => r.id),
       disposition: dispositionOf(item.ref, citing, decided),
       dead: (decisions.dead ?? []).find((d) => d.ref === item.ref)?.evidence,
@@ -157,7 +167,7 @@ export function computeLedger({ inventory, inventoryRef, last, slice, decisions:
     const mutable = item.kind === 'guard' || item.kind === 'declaration' || item.kind === 'effect' // plumbing and absences are decided, not mutated
     return Object.fromEntries(Object.entries({
       ref: item.ref, slice, reached: x.reached, pinnable: x.pinnable, pinned: x.pinned, mutant: mutable ? (x.mutant ?? (x.pinnable ? 'none' : undefined)) : undefined,
-      tests: names.filter((n) => cites(n, item.ref) || item.eps.some((ep) => cites(n, ep))), rules: x.rules, disposition: x.disposition,
+      tests: x.tests, rules: x.rules, disposition: x.disposition,
       dead: x.dead, accepted: x.accepted, plumbing: x.plumbing, reader: x.reader, account: acct, reason,
     }).filter(([, v]) => v !== undefined))
   })
@@ -202,8 +212,8 @@ export function computeLedger({ inventory, inventoryRef, last, slice, decisions:
   const at = (name) => cut.entryPoints.find((ep) => cites(name, ep)) ?? mine.find((i) => cites(name, i.ref))?.ref ?? cut.entryPoints[0]
   const blind = passed.filter((t) => ledger.answers.some((a) => a.test === t.name && a.observed === null))
   ledger.unreached = [
-    ...base.unreached.filter((u) => u.slice !== slice),
-    ...cut.entryPoints.filter((ep) => eps[ep] === 'static').map((ref) => ({ ref, slice, why: 'no test passed on the source, its units or its records' })),
+    ...base.unreached.filter((u) => u.slice !== slice || (!measuring && u.why !== noWitness)), // a red or blind test's entry carries; the Oracle's is recomputed
+    ...cut.entryPoints.filter((ep) => eps[ep] === 'static').map((ref) => ({ ref, slice, why: noWitness })),
     ...tests.filter((t) => t.status !== 'passed').map((t) => ({ ref: at(t.name), slice, why: `${t.name} ${t.status} on the source: the characterization is broken there` })),
     ...blind.map((t) => ({ ref: at(t.name), slice, why: `${t.name} observed nothing: it rests on its status alone` })),
   ]

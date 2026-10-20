@@ -171,6 +171,14 @@ describe('computeLedger', () => {
     expect(other.differences).toEqual([{ test: 'test_EP2_GD2_add_in_stock', source: observations.test_EP2_GD2_add_in_stock, rewrite: { lines: {}, subtotal: '0.00' } }])
   })
 
+  it('a stage that measures nothing carries the last revision\'s measurements and recomputes only the accounts', () => {
+    const characterized = slice({ rules: undefined, rulesRef: undefined, decisions: {} })
+    expect(characterized.verdict.result).toBe('fail') // no rule recovered yet
+    expect(slice({ last: characterized, runs: undefined, coverage: undefined, mutants: undefined })).toEqual(expected)
+    const red = slice({ runs: [{ level: 'app', tests: [...tests.map((name) => ({ name, status: 'passed' })), { name: 'test_EP2_broken', status: 'failed' }], observations }] })
+    expect(slice({ last: red, runs: undefined, coverage: undefined, mutants: undefined }).unreached).toEqual(red.unreached) // a red test's entry stays
+  })
+
   it('a record runs on the rewrite only: its test holds the entry point\'s Oracle, and one not green there is a difference', () => {
     const records = [{ level: 'records', tests: [{ name: 'test_EP1_record_7', status: 'passed' }, { name: 'test_EP2_record_8', status: 'failed' }], observations: {} }]
     const ledger = slice({ runs: [], rewrite: { runs: records } })
