@@ -96,6 +96,10 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
   `persimmon get KindDefinition/issues.sdd.persimmon.ai`.
   The fix: a Spec revision with a new `AC-n` when the Spec was wrong or missing, a Plan revision,
   `build-one`; the Issue's next revision is `resolved` and cites that record in `fixedBy`.
+- Parallel work runs in git worktrees sharing one store (`store` and `blobs` in
+  `persimmon.yaml`); the developer sets them up, never you. Each idea takes its own `productId`
+  and its own context names. A run moves only from the directory that started it: run its
+  `complete` there. Never suggest removing a worktree whose runs are not finished.
 
 Building a Plan task (`build-all`), as the developer's own agent reading an inbox form:
 - The run waits on you at each task: `.persimmon/inbox/<taskRun>.yaml` is the brief, its
