@@ -1071,6 +1071,13 @@ describe('sdd/v1 over the Test process', () => {
     expect(report(allUnit, allApi.filter((t: any) => !t.name.includes('TC-10 '))).verdict).toMatchObject({ result: 'fail', rule: 'P0 75%, P1 100%, all 90% ok: P0 below 100%' })
     const gap = structuredClone(content('TestDesign')); gap.cases = gap.cases.filter((c: any) => c.id !== 'TC-7')
     expect(report(allUnit, allApi, gap).verdict).toMatchObject({ result: 'fail', rule: 'AC-7 uncovered' })
+    // a run building T-1 alone is judged on T-1's cases: TC-1, TC-3, TC-8, TC-9, TC-10
+    const t1 = (a: unknown[]) => buildReport({ plan: content('Plan'), tasks: ['T-1'], spec: content('Spec'), architecture: content('Architecture'), testDesign: content('TestDesign'), final: unit(allUnit), finals: [api(a)], evaluation, ids: {} })
+    const t1Api = allApi.filter((t: any) => /TC-1 |TC-10 /.test(t.name))
+    expect(t1(t1Api).verdict).toMatchObject({ result: 'pass', rule: 'P0 100%, P1 100%, all 100% ok' })
+    expect(t1(t1Api).cases.find((c: any) => c.case === 'CAP-1/TC-2')).toMatchObject({ status: 'notrun', reason: 'task not built' })
+    expect(t1(t1Api).coverage.find((c: any) => c.ref === 'AC-2')).toMatchObject({ status: 'notrun' })
+    expect(t1(t1Api.slice(1)).verdict).toMatchObject({ result: 'fail' }) // a built task's case still counts
     expect(report(allUnit, allApi, content('TestDesign'), { 'submit-a-claim-plan-t-1': { defects: [{ id: 'D-1', observed: 'cents are dropped', expected: 'x', where: 'y' }] } }).defects).toEqual([{ record: 'submit-a-claim-plan-t-1', defect: 'D-1', observed: 'cents are dropped' }])
   })
 

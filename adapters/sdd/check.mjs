@@ -674,13 +674,17 @@ export function checkRegression({ final, baseline, levelOutcomes = [], levelBase
 const verdictThresholds = { p0: 100, p1: 90, p1Concerns: 80, overall: 80 }
 /** The TestReport of one built Plan (39-test-process.md): each case's result in the plan tier's outcome of its level, a coverage
  * status per scenario and requirement, Xray's (`ok`, `nok`, `notrun`, `uncovered`), and the verdict by BMAD's trace thresholds,
- * the rule that gave it named. `final` is the unit outcome, `finals` the other levels'; `records` maps an AcceptanceRecord id to
+ * the rule that gave it named. `tasks`: the Plan tasks built; a case only an unbuilt one verifies is `notrun` and out of the
+ * verdict. `final` is the unit outcome, `finals` the other levels'; `records` maps an AcceptanceRecord id to
  * its content; `evaluation` is the Auditor's, carried as it is; `ids`: {plan, spec, testDesign}. */
-export function buildReport({ plan, spec, architecture, testDesign, final, finals = [], records = {}, evaluation, thresholds = {}, ids = {} }) {
+export function buildReport({ plan, tasks, spec, architecture, testDesign, final, finals = [], records = {}, evaluation, thresholds = {}, ids = {} }) {
   const t = { ...verdictThresholds, ...thresholds }
   const outcomes = new Map([...(final ? [['unit', final]] : []), ...finals.map((o) => [levelOf(o), o])])
+  const of = (ids) => new Set(ids.flatMap((taskId) => taskCases({ plan, taskId, spec, testDesign }).map((c) => c.qid)))
+  const built = of(tasks ?? []), unbuilt = tasks ? of((plan?.tasks ?? []).map((x) => x.id).filter((x) => !tasks.includes(x))) : new Set()
   const cases = (testDesign?.cases ?? []).map((c) => {
     const qid = qualified(spec, c.id)
+    if (!built.has(qid) && unbuilt.has(qid)) return { case: qid, level: c.level, priority: c.priority, execution: c.execution, tests: [], status: 'notrun', reason: 'task not built' }
     const o = outcomes.get(c.level)
     const tests = (o?.tests ?? []).filter((x) => carries(x, qid)).map((x) => ({ name: `${x.classname} > ${x.name}`, status: x.status }))
     const row = { case: qid, level: c.level, priority: c.priority, execution: c.execution, tests }
@@ -703,8 +707,9 @@ export function buildReport({ plan, spec, architecture, testDesign, final, final
     const s = by.map((q) => status.get(q))
     return { ref, status: !by.length ? 'uncovered' : s.includes('nok') ? 'nok' : s.includes('notrun') ? 'notrun' : 'ok', cases: by }
   })
+  const judged = cases.filter((c) => c.reason !== 'task not built')
   const rate = (list) => (list.length ? Math.round((list.filter((c) => c.status === 'ok').length / list.length) * 1000) / 10 : 100)
-  const [p0, p1, all] = [rate(cases.filter((c) => c.priority === 'P0')), rate(cases.filter((c) => c.priority === 'P1')), rate(cases)]
+  const [p0, p1, all] = [rate(judged.filter((c) => c.priority === 'P0')), rate(judged.filter((c) => c.priority === 'P1')), rate(judged)]
   const nok = cases.filter((c) => c.status === 'nok').map((c) => c.case)
   const gap = coverage.filter((c) => c.status === 'uncovered' && (c.ref.startsWith('AC-') || provenAt.get(c.ref) === 'build')).map((c) => c.ref)
   const rates = `P0 ${p0}%, P1 ${p1}%, all ${all}% ok`

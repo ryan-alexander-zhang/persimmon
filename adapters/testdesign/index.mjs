@@ -29,6 +29,7 @@ serve({
     if (ports.includes('report')) {
       const report = buildReport({
         plan: await one('plan'),
+        tasks: inputs.tasks?.value,
         spec: await one('spec'),
         architecture: await one('architecture'),
         testDesign: await one('testDesign'),

@@ -943,6 +943,7 @@ spec:
       uses: {kind: Task, name: report-tests}
       inputs:
         plan: {fromInput: plan}
+        tasks: {fromInput: tasks}
         spec: {fromInput: spec}
         architecture: {fromInput: architecture}
         testDesign: {fromInput: testDesign}

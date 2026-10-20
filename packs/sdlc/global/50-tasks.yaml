@@ -1020,6 +1020,7 @@ metadata: {name: report-tests}
 spec:
   inputs:
     plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}}
+    tasks: {type: {kind: value, schema: {type: array, minItems: 1, maxItems: 20, items: {type: string, pattern: "^T-[0-9]+$"}}}, description: "the Plan tasks built: a case of another task is out of the verdict"}
     spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}, description: "the quality scenarios proven at build"}
     testDesign: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}}

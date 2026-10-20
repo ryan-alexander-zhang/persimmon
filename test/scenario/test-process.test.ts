@@ -141,7 +141,7 @@ describe('scenario: the Test process', () => {
     f = form()
     expect(f.inputs.feedback.value.results.evidence.findings.map((x: { code: string; message: string }) => [x.code, x.message])).toEqual([['case-untested', 'CAP-1/TC-10: no api test carries it: a request naming another employee\'s claim is refused and logged']])
     expect(f.inputs.cases.value.write).toEqual({ api: true, e2e: false })
-    const apis: [string][] = ['TC-1', 'TC-2', 'TC-4', 'TC-5', 'TC-6', 'TC-7', 'TC-10'].map((c) => [`CAP-1/${c} as designed`])
+    const apis: [string][] = ['TC-1', 'TC-10'].map((c) => [`CAP-1/${c} as designed`]) // T-1's only: T-2 to T-4 are not built
     writeFileSync(join(repo, 'api.xml'), xml(...apiSeed, ...apis))
     await answer(f.taskRun, { written: { kind: 'value', value: { files: ['api.xml'], cases: ['CAP-1/TC-1', 'CAP-1/TC-10'] } } })
     await answer(form().taskRun, { record })
@@ -160,6 +160,7 @@ describe('scenario: the Test process', () => {
     const text = out.join('\n')
     expect(text).toMatch(/result: pass/)
     expect(text).toContain('P0 100%, P1 100%, all 100% ok')
+    expect(text).toMatch(/case: CAP-1\/TC-2\s*\n(.*\n)*?\s*reason: task not built/) // T-2's case, out of the verdict
     expect(text).toMatch(/actor:\s*\n\s*kind: service\s*\n\s*id: testdesign\/v1/) // computed, not written
   })
 })
