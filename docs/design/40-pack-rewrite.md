@@ -194,11 +194,18 @@ lists it; a later Slice that reaches it again does not take it over.
 Anything else is `open`. `pass`: nothing `open`, nothing `unverified`, nothing `unreached`, no
 difference without a cause. `concerns`: `unverified` or `unreached` only. `fail`: anything else.
 
-A mutant is `killed` only when a test that cites the item or its entry point passed on the source
-and `failed` (an assertion, not an error) on the mutant; `invalid` when the mutant does not build
-or start, or the patch breaks `mutant-rules`; an `invalid` or `survived` mutant leaves the item
-`open`. Reached and pinned stay apart: in the JPetStore pilot a stock guard's line ran in 20
-passing tests and none read its outcome.
+A mutant is `killed` only when a test that cites the item itself passed on the source and `failed`
+(an assertion, not an error) on the mutant: a test citing only the entry point asserts something
+else there, so `run-mutants` names the tests that failed and the ledger counts only those citing the
+item. `invalid` when the mutant does not build or start, or the patch breaks `mutant-rules`; an
+`invalid` or `survived` mutant leaves the item `open`. Reached and pinned stay apart: in the
+JPetStore pilot a stock guard's line ran in 20 passing tests and none read its outcome.
+
+The difference check never rests on observations alone. Every test that passed on the source is
+recorded in `answers[]`, its observation `null` when the run wrote none; on the rewrite, a test of
+those that failed, did not run, or observed otherwise than recorded is a difference. A test that
+failed on the source is no witness: its entry point is `unreached`. An item a later inventory
+revision no longer lists stays in the ledger, `open`, until a human decides it.
 
 ## Protocol drivers
 
