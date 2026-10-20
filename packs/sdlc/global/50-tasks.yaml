@@ -418,6 +418,7 @@ spec:
   inputs:
     plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}}
     repository: {type: {kind: externalResource, provider: git, type: repository}, description: "the project's code, before the build"}
+    harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, required: false, description: "the project's test tools: when bound, the levels and their commands are its (39-test-process.md)"}
   outputs:
     baseline: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, id: {expression: "inputs.plan.id + '-baseline'"}}
   executorRef: {kind: Executor, name: test-runner}
@@ -438,6 +439,8 @@ spec:
     record: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: AcceptanceRecord}}}
     repository: {type: {kind: externalResource, provider: git, type: repository}, description: "the project's code, where the build round wrote"}
     baseline: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the unit tests before build-all; run alone, none: every test runs"}
+    harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, required: false, description: "the project's test tools: when bound, the levels and their commands are its (39-test-process.md)"}
+    cases: {type: {kind: value, schema: {type: object}}, required: false, description: "the round's case ids by level, under a TestDesign (39-test-process.md): the tests each level must run"}
   outputs:
     testOutcome: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, id: {expression: "inputs.record.id + '-tests'"}}
   executorRef: {kind: Executor, name: test-runner}
@@ -460,6 +463,8 @@ spec:
     record: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: AcceptanceRecord}}, required: false, description: "the round's record: the tests it names run"}
     testOutcome: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the round's unit tests: a new red there holds every level"}
     baselines: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "each level's tests before build-all"}
+    harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, required: false, description: "the project's test tools: when bound, the levels and their commands are its (39-test-process.md)"}
+    cases: {type: {kind: value, schema: {type: object}}, required: false, description: "the round's case ids by level, under a TestDesign (39-test-process.md): the tests each level must run"}
   outputs:
     outcomes: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, id: {expression: "has(inputs.record) ? inputs.record.id + '-levels' : inputs.plan.id + (has(inputs.baselines) ? '-final-levels' : '-baseline-levels')"}}
   executorRef: {kind: Executor, name: level-runner}
@@ -479,6 +484,8 @@ spec:
     plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}}
     repository: {type: {kind: externalResource, provider: git, type: repository}, description: "the project's code, every task built"}
     baseline: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, description: "the unit tests before build-all"}
+    harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, required: false, description: "the project's test tools: when bound, the levels and their commands are its (39-test-process.md)"}
+    testDesign: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, required: false, description: "a TestReport follows: unit runs in full, so every case has a result over the last tree"}
   outputs:
     final: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, id: {expression: "inputs.plan.id + '-final'"}}
   executorRef: {kind: Executor, name: test-runner}
@@ -635,13 +642,16 @@ spec:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     repository: {type: {kind: externalResource, provider: git, type: repository}, description: "the project's code, read only"}
     levelOutcomes: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the other test levels' outcomes this round (36-test-levels.md)"}
+    testDesign: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, required: false, description: "the Spec's test cases: the record has no rows, the cases are judged (39-test-process.md)"}
+    cases: {type: {kind: value, schema: {type: object}}, required: false, description: "the round's case ids by level, under a TestDesign (39-test-process.md): the tests each level must run"}
   outputs:
     audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
   executorRef: {kind: Executor, name: auditor}
   action:
     instructions: |
       Audit the record of the Plan task whose id is `taskId`, built in the directory the `repository` input names,
-      following the audit rules in your context: for each scenario row, whether its named tests prove the scenario.
+      following the audit rules in your context: for each scenario row, whether its named tests prove the scenario;
+      with `cases` bound, for each case of the task, whether the tests carrying its id prove it.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: audit-rules}}
       - {kind: artifact, input: record}
@@ -650,6 +660,7 @@ spec:
       - {kind: artifact, input: spec}
       - {kind: artifact, input: architecture}
       - {kind: artifact, input: levelOutcomes}
+      - {kind: artifact, input: testDesign}
     workspace: {input: repository}
   timeout: 1h
   retryPolicy: # a transient API refusal gets another attempt
@@ -676,6 +687,10 @@ spec:
     previousOutcome: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "what the tests did last round"}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
     baseline: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the tests before build-all: a case red there is not this task's"}
+    testDesign: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, required: false, description: "the Spec's test cases (39-test-process.md)"}
+    harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, required: false, description: "the project's test tools: when bound, the levels and their commands are its (39-test-process.md)"}
+    cases: {type: {kind: value, schema: {type: object}}, required: false, description: "the round's case ids by level, under a TestDesign (39-test-process.md): the tests each level must run"}
+    written: {type: {kind: value, schema: {type: object, required: [files, cases], additionalProperties: false, properties: {files: {type: array, items: {type: string, minLength: 1}}, cases: {type: array, items: {type: string, pattern: "^CAP-[0-9]+/TC-[0-9]+$"}}, notWritten: {type: array, items: {type: string, minLength: 1}}}}}, required: false, description: "the api tests the Tester wrote this round, before the code: never edited by the builder"}
   outputs:
     record: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: AcceptanceRecord}}, id: {expression: "inputs.plan.id + '-' + inputs.taskId.lowerAscii()"}}
   executorRef: {kind: Executor, name: builder}
@@ -696,6 +711,8 @@ spec:
       - {kind: artifact, input: previous}
       - {kind: artifact, input: previousOutcome}
       - {kind: artifact, input: baseline}
+      - {kind: artifact, input: testDesign}
+      - {kind: artifact, input: harness}
     workspace: {input: repository}
     parameters: {effort: high}
   timeout: 72h   # a human's: the developer builds it in their own session
@@ -703,3 +720,317 @@ spec:
     maxAttempts: 3
     backoff: {strategy: exponential, initial: 1m, max: 5m, jitter: none}
   sideEffects: nonIdempotent   # it writes the repository
+---
+# The Tester sets up the project's tests once and records them (39-test-process.md): a tool per test level, a seed test each.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: write-harness}
+spec:
+  inputs:
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}, required: false, description: "the Adrs the Architecture applies: a tool one names is the level's"}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "the product's Designs: an http-api one needs an api level, a ui one an e2e level"}
+    repository: {type: {kind: externalResource, provider: git, type: repository}, description: "the project's code, where the tests are set up"}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, required: false}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+  outputs:
+    harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, id: {expression: "inputs.architecture.id + '-harness'"}}
+  executorRef: {kind: Executor, name: tester}
+  action:
+    instructions: |
+      Set up the project's tests in the directory the `repository` input names, following the harness rules in your
+      context, and answer with the TestHarness that records them. `architecture` in it is the artifact id of the input
+      with that name. With `previous` and `feedback` bound, fix what the findings name and change nothing else.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: harness-rules}}
+      - {kind: artifact, input: architecture}
+      - {kind: artifact, input: adrs}
+      - {kind: artifact, input: designs}
+      - {kind: artifact, input: previous}
+    workspace: {input: repository}
+  timeout: 72h   # a human's: the developer's agent sets it up in its own session
+  retryPolicy: # a transient API refusal gets another attempt
+    maxAttempts: 3
+    backoff: {strategy: exponential, initial: 1m, max: 5m, jitter: none}
+  sideEffects: nonIdempotent   # it writes the repository
+---
+# A harness's unit level run once, every test, to find its seed test (39-test-process.md).
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: run-seed}
+spec:
+  inputs:
+    harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}}
+    repository: {type: {kind: externalResource, provider: git, type: repository}, description: "the project's code"}
+  outputs:
+    seed: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, id: {expression: "inputs.harness.id + '-seed'"}}
+  executorRef: {kind: Executor, name: test-runner}
+  action:
+    instructions: Run the unit tests the TestHarness names in the repository and answer what their JUnit XML says.
+    workspace: {input: repository}
+  timeout: 2h
+  sideEffects: idempotent
+---
+# A harness's other levels run once, every test, to find each seed test (39-test-process.md).
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: run-seed-levels}
+spec:
+  inputs:
+    harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}}
+    repository: {type: {kind: externalResource, provider: git, type: repository}, description: "the project's code"}
+  outputs:
+    outcomes: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, id: {expression: "inputs.harness.id + '-seed-levels'"}}
+  executorRef: {kind: Executor, name: level-runner}
+  action:
+    instructions: Run each test level the TestHarness names in the repository and answer what its JUnit XML says.
+    workspace: {input: repository}
+  timeout: 4h
+  sideEffects: idempotent
+---
+# The test cases of one Spec, designed before it is built (39-test-process.md); read only, as the Plan is written.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: design-tests}
+spec:
+  inputs:
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, description: "the product's Designs: the operations and screens a case's steps name"}
+    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, required: false}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+  outputs:
+    testDesign: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, id: {expression: "inputs.spec.id + '-tests'"}}
+  executorRef: {kind: Executor, name: test-design-agent}
+  action:
+    instructions: |
+      Design the test cases of the Spec, following the test design rules in your context. `spec` and `harness` in the
+      TestDesign are the artifact ids of the inputs with those names. With `previous` and `feedback` bound, fix what
+      the findings name and change nothing else.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: test-design-rules}}
+      - {kind: artifact, input: spec}
+      - {kind: artifact, input: architecture}
+      - {kind: artifact, input: designs}
+      - {kind: artifact, input: glossary}
+      - {kind: artifact, input: rules}
+      - {kind: artifact, input: harness}
+      - {kind: artifact, input: previous}
+    parameters: {effort: high}
+  timeout: 30m
+  retryPolicy: # a transient API refusal gets another attempt
+    maxAttempts: 3
+    backoff: {strategy: exponential, initial: 1m, max: 5m, jitter: none}
+  sideEffects: none
+---
+# A TestDesign's meaning, judged after test-design-consistency passed and before the human (39-test-process.md).
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: audit-test-design}
+spec:
+  inputs:
+    testDesign: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}}
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, required: false, description: "the last round's, beside the draft; round one has none"}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict; round one has none"}
+  outputs:
+    audit: {type: {kind: value, schema: {allOf: [{$ref: "persimmon.ai/v1#/ValidationResult"}, {if: {required: [findings], properties: {findings: {contains: {required: [severity], properties: {severity: {const: error}}}}}}, then: {properties: {passed: {const: false}}}, else: {properties: {passed: {const: true}}}}]}}}
+  executorRef: {kind: Executor, name: auditor}
+  action:
+    instructions: |
+      Audit the TestDesign `testDesign` following the draft audit rules in your context, their part for a TestDesign.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: draft-audit-rules}}
+      - {kind: artifact, input: testDesign}
+      - {kind: artifact, input: spec}
+      - {kind: artifact, input: architecture}
+      - {kind: artifact, input: designs}
+      - {kind: artifact, input: rules}
+      - {kind: artifact, input: harness}
+      - {kind: artifact, input: previous}
+  timeout: 30m
+  retryPolicy: # a transient API refusal gets another attempt
+    maxAttempts: 3
+    backoff: {strategy: exponential, initial: 1m, max: 5m, jitter: none}
+  sideEffects: none
+---
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: confirm-test-design}
+spec:
+  inputs:
+    testDesign: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}}
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}, required: false, description: "the auditor's verdict, passed, read before the human (23-pack-sdlc.md)"}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
+  executorRef: {kind: Executor, name: local-reviewer}
+  action:
+    instructions: |
+      Confirm the test cases of the Spec before any of it is built. Judge whether each case tests what its scenario
+      accepts, at the level a person or a client meets it, with a priority its failure deserves; the check covers every
+      scenario beside you. Approve, or reject with one finding per TC-n that must change, naming it in the message.
+      `audit`, when bound, is the auditor's verdict on this draft: it passed, and each warning is a doubt for you to judge,
+      not a defect already decided.
+    context:
+      - {kind: artifact, input: testDesign}
+      - {kind: artifact, input: spec}
+  timeout: 72h
+  sideEffects: none
+---
+# A build round's cases (39-test-process.md): the task's case ids by level and whether the Tester writes this round, computed
+# from the TestDesign; without one, no case, and the round is 35-build-process.md's.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: select-cases}
+spec:
+  inputs:
+    plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}}
+    taskId: {type: {kind: value, schema: {type: string, pattern: "^T-[0-9]+$"}}}
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    testDesign: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, required: false}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict: the Tester writes again only for a case a finding names"}
+  outputs:
+    cases: {type: {kind: value, schema: {type: object}}}
+  executorRef: {kind: Executor, name: case-selector}
+  action:
+    instructions: Answer the task's cases by level from the TestDesign.
+  timeout: 5m
+  sideEffects: none
+---
+# The Tester writes the api tests of one Plan task's cases (39-test-process.md), before the code is built: red until the builder makes them pass; each test's title carries its case's id.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: write-api-tests}
+spec:
+  inputs:
+    plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}}
+    taskId: {type: {kind: value, schema: {type: string, pattern: "^T-[0-9]+$"}}}
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, description: "the Designs the Plan lists: the operations and screens the steps name"}
+    testDesign: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}}
+    harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}}
+    cases: {type: {kind: value, schema: {type: object}}, description: "the round's case ids by level: write those of level api"}
+    repository: {type: {kind: externalResource, provider: git, type: repository}, description: "the project's code, where the tests are written"}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict"}
+  outputs:
+    written: {type: {kind: value, schema: {type: object, required: [files, cases], additionalProperties: false, properties: {files: {type: array, items: {type: string, minLength: 1}}, cases: {type: array, items: {type: string, pattern: "^CAP-[0-9]+/TC-[0-9]+$"}}, notWritten: {type: array, items: {type: string, minLength: 1}}}}}}
+  executorRef: {kind: Executor, name: tester}
+  action:
+    instructions: |
+      Write the tests of the api cases in `cases`, of the Plan task whose id is `taskId`, in the directory the
+      `repository` input names, following the test-writing rules in your context and the TestHarness's api level.
+      The code is not built yet: each test is red, and stays so.
+      With `feedback` bound, fix the findings that name one of your cases and change nothing else.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: test-writing-rules}}
+      - {kind: artifact, input: testDesign}
+      - {kind: artifact, input: harness}
+      - {kind: artifact, input: plan}
+      - {kind: artifact, input: spec}
+      - {kind: artifact, input: designs}
+    workspace: {input: repository}
+  timeout: 72h   # a human's: the developer's agent writes them in its own session
+  retryPolicy: # a transient API refusal gets another attempt
+    maxAttempts: 3
+    backoff: {strategy: exponential, initial: 1m, max: 5m, jitter: none}
+  sideEffects: nonIdempotent   # it writes the repository
+---
+# The Tester writes the e2e tests of one Plan task's cases (39-test-process.md), after the code is built: against the running app; each test's title carries its case's id.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: write-e2e-tests}
+spec:
+  inputs:
+    plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}}
+    taskId: {type: {kind: value, schema: {type: string, pattern: "^T-[0-9]+$"}}}
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, description: "the Designs the Plan lists: the operations and screens the steps name"}
+    testDesign: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}}
+    harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}}
+    cases: {type: {kind: value, schema: {type: object}}, description: "the round's case ids by level: write those of level e2e"}
+    repository: {type: {kind: externalResource, provider: git, type: repository}, description: "the project's code, where the tests are written"}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict"}
+  outputs:
+    written: {type: {kind: value, schema: {type: object, required: [files, cases], additionalProperties: false, properties: {files: {type: array, items: {type: string, minLength: 1}}, cases: {type: array, items: {type: string, pattern: "^CAP-[0-9]+/TC-[0-9]+$"}}, notWritten: {type: array, items: {type: string, minLength: 1}}}}}}
+  executorRef: {kind: Executor, name: tester}
+  action:
+    instructions: |
+      Write the tests of the e2e cases in `cases`, of the Plan task whose id is `taskId`, in the directory the
+      `repository` input names, following the test-writing rules in your context and the TestHarness's e2e level.
+      The code is built: start the app, walk each step in the browser, then write the test and run it green.
+      With `feedback` bound, fix the findings that name one of your cases and change nothing else.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: test-writing-rules}}
+      - {kind: artifact, input: testDesign}
+      - {kind: artifact, input: harness}
+      - {kind: artifact, input: plan}
+      - {kind: artifact, input: spec}
+      - {kind: artifact, input: designs}
+    workspace: {input: repository}
+  timeout: 72h   # a human's: the developer's agent writes them in its own session
+  retryPolicy: # a transient API refusal gets another attempt
+    maxAttempts: 3
+    backoff: {strategy: exponential, initial: 1m, max: 5m, jitter: none}
+  sideEffects: nonIdempotent   # it writes the repository
+---
+# What the plan tier's tests leave unproven, in words (39-test-process.md): the auditor reads; testdesign/v1 counts.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: evaluate-tests}
+spec:
+  inputs:
+    testDesign: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}}
+    plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}}
+    final: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, description: "the unit tests after the last task"}
+    finals: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the other test levels after the last task"}
+    records: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: AcceptanceRecord}}, description: "the Plan's built tasks"}
+  outputs:
+    evaluation: {type: {kind: value, schema: {type: object, required: [summary, residualRisks], additionalProperties: false, properties: {summary: {type: string, minLength: 1}, residualRisks: {type: array, items: {type: string, minLength: 1}}}}}}
+  executorRef: {kind: Executor, name: auditor}
+  action:
+    instructions: |
+      Evaluate what the Plan's tests prove, as the completion evaluation of a test report: `summary`, a few sentences in
+      the Glossary's words on what ran and what it shows; `residualRisks`, one line each for what is left unproven: a
+      manual case, a case no test carries or whose level did not run, a flaky test, a defect a record reports. Count
+      nothing: the report counts. Read only.
+    context:
+      - {kind: artifact, input: testDesign}
+      - {kind: artifact, input: plan}
+      - {kind: artifact, input: final}
+      - {kind: artifact, input: finals}
+      - {kind: artifact, input: records}
+  timeout: 30m
+  retryPolicy: # a transient API refusal gets another attempt
+    maxAttempts: 3
+    backoff: {strategy: exponential, initial: 1m, max: 5m, jitter: none}
+  sideEffects: none
+---
+# The TestReport of a built Plan (39-test-process.md), computed: each case's result, coverage, the verdict and its rule.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: report-tests}
+spec:
+  inputs:
+    plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}}
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}, description: "the quality scenarios proven at build"}
+    testDesign: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}}
+    final: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, description: "the unit tests after the last task"}
+    finals: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the other test levels after the last task"}
+    records: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: AcceptanceRecord}}, description: "the Plan's built tasks: the defects they report"}
+    evaluation: {type: {kind: value, schema: {type: object, required: [summary, residualRisks], additionalProperties: false, properties: {summary: {type: string, minLength: 1}, residualRisks: {type: array, items: {type: string, minLength: 1}}}}}}
+  outputs:
+    report: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestReport}}, id: {expression: "inputs.plan.id + '-test-report'"}}
+  executorRef: {kind: Executor, name: test-reporter}
+  action:
+    instructions: Compute the TestReport of the Plan from the TestDesign and the plan tier's outcomes.
+  timeout: 5m
+  sideEffects: idempotent

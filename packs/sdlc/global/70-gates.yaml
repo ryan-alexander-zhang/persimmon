@@ -299,6 +299,7 @@ spec:
     baseline: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the tests before the build; build-one run alone has none"}
     levelOutcomes: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the other test levels' outcomes this round (36-test-levels.md)"}
     levelBaselines: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the other test levels' outcomes before the build"}
+    testDesign: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, required: false, description: "the Spec's test cases (39-test-process.md)"}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
   validators:
@@ -315,6 +316,7 @@ spec:
         baseline: {fromInput: baseline, onMissing: omit}
         levelOutcomes: {fromInput: levelOutcomes, onMissing: omit}
         levelBaselines: {fromInput: levelBaselines, onMissing: omit}
+        testDesign: {fromInput: testDesign, onMissing: omit}
     - name: audit
       ref: {kind: Validator, name: acceptance-audited}
       inputs:
@@ -322,7 +324,8 @@ spec:
   policy: {strategy: all}
   timeout: 5m
 ---
-# The plan tier's Gate (36-test-levels.md): build-all's last task built, every test level in full against its baseline.
+# The plan tier's Gate (36-test-levels.md): build-all's last task built, every test level in full against its baseline; under a
+# TestDesign, the TestReport's verdict too (39-test-process.md).
 apiVersion: persimmon.ai/v1
 kind: Gate
 metadata: {name: regression-gate}
@@ -332,6 +335,7 @@ spec:
     baseline: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}}
     levelOutcomes: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false}
     levelBaselines: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false}
+    report: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestReport}}, required: false, description: "the TestReport, when the Plan's tests were designed"}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
   validators:
@@ -342,5 +346,80 @@ spec:
         baseline: {fromInput: baseline}
         levelOutcomes: {fromInput: levelOutcomes, onMissing: omit}
         levelBaselines: {fromInput: levelBaselines, onMissing: omit}
+    - name: verdict
+      ref: {kind: Validator, name: report-verdict}
+      inputs:
+        report: {fromInput: report, onMissing: omit}
   policy: {strategy: all}
   timeout: 5m
+---
+# harness-gate: a TestHarness passes when every level it names ran once and its seed test is green (39-test-process.md).
+apiVersion: persimmon.ai/v1
+kind: Gate
+metadata: {name: harness-gate}
+spec:
+  inputs:
+    harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}}
+    seed: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}}
+    levelOutcomes: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
+  validators:
+    - name: evidence
+      ref: {kind: Validator, name: harness-evidence}
+      inputs:
+        harness: {fromInput: harness}
+        seed: {fromInput: seed}
+        levelOutcomes: {fromInput: levelOutcomes}
+        architecture: {fromInput: architecture}
+  policy: {strategy: all}
+  timeout: 5m
+---
+# test-design-gate: a TestDesign passes when its citations and coverage hold, the auditor finds no case unfit, and a human
+# confirmed the cases before any code exists (39-test-process.md).
+apiVersion: persimmon.ai/v1
+kind: Gate
+metadata: {name: test-design-gate}
+spec:
+  inputs:
+    testDesign: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}}
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, required: false, description: "the last round's TestDesign; round one has none"}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict"}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
+  validators:
+    - name: consistency
+      ref: {kind: Validator, name: test-design-consistency}
+      inputs:
+        testDesign: {fromInput: testDesign}
+        spec: {fromInput: spec}
+        architecture: {fromInput: architecture}
+        rules: {fromInput: rules}
+        harness: {fromInput: harness}
+    - name: audit
+      ref: {kind: Validator, name: test-design-audited}
+      after: [consistency]   # no agent call on a draft the check refuses (23-pack-sdlc.md)
+      inputs:
+        testDesign: {fromInput: testDesign}
+        spec: {fromInput: spec}
+        architecture: {fromInput: architecture}
+        designs: {fromInput: designs}
+        rules: {fromInput: rules}
+        harness: {fromInput: harness}
+        previous: {fromInput: previous, onMissing: omit}
+        feedback: {fromInput: feedback, onMissing: omit}
+    - name: confirmed
+      ref: {kind: Validator, name: test-design-confirmed}
+      after: [consistency, audit]   # the human confirms only what the check and the auditor passed (14-gate.md)
+      inputs:
+        testDesign: {fromInput: testDesign}
+        spec: {fromInput: spec}
+        audit: {fromValidator: audit}   # the auditor's warnings in the human's form
+  policy: {strategy: all}
+  timeout: 72h

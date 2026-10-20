@@ -222,6 +222,7 @@ spec:
     baseline: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the tests before the build: a case red there and red still is tolerated"}
     levelOutcomes: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the other test levels' outcomes this round, paired by level (36-test-levels.md)"}
     levelBaselines: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the other test levels' outcomes before the build"}
+    testDesign: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, required: false, description: "the Spec's test cases: the task's cases are read by the ids the tests carry, not record rows (39-test-process.md)"}
   evaluator:
     type: adapter
     adapter: sdd/v1
@@ -332,3 +333,87 @@ spec:
     taskRef: {kind: Task, name: audit-design}
     resultOutput: audit
   timeout: 30m
+---
+# harness-evidence: sdd/v1 checks a TestHarness against its seed runs: every level ran and its seed test is green (39-test-process.md).
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: harness-evidence}
+spec:
+  inputs:
+    harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}}
+    seed: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, description: "the unit level's seed run"}
+    levelOutcomes: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the other levels' seed runs"}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}, required: false, description: "the Architecture the harness was set up for"}
+  evaluator:
+    type: adapter
+    adapter: sdd/v1
+    configuration: {}
+  timeout: 1m
+---
+# test-design-consistency: sdd/v1 checks a TestDesign against its Spec, the Architecture, the rules and the TestHarness (39-test-process.md).
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: test-design-consistency}
+spec:
+  inputs:
+    testDesign: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}}
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}}
+  evaluator:
+    type: adapter
+    adapter: sdd/v1
+    configuration: {}
+  timeout: 1m
+---
+# test-design-audited: the auditor's judgement of a TestDesign's meaning, after the check in test-design-gate (39-test-process.md).
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: test-design-audited}
+spec:
+  inputs:
+    testDesign: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}}
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, required: false}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+  evaluator:
+    type: task
+    taskRef: {kind: Task, name: audit-test-design}
+    resultOutput: audit
+  timeout: 30m
+---
+# The human confirmation of a TestDesign, as a Validator over the confirm-test-design Task.
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: test-design-confirmed}
+spec:
+  inputs:
+    testDesign: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}}
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}, required: false, description: "the auditor's verdict, passed, read before the human (23-pack-sdlc.md)"}
+  evaluator:
+    type: task
+    taskRef: {kind: Task, name: confirm-test-design}
+    resultOutput: result
+  timeout: 72h
+---
+# report-verdict: a TestReport whose verdict is fail fails the plan tier, its rule the finding (39-test-process.md); no report, a
+# build without a TestDesign, passes.
+apiVersion: persimmon.ai/v1
+kind: Validator
+metadata: {name: report-verdict}
+spec:
+  inputs:
+    report: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestReport}}, required: false}
+  evaluator:
+    type: cel
+    expression: |
+      has(artifacts.report) && artifacts.report.content.verdict.result == "fail"
+        ? {"passed": false, "findings": [{"severity": "error", "code": "report-fail", "message": artifacts.report.content.verdict.rule}], "evidence": []}
+        : {"passed": true, "findings": [], "evidence": []}
+  timeout: 1m

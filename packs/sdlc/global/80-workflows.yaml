@@ -647,7 +647,8 @@ spec:
   timeout: 240h
 ---
 # One build round (35-build-process.md): the builder builds the task, the project's tests run in the same repository, then
-# the auditor reads the tests the record names.
+# the auditor reads the tests the record names. Under a TestDesign the Tester writes the task's api tests before the code and
+# its e2e tests after it, and the round's cases decide what each level runs (39-test-process.md).
 apiVersion: persimmon.ai/v1
 kind: Workflow
 metadata: {name: build-work}
@@ -666,6 +667,8 @@ spec:
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
     baseline: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false}
     levelBaselines: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the other test levels before build-all (36-test-levels.md)"}
+    testDesign: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, required: false, description: "the Spec's test cases: the Tester writes the api and e2e ones (39-test-process.md)"}
+    harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, required: false, description: "the project's test tools (39-test-process.md)"}
   outputs:
     record: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: AcceptanceRecord}}}
     testOutcome: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}}
@@ -676,8 +679,30 @@ spec:
     testOutcome: {fromStep: {stepRef: tests, output: testOutcome}}
     levelOutcomes: {fromStep: {stepRef: levels, output: outcomes}}
     audit: {fromStep: {stepRef: audit, output: audit}}
-  entry: [implement]
+  entry: [cases]
   steps:
+    - id: cases # the task's cases and whether the Tester writes this round (39-test-process.md); none without a TestDesign
+      uses: {kind: Task, name: select-cases}
+      inputs:
+        plan: {fromInput: plan}
+        taskId: {fromInput: taskId}
+        spec: {fromInput: spec}
+        testDesign: {fromInput: testDesign, onMissing: omit}
+        feedback: {fromInput: feedback, onMissing: omit}
+      timeout: 5m
+    - id: write-api
+      uses: {kind: Task, name: write-api-tests}
+      inputs: &tester
+        plan: {fromInput: plan}
+        taskId: {fromInput: taskId}
+        spec: {fromInput: spec}
+        designs: {fromInput: designs}
+        testDesign: {fromInput: testDesign}
+        harness: {fromInput: harness}
+        cases: {fromStep: {stepRef: cases, output: cases}}
+        repository: {fromInput: repository}
+        feedback: {fromInput: feedback, onMissing: omit}
+      timeout: 72h
     - id: implement
       uses: {kind: Task, name: implement}
       inputs:
@@ -693,6 +718,14 @@ spec:
         previousOutcome: {fromInput: previousOutcome, onMissing: omit}
         feedback: {fromInput: feedback, onMissing: omit}
         baseline: {fromInput: baseline, onMissing: omit}
+        testDesign: {fromInput: testDesign, onMissing: omit}
+        harness: {fromInput: harness, onMissing: omit}
+        cases: {fromStep: {stepRef: cases, output: cases}}
+        written: {fromStep: {stepRef: write-api, output: written}, onMissing: omit}
+      timeout: 72h
+    - id: write-e2e
+      uses: {kind: Task, name: write-e2e-tests}
+      inputs: *tester
       timeout: 72h
     - id: tests
       uses: {kind: Task, name: run-tests}
@@ -700,6 +733,8 @@ spec:
         record: {fromStep: {stepRef: implement, output: record}}
         repository: {fromInput: repository}
         baseline: {fromInput: baseline, onMissing: omit}
+        harness: {fromInput: harness, onMissing: omit}
+        cases: {fromStep: {stepRef: cases, output: cases}}
       timeout: 2h
     - id: levels
       uses: {kind: Task, name: run-levels}
@@ -709,6 +744,8 @@ spec:
         record: {fromStep: {stepRef: implement, output: record}}
         testOutcome: {fromStep: {stepRef: tests, output: testOutcome}}
         baselines: {fromInput: levelBaselines, onMissing: omit}
+        harness: {fromInput: harness, onMissing: omit}
+        cases: {fromStep: {stepRef: cases, output: cases}}
       timeout: 4h
     - id: audit
       uses: {kind: Task, name: audit-acceptance}
@@ -721,10 +758,28 @@ spec:
         architecture: {fromInput: architecture}
         repository: {fromInput: repository}
         levelOutcomes: {fromStep: {stepRef: levels, output: outcomes}}
+        testDesign: {fromInput: testDesign, onMissing: omit}
+        cases: {fromStep: {stepRef: cases, output: cases}}
       timeout: 1h
   transitions:
-    - id: to-tests
+    # the Tester's steps are passed by when the task has no case of their level, or a later round names none (39-test-process.md)
+    - id: to-write-api
+      from: [{stepRef: cases, outcomes: [Succeeded]}]
+      to:
+        - {stepRef: write-api, when: 'steps.cases.outputs.cases.write.api == true'}
+        - {stepRef: implement}
+      dispatch: first
+    - id: to-implement
+      from: [{stepRef: write-api, outcomes: [Succeeded]}]
+      to: [{stepRef: implement}]
+    - id: to-write-e2e
       from: [{stepRef: implement, outcomes: [Succeeded]}]
+      to:
+        - {stepRef: write-e2e, when: 'steps.cases.outputs.cases.write.e2e == true'}
+        - {stepRef: tests}
+      dispatch: first
+    - id: to-tests
+      from: [{stepRef: write-e2e, outcomes: [Succeeded]}]
       to: [{stepRef: tests}]
     - id: to-levels
       from: [{stepRef: tests, outcomes: [Succeeded]}]
@@ -753,6 +808,8 @@ spec:
     repository: {type: {kind: externalResource, provider: git, type: repository}}
     baseline: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the tests before build-all; run alone, the suite is green before it"}
     levelBaselines: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the other test levels before build-all (36-test-levels.md)"}
+    testDesign: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, required: false, description: "the Spec's test cases (39-test-process.md)"}
+    harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, required: false, description: "the project's test tools (39-test-process.md)"}
   produce:
     uses: {kind: Workflow, name: build-work}
     inputs:
@@ -766,6 +823,8 @@ spec:
       repository: {fromInput: repository}
       baseline: {fromInput: baseline}
       levelBaselines: {fromInput: levelBaselines}
+      testDesign: {fromInput: testDesign}
+      harness: {fromInput: harness}
     timeout: 80h
   review:
     uses: {kind: Gate, name: build-gate}
@@ -781,6 +840,7 @@ spec:
       baseline: {fromInput: baseline}
       levelOutcomes: {fromStep: {stepRef: produce, output: levelOutcomes}}
       levelBaselines: {fromInput: levelBaselines}
+      testDesign: {fromInput: testDesign}
     timeout: 5m
   subject: record
   previous: previous
@@ -791,7 +851,8 @@ spec:
 ---
 # build-all: the tests once as the baseline, then every listed Plan task in order (35-build-process.md); `tasks` in
 # ascending T-n, which the Plan's own order is. After the last task, the plan tier: every test level in full against its
-# baseline, a new red failing the run plan_regressed (36-test-levels.md).
+# baseline, a new red failing the run plan_regressed (36-test-levels.md). Under a TestDesign the TestReport follows, and a
+# fail verdict fails the run the same way (39-test-process.md).
 apiVersion: persimmon.ai/v1
 kind: Workflow
 metadata: {name: build-all}
@@ -805,6 +866,8 @@ spec:
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     repository: {type: {kind: externalResource, provider: git, type: repository}}
+    testDesign: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, required: false, description: "the Spec's test cases: the Tester writes the api and e2e ones, a TestReport follows (39-test-process.md)"}
+    harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, required: false, description: "the project's test tools: every level runs as it names (39-test-process.md)"}
   outputs:
     built: {type: {kind: value, schema: {type: integer}}}
   outputBindings:
@@ -816,12 +879,14 @@ spec:
       inputs:
         plan: {fromInput: plan}
         repository: {fromInput: repository}
+        harness: {fromInput: harness, onMissing: omit}
       timeout: 2h
     - id: level-baselines
       uses: {kind: Task, name: run-levels}
       inputs:
         plan: {fromInput: plan}
         repository: {fromInput: repository}
+        harness: {fromInput: harness, onMissing: omit}
       timeout: 4h
     - id: each
       uses: {kind: ReviewLoop, name: build-one}
@@ -836,6 +901,8 @@ spec:
         repository: {fromInput: repository}
         baseline: {fromStep: {stepRef: baseline, output: baseline}}
         levelBaselines: {fromStep: {stepRef: level-baselines, output: outcomes}}
+        testDesign: {fromInput: testDesign, onMissing: omit}
+        harness: {fromInput: harness, onMissing: omit}
       timeout: 2400h   # a ceiling for the whole repeat, as spec-all's: ten tasks at a loop's full 240h
       repeat:
         state:
@@ -852,6 +919,8 @@ spec:
         plan: {fromInput: plan}
         repository: {fromInput: repository}
         baseline: {fromStep: {stepRef: baseline, output: baseline}}
+        harness: {fromInput: harness, onMissing: omit}
+        testDesign: {fromInput: testDesign, onMissing: omit}
       timeout: 2h
     - id: final-levels
       uses: {kind: Task, name: run-levels}
@@ -859,7 +928,29 @@ spec:
         plan: {fromInput: plan}
         repository: {fromInput: repository}
         baselines: {fromStep: {stepRef: level-baselines, output: outcomes}}
+        harness: {fromInput: harness, onMissing: omit}
       timeout: 4h
+    - id: evaluate # under a TestDesign: what the plan tier leaves unproven, in words, then the computed TestReport (39-test-process.md)
+      uses: {kind: Task, name: evaluate-tests}
+      inputs:
+        testDesign: {fromInput: testDesign}
+        plan: {fromInput: plan}
+        final: {fromStep: {stepRef: final, output: final}}
+        finals: {fromStep: {stepRef: final-levels, output: outcomes}}
+        records: {fromQuery: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: AcceptanceRecord}, where: "content.plan == inputs.plan.id"}}
+      timeout: 30m
+    - id: report
+      uses: {kind: Task, name: report-tests}
+      inputs:
+        plan: {fromInput: plan}
+        spec: {fromInput: spec}
+        architecture: {fromInput: architecture}
+        testDesign: {fromInput: testDesign}
+        final: {fromStep: {stepRef: final, output: final}}
+        finals: {fromStep: {stepRef: final-levels, output: outcomes}}
+        records: {fromQuery: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: AcceptanceRecord}, where: "content.plan == inputs.plan.id"}}
+        evaluation: {fromStep: {stepRef: evaluate, output: evaluation}}
+      timeout: 5m
     - id: plan
       uses: {kind: Gate, name: regression-gate}
       inputs:
@@ -867,6 +958,7 @@ spec:
         baseline: {fromStep: {stepRef: baseline, output: baseline}}
         levelOutcomes: {fromStep: {stepRef: final-levels, output: outcomes}}
         levelBaselines: {fromStep: {stepRef: level-baselines, output: outcomes}}
+        report: {fromStep: {stepRef: report, output: report}, onMissing: omit}
       timeout: 5m
   transitions:
     - id: to-level-baselines
@@ -897,13 +989,205 @@ spec:
     - id: to-plan
       from: [{stepRef: final-levels, outcomes: [Succeeded, Failed]}]
       to:
+        - {stepRef: evaluate, when: 'steps["final-levels"].phase == "Succeeded" && has(inputs.testDesign)'}
         - {stepRef: plan, when: 'steps["final-levels"].phase == "Succeeded"'}
+        - {terminal: Failed, reason: step_failed}
+      dispatch: first
+    - id: to-report
+      from: [{stepRef: evaluate, outcomes: [Succeeded, Failed]}]
+      to:
+        - {stepRef: report, when: 'steps.evaluate.phase == "Succeeded"'}
+        - {terminal: Failed, reason: step_failed}
+      dispatch: first
+    - id: reported
+      from: [{stepRef: report, outcomes: [Succeeded, Failed]}]
+      to:
+        - {stepRef: plan, when: 'steps.report.phase == "Succeeded"'}
         - {terminal: Failed, reason: step_failed}
       dispatch: first
     - id: done
       from: [{stepRef: plan, outcomes: [Succeeded]}]
       to:
         - {terminal: Succeeded, when: 'steps.plan.outputs.result.passed'}
-        - {terminal: Failed, reason: plan_regressed} # a red no task's round showed: investigated as an Issue (36-test-levels.md)
+        - {terminal: Failed, reason: plan_regressed} # a red no task's round showed, or a fail verdict: investigated as an Issue (36-test-levels.md)
       dispatch: first
   timeout: 2414h
+---
+# The test setup once per product (39-test-process.md): the Tester sets up each level's tool and seed test, then each level
+# runs once; harness-gate finds every seed test green.
+apiVersion: persimmon.ai/v1
+kind: Workflow
+metadata: {name: harness-work}
+spec:
+  inputs:
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}, required: false}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false}
+    repository: {type: {kind: externalResource, provider: git, type: repository}}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, required: false}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+  outputs:
+    harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}}
+    seed: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}}
+    levelOutcomes: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}}
+  outputBindings:
+    harness: {fromStep: {stepRef: write, output: harness}}
+    seed: {fromStep: {stepRef: seed, output: seed}}
+    levelOutcomes: {fromStep: {stepRef: seed-levels, output: outcomes}}
+  entry: [write]
+  steps:
+    - id: write
+      uses: {kind: Task, name: write-harness}
+      inputs:
+        architecture: {fromInput: architecture}
+        adrs: {fromInput: adrs, onMissing: omit}
+        designs: {fromInput: designs, onMissing: omit}
+        repository: {fromInput: repository}
+        previous: {fromInput: previous, onMissing: omit}
+        feedback: {fromInput: feedback, onMissing: omit}
+      timeout: 72h
+    - id: seed
+      uses: {kind: Task, name: run-seed}
+      inputs:
+        harness: {fromStep: {stepRef: write, output: harness}}
+        repository: {fromInput: repository}
+      timeout: 2h
+    - id: seed-levels
+      uses: {kind: Task, name: run-seed-levels}
+      inputs:
+        harness: {fromStep: {stepRef: write, output: harness}}
+        repository: {fromInput: repository}
+      timeout: 4h
+  transitions:
+    - id: to-seed
+      from: [{stepRef: write, outcomes: [Succeeded]}]
+      to: [{stepRef: seed}]
+    - id: to-seed-levels
+      from: [{stepRef: seed, outcomes: [Succeeded]}]
+      to: [{stepRef: seed-levels}]
+    - id: done
+      from: [{stepRef: seed-levels, outcomes: [Succeeded]}]
+      to: [{terminal: Succeeded}]
+  timeout: 80h
+---
+# setup-tests: the TestHarness of one product, up to three rounds (39-test-process.md).
+#   persimmon run setup-tests --input 'architecture={kind: artifact, ref: {...}}' --input designs=@designs.yaml --input repository=.
+apiVersion: persimmon.ai/v1
+kind: ReviewLoop
+metadata: {name: setup-tests}
+spec:
+  inputs:
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}, required: false, description: "the Adrs the Architecture applies"}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "the product's Designs: which levels the project needs"}
+    repository: {type: {kind: externalResource, provider: git, type: repository}}
+  produce:
+    uses: {kind: Workflow, name: harness-work}
+    inputs:
+      architecture: {fromInput: architecture}
+      adrs: {fromInput: adrs}
+      designs: {fromInput: designs}
+      repository: {fromInput: repository}
+    timeout: 80h
+  review:
+    uses: {kind: Gate, name: harness-gate}
+    inputs:
+      harness: {fromStep: {stepRef: produce, output: harness}}
+      seed: {fromStep: {stepRef: produce, output: seed}}
+      levelOutcomes: {fromStep: {stepRef: produce, output: levelOutcomes}}
+      architecture: {fromInput: architecture}
+    timeout: 5m
+  subject: harness
+  previous: previous
+  feedback: feedback
+  maxRounds: 3
+  timeout: 240h
+---
+# The test cases of one Spec (39-test-process.md): designed, checked, audited and confirmed by a human, up to three rounds.
+apiVersion: persimmon.ai/v1
+kind: ReviewLoop
+metadata: {name: test-design-one}
+spec:
+  inputs:
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
+    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}}
+  produce:
+    uses: {kind: Task, name: design-tests}
+    inputs:
+      spec: {fromInput: spec}
+      architecture: {fromInput: architecture}
+      designs: {fromInput: designs}
+      glossary: {fromInput: glossary}
+      rules: {fromInput: rules}
+      harness: {fromInput: harness}
+    timeout: 30m
+  review:
+    uses: {kind: Gate, name: test-design-gate}
+    inputs:
+      testDesign: {fromStep: {stepRef: produce, output: testDesign}}
+      spec: {fromInput: spec}
+      architecture: {fromInput: architecture}
+      designs: {fromInput: designs}
+      rules: {fromInput: rules}
+      harness: {fromInput: harness}
+      previous: {fromInput: previous}
+      feedback: {fromInput: feedback}
+    timeout: 72h
+  subject: testDesign
+  previous: previous
+  feedback: feedback
+  maxRounds: 3
+  timeout: 240h
+---
+# test-design-all: the TestDesign of every capability's Spec (39-test-process.md), as plan-all; the Spec of CAP-n bound by its
+# chosen id, <prd>-cap-n, at its latest revision.
+apiVersion: persimmon.ai/v1
+kind: Workflow
+metadata: {name: test-design-all}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    capabilities: {type: {kind: value, schema: {type: array, minItems: 1, maxItems: 20, items: {type: string, pattern: "^CAP-[0-9]+$"}}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
+    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}}
+  outputs:
+    written: {type: {kind: value, schema: {type: integer}}}
+  outputBindings:
+    written: {expression: "steps.each.iterations"}
+  entry: [each]
+  steps:
+    - id: each
+      uses: {kind: ReviewLoop, name: test-design-one}
+      inputs:
+        spec: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}, id: "inputs.prd.id + '-' + inputs.capabilities[state.index - 1].lowerAscii()"}}
+        architecture: {fromInput: architecture}
+        designs: {fromInput: designs}
+        glossary: {fromInput: glossary}
+        rules: {fromInput: rules}
+        harness: {fromInput: harness}
+      timeout: 2400h   # a ceiling for the whole repeat: each loop waits on a human
+      repeat:
+        state:
+          index: {type: {kind: value, schema: {type: integer, minimum: 1}}}
+        initial:
+          index: {literal: 1}
+        next:
+          index: {expression: "state.index + 1"}
+        until: "!iteration.outputs.passed || iteration.index >= inputs.capabilities.size()"
+        maxIterations: 20
+  transitions:
+    - id: done
+      from: [{stepRef: each, outcomes: [Succeeded, Failed]}]
+      to:
+        - {terminal: Succeeded, when: 'steps.each.phase == "Succeeded" && steps.each.outputs.passed'}
+        - {terminal: Failed, reason: test_design_inconsistent, when: 'steps.each.phase == "Succeeded"'} # the Gate rejected the last round
+        - {terminal: Failed, reason: step_failed} # the iteration died before its Gate ran; steps.each.error names the cause
+      dispatch: first
+  timeout: 2400h

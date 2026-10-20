@@ -51,7 +51,7 @@ describe('persimmon CLI', () => {
     expect(out).toContain('created Pipeline/domain-discovery') // the SDLC pack (23-pack-sdlc.md) is the default flow
     out = []
     expect(await run('get', 'Workflow')).toBe(0)
-    expect(out).toEqual(['Workflow/build-all', 'Workflow/build-work', 'Workflow/derive-all', 'Workflow/design-all', 'Workflow/design-check', 'Workflow/design-coverage', 'Workflow/plan-all', 'Workflow/spec-all']) // the pack is Global (20-pack.md)
+    expect(out).toEqual(['Workflow/build-all', 'Workflow/build-work', 'Workflow/derive-all', 'Workflow/design-all', 'Workflow/design-check', 'Workflow/design-coverage', 'Workflow/harness-work', 'Workflow/plan-all', 'Workflow/spec-all', 'Workflow/test-design-all']) // the pack is Global (20-pack.md)
     out = [] // the demo pack (20-pack.md) applies like any user definitions: global/ as Global, its Trigger into the default Namespace
     expect([await run('apply', ...demoPack, '--global'), out.filter((l) => !l.startsWith('created'))]).toEqual([0, ['unchanged Executor/local-reviewer']]) // same definition in both packs
     out = []
@@ -63,7 +63,7 @@ describe('persimmon CLI', () => {
     expect(await run('adapter', 'install', file('a.yaml', [fakeAdapter('claude-code/v1'), fakeAdapter('cli-human/v1', 'human')]))).toBe(0)
     out = []
     expect(await run('adapter', 'list')).toBe(0)
-    expect(out).toEqual(['claude-code/v1  Ready  roles: executor', 'cli-human/v1  Ready  roles: executor', 'codex/v1  Ready  roles: executor', 'designmd/v1  Ready  roles: evaluator', 'eventstorming/v1  Ready  roles: evaluator', 'junit/v1  Ready  roles: executor', 'sdd/v1  Ready  roles: evaluator', 'subprocess/v1  Ready  roles: executor'])
+    expect(out).toEqual(['claude-code/v1  Ready  roles: executor', 'cli-human/v1  Ready  roles: executor', 'codex/v1  Ready  roles: executor', 'designmd/v1  Ready  roles: evaluator', 'eventstorming/v1  Ready  roles: evaluator', 'junit/v1  Ready  roles: executor', 'sdd/v1  Ready  roles: evaluator', 'subprocess/v1  Ready  roles: executor', 'testdesign/v1  Ready  roles: executor'])
 
     out = []
     expect([await run('validate', 'packs/demo/global/50-tasks.yaml', 'packs/demo/global/80-workflows.yaml', 'packs/demo/global/40-executors.yaml'), out.filter((l) => l.startsWith('error'))]).toEqual([0, []])
@@ -110,7 +110,7 @@ describe('persimmon CLI', () => {
 
     out = []
     expect(await run('get', 'Task')).toBe(0)
-    expect(out.length).toBe(27) // the SDLC pack's twenty-two and the demo pack's five
+    expect(out.length).toBe(38) // the SDLC pack's thirty-three and the demo pack's five
     expect(await run('delete', 'Task/write-prd')).toBe(1) // referenced by prd-create
     expect(err.at(-1)).toMatch(/referenced/)
 
@@ -188,7 +188,7 @@ describe('persimmon CLI', () => {
     expect(readFileSync(join(dir, '.gitignore'), 'utf8')).toBe('node_modules\n.persimmon/\n')
   })
 
-  it('init updates an AGENTS.md it wrote that nobody edited, keeps an edited one, and records one a fresh clone has (20-pack.md)', async () => {
+  it('init updates an AGENTS.md it wrote that nobody edited, keeps an edited one, and records one a fresh clone has (20-pack.md)', { timeout: 30_000 }, async () => { // init applies the whole pack each time
     const placed = () => out.filter((l) => /^(wrote|kept|updated) AGENTS\.md/.test(l))
     const record = join(dir, '.persimmon', 'files.json')
     const pack = readFileSync('packs/sdlc/files/AGENTS.md', 'utf8')
@@ -261,7 +261,7 @@ describe('persimmon CLI', () => {
     expect(out).toEqual(['Workflow/prd-approval', 'Workflow/prd-create']) // the SDLC pack is not in this store
     out = [] // so a Workflow stepping into a ReviewLoop of the same files resolves on validate's second pass only (08-store.md)
     expect([await run('validate', ...sdlcPack), out.filter((l) => !l.startsWith('ok'))]).toEqual([0, []])
-    expect(out.length).toBe(118)
+    expect(out.length).toBe(147)
   })
 
   it('get --behind lists the latest revision whose pinned inputs moved on; a carried previous input and a run\'s own later output are not behind', async () => {

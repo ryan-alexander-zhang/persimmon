@@ -156,3 +156,51 @@ spec:
   security:
     networkAccess: allowlist
     allowedHosts: [api.anthropic.com]
+---
+# Who writes the test setup and the api and e2e tests (39-test-process.md): as the builder, by default the developer's own
+# agent answering the form in .persimmon/inbox/, in a fresh subagent and never in the builder's context, since writing these
+# tests needs the app, a browser and the network. An unattended Namespace overrides it by name as it does builder.
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: tester}
+spec:
+  type: human
+  adapter: cli-human/v1
+  configuration: {}
+---
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: test-design-agent}
+spec:
+  type: agent
+  adapter: claude-code/v1
+  configuration:
+    model: claude-opus-5
+    sandbox: read-only      # design-tests answers JSON and writes no file
+  security:
+    networkAccess: allowlist
+    allowedHosts: [api.anthropic.com]
+---
+# A build round's cases, computed from the TestDesign (39-test-process.md); no program runs.
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: case-selector}
+spec:
+  type: script
+  adapter: testdesign/v1
+  configuration: {}
+  security:
+    networkAccess: deny
+---
+# A built Plan's TestReport, computed from the TestDesign and the plan tier's outcomes (39-test-process.md). The thresholds are
+# BMAD's trace gate; a project overrides this Executor by name with its own.
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: test-reporter}
+spec:
+  type: script
+  adapter: testdesign/v1
+  configuration:
+    thresholds: {p0: 100, p1: 90, p1Concerns: 80, overall: 80}
+  security:
+    networkAccess: deny
