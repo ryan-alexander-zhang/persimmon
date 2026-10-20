@@ -80,7 +80,7 @@ several cases; one case may have several tests.
 | Task `audit-test-design`, Validator `test-design-audited` | `draft-audit-rules`, its part for a TestDesign: a case's level stops short of the boundary its scenario's When crosses, its steps do not reach its expected, its expected is not the scenario's Then with its values (`case-unfit`); a rule's threshold with no case beside it is `boundary-untested` when the Spec has a scenario there and `spec-gap` when it has none, both warnings |
 | Task `confirm-test-design`, Validator `test-design-confirmed` | the human reads the cases before code exists, on `local-reviewer` |
 | ReviewLoop `test-design-one`, Workflow `test-design-all` | `maxRounds: 3`; `repeat` over `capabilities` as `plan-all`, the Spec of `CAP-n` bound by id, and `base` to its TestDesign `<spec>-tests` when one exists (`fromArtifact`, `onMissing: omit`) |
-| Task `select-cases` | inputs `plan`, `taskId`, `spec`, `testDesign?`, `feedback?`; output `cases` (value): the task's qualified case ids by level, the `manual` ones, and `write: {api, e2e}`, true in round one when the task has cases of that level and later when a finding names one |
+| Task `select-cases` | inputs `plan`, `taskId`, `spec`, `testDesign?`, `feedback?`; output `cases` (value): the task's qualified case ids by level, the `manual` ones, and `write: {api, e2e}`, true in round one when the task has cases of that level and later when an `error` finding names one; a warning (`question-upstream`, `defect-reported`) refuses no round, so it calls no Tester back |
 | Prompt `test-writing-rules` | write only the cases given, one test per case unless its `data` holds several rows; the test's title holds `<CAP-n>/TC-n`; follow the level's `conventions` and its seed test; the level's tool as the harness names it, never another; run each test with the level's `one`; a test of a case the code does not yet do is red, never skipped; never edit a file outside the level's `testDir` |
 | Tasks `write-api-tests`, `write-e2e-tests` | inputs `plan`, `taskId`, `spec`, `designs`, `testDesign`, `harness`, `cases`, `repository`, `feedback?`; output `written` (value: `files[]`, `cases[]`); `write-e2e-tests` starts the app with the harness's `app.start` and walks each step in the browser before it writes the test, as Playwright's generator does |
 | Task `implement` | adds inputs `testDesign`, `harness`, `cases`, `written`; `build-rules`: with cases bound, the task's `unit` and `integration` cases are the Builder's and `verifies` is left out; a Tester's test the Builder holds wrong is a `Q-n` naming the case, never an edit |
@@ -254,6 +254,9 @@ no case has none to miss.
   run's `base`. A case kept from `base` is held to the same rule: one that tests what no scenario
   says is removed and becomes the question, since the live rerun kept such a case from a TestDesign
   written before the rule and lost its last round to it. Found in UAT.
+- `select-cases` reads only the `error` findings of the last round. In the live run a
+  `question-upstream` warning quoting `TC-11` called the Tester back to a round refused for an open
+  question alone; the Tester re-ran its tests and changed nothing. Found in UAT.
 - Not adopted: `TestRun` and `TestResult` kinds (a TestOutcome is already one run of one level at
   one commit); a test plan document (ISO 29119-3's agile example puts its content in the plan, here
   the Plan and the harness); a `waived` verdict (it needs a human sign-off of its own, later); a test
