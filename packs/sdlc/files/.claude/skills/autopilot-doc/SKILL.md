@@ -30,9 +30,10 @@ is a question in the brief, for the Prd's `Q-n`.
    Gives the Architecture and its Adrs.
 4. `spec-all`, once per BoundedContext: `prd`, `capabilities` (the context's `capabilities`),
    `architecture`, `context`, and that context's `domainModel` and `glossary`, `rules`.
-5. `design-all`, once per non-client building block and design type the Architecture gives it (an
-   HTTP interface `http-api`, a message interface `async-api`, owned data `data-schema`): `blocks`,
-   `type`, `architecture`, the block's context's `domainModel` and `glossary`, `rules`.
+5. `design-all`, for each non-client building block: one run per interface it `provides` (HTTP
+   `http-api`, messages `async-api`) with `interface` bound, and `qualifier` too for its second of
+   one type; one `data-schema` run when it or a child block stores data. Inputs: `blocks`, `type`,
+   `architecture`, the block's context's `domainModel` and `glossary`, `rules`.
 6. When the Architecture has client blocks: `design-system` (`prd`, `architecture`), then
    `design-all` with `type=ui` over the client blocks: `designSystem`, and `designs` the
    `http-api` Designs they call, `architecture`, `rules`.
