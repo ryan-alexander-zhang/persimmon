@@ -337,7 +337,7 @@ Each its own unit, before the pack content that needs it:
 | Change | Design file | State |
 |---|---|---|
 | `persimmon init --pack <name>`: the SDLC pack, then the named pack | `20-pack.md` | landed |
-| an optional `inventory` input on Task `event-storm` and Pipeline `domain-discovery`, handed to every phase, as `rules` was; an optional `base` on the Pipeline, bound to `storm-big-picture`'s `base`, the product's last model | `26-domain-discovery.md` | to do |
+| an optional `inventory` value input (the inventory's content: a value, so the SDLC pack names no Rewrite pack kind) on Task `event-storm`, the storming ReviewLoops and Pipeline `domain-discovery`, handed to every phase, as `rules` was; an optional `base` on the Pipeline, bound to `storm-big-picture`'s `base`, the product's last model | `26-domain-discovery.md` | to do |
 | optional `base` and `baseAdrs` on Task `write-architecture` and ReviewLoop `architect`, the product's last Architecture and Adrs: previous, else base, as `event-storm` reads them | `31-architecture-process.md` | to do |
 | Adapters `parity/v1` (evaluator) and `parity-run/v1` (executor); coverage read whole-repo with branch lines (JaCoCo, Cobertura, lcov), not over a Change set as `junit/v1` reads it | `40-pack-rewrite.md`, `19-adapter-roles.md` | to do |
 
