@@ -32,7 +32,7 @@ autopilot = autopilot-doc then autopilot-code
 | the Reviewer subagent settles a `Q-n` only a domain owner could by rejecting with the decision as a finding, as the human would (`example07` step 2); every such decision is in the report | skill |
 | a loop out of rounds, a Failed run or a reconcile error stops the Autopilot with a report: it never retries by hand around a Gate | skill |
 | before the first `build-all` the orchestrator does what the pack leaves to the developer: when the project has no app, it scaffolds one on the Architecture's technology and Adrs, with a unit test command that writes JUnit XML, and overrides Executor `test-runner` with that command; the project must already be a git repository | skill |
-| a `D-n` whose task passed becomes an `Issue`, its fix a `build-one` (a Spec revision first when the Spec was wrong), then the Issue's `resolved` revision; one fix attempt per Issue, then stop | skill |
+| a `D-n` whose task passed becomes an `Issue`, its fix a `build-one`, then the Issue's `resolved` revision; one fix attempt per Issue, then stop; an Issue that finds the Spec wrong or missing stops it, a Spec revision being the developer's call | skill |
 | `plan_regressed` is an Issue with the red test as its `reproduction`, fixed the same way | skill |
 | the report names every Prd, Architecture, Adr, Spec, Plan and AcceptanceRecord revision, every `Q-n` an agent resolved, every Issue and the files changed; the developer reviews the diff and commits | skill |
 
