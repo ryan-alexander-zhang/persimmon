@@ -984,7 +984,7 @@ describe('sdd/v1 over a DomainModel: coverage', () => {
 // The Test process (39-test-process.md): the harness, the test design, a round by case, the report.
 describe('sdd/v1 over the Test process', () => {
   const td = () => structuredClone(content('TestDesign'))
-  const designFindings = (testDesign: any, harness = content('TestHarness')) => checkTestDesign({ testDesign, spec: content('Spec'), architecture: content('Architecture'), rules: content('BusinessRules'), harness, ids: { spec: 'submit-a-claim', harness: 'expense-claims-architecture-harness' } }).map((f: { code: string }) => f.code)
+  const designFindings = (testDesign: any, harness = content('TestHarness')) => checkTestDesign({ testDesign, spec: content('Spec'), architecture: content('Architecture'), rules: content('BusinessRules'), harness, plan: content('Plan'), designs: { 'claims-api': content('Design') }, ids: { spec: 'submit-a-claim', harness: 'expense-claims-architecture-harness' } }).map((f: { code: string }) => f.code)
   const test = (qid: string, status = 'passed', name = 'a case') => ({ classname: 'test/claim.test.ts', name: `claim > ${qid} ${name}`, status })
   const unit = (tests: unknown[]) => ({ command: ['npx', 'vitest'], exitCode: tests.some((t: any) => t.status === 'failed') ? 1 : 0, tests, selection: { mode: 'full', reason: 'baseline' }, newRed: 0 })
   const api = (tests: unknown[]) => ({ ...unit(tests), level: 'api' })
@@ -1012,6 +1012,8 @@ describe('sdd/v1 over the Test process', () => {
     const steps = td(); delete steps.cases[0].steps; expect(designFindings(steps)).toEqual(['steps-missing'])
     const manual = td(); manual.cases[0].execution = 'manual'; expect(designFindings(manual)).toEqual(['p0-manual'])
     const open = td(); open.openQuestions = [{ id: 'Q-1', question: 'which receipt formats?' }]; expect(designFindings(open)).toEqual([]) // the human's, at the Gate
+    const late = td(); late.cases[0].steps.push({ action: 'POST /claims/{claimId}/submission' }) // TC-1 is T-1's; T-3 builds submission
+    expect(checkTestDesign({ testDesign: late, spec: content('Spec'), architecture: content('Architecture'), rules: content('BusinessRules'), harness: content('TestHarness'), plan: content('Plan'), designs: { 'claims-api': content('Design') } }).map((f: any) => [f.code, f.message])).toEqual([['step-premature', 'TC-1: POST /claims/{claimId}/submission is built by T-3, after T-1, the task of this case']])
     const other = td(); other.spec = 'other'; other.harness = 'other'; expect(designFindings(other)).toEqual(['spec-mismatch', 'harness-mismatch'])
     expect(checkTestDesign({ testDesign: { title: 'x' } }).map((f: { code: string }) => f.code)).toEqual(['not-a-test-design'])
   })
@@ -1082,7 +1084,7 @@ describe('sdd/v1 over the Test process', () => {
   })
 
   it('the Adapter dispatches a TestDesign and a TestHarness to their checks', async () => {
-    const r = await adapter({ id: ++id, op: 'evaluate', payload: payload({ testDesign: content('TestDesign'), spec: content('Spec'), architecture: content('Architecture'), rules: content('BusinessRules'), harness: content('TestHarness') }) })
+    const r = await adapter({ id: ++id, op: 'evaluate', payload: payload({ testDesign: content('TestDesign'), spec: content('Spec'), architecture: content('Architecture'), rules: content('BusinessRules'), harness: content('TestHarness'), plan: content('Plan') }) })
     expect(r.result).toEqual({ passed: true, findings: [], evidence: [] })
     const h = await adapter({ id: ++id, op: 'evaluate', payload: payload({ harness: content('TestHarness'), seed: unit([]) }) })
     expect(h.result.findings.map((f: { code: string }) => f.code)).toEqual(['suite-empty', 'level-unrun'])

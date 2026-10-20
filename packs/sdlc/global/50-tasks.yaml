@@ -795,6 +795,7 @@ metadata: {name: design-tests}
 spec:
   inputs:
     spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}, description: "the Spec's Plan: the task each case is built in, and what the tasks before it build"}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, description: "the product's Designs: the operations and screens a case's steps name"}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
@@ -813,6 +814,7 @@ spec:
     context:
       - {kind: prompt, ref: {kind: Prompt, name: test-design-rules}}
       - {kind: artifact, input: spec}
+      - {kind: artifact, input: plan}
       - {kind: artifact, input: architecture}
       - {kind: artifact, input: designs}
       - {kind: artifact, input: glossary}

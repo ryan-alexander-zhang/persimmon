@@ -497,9 +497,10 @@ export function checkHarness({ harness, seed, levelOutcomes = [], ids = {} }) {
   return findings
 }
 
-/** One TestDesign against its Spec, the Architecture's quality scenarios, the BusinessRules and the TestHarness
- * (39-test-process.md). `ids`: {spec, harness} bound. Every finding `error`. */
-export function checkTestDesign({ testDesign, spec, architecture, rules, harness, ids = {} }) {
+/** One TestDesign against its Spec, the Architecture's quality scenarios, the BusinessRules, the TestHarness and the Plan
+ * (39-test-process.md): an api step's `METHOD /path` is a Design element its case's task, or one before it, realises.
+ * `designs` maps a Design id to its content. `ids`: {spec, harness} bound. Every finding `error`. */
+export function checkTestDesign({ testDesign, spec, architecture, rules, harness, plan, designs = {}, ids = {} }) {
   if (!testDesign || !Array.isArray(testDesign.cases) || !testDesign.spec) {
     return [{ severity: 'error', code: 'not-a-test-design', message: 'content is not a TestDesign: it has no cases array or no spec' }]
   }
@@ -512,6 +513,14 @@ export function checkTestDesign({ testDesign, spec, architecture, rules, harness
   const cited = (spec?.qualities ?? []).map((q) => q.scenario)
   const known = new Set([...acs, ...cited, ...(spec?.requirements ?? []).map((r) => r.id), ...(rules?.rules ?? []).map((r) => r.id)])
   const levels = new Set(Object.keys(harness?.levels ?? {}))
+  const tasks = plan?.tasks ?? []
+  const realisedAt = new Map() // a Design element's name, `METHOD /path`, to the first task realising it
+  tasks.forEach((t, i) => {
+    for (const e of t.elements ?? []) {
+      const name = (designs[e.design]?.elements ?? []).find((x) => x.id === e.element)?.name
+      if (name && !realisedAt.has(name)) realisedAt.set(name, i)
+    }
+  })
   const verified = new Set()
   for (const c of testDesign.cases) {
     for (const v of c.verifies ?? []) {
@@ -522,6 +531,11 @@ export function checkTestDesign({ testDesign, spec, architecture, rules, harness
     if (harness && !levels.has(c.level)) bad('level-unavailable', `${c.id}: the harness has no ${c.level} level`)
     if ((c.level === 'api' || c.level === 'e2e' || c.execution === 'manual') && !(c.steps ?? []).length) bad('steps-missing', `${c.id}: a${c.execution === 'manual' ? ' manual' : `n ${c.level}`} case names its steps`)
     if (c.priority === 'P0' && c.execution === 'manual') bad('p0-manual', `${c.id}: a P0 case is automated`)
+    const at = tasks.findIndex((t) => (t.verifiedBy ?? []).some((v) => (c.verifies ?? []).includes(v)))
+    for (const s of c.level === 'api' && at >= 0 ? c.steps ?? [] : []) {
+      const op = /^[A-Z]+ \S+/.exec(s.action ?? '')?.[0]
+      if (realisedAt.get(op) > at) bad('step-premature', `${c.id}: ${op} is built by ${tasks[realisedAt.get(op)].id}, after ${tasks[at].id}, the task of this case`)
+    }
   }
   for (const id of acs) if (!verified.has(id)) bad('scenario-uncovered', `${id}: no case verifies it`)
   for (const id of cited) if (provenAt.get(id) === 'build' && !verified.has(id)) bad('scenario-uncovered', `quality scenario ${id} is proven at build but no case verifies it`)

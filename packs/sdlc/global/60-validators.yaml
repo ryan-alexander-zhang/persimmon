@@ -364,13 +364,16 @@ spec:
     resultOutput: result
   timeout: 72h
 ---
-# test-design-consistency: sdd/v1 checks a TestDesign against its Spec, the Architecture, the rules and the TestHarness (39-test-process.md).
+# test-design-consistency: sdd/v1 checks a TestDesign against its Spec, the Architecture, the rules, the TestHarness and the Plan
+# (39-test-process.md).
 apiVersion: persimmon.ai/v1
 kind: Validator
 metadata: {name: test-design-consistency}
 spec:
   inputs:
     testDesign: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}}
+    plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}, description: "the Spec's Plan: which task builds each operation a step names"}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, description: "the operations a step names, by element"}
     spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}

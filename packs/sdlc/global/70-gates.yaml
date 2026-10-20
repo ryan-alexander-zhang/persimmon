@@ -392,6 +392,7 @@ spec:
   inputs:
     testDesign: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}}
     spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
@@ -405,6 +406,8 @@ spec:
       ref: {kind: Validator, name: test-design-consistency}
       inputs:
         testDesign: {fromInput: testDesign}
+        plan: {fromInput: plan}
+        designs: {fromInput: designs}
         spec: {fromInput: spec}
         architecture: {fromInput: architecture}
         rules: {fromInput: rules}

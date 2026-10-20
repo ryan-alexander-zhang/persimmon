@@ -91,9 +91,9 @@ describe('scenario: the Test process', () => {
   })
 
   it('test-design-one: the cases are checked, audited and confirmed by a human before any code', { timeout: 60_000 }, async () => {
-    await setup(['Spec', 'Architecture', 'Design', 'Glossary', 'BusinessRules', 'TestHarness'])
+    await setup(['Spec', 'Plan', 'Architecture', 'Design', 'Glossary', 'BusinessRules', 'TestHarness'])
     out = []
-    expect(await run('run', 'test-design-one', '--input', `spec=${ref('Spec', 'submit-a-claim')}`, '--input', `architecture=${ref('Architecture', 'expense-claims-architecture')}`, '--input', designs,
+    expect(await run('run', 'test-design-one', '--input', `spec=${ref('Spec', 'submit-a-claim')}`, '--input', `plan=${ref('Plan', 'submit-a-claim-plan')}`, '--input', `architecture=${ref('Architecture', 'expense-claims-architecture')}`, '--input', designs,
       '--input', `glossary=${ref('Glossary', 'expenses-glossary')}`, '--input', `rules=${ref('BusinessRules', 'expenses-rules')}`, '--input', `harness=${ref('TestHarness', 'expense-claims-architecture-harness')}`, '--follow')).toBe(0)
     let f = form()
     expect(f.outputIds).toEqual({ testDesign: 'submit-a-claim-tests' })

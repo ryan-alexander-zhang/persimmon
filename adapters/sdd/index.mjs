@@ -76,7 +76,7 @@ function evaluate(payload) {
     const notATestDesign = checkTestDesign({ testDesign }).filter((f) => f.code === 'not-a-test-design')
     if (notATestDesign.length) return { passed: false, findings: notATestDesign, evidence: [] }
     const ids = { spec: payload.inputs?.spec?.ref?.id, harness: payload.inputs?.harness?.ref?.id }
-    const findings = checkTestDesign({ testDesign, spec: required(artifacts, 'spec'), architecture: required(artifacts, 'architecture'), rules: required(artifacts, 'rules'), harness: required(artifacts, 'harness'), ids })
+    const findings = checkTestDesign({ testDesign, spec: required(artifacts, 'spec'), architecture: required(artifacts, 'architecture'), rules: required(artifacts, 'rules'), harness: required(artifacts, 'harness'), plan: required(artifacts, 'plan'), designs: boundDesigns(payload, artifacts), ids })
     return done(payload, findings, artifacts.testDesign)
   }
   if (artifacts.harness) {

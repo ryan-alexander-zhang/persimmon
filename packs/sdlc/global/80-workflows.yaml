@@ -1111,6 +1111,7 @@ metadata: {name: test-design-one}
 spec:
   inputs:
     spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
@@ -1120,6 +1121,7 @@ spec:
     uses: {kind: Task, name: design-tests}
     inputs:
       spec: {fromInput: spec}
+      plan: {fromInput: plan}
       architecture: {fromInput: architecture}
       designs: {fromInput: designs}
       glossary: {fromInput: glossary}
@@ -1131,6 +1133,7 @@ spec:
     inputs:
       testDesign: {fromStep: {stepRef: produce, output: testDesign}}
       spec: {fromInput: spec}
+      plan: {fromInput: plan}
       architecture: {fromInput: architecture}
       designs: {fromInput: designs}
       rules: {fromInput: rules}
@@ -1168,6 +1171,7 @@ spec:
       uses: {kind: ReviewLoop, name: test-design-one}
       inputs:
         spec: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}, id: "inputs.prd.id + '-' + inputs.capabilities[state.index - 1].lowerAscii()"}}
+        plan: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}, id: "inputs.prd.id + '-' + inputs.capabilities[state.index - 1].lowerAscii() + '-plan'"}}
         architecture: {fromInput: architecture}
         designs: {fromInput: designs}
         glossary: {fromInput: glossary}
