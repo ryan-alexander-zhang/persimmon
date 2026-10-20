@@ -129,5 +129,7 @@ export function mutation({ workspace, report, min, changes, paths, command }) {
   const scored = counts.killed + counts.timeout + counts.survived + counts.noCoverage
   // mutants on the change, none run against the tests (skipped, ignored, not compiling): the change went untested
   if (!scored && unscored) return { min, command, error: `${unscored} mutant${unscored > 1 ? 's' : ''} on the changed lines, none run against the tests: skipped, ignored or not compiling` }
+  // a timeout counts as detected, yet every mutant timing out says the tool's timeout was too tight, not that a test caught one
+  if (counts.timeout && counts.timeout === scored) return { min, command, error: `all ${scored} mutants on the changed lines timed out, none killed: the tool's timeout is too tight to tell` }
   return { min, command, ...counts, ...(scored ? { score: Math.round(((counts.killed + counts.timeout) / scored) * 10000) / 100 } : {}), survivors }
 }

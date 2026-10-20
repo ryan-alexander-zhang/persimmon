@@ -665,6 +665,8 @@ describe('junit/v1', () => {
     expect(mutation({ workspace: dir, report: 'gremlins.json', min: 90, changes: new Map([['claims/claim.go', new Set([3])]]), command: [] })).toEqual({ min: 90, command: [], killed: 1, survived: 1, noCoverage: 0, timeout: 0, score: 50, survivors: [{ file: 'claims/claim.go', line: 3, mutator: 'CONDITIONALS_BOUNDARY' }] }) // Gremlins, Go
     writeFileSync(join(dir, 'skipped.json'), JSON.stringify({ go_module: 'm', files: [{ file_name: 'claim.go', mutations: [{ type: 'CONDITIONALS_BOUNDARY', status: 'SKIPPED', line: 3, column: 9 }] }] }))
     expect(mutation({ workspace: dir, report: 'skipped.json', min: 90, changes: new Map([['claims/claim.go', new Set([3])]]), command: [] }).error).toContain('1 mutant on the changed lines, none run') // never a pass unmeasured
+    writeFileSync(join(dir, 'timeouts.json'), JSON.stringify({ go_module: 'm', files: [{ file_name: 'claim.go', mutations: [{ type: 'A', status: 'TIMED OUT', line: 3, column: 1 }, { type: 'B', status: 'TIMED OUT', line: 3, column: 2 }] }] }))
+    expect(mutation({ workspace: dir, report: 'timeouts.json', min: 90, changes: new Map([['claims/claim.go', new Set([3])]]), command: [] }).error).toContain('all 2 mutants on the changed lines timed out') // a timeout-only 100 is no score
     const twins = new Map([['a/Claim.java', new Set([3])], ['b/Claim.java', new Set([3])]])
     writeFileSync(join(dir, 'twin.json'), JSON.stringify({ files: { 'x/Claim.java': { mutants: [mutant(3, 'Survived')] } } }))
     expect(mutation({ workspace: dir, report: 'twin.json', min: 90, changes: twins, command: [] }).error).toContain('resolves to no changed file')
