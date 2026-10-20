@@ -170,7 +170,7 @@ One per Source system, a revision per step per Slice.
 |---|---|
 | `source`, `inventory`, `rules?`, `slice?` | the commit; the SourceInventory and BusinessRules as `{id, revision}`, so a ledger is never checked against a revision it was not computed from; the Slice of this revision, absent on the Survey's |
 | `slices[]` | the human's cut, from `cut-slices` |
-| `suite?` | `{levels {app?, units?, records?: {tool, run, one, reset?, junit, testDir, coverage?}}, drivers {source, rewrite?}, conventions}`; `levels` empty when nothing runs; absent before characterization |
+| `suite?` | `{levels {app?, units?, records?: {tool, run, one, reset?, junit, observations, testDir, coverage?}}, drivers {source, rewrite?}, conventions}`; `observations` is the JSON file a run writes, `{<test>: <what it observed>}`, so the ledger records what the source answered without reading a test; `levels` empty when nothing runs; absent before characterization |
 | `entryPoints[]` | `{id EP-n, oracle}` |
 | `items[]` | `{ref GD-n\|DC-n\|ST-n\|EX-n\|AB-n, slice, reached, mutant?: killed\|survived\|invalid\|none, tests[], rules[] BR-n, disposition?, dead?, accepted?, plumbing? PP-n, reader?, account: complete\|unverified\|open, reason?}`: every decision a typed field, as given |
 | `answers[]` | `{test, observed}`: what the source answered, recorded when the test passed on it, never edited |
@@ -179,8 +179,10 @@ One per Source system, a revision per step per Slice.
 | `driver?`, `concerns?` | `{confirmed}`, `{accepted, reason}`: `review-parity`'s decisions, as given |
 | `verdict?` | `{result: pass\|concerns\|fail, rule}`: the Slice's, over its items, unreached entries and differences; absent on the Survey's |
 
-`items[].tests` are the tests whose names cite the item or its entry point; coverage says whether
-an item was reached, never which test reached it.
+`items[].tests` are the tests whose names cite the item or its entry point, an id cited by naming it
+as a whole word (`test_EP2_GD2_add_in_stock` cites `EP-2` and `GD-2`); coverage says whether an item
+was reached, never which test reached it. An item belongs to the Slice whose inventory revision first
+lists it; a later Slice that reaches it again does not take it over.
 
 | Item | `complete` when | `unverified` when |
 |---|---|---|
