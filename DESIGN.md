@@ -67,7 +67,7 @@ Read top to bottom within a layer; a file depends only on files above it.
 | `docs/design/36-test-levels.md` | the build's tests split by test level (`unit` on `test-runner`, `integration`, `api` and `e2e` on `level-runner`), coverage and mutation of `unit` over the Change set, the `round` tier selecting by the Change set, the `plan` tier in full after the last task | draft |
 | `docs/design/39-test-process.md` | testing apart from the code: the Tester, the `TestHarness` recording each test level's tool once, a `TestDesign` of test cases per Spec confirmed before the Plan, `api` tests before the code and `e2e` tests after it, the Gate matching tests by case id, the `TestReport` and its verdict after `build-all` | active |
 | `docs/design/28-prd-process.md` | brief to `Prd`: the writing Task that also writes the rules, the `sdd/v1` Prd check, a human gate, `author-prd` | draft |
-| `docs/design/40-pack-rewrite.md` | Rewrite pack: an existing system's code to a `SourceInventory`, Characterization tests against its Oracle (running, partial, recorded or static), a recovered `Prd` and `BusinessRules` with a Disposition per item, the SDLC run order from `domain-discovery`, a parity check accounted for in the `ParityLedger` | draft |
+| `docs/design/40-pack-rewrite.md` | Rewrite pack: an existing system rebuilt in a new repository, Slice by Slice from a Survey: a `SourceInventory`, Characterization tests through Protocol drivers, pinned by killed mutants, a recovered `Prd` and `BusinessRules` with a Disposition per item, the SDLC run order, a parity check accounted for in the `ParityLedger` | draft |
 
 ## Cross-cutting
 

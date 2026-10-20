@@ -65,8 +65,7 @@ later     eager joins · retention policy · policy resource · external event s
 | coverage from lcov or Go's coverprofile; mutation for Python's tools | `36-test-levels.md` | v1: Cobertura and JaCoCo XML; mutation-testing-elements JSON, PIT's `report.js` and Gremlins' JSON; Go converts its profile with `gocover-cobertura` |
 | evidence beyond the code and records: a database schema, tickets, several repositories | `40-pack-rewrite.md` | v1: one checkout and the `records` Oracle; the brief may describe the rest in text |
 | shadow traffic: production requests replayed to the Source system and the rewrite, answers compared | `40-pack-rewrite.md` | v1: the inputs are the Characterization tests'; needs production access the pack does not assume |
-| a cutover per capability (strangler fig), both systems in parallel with rollback | `40-pack-rewrite.md` | v1: the parity check runs once after the last `build-all` |
-| an inventory too large for one Task: one per part of the source, merged | `40-pack-rewrite.md` | v1: one `inventory-source` over the whole checkout, gaps in `unread` |
+| the cutover of a Slice: traffic switched, old and new data kept in step while both run, rollback | `40-pack-rewrite.md` | v1: the pack checks a Slice; the developer cuts it over by hand |
 
 ## Layer 3
 
