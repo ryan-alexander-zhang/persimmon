@@ -34,8 +34,11 @@ const agentAnswers = (payload, doc) => {
     .filter((q) => q.resolution && before.get(q.id) !== q.resolution)
     .map((q) => ({ severity: 'warning', code: 'question-agent-resolved', message: `${q.id}'s resolution was written by ${doc.provenance.actor.id}; check a human gave it: ${q.question} — ${q.resolution}` }))
 }
+// an answer that changes an upstream artifact, told so its revision is not forgotten (23-pack-sdlc.md)
+const upstreamAnswers = (doc) =>
+  (doc.content?.openQuestions ?? []).filter((q) => q.resolution && q.upstream?.length).map((q) => ({ severity: 'warning', code: 'question-upstream', message: `${q.id}'s answer changes ${q.upstream.join(', ')}; revise ${q.upstream.length > 1 ? 'them' : 'it'} through ${q.upstream.length > 1 ? 'their' : 'its'} process: ${q.resolution}` }))
 const done = (payload, findings, doc) => {
-  const all = [...findings, ...agentAnswers(payload, doc)]
+  const all = [...findings, ...agentAnswers(payload, doc), ...upstreamAnswers(doc)]
   return { passed: passes(all), findings: all, evidence: [] }
 }
 const invalid = (message) => Object.assign(new Error(message), { code: 'invalid_input' })

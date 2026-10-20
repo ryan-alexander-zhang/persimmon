@@ -93,5 +93,5 @@ Stop and report, never work around it, when:
 At the end, or at a stop: the runs, the revisions each produced (Prd, BusinessRules, the domain
 kinds, Architecture, Adrs, DesignSystem, Designs, Specs, Plans, TestHarness, TestDesigns,
 AcceptanceRecords, TestOutcomes, TestReports with their verdicts and residual risks, Issues), every `Q-n` an agent decided, every `question-agent-resolved` and `defect-reported`
-warning, the files changed, and, at a stop, what stopped it and the command that resumes. The
+warning, every `question-upstream` warning as an upstream revision the developer owes, the files changed, and, at a stop, what stopped it and the command that resumes. The
 developer reads it, reviews the diff and commits.

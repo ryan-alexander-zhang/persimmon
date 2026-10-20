@@ -780,6 +780,15 @@ describe('sdd/v1 over an AcceptanceRecord', () => {
     expect((await by({ kind: 'service', id: 'claude-code/v1' })).result.findings).toEqual([]) // carried from the last round: told then
   })
 
+  // an answer that changes an upstream artifact is told, every round, so its revision is not forgotten (23-pack-sdlc.md)
+  it('warns of an answer naming the upstream artifacts it changes', async () => {
+    const answered = structuredClone(recordExample())
+    answered.record.openQuestions = [{ id: 'Q-1', question: 'which currency?', resolution: 'EUR', upstream: ['expenses-glossary', 'submit-a-claim Q-2'] }]
+    const r = await adapter({ id: ++id, op: 'evaluate', payload: recordPayload(answered) })
+    expect(r.result.passed).toBe(true)
+    expect(r.result.findings.filter((f: { code: string }) => f.code === 'question-upstream')).toEqual([{ severity: 'warning', code: 'question-upstream', message: "Q-1's answer changes expenses-glossary, submit-a-claim Q-2; revise them through their process: EUR" }])
+  })
+
   // 36-test-levels.md: the other levels' outcomes beside the unit one, paired by level
   const api = (cases: Record<string, unknown>[], over: Record<string, unknown> = {}) => ({ command: ['bru', 'run'], exitCode: cases.some((c) => c.status === 'failed') ? 1 : 0, level: 'api', selection: { mode: 'full', reason: '1 changed file' }, tests: cases, ...over })
   const levelCodes = async (a: Record<string, any>, levelOutcomes: unknown[], levelBaselines: unknown[] = []) => {

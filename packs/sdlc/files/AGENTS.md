@@ -82,7 +82,9 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 - Read an artifact with `persimmon get <Kind>/<id>`; `--files <dir>` exports its representations,
   for a kind that has them. An exported file is a copy: change the artifact through its process, never the copy.
 - A Gate's finding is fixed where it points, upstream; never worked around downstream. A
-  `build-gate` finding points at the code, the tests or the record.
+  `build-gate` finding points at the code, the tests or the record. A `question-upstream`
+  warning is an answer that changes an upstream artifact: tell the developer, who revises it
+  through its process.
 - An unknown is a `Q-n`, never an assumption. What only a domain owner can settle waits for
   the human at a Gate.
 - Write code only against a revision its Gate passed: `persimmon tree <run>` shows `passed`;

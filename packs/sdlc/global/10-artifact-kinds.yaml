@@ -1227,6 +1227,7 @@ spec:
                 id: {type: string, pattern: "^Q-[0-9]+$"}
                 question: {type: string, minLength: 1}
                 resolution: {type: string}
+                upstream: {type: array, items: {type: string, pattern: "^[a-z0-9][a-z0-9.-]*( Q-[0-9]+)?$"}, description: "the upstream artifacts this answer changes, by artifact id, with the Q-n it settles"}
   mutability: Immutable
   revisioned: true
   snapshot: "None"
@@ -1286,6 +1287,7 @@ spec:
                 id: {type: string, pattern: "^Q-[0-9]+$"}
                 question: {type: string, minLength: 1}
                 resolution: {type: string}
+                upstream: {type: array, items: {type: string, pattern: "^[a-z0-9][a-z0-9.-]*( Q-[0-9]+)?$"}, description: "the upstream artifacts this answer changes, by artifact id, with the Q-n it settles"}
   mutability: Immutable
   revisioned: true
   snapshot: "None"
@@ -1342,6 +1344,7 @@ spec:
                 id: {type: string, pattern: "^Q-[0-9]+$"}
                 question: {type: string, minLength: 1}
                 resolution: {type: string}
+                upstream: {type: array, items: {type: string, pattern: "^[a-z0-9][a-z0-9.-]*( Q-[0-9]+)?$"}, description: "the upstream artifacts this answer changes, by artifact id, with the Q-n it settles"}
           defects:
             type: array
             description: "wrong behaviour the builder saw that the task does not cover: reported, never fixed in this task; each becomes an Issue"
