@@ -119,7 +119,10 @@ export function computeLedger({ inventory, inventoryRef, last, slice, decisions:
   // the Oracle of each entry point: the strongest level a test citing it passed on; a test red on the source witnesses nothing
   const tests = runs.flatMap((r) => r.tests.map((t) => ({ ...t, level: r.level, observations: r.observations ?? {} })))
   const passed = tests.filter((t) => t.status === 'passed')
-  const eps = Object.fromEntries(cut.entryPoints.map((ep) => [ep, strongest(passed.filter((t) => cites(t.name, ep)).map((t) => levelOracle[t.level] ?? 'static'))]))
+  // a record runs against the rewrite only: a records test that ran there holds its entry point's Oracle, whatever it answered
+  const records = (rewrite?.runs ?? []).filter((r) => r.level === 'records').flatMap((r) => r.tests)
+  const held = [...passed, ...records.map((t) => ({ ...t, level: 'records' }))]
+  const eps = Object.fromEntries(cut.entryPoints.map((ep) => [ep, strongest(held.filter((t) => cites(t.name, ep)).map((t) => levelOracle[t.level] ?? 'static'))]))
   ledger.entryPoints = [...ledger.entryPoints.filter((e) => !(e.id in eps)), ...cut.entryPoints.map((id) => ({ id, oracle: eps[id] }))].sort((a, b) => Number(a.id.slice(3)) - Number(b.id.slice(3)))
   const best = strongest(Object.values(eps))
 
@@ -175,16 +178,21 @@ export function computeLedger({ inventory, inventoryRef, last, slice, decisions:
   if (rewrite) {
     const ran = new Map(rewrite.runs.flatMap((r) => r.tests.map((t) => [t.name, { status: t.status, observed: (r.observations ?? {})[t.name] }])))
     const changed = allRules.filter((r) => ['change', 'drop'].includes(decided(r.id)))
-    const cause = (name) => changed.find((r) => ruleRefs(r).some((ref) => cites(name, ref)))
+    const cause = (name) => {
+      const rule = changed.find((r) => ruleRefs(r).some((ref) => cites(name, ref)))
+      if (rule) return { cause: { rule: rule.id } }
+      const issue = base.differences.find((d) => d.test === name && d.cause?.issue)?.cause // an Issue's cause holds while the difference does
+      return issue ? { cause: issue } : {}
+    }
     const fresh = ledger.answers.flatMap(({ test, observed }) => {
       const now = ran.get(test)
       const same = now && now.status === 'passed' && (observed === null || isDeepStrictEqual(now.observed, observed))
       if (same) return []
-      const why = cause(test)
-      const issue = base.differences.find((d) => d.test === test && d.cause?.issue)?.cause // an Issue's cause holds while the difference does
-      return [{ test, source: observed, rewrite: now ? (now.observed ?? now.status) : 'not run', ...(why ? { cause: { rule: why.id } } : issue ? { cause: issue } : {}) }]
+      return [{ test, source: observed, rewrite: now ? (now.observed ?? now.status) : 'not run', ...cause(test) }]
     })
-    ledger.differences = fresh
+    // a record's expected output is in its test: one not green on the rewrite differs from what the source produced
+    const recorded = records.filter((t) => t.status !== 'passed').map((t) => ({ test: t.name, source: 'recorded', rewrite: t.status, ...cause(t.name) }))
+    ledger.differences = [...fresh, ...recorded]
     const head = rewrite.runs.find((r) => r.head)?.head
     ledger.rewrite = { tests: ran.size, ...(head ? { head } : {}) }
   }

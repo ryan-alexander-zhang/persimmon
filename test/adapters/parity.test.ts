@@ -479,7 +479,7 @@ describe('parity-run/v1 over stdio', () => {
   }
   const ref = (kind: string, id: string, revision: number) => ({ kind: 'artifact', ref: { apiVersion: 'rewrite.persimmon.ai/v1', kind, namespace: 'demo', id, revision } })
 
-  it('run-rewrite: runs app and records on the rewrite, told so and given the TestHarness\'s start command', async () => {
+  it('run-rewrite: runs every level on the rewrite, told so and given the TestHarness\'s start command', async () => {
     const project = realpathSync(mkdtempSync(join(tmpdir(), 'parity-rw-prj-')))
     writeFileSync(join(project, 'suite.mjs'), [
       "import { mkdirSync, writeFileSync } from 'node:fs'",
@@ -489,16 +489,36 @@ describe('parity-run/v1 over stdio', () => {
       "writeFileSync(`build/${process.argv[2]}.json`, JSON.stringify({ [`test_EP1_${process.argv[2]}`]: { on: process.env.PERSIMMON_TARGET } }))",
     ].join('\n'))
     const level = (name: string) => ({ tool: 'node', run: `node suite.mjs ${name}`, one: 'node suite.mjs {test}', junit: `build/${name}.xml`, observations: `build/${name}.json`, testDir: '.' })
-    const eng = await engine({ harness: { architecture: 'a', levels: {}, app: { start: 'npm start', ready: 'http://localhost:8080/health' } } }, [])
-    try {
+    const eng = await engine({ harness: { architecture: 'a', levels: {}, app: { start: 'npm start', ready: 'http://localhost:8080/health' } }, bare: { architecture: 'a', levels: {} } }, [])
+    const harness = (id: string) => ({ kind: 'artifact', ref: { apiVersion: 'sdd.persimmon.ai/v1', kind: 'TestHarness', namespace: 'demo', id, revision: 1 } })
+    const run = (levels: Record<string, unknown>, h?: unknown) => {
       const r: any = execute(project, { runs: { type: { kind: 'value', schema: { type: 'array' } } } })
       r.payload.engine = { endpoint: eng.endpoint, token: 'ct-1' }
-      r.payload.inputs = { written: { kind: 'value', value: { files: [], suite: { levels: { app: level('app'), units: level('units'), records: level('records') }, drivers: { source: 's' }, conventions: '' } } }, harness: { kind: 'artifact', ref: { apiVersion: 'sdd.persimmon.ai/v1', kind: 'TestHarness', namespace: 'demo', id: 'harness', revision: 1 } } }
-      const out = await stdio('parity-run', r, project)
+      r.payload.inputs = { written: { kind: 'value', value: { files: [], suite: { levels, drivers: { source: 's' }, conventions: '' } } }, ...(h ? { harness: h } : {}) }
+      return stdio('parity-run', r, project)
+    }
+    try {
+      const out = await run({ app: level('app'), units: level('units'), records: level('records') }, harness('harness'))
       expect(out.result.outputs.runs.value.map((x: any) => [x.level, x.tests, x.observations])).toEqual([
         ['app', [{ name: 'test_EP1_app', status: 'passed' }], { test_EP1_app: { on: 'rewrite' } }],
+        ['units', [{ name: 'test_EP1_units', status: 'passed' }], { test_EP1_units: { on: 'rewrite' } }], // through the rewrite's driver to its code
         ['records', [{ name: 'test_EP1_records', status: 'passed' }], { test_EP1_records: { on: 'rewrite' } }],
-      ]) // units are the source's own toolchain: never run on the rewrite
+      ])
+      expect(out.result.outputs.runs.value[0].head).toBeUndefined() // the project is no git repository: no commit to name
+
+      const failedReset = await run({ app: { ...level('app'), reset: 'echo restoring; exit 3' } }, harness('harness'))
+      expect(failedReset.result.outputs.runs.value).toEqual([expect.objectContaining({ level: 'app', exitCode: 3, tests: [], reason: 'reset exited 3: the level did not run', outputTail: 'restoring' })])
+
+      expect((await run({ app: level('app') })).error).toMatchObject({ code: 'invalid_input', message: expect.stringContaining('inputs.harness') })
+      expect((await run({ app: level('app') }, harness('bare'))).error).toMatchObject({ code: 'invalid_input', message: expect.stringContaining('app.start and app.ready') })
+      expect((await run({ app: { ...level('app'), reset: ' ' } }, harness('harness'))).error).toMatchObject({ code: 'invalid_input', message: "suite level app's reset is no command" })
+
+      // a commit names what ran only when no tracked file differs from it
+      const g = (...args: string[]) => execFileSync('git', ['-c', 'commit.gpgsign=false', '-c', 'core.hooksPath=/dev/null', '-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd: project, encoding: 'utf8' }).trim()
+      g('init', '-q'); g('add', 'suite.mjs'); g('commit', '-qm', 'suite')
+      expect((await run({ app: level('app') }, harness('harness'))).result.outputs.runs.value[0].head).toBe(g('rev-parse', 'HEAD'))
+      writeFileSync(join(project, 'suite.mjs'), `${readFileSync(join(project, 'suite.mjs'), 'utf8')}\n// changed`)
+      expect((await run({ app: level('app') }, harness('harness'))).result.outputs.runs.value[0].head).toBeUndefined()
     } finally {
       eng.close()
     }
@@ -521,6 +541,16 @@ describe('parity-run/v1 over stdio', () => {
       expect(out.error?.message).toBeUndefined()
       expect(out.result.outputs.ledger).toMatchObject({ kind: 'artifact', ref: { id: 'jpetstore-parity', revision: 4 } })
       expect(published[0].content).toMatchObject({ inventory: { id: 'jpetstore-inventory', revision: 2 }, rules: { id: 'jpetstore-rules', revision: 3 }, slice: 'SL-1', decisions: { plumbing: ['PP-1'] }, verdict: { result: 'fail' } }) // no rule recovered yet: every guard open
+
+      const refused = async (change: (r: any) => void) => {
+        const again: any = structuredClone(r)
+        change(again)
+        return (await stdio('parity-run', again, project)).error
+      }
+      expect(await refused((x) => delete x.payload.task.outputIds)).toMatchObject({ code: 'invalid_input', message: expect.stringContaining('outputIds.ledger') })
+      expect(await refused((x) => (x.payload.inputs.slice.value = 'SL-9'))).toMatchObject({ code: 'invalid_input', message: "SL-9 is no Slice of the last ledger's cut" })
+      expect(await refused((x) => (x.payload.inputs.ledger = { kind: 'value', value: {} }))).toMatchObject({ code: 'invalid_input', message: 'inputs.ledger is wired but no artifact' })
+      expect(await refused((x) => (x.payload.task.outputs.runs = { type: { kind: 'value', schema: { type: 'array' } } }))).toMatchObject({ code: 'invalid_input', message: expect.stringContaining('one of sourceIndex, ledger, runs or mutantResults') })
     } finally {
       eng.close()
     }

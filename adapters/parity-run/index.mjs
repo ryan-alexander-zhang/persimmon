@@ -6,8 +6,8 @@
 // coverage mapped onto the index. A red suite is an answer, never a failure: the ledger records it.
 // `mutantResults`: run-mutants applies each of the Tester's patches to a scratch clone of the checkout, never the checkout,
 // and reruns one by one the tests green on the source that cite the patched item, each after the level's reset.
-// `runs` alone: run-rewrite runs the levels that run on a rewrite (`app`, `records`) with PERSIMMON_TARGET=rewrite and the
-// TestHarness's start command and ready URL. `ledger`: compute-ledger answers the ParityLedger's next revision.
+// `runs` alone: run-rewrite runs every level (`app`, `units`, `records`) with PERSIMMON_TARGET=rewrite and the TestHarness's
+// start command and ready URL. `ledger`: compute-ledger answers the ParityLedger's next revision.
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
@@ -56,11 +56,22 @@ function sourceInputs(payload) {
     refuse(`${source} is not a git checkout`)
   }
   if (now.commit !== index.commit || now.dirty.length) refuse(`the checkout is at ${now.commit}${now.dirty.length ? ` with ${now.dirty.join(', ')} changed` : ''}; the index read ${index.commit}: index it again`)
+  checkLevels(suite)
+  return { inputs, suite, source, index, clean: (s) => redact(s, payload.credentials) }
+}
+
+function checkLevels(suite) {
   for (const [name, level] of Object.entries(suite.levels)) {
     if (typeof level.run !== 'string' || !level.run.trim()) refuse(`suite level ${name} has no run command`)
     if (level.reset !== undefined && (typeof level.reset !== 'string' || !level.reset.trim())) refuse(`suite level ${name}'s reset is no command`)
   }
-  return { inputs, suite, source, index, clean: (s) => redact(s, payload.credentials) }
+}
+
+/** A level a failed reset kept from running: data not restored, its run would measure whatever the last run left. */
+function resetFailed(step, { stdout, stderr, exitCode }, head, clean) {
+  state.steps = state.steps.filter((s) => s.name !== step.name)
+  const tail = `${stdout}\n${stderr}`.split('\n').filter((l) => l.trim()).slice(-50).join('\n')
+  return { level: step.name, command: step.command.flat().map(clean), exitCode, ...(head ? { head } : {}), tests: [], observations: {}, reason: `reset exited ${exitCode}: the level did not run`, ...(tail ? { outputTail: clean(tail) } : {}) }
 }
 
 /** run-source: each level's reset, then its run; a failed reset keeps its level from running. */
@@ -82,13 +93,10 @@ function runSource(payload, workspace) {
   state = {
     steps,
     finish: () => ({ runs, coverage }),
-    parse(step, { stdout, stderr, exitCode }) {
-      if (step.kind === 'reset' && exitCode !== 0) {
-        // data not restored: the level's run would measure whatever the last run left, so it does not run and says why
-        state.steps = state.steps.filter((s) => s.name !== step.name)
-        const tail = `${stdout}\n${stderr}`.split('\n').filter((l) => l.trim()).slice(-50).join('\n')
-        runs.push({ level: step.name, command: step.command.flat().map(clean), exitCode, head: index.commit, tests: [], observations: {}, reason: `reset exited ${exitCode}: the level did not run`, ...(tail ? { outputTail: clean(tail) } : {}) })
-      } else if (step.kind === 'run') {
+    parse(step, ran) {
+      const { stdout, stderr, exitCode } = ran
+      if (step.kind === 'reset' && exitCode !== 0) runs.push(resetFailed(step, ran, index.commit, clean))
+      else if (step.kind === 'run') {
         const read = readLevel({ workspace, name: step.name, level: step.level, command: step.command.flat(), exitCode, head: index.commit, indexFiles: index.files, output: `${stdout}\n${stderr}`, clean })
         runs.push(read.run)
         if (read.coverage) coverage = mergeCoverage(coverage, read.coverage)
@@ -178,26 +186,31 @@ async function runMutants(payload, workspace, call) {
   }
 }
 
-/** run-rewrite: the suite's levels that run on a rewrite (`app`, `records`) against it, the suite told so by PERSIMMON_TARGET
- * and given the TestHarness's command that starts the rewrite and the URL that answers once it is up. */
+/** run-rewrite: every suite level against the rewrite, so a recorded test it leaves out is a difference, never skipped: the
+ * suite told so by PERSIMMON_TARGET and given the TestHarness's command that starts the rewrite and the URL that answers
+ * once it is up. A `units` test runs through the rewrite's driver to the rewrite's code. */
 async function runRewrite(payload, workspace, call) {
   const inputs = payload.inputs ?? {}
   const suite = inputs.written?.value?.suite
   if (!payload.workspace) refuse('the suite runs in the project: action.workspace names the project, never the engine directory by default')
   if (!suite?.levels) refuse('the suite inputs.written names is required: written.suite.levels')
-  const app = inputs.harness?.kind === 'artifact' ? (await call('getArtifact', inputs.harness.ref)).spec.content?.app : undefined
-  const env = { PERSIMMON_TARGET: 'rewrite', ...(app?.start ? { PERSIMMON_REWRITE_START: app.start } : {}), ...(app?.ready ? { PERSIMMON_REWRITE_READY: app.ready } : {}) }
+  checkLevels(suite)
+  if (inputs.harness?.kind !== 'artifact') refuse('run-rewrite needs inputs.harness, the TestHarness whose app starts the rewrite')
+  const app = (await call('getArtifact', inputs.harness.ref)).spec.content?.app
+  if (!app?.start || !app?.ready) refuse('the TestHarness names no app.start and app.ready: the rewrite is started and awaited by them, never assumed up')
+  const env = { PERSIMMON_TARGET: 'rewrite', PERSIMMON_REWRITE_START: app.start, PERSIMMON_REWRITE_READY: app.ready }
   const clean = (s) => redact(s, payload.credentials)
   let head
   try {
-    head = execFileSync('git', ['--no-optional-locks', 'rev-parse', 'HEAD'], { cwd: workspace, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
+    const run = (args) => execFileSync('git', ['--no-optional-locks', ...args], { cwd: workspace, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+    // a commit names what ran only when no tracked file differs from it
+    if (!run(['status', '--porcelain', '--untracked-files=no']).trim()) head = run(['rev-parse', 'HEAD']).trim()
   } catch {} // a project outside git has no commit to name
   const runs = []
   const steps = []
   const inRewrite = (script) => ['env', [...Object.entries(env).map(([k, v]) => `${k}=${v}`), 'sh', '-c', script]]
-  for (const name of ['app', 'records'].filter((n) => suite.levels[n])) {
+  for (const name of ['app', 'units', 'records'].filter((n) => suite.levels[n])) {
     const level = suite.levels[name]
-    if (typeof level.run !== 'string' || !level.run.trim()) refuse(`suite level ${name} has no run command`)
     try {
       clearLevel(workspace, level)
     } catch (e) {
@@ -209,11 +222,10 @@ async function runRewrite(payload, workspace, call) {
   state = {
     steps,
     finish: () => ({ runs }),
-    parse(step, { stdout, stderr, exitCode }) {
-      if (step.kind === 'reset' && exitCode !== 0) {
-        state.steps = state.steps.filter((s) => s.name !== step.name)
-        runs.push({ level: step.name, command: step.command.flat().map(clean), exitCode, ...(head ? { head } : {}), tests: [], observations: {}, reason: `reset exited ${exitCode}: the level did not run` })
-      } else if (step.kind === 'run') {
+    parse(step, ran) {
+      const { stdout, stderr, exitCode } = ran
+      if (step.kind === 'reset' && exitCode !== 0) runs.push(resetFailed(step, ran, head, clean))
+      else if (step.kind === 'run') {
         runs.push(readLevel({ workspace, name: step.name, level: step.level, command: step.command.flat(), exitCode, head, output: `${stdout}\n${stderr}`, clean }).run)
       }
     },
@@ -225,18 +237,21 @@ async function computeLedgerTask(payload, call) {
   const inputs = payload.inputs ?? {}
   const artifact = async (port) => (inputs[port]?.kind === 'artifact' ? { ref: inputs[port].ref, content: (await call('getArtifact', inputs[port].ref)).spec.content } : undefined)
   const value = (port) => inputs[port]?.value
+  // every revision under the one id the Task names: the next one reads this one back as its `ledger`
+  if (!payload.task.outputIds?.ledger) refuse('compute-ledger needs outputIds.ledger: the ledger keeps one id, <productId>-parity, across revisions')
+  for (const port of ['inventory', 'rules', 'ledger']) if (inputs[port] && inputs[port].kind !== 'artifact') refuse(`inputs.${port} is wired but no artifact`)
   const inventory = await artifact('inventory')
   if (!inventory) refuse('compute-ledger needs inputs.inventory, the SourceInventory revision it pins')
   const rules = await artifact('rules')
-  try {
-    return computeLedger({
-      inventory: inventory.content, inventoryRef: { id: inventory.ref.id, revision: inventory.ref.revision }, last: (await artifact('ledger'))?.content, slice: value('slice'),
-      decisions: value('decisions') ?? {}, suite: value('written')?.suite, runs: value('runs') ?? [], coverage: value('coverage')?.files, mutants: value('mutantResults') ?? [],
-      rules: rules?.content, rulesRef: rules ? { id: rules.ref.id, revision: rules.ref.revision } : undefined, rewrite: value('rewriteRuns') ? { runs: value('rewriteRuns') } : undefined,
-    })
-  } catch (e) {
-    refuse(e.message)
-  }
+  const last = (await artifact('ledger'))?.content
+  const slice = value('slice')
+  if (slice && !last?.slices?.some((s) => s.id === slice)) refuse(`${slice} is no Slice of the last ledger's cut`)
+  // anything computeLedger throws past these checks is a bug, retried, never the Task's input
+  return computeLedger({
+    inventory: inventory.content, inventoryRef: { id: inventory.ref.id, revision: inventory.ref.revision }, last, slice,
+    decisions: value('decisions') ?? {}, suite: value('written')?.suite, runs: value('runs') ?? [], coverage: value('coverage')?.files, mutants: value('mutantResults') ?? [],
+    rules: rules?.content, rulesRef: rules ? { id: rules.ref.id, revision: rules.ref.revision } : undefined, rewrite: value('rewriteRuns') ? { runs: value('rewriteRuns') } : undefined,
+  })
 }
 
 serve({
@@ -252,6 +267,9 @@ serve({
   input: () => '',
   async prepare({ payload, workspace, call }) {
     const ports = Object.keys(payload.task.outputs)
+    // one mode per Task: a second mode's output would go unanswered
+    const modes = [ports.includes('sourceIndex'), ports.includes('ledger'), ports.includes('runs'), ports.includes('mutantResults')].filter(Boolean).length
+    if (modes > 1) refuse(`parity-run/v1 answers one of sourceIndex, ledger, runs or mutantResults per Task; this Task declares ${ports.join(', ')}`)
     if (ports.includes('sourceIndex')) {
       if (!payload.workspace) refuse('index-source reads its workspace, the source checkout: action.workspace names the source input')
       try {

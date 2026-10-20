@@ -171,6 +171,14 @@ describe('computeLedger', () => {
     expect(other.differences).toEqual([{ test: 'test_EP2_GD2_add_in_stock', source: observations.test_EP2_GD2_add_in_stock, rewrite: { lines: {}, subtotal: '0.00' } }])
   })
 
+  it('a record runs on the rewrite only: its test holds the entry point\'s Oracle, and one not green there is a difference', () => {
+    const records = [{ level: 'records', tests: [{ name: 'test_EP1_record_7', status: 'passed' }, { name: 'test_EP2_record_8', status: 'failed' }], observations: {} }]
+    const ledger = slice({ runs: [], rewrite: { runs: records } })
+    expect(ledger.entryPoints.filter((e: { id: string }) => ['EP-1', 'EP-2'].includes(e.id))).toEqual([{ id: 'EP-1', oracle: 'recorded' }, { id: 'EP-2', oracle: 'recorded' }])
+    expect(ledger.differences).toEqual([{ test: 'test_EP2_record_8', source: 'recorded', rewrite: 'failed' }])
+    expect(slice({ runs: [] }).entryPoints.find((e: { id: string }) => e.id === 'EP-1').oracle).toBe('static') // before a rewrite ran, no record has
+  })
+
   it('a difference is explained by a change or drop of a rule whose item the test cites; one revision\'s differences never vanish in the next', () => {
     const recovered = slice()
     const rewrite = { runs: run('passed', { ...observations, test_EP2_GD2_add_in_stock: { lines: {}, subtotal: '0.00' } }) }
