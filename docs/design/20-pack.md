@@ -29,7 +29,7 @@ WorkflowRun in team-a ── snapshot walk resolves Namespace, then Global ─�
 | Action | Rule |
 |---|---|
 | install | `persimmon apply packs/demo/global/*.yaml --global` then `namespaced/*.yaml -n <namespace>`; needs the `admin` grant; local mode runs this for the SDLC pack at `persimmon init` (`global/` only, it has no `namespaced/`) |
-| install beside the SDLC pack | `persimmon init --pack <name>`: the SDLC pack as above, then `packs/<name>/` the same way, then each pack's `files/` in that order; a pack that uses the SDLC pack's kinds and processes by name (the Rewrite pack, `40-pack-rewrite.md`) is installed so, since a pack declares no dependency |
+| install beside the SDLC pack | `persimmon init --pack <name>`: the SDLC pack as above, then `packs/<name>/` the same way, then each pack's `files/` in that order; a pack that uses the SDLC pack's kinds and processes by name (the Rewrite pack, `40-pack-rewrite.md`) is installed so, since a pack declares no dependency; refused before anything is applied when the second pack redefines a kind and name of the first, or the name leaves `packs/` |
 | upgrade | `apply` again; SpecMutable definitions change in place, running runs keep their snapshot |
 | Immutable members (artifact kinds, RelationTypes) | never change; a new version is a new name (`derived-from-v2`) |
 | uninstall | `persimmon delete` per file in reverse order; refused while referenced (`00-resource.md`) |
@@ -80,7 +80,9 @@ Credentials the pack Executors bind are Global names resolved at run time.
 - `init --pack <name>` installs a second pack after the SDLC pack, not instead of it: the Rewrite
   pack uses the SDLC pack's kinds and processes by name, and with no dependency resolution the
   verb that installs it is the one place that can order the two. Its `files/` are placed after
-  the SDLC pack's, so a file both ship is the SDLC pack's; the Rewrite pack ships no `AGENTS.md`.
+  the SDLC pack's, so a file both ship is the SDLC pack's, now and on every later `init`; the Rewrite
+  pack ships no `AGENTS.md`. A second pack that redefines a definition of the first is refused: it
+  would change the SDLC pack under every product that uses it.
   Found in design review (`40-pack-rewrite.md`).
 - Composition kinds `Pipeline`, `ReviewLoop`, `Approval` ship with the engine, not the pack
   (`21-composition.md`): a pack ships YAML and cannot ship a Handler. The pack's Workflows stay
