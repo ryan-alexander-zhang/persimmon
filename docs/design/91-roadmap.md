@@ -63,6 +63,10 @@ later     eager joins · retention policy · policy resource · external event s
 | a Change set per task, from a tree snapshot before each `implement` | `36-test-levels.md` | v1: measured from the baseline's `head`, so a later task's holds the earlier tasks' changes |
 | test levels in parallel, each in its own workspace | `36-test-levels.md` | v1: one after the other in the round's workspace, cheapest first |
 | coverage from lcov or Go's coverprofile; mutation for Python's tools | `36-test-levels.md` | v1: Cobertura and JaCoCo XML; mutation-testing-elements JSON, PIT's `report.js` and Gremlins' JSON; Go converts its profile with `gocover-cobertura` |
+| a Source system that cannot be started | `40-pack-rewrite.md` | v1: no parity check; the report says so and the TestReport stands alone |
+| evidence beyond the code: a database schema, logs, tickets, several repositories | `40-pack-rewrite.md` | v1: one checkout; the brief may describe the rest in text |
+| an inventory too large for one Task: one per part of the source, merged | `40-pack-rewrite.md` | v1: one `inventory-source` over the whole checkout, gaps in `unread` |
+| pinning the Source system's behaviour before the build | `40-pack-rewrite.md` | v1: the parity check runs after `build-all`; needs a Tester task outside `build-one` |
 
 ## Layer 3
 
