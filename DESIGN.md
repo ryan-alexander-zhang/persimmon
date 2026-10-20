@@ -74,5 +74,6 @@ Read top to bottom within a layer; a file depends only on files above it.
 | `docs/design/22-conformance.md` | `persimmon adapter test`: rules by id for the executor and evaluator Roles, stub contract | active |
 | `docs/design/25-ui.md` | `persimmon ui`: the local JSON API over the Store (server mode's first slice) and the event storming editor under `tools/` | draft |
 | `docs/design/37-progress.md` | the Progress Tool, home of `persimmon ui`: a product's SDLC phases as a map, runs round by round in a side panel, artifacts as documents, the human gate answered there | draft |
+| `docs/design/38-autopilot.md` | the developer's agent runs the whole run order from one idea: `autopilot-doc` to the Plans, `autopilot-code` from them, a fresh Reviewer subagent at each human Gate, a builder subagent per task, Issues for defects; three agent skills `init` places | draft |
 | `docs/design/90-decisions.md` | Decision log | active |
 | `docs/design/91-roadmap.md` | Deferred items, open questions | active |
