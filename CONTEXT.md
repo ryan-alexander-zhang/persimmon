@@ -765,14 +765,29 @@ _Avoid_: legacy system, old system, as-is system, target (the new system is the 
 **SourceInventory**:
 **Artifact kind** of the **Rewrite pack**, one per **Source system**: facts read off the source at
 its commit (entry points, state changes, guards, entities, external systems, tests), each with
-where it is. The evidence a recovered **Prd**, its **BusinessRules** and the storming cite.
+where it is. A guard is every branch that decides, its `role` a rule, plumbing or unknown. The
+evidence a recovered **Prd**, its **BusinessRules** and the storming cite.
 _Avoid_: code facts, knowledge graph, analysis report, code map
+
+**Oracle**:
+Where the expected behaviour of the **Source system** comes from: `running` (its app answers),
+`partial` (its units run in a harness, the app does not), `recorded` (input and output pairs it
+produced, given by the developer) or `static` (its code only). Stated per capability; the
+**ParityLedger** reports it, weakest last.
+_Avoid_: mode, assurance level, test oracle (bare), source of truth
+
+**Characterization test**:
+A test of what the **Source system** does, bugs included, its expected value read off the
+source's answer or a record, never off a recovered rule: what keeps a rule nobody recovered.
+Written by the **Tester** before any rule is recovered.
+_Avoid_: pinned test, golden master, snapshot test, regression test
 
 **Recovery process**:
 The **Rewrite pack** process from a **Source system** to a **Prd** and its **BusinessRules**:
-ReviewLoop `inventory` writes the **SourceInventory**, ReviewLoop `recover-prd` the Prd and rules
-citing it, with a **Disposition** per item confirmed by a human. **Domain discovery** then runs on
-that Prd unchanged.
+ReviewLoop `inventory` writes the **SourceInventory**, ReviewLoop `characterize` the
+**Characterization test**s and the first **ParityLedger**, ReviewLoop `recover-prd` the Prd and rules
+citing both, with a **Disposition** per item confirmed by a human. **Domain discovery** then runs on
+that Prd.
 _Avoid_: reverse engineering (for the process), extraction phase, archaeology
 
 **Disposition**:
@@ -781,11 +796,18 @@ human at the **Recovery process**'s Gate. `keep` leaves it; `change` deprecates 
 one sourced from the decision; `drop` moves the capability to the Prd's `nonGoals`.
 _Avoid_: parity policy (for one item), triage, verdict
 
+**ParityLedger**:
+**Artifact kind** of the **Rewrite pack**, one per **Source system**, computed: every guard of the
+**SourceInventory** accounted for (tested, ruled, plumbing, dropped, dead, or open), every difference
+between the Source system and the rewrite with its cause, the **Oracle** per capability, and a
+verdict. A revision after characterization, after recovery and after each **Parity check**.
+_Avoid_: parity report, equivalence report, coverage report, TestReport (the build's)
+
 **Parity check**:
-The **Rewrite pack** run of the **TestDesign**s' `api` and `e2e` tests against the running
-**Source system**, before `build-all`: a case verifying a kept rule must pass there, so the test
-says what the source does and the rewrite is held to it.
-_Avoid_: regression (the build's), equivalence test, golden master, characterization test (for the check)
+The **Rewrite pack** run of the **Characterization test**s against the rewrite after `build-all`:
+each difference from the **Source system** is a `change` **Disposition** or a **Defect**, never
+unexplained; the **ParityLedger**'s next revision holds the result.
+_Avoid_: regression (the build's), equivalence test, golden master, shadow test
 
 ## Flagged ambiguities
 
