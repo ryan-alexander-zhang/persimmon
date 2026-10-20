@@ -57,7 +57,8 @@ function account(item, x) {
   if (item.kind === 'absence') return x.disposition === 'keep' || x.disposition === 'change' ? ['complete'] : ['open', 'no Disposition decided']
   if (item.kind === 'plumbing') return x.plumbing ? ['complete'] : ['open', 'its plumbing pattern is not accepted']
   if (x.dead || x.disposition === 'drop') return ['complete']
-  const ruled = item.kind === 'effect' || x.rules.length > 0 // a write or a message is pinned, not ruled
+  // a write or a message is pinned, not ruled; a rule changed by a decision is the decision's, its `decision:` rule cites no item
+  const ruled = item.kind === 'effect' || x.rules.length > 0 || x.disposition === 'change'
   if (ruled && x.pinnable && x.pinned) return ['complete']
   if (x.accepted) return ['unverified', 'accepted open']
   if (ruled && !x.pinnable) return ['unverified', 'its Oracle cannot pin it']

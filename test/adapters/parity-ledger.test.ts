@@ -171,6 +171,12 @@ describe('computeLedger', () => {
     expect(other.differences).toEqual([{ test: 'test_EP2_GD2_add_in_stock', source: observations.test_EP2_GD2_add_in_stock, rewrite: { lines: {}, subtotal: '0.00' } }])
   })
 
+  it('a guard whose rule a human changed is accounted for by the change, though the new rule cites a decision, not the item', () => {
+    const changed = { ...rules, rules: [{ ...rules.rules[0], status: 'deprecated' }, ...rules.rules.slice(1), { id: 'BR-5', type: 'decision', statement: 's', rationale: 'r', status: 'active', source: 'decision: stock no longer checked' }] }
+    const ledger = slice({ rules: changed, decisions: { ...decisions, dispositions: [...decisions.dispositions, { ref: 'BR-1', disposition: 'change' }] } })
+    expect(item(ledger, 'GD-2')).toMatchObject({ disposition: 'change', account: 'complete' })
+  })
+
   it('a stage that measures nothing carries the last revision\'s measurements and recomputes only the accounts', () => {
     const characterized = slice({ rules: undefined, rulesRef: undefined, decisions: {} })
     expect(characterized.verdict.result).toBe('fail') // no rule recovered yet
