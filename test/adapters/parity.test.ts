@@ -1,6 +1,6 @@
 // The Rewrite pack's source index and checks (40-pack-rewrite.md): a real checkout read into the index, and one mutation
 // of the JPetStore example per finding code.
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawn } from 'node:child_process'
 import { mkdirSync, mkdtempSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
 import { readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -243,5 +243,82 @@ describe('checkSurvey', () => {
     cut[1].entryPoints = ['EP-4']
     const found = checkSurvey({ inventory, index: index(inventory), decisions: { approved: true, findings: [], slices: cut } })
     expect(found.map((f: { message: string }) => f.message)).toEqual(['SL-1 names EP-8, which the inventory lacks', 'EP-4 is in SL-1 and SL-2: an entry point is in one Slice', 'EP-5 is in no Slice'])
+  })
+})
+
+// one request to an Adapter over stdio, from a working directory: the engine runs an Adapter in the project directory
+function stdio(adapter: string, request: unknown, cwd = root) {
+  return new Promise<any>((resolve) => {
+    const child = spawn(process.execPath, [join(root, 'adapters', adapter, 'index.mjs')], { cwd, env: { PATH: process.env.PATH!, HOME: process.env.HOME! } })
+    let out = ''
+    child.stdout.on('data', (c) => (out += c))
+    child.on('close', () => resolve(out.trim().split('\n').map((l) => JSON.parse(l)).at(-1)))
+    child.stdin.end(JSON.stringify(request) + '\n')
+  })
+}
+const evaluate = (mode: string | undefined, artifacts: Record<string, unknown>, inputs: Record<string, unknown>) => ({
+  id: 1,
+  op: 'evaluate',
+  payload: { artifacts: Object.fromEntries(Object.entries(artifacts).map(([k, c]) => [k, { content: c, provenance: {} }])), inputs: Object.fromEntries(Object.entries(inputs).map(([k, v]) => [k, { kind: 'value', value: v }])), validator: { configuration: mode ? { mode } : {} } },
+})
+
+describe('parity/v1 over stdio', () => {
+  it('checks a Survey or a Slice as its configuration says, and calls content that is no inventory a finding', async () => {
+    const survey = named('jpetstore-inventory.r1')
+    const ok = await stdio('parity', evaluate('survey', { inventory: survey }, { sourceIndex: index(survey), decisions: { approved: true, findings: [], slices: slices() } }))
+    expect(ok.result).toEqual({ passed: true, findings: [], evidence: [] })
+    const slice = named('jpetstore-inventory.r2')
+    slice.guards[1].in = ['EP-9']
+    const bad = await stdio('parity', evaluate('inventory', { inventory: slice, ledger: named('jpetstore-parity.r1') }, { sourceIndex: index(slice), slice: 'SL-1' }))
+    expect([bad.result.passed, codes(bad.result.findings)]).toEqual([false, ['inventory-reference']])
+    const none = await stdio('parity', evaluate(undefined, { inventory: { title: 'x' } }, {}))
+    expect(codes(none.result.findings)).toEqual(['not-an-inventory'])
+  })
+
+  it('refuses a missing or unknown mode, and a mode without the inputs it checks, rather than guess', async () => {
+    const survey = named('jpetstore-inventory.r1')
+    const inputs = { sourceIndex: index(survey), decisions: { approved: true, findings: [], slices: slices() }, slice: 'SL-1' }
+    expect((await stdio('parity', evaluate(undefined, { inventory: survey }, inputs))).error).toMatchObject({ code: 'invalid_input', message: expect.stringContaining('configuration.mode') })
+    expect((await stdio('parity', evaluate('closure', { inventory: survey }, inputs))).error).toMatchObject({ code: 'invalid_input' })
+    expect((await stdio('parity', evaluate('survey', { inventory: survey }, { decisions: { approved: true } }))).error).toMatchObject({ code: 'invalid_input', message: expect.stringContaining('inputs.sourceIndex') })
+    expect((await stdio('parity', evaluate('inventory', { inventory: survey }, { sourceIndex: index(survey) }))).error).toMatchObject({ code: 'invalid_input', message: expect.stringContaining('inputs.slice') })
+  })
+})
+
+describe('parity-run/v1 over stdio', () => {
+  const execute = (workspace: string | undefined, outputs: Record<string, unknown>) => ({
+    id: 2,
+    op: 'execute',
+    payload: {
+      taskRun: { ref: { apiVersion: 'persimmon.ai/v1', kind: 'TaskRun', namespace: 'demo', name: 'r-index', uid: 'u1' }, logicalExecutionId: 'r//index', idempotencyKey: 'r//index/1', attempt: 1 },
+      task: { instructions: '', outputs },
+      executor: { type: 'script', configuration: {} },
+      inputs: {},
+      context: [],
+      deadline: new Date(Date.now() + 60_000).toISOString(),
+      credentials: {},
+      engine: { endpoint: 'unix:///nowhere.sock', token: 'ct-1' },
+      ...(workspace ? { workspace } : {}),
+    },
+  })
+  const asks = { sourceIndex: { type: { kind: 'value', schema: { type: 'object' } } } }
+
+  it('answers a sourceIndex output with the workspace read as the source, the project being where it runs', async () => {
+    const source = realpathSync(mkdtempSync(join(tmpdir(), 'parity-run-source-')))
+    git(source, 'init', '-q')
+    writeFileSync(join(source, 'A.java'), 'class A { void f(int x) { if (x > 0) {} } }\n')
+    git(source, 'add', 'A.java')
+    git(source, 'commit', '-qm', 'a')
+    const project = realpathSync(mkdtempSync(join(tmpdir(), 'parity-run-project-')))
+    const r = await stdio('parity-run', execute(source, asks), project)
+    expect(r.result.outputs.sourceIndex).toMatchObject({ kind: 'value' })
+    expect(r.result.outputs.sourceIndex.value).toMatchObject({ commit: git(source, 'rev-parse', 'HEAD'), root: source, dirty: [], project: { root: project }, files: { 'A.java': { lines: 1, branchLines: [1] } } })
+  })
+
+  it('refuses a Task with no workspace, or one that asks for another output', async () => {
+    const noWorkspace = await stdio('parity-run', execute(undefined, asks))
+    expect(noWorkspace.error).toMatchObject({ code: 'invalid_input', message: expect.stringContaining('action.workspace') })
+    const other = await stdio('parity-run', execute(tmpdir(), { ledger: { type: { kind: 'value', schema: { type: 'object' } } } }))
+    expect(other.error).toMatchObject({ code: 'invalid_input', message: expect.stringContaining('answers a sourceIndex output') })
   })
 })

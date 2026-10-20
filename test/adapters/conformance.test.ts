@@ -26,7 +26,7 @@ describe('conformance suite', () => {
     expect(v.map((x) => x.id)).toEqual(Object.keys(rules))
   }, 60_000)
 
-  it.each(['eventstorming', 'sdd', 'designmd'])('%s/v1 is an evaluator: V1-V5 pass, the executor rules skip', async (id) => {
+  it.each(['eventstorming', 'sdd', 'designmd', 'parity'])('%s/v1 is an evaluator: V1-V5 pass, the executor rules skip', async (id) => {
     const v = await conformance(spec(id))
     expect(v.filter((x) => x.id.startsWith('V'))).toEqual(Object.keys(rules).filter((id) => id.startsWith('V')).map((id) => ({ id, rule: rules[id as keyof typeof rules], status: 'pass' })))
     expect(v.filter((x) => x.id.startsWith('E')).every((x) => x.status === 'skip' && x.reason === 'not an executor')).toBe(true)

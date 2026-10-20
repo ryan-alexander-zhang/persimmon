@@ -63,7 +63,7 @@ describe('persimmon CLI', () => {
     expect(await run('adapter', 'install', file('a.yaml', [fakeAdapter('claude-code/v1'), fakeAdapter('cli-human/v1', 'human')]))).toBe(0)
     out = []
     expect(await run('adapter', 'list')).toBe(0)
-    expect(out).toEqual(['claude-code/v1  Ready  roles: executor', 'cli-human/v1  Ready  roles: executor', 'codex/v1  Ready  roles: executor', 'designmd/v1  Ready  roles: evaluator', 'eventstorming/v1  Ready  roles: evaluator', 'junit/v1  Ready  roles: executor', 'sdd/v1  Ready  roles: evaluator', 'subprocess/v1  Ready  roles: executor', 'testdesign/v1  Ready  roles: executor'])
+    expect(out).toEqual(['claude-code/v1  Ready  roles: executor', 'cli-human/v1  Ready  roles: executor', 'codex/v1  Ready  roles: executor', 'designmd/v1  Ready  roles: evaluator', 'eventstorming/v1  Ready  roles: evaluator', 'junit/v1  Ready  roles: executor', 'parity-run/v1  Ready  roles: executor', 'parity/v1  Ready  roles: evaluator', 'sdd/v1  Ready  roles: evaluator', 'subprocess/v1  Ready  roles: executor', 'testdesign/v1  Ready  roles: executor'])
 
     out = []
     expect([await run('validate', 'packs/demo/global/50-tasks.yaml', 'packs/demo/global/80-workflows.yaml', 'packs/demo/global/40-executors.yaml'), out.filter((l) => l.startsWith('error'))]).toEqual([0, []])

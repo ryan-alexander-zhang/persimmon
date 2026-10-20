@@ -1,0 +1,9 @@
+# Evaluator Adapter for the Rewrite pack's checks (19-adapter-roles.md, 40-pack-rewrite.md). persimmon init resolves the script path.
+apiVersion: persimmon.ai/v1
+kind: Adapter
+metadata: {name: parity-v1}
+spec:
+  id: parity/v1
+  roles: [evaluator]
+  transport: stdio
+  command: [node, adapters/parity/index.mjs]

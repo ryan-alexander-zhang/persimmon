@@ -1,0 +1,10 @@
+# Script Executor Adapter for the Rewrite pack's computing Tasks (40-pack-rewrite.md): the source index, later the runs and
+# the ledger. persimmon init resolves the script path.
+apiVersion: persimmon.ai/v1
+kind: Adapter
+metadata: {name: parity-run-v1}
+spec:
+  id: parity-run/v1
+  roles: [executor]
+  transport: stdio
+  command: [node, adapters/parity-run/index.mjs]
