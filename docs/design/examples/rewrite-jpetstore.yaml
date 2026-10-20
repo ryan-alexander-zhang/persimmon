@@ -116,7 +116,7 @@ spec:
     absences:
       - {id: AB-1, statement: "stock is not checked again when the order is submitted, so an order may take more than is in stock", where: ["src/main/java/org/mybatis/jpetstore/service/OrderService.java:80-95"]}
     plumbingPatterns:
-      - {id: PP-1, pattern: a session attribute created on first use, examples: [GD-1]}
+      - {id: PP-1, pattern: a session attribute created on first use, examples: [GD-1], where: ["src/main/java/org/mybatis/jpetstore/web/controllers/CartController.java:59"]}
     entities:
       - {id: EN-1, name: Inventory, store: table INVENTORY, where: [src/main/resources/org/mybatis/jpetstore/mapper/ItemMapper.xml]}
       - {id: EN-2, name: LineItem, store: table LINEITEM, where: [src/main/java/org/mybatis/jpetstore/domain/LineItem.java]}

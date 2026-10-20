@@ -1,0 +1,247 @@
+// The Rewrite pack's source index and checks (40-pack-rewrite.md): a real checkout read into the index, and one mutation
+// of the JPetStore example per finding code.
+import { execFileSync } from 'node:child_process'
+import { mkdirSync, mkdtempSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { parseAllDocuments } from 'yaml'
+import { describe, expect, it } from 'vitest'
+import { checkInventory, checkSurvey, parseWhere } from '../../adapters/parity/check.mjs'
+import { branchLines, indexSource } from '../../adapters/parity/source.mjs'
+
+const root = join(import.meta.dirname, '..', '..')
+const docs = parseAllDocuments(readFileSync(join(root, 'docs/design/examples/rewrite-jpetstore.yaml'), 'utf8')).map((d) => d.toJS())
+const named = (name: string) => structuredClone(docs.find((d) => d.metadata.name === name).spec.content)
+const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', '-c', 'core.hooksPath=/dev/null', ...args], { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
+
+describe('branchLines', () => {
+  it('a C-family file branches on if, case, catch and the ternary, never in a comment or a string', () => {
+    const java = ['class A {', '  // if (x) in a comment', '  int f(int x) {', '    if (x > 0) return 1;', '    String s = "if (y)";', '    switch (x) { case 1: return 2; }', '    try { g(); } catch (Exception e) {}', '    return x > 9 ? 3 : 4;', '    for (int i = 0; i < x; i++) {}', '  }', '}'].join('\n')
+    expect(branchLines('A.java', java)).toEqual([4, 6, 7, 8])
+  })
+
+  it('COBOL branches on IF, WHEN, file status clauses and UNTIL, never on END-IF, ELSE or a comment line', () => {
+    const cbl = [
+      '       PROCEDURE DIVISION.',
+      '      * IF THIS IS A COMMENT',
+      '           IF WS-AMT > 0',
+      '              ADD 1 TO WS-N',
+      '           ELSE',
+      '              CONTINUE',
+      '           END-IF',
+      '           READ ACCT-FILE INVALID KEY MOVE 100 TO WS-REASON',
+      '           EVALUATE TRUE',
+      '              WHEN WS-A = 1 CONTINUE',
+      '           END-EVALUATE',
+      '           PERFORM UNTIL END-OF-FILE = "Y" END-PERFORM',
+    ].join('\n')
+    expect(branchLines('CBTRN02C.cbl', cbl)).toEqual([3, 8, 10, 12])
+  })
+
+  it('Python branches on if, elif, except and the conditional expression; a language not in the table has none', () => {
+    expect(branchLines('a.py', ['if a:', '    pass', 'elif b:', '    pass', '# if c', 'x = 1 if d else 2', 'try:', '    f()', 'except E:', '    pass'].join('\n'))).toEqual([1, 3, 6, 9])
+    expect(branchLines('notes.txt', 'if this were code')).toBeNull() // unread, not branchless: branch-unread says so
+  })
+
+  it('an if without parentheses branches (Go, Rust, Swift); every case arm does, a Scala case class does not', () => {
+    expect(branchLines('a.go', 'func f() {\n  if err != nil {\n    return\n  }\n}')).toEqual([2])
+    expect(branchLines('a.rs', "fn f<'a>(x: &'a str) {\n  if x.is_empty() { return; }\n}")).toEqual([2])
+    expect(branchLines('A.java', 'switch (k) {\n  case A -> 1;\n  default -> 2;\n}')).toEqual([2])
+    expect(branchLines('a.scala', 'case class C(a: Int)\nx match {\n  case 1 => "one"\n}')).toEqual([3])
+  })
+
+  it('nullable types, optional chaining, wildcards and a mock\'s when(...) are no branches; a Kotlin when block is', () => {
+    expect(branchLines('A.kt', 'fun get(id: Long?): Customer? = repo.find(id)?.copy()\nwhen (x) {\n  1 -> a()\n}\nwhen(mock.call()).thenReturn(1)')).toEqual([2])
+    expect(branchLines('A.java', 'for (List<? extends X> xs : all) {}\nint y = a > b ? a : b;')).toEqual([2])
+  })
+
+  it('a string or comment spanning lines hides its keywords: a template literal, a block comment, a docstring', () => {
+    expect(branchLines('a.ts', 'const s = `\n  if (x) {\n`\n/* if (y)\n   if (z) */\nif (w) {}')).toEqual([6])
+    expect(branchLines('a.py', 'def f():\n    """\n    if this were code\n    except that\n    """\n    if a:\n        pass')).toEqual([6])
+  })
+
+  it('COBOL data names holding a keyword are no branches; free format keeps its first columns', () => {
+    expect(branchLines('A.cbl', '           MOVE "Y" TO WS-IF-FLAG\n           ADD 1 TO WS-WHEN-CNT\n           IF WS-IF-FLAG = "Y" CONTINUE END-IF')).toEqual([3])
+    expect(branchLines('B.cbl', '>>SOURCE FORMAT FREE\nIF X > 0\n   DISPLAY "A"\nEND-IF\n*> IF in a comment')).toEqual([2])
+  })
+})
+
+describe('indexSource', () => {
+  const checkout = () => {
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'parity-source-')))
+    git(dir, 'init', '-q')
+    mkdirSync(join(dir, 'src'))
+    writeFileSync(join(dir, 'src', 'A.java'), 'class A {\n  int f(int x) {\n    if (x > 0) return 1;\n    return 0;\n  }\n}\n')
+    writeFileSync(join(dir, 'blob.bin'), Buffer.from([1, 0, 2]))
+    writeFileSync(join(dir, 'untracked.java'), 'if (x) {}\n')
+    git(dir, 'add', 'src', 'blob.bin')
+    git(dir, 'commit', '-qm', 'source')
+    return dir
+  }
+
+  it('reads every tracked text file with its line count and branch lines, the commit, and where the project is', () => {
+    const source = checkout()
+    const project = realpathSync(mkdtempSync(join(tmpdir(), 'parity-project-')))
+    const index = indexSource(source, project)
+    expect(index.commit).toBe(git(source, 'rev-parse', 'HEAD'))
+    expect(index.root).toBe(source)
+    expect(index.files).toEqual({ 'src/A.java': { lines: 6, branchLines: [3] } }) // the binary and the untracked file are not the source's
+    expect(index.project).toEqual({ root: project, gitCommonDir: undefined })
+    expect(index.dirty).toEqual([])
+  })
+
+  it('names a tracked file changed in the working tree, follows no symlink, and refuses a directory that is no checkout', () => {
+    const source = checkout()
+    symlinkSync('/etc/hosts', join(source, 'hosts'))
+    git(source, 'add', 'hosts')
+    git(source, 'commit', '-qm', 'link')
+    writeFileSync(join(source, 'src', 'A.java'), 'class A {}\n')
+    const index = indexSource(source, tmpdir())
+    expect(index.dirty).toEqual(['src/A.java'])
+    expect(Object.keys(index.files)).toEqual(['src/A.java'])
+    expect(() => indexSource(realpathSync(mkdtempSync(join(tmpdir(), 'parity-none-'))), tmpdir())).toThrow(/is not a git checkout with a commit/)
+  })
+
+  it('a worktree of the source shares its git directory, which is how source-inside-project tells it from a clone', () => {
+    const source = checkout()
+    const worktree = join(realpathSync(mkdtempSync(join(tmpdir(), 'parity-wt-'))), 'wt')
+    git(source, 'worktree', 'add', '-q', worktree)
+    const index = indexSource(source, worktree)
+    expect(index.project.gitCommonDir).toBe(index.gitCommonDir)
+    expect(checkInventory({ inventory: { source: { commit: index.commit } }, index, slices: [] }).map((f: { code: string }) => f.code)).toEqual(['source-inside-project'])
+  })
+})
+
+describe('parseWhere', () => {
+  it('reads a file, a line, a range, and leaves a locator alone', () => {
+    expect(parseWhere('src/a.java')).toEqual({ path: 'src/a.java', from: undefined, to: undefined })
+    expect(parseWhere('src/a.java:12')).toEqual({ path: 'src/a.java', from: 12, to: 12 })
+    expect(parseWhere('src/a.java:12-30')).toEqual({ path: 'src/a.java', from: 12, to: 30 })
+    expect(parseWhere({ in: 'db', locator: 'trigger T' })).toBeUndefined()
+  })
+})
+
+// an index that holds every file the example's r2 inventory names, long enough for its lines, with the branch lines given
+const files = (inventory: any, branches: Record<string, number[]> = {}) => {
+  const paths = new Set<string>()
+  const add = (w: unknown) => {
+    const p = parseWhere(w)
+    if (p) paths.add(p.path)
+  }
+  for (const list of ['entryPoints', 'stateChanges', 'guards', 'declarations', 'absences', 'plumbingPatterns', 'entities', 'externalSystems']) for (const x of inventory[list]) for (const w of x.where) add(w)
+  for (const t of inventory.tests) add(t.where)
+  for (const e of inventory.entryPoints) for (const f of e.reaches.files) paths.add(f)
+  return Object.fromEntries([...paths].map((p) => [p, { lines: 800, branchLines: branches[p] ?? [] }]))
+}
+const index = (inventory: any, branches?: Record<string, number[]>) => ({
+  commit: inventory.source.commit,
+  root: '/work/jpetstore-6',
+  gitCommonDir: '/work/jpetstore-6/.git',
+  project: { root: '/work/petstore-rewrite', gitCommonDir: '/work/petstore-rewrite/.git' },
+  files: files(inventory, branches),
+})
+const slices = () => named('jpetstore-parity.r1').slices
+const codes = (found: { code: string }[]) => found.map((f) => f.code)
+
+describe('checkInventory', () => {
+  it('the example Slice is consistent', () => {
+    const inventory = named('jpetstore-inventory.r2')
+    expect(checkInventory({ inventory, index: index(inventory), slices: slices(), slice: 'SL-1' })).toEqual([])
+  })
+
+  it('source-inside-project: the checkout inside the project, the project inside it, or one git directory', () => {
+    const inventory = named('jpetstore-inventory.r2')
+    const at = (project: { root: string; gitCommonDir?: string }) => codes(checkInventory({ inventory, index: { ...index(inventory), project }, slices: slices(), slice: 'SL-1' }))
+    expect(at({ root: '/work', gitCommonDir: undefined })).toEqual(['source-inside-project'])
+    expect(at({ root: '/work/jpetstore-6/rewrite', gitCommonDir: undefined })).toEqual(['source-inside-project'])
+    expect(at({ root: '/elsewhere', gitCommonDir: '/work/jpetstore-6/.git' })).toEqual(['source-inside-project'])
+    expect(at({ root: '/work/jpetstore-6-rewrite', gitCommonDir: undefined })).toEqual([]) // a sibling whose name starts the same is outside
+    expect(at({ root: '/work/jpetstore-6/..rewrite', gitCommonDir: undefined })).toEqual(['source-inside-project']) // a directory named ..x is inside
+  })
+
+  it('source-moved: the checkout at another commit than the inventory read, or changed in its working tree', () => {
+    const inventory = named('jpetstore-inventory.r2')
+    expect(codes(checkInventory({ inventory, index: { ...index(inventory), commit: 'deadbeef00' }, slices: slices(), slice: 'SL-1' }))).toEqual(['source-moved'])
+    expect(codes(checkInventory({ inventory, index: { ...index(inventory), dirty: ['src/a.java'] }, slices: slices(), slice: 'SL-1' }))).toEqual(['source-moved'])
+  })
+
+  it('inventory-location: a reached file the checkout lacks, a path that is a property of every object, a Slice the cut lacks', () => {
+    const inventory = named('jpetstore-inventory.r2')
+    const idx = index(inventory)
+    inventory.entryPoints[0].reaches.files.push('src/main/java/Gone.java')
+    inventory.guards[1].where = ['constructor:1']
+    expect(checkInventory({ inventory, index: idx, slices: slices(), slice: 'SL-1' }).map((f: { message: string }) => f.message)).toEqual([
+      `GD-2 is at constructor:1, a file the checkout at ${idx.commit} lacks`,
+      `EP-1 reaches is at src/main/java/Gone.java, a file the checkout at ${idx.commit} lacks`,
+    ])
+    expect(codes(checkInventory({ inventory: named('jpetstore-inventory.r2'), index: idx, slices: slices(), slice: 'SL-9' }))).toEqual(['inventory-location'])
+  })
+
+  it('branch-unread: a reached file whose branch lines the index could not read is a warning, never silence', () => {
+    const inventory = named('jpetstore-inventory.r2')
+    const idx = index(inventory)
+    idx.files['src/main/java/org/mybatis/jpetstore/domain/Cart.java'].branchLines = null as unknown as number[]
+    expect(checkInventory({ inventory, index: idx, slices: slices(), slice: 'SL-1' }).map((f: { severity: string; code: string }) => `${f.severity}:${f.code}`)).toEqual(['warning:branch-unread'])
+  })
+
+  it('inventory-location: a file the checkout lacks, a line past its end, a range that runs backwards; a locator is not checked', () => {
+    const inventory = named('jpetstore-inventory.r2')
+    const idx = index(inventory)
+    inventory.guards[1].where = ['src/main/java/Gone.java:3']
+    inventory.stateChanges[0].where = ['src/main/java/org/mybatis/jpetstore/service/OrderService.java:900']
+    inventory.declarations[0].where = ['src/main/java/org/mybatis/jpetstore/service/OrderService.java:20-10', { in: 'db', locator: 'sequence ordernum' }]
+    expect(codes(checkInventory({ inventory, index: idx, slices: slices(), slice: 'SL-1' }))).toEqual(['inventory-location', 'inventory-location', 'inventory-location'])
+  })
+
+  it('inventory-reference and id-sequence: a cited id the inventory lacks; an id repeated or out of order', () => {
+    const inventory = named('jpetstore-inventory.r2')
+    inventory.guards[1].in = ['EP-9']
+    inventory.stateChanges[0].entity = 'EN-7'
+    inventory.entities.reverse()
+    const found = checkInventory({ inventory, index: index(inventory), slices: slices(), slice: 'SL-1' })
+    expect(found.map((f: { message: string }) => f.message)).toEqual(['EN-1 follows EN-2 in entities: ids increase in document order', 'ST-1 cites EN-7, which the inventory lacks', 'GD-2 cites EP-9, which the inventory lacks'])
+    const kind = named('jpetstore-inventory.r2')
+    kind.stateChanges[0].entity = 'EP-1' // an id the inventory has, of the wrong kind
+    expect(checkInventory({ inventory: kind, index: index(kind), slices: slices(), slice: 'SL-1' }).map((f: { message: string }) => f.message)).toEqual(['ST-1 cites EP-1 where EN-n belongs'])
+  })
+
+  it('branch-uncovered: a branch line of a file the Slice reaches, inside no guard nor plumbing pattern; a whole-file where covers none', () => {
+    const inventory = named('jpetstore-inventory.r2')
+    const cart = 'src/main/java/org/mybatis/jpetstore/web/controllers/CartController.java'
+    const catalog = 'src/main/java/org/mybatis/jpetstore/web/controllers/CatalogController.java'
+    const branches = { [cart]: [59, 101], 'src/main/java/org/mybatis/jpetstore/service/CatalogService.java': [152], [catalog]: [66] }
+    const found = checkInventory({ inventory, index: index(inventory, branches), slices: slices(), slice: 'SL-1' })
+    expect(found.map((f: { message: string }) => f.message)).toEqual([`${cart} branches at line 101, inside no guard and no plumbing pattern`]) // 59 is PP-1's, 152 GD-2's; CatalogController is SL-2's
+    inventory.guards.push({ id: 'GD-3', condition: 'c', outcome: 'o', role: 'rule', where: [cart], in: ['EP-2'] })
+    expect(codes(checkInventory({ inventory, index: index(inventory, branches), slices: slices(), slice: 'SL-1' }))).toEqual(['branch-uncovered'])
+    inventory.guards[2].where = [`${cart}:100-102`]
+    expect(checkInventory({ inventory, index: index(inventory, branches), slices: slices(), slice: 'SL-1' })).toEqual([])
+  })
+
+  it('reader-disagreement: a guard of either reader whose lines overlap none of the other\'s; a warning', () => {
+    const inventory = named('jpetstore-inventory.r2')
+    const second = named('jpetstore-inventory.r2')
+    second.guards[1].where = ['src/main/java/org/mybatis/jpetstore/service/CatalogService.java:150-153'] // overlaps: the same guard, cut wider
+    expect(checkInventory({ inventory, index: index(inventory), slices: slices(), slice: 'SL-1', second })).toEqual([])
+    second.guards.splice(1, 1)
+    const found = checkInventory({ inventory, index: index(inventory), slices: slices(), slice: 'SL-1', second })
+    expect(found.map((f: { severity: string; code: string; message: string }) => [f.severity, f.code, f.message])).toEqual([['warning', 'reader-disagreement', "the first reader's GD-2 at src/main/java/org/mybatis/jpetstore/service/CatalogService.java:152-152 overlaps no guard of the other reader"]])
+  })
+})
+
+describe('checkSurvey', () => {
+  it('the example Survey and its cut are consistent', () => {
+    const inventory = named('jpetstore-inventory.r1')
+    expect(checkSurvey({ inventory, index: index(inventory), decisions: { approved: true, findings: [], slices: slices() } })).toEqual([])
+  })
+
+  it('slice-cut: every entry point in exactly one Slice, every Slice naming entry points the inventory has', () => {
+    const inventory = named('jpetstore-inventory.r1')
+    const cut = slices()
+    cut[0].entryPoints.push('EP-4', 'EP-8')
+    cut[1].entryPoints = ['EP-4']
+    const found = checkSurvey({ inventory, index: index(inventory), decisions: { approved: true, findings: [], slices: cut } })
+    expect(found.map((f: { message: string }) => f.message)).toEqual(['SL-1 names EP-8, which the inventory lacks', 'EP-4 is in SL-1 and SL-2: an entry point is in one Slice', 'EP-5 is in no Slice'])
+  })
+})
