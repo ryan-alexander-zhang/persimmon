@@ -132,7 +132,7 @@ export function computeLedger({ inventory, inventoryRef, last, slice, decisions 
     const [acct, reason] = account(item, x)
     const mutable = item.kind === 'guard' || item.kind === 'declaration' || item.kind === 'effect' // plumbing and absences are decided, not mutated
     return Object.fromEntries(Object.entries({
-      ref: item.ref, slice, reached: x.reached, mutant: mutable ? (x.mutant ?? (x.pinnable ? 'none' : undefined)) : undefined,
+      ref: item.ref, slice, reached: x.reached, pinnable: x.pinnable, pinned: x.pinned, mutant: mutable ? (x.mutant ?? (x.pinnable ? 'none' : undefined)) : undefined,
       tests: names.filter((n) => cites(n, item.ref) || item.eps.some((ep) => cites(n, ep))), rules: x.rules, disposition: x.disposition,
       dead: x.dead, accepted: x.accepted, plumbing: x.plumbing, reader: x.reader, account: acct, reason,
     }).filter(([, v]) => v !== undefined))

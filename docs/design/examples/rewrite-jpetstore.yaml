@@ -167,11 +167,11 @@ spec:
       - {id: EP-2, oracle: running}
       - {id: EP-3, oracle: running}
     items:
-      - {ref: GD-1, slice: SL-1, reached: true, tests: [test_EP1_view_empty_cart, test_EP2_GD2_add_in_stock, test_EP2_GD2_add_out_of_stock], rules: [], plumbing: PP-1, account: complete}
-      - {ref: GD-2, slice: SL-1, reached: true, mutant: killed, tests: [test_EP2_GD2_add_in_stock, test_EP2_GD2_add_out_of_stock], rules: [BR-1], account: complete}
-      - {ref: DC-1, slice: SL-1, reached: true, mutant: killed, tests: [test_EP3_DC1_order_ids_follow_the_sequence], rules: [BR-2], account: complete}
-      - {ref: ST-1, slice: SL-1, reached: true, mutant: killed, tests: [test_EP3_DC1_order_ids_follow_the_sequence, test_EP3_ST1_line_items_numbered_from_1, test_EP3_AB1_order_over_stock_is_taken], rules: [BR-3], account: complete}
-      - {ref: AB-1, slice: SL-1, reached: true, tests: [test_EP3_AB1_order_over_stock_is_taken], rules: [BR-4], disposition: change, account: complete}
+      - {ref: GD-1, slice: SL-1, reached: true, pinnable: true, pinned: false, tests: [test_EP1_view_empty_cart, test_EP2_GD2_add_in_stock, test_EP2_GD2_add_out_of_stock], rules: [], plumbing: PP-1, account: complete}
+      - {ref: GD-2, slice: SL-1, reached: true, pinnable: true, pinned: true, mutant: killed, tests: [test_EP2_GD2_add_in_stock, test_EP2_GD2_add_out_of_stock], rules: [BR-1], account: complete}
+      - {ref: DC-1, slice: SL-1, reached: true, pinnable: true, pinned: true, mutant: killed, tests: [test_EP3_DC1_order_ids_follow_the_sequence], rules: [BR-2], account: complete}
+      - {ref: ST-1, slice: SL-1, reached: true, pinnable: true, pinned: true, mutant: killed, tests: [test_EP3_DC1_order_ids_follow_the_sequence, test_EP3_ST1_line_items_numbered_from_1, test_EP3_AB1_order_over_stock_is_taken], rules: [BR-3], account: complete}
+      - {ref: AB-1, slice: SL-1, reached: true, pinnable: true, pinned: false, tests: [test_EP3_AB1_order_over_stock_is_taken], rules: [BR-4], disposition: change, account: complete}
     answers:
       - test: test_EP1_view_empty_cart
         observed: {lines: {}, subtotal: "0.00"}

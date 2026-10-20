@@ -268,12 +268,14 @@ spec:
             type: array
             items:
               type: object
-              required: [ref, slice, reached, tests, rules, account]
+              required: [ref, slice, reached, pinnable, pinned, tests, rules, account]
               additionalProperties: false
               properties:
                 ref: {$ref: "#/$defs/Ref"}
                 slice: {type: string, pattern: "^SL-[0-9]+$"}
                 reached: {type: boolean}
+                pinnable: {type: boolean, description: "its Oracle can pin it: a running or partial entry point, its lines measured, not volatile"}
+                pinned: {type: boolean, description: "a test citing it and green on the source failed on its mutant"}
                 mutant: {enum: [killed, survived, invalid, none]}
                 tests: {type: array, items: {type: string}, description: "the tests whose names cite the item or its entry point"}
                 rules: {type: array, items: {type: string, pattern: "^BR-[0-9]+$"}}
