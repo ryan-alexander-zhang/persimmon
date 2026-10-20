@@ -1,7 +1,8 @@
 // The Rewrite pack's source index and checks (40-pack-rewrite.md): a real checkout read into the index, and one mutation
 // of the JPetStore example per finding code.
 import { execFileSync, spawn } from 'node:child_process'
-import { mkdirSync, mkdtempSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, symlinkSync, writeFileSync } from 'node:fs'
+import { createServer } from 'node:http'
 import { readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -275,6 +276,25 @@ describe('parity/v1 over stdio', () => {
     expect(codes(none.result.findings)).toEqual(['not-an-inventory'])
   })
 
+  it('runs closure, recovery and parity on a ledger, each refusing to guess without the inputs it checks', async () => {
+    const ledger = named('jpetstore-parity.r3')
+    const inventory = named('jpetstore-inventory.r2')
+    const compared = { ...ledger, rewrite: { tests: 6 } }
+    const parity = await stdio('parity', evaluate('parity', { ledger: compared }, { slice: 'SL-1' }))
+    expect(parity.result).toEqual({ passed: true, findings: [], evidence: [] }) // no inventory needed at the parity gate
+    const unrun = await stdio('parity', evaluate('parity', { ledger }, { slice: 'SL-1' }))
+    expect(unrun.result.findings.map((f: { message: string }) => f.message)).toEqual(['no rewrite run was compared in this ledger revision: compute-ledger runs after run-rewrite'])
+    const failing = await stdio('parity', evaluate('parity', { ledger: { ...compared, verdict: { result: 'fail', rule: 'x' } } }, { slice: 'SL-1' }))
+    expect([failing.result.passed, codes(failing.result.findings)]).toEqual([false, ['parity-verdict']])
+    expect((await stdio('parity', evaluate('parity', { ledger: compared }, { slice: 'SL-2' }))).error).toMatchObject({ code: 'invalid_input', message: expect.stringContaining('a ledger revision of SL-2, not of SL-1') })
+    const closure = await stdio('parity', evaluate('closure', { ledger, inventory }, { slice: 'SL-1', sourceIndex: index(inventory), coverage: { files: {}, unmapped: [] }, runs: [] }))
+    expect(closure.result.passed).toBe(true)
+    expect((await stdio('parity', evaluate('closure', { ledger, inventory }, { slice: 'SL-1', sourceIndex: index(inventory) }))).error).toMatchObject({ code: 'invalid_input', message: expect.stringContaining('inputs.coverage and inputs.runs') })
+    expect((await stdio('parity', evaluate('closure', { ledger, inventory }, { slice: 'SL-1' }))).error).toMatchObject({ code: 'invalid_input', message: expect.stringContaining('inputs.sourceIndex') })
+    expect((await stdio('parity', evaluate('recovery', { ledger, inventory }, { slice: 'SL-1' }))).error).toMatchObject({ code: 'invalid_input', message: expect.stringContaining('artifacts.prd') })
+    expect((await stdio('parity', evaluate('parity', { ledger }, {}))).error).toMatchObject({ code: 'invalid_input', message: expect.stringContaining('inputs.slice') })
+  })
+
   it('refuses a missing or unknown mode, and a mode without the inputs it checks, rather than guess', async () => {
     const survey = named('jpetstore-inventory.r1')
     const inputs = { sourceIndex: index(survey), decisions: { approved: true, findings: [], slices: slices() }, slice: 'SL-1' }
@@ -372,6 +392,74 @@ describe('parity-run/v1 over stdio', () => {
     const noWorkspace = withInputs({ app: level })
     delete noWorkspace.payload.workspace
     expect((await stdio('parity-run', noWorkspace, project)).error).toMatchObject({ code: 'invalid_input', message: expect.stringContaining('action.workspace names the project') })
+  })
+
+  it('run-mutants: a patch rerun on a scratch clone is killed, survives, or is invalid; the checkout is never touched', async () => {
+    const source = realpathSync(mkdtempSync(join(tmpdir(), 'parity-mut-src-')))
+    git(source, 'init', '-q')
+    // the item is line 2; line 20 looks alike, where git apply would land a hunk whose header lies
+    const lines = ['class A {', '  int f(int x) { if (x > 0) return 1; return 0; }', ...Array.from({ length: 17 }, (_, i) => `  // ${i}`), '  int g(int y) { if (y > 0) return 1; return 0; }', '}']
+    writeFileSync(join(source, 'A.java'), `${lines.join('\n')}\n`)
+    git(source, 'add', 'A.java')
+    git(source, 'commit', '-qm', 'a')
+    const project = realpathSync(mkdtempSync(join(tmpdir(), 'parity-mut-prj-')))
+    // one test: green while the source still says `x > 0`; its name comes in PERSIMMON_TEST; it writes its own JUnit report
+    writeFileSync(join(project, 'one.mjs'), [
+      "import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'",
+      'const name = process.argv[2]',
+      "if (name !== process.env.PERSIMMON_TEST) process.exit(9)",
+      "const ok = readFileSync(process.env.PERSIMMON_SOURCE + '/A.java', 'utf8').includes('x > 0')",
+      "mkdirSync('build', { recursive: true })",
+      "writeFileSync('build/app.xml', `<testsuite><testcase name=\"${name}\">${ok ? '' : '<failure message=\"x\"/>'}</testcase></testsuite>`)",
+    ].join('\n'))
+    const index = indexSource(source, project)
+    const level = { tool: 'node', run: 'node one.mjs test_EP1_GD1_positive', one: "node one.mjs '{test}'", junit: 'build/app.xml', observations: 'build/app.json', testDir: '.' } // quoted, as a suite naturally writes it
+    const inventory = { source: { commit: index.commit }, guards: [{ id: 'GD-1', condition: 'x > 0', outcome: '1', role: 'rule', where: ['A.java:2'], in: ['EP-1'] }], declarations: [], stateChanges: [], externalSystems: [] }
+    const engineSocket = join(realpathSync(mkdtempSync(join(tmpdir(), 'parity-mut-eng-'))), 'engine.sock')
+    const server = createServer((req, res) => {
+      req.resume().on('end', () => res.setHeader('content-type', 'application/json').end(JSON.stringify({ result: { spec: { content: inventory } } })))
+    })
+    await new Promise<void>((r) => server.listen(engineSocket, r))
+    const flip = (from: string, to: string, at = 2) => ['--- a/A.java', '+++ b/A.java', `@@ -${at},1 +${at},1 @@`, `-  int f(int x) { if (x > 0) return 1; return 0; }`.replace('x > 0', from), `+  int f(int x) { if (${to}) return 1; return 0; }`].join('\n')
+    const request = (mutants: unknown[], reset?: string) => {
+      const r: any = execute(project, { mutantResults: { type: { kind: 'value', schema: { type: 'array' } } } })
+      r.payload.engine = { endpoint: `unix://${engineSocket}`, token: 'ct-1' }
+      r.payload.inputs = {
+        written: { kind: 'value', value: { files: [], suite: { levels: { app: { ...level, ...(reset ? { reset } : {}) } }, drivers: { source: 'd.mjs' }, conventions: '' } } },
+        source: { kind: 'externalResource', ref: { provider: 'git', type: 'repository', id: 'src', locator: { path: source }, version: index.commit } },
+        sourceIndex: { kind: 'value', value: index },
+        inventory: { kind: 'artifact', ref: { apiVersion: 'rewrite.persimmon.ai/v1', kind: 'SourceInventory', namespace: 'demo', id: 'inv', revision: 1 } },
+        runs: { kind: 'value', value: [{ level: 'app', tests: [{ name: 'test_EP1_GD1_positive', status: 'passed' }], observations: {} }] },
+        mutants: { kind: 'value', value: mutants },
+      }
+      return r
+    }
+    try {
+      const lookalike = ['--- a/A.java', '+++ b/A.java', '@@ -2,1 +2,1 @@', '-  int g(int y) { if (y > 0) return 1; return 0; }', '+  int g(int y) { if (y <= 0) return 1; return 0; }'].join('\n')
+      const out = await stdio('parity-run', request([
+        { ref: 'GD-1', patch: flip('x > 0', 'x <= 0') },
+        { ref: 'GD-1', patch: flip('x > 0', 'x > 0 ') }, // still says `x > 0`: the test cannot tell
+        { ref: 'GD-1', patch: flip('x > 0', 'x <= 0', 1) }, // the hunk is off the item's line
+        { ref: 'GD-1', patch: flip('x > 0', 'x <= 0').replace(/^\+(.*)return 1/m, '+$1throw new Error()') }, // the added line crashes
+        { ref: 'GD-1', patch: flip('x < 7', 'x <= 0') }, // removes a line the file does not have
+        { ref: 'GD-1', patch: lookalike }, // its header says line 2, git apply lands it on line 20
+      ]), project)
+      expect(out.result.outputs.mutantResults.value).toEqual([
+        { ref: 'GD-1', result: 'killed', failed: ['test_EP1_GD1_positive'] },
+        { ref: 'GD-1', result: 'survived', failed: [] },
+        { ref: 'GD-1', result: 'invalid', failed: [], reason: "the patch changes A.java:1, outside the item's where" },
+        { ref: 'GD-1', result: 'invalid', failed: [], reason: 'the patch adds a crash, which mutant-rules forbid: int f(int x) { if (x <= 0) throw new Error(); return 0; }' },
+        { ref: 'GD-1', result: 'invalid', failed: [], reason: expect.stringContaining('the patch does not apply') },
+        { ref: 'GD-1', result: 'invalid', failed: [], reason: "the patch changes A.java:20, outside the item's where" },
+      ])
+      expect(git(source, 'status', '--porcelain')).toBe('') // the checkout itself never changed
+      expect(existsSync(join(project, '.persimmon', 'scratch', 'r-index'))).toBe(false) // the scratch clone is gone
+
+      const noReset = await stdio('parity-run', request([{ ref: 'GD-1', patch: flip('x > 0', 'x <= 0') }], 'exit 4'), project)
+      expect(noReset.result.outputs.mutantResults.value).toEqual([{ ref: 'GD-1', result: 'invalid', failed: [], reason: "the level's reset exited 4: a rerun on data it could not restore proves nothing" }])
+    } finally {
+      server.close()
+    }
   })
 
   it('refuses a Task with no workspace, or one that asks for another output', async () => {
