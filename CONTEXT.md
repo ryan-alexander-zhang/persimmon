@@ -699,7 +699,7 @@ tests inside `build-one`, and a **TestReport** after `build-all`.
 _Avoid_: QA phase, test phase, verification phase
 
 **Tester**:
-Who sets up the tests, designs the test cases and writes the `api` and `e2e` tests: the Executor
+Who sets up the tests and writes the `api` and `e2e` tests: the Executor
 `tester`, by default the developer's own agent answering a `cli-human/v1` form in a fresh subagent,
 never in the **Builder**'s context.
 _Avoid_: QA, test engineer, test agent, builder (for tests)

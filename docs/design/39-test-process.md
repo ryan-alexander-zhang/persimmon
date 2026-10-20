@@ -1,88 +1,106 @@
 # Test process
 
-status: draft · layer: 2 (`35-build-process.md`, `36-test-levels.md`, `31-architecture-process.md`, `29-design-process.md`) · schema: the `TestHarness`, `TestDesign` and `TestReport` kinds, to be added to `packs/sdlc/global/10-artifact-kinds.yaml`
+status: draft · layer: 2 (`35-build-process.md`, `36-test-levels.md`, `31-architecture-process.md`, `29-design-process.md`) · schema: the `TestHarness`, `TestDesign` and `TestReport` kinds in `packs/sdlc/global/10-artifact-kinds.yaml`
 
 Testing is decided and written apart from the code. A Tester records the project's test tools once,
-in a TestHarness. Per Spec, it designs the test cases before any task is built, in a TestDesign a
-human confirms. Inside each `build-one` round it writes the `api` tests before the code and the
-`e2e` tests after it; the Builder writes the code and its `unit` and `integration` tests. Every test
-carries the id of the test case it runs, and the Gate matches by that id. After `build-all` a script
-writes the TestReport: each case's result, coverage per scenario and requirement, and a verdict.
+in a TestHarness. Per Spec, an agent designs the test cases before any task is built, in a
+TestDesign a human confirms. Inside each `build-one` round the Tester writes the `api` tests before
+the code and the `e2e` tests after it; the Builder writes the code and its `unit` and `integration`
+tests. Every test carries the id of the test case it runs, and the Gate matches by that id. After
+`build-all` a script writes the TestReport: each case's result, coverage per scenario and
+requirement, and a verdict.
 
 ```text
 Architecture, the app skeleton
-  ─▶ Workflow setup-tests (once per product)
-       Task write-harness (Executor tester) ─▶ TestHarness <product>-harness
-       Task run-levels (every level, seed tests only) ─▶ TestOutcome
-       Gate harness-gate = Validator harness-evidence (sdd/v1)
+  ─▶ ReviewLoop setup-tests (once per product)
+       produce: Workflow harness-work
+                Task write-harness (Executor tester) ─▶ TestHarness <architecture>-harness
+                Task run-seed (test-runner), Task run-seed-levels (level-runner) ─▶ TestOutcomes
+       review:  Gate harness-gate = harness-evidence (sdd/v1)
 Spec, Designs, TestHarness
   ─▶ ReviewLoop test-design-one per Spec, repeated by Workflow test-design-all
-       produce: Task design-tests (Executor tester) ─▶ TestDesign <spec>-tests
-                Task audit-test-design (Executor auditor)
-       review:  Gate test-design-gate = test-design-consistency (sdd/v1) + test-design-audited (cel)
-                                        + test-design-confirmed (human)
+       produce: Task design-tests (Executor test-design-agent) ─▶ TestDesign <spec>-tests
+       review:  Gate test-design-gate = test-design-consistency (sdd/v1), then test-design-audited
+                (Task audit-test-design), then test-design-confirmed (a human)
 Plan, TestDesign, TestHarness
   ─▶ Workflow build-all
        baseline, level-baselines                                     as 36-test-levels.md
        each: ReviewLoop build-one per T-n, produce Workflow build-work:
-         Task write-api-tests  (Executor tester)   the task's api cases, before the code
+         Task select-cases     (Executor case-selector)  the task's cases by level, and which the Tester writes
+         Task write-api-tests  (Executor tester)   the task's api cases, before the code; when it has some
          Task implement        (Executor builder)  the code, its unit and integration cases ─▶ AcceptanceRecord
-         Task write-e2e-tests  (Executor tester)   the task's e2e cases, against the running app
+         Task write-e2e-tests  (Executor tester)   the task's e2e cases, against the running app; when it has some
          Task run-tests, Task run-levels                             as 36-test-levels.md
          Task audit-acceptance (Executor auditor)  each case's tests against the case
        review: Gate build-gate = acceptance-evidence (sdd/v1, by case id) + acceptance-audited (cel)
-       final, final-levels                                           as 36-test-levels.md
+       final, final-levels                                           as 36-test-levels.md, unit in full
        Task evaluate-tests (Executor auditor) ─▶ evaluation
-       Task report-tests (Executor test-reporter, script) ─▶ TestReport <plan>-test-report
-       Gate plan-gate = plan-regression (sdd/v1) + report-verdict (cel); refused ─▶ Failed plan_regressed
+       Task report-tests (Executor test-reporter) ─▶ TestReport <plan>-test-report
+       Gate regression-gate = plan-regression (sdd/v1) + report-verdict (cel); refused ─▶ Failed plan_regressed
 ```
 
 The run order becomes `author-prd`, `domain-discovery`, `architect`, `spec-all`, `design-all`,
 `design-system` before a `ui` `design-all`, `setup-tests`, `test-design-all`, `plan-all`,
-`build-all`. Without a TestDesign bound, `build-one` is the build of
-`35-build-process.md`, so a project adopts the Test process when it is ready.
+`build-all`. Without a TestDesign bound, `select-cases` answers no case, both Tester steps are
+passed by, and `build-one` is the build of `35-build-process.md`.
 
 ## Kinds
 
 | Kind | Content |
 |---|---|
-| `TestHarness` | `product`, `architecture` (artifact id); `levels` a map by test level, each `{tool, run, one, affected?, fullOn?, junit, paths[], testDir, seed, conventions}`: the tool's name and version, the suite command, the command for one test with `{test}`, the Change set command of `36-test-levels.md`, the globs, the JUnit XML path, where its tests live, the seed test's name, and how a test of this level is written here (fixtures, test data reset, how a title carries a case id); `app?` `{start, ready, stop?}`: the command that starts the app the `api` and `e2e` levels need and the URL that answers once it is up; `coverage?` `{report}` and `mutation?` `{program, report}` for `unit`; `openQuestions[]` |
-| `TestDesign` | `spec`, `harness` (artifact ids); `cases[]` (`TC-n` from 1): `title`, `verifies[]` (`AC-n`, `QS-n`, `BR-n`, `FR-n`; at least one `AC-n` or `QS-n`), `level`, `priority` (`P0` to `P3`), `execution` (`automated`, `manual`), `preconditions[]`, `data?`, `steps[]` (`{action, expected?}`), `expected`; `openQuestions[]` |
-| `TestReport` | `plan`, `spec`, `testDesign`, `harness` (artifact ids), `head`; `verdict` (`result`: `pass`, `concerns`, `fail`; `rule`: the clause that decided it; `thresholds`); `cases[]` (`case`, `level`, `priority`, `status`, `tests[]` `{name, status}`); `coverage[]` (`ref`: an `AC-n`, `QS-n`, `BR-n` or `FR-n`; `status`; `cases[]`); `levels[]` (`level`, `passed`, `failed`, `skipped`, `selection`); `measures[]` (`task`, `coverage?`, `mutation?`); `defects[]` (`record`, `defect`); `evaluation` (`summary`, `residualRisks[]`) |
+| `TestHarness` | `architecture` (artifact id); `levels` a map by test level, `unit` required, each `{tool, run, one, affected?, fullOn?, junit, paths?, testDir, seed, conventions}`: the tool and its version, the suite command, the command for one test with `{test}`, the Change set command of `36-test-levels.md`, the globs, the JUnit XML path, where its tests live, the seed test's name as the JUnit XML gives it, and how a test of this level is written here (fixtures, test data reset, the title carrying a case id); `unit` also `coverage?` `{report}` and `mutation?` `{program, report, paths?}`; `app?` `{start, ready}`: the command that starts the app and the URL that answers once it is up; `openQuestions[]` |
+| `TestDesign` | `spec`, `harness` (artifact ids); `cases[]` (`TC-n` from 1): `title`, `verifies[]` (`AC-n`, `QS-n`, `BR-n`, `FR-n`; at least one `AC-n` or `QS-n`), `level`, `priority` (`P0` to `P3`), `execution` (`automated`, `manual`), `preconditions[]`, `data[]?`, `steps[]` (`{action, expected?}`), `expected`; `openQuestions[]` |
+| `TestReport` | `plan`, `spec`, `testDesign` (artifact ids), `head?`; `verdict` (`result`: `pass`, `concerns`, `fail`; `rule`: the clause that decided it; `thresholds`); `cases[]` (`case`, `level`, `priority`, `execution`, `status`, `reason?`, `tests[]` `{name, status}`); `coverage[]` (`ref`: an `AC-n`, `QS-n`, `BR-n` or `FR-n`; `status`; `cases[]`); `levels[]` (`level`, `selection`, `passed`, `failed`, `skipped`); `defects[]` (`record`, `defect`, `observed`); `evaluation` (`summary`, `residualRisks[]`) |
 | `AcceptanceRecord` | `verifies` becomes optional and is not read when a TestDesign is bound: the test names carry the case ids |
-| `TestOutcome` | adds `changed[]`: the Tester's files whose content is not what the Tester wrote |
 
 A case of level `unit` or `integration` may leave `steps` empty: its `AC-n`'s Given/When/Then is
 then the case, not restated. A case of level `api` or `e2e`, or a `manual` one, has its steps.
 
-A test runs a case when its name, `classname > name`, holds the case's qualified id `<CAP-n>/TC-n`
-as a whole token, `CAP-n` the Spec's capability: `TC-n` alone repeats across Specs. One test may
-run several cases; one case may have several tests.
+A test runs a case when its `classname > name` holds the case's qualified id `<CAP-n>/TC-n` as a
+whole token, `CAP-n` the Spec's capability: `TC-n` alone repeats across Specs. One test may run
+several cases; one case may have several tests.
 
 ## Members
 
 | Member | Content |
 |---|---|
 | Executor `tester` | `cli-human/v1`, `type: human`, as `builder` (`35-build-process.md`): the developer's agent answers the form in a fresh subagent, never in the Builder's context; an unattended Namespace overrides it by name |
-| Prompt `harness-rules` | per test level, the tool the Architecture's `testing` concepts or its Adrs name, else the one the repository already has, else a `Q-n`, never one chosen; a level the Architecture's quality scenarios or the Designs' interfaces need (an `http-api` Design: `api`; a `ui` Design: `e2e`) and the project lacks is scaffolded; every level gets one seed test that passes on the app as it is; the commands are the project's, written once in its own scripts |
-| Task `write-harness` | inputs `architecture`, `adrs`, `designs` (artifacts), `repository`, `previous`, `feedback`; output `harness`, id `<product>-harness`; `workspace: {input: repository}`; `sideEffects: nonIdempotent` |
-| Validator `harness-evidence` | `sdd/v1` over `harness` and the seed run's `levelOutcomes`: every level of the harness ran, its seed test passed, no `Q-n` open |
-| Prompt `test-design-rules` | at least one case per `AC-n` and per `build` `QS-n` the Spec cites; a case whose scenario's When crosses the API is `api`, the UI `e2e`, a rule inside one block `unit`, a store or a queue `integration`; steps and data from the Designs' operations and screens, the Glossary's terms; `P0` when a failure loses data, money or access or stops the capability's main path, `P1` a variant of the main path or a rule's edge, `P2` a secondary path, `P3` the rest; `P0` is `automated`; a case the tools cannot automate is `manual`, with the reason in `preconditions` |
+| Executor `test-design-agent` | `claude-code/v1`, read only, as `plan-agent` |
+| Executors `case-selector`, `test-reporter` | `testdesign/v1`, `type: script`; `test-reporter`'s configuration `{thresholds: {p0: 100, p1: 90, p1Concerns: 80, overall: 80}}`, a project overriding it by name |
+| Adapter `testdesign/v1` | an executor on the shared runner that runs no program: in `prepare` it reads the artifacts bound through `getArtifact` and answers `selectCases` or `buildReport` from `adapters/sdd/check.mjs`, by the Task's output port (`cases` or `report`) |
+| Prompt `harness-rules` | per test level, the tool the Architecture's `testing` concepts or its Adrs name, else the one the repository already has, else a `Q-n`, never one chosen; a level the Designs need (an `http-api` Design: `api`; a `ui` Design: `e2e`) and the project lacks is scaffolded; every level gets one seed test that passes on the app as it is; the commands are the project's own scripts, written once; never a change to the app's code |
+| Task `write-harness` | inputs `architecture`, `adrs`, `designs` (artifacts), `repository`, `previous`, `feedback`; output `harness`, id `<architecture>-harness`; `workspace: {input: repository}`; `sideEffects: nonIdempotent` |
+| Tasks `run-seed`, `run-seed-levels` | as `run-baseline` and `run-levels` with no Plan: inputs `harness`, `repository`; ids `<harness>-seed`, `<harness>-seed-levels` |
+| Validator `harness-evidence` | `sdd/v1`, `checkHarness`, below |
+| Prompt `test-design-rules` | at least one case per `AC-n` and per `build` `QS-n` the Spec cites; the level from the boundary the scenario's When crosses: the API `api`, a screen `e2e`, a store or a queue `integration`, a rule inside one block `unit`; steps and data from the Designs' operations and screens, the Glossary's terms; `P0` when a failure loses data, money or access or stops the capability's main path, `P1` a variant of the main path or a rule's edge, `P2` a secondary path, `P3` the rest; `P0` is `automated`; a case the harness's tools cannot run is `manual`, the reason in `preconditions` |
 | Task `design-tests` | inputs `spec`, `architecture`, `designs` (artifacts), `glossary`, `rules`, `harness`, `previous`, `feedback`; output `testDesign`, id `<spec>-tests`; read only |
 | Validator `test-design-consistency` | `sdd/v1`, `checkTestDesign`, below |
-| Task `audit-test-design`, Validator `test-design-audited` | the Auditor judges what the check cannot: a case's level fits the boundary its scenario's When crosses, its steps reach its expected, its expected is the scenario's Then with its values (`case-unfit`); `cel` over the audit as `acceptance-audited` |
-| Validator `test-design-confirmed` | human, `cli-human/v1`: the developer reads the cases before code exists |
-| ReviewLoop `test-design-one`, Workflow `test-design-all` | `maxRounds: 2`; `repeat` over `capabilities` as `plan-all` |
-| Prompt `test-writing-rules` | write only the cases given, one test per case unless its `data` holds several rows; the test's title holds `<CAP-n>/TC-n`; follow the level's `conventions` and its seed test; use the level's tool as the harness names it, never another; run the test with the level's `one`; a test of a case the code does not yet do is red, never skipped; never edit code outside `testDir` |
-| Task `write-api-tests` | inputs `plan`, `taskId`, `testDesign`, `harness`, `spec`, `designs`, `repository`, `previous`, `feedback`; the task's `api` cases; output `written` (value: `files[]` `{path, sha256}`, `cases[]`); before `implement` |
-| Task `write-e2e-tests` | as `write-api-tests` over the task's `e2e` cases, after `implement`; starts the app with the harness's `app.start`, replays each step in the browser before it writes the test, as Playwright's generator does |
-| Task `implement` | adds inputs `testDesign`, `harness`, `written` (the `api` tests, read only); `build-rules` names the task's `unit` and `integration` cases as the Builder's, the others as the Tester's; a Tester's test the Builder holds wrong is a `Q-n` naming the case, never an edit |
-| Tasks `run-tests`, `run-levels` | add inputs `harness` and `written`; `junit/v1` reads the levels from the harness when bound (the Executor keeps only the minimums of coverage and mutation), and `prepare` hashes every file in `written` into `changed[]` |
-| Prompt `audit-rules` | reads each case of the task and the tests that carry its id: they set up its preconditions, do its steps and assert its expected; `test-unfit` names the case |
-| Validator `acceptance-evidence` | with a TestDesign bound, by case: findings below; the rest of `35-build-process.md` and `36-test-levels.md` holds |
-| Task `evaluate-tests` | Executor `auditor`, read only; inputs the TestDesign, every level's final TestOutcome, the task records; output `evaluation`: a summary in the Glossary's words and the residual risks (`manual` and `notrun` cases, flaky tests, reported `D-n`) |
-| Executor `test-reporter`, Task `report-tests` | `subprocess/v1` running the pack's `report.mjs` over `buildReport` in `adapters/sdd/check.mjs`; configuration `{thresholds: {p0: 100, p1: 90, p1Concerns: 80, overall: 80}}`, a project overriding it by name; inputs `plan`, `spec`, `testDesign`, `harness`, `records` (the `<plan>-<t-n>` artifacts), `finals`, `evaluation`; output `report`, id `<plan>-test-report` |
-| Validator `report-verdict` | `cel` over `report`: refused when `verdict.result` is `fail` |
+| Task `audit-test-design`, Validator `test-design-audited` | `draft-audit-rules`, its part for a TestDesign: a case's level stops short of the boundary its scenario's When crosses, its steps do not reach its expected, its expected is not the scenario's Then with its values (`case-unfit`) |
+| Task `confirm-test-design`, Validator `test-design-confirmed` | the human reads the cases before code exists, on `local-reviewer` |
+| ReviewLoop `test-design-one`, Workflow `test-design-all` | `maxRounds: 3`; `repeat` over `capabilities` as `plan-all`, the Spec of `CAP-n` bound by id |
+| Task `select-cases` | inputs `plan`, `taskId`, `spec`, `testDesign?`, `feedback?`; output `cases` (value): the task's qualified case ids by level, the `manual` ones, and `write: {api, e2e}`, true in round one when the task has cases of that level and later when a finding names one |
+| Prompt `test-writing-rules` | write only the cases given, one test per case unless its `data` holds several rows; the test's title holds `<CAP-n>/TC-n`; follow the level's `conventions` and its seed test; the level's tool as the harness names it, never another; run each test with the level's `one`; a test of a case the code does not yet do is red, never skipped; never edit a file outside the level's `testDir` |
+| Tasks `write-api-tests`, `write-e2e-tests` | inputs `plan`, `taskId`, `spec`, `designs`, `testDesign`, `harness`, `cases`, `repository`, `feedback?`; output `written` (value: `files[]`, `cases[]`); `write-e2e-tests` starts the app with the harness's `app.start` and walks each step in the browser before it writes the test, as Playwright's generator does |
+| Task `implement` | adds inputs `testDesign`, `harness`, `cases`, `written`; `build-rules`: with cases bound, the task's `unit` and `integration` cases are the Builder's and `verifies` is left out; a Tester's test the Builder holds wrong is a `Q-n` naming the case, never an edit |
+| Tasks `run-tests`, `run-levels`, `run-baseline`, `run-final` | add input `harness`: `junit/v1` reads the levels from it when bound, the Executor keeping the coverage and mutation minimums (90 when it names none); `run-tests`, `run-levels` add `cases`: the case ids a level must run, as the record's names did; `run-final` adds `testDesign`: the `plan` tier then runs `unit` in full, since the report reads every case |
+| Prompt `audit-rules` | with cases bound, reads each case of the task and the tests that carry its id: they set up its preconditions, do its steps and assert its expected; `test-unfit` names the case |
+| Validator `acceptance-evidence` | adds `testDesign`: by case, below |
+| Task `evaluate-tests` | Executor `auditor`, read only; inputs `testDesign`, `final`, `finals`, `records`; output `evaluation`: a summary in the Glossary's words and the residual risks (`manual` and `notrun` cases, flaky tests, reported `D-n`) |
+| Task `report-tests` | Executor `test-reporter`; inputs `plan`, `spec`, `testDesign`, `final`, `finals`, `records` (the Plan's AcceptanceRecords, `fromQuery`), `evaluation`; output `report`, id `<plan>-test-report` |
+| Validator `report-verdict` | `cel` over `report?`: refused when `verdict.result` is `fail`; passes with no report |
+
+## `checkHarness`
+
+Every finding `error`:
+
+| Code | Finding |
+|---|---|
+| `not-a-harness` | content without `levels.unit`; the only finding then |
+| `architecture-mismatch` | `architecture` is not the artifact bound |
+| `level-unrun` | a level of the harness with no outcome among the seed runs |
+| `suite-empty` | a level's seed run read no test |
+| `seed-missing`, `seed-failed` | a level's seed test is not in its outcome, or is not green |
+| `question-open` | an open question without a `resolution` |
 
 ## `checkTestDesign`
 
@@ -107,15 +125,15 @@ A task's cases are the TestDesign's cases that verify a scenario in the task's `
 
 | Code | Finding |
 |---|---|
-| `case-untested` | an `automated` case of the task that no test carries, in its level's outcome |
-| `case-level` | a test carrying the case is in another level's outcome |
-| `case-failed`, `case-skipped` | a test carrying the case failed, errored or was skipped |
-| `case-dropped` | a case a test carried last round that none carries now |
-| `tester-file-changed` | a file in `changed[]`: the Builder edited a Tester's test |
-| `level-held` | info, as `36-test-levels.md`: its cases are not `case-untested` |
+| `case-untested` | an `automated` case of the task that no test in its level's outcome carries, or whose level did not run |
+| `case-level` | a test carrying the case is only in another level's outcome |
+| `case-failed`, `case-skipped` | a test carrying the case failed or errored, or every one was skipped |
+| `case-manual` | info: the task's `manual` cases, which no test runs |
 
-`test-missing`, `test-ambiguous`, `test-dropped`, `scenario-unrecorded` and `unknown-scenario` are
-not raised with a TestDesign bound: no row names a test.
+`test-missing`, `test-ambiguous`, `test-dropped`, `scenario-unrecorded`, `scenario-duplicate` and
+the record's `unknown-scenario` rows are not raised with a TestDesign bound: no row names a test.
+The rest of `35-build-process.md` and `36-test-levels.md` holds, `suite-failed` reading every test
+that carries a case of the task as named.
 
 ## `buildReport`
 
@@ -123,12 +141,11 @@ not raised with a TestDesign bound: no row names a test.
 |---|---|---|
 | `ok` | every test carrying it passed | every case verifying it `ok` |
 | `nok` | a test carrying it failed or errored | a case verifying it `nok` |
-| `notrun` | `manual`, its level not run, its tests skipped, or its task not built | no case `nok`, one `notrun` |
+| `notrun` | `manual`, its level not run, no test carrying it, or every one skipped | no case `nok`, one `notrun` |
 | `uncovered` | – | no case verifies it |
 
-A case reads its tests in the `plan` tier's outcome of its level; `unit`, which the `plan` tier runs
-only with `affected`, reads the last round's outcome over the same tree. A rate is the share of
-cases `ok`.
+A case reads its tests in the `plan` tier's outcome of its level. A rate is the share of cases
+`ok`; a priority with no case has none to miss.
 
 | Verdict | Rule, first match |
 |---|---|
@@ -144,22 +161,10 @@ cases `ok`.
 | a level's tool comes from the Architecture or its Adrs, else the repository; never a choice the Tester makes | `harness-rules`; `question-open` |
 | every acceptance scenario and `build` quality scenario has a case, its level decided before code | `checkTestDesign`, the Auditor, a human |
 | the Tester writes the `api` and `e2e` tests, the Builder the code and the `unit` and `integration` tests | Tasks, `build-rules`, `test-writing-rules` |
-| the Builder never edits a Tester's test; one it holds wrong is a `Q-n` | `tester-file-changed`, `question-open` |
+| the Builder never edits a Tester's test; one it holds wrong is a `Q-n` | `build-rules`; the Auditor holds each test to its case; the developer's diff review |
 | a test carries the qualified id of the case it runs; the Gate matches by it | `acceptance-evidence` |
 | the report is computed, not written: an agent writes only its evaluation | `report-tests` on a script Executor |
-| a `fail` verdict fails the run, and a regression still does | `plan-gate` |
-
-## Changes to other files, when this file becomes active
-
-| File | Change |
-|---|---|
-| `23-pack-sdlc.md` | the three kinds; a TestDesign verifies a Spec's `AC-n`, `QS-n`, `BR-n`, `FR-n` (N:M); the Plan stays the only link from a Spec to Designs |
-| `35-build-process.md` | `build-work` as above; `build-rules` loses "at least one test per scenario" to the cases; the record's `verifies` optional; findings by case; prose says "test" for a JUnit entry (`CONTEXT.md`) |
-| `36-test-levels.md` | the levels from the harness; the Executors keep the minimums; a test the record names is a test carrying a case of the task |
-| `37-progress.md` | the map gains the Test design and the Test report phases |
-| `38-autopilot.md` | the app skeleton before `setup-tests`, not before `build-all`; a tester subagent per Tester form; a Reviewer subagent at `test-design-confirmed` |
-| `packs/sdlc/files/AGENTS.md` section 6 | the run order above; a Tester form is answered in a fresh subagent |
-| `91-roadmap.md` | "tester as its own Task" and "the verification layer" leave it |
+| a `fail` verdict fails the run, and a regression still does | `regression-gate` |
 
 ## Decisions
 
@@ -173,10 +178,11 @@ cases `ok`.
   `framework` step and `test_framework` setting, Playwright's seed test, spec-kit's `Testing` field
   and addyosmani's "discover the stack first" each record the stack once. The Executor override per
   level was the only record, and no Task reads an Executor (decision 451). The harness is checked by
-  running each level's seed test once. Found in design review.
+  running each level once and finding its seed test green. Found in design review.
 - Test cases are designed per Spec before the Plan, in one TestDesign a human confirms: the level of
   each case is decided before code, as BMAD's `test-design` and Playwright's `specs/*.md` plan do,
-  not judged by the Auditor after it. One artifact holding the cases, not a `TestCase` per case (the
+  not judged by the Auditor after it. An agent writes it, read only, as the Plan's: it needs the
+  Spec and the Designs, not the app. One artifact holding the cases, not a `TestCase` per case (the
   roadmap's): the cases of a Spec revise together under one Gate. The Plan does not cite cases: a
   task's cases are those verifying its `verifiedBy`, so the Plan and its check stay as they are.
   Found in design review.
@@ -192,10 +198,23 @@ cases `ok`.
 - The Tester is `cli-human/v1`, answered by the developer's agent in a fresh subagent: writing
   `api` and `e2e` tests needs the app, the browser and the network, as building does (decision 440),
   and a fresh context keeps the Builder's view out of the tests. Found in design review.
+- A script step, `select-cases`, opens each round: a Workflow skips a step only by routing around
+  it from a step before it (`11-workflow.md`), and a `when` reads values, not an artifact's content.
+  It answers the task's cases and whether the Tester writes this round: in round one when the task
+  has cases of the level, later only when a finding names one, so a round refused for the code alone
+  does not wait on the Tester. Found in implementation.
+- `select-cases` and `report-tests` run on their own Adapter, `testdesign/v1`, not `subprocess/v1`:
+  a script on `subprocess/v1` gets the payload without the Engine callbacks, so it cannot read an
+  artifact's content; the shared runner's `prepare` has `getArtifact` and may answer without running
+  a program, as `junit/v1`'s does for a level it selects out. Found in implementation.
+- No hash check on the Tester's files. Hashing each file when the Tester answers needs one more step
+  per Tester step, and the Auditor already refuses a test that no longer does its case's steps; the
+  developer reads the diff before committing. Found in implementation.
 - The TestReport is computed by a script, and an agent writes only its evaluation: a count from an
   agent is a guess. Statuses are Xray's (`ok`, `nok`, `notrun`, `uncovered`; its `unknown` is not
   needed, the vocabulary being ours). The verdict thresholds are BMAD's `trace` gate: `P0` 100,
-  `P1` 90 for `pass` and 80 for `concerns`, all cases 80. Found in design review.
+  `P1` 90 for `pass` and 80 for `concerns`, all cases 80. The `plan` tier runs `unit` in full under
+  a TestDesign, so every case has a result over the last tree. Found in design review.
 - Not adopted: `TestRun` and `TestResult` kinds (a TestOutcome is already one run of one level at
   one commit); a test plan document (ISO 29119-3's agile example puts its content in the plan, here
   the Plan and the harness); a `waived` verdict (it needs a human sign-off of its own, later); a test
