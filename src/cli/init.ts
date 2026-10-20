@@ -1,5 +1,5 @@
 import { appendFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, symlinkSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Resource } from '../resource/types.js'
 import { digestOf } from '../snapshot/canonical.js'
@@ -37,8 +37,8 @@ function readRecord(path: string): Record<string, string> {
 
 /** The pack's `files/` into the project when absent, or over one init wrote that nobody edited (its digest in `.persimmon/files.json`); `CLAUDE.md` links to an `AGENTS.md` init wrote (20-pack.md). */
 function placeFiles(cli: Cli, dir: string): void {
-  // regular files only: a directory or a dotfile (.DS_Store) in files/ is not a project file
-  const files = existsSync(dir) ? readdirSync(dir, { withFileTypes: true }).filter((e) => e.isFile() && !e.name.startsWith('.')).map((e) => e.name).sort() : []
+  // regular files at any depth, by their path below files/; a dotfile (.DS_Store) is not a project file, a dot directory (.claude/) holds them
+  const files = existsSync(dir) ? readdirSync(dir, { recursive: true, withFileTypes: true }).filter((e) => e.isFile() && !e.name.startsWith('.')).map((e) => relative(dir, join(e.parentPath, e.name))).sort() : []
   const record = join(cli.cwd, '.persimmon', 'files.json')
   const written = readRecord(record)
   const before = JSON.stringify(written)
@@ -59,6 +59,7 @@ function placeFiles(cli: Cli, dir: string): void {
       } else cli.out(mine === undefined ? `kept ${f}` : `kept ${f} (differs from the pack's: ${join(dir, f)})`)
       continue
     }
+    mkdirSync(dirname(to), { recursive: true })
     writeFileSync(to, pack, { flag: 'wx' })
     written[f] = packDigest
     cli.out(`wrote ${f}`)

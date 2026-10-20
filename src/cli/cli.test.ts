@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { parse, parseAllDocuments, stringify } from 'yaml'
@@ -236,6 +236,20 @@ describe('persimmon CLI', () => {
     expect(await run('init')).toBe(0)
     expect(out.filter((l) => /^(wrote|kept|ignored) /.test(l))).toEqual(['kept AGENTS.md']) // lstat: a dangling link is present, never written through
     expect(readlinkSync(join(dir, 'AGENTS.md'))).toBe('gone.md')
+  })
+
+  it('init places pack files below files/ at their path, dot directories walked, dotfiles skipped (20-pack.md)', async () => {
+    const pack = join(dir, 'pack')
+    mkdirSync(join(pack, 'files', '.claude', 'skills', 'x'), { recursive: true })
+    writeFileSync(join(pack, 'files', '.claude', 'skills', 'x', 'SKILL.md'), 'x\n')
+    writeFileSync(join(pack, 'files', '.claude', 'skills', 'x', '.DS_Store'), '')
+    const project = join(dir, 'project')
+    mkdirSync(project)
+    expect([await init({ cwd: project, out: (l) => out.push(l), err: (l) => err.push(l) }, { pack }), err]).toEqual([0, []])
+    expect(out.filter((l) => /^wrote \./.test(l))).toEqual(['wrote .claude/skills/x/SKILL.md'])
+    expect(readFileSync(join(project, '.claude', 'skills', 'x', 'SKILL.md'), 'utf8')).toBe('x\n')
+    expect(existsSync(join(project, '.claude', 'skills', 'x', '.DS_Store'))).toBe(false)
+    expect(Object.keys(JSON.parse(readFileSync(join(project, '.persimmon', 'files.json'), 'utf8')))).toEqual(['.claude/skills/x/SKILL.md'])
   })
 
   it('init with another pack applies its namespaced/ Triggers; the SDLC pack validates as a file set before any of it is stored', async () => {
