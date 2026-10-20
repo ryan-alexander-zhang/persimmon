@@ -124,7 +124,7 @@ present, empty when nothing was found, so two readers' inventories compare field
 | `guards[]` | `{id GD-n, condition, outcome, role: rule\|plumbing\|unknown, where[], in[] EP-n, volatile?: [time\|random\|order\|concurrency], note?}`: every branch that refuses, computes or decides; `time` only when the condition reads the clock, not a date the input carries |
 | `declarations[]` | `{id DC-n, kind: key\|uniqueness\|retention\|ordering\|schema\|data\|config\|contract, statement, where[]}`: a rule stated without a branch |
 | `absences[]` | `{id AB-n, statement, where[]}`: a check the source could make and does not, so its keeping or adding is decided, not assumed |
-| `plumbingPatterns[]` | `{id PP-n, pattern, examples[] GD-n}`: one shape of plumbing, accepted once |
+| `plumbingPatterns[]` | `{id PP-n, pattern, examples[] GD-n, where[]}`: one shape of plumbing, accepted once; `where` lists every occurrence, so a branch line it covers needs no guard of its own |
 | `entities[]` | `{id EN-n, name, store?, where[]}` |
 | `externalSystems[]` | `{id EX-n, name, direction: in\|out\|both, where[]}` |
 | `tests[]` | `{name, where, covers[] EP-n\|GD-n}`: the source's own tests |
@@ -289,7 +289,7 @@ Adapter process answering one Role (`adapters/lib/agent.mjs` serves `executor` o
 | `inventory-reference` | an id the inventory lacks, in any field that cites one | `survey-consistency`, `inventory-consistency` |
 | `id-sequence` | `SL-n`, `EP-n`, `ST-n`, `GD-n`, `DC-n`, `AB-n`, `PP-n`, `EN-n`, `EX-n`, `Q-n` not unique and increasing in document order | same |
 | `slice-cut` | an entry point in no Slice or in two | `survey-consistency` |
-| `branch-uncovered` | a branch line of a file the Slice reaches, inside no guard's `where` and matching no `PP-n`; with `coverage`, also a line it gives branches on | `inventory-consistency`; `ledger-closure` with coverage |
+| `branch-uncovered` | a branch line of a file the Slice reaches, inside no guard's or `PP-n`'s line `where` (a whole-file `where` covers no line); with `coverage`, also a line it gives branches on | `inventory-consistency`; `ledger-closure` with coverage |
 | `reader-disagreement` (warning) | a guard of one reader whose `where` overlaps nothing the other recorded; the human settles each in `decisions.readers` | `inventory-consistency` |
 | `coverage-unmapped` | a coverage path that matches no indexed file by a unique path suffix | `ledger-closure` |
 | `item-open` | an item of the Slice its Oracle can pin that is not pinned; the feedback names each with why (not reached, survived, invalid) | `ledger-closure` |
