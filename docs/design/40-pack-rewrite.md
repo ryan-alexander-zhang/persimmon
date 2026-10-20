@@ -39,7 +39,7 @@ developer: the project (the rewrite's repository), a source checkout outside it 
   ─▶ ReviewLoop characterize
        produce: Workflow characterize-work
                 Task write-characterization (tester) ─▶ the suite: tests, the source's Protocol driver, its levels (none when nothing runs)
-                Task run-source (parity-run/v1)      ─▶ TestOutcome per level that runs on the source, coverage by line
+                Task run-source (parity-run/v1)      ─▶ value runs: each level's tests and observations on the source; value coverage
                 Task write-mutants (tester)          ─▶ one patch per reached item
                 Task run-mutants (parity-run/v1)     ─▶ each mutant killed, survived or invalid, in a scratch copy
                 Task audit-mutants (auditor)         ─▶ value audit: a sample of patches against mutant-rules
@@ -58,7 +58,7 @@ developer: the project (the rewrite's repository), a source checkout outside it 
   ─▶ ReviewLoop parity
        produce: Workflow parity-work
                 when the interface changes: Task write-rewrite-driver (tester), Task audit-driver (auditor)
-                Task run-rewrite (parity-run/v1, the rewrite's app as the TestHarness's `app` starts it) ─▶ TestOutcome on the rewrite
+                Task run-rewrite (parity-run/v1, the rewrite's app as the TestHarness's `app` starts it) ─▶ value runs on the rewrite
                 Task compute-ledger                  ─▶ ParityLedger next revision: every difference with its cause, the verdict
                 Task review-parity (human)           ─▶ value decisions: the rewrite driver confirmed, concerns accepted, approved
        review:  Gate parity-gate = parity-consistency (parity/v1), audited (cel), decided (cel)
@@ -263,15 +263,15 @@ What the agents are taught, as Prompts the pack ships, one per Task, overridable
 | Task `index-source` | `parity-run/v1`, `workspace: {input: source}`; output value `sourceIndex` |
 | Task `audit-inventory` | Executor `auditor`; a sample of guards against the code at their `where`, plumbing labels sampled first; a directory neither read nor `unread`; output value `audit` (a ValidationResult) |
 | Task `write-characterization` | Executor `tester`, workspace the project; inputs `inventory`, `slice`, `brief`, the last `ledger`, `feedback`; output value `written` (`files[]`, `suite`); the source reached through the `source` input's `locator.path`, which the level commands take as an argument |
-| Task `run-source` | `parity-run/v1`, workspace the project; per suite level that runs on the source: its `run` with coverage, `reset` before each test; outputs one `artifacts` output of TestOutcomes, one per level that ran, `head` the checkout's commit, empty when none ran, and value `coverage` (`{<path>: {lines run, branch lines}}`, mapped onto checkout paths by unique suffix), `{}` when none ran: every declared output is answered (`12-task.md`), so a Task that runs nothing still answers |
+| Task `run-source` | `parity-run/v1`, workspace the project; per suite level that runs on the source (`app`, `units`; `records` runs on the rewrite only): its `reset`, then its `run` with the checkout's path in `PERSIMMON_SOURCE`; outputs value `runs`, `[{level, command, exitCode, head, tests[] {name, status}, observations}]`, `head` the checkout's commit, `[]` when none ran, and value `coverage` (`{<path>: {<line>: {hits, branches?}}}`, mapped onto the index by unique suffix, `unmapped[]` beside), `{files: {}, unmapped: []}` when none ran: every declared output is answered (`12-task.md`). A value, not a `TestOutcome`: that kind's `level` is a test level of the SDLC pack's, and `app`, `units` and `records` are none; resetting between tests is the suite's own fixture, its `conventions` say how |
 | Tasks `write-mutants`, `run-mutants`, `audit-mutants` | the Tester writes one patch per reached item (value `mutants`); the runner copies the checkout to `.persimmon/scratch/<taskRun>/`, refuses a patch outside its item's `where` or against `mutant-rules`' token list as `invalid`, applies each alone, runs the tests that cite the item or its entry point, records killed, survived or invalid (value `mutantResults`); the auditor samples patches for ones a test cannot observe |
 | Task `recover-prd` | inputs `inventory`, `ledger`, `slice`, `brief`, `productId`, `prd?` and `rules?` (the product's last approved), `previous`, `previousRules`, `feedback`; outputs `prd`, `rules`: `draft-prd`'s output ports and ids, so every later run reads them as an authored pair |
 | Tasks `audit-recovery`, `audit-driver` | Executor `auditor`; value `audit`: the Prd against the inventory and the tests (a rule the tests contradict, a capability with no entry point); the rewrite driver against `driver-rules` |
 | Human Tasks `cut-slices`, `decide-recovery`, `review-parity` | `cli-human/v1`; each answers the `decisions` value its row of Decisions says, its schema written inline (a port schema takes no `$ref` beyond the well-known ones, `10-ports.md`); the form shows the audit beside the artifacts; `produce` runs each round, so the human answers once per round |
 | The Tester's Tasks | the SDLC pack's Executor `tester` is a human one by default (`cli-human/v1`, the developer's agent in a fresh subagent), so its Tasks answer values, never `artifacts`; a Namespace that puts it on `claude-code/v1` read-only may find reads outside the workspace refused, and the source is read through the `source` input's `locator.path` |
 | Task `write-rewrite-driver` | Executor `tester`; inputs `suite`, the Slice's Designs, `feedback`; output value `written` (the driver's files) |
-| Task `run-rewrite` | `parity-run/v1`: the suite's tests through the rewrite's driver (or the source's, the interface kept) against the rewrite's app, started and reset by the TestHarness's `app` |
-| Task `compute-ledger` | `parity-run/v1`; inputs `inventory`, `sourceIndex`, `written`, the TestOutcomes, `coverage`, `mutantResults`, `rules?`, `decisions`, the last `ledger`; output its next revision |
+| Task `run-rewrite` | `parity-run/v1`: the suite's tests through the rewrite's driver (or the source's, the interface kept) against the rewrite's app, started and reset by the TestHarness's `app`; value `runs` as `run-source`'s |
+| Task `compute-ledger` | `parity-run/v1`; inputs `inventory`, `sourceIndex`, `written`, `runs` (the source's, and the rewrite's in `parity`), `coverage`, `mutantResults`, `rules?`, `decisions`, the last `ledger`; output its next revision |
 | Gates | `survey-gate`, `inventory-gate`, `characterize-gate`, `recover-gate`, `parity-gate`: pure, over the loop's artifacts and values |
 | ReviewLoops | `survey` (`maxRounds: 2`), `inventory` (2), `characterize` (3), `recover-prd` (3, `carry: {rules: previousRules}` as `author-prd`), `parity` (2) |
 
