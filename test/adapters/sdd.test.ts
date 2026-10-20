@@ -1060,6 +1060,8 @@ describe('sdd/v1 over the Test process', () => {
     const gate = (message: string) => ({ passed: false, results: { evidence: { passed: false, findings: [{ severity: 'error', code: 'x', message }] } } })
     expect(selectCases({ ...ids, feedback: gate('CAP-1/TC-10: no api test carries it') }).write).toEqual({ api: true, e2e: false })
     expect(selectCases({ ...ids, feedback: gate('CAP-1/TC-3: claim > x failed') }).write).toEqual({ api: false, e2e: false }) // a round refused for the code alone
+    const warned = gate('Q-1 is open: which currency?'); warned.results.evidence.findings.push({ severity: 'warning', code: 'question-upstream', message: "Q-2's answer changes claims-api: CAP-1/TC-10 asks only for a 4xx" })
+    expect(selectCases({ ...ids, feedback: warned }).write).toEqual({ api: false, e2e: false }) // a warning naming a case calls no Tester back
     expect(selectCases({ ...ids, testDesign: undefined })).toEqual({ unit: [], integration: [], api: [], e2e: [], manual: [], write: { api: false, e2e: false } })
   })
 

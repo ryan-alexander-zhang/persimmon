@@ -471,11 +471,12 @@ export function taskCases({ plan, taskId, spec, testDesign }) {
   return (testDesign?.cases ?? []).filter((c) => (c.verifies ?? []).some((v) => due.has(v))).map((c) => ({ ...c, qid: qualified(spec, c.id) }))
 }
 /** What one build round runs (39-test-process.md): the task's automated case ids by level, its manual ones, and whether the
- * Tester writes this round's api and e2e tests: in round one when the task has such cases, later when a finding names one. */
+ * Tester writes this round's api and e2e tests: in round one when the task has such cases, later when an error finding names
+ * one; a warning refuses no round. */
 export function selectCases({ plan, taskId, spec, testDesign, feedback }) {
   const cases = taskCases({ plan, taskId, spec, testDesign })
   const of = (level) => cases.filter((c) => c.execution !== 'manual' && c.level === level).map((c) => c.qid)
-  const named = Object.values(feedback?.results ?? {}).flatMap((r) => r?.findings ?? []).map((f) => f.message ?? '').join('\n')
+  const named = Object.values(feedback?.results ?? {}).flatMap((r) => r?.findings ?? []).filter((f) => f.severity === 'error').map((f) => f.message ?? '').join('\n')
   const write = (level) => of(level).length > 0 && (!feedback || of(level).some((q) => named.includes(q)))
   return { unit: of('unit'), integration: of('integration'), api: of('api'), e2e: of('e2e'), manual: cases.filter((c) => c.execution === 'manual').map((c) => c.qid), write: { api: write('api'), e2e: write('e2e') } }
 }
