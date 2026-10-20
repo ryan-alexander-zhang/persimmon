@@ -13,7 +13,7 @@
   },
   "scripts": {
     "build": "tsc && npm run build:tools",
-    "build:tools": "vite build --config tools/eventstorming/vite.config.ts && vite build --config tools/inbox/vite.config.ts",
+    "build:tools": "vite build --config tools/eventstorming/vite.config.ts && vite build --config tools/progress/vite.config.ts",
     "dev:tools": "vite --config tools/eventstorming/vite.config.ts",
     "gen": "node scripts/gen-schemas.mjs",
     "prebuild": "npm run gen",
@@ -22,7 +22,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit && npm run typecheck:tools",
-    "typecheck:tools": "tsc -p tools/eventstorming --noEmit && tsc -p tools/inbox --noEmit"
+    "typecheck:tools": "tsc -p tools/eventstorming --noEmit && tsc -p tools/progress --noEmit"
   },
   "dependencies": {
     "@google/design.md": "0.4.0",

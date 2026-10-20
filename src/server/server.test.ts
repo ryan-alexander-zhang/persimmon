@@ -136,7 +136,7 @@ describe('persimmon ui server', () => {
     expect((await get('/tools/demo/../../persimmon.yaml')).status).toBe(404)
 
     const root = await fetch(url('/'), { redirect: 'manual' })
-    expect([root.status, root.headers.get('location')]).toEqual([302, '/tools/inbox/'])
+    expect([root.status, root.headers.get('location')]).toEqual([302, '/tools/progress/'])
   })
 
   it('the Inbox lists a TaskRun parked on a human, serves its form and answers it through the complete path (37-progress.md)', async () => {

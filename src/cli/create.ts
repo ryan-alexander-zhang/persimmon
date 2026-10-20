@@ -148,7 +148,7 @@ async function follow(cli: Cli, engine: Engine, resource: Resource, pollMs: numb
       if (parked.length) {
         report()
         summary()
-        cli.out('answer in the Inbox (persimmon ui), or here:')
+        cli.out('answer in persimmon ui, or here:')
         for (const p of parked) cli.out(`parked on you: persimmon complete ${p.metadata.name}`)
         return 0
       }

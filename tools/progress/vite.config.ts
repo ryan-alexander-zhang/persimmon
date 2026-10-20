@@ -3,14 +3,14 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
-// The Inbox (37-inbox.md): built into dist/tools/inbox/ and served by `persimmon ui`
-// at /tools/inbox/, over the same-origin /api.
+// Progress (37-progress.md): built into dist/tools/progress/ and served by `persimmon ui`
+// at /tools/progress/, over the same-origin /api.
 export default defineConfig({
   root: fileURLToPath(new URL(".", import.meta.url)),
-  base: "/tools/inbox/",
+  base: "/tools/progress/",
   plugins: [react(), tailwindcss()],
   build: {
-    outDir: fileURLToPath(new URL("../../dist/tools/inbox", import.meta.url)),
+    outDir: fileURLToPath(new URL("../../dist/tools/progress", import.meta.url)),
     emptyOutDir: true,
   },
   server: {

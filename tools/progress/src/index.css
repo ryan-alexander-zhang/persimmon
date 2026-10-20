@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+/* One saturated colour, persimmon, means "waiting on you"; every other state stays quiet (37-progress.md). */
+@theme {
+  --color-paper: #f4f6f9;
+  --color-surface: #ffffff;
+  --color-ink: #1b2333;
+  --color-ink-2: #566175;
+  --color-ink-3: #8a93a3;
+  --color-line: #d8dee8;
+  --color-line-2: #e8ecf2;
+  --color-done: #2f7d5b;
+  --color-done-soft: #e3f1ea;
+  --color-run: #3d63b8;
+  --color-run-soft: #e6ecf8;
+  --color-bad: #b23a32;
+  --color-bad-soft: #f8e7e5;
+  --color-persimmon: #ec6519;
+  --color-persimmon-soft: #fdeee4;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-read: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Charter, Georgia, serif;
+}
+
+html,
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-run);
+  outline-offset: 2px;
+}
+
+/* the one moving thing: a step waiting on you breathes until you open it */
+@keyframes wait {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-persimmon) 45%, transparent); }
+  50% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--color-persimmon) 0%, transparent); }
+}
+.waiting {
+  animation: wait 2.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .waiting { animation: none; }
+}
+
+.react-flow__node:focus-visible { outline: none; }
+.react-flow__attribution { display: none; }
+
+::selection {
+  background: color-mix(in srgb, var(--color-persimmon) 28%, transparent);
+}

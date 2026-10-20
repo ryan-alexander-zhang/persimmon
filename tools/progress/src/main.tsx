@@ -1,10 +1,11 @@
+import "@xyflow/react/dist/style.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { Inbox } from "./inbox";
+import { App } from "./app";
 import "./index.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <Inbox />
+    <App />
   </StrictMode>,
 );

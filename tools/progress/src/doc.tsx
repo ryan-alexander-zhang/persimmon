@@ -1,0 +1,246 @@
+// An artifact set as a document (37-progress.md); in a review, selecting text or a heading's button notes a finding.
+import { MessageSquarePlus } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { type Anchor, type Block, type Finding, type Meta, type Schema, toDoc } from "./lib/document";
+
+export interface Noting {
+  findings: Finding[];
+  add: (f: Finding) => void;
+}
+
+export function DocView({ content, schema, base, noting }: { content: unknown; schema?: Schema; base: string; noting?: Noting }) {
+  const doc = useMemo(() => toDoc(content, schema, base), [content, schema, base]);
+  const box = useRef<HTMLDivElement>(null);
+  const [pick, setPick] = useState<{ anchor: Anchor; quote?: string; x: number; y: number } | undefined>();
+  const [draft, setDraft] = useState<typeof pick>();
+
+  // a selection inside the document offers "Add finding" beside it
+  useEffect(() => {
+    if (!noting) return;
+    const onUp = () => {
+      const sel = getSelection();
+      if (!sel || sel.isCollapsed || !box.current) return setPick(undefined);
+      const range = sel.getRangeAt(0);
+      if (!box.current.contains(range.commonAncestorContainer)) return setPick(undefined);
+      const start = range.startContainer instanceof Element ? range.startContainer : range.startContainer.parentElement;
+      const anchor = start?.closest<HTMLElement>("[data-anchor]")?.dataset.anchor ?? base;
+      const rect = range.getBoundingClientRect();
+      const quote = sel.toString().replace(/\s+/g, " ").trim();
+      if (quote) setPick({ anchor, quote, x: rect.right, y: rect.bottom });
+    };
+    document.addEventListener("mouseup", onUp);
+    return () => document.removeEventListener("mouseup", onUp);
+  }, [noting, base]);
+
+  const noted = (anchor: Anchor) => noting?.findings.filter((f) => f.anchor === anchor).length ?? 0;
+  const ctx: Ctx = { noted, onHeading: noting ? (anchor, el) => setDraft({ anchor, ...corner(el) }) : undefined };
+
+  return (
+    <div ref={box} className="max-w-[68ch] font-read text-[17px] leading-[1.65] text-ink">
+      {doc.title && <h1 className="text-[28px] leading-tight font-semibold tracking-[-0.01em]">{doc.title}</h1>}
+      {doc.meta.length > 0 && <MetaLine meta={doc.meta} className="mt-2" ctx={ctx} />}
+      <div className="mt-6 space-y-9">
+        {doc.blocks.map((b, i) => (
+          <BlockView key={i} block={b} ctx={ctx} />
+        ))}
+      </div>
+      {pick && !draft && (
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()} // keep the selection
+          onClick={() => {
+            setDraft(pick);
+            setPick(undefined);
+          }}
+          style={{ left: Math.min(pick.x, innerWidth - 150), top: pick.y + 6 }}
+          className="fixed z-40 flex items-center gap-1.5 rounded-lg bg-ink px-3 py-1.5 font-sans text-sm font-medium text-white shadow-lg"
+        >
+          <MessageSquarePlus className="size-4" aria-hidden /> Add finding
+        </button>
+      )}
+      {draft && noting && (
+        <Composer
+          at={draft}
+          onKeep={(text) => {
+            noting.add({ anchor: draft.anchor, ...(draft.quote ? { quote: draft.quote } : {}), text });
+            setDraft(undefined);
+            getSelection()?.removeAllRanges();
+          }}
+          onDrop={() => setDraft(undefined)}
+        />
+      )}
+    </div>
+  );
+}
+
+const corner = (el: HTMLElement) => {
+  const r = el.getBoundingClientRect();
+  return { x: r.right, y: r.bottom };
+};
+
+interface Ctx {
+  noted: (anchor: Anchor) => number;
+  onHeading?: (anchor: Anchor, el: HTMLElement) => void;
+}
+
+/** A passage with findings carries a persimmon rule in the margin. */
+const mark = (ctx: Ctx, anchor: Anchor) => (ctx.noted(anchor) ? "border-l-2 border-persimmon pl-3 -ml-[14px]" : "");
+
+function BlockView({ block, ctx }: { block: Block; ctx: Ctx }) {
+  switch (block.t) {
+    case "section":
+      return (
+        <section data-anchor={block.anchor}>
+          <h2 className="font-sans text-[19px] font-semibold text-ink" title={block.description}>
+            {block.heading}
+          </h2>
+          <div className="mt-3 space-y-5">
+            {block.blocks.map((b, i) => (
+              <BlockView key={i} block={b} ctx={ctx} />
+            ))}
+          </div>
+        </section>
+      );
+    case "element":
+      return (
+        <div data-anchor={block.anchor} className={`group/el ${mark(ctx, block.anchor)}`}>
+          {(block.id || block.title) && (
+            <h3 className="flex items-baseline gap-2.5">
+              {block.id && <span className="shrink-0 rounded bg-line-2 px-1.5 py-px font-sans text-[13px] font-semibold text-ink-2 tabular-nums">{block.id}</span>}
+              {block.title && <span className="font-semibold">{block.title}</span>}
+              {ctx.onHeading && (
+                <button
+                  type="button"
+                  onClick={(e) => ctx.onHeading!(block.anchor, e.currentTarget)}
+                  className="ml-auto self-center rounded p-1 text-ink-3 opacity-0 group-hover/el:opacity-100 hover:bg-persimmon-soft hover:text-persimmon focus-visible:opacity-100"
+                  aria-label={`Add a finding on ${block.id ?? block.title}`}
+                  title={`Add a finding on ${block.id ?? block.title}`}
+                >
+                  <MessageSquarePlus className="size-4" aria-hidden />
+                </button>
+              )}
+            </h3>
+          )}
+          {block.meta.length > 0 && <MetaLine meta={block.meta} className="mt-0.5" ctx={ctx} />}
+          {block.blocks.length > 0 && (
+            <div className="mt-1.5 space-y-2">
+              {block.blocks.map((b, i) => (
+                <BlockView key={i} block={b} ctx={ctx} />
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    case "prose":
+      return (
+        <div data-anchor={block.anchor} className={mark(ctx, block.anchor)}>
+          {block.text.split(/\n\s*\n/).map((para, i) => (
+            <p key={i} className="whitespace-pre-line">
+              {i === 0 && block.label && (
+                <span className="font-sans text-[14px] font-semibold text-ink-2" title={block.description}>
+                  {block.label}.{" "}
+                </span>
+              )}
+              {para}
+            </p>
+          ))}
+        </div>
+      );
+    case "list":
+      return (
+        <div data-anchor={block.items[0]?.anchor} className={block.items[0] ? mark(ctx, block.items[0].anchor) : ""}>
+          {block.label && (
+            <span className="font-sans text-[14px] font-semibold text-ink-2" title={block.description}>
+              {block.label}
+              {block.tags ? " " : ""}
+            </span>
+          )}
+          {block.tags ? (
+            <span className="inline-flex flex-wrap gap-1.5 align-baseline">
+              {block.items.map((it, i) => (
+                <span key={i} className="rounded bg-line-2 px-1.5 font-sans text-[13px] font-medium text-ink-2">
+                  {it.text}
+                </span>
+              ))}
+            </span>
+          ) : (
+            <ul className="mt-1 list-disc space-y-1 pl-6 marker:text-ink-3">
+              {block.items.map((it, i) => (
+                <li key={i}>{it.text}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      );
+    case "group":
+      return (
+        <div>
+          {block.label && (
+            <p className="font-sans text-[14px] font-semibold text-ink-2" title={block.description}>
+              {block.label}
+            </p>
+          )}
+          <div className="mt-1.5 space-y-4 border-l border-line pl-4">
+            {block.blocks.map((b, i) => (
+              <BlockView key={i} block={b} ctx={ctx} />
+            ))}
+          </div>
+        </div>
+      );
+    case "empty":
+      return (
+        <p className="font-sans text-[14px] text-ink-3">
+          {block.label ? `${block.label}: ` : ""}none
+        </p>
+      );
+  }
+}
+
+function MetaLine({ meta, className, ctx }: { meta: Meta[]; className?: string; ctx: Ctx }) {
+  return (
+    <p className={`font-sans text-[14px] text-ink-2 ${className ?? ""}`}>
+      {meta.map((m, i) => (
+        <span key={i} data-anchor={m.anchor} className={ctx.noted(m.anchor) ? "text-persimmon" : ""}>
+          {i > 0 && ", "}
+          {i === 0 ? m.label : m.label.toLowerCase()} <span className="font-medium text-ink">{m.value}</span>
+        </span>
+      ))}
+    </p>
+  );
+}
+
+function Composer({ at, onKeep, onDrop }: { at: { anchor: Anchor; quote?: string; x: number; y: number }; onKeep: (text: string) => void; onDrop: () => void }) {
+  const [text, setText] = useState("");
+  return (
+    <div style={{ left: Math.max(16, Math.min(at.x - 340, innerWidth - 376)), top: Math.min(at.y + 8, innerHeight - 230) }} className="fixed z-50 w-[360px] rounded-xl border border-line bg-surface p-3 font-sans shadow-xl" role="dialog" aria-label="New finding">
+      <p className="text-[13px] font-semibold text-ink-2">{at.anchor}</p>
+      {at.quote && <p className="mt-1 line-clamp-2 border-l-2 border-persimmon pl-2 font-read text-[14px] text-ink-2 italic">{at.quote}</p>}
+      <textarea
+        autoFocus
+        rows={3}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            if (text.trim()) onKeep(text.trim());
+          }
+          if (e.key === "Escape") onDrop();
+        }}
+        placeholder="What must change?"
+        className="mt-2 w-full resize-none rounded-md border border-line px-2.5 py-2 text-[14px] focus:border-ink-3 focus:outline-none"
+      />
+      <div className="mt-2 flex items-center justify-between text-[12px] text-ink-3">
+        <span>Enter to add, Esc to cancel</span>
+        <span className="flex gap-2">
+          <button type="button" onClick={onDrop} className="rounded-md px-2.5 py-1 text-[13px] text-ink-2 hover:bg-line-2">
+            Cancel
+          </button>
+          <button type="button" disabled={!text.trim()} onClick={() => onKeep(text.trim())} className="rounded-md bg-ink px-2.5 py-1 text-[13px] font-medium text-white disabled:opacity-40">
+            Add finding
+          </button>
+        </span>
+      </div>
+    </div>
+  );
+}

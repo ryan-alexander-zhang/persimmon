@@ -24,24 +24,35 @@ map ──click a phase──▶ panel: runs, rounds, verdicts, artifacts ──
 ## Map
 
 ```text
-[PRD]──▶[Domain]──▶[Architecture]──┬──▶[Specs]─────────────┬──▶[Plans]──▶[Build]
-                                   └──▶[Design system]──▶[Designs]──┘
+            [PRD]
+              │
+           [Domain]
+              │
+        [Architecture]
+          ┌───┴────────┐
+      [Specs]   [Design system]
+          │            │
+          │       [Designs]
+          └───┬────────┘
+           [Plans]
+              │
+           [Build]
 ```
 
 | Part | Behaviour |
 |---|---|
 | product | a product is a Prd id; a run belongs to every Prd its input and output artifacts reach through `provenance.inputs`, and an `author-prd` run with no output yet to `<productId>-prd`; the top bar picks one, the product with a step waiting on you first, then the newest |
 | phase | one node per phase, from the pack's top-level workflows: PRD `author-prd`; Domain `domain-discovery` and its storm and derive workflows; Architecture `architect`; Design system `design-system`; Specs `spec-all`, `spec-one`; Designs `design-all`, `design-one`; Plans `plan-all`, `plan-one`; Build `build-all`, `build-one` |
-| state | from the phase's newest run: not started, running (with the review loop's round), waiting on you, approved, rejected after its last round (`passed: false`), failed with its error; a phase with several runs (one per context) says how many are done |
+| state | from the phase's newest run, the map reading top to bottom beside the panel: not started, running (with the review loop's round), waiting on you, approved, rejected after its last round (`passed: false`), failed with its error; a phase with several runs (one per context) says how many are done |
 | needs you | the only saturated colour on the map: a phase holding a TaskRun parked on a human here; the top bar counts them across products and jumps to the first |
-| edges | as the artifacts cite upstream (`23-pack-sdlc.md`): solid once the upstream phase is done |
+| edges | as the artifacts cite upstream (`23-pack-sdlc.md`), Architecture to Designs drawn through Design system: solid once the upstream phase is done |
 | refresh | every 3 s; the open panel and the review in progress are kept |
 
 ## Panel
 
 | Part | Behaviour |
 |---|---|
-| runs | the phase's runs, newest first; the newest opens |
+| runs | the phase's runs, newest first; the newest opens, on its review when one waits on you |
 | rounds | a review loop's rounds in order, each the produced artifacts and the review: one line per Validator, passed or not, its findings under it, the human's own among them; a fan-out (`spec-all`) lists its children the same way |
 | artifact | any artifact a round made opens as a document in the panel, read-only |
 | review | a TaskRun parked on a human here shows "Review"; it opens the form's Reading as documents, the Task's instructions above them, value inputs (the auditor's verdict) beside them |
@@ -70,12 +81,12 @@ Shown when every output of the parked Task is a ValidationResult value port, as 
 | Action | Behaviour |
 |---|---|
 | select | select text in the document: "Add finding" appears beside the selection |
-| note | a box opens there; Enter keeps the finding, Shift+Enter breaks the line, Escape drops it; the quoted text is marked in the document |
+| note | a box opens there with the quote; Enter keeps the finding, Shift+Enter breaks the line, Escape drops it; a passage with a finding carries a persimmon rule in the margin, and every finding is listed above the buttons, removable |
 | heading | the comment button on a subsection heading notes a finding on the whole element |
 | anchor | the message starts with the nearest `id` around the selection and the field below it (`CAP-2 description: …`), else the artifact id and the section (`claims-prd problem: …`), then the quote: `CAP-2 description: "builds a claim from lines" — split per approver tier` |
 | general | one box for what no passage holds |
 | approve | one click; findings go with it as notes, `severity: info`, `code: note_<n>` |
-| reject | enabled with one finding or more; findings `severity: error`, `code: blocking_<n>` |
+| request changes | the reject, named for what it does in a review loop; enabled with one finding or more; findings `severity: error`, `code: blocking_<n>` |
 | answer | `{passed, findings, evidence}`, evidence the RevisionRefs shown, as `askVerdict` builds it at the terminal, posted to `/api/inbox` |
 | after | the phase turns to running and its next round appears on the next refresh; a 409 says it was answered elsewhere |
 
