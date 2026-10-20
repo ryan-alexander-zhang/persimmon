@@ -72,6 +72,11 @@ describe('computeLedger', () => {
     expect(unmeasured.verdict.result).toBe('concerns')
   })
 
+  it('of several mutants of one item, a kill by a citing test counts whatever order they came in', () => {
+    const many = [{ ref: 'GD-2', result: 'invalid', failed: [], reason: 'off the line' }, { ref: 'GD-2', result: 'survived', failed: [] }, ...mutants]
+    expect(item(slice({ mutants: many }), 'GD-2')).toMatchObject({ mutant: 'killed', pinned: true, account: 'complete' })
+  })
+
   it('a mutant killed by a test that was red on the source pins nothing', () => {
     const red = [{ level: 'app', tests: tests.map((name) => ({ name, status: name === 'test_EP3_DC1_order_ids_follow_the_sequence' ? 'failed' : 'passed' })), observations }]
     expect(item(slice({ runs: red }), 'DC-1')).toMatchObject({ mutant: 'killed', account: 'open', reason: 'its mutant was killed by no test that cites it' })

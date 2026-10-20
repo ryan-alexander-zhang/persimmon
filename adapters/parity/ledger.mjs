@@ -87,6 +87,7 @@ export function computeLedger({ inventory, inventoryRef, last, slice, decisions 
   const base = last ?? { source: inventory.source, slices: [], entryPoints: [], items: [], answers: [], differences: [], unreached: [] }
   const ledger = { ...structuredClone(base), source: inventory.source, inventory: inventoryRef }
   delete ledger.verdict
+  delete ledger.rewrite // only the revision that compared a rewrite run says so
   if (rulesRef) ledger.rules = rulesRef
   if (!slice) {
     ledger.slices = decisions.slices ?? ledger.slices
@@ -115,7 +116,10 @@ export function computeLedger({ inventory, inventoryRef, last, slice, decisions 
     const itemOracle = item.eps.length ? strongest(item.eps.map((ep) => eps[ep] ?? 'static')) : best
     const citing = allRules.filter((r) => ruleRefs(r).includes(item.ref))
     const { measured, reached } = measure(item.where, coverage)
-    const run = mutants.find((m) => m.ref === item.ref)
+    // several mutants of one item: the strongest one, a kill by a citing test green on the source before any other kill
+    const killsHere = (m) => m.result === 'killed' && (m.failed ?? []).some((n) => cites(n, item.ref) && passed.some((t) => t.name === n))
+    const strength = (m) => (killsHere(m) ? 4 : { killed: 3, survived: 2, invalid: 1 }[m.result] ?? 0)
+    const run = mutants.filter((m) => m.ref === item.ref).sort((a, b) => strength(b) - strength(a))[0]
     const x = {
       reached,
       pinnable: (itemOracle === 'running' || itemOracle === 'partial') && measured && !item.volatile,
@@ -164,6 +168,8 @@ export function computeLedger({ inventory, inventoryRef, last, slice, decisions 
       return [{ test, source: observed, rewrite: now ? (now.observed ?? now.status) : 'not run', ...(why ? { cause: { rule: why.id } } : issue ? { cause: issue } : {}) }]
     })
     ledger.differences = fresh
+    const head = rewrite.runs.find((r) => r.head)?.head
+    ledger.rewrite = { tests: ran.size, ...(head ? { head } : {}) }
   }
 
   // what no Oracle reached: an entry point no test passed on, one a test red on the source left without a witness, and one
