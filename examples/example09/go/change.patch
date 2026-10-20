@@ -1,0 +1,22 @@
+diff --git a/claims/claim.go b/claims/claim.go
+index 06cb493..0775ced 100644
+--- a/claims/claim.go
++++ b/claims/claim.go
+@@ -21,8 +21,16 @@ func Draft(employee string, lines []Line) *Claim {
+ 	return &Claim{ID: "c-" + employee, Employee: employee, Lines: append([]Line(nil), lines...)}
+ }
+ 
++// ReceiptRequired is BR-2: a line at or above the threshold needs a receipt, a per diem line never does.
++func ReceiptRequired(l Line) bool {
++	if l.Category == "per-diem" {
++		return false
++	}
++	return l.Amount >= ReceiptThreshold
++}
++
+ func LineComplete(l Line) bool {
+-	return l.Category == "per-diem" || l.Amount < ReceiptThreshold || l.Receipt != ""
++	return !ReceiptRequired(l) || l.Receipt != ""
+ }
+ 
+ func (c *Claim) Complete() bool {

@@ -1,0 +1,1 @@
+{ "testRunner": "vitest", "reporters": ["json"], "jsonReporter": { "fileName": "reports/mutation/mutation.json" }, "vitest": { "configFile": "vitest.config.js" } }

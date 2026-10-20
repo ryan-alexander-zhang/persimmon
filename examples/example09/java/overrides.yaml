@@ -1,0 +1,30 @@
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: test-runner, namespace: default}
+spec:
+  type: script
+  adapter: junit/v1
+  configuration:
+    program: [mvn, -q, test]
+    junit: target/surefire-reports
+    paths: [src/main/**, src/test/**]
+    fullOn: [pom.xml]
+    coverage: {report: target/site/jacoco/jacoco.xml, min: 90}
+    mutation: {program: [sh, scripts/pit.sh, "{files}"], report: target/pit-reports/html2/report.js, min: 90, paths: [src/main/**]}
+---
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: level-runner, namespace: default}
+spec:
+  type: script
+  adapter: junit/v1
+  configuration:
+    levels:
+      integration: {program: [mvn, -q, test-compile, failsafe:integration-test], junit: target/failsafe-reports, paths: ["src/test/java/**/*IT.java", "src/main/java/claims/Store*"], fullOn: [pom.xml]}
+      api: {program: [sh, scripts/api.sh], junit: target/junit-api.xml, paths: [src/main/java/claims/Server.java, api/**]}
+      e2e: {program: [npx, playwright, test], junit: target/junit-e2e.xml, paths: [src/main/java/claims/Server.java, e2e/**, playwright.config.js], affected: [npx, playwright, test, "--only-changed={base}"]}
+---
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: auditor, namespace: default}
+spec: {type: human, adapter: cli-human/v1, configuration: {}}

@@ -1,0 +1,18 @@
+outputs:
+  record:
+    plan: submit-a-claim-plan
+    spec: submit-a-claim
+    task: T-1
+    verifies:
+      - scenario: AC-1
+        tests: [claim > a 30 EUR meals line without a receipt is not complete and names BR-2, {name: the claim is not complete, level: api}]
+      - scenario: AC-3
+        tests: [claim > a per diem line needs no receipt]
+      - scenario: AC-8
+        tests: ["claim > drafting a claim records each line's amount, date and category"]
+      - scenario: AC-9
+        tests: [claim > a 25.00 EUR taxi line without a receipt is not complete and names BR-2]
+      - scenario: QS-3
+        tests: ["claim > attaching a receipt to another employee's claim by URL is refused and logged"]
+    summary: BR-2 reads as one rule, receiptRequired, and a line is complete when it needs no receipt or has one.
+    openQuestions: []

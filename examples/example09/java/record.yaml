@@ -1,0 +1,13 @@
+outputs:
+  record:
+    plan: submit-a-claim-plan
+    spec: submit-a-claim
+    task: T-1
+    verifies:
+      - {scenario: AC-1, tests: [aMealsLineOf30WithoutAReceiptIsNotComplete, {name: the claim is not complete, level: api}]}
+      - {scenario: AC-3, tests: [aPerDiemLineNeedsNoReceipt]}
+      - {scenario: AC-8, tests: [draftingAClaimRecordsEachLine]}
+      - {scenario: AC-9, tests: [aTaxiLineOf25WithoutAReceiptIsNotComplete]}
+      - {scenario: QS-3, tests: [attachingAReceiptToAnotherEmployeesClaimIsRefusedAndLogged]}
+    summary: BR-2 reads as one rule, receiptRequired, and a line is complete when it needs no receipt or has one.
+    openQuestions: []

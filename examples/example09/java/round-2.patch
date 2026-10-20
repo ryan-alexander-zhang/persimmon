@@ -1,0 +1,14 @@
+diff --git a/src/test/java/claims/ClaimTest.java b/src/test/java/claims/ClaimTest.java
+index 2b27747..692463a 100644
+--- a/src/test/java/claims/ClaimTest.java
++++ b/src/test/java/claims/ClaimTest.java
+@@ -15,6 +15,9 @@ class ClaimTest {
+   @Test void draftingAClaimRecordsEachLine() {
+     assertEquals(List.of(new Claim.Line(12, "taxi", null)), new Claim("e1", List.of(new Claim.Line(12, "taxi", null))).lines);
+   }
++  @Test void aMealsLineBelowTheThresholdNeedsNoReceipt() {
++    assertTrue(new Claim("e1", List.of(new Claim.Line(24, "meals", null))).complete());
++  }
+   @Test void aTaxiLineOf25WithoutAReceiptIsNotComplete() {
+     assertFalse(new Claim("e1", List.of(new Claim.Line(25, "taxi", null))).complete());
+   }

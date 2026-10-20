@@ -1,0 +1,22 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>example</groupId><artifactId>claims</artifactId><version>1</version>
+  <properties><maven.compiler.release>21</maven.compiler.release><project.build.sourceEncoding>UTF-8</project.build.sourceEncoding></properties>
+  <dependencies>
+    <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><version>5.11.4</version><scope>test</scope></dependency>
+    <dependency><groupId>org.testcontainers</groupId><artifactId>testcontainers</artifactId><version>2.0.5</version><scope>test</scope></dependency>
+    <dependency><groupId>org.slf4j</groupId><artifactId>slf4j-simple</artifactId><version>2.0.16</version><scope>test</scope></dependency>
+  </dependencies>
+  <build><plugins>
+    <plugin><artifactId>maven-surefire-plugin</artifactId><version>3.5.2</version></plugin>
+    <plugin><artifactId>maven-failsafe-plugin</artifactId><version>3.5.2</version></plugin>
+    <plugin><groupId>org.jacoco</groupId><artifactId>jacoco-maven-plugin</artifactId><version>0.8.13</version>
+      <executions><execution><id>agent</id><goals><goal>prepare-agent</goal></goals></execution><execution><id>report</id><phase>test</phase><goals><goal>report</goal></goals></execution></executions></plugin>
+    <plugin><groupId>org.pitest</groupId><artifactId>pitest-maven</artifactId><version>1.19.1</version>
+      <dependencies>
+        <dependency><groupId>org.pitest</groupId><artifactId>pitest-junit5-plugin</artifactId><version>1.2.2</version></dependency>
+        <dependency><groupId>io.github.wmaarts</groupId><artifactId>pitest-mutation-testing-elements-plugin</artifactId><version>0.6.5</version></dependency>
+      </dependencies>
+      <configuration><outputFormats><param>HTML2</param></outputFormats><timestampedReports>false</timestampedReports><excludedTestClasses><param>*IT</param></excludedTestClasses></configuration></plugin>
+  </plugins></build>
+</project>

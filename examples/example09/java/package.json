@@ -1,0 +1,6 @@
+{
+  "name": "claims-java-e2e",
+  "private": true,
+  "type": "module",
+  "devDependencies": { "@playwright/test": "1.64.1" }
+}

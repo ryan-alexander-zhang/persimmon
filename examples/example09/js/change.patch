@@ -1,0 +1,20 @@
+diff --git a/src/claim.js b/src/claim.js
+index c502f77..a122554 100644
+--- a/src/claim.js
++++ b/src/claim.js
+@@ -3,8 +3,14 @@ export const RECEIPT_THRESHOLD = 25
+ 
+ export const draftClaim = (employee, lines) => ({ id: `c-${employee}`, employee, lines: lines.map((l) => ({ ...l })), log: [] })
+ 
++/** BR-2: a line at or above the threshold needs a receipt, a per diem line never does. */
++export function receiptRequired(line) {
++  if (line.category === 'per-diem') return false
++  return line.amount >= RECEIPT_THRESHOLD
++}
++
+ export function lineComplete(line) {
+-  return line.category === 'per-diem' || line.amount < RECEIPT_THRESHOLD || Boolean(line.receipt)
++  return !receiptRequired(line) || Boolean(line.receipt)
+ }
+ 
+ export function claimComplete(claim) {

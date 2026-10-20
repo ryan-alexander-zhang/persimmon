@@ -1,0 +1,20 @@
+diff --git a/src/main/java/claims/Claim.java b/src/main/java/claims/Claim.java
+index 111d271..a3aeb3e 100644
+--- a/src/main/java/claims/Claim.java
++++ b/src/main/java/claims/Claim.java
+@@ -20,8 +20,14 @@ public final class Claim {
+     this.lines = new ArrayList<>(lines);
+   }
+ 
++  /** BR-2: a line at or above the threshold needs a receipt, a per diem line never does. */
++  public static boolean receiptRequired(Line line) {
++    if (line.category().equals("per-diem")) return false;
++    return line.amount() >= RECEIPT_THRESHOLD;
++  }
++
+   public static boolean lineComplete(Line line) {
+-    return line.category().equals("per-diem") || line.amount() < RECEIPT_THRESHOLD || line.receipt() != null;
++    return !receiptRequired(line) || line.receipt() != null;
+   }
+ 
+   public boolean complete() {

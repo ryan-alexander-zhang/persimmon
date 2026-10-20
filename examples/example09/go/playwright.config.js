@@ -1,0 +1,1 @@
+export default { testDir: 'e2e', reporter: [['junit', { outputFile: 'junit-e2e.xml' }]], webServer: { command: 'go build -o bin/server ./cmd/server && bin/server 3993', port: 3993 }, use: { baseURL: 'http://localhost:3993' } }

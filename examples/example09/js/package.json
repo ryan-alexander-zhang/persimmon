@@ -1,0 +1,13 @@
+{
+  "name": "claims-js",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@stryker-mutator/core": "10.0.0",
+    "@stryker-mutator/vitest-runner": "10.0.0",
+    "@vitest/coverage-v8": "3.2.7",
+    "testcontainers": "12.2.1",
+    "vitest": "3.2.7"
+  }
+}

@@ -1,0 +1,1 @@
+export default { testDir: 'e2e', reporter: [['junit', { outputFile: 'target/junit-e2e.xml' }]], webServer: { command: 'mvn -q compile && java -cp target/classes claims.Server 3995', port: 3995 }, use: { baseURL: 'http://localhost:3995' } }

@@ -1,0 +1,8 @@
+bin
+node_modules
+junit*.xml
+cover.out
+coverage.xml
+gremlins.json
+test-results
+.persimmon

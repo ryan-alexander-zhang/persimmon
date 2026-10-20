@@ -1,0 +1,30 @@
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: test-runner, namespace: default}
+spec:
+  type: script
+  adapter: junit/v1
+  configuration:
+    program: [sh, scripts/unit.sh]
+    junit: junit.xml
+    paths: [claims/**, cmd/**]
+    fullOn: [go.mod, go.sum]
+    coverage: {report: coverage.xml, min: 90}
+    mutation: {program: [gremlins, unleash, --timeout-coefficient=30, --output=gremlins.json, ./claims], report: gremlins.json, min: 90, paths: [claims/**]}
+---
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: level-runner, namespace: default}
+spec:
+  type: script
+  adapter: junit/v1
+  configuration:
+    levels:
+      integration: {program: [gotestsum, --junitfile, junit-int.xml, --, -tags, integration, -run, Container, ./claims/], junit: junit-int.xml, paths: [claims/store*], fullOn: [go.mod, go.sum]}
+      api: {program: [sh, scripts/api.sh], junit: junit-api.xml, paths: [cmd/server/**, api/**]}
+      e2e: {program: [npx, playwright, test], junit: junit-e2e.xml, paths: [cmd/server/**, e2e/**, playwright.config.js], affected: [npx, playwright, test, "--only-changed={base}"]}
+---
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: auditor, namespace: default}
+spec: {type: human, adapter: cli-human/v1, configuration: {}}

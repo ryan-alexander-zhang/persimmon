@@ -1,0 +1,30 @@
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: test-runner, namespace: default}
+spec:
+  type: script
+  adapter: junit/v1
+  configuration:
+    program: [npx, vitest, run, --reporter=junit, --outputFile=junit.xml, --coverage.enabled]
+    junit: junit.xml
+    paths: [src/**, test/**]
+    affected: [npx, vitest, related, --run, --reporter=junit, --outputFile=junit.xml, --coverage.enabled, "{files}"]
+    coverage: {report: coverage/cobertura-coverage.xml, min: 90}
+    mutation: {program: [npx, stryker, run, "--mutate={files}"], report: reports/mutation/mutation.json, min: 90, paths: [src/**]}
+---
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: level-runner, namespace: default}
+spec:
+  type: script
+  adapter: junit/v1
+  configuration:
+    levels:
+      integration: {program: [npx, vitest, run, --config, vitest.int.config.js, --reporter=junit, --outputFile=junit-int.xml], junit: junit-int.xml, paths: [test-int/**, src/store*]}
+      api: {program: [node, scripts/api.mjs], junit: junit-api.xml, paths: [src/server.js, api/**]}
+      e2e: {program: [npx, playwright, test], junit: junit-e2e.xml, paths: [src/server.js, e2e/**, playwright.config.js], affected: [npx, playwright, test, "--only-changed={base}"]}
+---
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: auditor, namespace: default}
+spec: {type: human, adapter: cli-human/v1, configuration: {}}

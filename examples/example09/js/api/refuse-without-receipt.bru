@@ -1,0 +1,21 @@
+meta {
+  name: POST claims refuses a meals line without a receipt
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base}}/claims
+  body: json
+  auth: none
+}
+
+body:json {
+  { "employee": "e1", "lines": [{ "amount": 30, "category": "meals" }] }
+}
+
+tests {
+  test("the claim is not complete", function () {
+    expect(res.getBody().complete).to.equal(false);
+  });
+}

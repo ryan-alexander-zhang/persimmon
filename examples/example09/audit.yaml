@@ -1,0 +1,2 @@
+outputs:
+  audit: {kind: value, value: {passed: true, findings: [], evidence: []}}
