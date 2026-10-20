@@ -177,6 +177,7 @@ One per Source system, a revision per step per Slice.
 | `differences[]` | `{test, source, rewrite, cause?: {rule BR-n} \| {issue}}` |
 | `unreached[]` | `{ref, slice, why}` |
 | `driver?`, `concerns?` | `{confirmed}`, `{accepted, reason}`: `review-parity`'s decisions, as given |
+| `rewrite?` | `{tests, head?}`: how many recorded tests the rewrite run compared, and the rewrite's commit; absent until `parity`, so the parity gate never passes a ledger no rewrite was compared against |
 | `verdict?` | `{result: pass\|concerns\|fail, rule}`: the Slice's, over its items, unreached entries and differences; absent on the Survey's |
 
 `items[].tests` are the tests whose names cite the item or its entry point, an id cited by naming it
@@ -280,7 +281,7 @@ What the agents are taught, as Prompts the pack ships, one per Task, overridable
 | Tasks `audit-recovery`, `audit-driver` | Executor `auditor`; value `audit`: the Prd against the inventory and the tests (a rule the tests contradict, a capability with no entry point); the rewrite driver against `driver-rules` |
 | Human Tasks `cut-slices`, `decide-recovery`, `review-parity` | `cli-human/v1`; each answers the `decisions` value its row of Decisions says, its schema written inline (a port schema takes no `$ref` beyond the well-known ones, `10-ports.md`); the form shows the audit beside the artifacts; `produce` runs each round, so the human answers once per round |
 | The Tester's Tasks | the SDLC pack's Executor `tester` is a human one by default (`cli-human/v1`, the developer's agent in a fresh subagent), so its Tasks answer values, never `artifacts`; a Namespace that puts it on `claude-code/v1` read-only may find reads outside the workspace refused, and the source is read through the `source` input's `locator.path` |
-| Task `write-rewrite-driver` | Executor `tester`; inputs `suite`, the Slice's Designs, `feedback`; output value `written` (the driver's files) |
+| Task `write-rewrite-driver` | Executor `tester`; inputs `suite`, the Slice's Designs, `feedback`; output value `written` (the driver's files); `written.driver` is `{methods[] {name, entryPoint EP-n, element EL-n}}`, one method per operation of the source's driver, each citing the entry point it serves and the Design element it lands on |
 | Task `run-rewrite` | `parity-run/v1`: the suite's tests through the rewrite's driver (or the source's, the interface kept) against the rewrite's app, started and reset by the TestHarness's `app`; value `runs` as `run-source`'s |
 | Task `compute-ledger` | `parity-run/v1`; inputs `inventory`, `sourceIndex`, `written`, `runs` (the source's, and the rewrite's in `parity`), `coverage`, `mutantResults`, `rules?`, `decisions`, the last `ledger`; output its next revision |
 | Gates | `survey-gate`, `inventory-gate`, `characterize-gate`, `recover-gate`, `parity-gate`: pure, over the loop's artifacts and values |
@@ -316,9 +317,9 @@ Adapter process answering one Role (`adapters/lib/agent.mjs` serves `executor` o
 | `rule-unsourced` | an `active` rule whose `source` starts with neither `inventory:` nor `decision:` | same |
 | `capability-dropped` | a `CAP-n` of the product's last Prd absent from the new one and from its `nonGoals` | same |
 | `disposition-mismatch` | the Prd or the rules disagree with `decisions` | same |
-| `item-unaccounted` | an `open` item of the Slice after the decisions | same |
+| `item-unaccounted` | an `open` item of any Slice after the decisions: an earlier Slice's item the inventory dropped stays open until decided, and each recovery gate sees it | same |
 | `entry-point-uncited` (warning) | an entry point of the Slice no capability description and no `nonGoals` entry names | same |
-| `expected-moved` | a test's expected value no longer the source's recorded answer, and no `change` rule cites an item the test targets | `ledger-closure`, `parity-consistency` |
+| `expected-moved` | a test's expected value no longer the source's recorded answer, and no `change` rule cites an item the test targets | `ledger-closure` (on the rewrite, a moved answer is a difference) |
 | `driver-uncited` | a rewrite driver method citing no `EP-n` or no Design element; an entry point of the Slice with no method and no `drop` | `parity-consistency` |
 | `parity-unexplained` | a difference whose test targets no `change` or `drop` rule's item and no Issue cites | same |
 | `parity-verdict` | the ledger's verdict `fail`, or `concerns` that `decisions.concerns` did not accept | same |
