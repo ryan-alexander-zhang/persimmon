@@ -659,6 +659,8 @@ describe('junit/v1', () => {
     expect(coverage({ workspace: dir, report: 'jacoco.xml', min: 90, changes: deep, paths: ['src/**'] })).toEqual({ min: 90, covered: 1, total: 1, uncovered: [] })
     writeFileSync(join(dir, 'jacoco-own.xml'), '<?xml version="1.0"?><!DOCTYPE report PUBLIC "-//JACOCO//DTD Report 1.1//EN" "report.dtd"><report name="claims"><package name="com/x"><class name="com/x/Claim" sourcefilename="Claim.java"/><sourcefile name="Claim.java"><line nr="3" mi="2" ci="0" mb="0" cb="0"/><line nr="4" mi="0" ci="1" mb="0" cb="0"/></sourcefile></package></report>')
     expect(coverage({ workspace: dir, report: 'jacoco-own.xml', min: 90, changes: deep, paths: ['src/**'] })).toEqual({ min: 90, covered: 0, total: 1, uncovered: [{ file: 'src/main/java/com/x/Claim.java', lines: '3' }] }) // JaCoCo's own XML
+    writeFileSync(join(dir, 'report.js'), `document.querySelector('mutation-test-report-app').report = ${JSON.stringify({ schemaVersion: '2', files: { 'com/x/Claim.java': { mutants: [mutant(3, 'Killed')] } } })};`)
+    expect(mutation({ workspace: dir, report: 'report.js', min: 90, changes: deep, paths: ['src/**'], command: [] })).toMatchObject({ killed: 1, score: 100 }) // PIT's html2 report
     const twins = new Map([['a/Claim.java', new Set([3])], ['b/Claim.java', new Set([3])]])
     writeFileSync(join(dir, 'twin.json'), JSON.stringify({ files: { 'x/Claim.java': { mutants: [mutant(3, 'Survived')] } } }))
     expect(mutation({ workspace: dir, report: 'twin.json', min: 90, changes: twins, command: [] }).error).toContain('resolves to no changed file')

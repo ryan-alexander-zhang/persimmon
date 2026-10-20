@@ -88,11 +88,14 @@ export function coverage({ workspace, report, min, changes, paths }) {
 
 const statuses = { Killed: 'killed', Survived: 'survived', NoCoverage: 'noCoverage', Timeout: 'timeout' } // errors and ignored ones score nothing
 
-/** The mutants on the Change set's lines: counts, the score and the survivors, or {min, command, error}. Every mutant without a Change set. */
+/** The mutants on the Change set's lines: counts, the score and the survivors, or {min, command, error}. Every mutant without a Change set.
+ * The report is mutation-testing-elements JSON, or a script assigning it. */
 export function mutation({ workspace, report, min, changes, paths, command }) {
   let json
   try {
-    json = JSON.parse(readFileSync(resolve(workspace, report), 'utf8'))
+    const text = readFileSync(resolve(workspace, report), 'utf8')
+    // PIT's plugin writes the report as a script assigning it (html2/report.js): the JSON is the object it assigns
+    json = /^\s*[{[]/.test(text) ? JSON.parse(text) : JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1))
   } catch (e) {
     return { min, command, error: `${report} not read: ${e.message}` }
   }
