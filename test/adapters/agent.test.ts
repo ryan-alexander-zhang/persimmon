@@ -5,6 +5,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSyn
 import { createServer, type Server } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { parseAllDocuments } from 'yaml'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 // @ts-expect-error plain module
 import { skillDigest } from '../../adapters/lib/skills.mjs'
@@ -718,6 +719,59 @@ describe('junit/v1', () => {
     const w = await adapter('junit', { id: 64, op: 'execute', payload: wrong })
     expect(last(w)).toMatchObject({ ok: false, error: { code: 'invalid_input', message: expect.stringContaining('artifacts output with levels') } })
     rmSync(dir, { recursive: true })
+  })
+})
+
+describe('testdesign/v1', () => {
+  const docs = parseAllDocuments(readFileSync(join(root, 'docs/design/examples/sdlc-domain.yaml'), 'utf8')).map((d) => d.toJS()).filter(Boolean)
+  const ref = (kind: string, id: string) => ({ apiVersion: 'sdd.persimmon.ai/v1', kind, namespace: 'demo', id, revision: 1 })
+  const art = (kind: string) => {
+    const d = docs.find((x) => x.kind === kind)
+    stored[d.spec.identity.id] = d.spec.content
+    return { kind: 'artifact', ref: ref(kind, d.spec.identity.id) }
+  }
+  const task = (outputs: Record<string, unknown>, outputIds = {}) => ({ instructions: 'x', parameters: {}, sideEffects: 'none', outputs, outputSchemas: {}, outputIds })
+  const p = (inputs: Record<string, unknown>, t: unknown, configuration = {}) => payload({ executor: { type: 'script', configuration, security: { networkAccess: 'deny' } }, credentials: {}, context: [], inputs, task: t })
+  const named = (qid: string, status = 'passed') => ({ classname: 'c', name: `${qid} x`, status })
+
+  it('describes a script type that runs no program', async () => {
+    const d = last(await adapter('testdesign', { id: 90, op: 'describe', payload: {} }))
+    expect(d.result).toMatchObject({ adapterId: 'testdesign/v1', executorTypes: ['script'], contextKinds: [], skillFormats: [] })
+  })
+
+  it('answers a round\'s cases from the TestDesign, the Plan task and the Spec', async () => {
+    const inputs = { plan: art('Plan'), spec: art('Spec'), testDesign: art('TestDesign'), taskId: { kind: 'value', value: 'T-1' } }
+    const r = last(await adapter('testdesign', { id: 91, op: 'execute', payload: p(inputs, task({ cases: { type: { kind: 'value', schema: { type: 'object' } } } })) }))
+    expect(r.result.outputs.cases).toEqual({ kind: 'value', value: { unit: ['CAP-1/TC-3', 'CAP-1/TC-8', 'CAP-1/TC-9'], integration: [], api: ['CAP-1/TC-1', 'CAP-1/TC-10'], e2e: [], manual: [], write: { api: true, e2e: false } } })
+    const none = last(await adapter('testdesign', { id: 92, op: 'execute', payload: p({ plan: inputs.plan, spec: inputs.spec, taskId: inputs.taskId }, task({ cases: { type: { kind: 'value', schema: { type: 'object' } } } })) }))
+    expect(none.result.outputs.cases.value.write).toEqual({ api: false, e2e: false }) // no TestDesign: the build of 35-build-process.md
+  })
+
+  it('publishes the TestReport of a built Plan, its thresholds the Executor\'s', async () => {
+    const qids = docs.find((x) => x.kind === 'TestDesign').spec.content.cases.map((c: { id: string; level: string }) => [c.level, `CAP-1/${c.id}`])
+    stored['p-final'] = { command: ['t'], exitCode: 0, head: 'abc', tests: qids.filter(([l]: string[]) => l === 'unit').map(([, q]: string[]) => named(q)), selection: { mode: 'full', reason: 'plan tier' } }
+    // TC-2, a P1 api case, has no test: one of five P1 cases not ok
+    stored['p-final-levels-1'] = { command: ['t'], exitCode: 0, level: 'api', tests: qids.filter(([l, q]: string[]) => l === 'api' && q !== 'CAP-1/TC-2').map(([, q]: string[]) => named(q)), selection: { mode: 'full', reason: 'plan tier' } }
+    stored['p-t-1'] = { task: 'T-1', summary: 'x', openQuestions: [], defects: [{ id: 'D-1', observed: 'cents dropped', expected: 'x', where: 'y' }] }
+    const inputs = {
+      plan: art('Plan'), spec: art('Spec'), architecture: art('Architecture'), testDesign: art('TestDesign'),
+      final: { kind: 'artifact', ref: ref('TestOutcome', 'p-final') }, finals: { kind: 'artifacts', refs: [ref('TestOutcome', 'p-final-levels-1')] },
+      records: { kind: 'artifacts', refs: [ref('AcceptanceRecord', 'p-t-1')] }, evaluation: { kind: 'value', value: { summary: 'TC-2 did not run', residualRisks: ['receipt upload untested'] } },
+    }
+    calls.length = 0
+    const out = { report: { type: { kind: 'artifact', artifactKind: { apiVersion: 'sdd.persimmon.ai/v1', kind: 'TestReport' } } } }
+    const r = last(await adapter('testdesign', { id: 93, op: 'execute', payload: p(inputs, task(out, { report: 'submit-a-claim-plan-test-report' })) }))
+    expect(r.result.outputs.report.ref).toMatchObject({ kind: 'TestReport', id: 'submit-a-claim-plan-test-report' })
+    const content = (calls.find((c) => c.name === 'publishArtifact')!.args as { content: any }).content
+    expect(content).toMatchObject({ plan: 'submit-a-claim-plan', spec: 'submit-a-claim', testDesign: 'submit-a-claim-tests', head: 'abc', verdict: { result: 'concerns', rule: 'P0 100%, P1 80%, all 90% ok: P1 below 90%' }, defects: [{ record: 'p-t-1', defect: 'D-1', observed: 'cents dropped' }], evaluation: { summary: 'TC-2 did not run' } })
+    calls.length = 0
+    await adapter('testdesign', { id: 94, op: 'execute', payload: p(inputs, task(out, { report: 'r' }), { thresholds: { p1: 80 } }) })
+    expect((calls.find((c) => c.name === 'publishArtifact')!.args as { content: any }).content.verdict).toMatchObject({ result: 'pass', thresholds: { p0: 100, p1: 80, p1Concerns: 80, overall: 80 } })
+  })
+
+  it('refuses a Task with neither output', async () => {
+    const r = last(await adapter('testdesign', { id: 95, op: 'execute', payload: p({}, task({ x: { type: { kind: 'value', schema: {} } } })) }))
+    expect(r).toMatchObject({ ok: false, error: { code: 'invalid_input', message: expect.stringContaining('a cases or a report output') } })
   })
 })
 

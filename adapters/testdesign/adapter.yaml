@@ -1,0 +1,10 @@
+# Script Executor Adapter for the Test process (39-test-process.md): a build round's cases and a built Plan's TestReport,
+# computed from the TestDesign. persimmon init resolves the script path.
+apiVersion: persimmon.ai/v1
+kind: Adapter
+metadata: {name: testdesign-v1}
+spec:
+  id: testdesign/v1
+  roles: [executor]
+  transport: stdio
+  command: [node, adapters/testdesign/index.mjs]
