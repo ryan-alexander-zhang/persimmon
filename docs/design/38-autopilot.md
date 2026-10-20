@@ -31,6 +31,7 @@ autopilot = autopilot-doc then autopilot-code
 | a human Gate (`confirm-prd`, `confirm-storming`, `confirm-architecture`, `confirm-design-system`) is answered by a new Reviewer subagent per form, given only the form path and the review checklist | skill |
 | the Reviewer subagent settles a `Q-n` only a domain owner could by rejecting with the decision as a finding, as the human would (`example07` step 2); every such decision is in the report | skill |
 | a loop out of rounds, a Failed run or a reconcile error stops the Autopilot with a report: it never retries by hand around a Gate | skill |
+| before the first `build-all` the orchestrator does what the pack leaves to the developer: when the project has no app, it scaffolds one on the Architecture's technology and Adrs, with a unit test command that writes JUnit XML, and overrides Executor `test-runner` with that command; the project must already be a git repository | skill |
 | a `D-n` whose task passed becomes an `Issue`, its fix a `build-one` (a Spec revision first when the Spec was wrong), then the Issue's `resolved` revision; one fix attempt per Issue, then stop | skill |
 | `plan_regressed` is an Issue with the red test as its `reproduction`, fixed the same way | skill |
 | the report names every Prd, Architecture, Adr, Spec, Plan and AcceptanceRecord revision, every `Q-n` an agent resolved, every Issue and the files changed; the developer reviews the diff and commits | skill |
@@ -54,5 +55,9 @@ autopilot = autopilot-doc then autopilot-code
 - Shipped as `files/.claude/skills/<name>/SKILL.md`, so `init` places them and updates untouched
   ones like `AGENTS.md`; `init` now places files below `files/` at their relative path. Claude Code
   only: Codex reads `.agents/skills/`, a second copy added when a Codex user asks.
+- An idea has no app, and the pack expects the developer's own app and test setup, which a builder
+  never changes. The orchestrator stands in for the developer there too: one scaffold from the
+  Architecture and its Adrs, one `test-runner` override, before the baseline. Only the unit level:
+  the other levels are added when a quality scenario needs them.
 - The Autopilot never runs git, as no agent in the pack does: the developer commits the diff once,
   after reading the report.
