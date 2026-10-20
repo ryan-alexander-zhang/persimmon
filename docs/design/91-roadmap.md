@@ -61,7 +61,7 @@ later     eager joins · retention policy · policy resource · external event s
 | the `release` test tier: a full mutation run, the full `e2e` matrix, `release` quality scenarios | `36-test-levels.md` | needs a release process; v1 declares the tier only |
 | a Change set per task, from a tree snapshot before each `implement` | `36-test-levels.md` | v1: measured from the baseline's `head`, so a later task's holds the earlier tasks' changes |
 | test levels in parallel, each in its own workspace | `36-test-levels.md` | v1: one after the other in the round's workspace, cheapest first |
-| coverage from JaCoCo XML or lcov; mutation for Python's tools | `36-test-levels.md` | v1: Cobertura XML and mutation-testing-elements JSON only; a project converts |
+| coverage from lcov or Go's coverprofile; mutation for Python's tools | `36-test-levels.md` | v1: Cobertura and JaCoCo XML; mutation-testing-elements JSON, PIT's `report.js` and Gremlins' JSON; Go converts its profile with `gocover-cobertura` |
 
 ## Layer 3
 

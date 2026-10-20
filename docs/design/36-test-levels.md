@@ -60,8 +60,8 @@ program. A level's configuration:
 | `paths[]` | globs, relative to the workspace, of the code this level tests; default `["**"]` |
 | `fullOn[]` | globs whose change runs the level in full: lockfiles, build files, the test setup; default none |
 | `affected[]` | optional: the program narrowed to the Change set; `{base}` becomes the baseline's `head`, a `{files}` argument one argument per changed file under `paths`, `{files}` inside an argument those files joined by commas; absent, the level runs `program` |
-| `coverage?` | `{report, min}`: a Cobertura XML file the program writes, the minimum percent of the Change set's executable lines it covers; `unit` only |
-| `mutation?` | `{program, report, min, paths?}`: the mutation command, `{files}` as in `affected` (Stryker's `--mutate={files}`), the mutation-testing-elements JSON it writes, the minimum score over the Change set's lines, the source to mutate (default the level's `paths`; never the tests); `unit` only, run after the tests when `newRed` is 0 and a changed file under its `paths` is left |
+| `coverage?` | `{report, min}`: a Cobertura or JaCoCo XML file the program writes, the minimum percent of the Change set's executable lines it covers; `unit` only |
+| `mutation?` | `{program, report, min, paths?}`: the mutation command, `{files}` as in `affected` (Stryker's `--mutate={files}`), the report it writes (mutation-testing-elements JSON, PIT's `html2/report.js`, or Gremlins' JSON), the minimum score over the Change set's lines, the source to mutate (default the level's `paths`; never the tests); `unit` only, run after the tests when `newRed` is 0 and a changed file under its `paths` is left |
 
 The Change set is `git diff --unified=0 <baseline head>` plus every untracked, unignored file
 (`git ls-files --others --exclude-standard`), all its lines changed. A Task with a record runs a
@@ -143,9 +143,9 @@ The table in `35-build-process.md` holds, read per level. New or changed:
 - Coverage and the mutation score are measured over the Change set: a whole-repository minimum fails
   every task of a project that starts below it, as a red test the baseline had would without the
   baseline. The tools' own thresholds are whole-repository, so persimmon computes the changed lines
-  itself from a Cobertura report, with `@xmldom/xmldom` already in `junit/v1`. JaCoCo's own XML is
-  not read; a project converts it. A changed file the report omits counts no line, so a project
-  reports every source file (vitest's `coverage.all`, coverage.py's `source`). Found in design review.
+  itself from a Cobertura or JaCoCo report, with `@xmldom/xmldom` already in `junit/v1`. A changed file
+  the report omits counts no line, so a project reports every source file (vitest's `coverage.all`,
+  coverage.py's `source`). Found in design review.
 - The minimums default to 90 percent, coverage and mutation both, as the user set them. A mutation
   score that high on changed code meets equivalent mutants, which no test can kill; a project lowers
   `min` in its override, and the survivor list in `mutation-low` says which mutants to judge. Found
@@ -153,7 +153,8 @@ The table in `35-build-process.md` holds, read per level. New or changed:
 - Mutation is a measure in the `unit` TestOutcome, as coverage is, not its own kind, Adapter and
   step: it runs the unit tests, only once they have no new red, and holds the `unit` level to a
   minimum. Its report is mutation-testing-elements JSON, read with `JSON.parse`; Stryker, PIT
-  (through its plugin), Stryker.NET and Infection write it, Python's tools do not, a known gap. A
+  (through its plugin), Stryker.NET and Infection write it; Gremlins' own JSON is read for Go;
+  Python's tools write neither, a known gap. A
   `MutationOutcome` kind, `mutation/v1` and a step of their own were the first cut, found in
   implementation to add a kind, an Adapter and a Gate input for one more number.
 - Levels run one after the other, cheapest first, and a level after a new red is held: a red `unit`
@@ -181,6 +182,31 @@ The table in `35-build-process.md` holds, read per level. New or changed:
   `untouched`; `api` in full for the test the record named, `{name, level: api}`. The plan tier ran
   every level in full, the Gate passed, the run succeeded. Bruno names a case by its `test()` with
   the request URL as `classname`, so a record names it by `name`. Found in UAT.
+- A report path resolves to the changed file it is a suffix of, or that is a suffix of it, and a
+  report naming a file like a changed one that still resolves to none is an error: PIT names
+  `com/x/Claim.java` and Gremlins `claim.go`, not the Change set's `src/main/java/com/x/Claim.java`
+  or `claims/claim.go`, so the reader counted no line and the minimum passed unmeasured. A `roots`
+  setting was weighed and dropped: the suffix is unambiguous in every report met, and an ambiguous
+  one is the error. Found in design review, after the JavaScript trial.
+- JaCoCo's own XML and Gremlins' own JSON are read as they are, not converted: no maintained,
+  packaged tool converts JaCoCo to Cobertura, and no Go mutation tool writes mutation-testing-elements,
+  so a converter would leave Java with no coverage minimum and Go with no mutation one. Each reader
+  is a few lines on what the others already score. PIT's plugin writes its report only as a script
+  assigning it, `html2/report.js`; the reader takes the object it assigns. Go's coverage still goes
+  through `gocover-cobertura`, a `go install` beside `gotestsum`, which Go's JUnit already needs.
+  Found in UAT.
+- A mutation run that tested none of the change is an error, `mutation-exit`, not a score: mutants on
+  the changed lines of which none ran (skipped, ignored, not compiling), or of which every one timed
+  out. Gremlins' `--diff` compares commits and skipped every mutant of the uncommitted change; with
+  Go's cached test results its timeout was too tight and every mutant timed out, and a timeout
+  counts as detected, so both read as a pass. Found in UAT.
+- Proven live per language, no agent, `build-all` over `T-1`, `examples/example09` replaying each
+  from a fresh copy. Java: Maven, JUnit 5, Failsafe with Testcontainers 2.0.5 (1.x cannot reach
+  Docker 29), JaCoCo 3 of 3 changed lines, PIT through a script mapping files to classes: round one
+  refused `mutation-low` at 87.5 percent by a real survivor, round two with the test that kills it
+  at 100, the plan tier passed. Go: `gotestsum`, `gocover-cobertura` 6 of 6, Gremlins over the
+  package with `--timeout-coefficient=30`, testcontainers-go, passed in one round. JavaScript re-run on
+  the final readers, unchanged. Bruno and Playwright served all three. Found in UAT.
 
 ## Units
 
@@ -193,3 +219,4 @@ The table in `35-build-process.md` holds, read per level. New or changed:
 7. The `plan` tier: `run-final`, `checkRegression`, `plan-regression`, `regression-gate`, `plan_regressed` in `build-all`; AGENTS.md section 6.
 8. `audit-rules`: a boundary-crossing scenario proven by a `unit` test is `test-unfit`.
 9. A live UAT: a project with all four levels and Stryker, a task touching only the domain (`unit` and mutation run, the rest `untouched`), then one touching the API.
+10. Per language: a report path by suffix; JaCoCo's XML, PIT's `report.js` and Gremlins' JSON read as they are; a mutation run that tested none of the change refused; `examples/example09` in JavaScript, Java and Go.
