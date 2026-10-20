@@ -333,6 +333,7 @@ Adapter process answering one Role (`adapters/lib/agent.mjs` serves `executor` o
 | `entry-point-uncited` (warning) | an entry point of the Slice no capability description and no `nonGoals` entry names | same |
 | `expected-moved` | a test's expected value no longer the source's recorded answer, and no `change` rule cites an item the test targets | `ledger-closure` (on the rewrite, a moved answer is a difference) |
 | `driver-uncited` | a rewrite driver method citing no `EP-n` or no Design element; an entry point of the Slice with no method and no `drop` | `parity-consistency` |
+| `driver-unconfirmed` | a rewrite driver that is not `kept` and that `review-parity` did not confirm: one that computes moves a rule into test code | `parity-consistency` |
 | `parity-unexplained` | a difference whose test targets no `change` or `drop` rule's item and no Issue cites | same |
 | `parity-verdict` | the ledger's verdict `fail`, or `concerns` that `decisions.concerns` did not accept | same |
 
