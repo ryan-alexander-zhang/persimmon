@@ -1,12 +1,12 @@
-// End to end on SQLite (40-pack-rewrite.md): the Survey, one Slice's inventory and its characterization, through the engine,
-// parity-run/v1 and parity/v1 for real. The readers and the auditor are humans by a Namespace override, answered with
-// `persimmon complete --file`, as the Tester is by default. The source is a git checkout beside the project; the suite runs
-// it from the project, and its mutant runs in a scratch clone.
+// End to end on SQLite (40-pack-rewrite.md): the Survey, then one Slice through inventory, characterization, recovery and parity,
+// with the engine, parity-run/v1 and parity/v1 for real. The readers, the auditor and the Prd agent are humans by a Namespace
+// override, answered with `persimmon complete --file`, as the Tester is by default. The source is a git checkout beside the
+// project; the suite runs it from the project, its mutant in a scratch clone, and the rewrite is the project's own copy.
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { parse, stringify } from 'yaml'
+import { parse, parseAllDocuments, stringify } from 'yaml'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { runCli } from '../../src/cli/index.js'
 
@@ -15,7 +15,8 @@ const cart = ['export function add(qty) {', '  if (qty > 0) {', '    return { ok
 const suite = `
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
-const { add } = await import(pathToFileURL(process.env.PERSIMMON_SOURCE + '/src/cart.js').href)
+const at = process.env.PERSIMMON_TARGET === 'rewrite' ? process.cwd() : process.env.PERSIMMON_SOURCE // the same test against either system
+const { add } = await import(pathToFileURL(at + '/src/cart.js').href)
 const tests = {
   test_EP1_GD1_adds_two: () => add(2),
   test_EP1_GD1_refuses_zero: () => add(0),
@@ -37,7 +38,7 @@ writeFileSync('build/lcov.info', 'SF:src/cart.js\\nDA:1,2\\nDA:2,2\\nDA:3,1\\nDA
 `
 const mutant = ['--- a/src/cart.js', '+++ b/src/cart.js', '@@ -2 +2 @@', '-  if (qty > 0) {', '+  if (qty >= 0) {', ''].join('\n')
 
-describe('scenario: a rewrite survey, inventory and characterization', () => {
+describe('scenario: a rewrite, one Slice from Survey to parity', () => {
   let dir: string
   let source: string
   let out: string[]
@@ -78,9 +79,9 @@ describe('scenario: a rewrite survey, inventory and characterization', () => {
     rmSync(source, { recursive: true, force: true })
   })
 
-  it('the Survey cuts a Slice; the Slice is inventoried and characterized, its guard pinned by a killed mutant', { timeout: 120_000 }, async () => {
+  it('the Survey cuts a Slice; its guard is pinned by a killed mutant, ruled, and the rewrite answers as the source did', { timeout: 120_000 }, async () => {
     expect(await run('init', '--pack', 'rewrite')).toBe(0)
-    for (const name of ['source-reader', 'second-reader', 'auditor']) {
+    for (const name of ['source-reader', 'second-reader', 'auditor', 'prd-agent']) {
       const human = { apiVersion: 'persimmon.ai/v1', kind: 'Executor', metadata: { name, namespace: 'default' }, spec: { type: 'human', adapter: 'cli-human/v1', configuration: {} } }
       expect(await run('apply', file(`${name}.yaml`, human), '-n', 'default')).toBe(0)
     }
@@ -123,5 +124,45 @@ describe('scenario: a rewrite survey, inventory and characterization', () => {
     expect(ledger.items).toEqual([expect.objectContaining({ ref: 'GD-1', reached: true, pinnable: true, pinned: true, mutant: 'killed' })])
     expect(ledger.answers).toEqual([{ test: 'test_EP1_GD1_adds_two', observed: { ok: true, qty: 2 } }, { test: 'test_EP1_GD1_refuses_zero', observed: { ok: false } }])
     expect(git(source, 'status', '--porcelain')).toBe('') // the checkout never changed
+
+    // recovery: the Prd and the rule from the evidence, the auditor, the human's decisions, every item accounted for
+    out = []
+    expect(await run('run', 'recover-prd', '--input', 'brief=Rewrite the cart.', '--input', 'productId=cart', '--input', 'slice=SL-1',
+      '--input', `inventory=${ref('SourceInventory', 'cart-inventory', 2)}`, '--input', `ledger=${ref('ParityLedger', 'cart-parity', 2)}`, '--follow')).toBe(0)
+    const prd = {
+      businessRules: 'cart-rules', title: 'Cart', problem: 'The cart runs on a stack no one maintains.', users: [{ name: 'shopper', description: 'Adds items to a cart.' }],
+      goals: [{ id: 'G-1', statement: 'Adding an item answers as the old cart did.' }], nonGoals: [], subdomains: [{ id: 'cart', name: 'Cart', description: 'What a shopper means to buy.', type: 'core' }],
+      capabilities: [{ id: 'CAP-1', name: 'Add an item', description: 'EP-1: a shopper adds a quantity of an item; a quantity of 0 or less is refused.', priority: 'P1', subdomain: 'cart', rules: ['BR-1'] }],
+      successCriteria: [{ id: 'SC-1', statement: 'Every recorded answer of EP-1 holds on the rewrite.' }], assumptions: [], openQuestions: [],
+    }
+    const rules = { title: 'Cart rules', owner: 'Shop', rules: [{ id: 'BR-1', type: 'constraint', statement: 'A cart line must have a quantity above 0.', rationale: 'The source refuses any other.', source: 'inventory: GD-1', status: 'active', examples: ['test_EP1_GD1_refuses_zero'] }] }
+    await answer(['prd', 'rules'], { prd, rules })
+    await answer(['audit'], { audit: value({ passed: true, findings: [], evidence: [] }) })
+    await answer(['decisions'], { decisions: value({ approved: true, findings: [], dispositions: [], dead: [], plumbing: [], accepted: [], readers: [] }) })
+    expect(runOf('recover-prd')).toMatch(/Succeeded/)
+
+    // parity: the rewrite (the same cart, in the project), the driver kept, the suite against the rewrite, the human's review
+    mkdirSync(join(dir, 'src'))
+    writeFileSync(join(dir, 'src', 'cart.js'), cart)
+    const harness = parseAllDocuments(readFileSync('docs/design/examples/sdlc-domain.yaml', 'utf8')).map((d) => d.toJS()).find((d) => d.kind === 'TestHarness')
+    harness.metadata.name = 'cart-harness.r1'
+    harness.spec.identity = { id: 'cart-harness', revision: 1 }
+    harness.spec.content = { ...harness.spec.content, app: { start: ['node', 'src/app.mjs'], ready: 'http://127.0.0.1:3996/health' } }
+    expect(await run('create', file('harness.yaml', harness))).toBe(0)
+    out = []
+    expect(await run('run', 'parity', '--input', `repository=${dir}`, '--input', 'productId=cart', '--input', 'slice=SL-1',
+      '--input', `inventory=${ref('SourceInventory', 'cart-inventory', 2)}`, '--input', `ledger=${ref('ParityLedger', 'cart-parity', 3)}`,
+      '--input', 'prd={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: Prd, id: cart-prd, revision: 1}}', '--input', 'rules={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules, id: cart-rules, revision: 1}}',
+      '--input', 'designs={kind: artifacts, refs: []}', '--input', 'harness={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness, id: cart-harness, revision: 1}}', '--follow')).toBe(0)
+    await answer(['written'], { written: value({ files: [], driver: { kept: true, methods: [{ name: 'add', entryPoint: 'EP-1', element: 'EL-1' }] } }) })
+    await answer(['audit'], { audit: value({ passed: true, findings: [], evidence: [] }) })
+    await answer(['decisions'], { decisions: value({ approved: true, findings: [], driver: { confirmed: true } }) })
+    expect(runOf('parity')).toMatch(/Succeeded/)
+
+    out = []
+    expect(await run('get', 'ParityLedger/cart-parity')).toBe(0)
+    const final = parse(out.join('\n')).spec.content
+    expect(final).toMatchObject({ rewrite: { tests: 2 }, differences: [], verdict: { result: 'pass' } })
+    expect(final.items).toEqual([expect.objectContaining({ ref: 'GD-1', rules: ['BR-1'], account: 'complete' })])
   })
 })
