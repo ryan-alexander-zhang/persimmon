@@ -87,7 +87,7 @@ several cases; one case may have several tests.
 | Prompt `audit-rules` | with cases bound, reads each case of the task and the tests that carry its id: they set up its preconditions, do its steps and assert its expected; `test-unfit` names the case |
 | Validator `acceptance-evidence` | adds `testDesign`: by case, below |
 | Task `evaluate-tests` | Executor `auditor`, read only; inputs `testDesign`, `final`, `finals`, `records`; output `evaluation`: a summary in the Glossary's words and the residual risks (`manual` and `notrun` cases, flaky tests, reported `D-n`) |
-| Task `report-tests` | Executor `test-reporter`; inputs `plan`, `spec`, `testDesign`, `final`, `finals`, `records` (the Plan's AcceptanceRecords, `fromQuery`), `evaluation`; output `report`, id `<plan>-test-report` |
+| Task `report-tests` | Executor `test-reporter`; inputs `plan`, `tasks` (the ones built), `spec`, `testDesign`, `final`, `finals`, `records` (the Plan's AcceptanceRecords, `fromQuery`), `evaluation`; output `report`, id `<plan>-test-report` |
 | Validator `report-verdict` | `cel` over `report?`: refused when `verdict.result` is `fail`; passes with no report |
 
 ## `checkHarness`
@@ -145,8 +145,10 @@ that carries a case of the task as named.
 | `notrun` | `manual`, its level not run, no test carrying it, or every one skipped | no case `nok`, one `notrun` |
 | `uncovered` | – | no case verifies it |
 
-A case reads its tests in the `plan` tier's outcome of its level. A rate is the share of cases
-`ok`; a priority with no case has none to miss.
+A case reads its tests in the `plan` tier's outcome of its level. A case only an unbuilt task of
+the Plan verifies is `notrun`, reason `task not built`, and out of the rates and the verdict: a
+run building `T-1` is judged on `T-1`'s cases. A rate is the share of cases `ok`; a priority with
+no case has none to miss.
 
 | Verdict | Rule, first match |
 |---|---|
