@@ -95,10 +95,8 @@ run, revise that Spec through its own process:
 2. Its Gate passed: `plan-all` and then `test-design-all` for that capability alone, on the new
    Spec. Later runs take the new Spec, Plan and TestDesign. A loop that ran out of rounds with
    such a warning is run again this way, not by the retry under Stop.
-3. Send only answers not yet applied: the warning repeats every answer the TestDesign holds, so
-   keep `.persimmon/autopilot/applied.txt`, one `<artifact id> Q-n` per answer already sent, and
-   leave those out. No new answer: nothing to revise. The Spec is revised as often as new answers
-   come; its Gate failing stops the Autopilot.
+3. Once per Spec in an Autopilot run: a second `question-upstream` naming it, or its Gate failing,
+   stops the Autopilot.
 
 A `question-upstream` naming another kind (a Glossary, a Design, the Plan) goes in the report as a
 revision the developer owes.
@@ -113,7 +111,7 @@ Stop and report, never work around it, when:
   loop's agent may pass from a fresh start, and its Gate still judges;
 - a subagent's answer is refused twice for the same form;
 - an `Issue`'s fix fails its Gate (`autopilot-code`).
-- a Spec revision fails its Gate (Upstream answers, above).
+- a Spec is asked for twice, or its revision fails its Gate (Upstream answers, above).
 
 ## Report
 
