@@ -58,6 +58,13 @@ describe('computeLedger', () => {
     expect(slice()).toEqual(expected)
   })
 
+  it('a volatile guard pins only when the suite controls its clock or seed', () => {
+    const inventory = named('jpetstore-inventory.r2')
+    inventory.guards.find((g: { id: string }) => g.id === 'GD-2').volatile = ['time']
+    expect(item(slice({ inventory }), 'GD-2')).toMatchObject({ pinnable: false, account: 'unverified' })
+    expect(item(slice({ inventory, suite: { ...expected.suite, controlled: ['GD-2'] } }), 'GD-2')).toMatchObject({ pinnable: true, account: 'complete' })
+  })
+
   it('a covered line is reached, not pinned: a surviving mutant leaves a ruled guard open; no mutant run says so', () => {
     expect(item(slice({ mutants: [{ ref: 'GD-2', result: 'survived', failed: [] }] }), 'GD-2')).toMatchObject({ reached: true, mutant: 'survived', account: 'open', reason: 'its mutant survived' })
     expect(item(slice({ mutants: [] }), 'GD-2')).toMatchObject({ mutant: 'none', account: 'open', reason: 'no mutant run' })

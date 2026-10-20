@@ -255,6 +255,7 @@ spec:
                   source: {type: string, minLength: 1, description: "the source's Protocol driver, a path in the project"}
                   rewrite: {type: string, minLength: 1, description: "the rewrite's Protocol driver, when the interface changes"}
               conventions: {type: string}
+              controlled: {type: array, uniqueItems: true, items: {type: string, pattern: "^GD-[0-9]+$"}, description: "the volatile guards whose clock or seed the suite controls, so their Oracle can pin them"}
           entryPoints:
             type: array
             items:

@@ -155,7 +155,8 @@ export function computeLedger({ inventory, inventoryRef, last, slice, decisions:
     const x = {
       ...(fresh ? {
         reached,
-        pinnable: (itemOracle === 'running' || itemOracle === 'partial') && measured && !item.volatile,
+        // a volatile guard pins only when the suite controls its clock or seed
+        pinnable: (itemOracle === 'running' || itemOracle === 'partial') && measured && (!item.volatile || (ledger.suite?.controlled ?? []).includes(item.ref)),
         mutant: run?.result,
         // only a test citing the item, and green on the source, kills it: a test red there witnesses nothing
         pinned: run?.result === 'killed' && (run.failed ?? []).some((n) => cites(n, item.ref) && passed.some((t) => t.name === n)),

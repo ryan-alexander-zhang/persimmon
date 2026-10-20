@@ -130,7 +130,8 @@ spec:
     - Per guard, an input on each side of its boundary (the boundary value itself, one either side). Where the toolchain has a
       property-based tool, generate inputs as well. Per state change and outbound system, assert the row, the message, the
       file, the email through the driver.
-    - A `time` guard: control the clock and test each side of its date. A `random` guard: fix the seed.
+    - A `time` guard: control the clock and test each side of its date. A `random` guard: fix the seed. List each volatile
+      guard whose clock or seed the suite controls in `suite.controlled`; one not listed can never be pinned.
     - Data reset before each test by the level's `reset` command; the suite's own fixture runs it between tests, and
       `conventions` says how.
     - Each run writes its JUnit XML and an observations JSON file, `{<test name>: <what it observed>}`, so the source's answers
