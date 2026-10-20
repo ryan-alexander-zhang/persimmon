@@ -552,3 +552,8 @@ appears twice; the earlier file owns it.
 | 530 | `40-pack-rewrite.md` | The storming reads the inventory through an optional input on `event-storm` and `domain-discovery`, not a Rewrite pack copy: an override keeps the ports, and a Prd carries no command, event or entity of the source. Found in design review. |
 | 531 | `40-pack-rewrite.md` | A Disposition is not a kind: `keep`, `change` and `drop` map onto fields the Prd and the rules already have. Found in design review. |
 | 532 | `40-pack-rewrite.md` | Parity after `build-all`, not before: the Tester writes the `api` tests inside `build-one`, so nothing pins the source earlier; pinning before the build waits for a Tester task outside `build-one`. Found in design review. |
+| 533 | `39-test-process.md` | The TestReport judges the tasks `build-all` built: a case only an unbuilt task verifies is `notrun`, `task not built`, and out of the rates and the verdict. Found in UAT. |
+| 534 | `39-test-process.md` | An open question of a TestHarness or a TestDesign goes to the human at the Gate, not to the check; `harness-gate` gains a human after the seed runs. Found in UAT. |
+| 535 | `39-test-process.md` | The TestDesign reads the Plan, and an `api` step names no operation a later task realises (`step-premature`). Found in UAT. |
+| 536 | `39-test-process.md` | An `api` or `e2e` level's conventions say how a test asserts a refused request, the client never throwing on a `4xx` or `5xx`. Found in UAT. |
+| 537 | `38-autopilot.md` | A build round refused on an open `Q-n` has it decided by a Reviewer subagent, the decisions given to the next round's builder and tester subagents. Found in UAT. |
