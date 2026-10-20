@@ -159,7 +159,7 @@ spec:
       - {id: SL-2, name: catalog and account, entryPoints: [EP-4, EP-5], order: 2}
     suite:
       levels:
-        app: {tool: pytest 8.3 with requests, run: "scripts/characterize.sh app", one: "scripts/characterize.sh app -k {test}", reset: "scripts/source.sh restart", junit: build/characterize/app.xml, testDir: tests/characterization, coverage: build/characterize/jacoco.xml}
+        app: {tool: pytest 8.3 with requests, run: "scripts/characterize.sh app", one: "scripts/characterize.sh app -k {test}", reset: "scripts/source.sh restart", junit: build/characterize/app.xml, observations: build/characterize/app.observations.json, testDir: tests/characterization, coverage: build/characterize/jacoco.xml}
       drivers: {source: tests/characterization/drivers/source.py}
       conventions: one observation object per entry point; a test is named after the entry point and the items it targets
     entryPoints:
@@ -167,16 +167,24 @@ spec:
       - {id: EP-2, oracle: running}
       - {id: EP-3, oracle: running}
     items:
-      - {ref: GD-1, slice: SL-1, reached: true, mutant: none, tests: [], rules: [], plumbing: PP-1, account: complete}
+      - {ref: GD-1, slice: SL-1, reached: true, tests: [test_EP1_view_empty_cart, test_EP2_GD2_add_in_stock, test_EP2_GD2_add_out_of_stock], rules: [], plumbing: PP-1, account: complete}
       - {ref: GD-2, slice: SL-1, reached: true, mutant: killed, tests: [test_EP2_GD2_add_in_stock, test_EP2_GD2_add_out_of_stock], rules: [BR-1], account: complete}
       - {ref: DC-1, slice: SL-1, reached: true, mutant: killed, tests: [test_EP3_DC1_order_ids_follow_the_sequence], rules: [BR-2], account: complete}
-      - {ref: ST-1, slice: SL-1, reached: true, mutant: killed, tests: [test_EP3_ST1_line_items_numbered_from_1], rules: [BR-3], account: complete}
+      - {ref: ST-1, slice: SL-1, reached: true, mutant: killed, tests: [test_EP3_DC1_order_ids_follow_the_sequence, test_EP3_ST1_line_items_numbered_from_1, test_EP3_AB1_order_over_stock_is_taken], rules: [BR-3], account: complete}
       - {ref: AB-1, slice: SL-1, reached: true, tests: [test_EP3_AB1_order_over_stock_is_taken], rules: [BR-4], disposition: change, account: complete}
     answers:
+      - test: test_EP1_view_empty_cart
+        observed: {lines: {}, subtotal: "0.00"}
       - test: test_EP2_GD2_add_in_stock
         observed: {lines: {EST-4: {quantity: 1, inStock: true, total: "18.50"}}, subtotal: "18.50"}
       - test: test_EP2_GD2_add_out_of_stock
         observed: {lines: {EST-9: {quantity: 1, inStock: false, total: "18.50"}}, subtotal: "18.50"}
+      - test: test_EP3_DC1_order_ids_follow_the_sequence
+        observed: {orderIds: [1001, 1002]}
+      - test: test_EP3_ST1_line_items_numbered_from_1
+        observed: {lineNumbers: [1, 2]}
+      - test: test_EP3_AB1_order_over_stock_is_taken
+        observed: {accepted: true, quantity: 10001}
     differences: []
     unreached: []
     verdict: {result: pass, rule: "nothing open, nothing unverified, nothing unreached, no difference without a cause"}

@@ -199,7 +199,7 @@ spec:
               revision: {type: integer, minimum: 1}
           Level:
             type: object
-            required: [tool, run, one, junit, testDir]
+            required: [tool, run, one, junit, observations, testDir]
             additionalProperties: false
             properties:
               tool: {type: string, minLength: 1, description: "the tool and its version"}
@@ -207,6 +207,7 @@ spec:
               one: {type: string, minLength: 1, description: "the same for one test, `{test}` its name; run-mutants runs the tests citing an item with it"}
               reset: {type: string, description: "the command that restores the data before each test"}
               junit: {type: string, minLength: 1}
+              observations: {type: string, minLength: 1, description: "the JSON file the run writes, {<test>: what it observed}, so the ledger records what the source answered"}
               testDir: {type: string, minLength: 1}
               coverage: {type: string, description: "the JaCoCo, Cobertura or lcov report the run writes"}
           Ref: {type: string, pattern: "^(GD|DC|ST|EX|AB)-[0-9]+$"}

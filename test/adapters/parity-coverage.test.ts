@@ -42,8 +42,13 @@ describe('readCoverage', () => {
     expect(readCoverage(lcov)).toEqual({ '/work/shop/src/cart.ts': { 10: { hits: 1, branches: { covered: 1, total: 2 } }, 11: { hits: 0 } } })
   })
 
-  it('refuses a report of no format it knows', () => {
+  it('refuses a report of no format it knows, and an empty one by name', () => {
     expect(() => readCoverage('<testsuites/>')).toThrow(/neither a JaCoCo, a Cobertura nor an lcov report/)
+    expect(() => readCoverage('  \n')).toThrow(/the coverage report is empty/)
+  })
+
+  it('reads a Cobertura branch flag in any case', () => {
+    expect(readCoverage(cobertura.replace('branch="true"', 'branch="True"'))['app/cart.py']![4]).toEqual({ hits: 2, branches: { covered: 1, total: 2 } })
   })
 })
 
@@ -60,5 +65,10 @@ describe('mapCoverage', () => {
     const { files, unmapped } = mapCoverage({ 'cart.ts': { 1: { hits: 1 } }, 'gone/Other.java': { 1: { hits: 1 } }, '/work/shop/src/cart.ts': { 2: { hits: 1 } } }, index)
     expect(unmapped).toEqual(['cart.ts', 'gone/Other.java']) // cart.ts ends two indexed paths; the absolute one ends with exactly src/cart.ts
     expect(files).toEqual({ 'src/cart.ts': { 2: { hits: 1 } } })
+  })
+
+  it('merges two spellings of one file line by line: a line ran if either says so', () => {
+    const { files } = mapCoverage({ 'src/cart.ts': { 10: { hits: 7 } }, '/work/shop/src/cart.ts': { 10: { hits: 0 }, 11: { hits: 2 } } }, index)
+    expect(files).toEqual({ 'src/cart.ts': { 10: { hits: 7 }, 11: { hits: 2 } } })
   })
 })

@@ -7,6 +7,7 @@ const list = (nodes) => Array.from({ length: nodes.length }, (_, i) => nodes.ite
 
 /** The report's own paths: `{<path>: {<line>: {hits, branches?}}}`; the format read off its first bytes. */
 export function readCoverage(text) {
+  if (!text.trim()) throw new Error('the coverage report is empty: the run wrote no coverage')
   const files = {}
   const line = (path, n, hits, branches) => {
     const lines = files[path] ?? (files[path] = {})
@@ -56,7 +57,7 @@ export function readCoverage(text) {
       const path = c.getAttribute('filename')
       for (const l of list(c.getElementsByTagName('line'))) {
         const cc = /\((\d+)\/(\d+)\)/.exec(l.getAttribute('condition-coverage') ?? '')
-        line(path, Number(l.getAttribute('number')), Number(l.getAttribute('hits') || 0), l.getAttribute('branch') === 'true' && cc ? { covered: Number(cc[1]), total: Number(cc[2]) } : undefined)
+        line(path, Number(l.getAttribute('number')), Number(l.getAttribute('hits') || 0), /^true$/i.test(l.getAttribute('branch') ?? '') && cc ? { covered: Number(cc[1]), total: Number(cc[2]) } : undefined)
       }
     }
     return files
@@ -75,8 +76,13 @@ export function mapCoverage(report, indexFiles) {
   for (const [reported, lines] of Object.entries(report)) {
     const tail = reported.replace(/\\/g, '/').replace(/^\.?\//, '')
     const hits = Object.hasOwn(indexFiles, tail) ? [tail] : paths.filter((p) => p.endsWith(`/${tail}`) || tail.endsWith(`/${p}`))
-    if (hits.length === 1) files[hits[0]] = { ...(files[hits[0]] ?? {}), ...lines }
-    else unmapped.push(reported)
+    if (hits.length !== 1) {
+      unmapped.push(reported)
+      continue
+    }
+    // two spellings of one file in a report: a line ran if either says so
+    const into = (files[hits[0]] ??= {})
+    for (const [n, l] of Object.entries(lines)) into[n] = into[n] && into[n].hits >= l.hits ? into[n] : { ...l, ...(into[n]?.branches && !l.branches ? { branches: into[n].branches } : {}) }
   }
   return { files, unmapped }
 }
