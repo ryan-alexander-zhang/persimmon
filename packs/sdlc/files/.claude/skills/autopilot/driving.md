@@ -83,16 +83,18 @@ review `passed`. The next run takes those revisions.
 
 ## Upstream answers
 
-A passed run whose tree warns `question-upstream` naming a Spec (`<spec id>` or `<spec id> Q-n`)
-left an answer the Spec does not have yet. Before the next run, revise that Spec through its own
-process:
+A run whose tree warns `question-upstream` naming a Spec (`<spec id>` or `<spec id> Q-n`) left an
+answer the Spec does not have yet, whether the run passed or its loop ran out of rounds: a question
+that finds the Spec wrong lets no downstream round pass until the Spec changes. Before the next
+run, revise that Spec through its own process:
 
 1. `persimmon run spec-one` with the inputs `spec-all` gave it (`prd`, `capabilityId`,
    `architecture`, `context`, `domainModel`, `glossary`, `rules`), `base` the Spec's latest passed
    revision, and `changes=@<file>` listing each answer as `<artifact id> Q-n: <resolution>`, from
    the warnings.
 2. Its Gate passed: `plan-all` and then `test-design-all` for that capability alone, on the new
-   Spec. Later runs take the new Spec, Plan and TestDesign.
+   Spec. Later runs take the new Spec, Plan and TestDesign. A loop that ran out of rounds with
+   such a warning is run again this way, not by the retry under Stop.
 3. Once per Spec in an Autopilot run: a second `question-upstream` naming it, or its Gate failing,
    stops the Autopilot.
 
