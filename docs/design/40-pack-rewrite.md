@@ -18,16 +18,16 @@ silent.
 
 Every agent and every human step runs in a loop's `produce`; every Gate is a pure check over
 artifacts and values (`14-gate.md`: a Gate takes no `externalResource`). What a check needs from
-the checkout, a Task on `parity/v1` reads first into a value, the source index.
+the checkout, a Task on `parity-run/v1` reads first into a value, the source index.
 
 ```text
 developer: the project (the rewrite's repository), a source checkout outside it at one commit, brief (text), productId
   ─▶ ReviewLoop survey (once)
        produce: Workflow survey-work
                 Task survey-source (source-reader)   ─▶ SourceInventory <productId>-inventory r1: entry points, what each reaches
-                Task index-source (parity/v1)        ─▶ value sourceIndex
+                Task index-source (parity-run/v1)    ─▶ value sourceIndex
                 Task cut-slices (human)              ─▶ value decisions: the Slices, their order, approved
-                Task compute-ledger (parity/v1)      ─▶ ParityLedger <productId>-parity r1: the Slices
+                Task compute-ledger (parity-run/v1)  ─▶ ParityLedger <productId>-parity r1: the Slices
        review:  Gate survey-gate = survey-consistency (parity/v1), decided (cel: decisions.approved)
   per Slice SL-n, in the order the human set:
   ─▶ ReviewLoop inventory
@@ -39,9 +39,9 @@ developer: the project (the rewrite's repository), a source checkout outside it 
   ─▶ ReviewLoop characterize
        produce: Workflow characterize-work
                 Task write-characterization (tester) ─▶ the suite: tests, the source's Protocol driver, its levels (none when nothing runs)
-                Task run-source (parity/v1)          ─▶ TestOutcome per level that runs on the source, coverage by line
+                Task run-source (parity-run/v1)      ─▶ TestOutcome per level that runs on the source, coverage by line
                 Task write-mutants (tester)          ─▶ one patch per reached item
-                Task run-mutants (parity/v1)         ─▶ each mutant killed, survived or invalid, in a scratch copy
+                Task run-mutants (parity-run/v1)     ─▶ each mutant killed, survived or invalid, in a scratch copy
                 Task audit-mutants (auditor)         ─▶ value audit: a sample of patches against mutant-rules
                 Task compute-ledger                  ─▶ ParityLedger next revision
        review:  Gate characterize-gate = ledger-closure (parity/v1), audited (cel)
@@ -58,7 +58,7 @@ developer: the project (the rewrite's repository), a source checkout outside it 
   ─▶ ReviewLoop parity
        produce: Workflow parity-work
                 when the interface changes: Task write-rewrite-driver (tester), Task audit-driver (auditor)
-                Task run-rewrite (parity/v1, the rewrite's app as the TestHarness's `app` starts it) ─▶ TestOutcome on the rewrite
+                Task run-rewrite (parity-run/v1, the rewrite's app as the TestHarness's `app` starts it) ─▶ TestOutcome on the rewrite
                 Task compute-ledger                  ─▶ ParityLedger next revision: every difference with its cause, the verdict
                 Task review-parity (human)           ─▶ value decisions: the rewrite driver confirmed, concerns accepted, approved
        review:  Gate parity-gate = parity-consistency (parity/v1), audited (cel), decided (cel)
@@ -138,7 +138,7 @@ checkout: `{commit, root, gitCommonDir, project: {root, gitCommonDir}, files: {<
 branchLines[]}}}`. `root` and `project.root` are real paths, symlinks resolved; `gitCommonDir`
 tells a worktree of the same repository apart from a second clone. `branchLines` are the lines the
 language's branch keywords start a branch on, calibrated per language (COBOL with `INVALID KEY`,
-`AT END`, `WHEN`, without `END-IF`, `ELSE` and comment lines). `parity/v1` runs in the project
+`AT END`, `WHEN`, without `END-IF`, `ELSE` and comment lines). `parity-run/v1` runs in the project
 directory, so it knows `project.root` without an input.
 
 ## Decisions
@@ -159,7 +159,7 @@ not deprecated).
 
 ## `ParityLedger`
 
-Computed by `parity/v1`, never written by an agent: the TestReport's rule (`39-test-process.md`).
+Computed by `parity-run/v1`, never written by an agent: the TestReport's rule (`39-test-process.md`).
 One per Source system, a revision per step per Slice.
 
 | Field | Content |
@@ -252,20 +252,20 @@ What the agents are taught, as Prompts the pack ships, one per Task, overridable
 
 | Member | Content |
 |---|---|
-| Executors | `source-reader`, `second-reader` (`claude-code/v1`, read-only, separate names so a Namespace puts a different model on each); `source-runner` (`parity/v1`); `tester`, `prd-agent`, `auditor` the SDLC pack's; `local-reviewer` (`cli-human/v1`) for the human Tasks |
+| Executors | `source-reader`, `second-reader` (`claude-code/v1`, read-only, separate names so a Namespace puts a different model on each); `source-runner` (`parity-run/v1`); `tester`, `prd-agent`, `auditor` the SDLC pack's; `local-reviewer` (`cli-human/v1`) for the human Tasks |
 | Tasks `survey-source`, `inventory-source`, `reread-source` | inputs `source`, `brief`, `slice` (not on the survey), the last `inventory`, `previous`, `feedback`; output `inventory`; `workspace: {input: source}`; `reread-source` sees no inventory of this Slice and answers a second `inventory` value the check compares |
-| Task `index-source` | `parity/v1`, `workspace: {input: source}`; output value `sourceIndex` |
+| Task `index-source` | `parity-run/v1`, `workspace: {input: source}`; output value `sourceIndex` |
 | Task `audit-inventory` | Executor `auditor`; a sample of guards against the code at their `where`, plumbing labels sampled first; a directory neither read nor `unread`; output value `audit` (a ValidationResult) |
 | Task `write-characterization` | Executor `tester`, workspace the project; inputs `inventory`, `slice`, `brief`, the last `ledger`, `feedback`; output value `written` (`files[]`, `suite`); the source reached through the `source` input's `locator.path`, which the level commands take as an argument |
-| Task `run-source` | `parity/v1`, workspace the project; per suite level that runs on the source: its `run` with coverage, `reset` before each test; outputs one `artifacts` output of TestOutcomes, one per level that ran, `head` the checkout's commit, empty when none ran, and value `coverage` (`{<path>: {lines run, branch lines}}`, mapped onto checkout paths by unique suffix), `{}` when none ran: every declared output is answered (`12-task.md`), so a Task that runs nothing still answers |
+| Task `run-source` | `parity-run/v1`, workspace the project; per suite level that runs on the source: its `run` with coverage, `reset` before each test; outputs one `artifacts` output of TestOutcomes, one per level that ran, `head` the checkout's commit, empty when none ran, and value `coverage` (`{<path>: {lines run, branch lines}}`, mapped onto checkout paths by unique suffix), `{}` when none ran: every declared output is answered (`12-task.md`), so a Task that runs nothing still answers |
 | Tasks `write-mutants`, `run-mutants`, `audit-mutants` | the Tester writes one patch per reached item (value `mutants`); the runner copies the checkout to `.persimmon/scratch/<taskRun>/`, refuses a patch outside its item's `where` or against `mutant-rules`' token list as `invalid`, applies each alone, runs the tests that cite the item or its entry point, records killed, survived or invalid (value `mutantResults`); the auditor samples patches for ones a test cannot observe |
 | Task `recover-prd` | inputs `inventory`, `ledger`, `slice`, `brief`, `productId`, `prd?` and `rules?` (the product's last approved), `previous`, `previousRules`, `feedback`; outputs `prd`, `rules`: `draft-prd`'s output ports and ids, so every later run reads them as an authored pair |
 | Tasks `audit-recovery`, `audit-driver` | Executor `auditor`; value `audit`: the Prd against the inventory and the tests (a rule the tests contradict, a capability with no entry point); the rewrite driver against `driver-rules` |
 | Human Tasks `cut-slices`, `decide-recovery`, `review-parity` | `cli-human/v1`; each answers the `decisions` value its row of Decisions says, its schema written inline (a port schema takes no `$ref` beyond the well-known ones, `10-ports.md`); the form shows the audit beside the artifacts; `produce` runs each round, so the human answers once per round |
 | The Tester's Tasks | the SDLC pack's Executor `tester` is a human one by default (`cli-human/v1`, the developer's agent in a fresh subagent), so its Tasks answer values, never `artifacts`; a Namespace that puts it on `claude-code/v1` read-only may find reads outside the workspace refused, and the source is read through the `source` input's `locator.path` |
 | Task `write-rewrite-driver` | Executor `tester`; inputs `suite`, the Slice's Designs, `feedback`; output value `written` (the driver's files) |
-| Task `run-rewrite` | `parity/v1`: the suite's tests through the rewrite's driver (or the source's, the interface kept) against the rewrite's app, started and reset by the TestHarness's `app` |
-| Task `compute-ledger` | `parity/v1`; inputs `inventory`, `sourceIndex`, `written`, the TestOutcomes, `coverage`, `mutantResults`, `rules?`, `decisions`, the last `ledger`; output its next revision |
+| Task `run-rewrite` | `parity-run/v1`: the suite's tests through the rewrite's driver (or the source's, the interface kept) against the rewrite's app, started and reset by the TestHarness's `app` |
+| Task `compute-ledger` | `parity-run/v1`; inputs `inventory`, `sourceIndex`, `written`, the TestOutcomes, `coverage`, `mutantResults`, `rules?`, `decisions`, the last `ledger`; output its next revision |
 | Gates | `survey-gate`, `inventory-gate`, `characterize-gate`, `recover-gate`, `parity-gate`: pure, over the loop's artifacts and values |
 | ReviewLoops | `survey` (`maxRounds: 2`), `inventory` (2), `characterize` (3), `recover-prd` (3, `carry: {rules: previousRules}` as `author-prd`), `parity` (2) |
 
@@ -276,9 +276,10 @@ report.
 
 ## Checks
 
-`adapters/parity/`, beside `sdd/v1` and `testdesign/v1`: an evaluator Role, pure over artifacts and
-values, and an executor Role for `index-source`, `run-source`, `run-mutants`, `run-rewrite` and
-`compute-ledger`. Every finding `error` unless marked.
+`adapters/parity/` holds two Adapters, as `sdd/v1` and `testdesign/v1` split the SDLC pack's: `parity/v1`,
+the evaluator Role, pure over artifacts and values; and `parity-run/v1`, the executor Role (type
+`script`) for `index-source`, `run-source`, `run-mutants`, `run-rewrite` and `compute-ledger`, one
+Adapter process answering one Role (`adapters/lib/agent.mjs` serves `executor` only). Every finding `error` unless marked.
 
 | Code | Finding | In |
 |---|---|---|
@@ -333,7 +334,7 @@ Each its own unit, before the pack content that needs it:
 | `persimmon init --pack <name>`: the SDLC pack, then the named pack | `20-pack.md` | landed |
 | an optional `inventory` input on Task `event-storm` and Pipeline `domain-discovery`, handed to every phase, as `rules` was; an optional `base` on the Pipeline, bound to `storm-big-picture`'s `base`, the product's last model | `26-domain-discovery.md` | to do |
 | optional `base` and `baseAdrs` on Task `write-architecture` and ReviewLoop `architect`, the product's last Architecture and Adrs: previous, else base, as `event-storm` reads them | `31-architecture-process.md` | to do |
-| Adapter `parity/v1`: evaluator and executor Roles; coverage read whole-repo with branch lines (JaCoCo, Cobertura, lcov), not over a Change set as `junit/v1` reads it | `40-pack-rewrite.md`, `19-adapter-roles.md` | to do |
+| Adapters `parity/v1` (evaluator) and `parity-run/v1` (executor); coverage read whole-repo with branch lines (JaCoCo, Cobertura, lcov), not over a Change set as `junit/v1` reads it | `40-pack-rewrite.md`, `19-adapter-roles.md` | to do |
 
 ## Decisions
 
@@ -366,8 +367,11 @@ Each its own unit, before the pack content that needs it:
   when a test citing the item fails on an assertion, so a patch that breaks the build or crashes the
   app pins nothing; the token list and the audited sample keep a Tester from writing mutants that
   are easy to kill and prove nothing. Found in the JPetStore pilot and in review.
+- Two Adapters, not one with two Roles: the shared runner serves the executor Role only, and the SDLC
+  pack already splits a pack's checks (`sdd/v1`) from its computing Tasks (`testdesign/v1`). Found in
+  implementation.
 - No Gate reads the checkout: `14-gate.md` takes `artifact` and `value` inputs only, and a `task`
-  Validator's inputs must equal the Validator's. A Task on `parity/v1` reads the checkout into the
+  Validator's inputs must equal the Validator's. A Task on `parity-run/v1` reads the checkout into the
   source index first, and every check is pure over it. Found in review.
 - Every agent and human step in `produce`, every Gate pure. With a human Validator `after` a
   consistency check, the first round's open items failed the check, the human was skipped
