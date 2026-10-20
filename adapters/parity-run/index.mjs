@@ -198,8 +198,10 @@ async function runRewrite(payload, workspace, call) {
   checkLevels(suite)
   if (inputs.harness?.kind !== 'artifact') refuse('run-rewrite needs inputs.harness, the TestHarness whose app starts the rewrite')
   const app = (await call('getArtifact', inputs.harness.ref)).spec.content?.app
-  if (!app?.start || !app?.ready) refuse('the TestHarness names no app.start and app.ready: the rewrite is started and awaited by them, never assumed up')
-  const env = { PERSIMMON_TARGET: 'rewrite', PERSIMMON_REWRITE_START: app.start, PERSIMMON_REWRITE_READY: app.ready }
+  if (!Array.isArray(app?.start) || !app.start.length || !app?.ready) refuse('the TestHarness names no app.start and app.ready: the rewrite is started and awaited by them, never assumed up')
+  // app.start is a program and its arguments: the suite gets one shell command line, each argument quoted
+  const quote = (a) => (/^[\w@%+=:,./-]+$/.test(a) ? a : `'${a.replaceAll("'", `'\\''`)}'`)
+  const env = { PERSIMMON_TARGET: 'rewrite', PERSIMMON_REWRITE_START: app.start.map(quote).join(' '), PERSIMMON_REWRITE_READY: app.ready }
   const clean = (s) => redact(s, payload.credentials)
   let head
   try {

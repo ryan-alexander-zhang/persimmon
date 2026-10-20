@@ -488,12 +488,12 @@ describe('parity-run/v1 over stdio', () => {
     writeFileSync(join(project, 'suite.mjs'), [
       "import { mkdirSync, writeFileSync } from 'node:fs'",
       "mkdirSync('build', { recursive: true })",
-      'const ok = process.env.PERSIMMON_TARGET === "rewrite" && process.env.PERSIMMON_REWRITE_START === "npm start"',
+      'const ok = process.env.PERSIMMON_TARGET === "rewrite" && process.env.PERSIMMON_REWRITE_START === "npm run \'start it\'"', // the program and its arguments, quoted for a shell
       "writeFileSync(`build/${process.argv[2]}.xml`, `<testsuite><testcase name=\"test_EP1_${process.argv[2]}\">${ok ? '' : '<failure/>'}</testcase></testsuite>`)",
       "writeFileSync(`build/${process.argv[2]}.json`, JSON.stringify({ [`test_EP1_${process.argv[2]}`]: { on: process.env.PERSIMMON_TARGET } }))",
     ].join('\n'))
     const level = (name: string) => ({ tool: 'node', run: `node suite.mjs ${name}`, one: 'node suite.mjs {test}', junit: `build/${name}.xml`, observations: `build/${name}.json`, testDir: '.' })
-    const artifacts: Record<string, unknown> = { harness: { architecture: 'a', levels: {}, app: { start: 'npm start', ready: 'http://localhost:8080/health' } }, bare: { architecture: 'a', levels: {} } }
+    const artifacts: Record<string, unknown> = { harness: { architecture: 'a', levels: {}, app: { start: ['npm', 'run', 'start it'], ready: 'http://localhost:8080/health' } }, bare: { architecture: 'a', levels: {} } }
     const eng = await engine(artifacts, [])
     const harness = (id: string) => ({ kind: 'artifact', ref: { apiVersion: 'sdd.persimmon.ai/v1', kind: 'TestHarness', namespace: 'demo', id, revision: 1 } })
     let n = 0
