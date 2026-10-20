@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseAllDocuments } from 'yaml'
 import { describe, expect, it } from 'vitest'
-import { checkArchitecture, checkDesign } from '../../adapters/sdd/check.mjs'
+import { buildReport, carries, checkAcceptance, checkArchitecture, checkDesign, checkHarness, checkTestDesign, selectCases } from '../../adapters/sdd/check.mjs'
 
 const root = join(import.meta.dirname, '..', '..')
 const docs = parseAllDocuments(readFileSync(join(root, 'docs/design/examples/sdlc-domain.yaml'), 'utf8')).map((d) => d.toJS())
@@ -978,5 +978,106 @@ describe('sdd/v1 over a DomainModel: coverage', () => {
   it('fails content that is not a DomainModel', async () => {
     const r = await findings({ title: 'x' }, [])
     expect(r).toMatchObject({ passed: false, findings: [{ code: 'not-a-domainmodel' }] })
+  })
+})
+
+// The Test process (39-test-process.md): the harness, the test design, a round by case, the report.
+describe('sdd/v1 over the Test process', () => {
+  const td = () => structuredClone(content('TestDesign'))
+  const designFindings = (testDesign: any, harness = content('TestHarness')) => checkTestDesign({ testDesign, spec: content('Spec'), architecture: content('Architecture'), rules: content('BusinessRules'), harness, ids: { spec: 'submit-a-claim', harness: 'expense-claims-architecture-harness' } }).map((f: { code: string }) => f.code)
+  const test = (qid: string, status = 'passed', name = 'a case') => ({ classname: 'test/claim.test.ts', name: `claim > ${qid} ${name}`, status })
+  const unit = (tests: unknown[]) => ({ command: ['npx', 'vitest'], exitCode: tests.some((t: any) => t.status === 'failed') ? 1 : 0, tests, selection: { mode: 'full', reason: 'baseline' }, newRed: 0 })
+  const api = (tests: unknown[]) => ({ ...unit(tests), level: 'api' })
+  const t1Unit = () => ['CAP-1/TC-3', 'CAP-1/TC-8', 'CAP-1/TC-9'].map((q) => test(q))
+  const t1Api = () => ['CAP-1/TC-1', 'CAP-1/TC-10'].map((q) => test(q))
+  const record = { plan: 'submit-a-claim-plan', spec: 'submit-a-claim', task: 'T-1', summary: 'the claim aggregate', openQuestions: [] }
+  const accept = (testOutcome: unknown, levelOutcomes: unknown[], testDesign = content('TestDesign'), r: unknown = record) => checkAcceptance({ record: r, testOutcome, levelOutcomes, plan: content('Plan'), spec: content('Spec'), testDesign, ids: { plan: 'submit-a-claim-plan', spec: 'submit-a-claim', taskId: 'T-1' } })
+
+  it('carries a case by its qualified id as a whole token', () => {
+    expect(carries({ classname: 'a', name: 'CAP-1/TC-1 x' }, 'CAP-1/TC-1')).toBe(true)
+    expect(carries({ classname: 'a', name: 'CAP-1/TC-10 x' }, 'CAP-1/TC-1')).toBe(false)
+    expect(carries({ classname: 'a', name: 'CAP-11/TC-1 x' }, 'CAP-1/TC-1')).toBe(false)
+    expect(carries({ classname: 'CAP-1/TC-1', name: 'x' }, 'CAP-1/TC-1')).toBe(true)
+    expect(carries({ classname: 'a', name: 'x [CAP-1/TC-1]' }, 'CAP-1/TC-1')).toBe(true)
+  })
+
+  it('the worked example\'s TestDesign passes; one mutation per finding', () => {
+    expect(designFindings(td())).toEqual([])
+    const drop = td(); drop.cases = drop.cases.filter((c: any) => c.id !== 'TC-7')
+    expect(designFindings(drop)).toEqual(['scenario-uncovered']) // a gap is a removed case, never reused
+    const qs = td(); qs.cases = qs.cases.filter((c: any) => c.id !== 'TC-10'); expect(designFindings(qs)).toEqual(['scenario-uncovered']) // QS-3 is proven at build
+    const unknown = td(); unknown.cases[0].verifies.push('BR-99'); expect(designFindings(unknown)).toEqual(['unknown-reference'])
+    const unanchored = td(); unanchored.cases.push({ ...unanchored.cases[2], id: 'TC-11', verifies: ['BR-2'] }); expect(designFindings(unanchored)).toEqual(['case-unanchored'])
+    const e2e = td(); e2e.cases[0].level = 'e2e'; expect(designFindings(e2e)).toEqual(['level-unavailable'])
+    const steps = td(); delete steps.cases[0].steps; expect(designFindings(steps)).toEqual(['steps-missing'])
+    const manual = td(); manual.cases[0].execution = 'manual'; expect(designFindings(manual)).toEqual(['p0-manual'])
+    const open = td(); open.openQuestions = [{ id: 'Q-1', question: 'which receipt formats?' }]; expect(designFindings(open)).toEqual(['question-open'])
+    const other = td(); other.spec = 'other'; other.harness = 'other'; expect(designFindings(other)).toEqual(['spec-mismatch', 'harness-mismatch'])
+    expect(checkTestDesign({ testDesign: { title: 'x' } }).map((f: { code: string }) => f.code)).toEqual(['not-a-test-design'])
+  })
+
+  it('a harness passes when every level ran and its seed test is green', () => {
+    const harness = content('TestHarness')
+    const seed = unit([{ classname: 'test/claim.test.ts', name: 'claim > a drafted claim starts with no lines', status: 'passed' }])
+    const apiSeed = api([{ classname: 'http://localhost:3996/health', name: 'the app answers its health check', status: 'passed' }])
+    const codes = (h: any, s: any, l: any[]) => checkHarness({ harness: h, seed: s, levelOutcomes: l, ids: { architecture: 'expense-claims-architecture' } }).map((f: { code: string }) => f.code)
+    expect(codes(harness, seed, [apiSeed])).toEqual([])
+    expect(codes(harness, seed, [])).toEqual(['level-unrun'])
+    expect(codes(harness, seed, [api([{ ...apiSeed.tests[0], status: 'failed' }])])).toEqual(['seed-failed'])
+    expect(codes(harness, seed, [api([{ classname: 'x', name: 'other', status: 'passed' }])])).toEqual(['seed-missing'])
+    expect(codes(harness, seed, [{ ...api([]), outputTail: 'bru: not found', exitCode: 127 }])).toEqual(['suite-empty'])
+    expect(codes({ ...harness, openQuestions: [{ id: 'Q-1', question: 'Bruno or Hurl?' }] }, seed, [apiSeed])).toEqual(['question-open'])
+    expect(codes({ ...harness, architecture: 'other' }, seed, [apiSeed])).toEqual(['architecture-mismatch'])
+    expect(codes({ levels: {} }, seed, [])).toEqual(['not-a-harness'])
+  })
+
+  it('selects a task\'s cases by level, and whether the Tester writes this round', () => {
+    const ids = { plan: content('Plan'), taskId: 'T-1', spec: content('Spec'), testDesign: content('TestDesign') }
+    expect(selectCases(ids)).toEqual({ unit: ['CAP-1/TC-3', 'CAP-1/TC-8', 'CAP-1/TC-9'], integration: [], api: ['CAP-1/TC-1', 'CAP-1/TC-10'], e2e: [], manual: [], write: { api: true, e2e: false } })
+    const gate = (message: string) => ({ passed: false, results: { evidence: { passed: false, findings: [{ severity: 'error', code: 'x', message }] } } })
+    expect(selectCases({ ...ids, feedback: gate('CAP-1/TC-10: no api test carries it') }).write).toEqual({ api: true, e2e: false })
+    expect(selectCases({ ...ids, feedback: gate('CAP-1/TC-3: claim > x failed') }).write).toEqual({ api: false, e2e: false }) // a round refused for the code alone
+    expect(selectCases({ ...ids, testDesign: undefined })).toEqual({ unit: [], integration: [], api: [], e2e: [], manual: [], write: { api: false, e2e: false } })
+  })
+
+  it('a round under a TestDesign reads the task\'s cases, not record rows', () => {
+    expect(accept(unit(t1Unit()), [api(t1Api())])).toEqual([])
+    expect(accept(unit(t1Unit()), [api([test('CAP-1/TC-1')])]).map((f: any) => [f.code, f.message])).toEqual([['case-untested', 'CAP-1/TC-10: no api test carries it: a request naming another employee\'s claim is refused and logged']])
+    expect(accept(unit(t1Unit()), [api([test('CAP-1/TC-1'), test('CAP-1/TC-10', 'failed')])]).map((f: any) => f.code)).toEqual(['case-failed']) // named: not suite-failed too
+    expect(accept(unit(t1Unit()), [api([test('CAP-1/TC-1'), test('CAP-1/TC-10', 'skipped')])]).map((f: any) => f.code)).toEqual(['case-skipped'])
+    expect(accept(unit([...t1Unit(), test('CAP-1/TC-10')]), [api([test('CAP-1/TC-1')])]).map((f: any) => f.code)).toEqual(['case-level'])
+    expect(accept(unit(t1Unit()), []).map((f: any) => f.message)).toEqual(['CAP-1/TC-1: the api tests did not run: the project has no such level', 'CAP-1/TC-10: the api tests did not run: the project has no such level'])
+    expect(accept(unit([...t1Unit(), { classname: 'test/x.test.ts', name: 'x', status: 'failed' }]), [api(t1Api())]).map((f: any) => f.code)).toEqual(['suite-failed'])
+    const manual = structuredClone(content('TestDesign')); manual.cases[9].execution = 'manual'; manual.cases[9].priority = 'P1'
+    expect(accept(unit(t1Unit()), [api([test('CAP-1/TC-1')])], manual).map((f: any) => [f.severity, f.code])).toEqual([['info', 'case-manual']])
+    expect(checkAcceptance({ record: { task: 'T-1' } })[0].code).toBe('not-a-record') // no TestDesign: the rows are required
+  })
+
+  it('reports each case, the coverage of every scenario and requirement, and the verdict with its rule', () => {
+    const allUnit = ['CAP-1/TC-3', 'CAP-1/TC-8', 'CAP-1/TC-9'].map((q) => test(q))
+    const allApi = ['CAP-1/TC-1', 'CAP-1/TC-2', 'CAP-1/TC-4', 'CAP-1/TC-5', 'CAP-1/TC-6', 'CAP-1/TC-7', 'CAP-1/TC-10'].map((q) => test(q))
+    const evaluation = { summary: 'every case ran', residualRisks: [] }
+    const report = (u: unknown[], a: unknown[], testDesign = content('TestDesign'), records = {}) => buildReport({ plan: content('Plan'), spec: content('Spec'), architecture: content('Architecture'), testDesign, final: { ...unit(u), head: 'abc' }, finals: [api(a)], records, evaluation, ids: { plan: 'submit-a-claim-plan', spec: 'submit-a-claim', testDesign: 'submit-a-claim-tests' } })
+    const pass = report(allUnit, allApi)
+    expect(pass.verdict).toEqual({ result: 'pass', rule: 'P0 100%, P1 100%, all 100% ok', thresholds: { p0: 100, p1: 90, p1Concerns: 80, overall: 80 } })
+    expect(pass.coverage.find((c: any) => c.ref === 'AC-1')).toEqual({ ref: 'AC-1', status: 'ok', cases: ['CAP-1/TC-1'] })
+    expect(pass.coverage.map((c: any) => c.ref)).toEqual(['AC-1', 'AC-2', 'AC-3', 'AC-8', 'AC-9', 'AC-4', 'AC-5', 'AC-6', 'AC-7', 'QS-3', 'FR-1', 'FR-2', 'FR-3', 'FR-4', 'FR-5', 'FR-6', 'BR-2', 'BR-3']) // QS-1 is proven at release
+    expect(pass.levels).toEqual([{ level: 'unit', selection: 'full', passed: 3, failed: 0, skipped: 0 }, { level: 'api', selection: 'full', passed: 7, failed: 0, skipped: 0 }])
+    expect(pass.head).toBe('abc')
+    expect(report(allUnit, allApi.map((t: any) => (t.name.includes('TC-5 ') ? { ...t, status: 'failed' } : t))).verdict).toMatchObject({ result: 'fail', rule: 'CAP-1/TC-5 nok' })
+    const p1 = allApi.filter((t: any) => !t.name.includes('TC-2 ')) // one of five P1 cases not run: 80%
+    expect(report(allUnit, p1).verdict).toMatchObject({ result: 'concerns', rule: 'P0 100%, P1 80%, all 90% ok: P1 below 90%' })
+    expect(report(allUnit, p1).cases.find((c: any) => c.case === 'CAP-1/TC-2')).toMatchObject({ status: 'notrun', reason: 'no test carries it' })
+    expect(report(allUnit, allApi.filter((t: any) => !t.name.includes('TC-10 '))).verdict).toMatchObject({ result: 'fail', rule: 'P0 75%, P1 100%, all 90% ok: P0 below 100%' })
+    const gap = structuredClone(content('TestDesign')); gap.cases = gap.cases.filter((c: any) => c.id !== 'TC-7')
+    expect(report(allUnit, allApi, gap).verdict).toMatchObject({ result: 'fail', rule: 'AC-7 uncovered' })
+    expect(report(allUnit, allApi, content('TestDesign'), { 'submit-a-claim-plan-t-1': { defects: [{ id: 'D-1', observed: 'cents are dropped', expected: 'x', where: 'y' }] } }).defects).toEqual([{ record: 'submit-a-claim-plan-t-1', defect: 'D-1', observed: 'cents are dropped' }])
+  })
+
+  it('the Adapter dispatches a TestDesign and a TestHarness to their checks', async () => {
+    const r = await adapter({ id: ++id, op: 'evaluate', payload: payload({ testDesign: content('TestDesign'), spec: content('Spec'), architecture: content('Architecture'), rules: content('BusinessRules'), harness: content('TestHarness') }) })
+    expect(r.result).toEqual({ passed: true, findings: [], evidence: [] })
+    const h = await adapter({ id: ++id, op: 'evaluate', payload: payload({ harness: content('TestHarness'), seed: unit([]) }) })
+    expect(h.result.findings.map((f: { code: string }) => f.code)).toEqual(['suite-empty', 'level-unrun'])
   })
 })

@@ -452,6 +452,85 @@ function suiteFindings(outcome, baseline, named, prefix, bad, findings) {
 
 const levelOf = (o) => o?.level ?? 'unit'
 const ran = (o) => o && o.selection?.mode !== 'none'
+
+/** A case's id as a test names it, `<CAP-n>/TC-n`: each Spec numbers its cases from 1 (39-test-process.md). */
+export const qualified = (spec, id) => `${spec?.capability}/${id}`
+/** Whether a test, by its `classname > name`, carries a qualified case id as a whole token: CAP-1/TC-1 is not in CAP-1/TC-10. */
+export const carries = (test, qid) => new RegExp(`(^|[^\\w/-])${qid.replace('/', '\\/')}(?![\\w-])`).test(`${test.classname} > ${test.name}`)
+/** The TestDesign's cases that verify a scenario of the task's `verifiedBy`, each with its qualified id. */
+export function taskCases({ plan, taskId, spec, testDesign }) {
+  const due = new Set((plan?.tasks ?? []).find((t) => t.id === taskId)?.verifiedBy ?? [])
+  return (testDesign?.cases ?? []).filter((c) => (c.verifies ?? []).some((v) => due.has(v))).map((c) => ({ ...c, qid: qualified(spec, c.id) }))
+}
+/** What one build round runs (39-test-process.md): the task's automated case ids by level, its manual ones, and whether the
+ * Tester writes this round's api and e2e tests: in round one when the task has such cases, later when a finding names one. */
+export function selectCases({ plan, taskId, spec, testDesign, feedback }) {
+  const cases = taskCases({ plan, taskId, spec, testDesign })
+  const of = (level) => cases.filter((c) => c.execution !== 'manual' && c.level === level).map((c) => c.qid)
+  const named = Object.values(feedback?.results ?? {}).flatMap((r) => r?.findings ?? []).map((f) => f.message ?? '').join('\n')
+  const write = (level) => of(level).length > 0 && (!feedback || of(level).some((q) => named.includes(q)))
+  return { unit: of('unit'), integration: of('integration'), api: of('api'), e2e: of('e2e'), manual: cases.filter((c) => c.execution === 'manual').map((c) => c.qid), write: { api: write('api'), e2e: write('e2e') } }
+}
+
+/** One TestHarness against the seed runs of its levels (39-test-process.md): every level ran and its seed test is green.
+ * `seed`: the unit level's outcome; `levelOutcomes` the others'. `ids`: {architecture} bound. Every finding `error`. */
+export function checkHarness({ harness, seed, levelOutcomes = [], ids = {} }) {
+  if (!harness?.levels?.unit) return [{ severity: 'error', code: 'not-a-harness', message: 'content is not a TestHarness: it has no levels.unit' }]
+  const findings = []
+  const bad = (code, message) => findings.push({ severity: 'error', code, message })
+  if (ids.architecture && harness.architecture !== ids.architecture) bad('architecture-mismatch', `architecture ${harness.architecture} is not ${ids.architecture}, the Architecture bound`)
+  const outcomes = new Map([...(seed ? [['unit', seed]] : []), ...levelOutcomes.map((o) => [levelOf(o), o])])
+  for (const [level, l] of Object.entries(harness.levels)) {
+    const o = outcomes.get(level)
+    if (!o || !ran(o)) {
+      bad('level-unrun', `${level}: the seed run has no outcome for it`)
+      continue
+    }
+    if ((o.tests ?? []).length === 0) {
+      bad('suite-empty', empty(o, `${level}: `))
+      continue
+    }
+    const m = (o.tests ?? []).filter((c) => c.name === l.seed || `${c.classname} > ${c.name}` === l.seed)
+    if (m.length === 0) bad('seed-missing', `${level}: no test is named ${l.seed}`)
+    else if (!m.every((c) => c.status === 'passed')) bad('seed-failed', `${level}: ${l.seed} ${m.find((c) => c.status !== 'passed').status}`)
+  }
+  for (const q of harness.openQuestions ?? []) if (!q.resolution) bad('question-open', `${q.id} is open: ${q.question}`)
+  return findings
+}
+
+/** One TestDesign against its Spec, the Architecture's quality scenarios, the BusinessRules and the TestHarness
+ * (39-test-process.md). `ids`: {spec, harness} bound. Every finding `error`. */
+export function checkTestDesign({ testDesign, spec, architecture, rules, harness, ids = {} }) {
+  if (!testDesign || !Array.isArray(testDesign.cases) || !testDesign.spec) {
+    return [{ severity: 'error', code: 'not-a-test-design', message: 'content is not a TestDesign: it has no cases array or no spec' }]
+  }
+  const findings = []
+  const bad = (code, message) => findings.push({ severity: 'error', code, message })
+  if (ids.spec && testDesign.spec !== ids.spec) bad('spec-mismatch', `spec ${testDesign.spec} is not ${ids.spec}, the Spec bound`)
+  if (ids.harness && testDesign.harness !== ids.harness) bad('harness-mismatch', `harness ${testDesign.harness} is not ${ids.harness}, the TestHarness bound`)
+  const acs = (spec?.stories ?? []).flatMap((s) => (s.acceptance ?? []).map((a) => a.id))
+  const provenAt = new Map((architecture?.qualityScenarios ?? []).map((q) => [q.id, q.provenAt]))
+  const cited = (spec?.qualities ?? []).map((q) => q.scenario)
+  const known = new Set([...acs, ...cited, ...(spec?.requirements ?? []).map((r) => r.id), ...(rules?.rules ?? []).map((r) => r.id)])
+  const levels = new Set(Object.keys(harness?.levels ?? {}))
+  const verified = new Set()
+  for (const c of testDesign.cases) {
+    for (const v of c.verifies ?? []) {
+      verified.add(v)
+      if (!known.has(v)) bad('unknown-reference', `${c.id}: ${v} is not in the Spec, the rules or the quality scenarios it cites`)
+    }
+    if (!(c.verifies ?? []).some((v) => /^(AC|QS)-/.test(v))) bad('case-unanchored', `${c.id} verifies no AC-n and no QS-n`)
+    if (harness && !levels.has(c.level)) bad('level-unavailable', `${c.id}: the harness has no ${c.level} level`)
+    if ((c.level === 'api' || c.level === 'e2e' || c.execution === 'manual') && !(c.steps ?? []).length) bad('steps-missing', `${c.id}: a${c.execution === 'manual' ? ' manual' : `n ${c.level}`} case names its steps`)
+    if (c.priority === 'P0' && c.execution === 'manual') bad('p0-manual', `${c.id}: a P0 case is automated`)
+  }
+  for (const id of acs) if (!verified.has(id)) bad('scenario-uncovered', `${id}: no case verifies it`)
+  for (const id of cited) if (provenAt.get(id) === 'build' && !verified.has(id)) bad('scenario-uncovered', `quality scenario ${id} is proven at build but no case verifies it`)
+  for (const q of testDesign.openQuestions ?? []) if (!q.resolution) bad('question-open', `${q.id} is open: ${q.question}`)
+  sequence(bad, 'TC', testDesign.cases.map((c) => c.id))
+  sequence(bad, 'Q', (testDesign.openQuestions ?? []).map((q) => q.id))
+  return findings
+}
 const empty = (o, prefix) => `${prefix}no test case ran (exit ${o?.exitCode}): ${o?.outputTail ?? ''}`
 /** A row's test as {name, level}: a bare name is a unit test (36-test-levels.md). */
 const testRef = (t) => (typeof t === 'string' ? { name: t, level: 'unit' } : t)
@@ -462,11 +541,12 @@ const testRef = (t) => (typeof t === 'string' ? { name: t, level: 'unit' } : t)
  * `classname > name`, never split; cases with the same classname and name (a retried or parameterized test) are one test, red
  * if any of them is. `baseline`: the tests before build-all; a case red there and red still is tolerated. `levelOutcomes` and
  * `levelBaselines`: the other test levels' (36-test-levels.md), paired by `level`; a row's `{name, level}` resolves in its level's
- * outcome, and the unit outcome carries the coverage and mutation minimums. Every finding `error` but `suite-baseline` and
- * `level-held` (info), `baseline-dirty` and `defect-reported` (warning). */
-export function checkAcceptance({ record, testOutcome, plan, spec, previous, previousOutcome, baseline, levelOutcomes = [], levelBaselines = [], ids = {} }) {
-  if (!record || !record.task || !Array.isArray(record.verifies)) {
-    return [{ severity: 'error', code: 'not-a-record', message: 'content is not an AcceptanceRecord: it has no task or no verifies array' }]
+ * outcome, and the unit outcome carries the coverage and mutation minimums. With `testDesign` bound no row is read: the task's
+ * cases are, each by the tests carrying its qualified id (39-test-process.md). Every finding `error` but `suite-baseline`,
+ * `level-held` and `case-manual` (info), `baseline-dirty` and `defect-reported` (warning). */
+export function checkAcceptance({ record, testOutcome, plan, spec, previous, previousOutcome, baseline, levelOutcomes = [], levelBaselines = [], testDesign, ids = {} }) {
+  if (!record || !record.task || (!Array.isArray(record.verifies) && !testDesign)) {
+    return [{ severity: 'error', code: 'not-a-record', message: `content is not an AcceptanceRecord: it has no task${testDesign ? '' : ' or no verifies array'}` }]
   }
   const cases = testOutcome?.tests ?? []
   if (cases.length === 0 && ran(testOutcome ?? {})) return [{ severity: 'error', code: 'suite-empty', message: empty(testOutcome, '') }]
@@ -491,42 +571,46 @@ export function checkAcceptance({ record, testOutcome, plan, spec, previous, pre
   const named = new Set()
   const seen = new Set()
   for (const id of due) if (!scenarios.has(id)) bad('unknown-scenario', `${id} verifies ${record.task} but is not in the Spec: the Spec was revised after the Plan`)
-  for (const row of record.verifies) {
-    const id = row.scenario
-    if (seen.has(id)) bad('scenario-duplicate', `${id} has two rows`)
-    seen.add(id)
-    if (task && !due.has(id)) bad('unknown-scenario', `${id} does not verify ${record.task}`)
-    for (const { name, level } of (row.tests ?? []).map(testRef)) {
-      const o = outcomes.get(level)
-      const where = level === 'unit' ? '' : `${level} `
-      // a held level ran nothing: the red before it already fails the round, told once as level-held
-      if (o?.selection?.mode === 'none' && o.selection.reason.startsWith('held')) continue
-      if (!o) {
-        bad('test-missing', `${id}: no ${level} test ran: the project configures no ${level} level`)
-        continue
+  if (testDesign) caseFindings({ cases: taskCases({ plan, taskId: record.task, spec, testDesign }), outcomes, named, bad, findings })
+  else rowFindings()
+  function rowFindings() {
+    for (const row of record.verifies) {
+      const id = row.scenario
+      if (seen.has(id)) bad('scenario-duplicate', `${id} has two rows`)
+      seen.add(id)
+      if (task && !due.has(id)) bad('unknown-scenario', `${id} does not verify ${record.task}`)
+      for (const { name, level } of (row.tests ?? []).map(testRef)) {
+        const o = outcomes.get(level)
+        const where = level === 'unit' ? '' : `${level} `
+        // a held level ran nothing: the red before it already fails the round, told once as level-held
+        if (o?.selection?.mode === 'none' && o.selection.reason.startsWith('held')) continue
+        if (!o) {
+          bad('test-missing', `${id}: no ${level} test ran: the project configures no ${level} level`)
+          continue
+        }
+        if (!ran(o)) {
+          bad('test-missing', `${id}: ${name}: the ${level} tests did not run (${o.selection.reason})`)
+          continue
+        }
+        if ((o.tests ?? []).length === 0) continue // that level's suite-empty says why
+        const m = matching(name, level)
+        for (const c of m) named.add(c)
+        if (m.length === 0) bad('test-missing', `${id}: no ${where}test case is named ${name}`)
+        else if (tests(m) > 1) bad('test-ambiguous', `${id}: ${tests(m)} ${where}test cases are named ${name}; name it as classname > name`)
+        else if (m.some(red)) {
+          const r = m.find(red)
+          bad('test-failed', `${id}: ${name} ${r.status}${r.message ? `: ${r.message}` : ''}`)
+        } else if (m.every((c) => c.status === 'skipped')) bad('test-skipped', `${id}: ${name} was skipped`)
       }
-      if (!ran(o)) {
-        bad('test-missing', `${id}: ${name}: the ${level} tests did not run (${o.selection.reason})`)
-        continue
-      }
-      if ((o.tests ?? []).length === 0) continue // that level's suite-empty says why
-      const m = matching(name, level)
-      for (const c of m) named.add(c)
-      if (m.length === 0) bad('test-missing', `${id}: no ${where}test case is named ${name}`)
-      else if (tests(m) > 1) bad('test-ambiguous', `${id}: ${tests(m)} ${where}test cases are named ${name}; name it as classname > name`)
-      else if (m.some(red)) {
-        const r = m.find(red)
-        bad('test-failed', `${id}: ${name} ${r.status}${r.message ? `: ${r.message}` : ''}`)
-      } else if (m.every((c) => c.status === 'skipped')) bad('test-skipped', `${id}: ${name} was skipped`)
     }
+    for (const id of due) if (!seen.has(id)) bad('scenario-unrecorded', `${id} verifies ${record.task} but the record names no test for it`)
+    // the unit tests only: previousOutcome is the unit one; a name the last round got wrong never ran, so only a test that ran then can be dropped now
+    const unitNames = (r) => (r?.verifies ?? []).flatMap((x) => (x.tests ?? []).map(testRef)).filter((t) => t.level === 'unit').map((t) => t.name)
+    const current = new Set(unitNames(record))
+    const ranBefore = (n) => (previousOutcome?.tests ?? []).some((c) => c.name === n || `${c.classname} > ${c.name}` === n)
+    const dropped = new Set(unitNames(previous).filter((n) => !current.has(n) && ranBefore(n) && matching(n).length === 0))
+    for (const name of dropped) bad('test-dropped', `${name}, named last round, no longer runs`)
   }
-  for (const id of due) if (!seen.has(id)) bad('scenario-unrecorded', `${id} verifies ${record.task} but the record names no test for it`)
-  // the unit tests only: previousOutcome is the unit one; a name the last round got wrong never ran, so only a test that ran then can be dropped now
-  const unitNames = (r) => (r?.verifies ?? []).flatMap((x) => (x.tests ?? []).map(testRef)).filter((t) => t.level === 'unit').map((t) => t.name)
-  const current = new Set(unitNames(record))
-  const ranBefore = (n) => (previousOutcome?.tests ?? []).some((c) => c.name === n || `${c.classname} > ${c.name}` === n)
-  const dropped = new Set(unitNames(previous).filter((n) => !current.has(n) && ranBefore(n) && matching(n).length === 0))
-  for (const name of dropped) bad('test-dropped', `${name}, named last round, no longer runs`)
   if (ran(testOutcome)) suiteFindings(testOutcome, baseline, named, '', bad, findings)
   measures(testOutcome, bad)
   for (const [level, o] of outcomes) {
@@ -544,6 +628,33 @@ export function checkAcceptance({ record, testOutcome, plan, spec, previous, pre
   return findings
 }
 
+/** A task's cases against the round's outcomes (39-test-process.md): a test carries a case by its qualified id; every test
+ * that carries one is named, so a red one is the case's finding, not `suite-failed`. */
+function caseFindings({ cases, outcomes, named, bad, findings }) {
+  const manual = cases.filter((c) => c.execution === 'manual').map((c) => c.qid)
+  if (manual.length) findings.push({ severity: 'info', code: 'case-manual', message: `no test runs ${manual.join(', ')}: manual` })
+  for (const c of cases.filter((c) => c.execution !== 'manual')) {
+    const o = outcomes.get(c.level)
+    const where = c.level === 'unit' ? '' : `${c.level} `
+    if (o?.selection?.mode === 'none' && o.selection.reason.startsWith('held')) continue // level-held says why
+    const carrying = (x) => (x?.tests ?? []).filter((t) => carries(t, c.qid))
+    const m = carrying(o)
+    for (const t of m) named.add(t)
+    if (!o || !ran(o)) {
+      bad('case-untested', `${c.qid}: the ${c.level} tests did not run${o ? ` (${o.selection.reason})` : ': the project has no such level'}`)
+      continue
+    }
+    if (m.length === 0) {
+      const elsewhere = [...outcomes].filter(([level, x]) => level !== c.level && carrying(x).length).map(([level]) => level)
+      if (elsewhere.length) bad('case-level', `${c.qid} is a ${c.level} case; only a ${elsewhere.join(' and ')} test carries it`)
+      else bad('case-untested', `${c.qid}: no ${where}test carries it: ${c.title}`)
+    } else if (m.some(red)) {
+      const r = m.find(red)
+      bad('case-failed', `${c.qid}: ${r.classname} > ${r.name} ${r.status}${r.message ? `: ${r.message}` : ''}`)
+    } else if (m.every((t) => t.status === 'skipped')) bad('case-skipped', `${c.qid}: every test carrying it was skipped`)
+  }
+}
+
 /** The plan tier (36-test-levels.md): every level's tests after build-all's last task against its baseline, no record. A level
  * that ran nothing, the unit one when every round ran it in full, says nothing. Every finding `error` but `suite-baseline` (info)
  * and `baseline-dirty` (warning). */
@@ -558,6 +669,63 @@ export function checkRegression({ final, baseline, levelOutcomes = [], levelBase
     else suiteFindings(o, base, new Set(), prefix, bad, findings)
   }
   return findings
+}
+
+const verdictThresholds = { p0: 100, p1: 90, p1Concerns: 80, overall: 80 }
+/** The TestReport of one built Plan (39-test-process.md): each case's result in the plan tier's outcome of its level, a coverage
+ * status per scenario and requirement, Xray's (`ok`, `nok`, `notrun`, `uncovered`), and the verdict by BMAD's trace thresholds,
+ * the rule that gave it named. `final` is the unit outcome, `finals` the other levels'; `records` maps an AcceptanceRecord id to
+ * its content; `evaluation` is the Auditor's, carried as it is; `ids`: {plan, spec, testDesign}. */
+export function buildReport({ plan, spec, architecture, testDesign, final, finals = [], records = {}, evaluation, thresholds = {}, ids = {} }) {
+  const t = { ...verdictThresholds, ...thresholds }
+  const outcomes = new Map([...(final ? [['unit', final]] : []), ...finals.map((o) => [levelOf(o), o])])
+  const cases = (testDesign?.cases ?? []).map((c) => {
+    const qid = qualified(spec, c.id)
+    const o = outcomes.get(c.level)
+    const tests = (o?.tests ?? []).filter((x) => carries(x, qid)).map((x) => ({ name: `${x.classname} > ${x.name}`, status: x.status }))
+    const row = { case: qid, level: c.level, priority: c.priority, execution: c.execution, tests }
+    if (c.execution === 'manual') return { ...row, status: 'notrun', reason: 'manual' }
+    if (!o || !ran(o)) return { ...row, status: 'notrun', reason: `the ${c.level} tests did not run` }
+    if (tests.length === 0) return { ...row, status: 'notrun', reason: 'no test carries it' }
+    if (tests.some(red)) return { ...row, status: 'nok' }
+    if (tests.every((x) => x.status === 'skipped')) return { ...row, status: 'notrun', reason: 'every test carrying it was skipped' }
+    return { ...row, status: 'ok' }
+  })
+  const status = new Map(cases.map((c) => [c.case, c.status]))
+  const provenAt = new Map((architecture?.qualityScenarios ?? []).map((q) => [q.id, q.provenAt]))
+  const verifying = (ref) => (testDesign?.cases ?? []).filter((c) => (c.verifies ?? []).includes(ref)).map((c) => qualified(spec, c.id))
+  const acs = (spec?.stories ?? []).flatMap((s) => (s.acceptance ?? []).map((a) => a.id))
+  const qss = (spec?.qualities ?? []).map((q) => q.scenario).filter((q) => provenAt.get(q) === 'build' || verifying(q).length)
+  const frs = (spec?.requirements ?? []).map((r) => r.id)
+  const brs = [...new Set([...(spec?.requirements ?? []).flatMap((r) => r.rules ?? []), ...(testDesign?.cases ?? []).flatMap((c) => (c.verifies ?? []).filter((v) => v.startsWith('BR-')))])]
+  const coverage = [...acs, ...qss, ...frs, ...brs].map((ref) => {
+    const by = verifying(ref)
+    const s = by.map((q) => status.get(q))
+    return { ref, status: !by.length ? 'uncovered' : s.includes('nok') ? 'nok' : s.includes('notrun') ? 'notrun' : 'ok', cases: by }
+  })
+  const rate = (list) => (list.length ? Math.round((list.filter((c) => c.status === 'ok').length / list.length) * 1000) / 10 : 100)
+  const [p0, p1, all] = [rate(cases.filter((c) => c.priority === 'P0')), rate(cases.filter((c) => c.priority === 'P1')), rate(cases)]
+  const nok = cases.filter((c) => c.status === 'nok').map((c) => c.case)
+  const gap = coverage.filter((c) => c.status === 'uncovered' && (c.ref.startsWith('AC-') || provenAt.get(c.ref) === 'build')).map((c) => c.ref)
+  const rates = `P0 ${p0}%, P1 ${p1}%, all ${all}% ok`
+  const [result, rule] =
+    nok.length ? ['fail', `${nok.join(', ')} nok`]
+      : gap.length ? ['fail', `${gap.join(', ')} uncovered`]
+        : p0 < t.p0 ? ['fail', `${rates}: P0 below ${t.p0}%`]
+          : p1 < t.p1Concerns ? ['fail', `${rates}: P1 below ${t.p1Concerns}%`]
+            : all < t.overall ? ['fail', `${rates}: all cases below ${t.overall}%`]
+              : p1 < t.p1 ? ['concerns', `${rates}: P1 below ${t.p1}%`]
+                : ['pass', rates]
+  const head = [...outcomes.values()].find((o) => o.head)?.head
+  return {
+    plan: ids.plan, spec: ids.spec, testDesign: ids.testDesign, ...(head ? { head } : {}),
+    verdict: { result, rule, thresholds: t },
+    cases,
+    coverage,
+    levels: [...outcomes].map(([level, o]) => ({ level, selection: o.selection?.mode ?? 'full', passed: o.tests.filter((x) => x.status === 'passed').length, failed: o.tests.filter(red).length, skipped: o.tests.filter((x) => x.status === 'skipped').length })),
+    defects: Object.entries(records).flatMap(([record, r]) => (r?.defects ?? []).map((d) => ({ record, defect: d.id, observed: d.observed }))),
+    evaluation,
+  }
 }
 
 /** The unit level's minimums over the Change set, as its outcome records them (36-test-levels.md). */
