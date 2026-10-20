@@ -751,43 +751,68 @@ envelope field is `spec`.
 _Avoid_: feature spec, requirements doc, spec.md
 
 **Rewrite pack**:
-The process pack for rebuilding an existing system (`packs/rewrite/`, `40-pack-rewrite.md`): it
-recovers the knowledge in the **Source system**'s code into SDLC pack artifacts, then rebuilds on
-the SDLC pack's processes. Installed beside the SDLC pack; uses its kinds and processes by name and
-copies none.
-_Avoid_: migration pack, modernization pack, brownfield pack, reverse pack
+The process pack for rebuilding an existing system in a new repository (`packs/rewrite/`,
+`40-pack-rewrite.md`): the persimmon project is the rewrite's repository, never the **Source
+system**'s. It recovers the knowledge in the Source system's code into SDLC pack artifacts, **Slice**
+by Slice, and rebuilds each Slice on the SDLC pack's processes. Installed beside the SDLC pack; uses
+its kinds and processes by name and copies none. Changing the Source system in its own repository
+is a refactor, not a rewrite, and not this pack's.
+_Avoid_: migration pack, modernization pack, brownfield pack, reverse pack, refactor (an in-place change)
 
 **Source system**:
-The existing system a rewrite replaces: its repository pinned at one commit, and the app it runs
-when it can be started. Read, never changed.
+The existing system a rewrite replaces: its repository pinned at one commit, a checkout outside the
+project, and the app it runs when it can be started. Read, never changed.
 _Avoid_: legacy system, old system, as-is system, target (the new system is the rewrite)
 
+**Survey**:
+The **Rewrite pack**'s first pass over a whole **Source system**, once: its entry points and, for
+each, the files and data it reaches; no guards. What the developer cuts **Slice**s from, and what
+shows the data two Slices share.
+_Avoid_: scan, discovery (that is **Domain discovery**), inventory (that is the **SourceInventory**)
+
+**Slice**:
+A set of the **Source system**'s entry points recovered, rebuilt, checked and cut over together,
+cut from the **Survey**. Each Slice adds a revision to the **SourceInventory**, the **ParityLedger**,
+the **Prd** and its **BusinessRules**.
+_Avoid_: module, increment, phase, batch
+
 **SourceInventory**:
-**Artifact kind** of the **Rewrite pack**, one per **Source system**: facts read off the source at
-its commit (entry points, state changes, guards, entities, external systems, tests), each with
-where it is. A guard is every branch that decides, its `role` a rule, plumbing or unknown. The
-evidence a recovered **Prd**, its **BusinessRules** and the storming cite.
+**Artifact kind** of the **Rewrite pack**, one per **Source system**, a revision per **Slice**: facts
+read off the source at its commit: entry points, state changes (writes that outlive the request),
+guards (every branch that decides, its `role` a rule, plumbing or unknown), declarations (rules
+stated without a branch: a key, a uniqueness, a retention, a job order, a column constraint),
+absences (a check the source could make and does not), entities, external systems, tests. Each with
+where it is: a file and line, or a locator for what lives only in a deployed database or
+configuration. The evidence a recovered **Prd**, its **BusinessRules** and the storming cite.
 _Avoid_: code facts, knowledge graph, analysis report, code map
 
 **Oracle**:
-Where the expected behaviour of the **Source system** comes from: `running` (its app answers),
-`partial` (its units run in a harness, the app does not), `recorded` (input and output pairs it
-produced, given by the developer) or `static` (its code only). Stated per capability; the
-**ParityLedger** reports it, weakest last.
+Where the expected behaviour of the **Source system** comes from, per entry point: `running` (its
+app answers), `partial` (its units run in a harness, the app does not), `recorded` (input and output
+pairs it produced, given by the developer) or `static` (its code only). The **ParityLedger**'s
+verdict reads the weakest.
 _Avoid_: mode, assurance level, test oracle (bare), source of truth
 
 **Characterization test**:
 A test of what the **Source system** does, bugs included, its expected value read off the
 source's answer or a record, never off a recovered rule: what keeps a rule nobody recovered.
-Written by the **Tester** before any rule is recovered.
+Written by the **Tester** against observations through a **Protocol driver**, before any rule of
+its **Slice** is recovered; the same test later runs against the rewrite.
 _Avoid_: pinned test, golden master, snapshot test, regression test
 
+**Protocol driver**:
+The part of a **Characterization test** suite that turns one system's interface into the
+observations the tests assert (Farley's four-layer acceptance tests): the source's, fixed once its
+**Slice** is characterized, and the rewrite's, written by the **Tester** when the interface changes.
+The rewrite's renames, reshapes and converts, and never computes, so no rule moves into test code.
+_Avoid_: translation layer, driver (bare), adapter (an **Adapter** is the engine's), page object
+
 **Recovery process**:
-The **Rewrite pack** process from a **Source system** to a **Prd** and its **BusinessRules**:
-ReviewLoop `inventory` writes the **SourceInventory**, ReviewLoop `characterize` the
-**Characterization test**s and the first **ParityLedger**, ReviewLoop `recover-prd` the Prd and rules
-citing both, with a **Disposition** per item confirmed by a human. **Domain discovery** then runs on
-that Prd.
+The **Rewrite pack** process from a **Source system** to a **Prd** and its **BusinessRules**: the
+**Survey** once, then per **Slice** ReviewLoop `inventory` (the **SourceInventory**), ReviewLoop
+`characterize` (the **Characterization test**s and the **ParityLedger**) and ReviewLoop
+`recover-prd` (the Prd and rules citing both, with a **Disposition** per item confirmed by a
+human). **Domain discovery** then runs on that Prd.
 _Avoid_: reverse engineering (for the process), extraction phase, archaeology
 
 **Disposition**:
@@ -797,16 +822,19 @@ one sourced from the decision; `drop` moves the capability to the Prd's `nonGoal
 _Avoid_: parity policy (for one item), triage, verdict
 
 **ParityLedger**:
-**Artifact kind** of the **Rewrite pack**, one per **Source system**, computed: every guard of the
-**SourceInventory** accounted for (tested, ruled, plumbing, dropped, dead, or open), every difference
-between the Source system and the rewrite with its cause, the **Oracle** per capability, and a
-verdict. A revision after characterization, after recovery and after each **Parity check**.
+**Artifact kind** of the **Rewrite pack**, one per **Source system**, computed: every guard,
+declaration, state change and outbound external system accounted for (`complete`, `unverified` or
+`open`, from whether it is pinned, ruled, dropped, dead or plumbing), the source's recorded answer
+per test, every difference between the Source system and the rewrite with its cause, the **Oracle**
+per entry point, and a verdict. Pinned means a test fails when the guard is mutated; a line that
+ran is only reached.
 _Avoid_: parity report, equivalence report, coverage report, TestReport (the build's)
 
 **Parity check**:
-The **Rewrite pack** run of the **Characterization test**s against the rewrite after `build-all`:
-each difference from the **Source system** is a `change` **Disposition** or a **Defect**, never
-unexplained; the **ParityLedger**'s next revision holds the result.
+The **Rewrite pack** run of a **Slice**'s **Characterization test**s against the rewrite after its
+`build-all`, through the rewrite's **Protocol driver**: each difference from the **Source system** is
+a `change` **Disposition** or a **Defect**, never unexplained; the **ParityLedger**'s next revision
+holds the result.
 _Avoid_: regression (the build's), equivalence test, golden master, shadow test
 
 ## Flagged ambiguities
@@ -830,6 +858,11 @@ _Avoid_: regression (the build's), equivalence test, golden master, shadow test
 - **Source.** The **Source system** and the `BusinessRules` field `source` (law, policy, contract,
   decision). Resolution: the system is always **Source system** in full; the field is `source` in
   code font, and a recovered rule's `source` names the **SourceInventory** item it rests on.
+- **Driver.** Avoided for an executor **Adapter**, and the **Rewrite pack**'s **Protocol driver**.
+  Resolution: always **Protocol driver** in full; a bare "driver" names neither.
+- **Slice.** Any first part of a feature ("server mode's first slice") and the **Rewrite pack**'s
+  **Slice**. Resolution: capitalised **Slice** is the Rewrite pack's set of entry points; the generic
+  use stays lowercase.
 
 - **ArtifactRef vs RevisionRef.** Same shape. Framework says RevisionRef; reference well-known
   schemas exposed `persimmon.ai/v1#/ArtifactRef`. Resolution: **RevisionRef** everywhere,
