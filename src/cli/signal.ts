@@ -1,7 +1,9 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { existsSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
-import { localActor } from '../engine.js'
+import { type Engine, localActor } from '../engine.js'
+import { owns } from '../reconcile/dispatch.js'
+import { projectDirectory } from '../handler/write.js'
 import type { Cli } from './context.js'
 import { withEngine } from './context.js'
 import { find } from './get.js'
@@ -37,12 +39,12 @@ export async function complete(cli: Cli, taskRun: string, file: string | undefin
       cli.err(`TaskRun/${taskRun} not found`)
       return 1
     }
-    const status = (r.status ?? {}) as { phase?: string; waitingReason?: string }
-    if (status.phase !== 'Waiting' || status.waitingReason !== 'human') {
-      cli.err(`TaskRun/${taskRun} is ${status.phase ?? 'Pending'}${status.waitingReason ? ` (${status.waitingReason})` : ''}, not waiting for a human`)
+    const refused = notAnswerable(engine, r)
+    if (refused) {
+      cli.err(refused)
       return 1
     }
-    const form = join(cli.cwd, '.persimmon', 'inbox', `${r.metadata.name}.yaml`)
+    const form = formPath(engine, r.metadata.name)
     let completion: Record<string, unknown>
     if (file) {
       const body = loadDocs([file])[0] as Record<string, unknown>
@@ -52,8 +54,7 @@ export async function complete(cli: Cli, taskRun: string, file: string | undefin
       if (!existsSync(form)) throw new Error(`complete: no inbox form at ${form}; pass --file`)
       completion = await askForm(cli, parse(readFileSync(form, 'utf8')) as Form, r.metadata.name)
     }
-    engine.signal(r.metadata.uid as string, `complete-${randomBytes(6).toString('hex')}`, localActor, completion, 'api')
-    rmSync(form, { force: true }) // the cli-human form is answered
+    answer(engine, r, completion)
     cli.out(`completed TaskRun/${taskRun}`)
     await engine.drain() // the run continues here, agents included; then the tree shows where it got
     let root: Resource = engine.store.resources.getByUid(r.metadata.uid as string) ?? r
@@ -66,6 +67,22 @@ export async function complete(cli: Cli, taskRun: string, file: string | undefin
     for (const line of renderTree(engine, root)) cli.out(line)
     return 0
   })
+}
+
+/** Why `r` takes no answer here, or undefined: it must wait on a human and belong to this project directory (37-inbox.md). */
+export function notAnswerable(engine: Engine, r: Resource): string | undefined {
+  const status = (r.status ?? {}) as { phase?: string; waitingReason?: string }
+  if (status.phase !== 'Waiting' || status.waitingReason !== 'human') return `TaskRun/${r.metadata.name} is ${status.phase ?? 'Pending'}${status.waitingReason ? ` (${status.waitingReason})` : ''}, not waiting for a human`
+  if (!owns(engine.dispatch, r.metadata.uid as string)) return `TaskRun/${r.metadata.name} belongs to project directory ${r.metadata.annotations?.[projectDirectory]}; answer it there`
+}
+
+/** The cli-human/v1 form of a TaskRun, in this project directory's inbox. */
+export const formPath = (engine: Engine, taskRun: string) => join(engine.cwd, '.persimmon', 'inbox', `${taskRun}.yaml`)
+
+/** The one completion path of `persimmon complete` and the Inbox: signal the answer, drop the form. Check `notAnswerable` first. */
+export function answer(engine: Engine, r: Resource, completion: Record<string, unknown>): void {
+  engine.signal(r.metadata.uid as string, `complete-${randomBytes(6).toString('hex')}`, localActor, completion, 'api')
+  rmSync(formPath(engine, r.metadata.name), { force: true }) // the cli-human form is answered
 }
 
 export interface Form {
@@ -125,7 +142,7 @@ export function fromFile(body: Record<string, unknown>, form: Form | undefined, 
   return { taskResult: { ...body, protocol: body.protocol ?? 'persimmon.result/v1', outputs }, publish }
 }
 
-const isValidationResult = (schema: Record<string, unknown> | undefined) => {
+export const isValidationResult = (schema: Record<string, unknown> | undefined) => {
   const req = schema?.required
   return Array.isArray(req) && ['passed', 'findings', 'evidence'].every((k) => req.includes(k))
 }

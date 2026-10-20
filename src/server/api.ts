@@ -1,7 +1,11 @@
-// The JSON API over the Engine (25-ui.md): revisioned kinds, their artifacts, one revision, its representations, create the next one.
+// The JSON API over the Engine (25-ui.md): revisioned kinds, their artifacts, one revision, its representations, create the next one;
+// the Inbox (37-inbox.md): TaskRuns parked on a human, their forms, the answer.
 // Local mode binds loopback and trusts the user, so there is no auth here; server mode adds https and tokens.
+import { existsSync, readFileSync } from 'node:fs'
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import { parse } from 'yaml'
 import { createRevision } from '../cli/create.js'
+import { answer, type Form, formPath, fromFile, isValidationResult, notAnswerable } from '../cli/signal.js'
 import type { Engine } from '../engine.js'
 import type { KindDefinition } from '../kind-definition/types.js'
 import type { Resource } from '../resource/types.js'
@@ -68,6 +72,11 @@ async function route(engine: Engine, req: IncomingMessage, path: string[], url: 
   const [head, ...rest] = path
   if (head === 'kinds' && rest.length === 0 && method === 'GET')
     return { status: 200, body: engine.kinds.definitions().filter((kd) => kd.spec.revisioned).map((kd) => ({ name: kd.metadata.name, apiVersion: apiVersionOf(kd), kind: kd.spec.names.kind, plural: kd.spec.names.plural })) }
+  if (head === 'kinds' && rest.length === 1 && method === 'GET') {
+    const kd = revisionedKind(engine, rest[0]!)
+    return { status: 200, body: { name: kd.metadata.name, apiVersion: apiVersionOf(kd), kind: kd.spec.names.kind, schema: kd.spec.versions.at(-1)!.schema } }
+  }
+  if (head === 'inbox') return inbox(engine, req, rest, method, url)
   if (head !== 'artifacts') throw new HttpError(404, 'not_found', `no route ${method} ${url.pathname}`)
 
   if (rest.length === 0 && method === 'GET') {
@@ -121,6 +130,49 @@ async function route(engine: Engine, req: IncomingMessage, path: string[], url: 
   if (!blob) throw new HttpError(500, 'internal', `${representation}: blob ${rep.digest} missing`)
   return { status: 200, raw: { bytes: blob.bytes, mediaType: rep.mediaType } }
 }
+
+/** The Inbox (37-inbox.md): only the TaskRuns this engine drives; the answer goes through the path `persimmon complete` takes. */
+async function inbox(engine: Engine, req: IncomingMessage, rest: string[], method: string, url: URL): Promise<{ status: number; body?: unknown }> {
+  const formOf = (r: Resource) => (existsSync(formPath(engine, r.metadata.name)) ? (parse(readFileSync(formPath(engine, r.metadata.name), 'utf8')) as Form & { deadline?: string }) : undefined)
+  if (rest.length === 0 && method === 'GET') {
+    const parked = engine.store.resources
+      .list('TaskRun')
+      .filter((r) => notAnswerable(engine, r) === undefined)
+      .sort((a, b) => String(b.metadata.creationTimestamp).localeCompare(String(a.metadata.creationTimestamp)))
+      .map((r) => {
+        const form = formOf(r)
+        return { namespace: r.metadata.namespace, taskRun: r.metadata.name, task: (r.spec as { taskRef: { name: string } }).taskRef.name, deadline: (r.spec as { deadline?: string }).deadline, form: !!form, verdict: !!form && isVerdict(form) }
+      })
+    return { status: 200, body: { directory: engine.cwd, parked } }
+  }
+  const [namespace, name] = rest
+  if (!namespace || !name || rest.length > 2) throw new HttpError(404, 'not_found', `no route ${method} ${url.pathname}`)
+  const r = engine.store.resources.get({ kind: 'TaskRun', namespace, name })
+  if (!r) throw new HttpError(404, 'not_found', `TaskRun ${name} not found in ${namespace}`)
+  const refused = notAnswerable(engine, r)
+  if (method === 'GET') {
+    const form = refused === undefined ? formOf(r) : undefined
+    if (!form) throw new HttpError(404, 'not_found', refused ?? `TaskRun ${name} has no inbox form at ${formPath(engine, name)}`)
+    return { status: 200, body: { ...form, verdict: isVerdict(form) } }
+  }
+  if (method !== 'POST') throw new HttpError(404, 'not_found', `no route ${method} ${url.pathname}`)
+  if (refused) throw new HttpError(409, 'conflict', refused)
+  const form = formOf(r)
+  if (!form) throw new HttpError(404, 'not_found', `TaskRun ${name} has no inbox form at ${formPath(engine, name)}`)
+  let completion: Record<string, unknown>
+  try {
+    completion = fromFile(await body(req), form, name, formPath(engine, name))
+  } catch (e) {
+    if (e instanceof HttpError) throw e
+    throw new HttpError(400, 'invalid', (e as Error).message)
+  }
+  answer(engine, r, completion)
+  drainAfter(engine) // the run continues in this process (08-store.md)
+  return { status: 200, body: { answered: `TaskRun/${name}` } }
+}
+
+/** A form the Inbox answers with a click: every output a ValidationResult value port. */
+const isVerdict = (form: Form) => Object.values(form.outputs).every((o) => o.type.kind === 'value' && isValidationResult(o.type.schema as Record<string, unknown> | undefined))
 
 /** The create path's errors are the user's input: a taken revision is a conflict, anything else the engine refused is bad content. */
 async function write(engine: Engine, ref: { apiVersion: string; kind: string; namespace: string; id: string }, content: unknown): Promise<Resource> {

@@ -1,8 +1,8 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { request } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { runCli } from '../cli/index.js'
 import { openEngine } from '../cli/context.js'
 import type { Engine } from '../engine.js'
@@ -135,6 +135,56 @@ describe('persimmon ui server', () => {
     expect((await get('/tools/demo/../../persimmon.yaml')).status).toBe(404)
 
     const root = await fetch(url('/'), { redirect: 'manual' })
-    expect([root.status, root.headers.get('location')]).toEqual([302, '/tools/eventstorming/'])
+    expect([root.status, root.headers.get('location')]).toEqual([302, '/tools/inbox/'])
+  })
+
+  it('the Inbox lists a TaskRun parked on a human, serves its form and answers it through the complete path (37-inbox.md)', async () => {
+    const vr = { type: { kind: 'value', schema: { $ref: 'persimmon.ai/v1#/ValidationResult' } } }
+    const ask = { apiVersion: 'persimmon.ai/v1', kind: 'Task', metadata: { name: 'ask', namespace: 'default' }, spec: { inputs: {}, outputs: { result: vr }, executorRef: { kind: 'Executor', name: 'local-reviewer' }, action: { instructions: 'Answer' }, timeout: '1h', sideEffects: 'none' } }
+    const wf = { apiVersion: 'persimmon.ai/v1', kind: 'Workflow', metadata: { name: 'ask-wf', namespace: 'default' }, spec: { entry: ['ask'], steps: [{ id: 'ask', uses: { kind: 'Task', name: 'ask' }, timeout: '1h' }], transitions: [{ id: 'done', from: [{ stepRef: 'ask', outcomes: ['Succeeded'] }], to: [{ terminal: 'Succeeded' }] }], timeout: '3h' } }
+    for (const d of [ask, wf]) await engine.apply(d as never)
+    await engine.create({ apiVersion: 'persimmon.ai/v1', kind: 'WorkflowRun', metadata: { name: 'r1', namespace: 'default' }, spec: { workflowRef: { kind: 'Workflow', name: 'ask-wf' }, inputs: {}, origin: { kind: 'manual' } } } as never)
+    await engine.drain()
+
+    const list = (await (await get('/api/inbox')).json()) as { directory: string; parked: unknown[] }
+    expect(list).toEqual({ directory: dir, parked: [{ namespace: 'default', taskRun: 'r1-ask', task: 'ask', deadline: expect.any(String), form: true, verdict: true }] })
+    const form = (await (await get('/api/inbox/default/r1-ask')).json()) as { instructions: string; verdict: boolean }
+    expect([form.instructions, form.verdict]).toEqual(['Answer', true])
+    expect((await get('/api/inbox/default/nope')).status).toBe(404)
+
+    const bad = await post('/api/inbox/default/r1-ask', { outputs: { result: { kind: 'value', value: { passed: 'yes' } } } })
+    expect([bad.status, (await bad.json()).error.message]).toEqual([400, expect.stringMatching(/^complete: result: /)]) // the port schema, as at the terminal
+    const ok = await post('/api/inbox/default/r1-ask', { outputs: { result: { kind: 'value', value: { passed: false, findings: [{ severity: 'error', code: 'blocking_1', message: 'G-1: too vague' }], evidence: [] } } } })
+    expect([ok.status, await ok.json()]).toEqual([200, { answered: 'TaskRun/r1-ask' }])
+    await vi.waitFor(() => expect(engine.store.resources.get({ kind: 'WorkflowRun', namespace: 'default', name: 'r1' })?.status).toMatchObject({ phase: 'Succeeded' }))
+    expect(existsSync(join(dir, '.persimmon', 'inbox', 'r1-ask.yaml'))).toBe(false) // the form is answered
+    expect(((await (await get('/api/inbox')).json()) as { parked: unknown[] }).parked).toEqual([])
+    const again = await post('/api/inbox/default/r1-ask', { outputs: {} })
+    expect([again.status, (await again.json()).error.message]).toEqual([409, 'TaskRun/r1-ask is Succeeded, not waiting for a human'])
+
+    expect(await (await get('/api/kinds/prds.sdd.persimmon.ai')).json()).toMatchObject({ kind: 'Prd', schema: { type: 'object', properties: { goals: { type: 'array' } } } })
+    expect((await get('/api/kinds/tasks.persimmon.ai')).status).toBe(404)
+  })
+
+  it('a project directory sharing the store neither lists nor answers another directory\'s TaskRun (08-store.md)', async () => {
+    const ask = { apiVersion: 'persimmon.ai/v1', kind: 'Task', metadata: { name: 'ask', namespace: 'default' }, spec: { inputs: {}, outputs: { result: { type: { kind: 'value', schema: { $ref: 'persimmon.ai/v1#/ValidationResult' } } } }, executorRef: { kind: 'Executor', name: 'local-reviewer' }, action: { instructions: 'Answer' }, timeout: '1h', sideEffects: 'none' } }
+    const wf = { apiVersion: 'persimmon.ai/v1', kind: 'Workflow', metadata: { name: 'ask-wf', namespace: 'default' }, spec: { entry: ['ask'], steps: [{ id: 'ask', uses: { kind: 'Task', name: 'ask' }, timeout: '1h' }], transitions: [{ id: 'done', from: [{ stepRef: 'ask', outcomes: ['Succeeded'] }], to: [{ terminal: 'Succeeded' }] }], timeout: '3h' } }
+    for (const d of [ask, wf]) await engine.apply(d as never)
+    await engine.create({ apiVersion: 'persimmon.ai/v1', kind: 'WorkflowRun', metadata: { name: 'r1', namespace: 'default' }, spec: { workflowRef: { kind: 'Workflow', name: 'ask-wf' }, inputs: {}, origin: { kind: 'manual' } } } as never)
+    await engine.drain()
+    const tree = join(dir, 'tree')
+    mkdirSync(tree)
+    writeFileSync(join(tree, 'persimmon.yaml'), `mode: local\nstore: {sqlite: ${join(dir, '.persimmon', 'persimmon.db')}}\nblobs: ${join(dir, '.persimmon', 'blobs')}\n`)
+    const other = await openEngine({ cwd: tree, out: () => {}, err: () => {} })
+    const at = await serve(other, { port: 0, toolsDir: tools })
+    try {
+      const there = (path: string, init?: RequestInit) => fetch(`http://127.0.0.1:${at.port}${path}`, init)
+      expect(await (await there('/api/inbox')).json()).toEqual({ directory: tree, parked: [] })
+      const refused = await there('/api/inbox/default/r1-ask', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ outputs: {} }) })
+      expect([refused.status, (await refused.json()).error.message]).toEqual([409, `TaskRun/r1-ask belongs to project directory ${dir}; answer it there`])
+    } finally {
+      await at.close()
+      await other.close()
+    }
   })
 })

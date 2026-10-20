@@ -20,7 +20,7 @@ export async function serve(engine: Engine, o: ServeOptions = {}): Promise<{ clo
       res.writeHead(400, { 'content-type': 'application/json; charset=utf-8' })
       return res.end(JSON.stringify({ error: { code: 'bad_request', message: (e as Error).message } }))
     }
-    if (path === '/') return redirect(res, '/tools/eventstorming/')
+    if (path === '/') return redirect(res, '/tools/inbox/') // a parked gate is what the UI is opened for (37-inbox.md)
     if (path.startsWith('/api/')) return void api(engine, req, res)
     if (path.startsWith('/tools/') && serveStatic(toolsDir, path.slice('/tools/'.length), res)) return
     res.writeHead(404, { 'content-type': 'application/json; charset=utf-8' })

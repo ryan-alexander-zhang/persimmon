@@ -190,7 +190,7 @@ export function recoverCalls(engine: Engine): number {
 }
 
 /** A Run is driven only from the project directory its tree began in; a Resource without one, from any (08-store.md). */
-function owns(engine: Engine, uid: string): boolean {
+export function owns(engine: Engine, uid: string): boolean {
   const directory = engine.store.resources.getByUid(uid)?.metadata.annotations?.[projectDirectory]
   return directory === undefined || directory === engine.cwd
 }
