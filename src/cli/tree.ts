@@ -1,5 +1,6 @@
 // `persimmon tree`: a run, what it produced, every run it owns (08-store.md). `--follow` prints the same tree when it stops.
 import type { Engine } from '../engine.js'
+import { projectDirectory } from '../handler/write.js'
 import type { Resource } from '../resource/types.js'
 import type { Cli } from './context.js'
 import { withEngine } from './context.js'
@@ -68,7 +69,7 @@ export function renderTree(engine: Engine, root: Resource): string[] {
     const adapter = node.kind === 'TaskRun' ? adapterOf(engine, node) : undefined
     if (adapter) parts.push(adapter)
     const s = (node.status ?? {}) as Status
-    rows.push({ left: `${branch}${parts.join('   ')}`, state: stateOf(node, s), duration: elapsed(engine, node, now), extra: extraLines(node, s), extraPrefix: `${child}   ` })
+    rows.push({ left: `${branch}${parts.join('   ')}`, state: stateOf(node, s), duration: elapsed(engine, node, now), extra: extraLines(engine, node, s), extraPrefix: `${child}   ` })
     const kids = ownedBy(engine, node)
     kids.forEach((k, i) => walk(k, node, child, i === kids.length - 1))
   }
@@ -97,15 +98,26 @@ export function stateOf(node: Resource, s: Status): string {
   return [s.phase ?? 'Pending', s.phase === 'Waiting' ? s.waitingReason : undefined].filter(Boolean).join(' ')
 }
 
-/** What to read next: the error, the complete command, rejected findings, the artifacts a TaskRun published. */
-function extraLines(node: Resource, s: Status): string[] {
+/** What to read next: the error, the complete command, an exclusive wait, rejected findings, the artifacts a TaskRun published. */
+function extraLines(engine: Engine, node: Resource, s: Status): string[] {
   const lines: string[] = []
   if (s.error) lines.push(`${s.error.code}: ${s.error.message}`)
+  if (s.phase === 'Running' && node.kind === 'TaskRun') lines.push(...exclusiveWait(engine, node))
   if (s.phase === 'Waiting' && s.waitingReason === 'human' && node.kind === 'TaskRun') lines.push(`persimmon complete ${node.metadata.name}`)
   // a rejection's findings, and a warning or an info on a pass: they ride along and fail nothing (29-design-process.md), so they are labelled
   if (node.kind === 'ValidationRun' && s.result) for (const f of s.result.findings ?? []) if (f.severity !== 'error' || !s.result.passed) lines.push(`${f.severity === 'error' ? '' : `${f.severity} `}${f.code ? `${f.code}: ` : ''}${f.message}`)
   if (node.kind === 'TaskRun') for (const v of Object.values(s.outputs ?? {})) for (const ref of refsOf(v)) lines.push(`${ref.kind}/${ref.id}.r${ref.revision}`)
   return lines
+}
+
+/** A call waiting for its `exclusive` name, and the directory of the Run holding it: the holder is `<engine>/<uid>/<idempotencyKey>` (13-executor.md). */
+function exclusiveWait(engine: Engine, node: Resource): string[] {
+  const uid = node.metadata.uid as string
+  const call = engine.store.runLog.outstandingCalls().find((c) => c.uid === uid && typeof c.action.exclusive === 'string')
+  const holder = call && engine.store.leases.holder(`exclusive/${call.action.exclusive}`)
+  if (!holder || holder.endsWith(`/${uid}/${call.action.idempotencyKey}`)) return []
+  const held = engine.store.resources.getByUid(holder.split('/')[1] ?? '')
+  return [`waiting for exclusive ${call.action.exclusive}, held by ${held?.metadata.annotations?.[projectDirectory] ?? 'another run'}`]
 }
 
 const refsOf = (v: Output): NonNullable<Output['ref']>[] => (v.kind === 'artifact' && v.ref ? [v.ref] : v.kind === 'artifacts' ? (v.refs ?? []) : [])

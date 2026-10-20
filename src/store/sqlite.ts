@@ -419,6 +419,8 @@ export class SqliteStore implements Store {
     release: (uid: string, holder: string): void => {
       this.#db.prepare('delete from leases where uid = ? and holder = ?').run(uid, holder)
     },
+    holder: (uid: string): string | undefined =>
+      (this.#db.prepare('select holder from leases where uid = ? and until > ?').get(uid, this.#now().getTime()) as { holder: string } | undefined)?.holder,
   }
 
   readonly snapshots = {

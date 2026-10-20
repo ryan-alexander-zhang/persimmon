@@ -130,6 +130,8 @@ export interface LeaseStore {
   acquire(uid: string, holder: string, ttlMs: number): boolean
   renew(uid: string, holder: string, ttlMs: number): boolean
   release(uid: string, holder: string): void
+  /** The live holder, if any. */
+  holder(uid: string): string | undefined
 }
 
 export interface Addressed {

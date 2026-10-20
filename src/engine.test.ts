@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { parse } from 'yaml'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { parseConfig } from './config.js'
+import { renderTree } from './cli/tree.js'
 import { Engine, localActor } from './engine.js'
 import { readClosure } from './snapshot/snapshot.js'
 import type { Resource } from './resource/types.js'
@@ -307,15 +308,17 @@ describe('Engine', () => {
     await engine.apply(fakeAdapter('claude-code/v1'))
     for (const n of ['kind-definition-productrequirement', 'kind-definition-researchreport']) await engine.apply(example(n))
     for (const r of closure.resources.filter((r) => r.kind !== 'KindDefinition') as Resource[]) await engine.apply(fresh(r.kind === 'Executor' ? { ...r, spec: { ...r.spec, exclusive: 'tests' } } : r))
-    expect(engine.store.leases.acquire('exclusive/tests', 'another-worktree', 60_000)).toBe(true)
-    await engine.create(fresh(example('run-workflowrun')))
+    const { resource: run } = await engine.create(fresh(example('run-workflowrun')))
+    const holder = `other-engine/${run.metadata.uid}/k` // as another engine names its call: the holding Run is known
+    expect(engine.store.leases.acquire('exclusive/tests', holder, 60_000)).toBe(true)
     let drained = false
     const draining = engine.drain().then(() => (drained = true))
     await vi.waitFor(() => expect(engine.store.runLog.outstandingCalls()).toHaveLength(1), { timeout: 5000 })
     await new Promise((r) => setTimeout(r, 1200)) // a poll later, still not dispatched
     expect(drained).toBe(false)
     expect(engine.store.runLog.outstandingCalls()).toHaveLength(1)
-    engine.store.leases.release('exclusive/tests', 'another-worktree')
+    expect(renderTree(engine, run).map((l) => l.trim())).toContain(`waiting for exclusive tests, held by ${dir}`) // tree shows the wait, not a plain Running
+    engine.store.leases.release('exclusive/tests', holder)
     await draining
     const research = engine.store.resources.get({ kind: 'TaskRun', namespace: 'demo', name: 'prd-create-001-research' })!
     expect((research.status as { error: { code: string } }).error.code).toBe('schema_violation') // the fake answered: the call went out
