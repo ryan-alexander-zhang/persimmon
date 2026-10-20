@@ -47,8 +47,8 @@ SnapshotStore and AuditLog.
 | Field | Default | Used by |
 |---|---|---|
 | `mode` | `local` | |
-| `store.sqlite` \| `store.postgres` | `.persimmon/persimmon.db` | every component but BlobStore and CredentialStore |
-| `blobs` | `.persimmon/blobs` | BlobStore; a path or `s3://bucket/prefix` |
+| `store.sqlite` \| `store.postgres` | `.persimmon/persimmon.db` | every component but BlobStore and CredentialStore; a relative path is under the project directory, an absolute or `~/` one may be shared by several |
+| `blobs` | `.persimmon/blobs` | BlobStore; a path, read as `store.sqlite`'s, or `s3://bucket/prefix` |
 | `defaultNamespace` | `default` | Namespace of a Namespaced Resource written without one |
 | `credentials[]` | `[{source: env}]` | CredentialStore; sources tried in order, first match wins |
 | `maxReconcileAttempts` | 10 | `03-reconcile.md` |
@@ -158,8 +158,8 @@ imports into a server unchanged.
   Signal, so a bad one keeps the form; a value port is `{kind: value, value}`, and without the form
   only RuntimeValues pass. A publish the engine still refuses fails the attempt with
   `schema_violation`; before, it stalled the TaskRun in Waiting. Found in audit.
-- Local mode has one live engine per project: `listen` takes `.persimmon/engine.lock` (pid, stale
-  when the process is gone) and a second write verb fails with the holder's pid. Read verbs
+- Local mode has one live engine per project directory: `listen` takes `.persimmon/engine.lock`
+  (pid, stale when the process is gone) and a second write verb fails with the holder's pid. Read verbs
   (`get`, `describe`, `logs`, `tree`, `validate`) open the store without the socket, without call
   recovery and without a drain, so they are safe beside a running `--follow`. Found in UAT.
 - `persimmon run` is sugar over `create`: it writes the WorkflowRun the user would have written,
@@ -228,6 +228,18 @@ imports into a server unchanged.
   drives a project (`engine.lock`), but a read verb in a second terminal opens the same file, and
   without the wait it failed at once with `database is locked` whenever the run was mid-commit.
   A run's every transaction is short. Found in UAT: `persimmon get` beside a following run.
+- Several project directories may share one Store: `store.sqlite` and `blobs` take an absolute
+  path or one starting `~/`, so the git worktrees of one repository point at
+  `~/.persimmon/projects/<name>/` and each runs its own engine. A Run belongs to the project
+  directory whose engine created its tree: a Run written without an owner is stamped
+  `persimmon.ai/project-directory` with that directory, a child Run inherits its owner's, and an
+  engine reconciles, dispatches, fires timers for and recovers only Runs of its own directory or
+  without the annotation (a Trigger's). Without the stamp, a second engine would mark the first one's
+  live calls `unknown` at start and dispatch them again in its own worktree. Documents need no merge:
+  every directory reads and publishes into the one Store, while code merges through git. The lock
+  and the socket stay per directory, so two runs at once take two directories. A Run whose
+  directory moved or was removed stays where it stopped. Found in use: two PRDs at once in two
+  worktrees, whose separate stores could not be merged back.
 
 ## Examples
 

@@ -19,6 +19,7 @@ later     eager joins · retention policy · policy resource · external event s
 | resident stdio Adapter processes | `07-adapter.md` | v1: one process per call |
 | Adapter sandboxing in server mode | reference open question 4 | |
 | TLS termination upstream of `persimmon serve` | `08-store.md` | v1: TLS mandatory in the daemon |
+| adopt the open Runs of a moved or removed project directory | `08-store.md` | v1: they stay where they stopped |
 | retention and deletion policy for unreferenced revisions | `18-artifact.md` | |
 | eager `any` / `quorum` joins with cancellation of the rest | `11-workflow.md`, `14-gate.md` | Transitions and Gate policy |
 | cross-Namespace references | `04-snapshot.md` | walk never crosses a Namespace |

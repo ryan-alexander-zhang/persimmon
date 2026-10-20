@@ -144,6 +144,12 @@ One storage interface, one implementation per **Mode**, SQLite now: ResourceStor
 SnapshotStore, BlobStore, Outbox, TimerStore, CredentialStore, AuditLog, LeaseStore, TokenStore.
 _Avoid_: database, backend, repository
 
+**Project directory**:
+The directory a local engine runs in: `persimmon.yaml`, and `.persimmon/` with its lock, socket
+and credentials; a relative **Workspace** resolves against it. Several may share one **Store**,
+one per git worktree; a **Run** is driven only from the project directory that created its tree.
+_Avoid_: project, working directory, worktree (for the persimmon concept)
+
 **RunLog**:
 Append-only per-resource event log; the only log. Resume = redeliver undelivered events and
 outstanding adapter calls.
