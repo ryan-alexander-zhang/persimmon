@@ -218,6 +218,8 @@ spec:
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     context: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext}}, description: "the BoundedContext that lists the capabilities; its DomainModel and Glossary are the ones bound"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, required: false, description: "the Spec this run revises; bound with changes"}
+    changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false, description: "the downstream answers this revision applies, each <artifact id> Q-n: <resolution>"}
   produce:
     uses: {kind: Task, name: write-spec}
     inputs:
@@ -228,6 +230,8 @@ spec:
       glossary: {fromInput: glossary}
       rules: {fromInput: rules}
       context: {fromInput: context}
+      base: {fromInput: base}
+      changes: {fromInput: changes}
     timeout: 30m
   review:
     uses: {kind: Gate, name: spec-gate}

@@ -147,6 +147,8 @@ spec:
     Open questions: `Q-n`. An unknown fact, a contradiction between the inputs, or a name the model lacks is a question here, never a guess in a story or a requirement.
 
     With `previous` and `feedback` bound, the consistency check refused the last Spec: every finding names an id, a label or a rule; fix those and change nothing else.
+
+    With `base` and `changes` bound, this run revises `base`, the Spec as it stands, to apply answers given downstream (each `<artifact id> Q-n: <resolution>`): start from it, keep every id, and change only what the answers ask, a scenario, a requirement or a story; an item added takes the next unused number. An answer that settles one of `base`'s own open questions gives it that `resolution`.
 ---
 # The Prd author's rules (28-prd-process.md): problem before solution; goals without a number; rules into BusinessRules.
 apiVersion: persimmon.ai/v1
