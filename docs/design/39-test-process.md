@@ -74,10 +74,10 @@ several cases; one case may have several tests.
 | Tasks `run-seed`, `run-seed-levels` | as `run-baseline` and `run-levels` with no Plan: inputs `harness`, `repository`; ids `<harness>-seed`, `<harness>-seed-levels` |
 | Validator `harness-evidence` | `sdd/v1`, `checkHarness`, below |
 | Task `confirm-harness`, Validator `harness-confirmed` | the human reads the harness once its seed tests pass and answers each open `Q-n`, on `local-reviewer` |
-| Prompt `test-design-rules` | at least one case per `AC-n` and per `build` `QS-n` the Spec cites; the level from the boundary the scenario's When crosses: the API `api`, a screen `e2e`, a store or a queue `integration`, a rule inside one block `unit`; steps and data from the Designs' operations and screens, the Glossary's terms; `P0` when a failure loses data, money or access or stops the capability's main path, `P1` a variant of the main path or a rule's edge, `P2` a secondary path, `P3` the rest; `P0` is `automated`; a case the harness's tools cannot run is `manual`, the reason in `preconditions`; a case's steps use only the operations its Plan task, or a task before it, builds |
+| Prompt `test-design-rules` | at least one case per `AC-n` and per `build` `QS-n` the Spec cites; the level from the boundary the scenario's When crosses: the API `api`, a screen `e2e`, a store or a queue `integration`, a rule inside one block `unit`; steps and data from the Designs' operations and screens, the Glossary's terms; `P0` when a failure loses data, money or access or stops the capability's main path, `P1` a variant of the main path or a rule's edge, `P2` a secondary path, `P3` the rest; `P0` is `automated`; a case the harness's tools cannot run is `manual`, the reason in `preconditions`; a case's steps use only the operations its Plan task, or a task before it, builds; a rule's threshold the Spec has no scenario at or beside is no case but a `Q-n` whose answer names the Spec in `upstream` |
 | Task `design-tests` | inputs `spec`, `plan`, `base?` (the Spec's TestDesign before this run), `architecture`, `designs` (artifacts), `glossary`, `rules`, `harness`, `previous`, `feedback`; output `testDesign`, id `<spec>-tests`; read only |
 | Validator `test-design-consistency` | `sdd/v1`, `checkTestDesign`, below; inputs add `plan`, `designs` and `base?` |
-| Task `audit-test-design`, Validator `test-design-audited` | `draft-audit-rules`, its part for a TestDesign: a case's level stops short of the boundary its scenario's When crosses, its steps do not reach its expected, its expected is not the scenario's Then with its values (`case-unfit`) |
+| Task `audit-test-design`, Validator `test-design-audited` | `draft-audit-rules`, its part for a TestDesign: a case's level stops short of the boundary its scenario's When crosses, its steps do not reach its expected, its expected is not the scenario's Then with its values (`case-unfit`); a rule's threshold with no case beside it is `boundary-untested` when the Spec has a scenario there and `spec-gap` when it has none, both warnings |
 | Task `confirm-test-design`, Validator `test-design-confirmed` | the human reads the cases before code exists, on `local-reviewer` |
 | ReviewLoop `test-design-one`, Workflow `test-design-all` | `maxRounds: 3`; `repeat` over `capabilities` as `plan-all`, the Spec of `CAP-n` bound by id, and `base` to its TestDesign `<spec>-tests` when one exists (`fromArtifact`, `onMissing: omit`) |
 | Task `select-cases` | inputs `plan`, `taskId`, `spec`, `testDesign?`, `feedback?`; output `cases` (value): the task's qualified case ids by level, the `manual` ones, and `write: {api, e2e}`, true in round one when the task has cases of that level and later when a finding names one |
@@ -165,6 +165,7 @@ no case has none to miss.
 | a level's tool comes from the Architecture or its Adrs, else the repository; never a choice the Tester makes | `harness-rules`; the human at `harness-gate` |
 | an open `Q-n` of a TestHarness or a TestDesign is answered by the human at its Gate; an agent never writes a `resolution` the inputs and the feedback do not give | `harness-rules`, `test-design-rules`; `confirm-harness`, `confirm-test-design` |
 | every acceptance scenario and `build` quality scenario has a case, its level decided before code | `checkTestDesign`, the Auditor, a human |
+| a case tests only what a scenario of the Spec says; a threshold no scenario covers is the Spec's gap, raised as a `Q-n` on the Spec, never a case | `test-design-rules`, `case-unfit`, `spec-gap` |
 | the Tester writes the `api` and `e2e` tests, the Builder the code and the `unit` and `integration` tests | Tasks, `build-rules`, `test-writing-rules` |
 | the Builder never edits a Tester's test; one it holds wrong is a `Q-n` | `build-rules`; the Auditor holds each test to its case; the developer's diff review |
 | a test carries the qualified id of the case it runs; the Gate matches by it | `acceptance-evidence` |
@@ -241,6 +242,13 @@ no case has none to miss.
   test is found by its case's id. Within one loop `previous` already kept the ids; across runs
   nothing did. The check compares by the scenarios a case verifies, since a case's title and steps
   may rightly change. Found in UAT.
+- A rule's threshold the Spec has no scenario for is the Spec's gap, not a case. In the live run
+  the auditor warned `boundary-untested` on BR-4's accepted side, the writer added a case citing a
+  scenario that did not say it, the auditor then refused that case `case-unfit`, and the loop ran
+  out of rounds with the gap never reaching the human: the writer was asked for a case nothing
+  could back. Now the writer raises a `Q-n` on the Spec, the auditor tells the two apart
+  (`boundary-untested` a missing case, `spec-gap` a missing scenario), and the answer at the Gate
+  names the Spec in `upstream`, told as `question-upstream`. Found in UAT.
 - Not adopted: `TestRun` and `TestResult` kinds (a TestOutcome is already one run of one level at
   one commit); a test plan document (ISO 29119-3's agile example puts its content in the plan, here
   the Plan and the harness); a `waived` verdict (it needs a human sign-off of its own, later); a test
