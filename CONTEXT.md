@@ -554,7 +554,7 @@ _Avoid_: functional requirement (as a different thing), FR text, system requirem
 
 **Acceptance scenario**:
 A **Spec** element `AC-n` under a **Story**: `given`, `when`, `then` with concrete values, decided
-by one test on one run. Not a **TestCase** (roadmap): a scenario says what is accepted, a test case
+by one test on one run. Not a **Test case**: a scenario says what is accepted, a test case
 how it is verified.
 _Avoid_: acceptance criterion, AC (in prose), test case (for a scenario)
 
@@ -671,13 +671,13 @@ _Avoid_: test report, implementation report
 
 **TestOutcome**:
 **Artifact kind** of the SDLC pack: what the project's own tests did once, read from JUnit XML, one
-entry per test case with its status, plus the commit tested. The evidence an **AcceptanceRecord** is
-checked against. The one `build-all` takes before any task is the baseline TestOutcome: a case red
+entry per test with its status, plus the commit tested. The evidence an **AcceptanceRecord** is
+checked against. The one `build-all` takes before any task is the baseline TestOutcome: a test red
 there and red still is not the build's. Always so named: a bare "baseline" is the arc42 baseline.
 _Avoid_: TestRun (a Run is the engine's), test report, test result, CI run
 
 **Test level**:
-Which kind of test a test case is: `unit`, `integration`, `api` or `e2e`. One **TestOutcome** per
+Which kind of test a test or a **Test case** is: `unit`, `integration`, `api` or `e2e`. One **TestOutcome** per
 level and run: `unit` on the Executor `test-runner`, the others on `level-runner`. Coverage and
 mutation are measures of the `unit` level, recorded in its TestOutcome, not levels.
 _Avoid_: test type, test kind, test layer, suite (for the level), stage
@@ -691,6 +691,41 @@ _Avoid_: phase (a Pipeline's or a Run's), stage, test stage, gate (for the tier)
 The files and lines that differ from the baseline **TestOutcome**'s `head`, untracked files
 included: what a `round` tier selects tests by and measures coverage and mutation over.
 _Avoid_: diff (git's output), delta (a Spec's field), changes
+
+**Test process**:
+The pack process that decides and writes the tests apart from the code: Task `setup-tests` once per
+product (a **TestHarness**), ReviewLoop `test-design-one` per **Spec** (a **TestDesign**), the **Tester**'s
+tests inside `build-one`, and a **TestReport** after `build-all`.
+_Avoid_: QA phase, test phase, verification phase
+
+**Tester**:
+Who sets up the tests, designs the test cases and writes the `api` and `e2e` tests: the Executor
+`tester`, by default the developer's own agent answering a `cli-human/v1` form in a fresh subagent,
+never in the **Builder**'s context.
+_Avoid_: QA, test engineer, test agent, builder (for tests)
+
+**TestHarness**:
+**Artifact kind** of the SDLC pack, one per product: for each **Test level** the project has, its
+tool, the command for the suite and for one test, the JUnit XML it writes, where its tests live, how
+the app starts and a seed test. The one source the runners and every test-writing Task read.
+_Avoid_: test config, test framework, test setup (for the kind)
+
+**TestDesign**:
+**Artifact kind** of the SDLC pack, one per **Spec**: its **Test case**s, confirmed before any task is
+built.
+_Avoid_: test plan, test spec, test suite, coverage map
+
+**Test case**:
+A **TestDesign** element `TC-n`: the scenarios and rules it verifies, its **Test level**, a priority
+`P0` to `P3`, preconditions, steps and the expected result. The tests that run it carry `TC-n` in
+their names.
+_Avoid_: test (a **TestOutcome** entry), scenario (an `AC-n` or `QS-n`), TestCase (the old roadmap name)
+
+**TestReport**:
+**Artifact kind** of the SDLC pack, one per built **Plan**: each **Test case**'s result, a coverage
+status per scenario and requirement (`ok`, `nok`, `notrun`, `uncovered`), the measures, the verdict
+(`pass`, `concerns`, `fail`) with the rule that gave it, and a written evaluation.
+_Avoid_: test summary, completion report, AcceptanceRecord (one task's claim)
 
 **Defect**:
 Wrong behaviour of the code that a **Builder** sees and its task does not cover: in code built
@@ -729,6 +764,10 @@ _Avoid_: feature spec, requirements doc, spec.md
 - **Level.** A **Test level**, an Architecture building block's level, an EventStorming
   `meta.level`. Resolution: prose always says "test level"; the bare field `level` is the
   TestOutcome's and the record row's only.
+- **Test case.** JUnit's `testcase`, which `35-build-process.md`, `36-test-levels.md` and the
+  acceptance findings call a test case, and a **TestDesign**'s `TC-n`. Resolution: **Test case** is
+  the `TC-n`; JUnit's entry is a test, one `TestOutcome.tests[]` entry. Those files' prose follows
+  when `39-test-process.md` becomes active.
 
 - **ArtifactRef vs RevisionRef.** Same shape. Framework says RevisionRef; reference well-known
   schemas exposed `persimmon.ai/v1#/ArtifactRef`. Resolution: **RevisionRef** everywhere,
