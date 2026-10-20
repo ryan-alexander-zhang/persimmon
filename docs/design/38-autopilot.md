@@ -47,6 +47,11 @@ autopilot = autopilot-doc then autopilot-code
   human. The orchestrator has watched every round and would approve its own story; a pause defeats
   "give an idea, get code". A subagent with only the form reads what the human would read. The
   pack's Auditor still runs before it; the subagent is the human's place, not the Auditor's.
+- A fresh reviewer per round moves the goalposts: in the first live run each found new nits
+  (a wrong count in a rejected alternative's prose, then an article) and the architect loop ran out
+  of rounds. The reviewer is told its round and rejects only what later work would build on
+  wrongly; wording is a note; from round 2 it checks the earlier findings first and leaves what
+  earlier rounds did not flag unless it is wrong. Fresh still, so no reviewer approves its own asks.
 - The orchestrator answers no form at all, builder forms included: a builder subagent per task keeps
   each task's context to its brief, and the orchestrator's context to the run order across hours.
 - Quality is capped by the checks: the Autopilot passes what `sdd/v1`, the Auditor, the tests and
