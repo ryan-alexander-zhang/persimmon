@@ -320,6 +320,24 @@ spec:
                 ref: {type: string, pattern: "^(EP|GD|DC|ST|EX|AB)-[0-9]+$"}
                 slice: {type: string, pattern: "^SL-[0-9]+$"}
                 why: {type: string, minLength: 1}
+          decisions:
+            type: object
+            additionalProperties: false
+            description: "every typed decision so far, a later one for the same ref replacing an earlier; each revision recomputes with all of them"
+            properties:
+              dispositions:
+                type: array
+                items: {type: object, required: [ref, disposition], additionalProperties: false, properties: {ref: {type: string, pattern: "^(CAP|BR|AB)-[0-9]+$"}, disposition: {enum: [keep, change, drop]}, reason: {type: string}}}
+              dead:
+                type: array
+                items: {type: object, required: [ref, evidence], additionalProperties: false, properties: {ref: {$ref: "#/$defs/Ref"}, evidence: {type: string, minLength: 1}}}
+              plumbing: {type: array, items: {type: string, pattern: "^PP-[0-9]+$"}}
+              accepted:
+                type: array
+                items: {type: object, required: [ref, reason], additionalProperties: false, properties: {ref: {$ref: "#/$defs/Ref"}, reason: {type: string, minLength: 1}}}
+              readers:
+                type: array
+                items: {type: object, required: [ref, resolution], additionalProperties: false, properties: {ref: {type: string, pattern: "^GD-[0-9]+$"}, resolution: {type: string, minLength: 1}}}
           rewrite:
             type: object
             required: [tests]

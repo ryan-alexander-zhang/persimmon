@@ -182,6 +182,16 @@ describe('computeLedger', () => {
     expect(rerun.differences.map((d: { test: string }) => d.test)).toContain('test_EP2_GD2_add_in_stock') // not rerun is a difference still
   })
 
+  it('a later stage keeps every earlier decision: parity recomputes with the recovery\'s Dispositions and plumbing', () => {
+    const recovered = slice()
+    const atParity = slice({ last: recovered, decisions: { approved: true, findings: [], driver: { confirmed: true } }, rewrite: { runs: run() } })
+    expect(item(atParity, 'AB-1')).toMatchObject({ disposition: 'change', account: 'complete' })
+    expect(item(atParity, 'GD-1')).toMatchObject({ plumbing: 'PP-1', account: 'complete' })
+    expect(atParity.verdict.result).toBe('pass')
+    const overruled = slice({ last: recovered, decisions: { dispositions: [{ ref: 'AB-1', disposition: 'drop' }] } })
+    expect(overruled.decisions.dispositions).toEqual([{ ref: 'AB-1', disposition: 'drop' }]) // a later decision on the same ref replaces it
+  })
+
   it('an item keeps the Slice whose inventory first listed it', () => {
     const ledger = slice()
     ledger.slices.push({ id: 'SL-3', name: 'again', entryPoints: ['EP-2'], order: 3 })

@@ -187,4 +187,10 @@ spec:
         observed: {accepted: true, quantity: 10001}
     differences: []
     unreached: []
+    decisions:
+      dispositions: [{ref: AB-1, disposition: change}]
+      dead: []
+      accepted: []
+      readers: []
+      plumbing: [PP-1]
     verdict: {result: pass, rule: "nothing open, nothing unverified, nothing unreached, no difference without a cause"}

@@ -76,16 +76,33 @@ function dispositionOf(ref, citing, decided) {
   return citing.map((r) => decided(r.id)).find((d) => d === 'change' || d === 'drop')
 }
 
+/** Every typed decision so far: the last revision's, then this stage's, a later one for the same ref replacing it. A stage's
+ * human Task answers that stage's decisions only; without the earlier ones every account would be recomputed undecided. */
+export function mergeDecisions(earlier = {}, now = {}) {
+  const byRef = (key) => {
+    const merged = new Map((earlier[key] ?? []).map((d) => [d.ref, d]))
+    for (const d of now[key] ?? []) merged.set(d.ref, d)
+    return [...merged.values()]
+  }
+  return {
+    dispositions: byRef('dispositions'), dead: byRef('dead'), accepted: byRef('accepted'), readers: byRef('readers'),
+    plumbing: [...new Set([...(earlier.plumbing ?? []), ...(now.plumbing ?? [])])],
+  }
+}
+
 /**
  * The next ledger revision. `slice` absent: the Survey's, holding the human's cut. Otherwise the Slice's: every item the
  * inventory lists or the ledger held for the Slice, its account, the Oracle of each of its entry points, the source's
  * answers, with `rewrite` the differences, then the Slice's verdict. `runs` are run-source's, `[{level, tests, observations}]`;
  * `coverage` the mapped files, undefined when no report ran; `mutants` run-mutants', `[{ref, result, failed[]}]`.
  */
-export function computeLedger({ inventory, inventoryRef, last, slice, decisions = {}, suite, runs = [], coverage, mutants = [], rules, rulesRef, rewrite }) {
+export function computeLedger({ inventory, inventoryRef, last, slice, decisions: stage = {}, suite, runs = [], coverage, mutants = [], rules, rulesRef, rewrite }) {
   if (!inventoryRef) throw new Error('inventoryRef is required: a ledger pins the inventory revision it was computed from')
   const base = last ?? { source: inventory.source, slices: [], entryPoints: [], items: [], answers: [], differences: [], unreached: [] }
   const ledger = { ...structuredClone(base), source: inventory.source, inventory: inventoryRef }
+  const kept = mergeDecisions(base.decisions, stage)
+  if (Object.values(kept).some((l) => l.length)) ledger.decisions = kept
+  const decisions = { ...kept, slices: stage.slices, driver: stage.driver, concerns: stage.concerns }
   delete ledger.verdict
   delete ledger.rewrite // only the revision that compared a rewrite run says so
   if (rulesRef) ledger.rules = rulesRef
