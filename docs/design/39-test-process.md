@@ -251,7 +251,9 @@ no case has none to miss.
   names the Spec in `upstream`, told as `question-upstream`. The answer is recorded and nothing
   rests on it yet: in the live run a reviewer asked in one breath for the scenario and a case citing
   it, which the check would refuse until the Spec's revision exists; the case comes with the next
-  run's `base`. Found in UAT.
+  run's `base`. A case kept from `base` is held to the same rule: one that tests what no scenario
+  says is removed and becomes the question, since the live rerun kept such a case from a TestDesign
+  written before the rule and lost its last round to it. Found in UAT.
 - Not adopted: `TestRun` and `TestResult` kinds (a TestOutcome is already one run of one level at
   one commit); a test plan document (ISO 29119-3's agile example puts its content in the plan, here
   the Plan and the harness); a `waived` verdict (it needs a human sign-off of its own, later); a test
