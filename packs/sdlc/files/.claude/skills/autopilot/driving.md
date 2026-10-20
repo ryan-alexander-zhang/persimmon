@@ -60,8 +60,9 @@ nothing about how the document came to be:
 > first; what an earlier round left unflagged stands unless it is wrong in that sense.
 > Every open `Q-n` you settle: reject, with a finding naming it, the
 > decision and what to change (`Q-1: decided. <decision>. Remove Q-1 and <where it goes>.`).
-> Decide as a careful owner of this product would, the simplest choice that serves the Prd. Every
-> finding names the id it is about. Do not run `persimmon` or git.
+> Decide as a careful owner of this product would, the simplest choice that serves the Prd. A
+> decision that adds to an upstream artifact (a scenario the Spec lacks, an operation a Design
+> lacks) names that artifact's id in the finding. Every finding names the id it is about. Do not run `persimmon` or git.
 > Write `.persimmon/autopilot/<taskRun>.answer.yaml`:
 > `outputs: {<the value port>: {kind: value, value: {passed: <bool>, findings: [{severity: error | info, code: blocking_<n> | note_<n>, message}], evidence: [<the ref of every artifact entry you read>]}}}`.
 > A rejection's findings are `error`; an approval's notes are `info`. Reply with `passed` and
@@ -77,6 +78,24 @@ Keep every `Q-n` decision it replies with for the report.
 out of rounds still publishes its rejected revision: take a revision only from a round whose
 review `passed`. The next run takes those revisions.
 
+## Upstream answers
+
+A passed run whose tree warns `question-upstream` naming a Spec (`<spec id>` or `<spec id> Q-n`)
+left an answer the Spec does not have yet. Before the next run, revise that Spec through its own
+process:
+
+1. `persimmon run spec-one` with the inputs `spec-all` gave it (`prd`, `capabilityId`,
+   `architecture`, `context`, `domainModel`, `glossary`, `rules`), `base` the Spec's latest passed
+   revision, and `changes=@<file>` listing each answer as `<artifact id> Q-n: <resolution>`, from
+   the warnings.
+2. Its Gate passed: `plan-all` and then `test-design-all` for that capability alone, on the new
+   Spec. Later runs take the new Spec, Plan and TestDesign.
+3. Once per Spec in an Autopilot run: a second `question-upstream` naming it, or its Gate failing,
+   stops the Autopilot.
+
+A `question-upstream` naming another kind (a Glossary, a Design, the Plan) goes in the report as a
+revision the developer owes.
+
 ## Stop
 
 Stop and report, never work around it, when:
@@ -87,6 +106,7 @@ Stop and report, never work around it, when:
   loop's agent may pass from a fresh start, and its Gate still judges;
 - a subagent's answer is refused twice for the same form;
 - an `Issue`'s fix fails its Gate (`autopilot-code`).
+- a Spec is asked for twice, or its revision fails its Gate (Upstream answers, above).
 
 ## Report
 

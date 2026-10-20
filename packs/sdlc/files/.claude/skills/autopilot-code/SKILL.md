@@ -31,7 +31,8 @@ Then, once per product:
    `repository`. Its Tester form is a tester subagent's (below). Gives the TestHarness.
 2. `test-design-all`, once per BoundedContext: `prd`, `capabilities` (the context's), `architecture`,
    `designs` (every Design), the context's `glossary`, `rules`, `harness`. Each Spec's TestDesign,
-   `<spec>-tests`, confirmed at its Gate by a Reviewer subagent.
+   `<spec>-tests`, confirmed at its Gate by a Reviewer subagent. Then apply its upstream answers
+   (`driving.md`, Upstream answers) before any build.
 
 ## 2. Build each Plan
 
