@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { phases, products, productsOf, type Run, view } from "./flow";
+import { edges, phases, products, productsOf, type Run, view } from "./flow";
 
 const run = (o: Partial<Run>): Run => ({ namespace: "default", name: "r", workflow: "author-prd", phase: "Running", created: "2026-10-20T01:00:00Z", steps: {}, inputs: {}, outputs: {}, upstream: [], parked: [], ...o });
 const phase = (id: string) => phases.find((p) => p.id === id)!;
@@ -38,6 +38,11 @@ describe("view", () => {
     expect(view(phase("prd"), "p", [done(false, 3)])).toMatchObject({ state: "rejected", detail: "Rejected after 3 rounds" });
     const failed = run({ upstream: prd, phase: "Failed", error: { code: "timeout", message: "" }, created: "2026-10-22T00:00:00Z" });
     expect(view(phase("prd"), "p", [done(true, 1), failed])).toMatchObject({ state: "failed", detail: "Failed: timeout", runs: [failed, expect.anything()] });
+  });
+
+  it("puts the Test process between the Designs and the Build (39-test-process.md)", () => {
+    expect(["setup-tests", "test-design-all", "test-design-one"].map((w) => phases.find((p) => p.workflows.includes(w))!.id)).toEqual(["test-setup", "test-design", "test-design"]);
+    expect(edges.filter(([from, to]) => to === "build" || from.startsWith("test-"))).toEqual([["plans", "build"], ["test-setup", "test-design"], ["test-design", "build"]]);
   });
 
   it("takes only the product's runs of the phase's workflows", () => {

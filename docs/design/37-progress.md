@@ -33,19 +33,21 @@ map ──click a phase──▶ panel: runs, rounds, verdicts, artifacts ──
       [Specs]   [Design system]
           │            │
           │       [Designs]
+          ├────────────┤
+       [Plans]    [Test setup]
+          │            │
+          │      [Test design]
           └───┬────────┘
-           [Plans]
-              │
            [Build]
 ```
 
 | Part | Behaviour |
 |---|---|
 | product | a product is a Prd id; a run belongs to every Prd its input and output artifacts reach through `provenance.inputs`, and an `author-prd` run with no output yet to `<productId>-prd`; the top bar picks one, the product with a step waiting on you first, then the newest |
-| phase | one node per phase, from the pack's top-level workflows: PRD `author-prd`; Domain `domain-discovery` and its storm and derive workflows; Architecture `architect`; Design system `design-system`; Specs `spec-all`, `spec-one`; Designs `design-all`, `design-one`; Plans `plan-all`, `plan-one`; Build `build-all`, `build-one` |
+| phase | one node per phase, from the pack's top-level workflows: PRD `author-prd`; Domain `domain-discovery` and its storm and derive workflows; Architecture `architect`; Design system `design-system`; Specs `spec-all`, `spec-one`; Designs `design-all`, `design-one`; Plans `plan-all`, `plan-one`; Test setup `setup-tests`, `harness-work`; Test design `test-design-all`, `test-design-one` (`39-test-process.md`); Build `build-all`, `build-one` |
 | state | from the phase's newest run, the map reading top to bottom beside the panel: not started, running (with the review loop's round), waiting on you, approved, rejected after its last round (`passed: false`), failed with its error; a phase with several runs (one per context) says how many are done |
 | needs you | the only saturated colour on the map: a phase holding a TaskRun parked on a human here; the top bar counts them across products and jumps to the first |
-| edges | as the artifacts cite upstream (`23-pack-sdlc.md`), Architecture to Designs drawn through Design system: solid once the upstream phase is done |
+| edges | as the artifacts cite upstream (`23-pack-sdlc.md`), Architecture to Designs drawn through Design system, a Spec to its TestDesign through Test setup: solid once the upstream phase is done |
 | refresh | every 3 s; the open panel and the review in progress are kept |
 
 ## Panel
@@ -149,7 +151,7 @@ but `POST /api/inbox`.
 - One saturated colour, persimmon, means "waiting on you"; every other state is ink, green or red at
   low saturation, so the eye finds the gate first. Fonts are the system's: the Tool runs offline.
 - React Flow for the map: already a dependency of the Editor; nothing else added. A fixed layout,
-  not an automatic one: eight phases in a known order need no graph layout library.
+  not an automatic one: ten phases in a known order need no graph layout library.
 - Changes between rounds compare the two revisions' documents, not their JSON: blocks pair by the
   anchor a finding would name, so an element follows its `id` and a reordered list shows no change,
   and only prose is diffed word by word. The word diff is the `diff` package (jsdiff 9.0.0): no

@@ -33,11 +33,14 @@ export const phases: Phase[] = [
   { id: "specs", title: "Specs", workflows: ["spec-all", "spec-one"], lane: 0, step: 3 },
   { id: "design-system", title: "Design system", workflows: ["design-system"], lane: 1, step: 3 },
   { id: "designs", title: "Designs", workflows: ["design-all", "design-one"], lane: 1, step: 4 },
-  { id: "plans", title: "Plans", workflows: ["plan-all", "plan-one"], lane: 0.5, step: 5 },
-  { id: "build", title: "Build", workflows: ["build-all", "build-one"], lane: 0.5, step: 6 },
+  { id: "plans", title: "Plans", workflows: ["plan-all", "plan-one"], lane: 0, step: 5 },
+  { id: "test-setup", title: "Test setup", workflows: ["setup-tests", "harness-work"], lane: 1, step: 5 },
+  { id: "test-design", title: "Test design", workflows: ["test-design-all", "test-design-one"], lane: 1, step: 6 },
+  { id: "build", title: "Build", workflows: ["build-all", "build-one"], lane: 0.5, step: 7 },
 ];
 
-/** Upstream to downstream, as the artifacts cite (23-pack-sdlc.md); Architecture to Designs is drawn through Design system. */
+/** Upstream to downstream, as the artifacts cite (23-pack-sdlc.md); Architecture to Designs is drawn through Design system, a Spec to its
+ * TestDesign through Test setup (39-test-process.md). */
 export const edges: [string, string][] = [
   ["prd", "domain"],
   ["domain", "architecture"],
@@ -47,6 +50,9 @@ export const edges: [string, string][] = [
   ["specs", "plans"],
   ["designs", "plans"],
   ["plans", "build"],
+  ["designs", "test-setup"],
+  ["test-setup", "test-design"],
+  ["test-design", "build"],
 ];
 
 export const phaseOf = (workflow: string) => phases.find((p) => p.workflows.includes(workflow));
