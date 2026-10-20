@@ -667,7 +667,7 @@ describe('sdd/v1 over an AcceptanceRecord', () => {
   it('fails content that is not a record, and an outcome with no test case, each as the only finding', async () => {
     expect(await recordCodes((a) => { a.record = { title: 'x' } })).toEqual(['not-a-record'])
     const r = await adapter({ id: 5002, op: 'evaluate', payload: recordPayload({ ...recordExample(), testOutcome: { command: ['npm', 'test'], exitCode: 2, tests: [], outputTail: 'error TS2304' } }) })
-    expect(r.result.findings).toEqual([{ severity: 'error', code: 'suite-empty', message: 'no test case ran (exit 2): error TS2304' }])
+    expect(r.result.findings).toEqual([{ severity: 'error', code: 'suite-empty', message: 'no test ran (exit 2): error TS2304' }])
   })
 
   it('fails a record for another task, Plan or Spec, and a task the Plan lacks', async () => {
@@ -719,7 +719,7 @@ describe('sdd/v1 over an AcceptanceRecord', () => {
     old(known)
     known.testOutcome.tests.push({ ...known.testOutcome.tests[2] }) // retried: one case still
     const tolerated = await adapter({ id: 5011, op: 'evaluate', payload: recordPayload(known) })
-    expect(tolerated.result).toMatchObject({ passed: true, findings: [{ severity: 'info', code: 'suite-baseline', message: '1 test case red in the baseline, red still: test/claim.test.ts > claim > a drafted claim starts with no lines' }] })
+    expect(tolerated.result).toMatchObject({ passed: true, findings: [{ severity: 'info', code: 'suite-baseline', message: '1 test red in the baseline, red still: test/claim.test.ts > claim > a drafted claim starts with no lines' }] })
     expect(await recordCodes((a) => { old(a); a.baseline.tests[2].status = 'passed' })).toEqual(['suite-failed']) // green before: a regression
     expect(await recordCodes((a) => { old(a); a.baseline.tests.splice(2, 1) })).toEqual(['suite-failed']) // not there before: a new break
     expect(await recordCodes((a) => { old(a); a.record.verifies[0].tests = [tests(a)[2]!.name] })).toEqual(['test-failed']) // a named test passes, red before or not
@@ -787,13 +787,13 @@ describe('sdd/v1 over an AcceptanceRecord', () => {
     a.record.verifies[0].tests.push({ name: 'POST /claims refuses a line without a receipt', level: 'api' })
     expect(await levelCodes(a, [api([{ classname: 'claims', name: 'POST /claims refuses a line without a receipt', status: 'passed' }])])).toEqual([])
     expect(await levelCodes(a, [api([{ classname: 'claims', name: 'POST /claims refuses a line without a receipt', status: 'failed', message: '200' }])])).toEqual(['test-failed: AC-1: POST /claims refuses a line without a receipt failed: 200'])
-    expect(await levelCodes(a, [api([{ classname: 'claims', name: 'other', status: 'passed' }])])).toEqual(['test-missing: AC-1: no api test case is named POST /claims refuses a line without a receipt'])
+    expect(await levelCodes(a, [api([{ classname: 'claims', name: 'other', status: 'passed' }])])).toEqual(['test-missing: AC-1: no api test is named POST /claims refuses a line without a receipt'])
     expect(await levelCodes(a, [])).toEqual(['test-missing: AC-1: no api test ran: the project configures no api level'])
     expect(await levelCodes(a, [api([], { selection: { mode: 'none', reason: 'untouched' } })])).toEqual(['test-missing: AC-1: POST /claims refuses a line without a receipt: the api tests did not run (untouched)'])
     const both = [{ classname: 'claims', name: 'POST /claims refuses a line without a receipt', status: 'passed' }, { classname: 'claims', name: 'GET /claims', status: 'failed', message: '500' }]
     expect(await levelCodes(a, [api(both)])).toEqual(['suite-failed: api: claims > GET /claims failed: 500'])
-    expect(await levelCodes(a, [api(both)], [api([{ classname: 'claims', name: 'GET /claims', status: 'failed' }])])).toEqual(['suite-baseline: api: 1 test case red in the baseline, red still: claims > GET /claims']) // its own baseline tolerates it
-    expect(await levelCodes(a, [api([], { exitCode: 2, outputTail: 'ECONNREFUSED' })])).toEqual(['suite-empty: api: no test case ran (exit 2): ECONNREFUSED'])
+    expect(await levelCodes(a, [api(both)], [api([{ classname: 'claims', name: 'GET /claims', status: 'failed' }])])).toEqual(['suite-baseline: api: 1 test red in the baseline, red still: claims > GET /claims']) // its own baseline tolerates it
+    expect(await levelCodes(a, [api([], { exitCode: 2, outputTail: 'ECONNREFUSED' })])).toEqual(['suite-empty: api: no test ran (exit 2): ECONNREFUSED'])
   })
 
   it('the plan tier: every level that ran against its baseline, no record; a level that ran nothing says nothing (36-test-levels.md)', async () => {
@@ -801,7 +801,7 @@ describe('sdd/v1 over an AcceptanceRecord', () => {
     p.artifacts.levelOutcomes = [api([{ classname: 'claims', name: 'GET /claims', status: 'failed', message: '500' }, { classname: 'claims', name: 'old', status: 'failed' }])].map((c) => ({ content: c, provenance }))
     p.artifacts.levelBaselines = [api([{ classname: 'claims', name: 'old', status: 'failed' }])].map((c) => ({ content: c, provenance }))
     const r = (await adapter({ id: ++id, op: 'evaluate', payload: p })).result
-    expect([r.passed, r.findings.map((f: { code: string; message: string }) => `${f.code}: ${f.message}`)]).toEqual([false, ['suite-failed: api: claims > GET /claims failed: 500', 'suite-baseline: api: 1 test case red in the baseline, red still: claims > old']])
+    expect([r.passed, r.findings.map((f: { code: string; message: string }) => `${f.code}: ${f.message}`)]).toEqual([false, ['suite-failed: api: claims > GET /claims failed: 500', 'suite-baseline: api: 1 test red in the baseline, red still: claims > old']])
     p.artifacts.levelOutcomes = []
     expect((await adapter({ id: ++id, op: 'evaluate', payload: p })).result).toEqual({ passed: true, findings: [], evidence: [] })
   })

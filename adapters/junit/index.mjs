@@ -1,6 +1,6 @@
 // junit/v1: runs a project's test command in the workspace and answers what its JUnit XML says as the Task's one artifact
 // output, a TestOutcome (35-build-process.md). The exit code is part of the answer, never a failure: red tests are an outcome
-// the Gate judges. No test case read (a compile error, a killed suite, unreadable XML) answers `tests: []` and the output tail.
+// the Gate judges. No test read (a compile error, a killed suite, unreadable XML) answers `tests: []` and the output tail.
 // Configured with `levels`, it runs each test level the map names in order, integration, api, e2e, and answers an artifacts
 // list. Each level selects by the Change set before it runs: nothing, the affected tests or every test (36-test-levels.md).
 // A TestHarness bound as `harness` names the levels and their commands instead; the Executor keeps the minimums. A round's
@@ -174,7 +174,7 @@ serve({
       return { next: start(workspace, l, l.program) }
     }
     const outcome = { command: l.command, exitCode, tests, selection: l.selection, newRed: newRed(tests, l.baseline) }
-    if (tests.length === 0) outcome.outputTail = clean(tail(`${stdout}\n${stderr}`) + unreadable) || `no test case read from ${l.junit}`
+    if (tests.length === 0) outcome.outputTail = clean(tail(`${stdout}\n${stderr}`) + unreadable) || `no test read from ${l.junit}`
     const round = !run.list && run.tier === 'round'
     if (round && l.coverage) outcome.coverage = coverage({ workspace, report: l.coverage.report, min: l.coverage.min, changes: run.changes, paths: l.paths })
     answered(outcome, l)

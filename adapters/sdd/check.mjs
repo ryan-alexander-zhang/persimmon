@@ -442,12 +442,12 @@ function suiteFindings(outcome, baseline, named, prefix, bad, findings) {
     if (redBefore.has(`${c.classname} > ${c.name}`)) tolerated.add(`${c.classname} > ${c.name}`)
     else bad('suite-failed', `${prefix}${c.classname} > ${c.name} ${c.status}${c.message ? `: ${c.message}` : ''}`)
   }
-  if (tolerated.size) findings.push({ severity: 'info', code: 'suite-baseline', message: `${prefix}${tolerated.size} test case${tolerated.size > 1 ? 's' : ''} red in the baseline, red still: ${[...tolerated].join('; ')}` })
+  if (tolerated.size) findings.push({ severity: 'info', code: 'suite-baseline', message: `${prefix}${tolerated.size} test${tolerated.size > 1 ? 's' : ''} red in the baseline, red still: ${[...tolerated].join('; ')}` })
   // persimmon never reverts: a baseline taken over uncommitted changes may tolerate a red an earlier build left
   if (tolerated.size && baseline.dirty) findings.push({ severity: 'warning', code: 'baseline-dirty', message: `${prefix}the baseline ran over uncommitted changes: a red it tolerates may be one an earlier build left` })
   // a tolerated red explains a non-zero exit only when the baseline exited the same: a suite killed or failing after its tests still shows
   const onlyTolerated = cases.filter(red).every((c) => !named.has(c) && tolerated.has(`${c.classname} > ${c.name}`))
-  if (outcome.exitCode !== 0 && onlyTolerated && outcome.exitCode !== (cases.some(red) ? baseline.exitCode : 0)) bad('suite-exit', `${prefix}the tests exited ${outcome.exitCode} with no test case failing${cases.some(red) ? ` beyond the baseline's, which exited ${baseline.exitCode}` : ''}: killed part way, or failed after the tests`)
+  if (outcome.exitCode !== 0 && onlyTolerated && outcome.exitCode !== (cases.some(red) ? baseline.exitCode : 0)) bad('suite-exit', `${prefix}the tests exited ${outcome.exitCode} with no test failing${cases.some(red) ? ` beyond the baseline's, which exited ${baseline.exitCode}` : ''}: killed part way, or failed after the tests`)
 }
 
 const levelOf = (o) => o?.level ?? 'unit'
@@ -531,7 +531,7 @@ export function checkTestDesign({ testDesign, spec, architecture, rules, harness
   sequence(bad, 'Q', (testDesign.openQuestions ?? []).map((q) => q.id))
   return findings
 }
-const empty = (o, prefix) => `${prefix}no test case ran (exit ${o?.exitCode}): ${o?.outputTail ?? ''}`
+const empty = (o, prefix) => `${prefix}no test ran (exit ${o?.exitCode}): ${o?.outputTail ?? ''}`
 /** A row's test as {name, level}: a bare name is a unit test (36-test-levels.md). */
 const testRef = (t) => (typeof t === 'string' ? { name: t, level: 'unit' } : t)
 
@@ -595,8 +595,8 @@ export function checkAcceptance({ record, testOutcome, plan, spec, previous, pre
         if ((o.tests ?? []).length === 0) continue // that level's suite-empty says why
         const m = matching(name, level)
         for (const c of m) named.add(c)
-        if (m.length === 0) bad('test-missing', `${id}: no ${where}test case is named ${name}`)
-        else if (tests(m) > 1) bad('test-ambiguous', `${id}: ${tests(m)} ${where}test cases are named ${name}; name it as classname > name`)
+        if (m.length === 0) bad('test-missing', `${id}: no ${where}test is named ${name}`)
+        else if (tests(m) > 1) bad('test-ambiguous', `${id}: ${tests(m)} ${where}tests are named ${name}; name it as classname > name`)
         else if (m.some(red)) {
           const r = m.find(red)
           bad('test-failed', `${id}: ${name} ${r.status}${r.message ? `: ${r.message}` : ''}`)

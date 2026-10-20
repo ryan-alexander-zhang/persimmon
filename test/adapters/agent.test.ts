@@ -520,7 +520,7 @@ describe('junit/v1', () => {
     expect(published()[0]!.content).toMatchObject({ exitCode: 3, tests: [], outputTail: 'token [redacted]' })
     calls.length = 0
     await adapter('junit', { id: 51, op: 'execute', payload: p(dir, { program: [process.execPath, '-e', "require('node:fs').writeFileSync('junit.xml', '<testsuites/>')"], junit: 'junit.xml' }) })
-    expect(published()[0]!.content).toMatchObject({ tests: [], outputTail: 'no test case read from junit.xml' })
+    expect(published()[0]!.content).toMatchObject({ tests: [], outputTail: 'no test read from junit.xml' })
     rmSync(dir, { recursive: true })
   })
 
