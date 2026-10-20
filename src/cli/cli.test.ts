@@ -70,7 +70,7 @@ describe('persimmon CLI', () => {
     expect(out.filter((l) => l.startsWith('ok')).length).toBeGreaterThanOrEqual(7)
     out = [] // the SDLC pack's worked domain example validates (23-pack-sdlc.md)
     expect([await run('validate', 'docs/design/examples/sdlc-domain.yaml'), out.filter((l) => !l.startsWith('ok'))]).toEqual([0, []])
-    expect(out.length).toBe(17)
+    expect(out.length).toBe(18)
     out = [] // the pack's own live output, meeting room booking, validates too
     expect([await run('validate', 'examples/example07/room-booking-domain.yaml'), out.filter((l) => !l.startsWith('ok'))]).toEqual([0, []])
     expect(out.length).toBe(30)

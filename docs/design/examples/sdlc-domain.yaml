@@ -1144,6 +1144,29 @@ spec:
       - {classname: test/claim.test.ts, name: "claim > attaching a receipt to another employee's claim by URL is refused and logged", status: passed}
       - {classname: test/claim.test.ts, name: "claim > drafting a claim records each line's amount, date and category", status: passed}
       - {classname: test/claim.test.ts, name: claim > a 25.00 EUR taxi line without a receipt is not complete and names BR-2, status: passed}
+    # the round's selection and the unit level's minimums over the Change set (36-test-levels.md)
+    selection: {mode: affected, reason: 2 changed files}
+    newRed: 0
+    coverage: {min: 90, covered: 38, total: 40, uncovered: [{file: src/claim.ts, lines: 64-65}]}
+    mutation: {min: 90, command: [npx, stryker, run, --mutate=src/claim.ts], killed: 27, survived: 1, noCoverage: 0, timeout: 1, score: 96.55, survivors: [{file: src/claim.ts, line: 58, mutator: EqualityOperator}]}
+---
+# The api level after T-1 (36-test-levels.md): the Bruno collection run against the app, a test the record could name as
+# {name: the claim is not complete, level: api}; integration and e2e were untouched by the change, so their outcomes ran nothing.
+apiVersion: sdd.persimmon.ai/v1
+kind: TestOutcome
+metadata: {name: submit-a-claim-plan-t-1-levels-2.r1}
+spec:
+  identity: {id: submit-a-claim-plan-t-1-levels-2, revision: 1}
+  content:
+    command: [sh, scripts/api.sh]
+    exitCode: 0
+    head: 3f2a9c1e8b7d6a5f4e3d2c1b0a9f8e7d6c5b4a39
+    dirty: true
+    level: api
+    selection: {mode: full, reason: 2 changed files}
+    newRed: 0
+    tests:
+      - {classname: "http://localhost:3996/claims", name: the claim is not complete, status: passed}
 ---
 # A defect the developer found reading the T-2 diff, investigated (35-build-process.md): no Spec says an amount is in cents,
 # so the fix is a Spec revision with a new AC-n, then the Plan's, then build-one. Open until that record's Gate passes.
