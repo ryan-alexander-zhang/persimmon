@@ -1,7 +1,8 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { request } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { parseAllDocuments } from 'yaml'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { runCli } from '../cli/index.js'
 import { openEngine } from '../cli/context.js'
@@ -148,6 +149,13 @@ describe('persimmon ui server', () => {
 
     const list = (await (await get('/api/inbox')).json()) as { directory: string; parked: unknown[] }
     expect(list).toEqual({ directory: dir, parked: [{ namespace: 'default', taskRun: 'r1-ask', task: 'ask', deadline: expect.any(String), form: true, verdict: true }] })
+    const runs = (await (await get('/api/runs')).json()) as { directory: string; runs: Record<string, unknown>[] }
+    expect(runs.directory).toBe(dir)
+    expect(runs.runs).toEqual([expect.objectContaining({ namespace: 'default', name: 'r1', workflow: 'ask-wf', phase: 'Running', steps: { ask: { phase: 'Pending' } }, upstream: [], parked: [{ taskRun: 'r1-ask', task: 'ask', verdict: true }] })])
+    const tree = (await (await get('/api/runs/default/r1')).json()) as { kind: string; label: string; children: Record<string, unknown>[] }
+    expect([tree.kind, tree.label]).toEqual(['WorkflowRun', 'r1'])
+    expect(tree.children).toEqual([expect.objectContaining({ kind: 'TaskRun', name: 'r1-ask', label: 'ask', task: 'ask', phase: 'Waiting', waitingReason: 'human', parked: true, children: [] })])
+    expect((await get('/api/runs/default/nope')).status).toBe(404)
     const form = (await (await get('/api/inbox/default/r1-ask')).json()) as { instructions: string; verdict: boolean }
     expect([form.instructions, form.verdict]).toEqual(['Answer', true])
     expect((await get('/api/inbox/default/nope')).status).toBe(404)
@@ -162,8 +170,23 @@ describe('persimmon ui server', () => {
     const again = await post('/api/inbox/default/r1-ask', { outputs: {} })
     expect([again.status, (await again.json()).error.message]).toEqual([409, 'TaskRun/r1-ask is Succeeded, not waiting for a human'])
 
+    expect(((await (await get('/api/runs')).json()) as { runs: { phase: string; parked: unknown[] }[] }).runs[0]).toMatchObject({ phase: 'Succeeded', parked: [] })
     expect(await (await get('/api/kinds/prds.sdd.persimmon.ai')).json()).toMatchObject({ kind: 'Prd', schema: { type: 'object', properties: { goals: { type: 'array' } } } })
     expect((await get('/api/kinds/tasks.persimmon.ai')).status).toBe(404)
+  })
+
+  it('a run\'s upstream is every artifact its refs reach through provenance (37-progress.md)', async () => {
+    const docs = parseAllDocuments(readFileSync('docs/design/examples/sdlc-domain.yaml', 'utf8')).map((d) => d.toJS()).filter(Boolean)
+    const prd = docs.find((d) => d.kind === 'Prd')
+    await engine.create(prd)
+    const ref = { apiVersion: 'sdd.persimmon.ai/v1', kind: 'Prd', namespace: 'default', id: prd.spec.identity.id, revision: 1 }
+    const port = { type: { kind: 'artifact', artifactKind: { apiVersion: 'sdd.persimmon.ai/v1', kind: 'Prd' } } }
+    const ask = { apiVersion: 'persimmon.ai/v1', kind: 'Task', metadata: { name: 'ask', namespace: 'default' }, spec: { inputs: { prd: port }, outputs: { result: { type: { kind: 'value', schema: { $ref: 'persimmon.ai/v1#/ValidationResult' } } } }, executorRef: { kind: 'Executor', name: 'local-reviewer' }, action: { instructions: 'Answer' }, timeout: '1h', sideEffects: 'none' } }
+    const wf = { apiVersion: 'persimmon.ai/v1', kind: 'Workflow', metadata: { name: 'ask-wf', namespace: 'default' }, spec: { inputs: { prd: port }, entry: ['ask'], steps: [{ id: 'ask', uses: { kind: 'Task', name: 'ask' }, inputs: { prd: { fromInput: 'prd' } }, timeout: '1h' }], transitions: [{ id: 'done', from: [{ stepRef: 'ask', outcomes: ['Succeeded'] }], to: [{ terminal: 'Succeeded' }] }], timeout: '3h' } }
+    for (const d of [ask, wf]) await engine.apply(d as never)
+    await engine.create({ apiVersion: 'persimmon.ai/v1', kind: 'WorkflowRun', metadata: { name: 'r2', namespace: 'default' }, spec: { workflowRef: { kind: 'Workflow', name: 'ask-wf' }, inputs: { prd: { kind: 'artifact', ref } }, origin: { kind: 'manual' } } } as never)
+    const runs = (await (await get('/api/runs')).json()) as { runs: { upstream: unknown[] }[] }
+    expect(runs.runs[0]!.upstream).toEqual([{ kind: 'Prd', id: 'expense-claims' }]) // a hand-written revision cites nothing further
   })
 
   it('a project directory sharing the store neither lists nor answers another directory\'s TaskRun (08-store.md)', async () => {

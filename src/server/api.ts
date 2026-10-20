@@ -1,11 +1,12 @@
 // The JSON API over the Engine (25-ui.md): revisioned kinds, their artifacts, one revision, its representations, create the next one;
-// the Inbox (37-progress.md): TaskRuns parked on a human, their forms, the answer.
+// Progress (37-progress.md): top-level runs with their lineage, one run's tree; the Inbox: TaskRuns parked on a human, their forms, the answer.
 // Local mode binds loopback and trusts the user, so there is no auth here; server mode adds https and tokens.
 import { existsSync, readFileSync } from 'node:fs'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { parse } from 'yaml'
 import { createRevision } from '../cli/create.js'
 import { answer, type Form, formPath, fromFile, isValidationResult, notAnswerable } from '../cli/signal.js'
+import { labelOf, ownedBy } from '../cli/tree.js'
 import type { Engine } from '../engine.js'
 import type { KindDefinition } from '../kind-definition/types.js'
 import type { Resource } from '../resource/types.js'
@@ -77,6 +78,7 @@ async function route(engine: Engine, req: IncomingMessage, path: string[], url: 
     return { status: 200, body: { name: kd.metadata.name, apiVersion: apiVersionOf(kd), kind: kd.spec.names.kind, schema: kd.spec.versions.at(-1)!.schema } }
   }
   if (head === 'inbox') return inbox(engine, req, rest, method, url)
+  if (head === 'runs' && method === 'GET') return runs(engine, rest, url)
   if (head !== 'artifacts') throw new HttpError(404, 'not_found', `no route ${method} ${url.pathname}`)
 
   if (rest.length === 0 && method === 'GET') {
@@ -133,7 +135,7 @@ async function route(engine: Engine, req: IncomingMessage, path: string[], url: 
 
 /** The Inbox (37-progress.md): only the TaskRuns this engine drives; the answer goes through the path `persimmon complete` takes. */
 async function inbox(engine: Engine, req: IncomingMessage, rest: string[], method: string, url: URL): Promise<{ status: number; body?: unknown }> {
-  const formOf = (r: Resource) => (existsSync(formPath(engine, r.metadata.name)) ? (parse(readFileSync(formPath(engine, r.metadata.name), 'utf8')) as Form & { deadline?: string }) : undefined)
+  const formOf = (r: Resource) => readForm(engine, r)
   if (rest.length === 0 && method === 'GET') {
     const parked = engine.store.resources
       .list('TaskRun')
@@ -169,6 +171,85 @@ async function inbox(engine: Engine, req: IncomingMessage, rest: string[], metho
   answer(engine, r, completion)
   drainAfter(engine) // the run continues in this process (08-store.md)
   return { status: 200, body: { answered: `TaskRun/${name}` } }
+}
+
+const readForm = (engine: Engine, r: Resource) => (existsSync(formPath(engine, r.metadata.name)) ? (parse(readFileSync(formPath(engine, r.metadata.name), 'utf8')) as Form & { deadline?: string }) : undefined)
+
+type Refs = { kind?: string; ref?: RevisionRef; refs?: RevisionRef[] }
+type RevisionRef = { apiVersion: string; kind: string; id: string; revision: number; namespace?: string }
+const refsIn = (values: Record<string, unknown> | undefined) => Object.values(values ?? {}).flatMap((v) => ((v as Refs)?.kind === 'artifact' ? [(v as Refs).ref!] : (v as Refs)?.kind === 'artifacts' ? (v as Refs).refs! : []))
+
+/** Every artifact `refs` reach through `provenance.inputs`, themselves included, once each by kind and id. */
+function upstream(engine: Engine, namespace: string, refs: RevisionRef[]): { kind: string; id: string }[] {
+  const seen = new Map<string, { kind: string; id: string }>()
+  const visited = new Set<string>()
+  const queue = [...refs]
+  for (let ref = queue.shift(); ref; ref = queue.shift()) {
+    const name = `${ref.id}.r${ref.revision}`
+    if (visited.has(`${ref.kind}/${name}`)) continue
+    visited.add(`${ref.kind}/${name}`)
+    seen.set(`${ref.kind}/${ref.id}`, { kind: ref.kind, id: ref.id })
+    const r = engine.store.resources.get({ kind: ref.kind, namespace: ref.namespace ?? namespace, name })
+    queue.push(...(((r?.spec as { provenance?: { inputs?: RevisionRef[] } } | undefined)?.provenance?.inputs) ?? []))
+  }
+  return [...seen.values()]
+}
+
+/** The TaskRuns under `run` parked on a human that this engine drives and that have a form: what the map offers to answer. */
+function parkedUnder(engine: Engine, run: Resource): { taskRun: string; task: string; verdict: boolean }[] {
+  return ownedBy(engine, run).flatMap((c) => {
+    const form = c.kind === 'TaskRun' && notAnswerable(engine, c) === undefined ? readForm(engine, c) : undefined
+    return [...(form ? [{ taskRun: c.metadata.name, task: (c.spec as { taskRef: { name: string } }).taskRef.name, verdict: isVerdict(form) }] : []), ...parkedUnder(engine, c)]
+  })
+}
+
+/** Progress (37-progress.md): runs as the store holds them; which product and phase they are is the Tool's reading. */
+function runs(engine: Engine, rest: string[], url: URL): { status: number; body: unknown } {
+  type Status = { phase?: string; waitingReason?: string; error?: unknown; steps?: Record<string, { phase: string; iteration?: number }>; outputs?: Record<string, unknown>; result?: unknown }
+  if (rest.length === 0) {
+    // ponytail: every poll walks every run's tree (ownedBy lists per call); an index by owner when projects hold thousands of runs
+    const tops = engine.store.resources.list('WorkflowRun').filter((r) => !r.metadata.ownerReferences?.length)
+    const body = tops.map((r) => {
+      const s = (r.status ?? {}) as Status
+      const spec = r.spec as { workflowRef: { name: string }; inputs?: Record<string, unknown> }
+      return {
+        namespace: r.metadata.namespace,
+        name: r.metadata.name,
+        workflow: spec.workflowRef.name,
+        phase: s.phase ?? 'Pending',
+        ...(s.waitingReason ? { waitingReason: s.waitingReason } : {}),
+        ...(s.error ? { error: s.error } : {}),
+        created: r.metadata.creationTimestamp,
+        steps: Object.fromEntries(Object.entries(s.steps ?? {}).map(([id, st]) => [id, { phase: st.phase, ...(st.iteration !== undefined ? { iteration: st.iteration } : {}) }])),
+        inputs: spec.inputs ?? {},
+        outputs: s.outputs ?? {},
+        upstream: upstream(engine, r.metadata.namespace!, [...refsIn(spec.inputs), ...refsIn(s.outputs)]),
+        parked: parkedUnder(engine, r),
+      }
+    })
+    return { status: 200, body: { directory: engine.cwd, runs: body } }
+  }
+  const [namespace, name] = rest
+  if (!namespace || !name || rest.length > 2) throw new HttpError(404, 'not_found', `no route GET ${url.pathname}`)
+  const root = engine.store.resources.get({ kind: 'WorkflowRun', namespace, name })
+  if (!root) throw new HttpError(404, 'not_found', `WorkflowRun ${name} not found in ${namespace}`)
+  const node = (r: Resource, owner: Resource | undefined): unknown => {
+    const s = (r.status ?? {}) as Status
+    return {
+      kind: r.kind,
+      name: r.metadata.name,
+      label: labelOf(r, owner),
+      phase: s.phase ?? 'Pending',
+      ...(s.waitingReason ? { waitingReason: s.waitingReason } : {}),
+      ...(s.error ? { error: s.error } : {}),
+      created: r.metadata.creationTimestamp,
+      ...(r.kind === 'TaskRun' ? { task: (r.spec as { taskRef: { name: string } }).taskRef.name, parked: notAnswerable(engine, r) === undefined && !!readForm(engine, r) } : {}),
+      ...(s.outputs ? { outputs: s.outputs } : {}),
+      ...(s.result ? { result: s.result } : {}),
+      children: ownedBy(engine, r).map((c) => node(c, r)),
+    }
+  }
+  return { status: 200, body: node(root, undefined) }
 }
 
 /** A form the Inbox answers with a click: every output a ValidationResult value port. */
