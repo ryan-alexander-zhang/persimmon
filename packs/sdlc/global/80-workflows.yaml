@@ -1097,7 +1097,7 @@ spec:
       seed: {fromStep: {stepRef: produce, output: seed}}
       levelOutcomes: {fromStep: {stepRef: produce, output: levelOutcomes}}
       architecture: {fromInput: architecture}
-    timeout: 5m
+    timeout: 72h
   subject: harness
   previous: previous
   feedback: feedback

@@ -353,7 +353,8 @@ spec:
   policy: {strategy: all}
   timeout: 5m
 ---
-# harness-gate: a TestHarness passes when every level it names ran once and its seed test is green (39-test-process.md).
+# harness-gate: a TestHarness passes when every level it names ran once and its seed test is green, and a human confirmed it
+# and answered its open questions (39-test-process.md).
 apiVersion: persimmon.ai/v1
 kind: Gate
 metadata: {name: harness-gate}
@@ -373,8 +374,14 @@ spec:
         seed: {fromInput: seed}
         levelOutcomes: {fromInput: levelOutcomes}
         architecture: {fromInput: architecture}
+    - name: confirmed
+      ref: {kind: Validator, name: harness-confirmed}
+      after: [evidence]   # the human confirms only a harness whose seed tests pass (14-gate.md)
+      inputs:
+        harness: {fromInput: harness}
+        architecture: {fromInput: architecture}
   policy: {strategy: all}
-  timeout: 5m
+  timeout: 72h
 ---
 # test-design-gate: a TestDesign passes when its citations and coverage hold, the auditor finds no case unfit, and a human
 # confirmed the cases before any code exists (39-test-process.md).

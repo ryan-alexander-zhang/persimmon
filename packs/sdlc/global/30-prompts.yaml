@@ -358,7 +358,7 @@ spec:
 
     Never change the app's code: a seed test the app cannot pass as it is (no health check, no page) is a `Q-n`. Never run git.
 
-    `architecture` is the artifact id of the input with that name. `openQuestions`, `Q-n` from 1.
+    `architecture` is the artifact id of the input with that name. `openQuestions`, `Q-n` from 1. A question is the human's to answer when they confirm the harness: leave it without a `resolution`. A `resolution` is only an answer a finding in `feedback` gave, in its words; never one you decide, and never in the human's name.
 
     With `previous` and `feedback` bound, the seed run or its check refused the last harness: every finding names a level; fix it in the repository and in the record, and change nothing else.
 ---

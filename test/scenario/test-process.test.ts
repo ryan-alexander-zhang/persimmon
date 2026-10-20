@@ -81,6 +81,9 @@ describe('scenario: the Test process', () => {
     expect(f.inputs.feedback.value.results.evidence.findings.map((x: { code: string }) => x.code)).toEqual(['suite-empty'])
     writeFileSync(join(repo, 'api.xml'), xml(...apiSeed))
     await answer(f.taskRun, { harness })
+    f = form() // the seed tests pass: the human confirms the harness
+    expect(f.reading.map((r: { kind: string }) => r.kind)).toEqual(['TestHarness', 'Architecture'])
+    await answer(f.taskRun, { result: pass })
     expect(out.find((l) => l.startsWith('WorkflowRun   setup-tests-'))).toMatch(/Succeeded/)
     out = []
     expect(await run('get', 'TestOutcome/expense-claims-architecture-harness-seed-levels-1')).toBe(0)

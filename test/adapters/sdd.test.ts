@@ -1026,7 +1026,7 @@ describe('sdd/v1 over the Test process', () => {
     expect(codes(harness, seed, [api([{ ...apiSeed.tests[0], status: 'failed' }])])).toEqual(['seed-failed'])
     expect(codes(harness, seed, [api([{ classname: 'x', name: 'other', status: 'passed' }])])).toEqual(['seed-missing'])
     expect(codes(harness, seed, [{ ...api([]), outputTail: 'bru: not found', exitCode: 127 }])).toEqual(['suite-empty'])
-    expect(codes({ ...harness, openQuestions: [{ id: 'Q-1', question: 'Bruno or Hurl?' }] }, seed, [apiSeed])).toEqual(['question-open'])
+    expect(codes({ ...harness, openQuestions: [{ id: 'Q-1', question: 'Bruno or Hurl?' }] }, seed, [apiSeed])).toEqual([]) // the human's, at the Gate
     expect(codes({ ...harness, architecture: 'other' }, seed, [apiSeed])).toEqual(['architecture-mismatch'])
     expect(codes({ levels: {} }, seed, [])).toEqual(['not-a-harness'])
   })

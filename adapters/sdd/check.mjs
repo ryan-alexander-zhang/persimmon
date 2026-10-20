@@ -494,7 +494,6 @@ export function checkHarness({ harness, seed, levelOutcomes = [], ids = {} }) {
     if (m.length === 0) bad('seed-missing', `${level}: no test is named ${l.seed}`)
     else if (!m.every((c) => c.status === 'passed')) bad('seed-failed', `${level}: ${l.seed} ${m.find((c) => c.status !== 'passed').status}`)
   }
-  for (const q of harness.openQuestions ?? []) if (!q.resolution) bad('question-open', `${q.id} is open: ${q.question}`)
   return findings
 }
 

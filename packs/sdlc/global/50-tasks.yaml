@@ -861,6 +861,31 @@ spec:
     backoff: {strategy: exponential, initial: 1m, max: 5m, jitter: none}
   sideEffects: none
 ---
+# The human's confirmation of a TestHarness once its seed tests pass (39-test-process.md): the tools, and the answer to each
+# open question.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: confirm-harness}
+spec:
+  inputs:
+    harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
+  executorRef: {kind: Executor, name: local-reviewer}
+  action:
+    instructions: |
+      Confirm the project's test setup. Judge whether each level's tool is the one the Architecture names, and whether
+      its commands and conventions are how this project should write and run that level's tests; every seed test
+      passed beside you. Approve, or reject with one finding per level that must change, naming it in the message.
+      Each open Q-n is yours to answer: reject with a finding naming it and giving the answer, which the next round
+      records as its resolution.
+    context:
+      - {kind: artifact, input: harness}
+      - {kind: artifact, input: architecture}
+  timeout: 72h
+  sideEffects: none
+---
 apiVersion: persimmon.ai/v1
 kind: Task
 metadata: {name: confirm-test-design}
