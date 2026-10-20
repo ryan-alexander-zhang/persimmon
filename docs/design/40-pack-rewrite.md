@@ -57,7 +57,7 @@ developer: the project (the rewrite's repository), a source checkout outside it 
        spec-all over the Slice's CAP-n, design-all, plan-all, setup-tests (first Slice), test-design-all, build-all
   ─▶ ReviewLoop parity
        produce: Workflow parity-work
-                when the interface changes: Task write-rewrite-driver (tester), Task audit-driver (auditor)
+                Task write-rewrite-driver (tester), Task audit-driver (auditor): the interface kept, no file
                 Task run-rewrite (parity-run/v1, the rewrite's app as the TestHarness's `app` starts it) ─▶ value runs on the rewrite
                 Task compute-ledger                  ─▶ ParityLedger next revision: every difference with its cause, the verdict
                 Task review-parity (human)           ─▶ value decisions: the rewrite driver confirmed, concerns accepted, approved
@@ -186,6 +186,12 @@ as a whole word (`test_EP2_GD2_add_in_stock` cites `EP-2` and `GD-2`); coverage 
 was reached, never which test reached it. An item belongs to the Slice whose inventory revision first
 lists it; a later Slice that reaches it again does not take it over.
 
+Only `characterize` measures the source. A revision computed without the source's `runs` (in
+`recover-prd` and `parity`) carries the last revision's measurements of the Slice whole: each entry
+point's Oracle, each item's `reached`, `pinnable`, `pinned`, `mutant` and `tests`, and the unreached
+entries; it recomputes every account from the decisions, so no later run has to hand the
+characterization's values on, and none can measure the source differently.
+
 | Item | `complete` when | `unverified` when |
 |---|---|---|
 | rule or unknown guard, declaration | ruled (a `BR-n` cites it) and pinned (its mutant killed), or dropped by a Disposition, or `dead` as a human decided | ruled, and its Oracle cannot pin it (`recorded`, `static`, `volatile` uncontrolled, no coverage), or a human accepted it open with a reason |
@@ -247,7 +253,7 @@ and converts formats only; one call may become several, never a value.
 
 | Interface change | Rewrite driver |
 |---|---|
-| kept | none; the source's driver |
+| kept | none, the source's driver serves; `driver.kept`, each entry point still mapped to its Design element |
 | renamed or reshaped | one method per operation |
 | merged (two old operations, one new call) | each old operation selects its part of the one answer |
 | split (one old operation, two new calls) | one method, two calls |
@@ -285,9 +291,9 @@ What the agents are taught, as Prompts the pack ships, one per Task, overridable
 | Tasks `audit-recovery`, `audit-driver` | Executor `auditor`; value `audit`: the Prd against the inventory and the tests (a rule the tests contradict, a capability with no entry point); the rewrite driver against `driver-rules` |
 | Human Tasks `cut-slices`, `decide-recovery`, `review-parity` | `cli-human/v1`; each answers the `decisions` value its row of Decisions says, its schema written inline (a port schema takes no `$ref` beyond the well-known ones, `10-ports.md`); the form shows the audit beside the artifacts; `produce` runs each round, so the human answers once per round |
 | The Tester's Tasks | the SDLC pack's Executor `tester` is a human one by default (`cli-human/v1`, the developer's agent in a fresh subagent), so its Tasks answer values, never `artifacts`; a Namespace that puts it on `claude-code/v1` read-only may find reads outside the workspace refused, and the source is read through the `source` input's `locator.path` |
-| Task `write-rewrite-driver` | Executor `tester`; inputs `suite`, the Slice's Designs, `feedback`; output value `written` (the driver's files); `written.driver` is `{methods[] {name, entryPoint EP-n, element EL-n}}`, one method per operation of the source's driver, each citing the entry point it serves and the Design element it lands on |
-| Task `run-rewrite` | `parity-run/v1`: every level's tests through the rewrite's driver (or the source's, the interface kept) against the rewrite, its app started by the TestHarness's `app.start` and awaited at `app.ready` (refused without them), with `PERSIMMON_TARGET=rewrite`; value `runs` as `run-source`'s, `head` the project's commit only when no tracked file differs from it |
-| Task `compute-ledger` | `parity-run/v1`; inputs `inventory`, `sourceIndex`, `written`, `slice?`, `runs` (the source's), `rewriteRuns?` (the rewrite's, in `parity`), `coverage`, `mutantResults`, `rules?`, `decisions`, the last `ledger`; output its next revision under `outputIds.ledger`, `<productId>-parity` (refused without it) |
+| Task `write-rewrite-driver` | Executor `tester`; inputs the last `ledger` (its `suite`), the Slice's Designs, `feedback`; output value `written` (the driver's files); `written.driver` is `{kept?, methods[] {name, entryPoint EP-n, element EL-n}}`; it runs on every Slice, so no step branches on prose: with the interface kept, `kept: true` and no file, one method per operation of the source's driver, each citing the entry point it serves and the Design element it lands on |
+| Task `run-rewrite` | `parity-run/v1`, inputs the last `ledger` (its `suite`) and the TestHarness: every level's tests through the rewrite's driver (or the source's, the interface kept) against the rewrite, its app started by the TestHarness's `app.start` and awaited at `app.ready` (refused without them), with `PERSIMMON_TARGET=rewrite`; value `runs` as `run-source`'s, `head` the project's commit only when no tracked file differs from it |
+| Task `compute-ledger` | `parity-run/v1`; inputs `inventory`, `slice?`, the last `ledger`, `decisions`, `rules?`; in `characterize` also `written`, `runs` (the source's), `coverage`, `mutantResults`; in `parity` also `rewriteRuns` (the rewrite's); output its next revision under `outputIds.ledger`, `<productId>-parity` (refused without it) |
 | Gates | `survey-gate`, `inventory-gate`, `characterize-gate`, `recover-gate`, `parity-gate`: pure, over the loop's artifacts and values |
 | ReviewLoops | `survey` (`maxRounds: 2`), `inventory` (2), `characterize` (3), `recover-prd` (3, `carry: {rules: previousRules}` as `author-prd`), `parity` (2) |
 
