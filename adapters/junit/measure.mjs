@@ -87,9 +87,13 @@ export function coverage({ workspace, report, min, changes, paths }) {
 }
 
 const statuses = { Killed: 'killed', Survived: 'survived', NoCoverage: 'noCoverage', Timeout: 'timeout' } // errors and ignored ones score nothing
+const gremlins = { KILLED: 'Killed', LIVED: 'Survived', 'NOT COVERED': 'NoCoverage', 'TIMED OUT': 'Timeout' } // NOT VIABLE, SKIPPED: nothing
+
+/** Gremlins' own report (Go): files[] of {file_name, mutations[] {type, status, line}}, as a mutation-testing-elements one. */
+const fromGremlins = (json) => ({ files: Object.fromEntries(json.files.map((f) => [f.file_name, { mutants: (f.mutations ?? []).map((m) => ({ mutatorName: m.type, location: { start: { line: m.line } }, status: gremlins[m.status] })) }])) })
 
 /** The mutants on the Change set's lines: counts, the score and the survivors, or {min, command, error}. Every mutant without a Change set.
- * The report is mutation-testing-elements JSON, or a script assigning it. */
+ * The report is mutation-testing-elements JSON, a script assigning it (PIT), or Gremlins' own JSON (Go). */
 export function mutation({ workspace, report, min, changes, paths, command }) {
   let json
   try {
@@ -99,7 +103,8 @@ export function mutation({ workspace, report, min, changes, paths, command }) {
   } catch (e) {
     return { min, command, error: `${report} not read: ${e.message}` }
   }
-  if (!json || typeof json.files !== 'object') return { min, command, error: `${report} is not a mutation-testing-elements report` }
+  if (Array.isArray(json?.files)) json = fromGremlins(json)
+  if (!json || typeof json.files !== 'object') return { min, command, error: `${report} is neither a mutation-testing-elements nor a Gremlins report` }
   const counts = { killed: 0, survived: 0, noCoverage: 0, timeout: 0 }
   const survivors = []
   const files = Object.entries(json.files).map(([path, f]) => [inWorkspace(workspace, path, [], changes ?? new Map()), f])

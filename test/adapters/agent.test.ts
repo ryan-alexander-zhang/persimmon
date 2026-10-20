@@ -661,11 +661,13 @@ describe('junit/v1', () => {
     expect(coverage({ workspace: dir, report: 'jacoco-own.xml', min: 90, changes: deep, paths: ['src/**'] })).toEqual({ min: 90, covered: 0, total: 1, uncovered: [{ file: 'src/main/java/com/x/Claim.java', lines: '3' }] }) // JaCoCo's own XML
     writeFileSync(join(dir, 'report.js'), `document.querySelector('mutation-test-report-app').report = ${JSON.stringify({ schemaVersion: '2', files: { 'com/x/Claim.java': { mutants: [mutant(3, 'Killed')] } } })};`)
     expect(mutation({ workspace: dir, report: 'report.js', min: 90, changes: deep, paths: ['src/**'], command: [] })).toMatchObject({ killed: 1, score: 100 }) // PIT's html2 report
+    writeFileSync(join(dir, 'gremlins.json'), JSON.stringify({ go_module: 'example.com/claims', files: [{ file_name: 'claim.go', mutations: [{ type: 'CONDITIONALS_BOUNDARY', status: 'LIVED', line: 3, column: 9 }, { type: 'ARITHMETIC_BASE', status: 'KILLED', line: 3, column: 2 }, { type: 'INVERT_NEGATIVES', status: 'NOT VIABLE', line: 3, column: 4 }] }] }))
+    expect(mutation({ workspace: dir, report: 'gremlins.json', min: 90, changes: new Map([['claims/claim.go', new Set([3])]]), command: [] })).toEqual({ min: 90, command: [], killed: 1, survived: 1, noCoverage: 0, timeout: 0, score: 50, survivors: [{ file: 'claims/claim.go', line: 3, mutator: 'CONDITIONALS_BOUNDARY' }] }) // Gremlins, Go
     const twins = new Map([['a/Claim.java', new Set([3])], ['b/Claim.java', new Set([3])]])
     writeFileSync(join(dir, 'twin.json'), JSON.stringify({ files: { 'x/Claim.java': { mutants: [mutant(3, 'Survived')] } } }))
     expect(mutation({ workspace: dir, report: 'twin.json', min: 90, changes: twins, command: [] }).error).toContain('resolves to no changed file')
     writeFileSync(join(dir, 'bad.json'), '{}')
-    expect(mutation({ workspace: dir, report: 'bad.json', min: 90, command: [] }).error).toContain('not a mutation-testing-elements report')
+    expect(mutation({ workspace: dir, report: 'bad.json', min: 90, command: [] }).error).toContain('neither a mutation-testing-elements nor a Gremlins report')
 
     // the unit runner: tests, coverage, then mutation once no red is new
     const g = gitWs()
