@@ -18,6 +18,7 @@ metadata: {name: level-runner, namespace: default}
 spec:
   type: script
   adapter: junit/v1
+  exclusive: tests
   configuration:
     levels:
       integration: {program: [mvn, -q, test-compile, failsafe:integration-test], junit: target/failsafe-reports, paths: ["src/test/java/**/*IT.java", "src/main/java/claims/Store*"], fullOn: [pom.xml]}

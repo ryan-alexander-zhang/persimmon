@@ -18,6 +18,7 @@ metadata: {name: level-runner, namespace: default}
 spec:
   type: script
   adapter: junit/v1
+  exclusive: tests
   configuration:
     levels:
       integration: {program: [npx, vitest, run, --config, vitest.int.config.js, --reporter=junit, --outputFile=junit-int.xml], junit: junit-int.xml, paths: [test-int/**, src/store*]}

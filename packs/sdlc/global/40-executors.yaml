@@ -116,12 +116,15 @@ spec:
 # here: a project overrides this Executor by name with the levels it has, each {program, junit, paths?, fullOn?, affected?}:
 # integration [npm, run, test:integration] (Testcontainers inside the language's runner), api [npm, run, test:api] (a script that
 # starts the app and runs `bru run --reporter-junit`), e2e [npx, playwright, test] with affected [npx, playwright, test, --only-changed={base}].
+# exclusive: the levels of two worktrees sharing one store never run at once over one app, browser and container set; an override
+# restates it (13-executor.md).
 apiVersion: persimmon.ai/v1
 kind: Executor
 metadata: {name: level-runner}
 spec:
   type: script
   adapter: junit/v1
+  exclusive: tests
   configuration:
     levels: {}
   security:

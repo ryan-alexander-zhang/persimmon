@@ -18,6 +18,7 @@ metadata: {name: level-runner, namespace: default}
 spec:
   type: script
   adapter: junit/v1
+  exclusive: tests
   configuration:
     levels:
       integration: {program: [gotestsum, --junitfile, junit-int.xml, --, -tags, integration, -run, Container, ./claims/], junit: junit-int.xml, paths: [claims/store*], fullOn: [go.mod, go.sum]}
