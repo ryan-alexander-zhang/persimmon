@@ -142,6 +142,7 @@ $defs:
           payload: {type: object}
           idempotencyKey: {$ref: "#/$defs/IdempotencyKey"}
           deadline: {type: string, format: date-time}
+          exclusive: {$ref: "executor.yaml#/$defs/Exclusive"}
         required: [adapterId, op, payload, idempotencyKey]
         additionalProperties: false
 

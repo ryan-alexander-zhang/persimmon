@@ -38,7 +38,7 @@ unacked Event and delivers every outstanding `callAdapter` as `state: unknown`.
 | `commitScope` / `abandonScope` | `key` | make visible, or abandon, what an adapter staged under `callAdapter(idempotencyKey: key)` |
 | `emitEvent` | `eventType (dotted, lowerCamel segments), payload` | append an Outbox event (`06-outbox.md`) |
 | `setTimer` / `clearTimer` | `key (lowercase, `-` `_`), at` / `key` | schedule or cancel TimerFired; same key replaces |
-| `callAdapter` | `adapterId, op, payload, idempotencyKey, deadline?` | invoke an Adapter operation; answer arrives as AdapterFinished; past `deadline` the call is `unknown` (`07-adapter.md`) |
+| `callAdapter` | `adapterId, op, payload, idempotencyKey, deadline?, exclusive?` | invoke an Adapter operation; answer arrives as AdapterFinished; past `deadline` the call is `unknown` (`07-adapter.md`); with `exclusive` the engine first takes the Lease `exclusive/<name>` for the call and holds it until the answer, and a drain waits while another holds it |
 
 `status` is written only through the result's `statusPatch` (`02-handler.md`).
 
@@ -68,6 +68,11 @@ reconcile commits callAdapter ──▶ RunLog records the call ──▶ engine
    AdapterFinished {state: failed, error}       ◀── error ───────┤
    AdapterFinished {state: unknown}             ◀── engine restarted with no recorded answer
 ```
+
+An `exclusive` call is dispatched only under its Lease, renewed while the call runs and released
+with the answer; a holder that dies lets it expire after `leaseTtl`. A drain does not return while
+a call waits for one, so a local verb never exits with an undispatched call that its next start
+would mark `unknown`.
 
 The engine never re-issues a call and never treats `unknown` as success. What follows is the
 Handler's decision. An `idempotencyKey` is single-use per Resource; a follow-up call takes a

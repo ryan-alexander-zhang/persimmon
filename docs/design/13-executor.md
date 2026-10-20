@@ -27,6 +27,7 @@ Task ── executorRef ──▶ Executor {type, adapter, configuration, securi
 | `security.networkAccess` | `deny` \| `allowlist` |
 | `security.allowedHosts[]` | hostname with optional `:port`; no scheme, path or wildcard; with `allowlist` only |
 | `security.credentialBindings[]` | credential names, Global or `<namespace>/<name>` (`08-store.md`); never secrets |
+| `exclusive` | optional name; the attempts of every Executor naming it run one at a time across every engine on the Store (`03-reconcile.md` `callAdapter`) |
 
 `configuration` and `Task.action.parameters` are disjoint blocks of the execute payload; the
 engine never merges them. Adapter-level `credentialBindings` (`07-adapter.md`) authenticate
@@ -70,6 +71,12 @@ the Adapter process; Executor-level ones are per-attempt secrets for the work.
   cross-adapter hint is roadmap.
 - A credential that does not resolve at dispatch fails the attempt as AdapterFinished
   `permission_denied`, not retryable; the engine never throws. Found in implementation.
+- `exclusive` names what attempts cannot share: a project's test environment, its fixed ports,
+  containers and database. Worktrees sharing one Store (`08-store.md`) otherwise ran two `e2e`
+  levels at once, and the loser's red reached the Gate as the builder's. The engine waits for the
+  name, not the Executor, so two Executors may share one; a project that overrides an Executor
+  by name restates it. The wait counts against the attempt's `timeout`: the attempt timer is the
+  Handler's and the dispatcher does not move it. Found in use.
 
 
 ## Examples

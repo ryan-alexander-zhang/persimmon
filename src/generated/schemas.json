@@ -1581,8 +1581,17 @@
       "default": {
        "networkAccess": "deny"
       }
+     },
+     "exclusive": {
+      "$ref": "#/$defs/Exclusive"
      }
     }
+   },
+   "Exclusive": {
+    "description": "What attempts cannot share; one at a time across every engine on the Store.",
+    "type": "string",
+    "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+    "maxLength": 63
    },
    "Security": {
     "type": "object",
@@ -4086,6 +4095,9 @@
        "deadline": {
         "type": "string",
         "format": "date-time"
+       },
+       "exclusive": {
+        "$ref": "executor.yaml#/$defs/Exclusive"
        }
       },
       "required": [
