@@ -60,6 +60,20 @@ one after it. Start a new tester subagent per Tester form, never the task's buil
 
 Then `persimmon complete` as `driving.md` says: it runs the tests and the Gate. A rejected round
 parks the next round's forms with the findings in `inputs.feedback`: new subagents again.
+
+A round refused on `question-open` asked a human, and none is there: before the next round's
+subagents, start a new Reviewer subagent with this prompt, followed by the open questions
+(`persimmon get AcceptanceRecord/<plan>-<t-n>`, its `openQuestions` without a `resolution`):
+
+> You are the domain owner of this product. A build round of one Plan task stopped on the open
+> questions below, raised by its builder or its Tester; nobody else will answer them. Read the next
+> round's form `.persimmon/inbox/<taskRun>.yaml` (the task, its cases, the findings) and the
+> repository as you need. Decide each as a careful owner would, the simplest choice that serves the
+> Spec. Do not run `persimmon` or git, and write no file. Reply one line per question:
+> `Q-n: decided. <decision>.`
+
+Append its lines to the next round's builder and tester prompts: "The human decided: <lines>. Build
+on these; the builder writes each as its `Q-n`'s `resolution`." Keep them for the report.
 After the last task the TestReport follows (`persimmon get TestReport/<plan>-test-report`): its
 verdict and every residual risk go in the report.
 
