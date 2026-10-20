@@ -1145,6 +1145,151 @@ spec:
   revisioned: true
   snapshot: "None"
 ---
+# The project's test tools, recorded once by the Tester (39-test-process.md): per test level its tool, the commands, the JUnit
+# XML it writes, where its tests live and a seed test. junit/v1 runs the levels from it; every test-writing Task reads it.
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata: {name: testharnesses.sdd.persimmon.ai}
+spec:
+  group: sdd.persimmon.ai
+  names: {kind: TestHarness, plural: testharnesses}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [architecture, levels, openQuestions]
+        additionalProperties: false
+        properties:
+          architecture: {type: string, minLength: 1, description: "artifact id of the Architecture whose testing concepts and Adrs name the tools"}
+          levels:
+            type: object
+            required: [unit]
+            additionalProperties: false
+            description: "one entry per test level the project has; unit always"
+            properties:
+              unit:
+                type: object
+                required: [tool, run, one, junit, testDir, seed, conventions]
+                additionalProperties: false
+                properties:
+                  tool: {type: string, minLength: 1, description: "the runner and its version: vitest 3.2"}
+                  run: {type: array, minItems: 1, items: {type: string, minLength: 1}, description: "the command that runs every test of the level and writes the JUnit XML"}
+                  one: {type: array, minItems: 1, items: {type: string, minLength: 1}, description: "the command that runs one test, {test} its name"}
+                  affected: {type: array, minItems: 1, items: {type: string, minLength: 1}, description: "the command narrowed to the Change set (36-test-levels.md)"}
+                  fullOn: {type: array, items: {type: string, minLength: 1}, description: "globs whose change runs every test"}
+                  junit: {type: string, minLength: 1, description: "the JUnit XML it writes: a file, or a directory of .xml files"}
+                  paths: {type: array, items: {type: string, minLength: 1}, description: "globs of the code this level tests"}
+                  testDir: {type: string, minLength: 1, description: "where its tests live"}
+                  seed: {type: string, minLength: 1, description: "a test that passes on the app as it is, named as the JUnit XML names it"}
+                  conventions: {type: string, minLength: 1, description: "how a test of this level is written here: fixtures, test data, the title carrying a case id"}
+                  coverage: {type: object, required: [report], additionalProperties: false, properties: {report: {type: string, minLength: 1, description: "the Cobertura or JaCoCo XML it writes"}}}
+                  mutation:
+                    type: object
+                    required: [program, report]
+                    additionalProperties: false
+                    properties:
+                      program: {type: array, minItems: 1, items: {type: string, minLength: 1}, description: "the mutation command, {base} and {files} as in affected"}
+                      report: {type: string, minLength: 1, description: "the mutation-testing-elements JSON it writes"}
+                      paths: {type: array, items: {type: string, minLength: 1}, description: "globs of the source to mutate, never the tests"}
+              integration: &level
+                type: object
+                required: [tool, run, one, junit, testDir, seed, conventions]
+                additionalProperties: false
+                properties:
+                  tool: {type: string, minLength: 1, description: "the runner and its version: Bruno 2.3, Playwright 1.56"}
+                  run: {type: array, minItems: 1, items: {type: string, minLength: 1}, description: "the command that runs every test of the level and writes the JUnit XML; it starts what the tests need"}
+                  one: {type: array, minItems: 1, items: {type: string, minLength: 1}, description: "the command that runs one test, {test} its name"}
+                  affected: {type: array, minItems: 1, items: {type: string, minLength: 1}, description: "the command narrowed to the Change set (36-test-levels.md)"}
+                  fullOn: {type: array, items: {type: string, minLength: 1}, description: "globs whose change runs every test"}
+                  junit: {type: string, minLength: 1, description: "the JUnit XML it writes: a file, or a directory of .xml files"}
+                  paths: {type: array, items: {type: string, minLength: 1}, description: "globs of the code this level tests"}
+                  testDir: {type: string, minLength: 1, description: "where its tests live"}
+                  seed: {type: string, minLength: 1, description: "a test that passes on the app as it is, named as the JUnit XML names it"}
+                  conventions: {type: string, minLength: 1, description: "how a test of this level is written here: fixtures, test data, the title carrying a case id"}
+              api: *level
+              e2e: *level
+          app:
+            type: object
+            description: "what the api and e2e tests run against"
+            required: [start, ready]
+            additionalProperties: false
+            properties:
+              start: {type: array, minItems: 1, items: {type: string, minLength: 1}, description: "the command that starts the app"}
+              ready: {type: string, minLength: 1, description: "the URL that answers once it is up"}
+          openQuestions:
+            type: array
+            items:
+              type: object
+              required: [id, question]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^Q-[0-9]+$"}
+                question: {type: string, minLength: 1}
+                resolution: {type: string}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"
+---
+# The test cases of one Spec, designed before any task is built and confirmed by a human (39-test-process.md): what each
+# verifies, its test level and priority, its steps. A test runs a case when its name carries `<CAP-n>/TC-n`.
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata: {name: testdesigns.sdd.persimmon.ai}
+spec:
+  group: sdd.persimmon.ai
+  names: {kind: TestDesign, plural: testdesigns}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [spec, harness, cases, openQuestions]
+        additionalProperties: false
+        properties:
+          spec: {type: string, minLength: 1, description: "artifact id of the Spec whose scenarios the cases verify"}
+          harness: {type: string, minLength: 1, description: "artifact id of the TestHarness whose levels the cases use"}
+          cases:
+            type: array
+            minItems: 1
+            items:
+              type: object
+              required: [id, title, verifies, level, priority, execution, expected]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^TC-[0-9]+$"}
+                title: {type: string, minLength: 1}
+                verifies: {type: array, minItems: 1, items: {type: string, pattern: "^(AC|QS|BR|FR)-[0-9]+$"}, description: "the scenarios and rules it verifies; at least one AC-n or QS-n"}
+                level: {enum: [unit, integration, api, e2e]}
+                priority: {enum: [P0, P1, P2, P3], description: "P0: a failure loses data, money or access, or stops the main path; P1: a main-path variant or a rule's edge; P2: a secondary path; P3: the rest"}
+                execution: {enum: [automated, manual]}
+                preconditions: {type: array, items: {type: string, minLength: 1}}
+                data: {type: array, items: {type: string, minLength: 1}, description: "one row per string; the case runs once per row"}
+                steps:
+                  type: array
+                  description: "an api, e2e or manual case's actions; a unit or integration case may leave them to its AC-n's Given/When/Then"
+                  items:
+                    type: object
+                    required: [action]
+                    additionalProperties: false
+                    properties:
+                      action: {type: string, minLength: 1}
+                      expected: {type: string, minLength: 1}
+                expected: {type: string, minLength: 1, description: "what the case observes at the end, with the scenario's values"}
+          openQuestions:
+            type: array
+            items:
+              type: object
+              required: [id, question]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^Q-[0-9]+$"}
+                question: {type: string, minLength: 1}
+                resolution: {type: string}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"
+---
 # What the builder says proves one Plan task: for each AC-n or QS-n the task is verified by, the tests that prove it.
 # A claim; the acceptance-evidence Validator checks it against a TestOutcome (35-build-process.md).
 apiVersion: persimmon.ai/v1
@@ -1158,7 +1303,7 @@ spec:
     - name: v1
       schema:
         type: object
-        required: [plan, spec, task, verifies, summary, openQuestions]
+        required: [plan, spec, task, summary, openQuestions]
         additionalProperties: false
         properties:
           plan: {type: string, minLength: 1, description: "artifact id of the Plan the task is in"}
@@ -1166,7 +1311,7 @@ spec:
           task: {type: string, pattern: "^T-[0-9]+$", description: "the Plan task built"}
           verifies:
             type: array
-            description: "one row per AC-n or QS-n in the task's verifiedBy"
+            description: "one row per AC-n or QS-n in the task's verifiedBy; left out when a TestDesign is bound, the test names carrying the case ids (39-test-process.md)"
             items:
               type: object
               required: [scenario, tests]
@@ -1285,6 +1430,107 @@ spec:
         if: {properties: {tests: {maxItems: 0}}, not: {required: [selection], properties: {selection: {properties: {mode: {const: none}}}}}}
         then: {required: [outputTail]}
         else: {not: {required: [outputTail]}}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"
+---
+# What one built Plan's tests proved, computed by testdesign/v1 after build-all's plan tier (39-test-process.md): each case's
+# result, a coverage status per scenario and requirement, the verdict and the rule that gave it; an agent writes only `evaluation`.
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata: {name: testreports.sdd.persimmon.ai}
+spec:
+  group: sdd.persimmon.ai
+  names: {kind: TestReport, plural: testreports}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [plan, spec, testDesign, verdict, cases, coverage, levels, defects, evaluation]
+        additionalProperties: false
+        properties:
+          plan: {type: string, minLength: 1}
+          spec: {type: string, minLength: 1}
+          testDesign: {type: string, minLength: 1}
+          head: {type: string, description: "the commit the plan tier tested"}
+          verdict:
+            type: object
+            required: [result, rule, thresholds]
+            additionalProperties: false
+            properties:
+              result: {enum: [pass, concerns, fail]}
+              rule: {type: string, minLength: 1, description: "the clause that decided it"}
+              thresholds:
+                type: object
+                required: [p0, p1, p1Concerns, overall]
+                additionalProperties: false
+                properties:
+                  p0: {type: number, minimum: 0, maximum: 100}
+                  p1: {type: number, minimum: 0, maximum: 100}
+                  p1Concerns: {type: number, minimum: 0, maximum: 100}
+                  overall: {type: number, minimum: 0, maximum: 100}
+          cases:
+            type: array
+            items:
+              type: object
+              required: [case, level, priority, execution, status, tests]
+              additionalProperties: false
+              properties:
+                case: {type: string, pattern: "^CAP-[0-9]+/TC-[0-9]+$"}
+                level: {enum: [unit, integration, api, e2e]}
+                priority: {enum: [P0, P1, P2, P3]}
+                execution: {enum: [automated, manual]}
+                status: {enum: [ok, nok, notrun]}
+                reason: {type: string, description: "why a case did not run"}
+                tests:
+                  type: array
+                  items:
+                    type: object
+                    required: [name, status]
+                    additionalProperties: false
+                    properties:
+                      name: {type: string, minLength: 1}
+                      status: {enum: [passed, failed, errored, skipped]}
+          coverage:
+            type: array
+            items:
+              type: object
+              required: [ref, status, cases]
+              additionalProperties: false
+              properties:
+                ref: {type: string, pattern: "^(AC|QS|BR|FR)-[0-9]+$"}
+                status: {enum: [ok, nok, notrun, uncovered]}
+                cases: {type: array, items: {type: string}}
+          levels:
+            type: array
+            items:
+              type: object
+              required: [level, selection, passed, failed, skipped]
+              additionalProperties: false
+              properties:
+                level: {enum: [unit, integration, api, e2e]}
+                selection: {enum: [none, affected, full]}
+                passed: {type: integer, minimum: 0}
+                failed: {type: integer, minimum: 0}
+                skipped: {type: integer, minimum: 0}
+          defects:
+            type: array
+            items:
+              type: object
+              required: [record, defect, observed]
+              additionalProperties: false
+              properties:
+                record: {type: string, minLength: 1}
+                defect: {type: string, pattern: "^D-[0-9]+$"}
+                observed: {type: string, minLength: 1}
+          evaluation:
+            type: object
+            required: [summary, residualRisks]
+            additionalProperties: false
+            properties:
+              summary: {type: string, minLength: 1}
+              residualRisks: {type: array, items: {type: string, minLength: 1}}
   mutability: Immutable
   revisioned: true
   snapshot: "None"

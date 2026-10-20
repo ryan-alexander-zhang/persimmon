@@ -1102,6 +1102,150 @@ spec:
       - id: Q-1
         question: BB-2's blob API has no Design yet; T-2 names no element until one exists. Write the Design before T-2 starts, or let T-2 produce it?
 ---
+# The project's test tools, recorded once by the Tester (39-test-process.md): vitest for unit, a Bruno collection for the
+# claims API, its script starting the app first. No ui Design yet, so no e2e level.
+apiVersion: sdd.persimmon.ai/v1
+kind: TestHarness
+metadata: {name: expense-claims-architecture-harness.r1}
+spec:
+  identity: {id: expense-claims-architecture-harness, revision: 1}
+  content:
+    architecture: expense-claims-architecture
+    levels:
+      unit:
+        tool: vitest 3.2
+        run: [npx, vitest, run, --reporter=junit, --outputFile=junit.xml]
+        one: [npx, vitest, run, -t, "{test}", --reporter=junit, --outputFile=junit.xml]
+        affected: [npx, vitest, related, "{files}", --run, --reporter=junit, --outputFile=junit.xml]
+        fullOn: [package-lock.json, vitest.config.ts]
+        junit: junit.xml
+        paths: ["src/**"]
+        testDir: test
+        seed: claim > a drafted claim starts with no lines
+        conventions: One file per aggregate under test/, named after it; a test's title opens with the case it runs, `CAP-1/TC-3 a per diem line needs no receipt`; no database, the aggregate is built from its events.
+        coverage: {report: coverage/cobertura-coverage.xml}
+      api:
+        tool: Bruno 2.3
+        run: [sh, scripts/api.sh]
+        one: [sh, scripts/api.sh, "{test}"]
+        junit: junit-api.xml
+        paths: ["src/**", "api/**"]
+        testDir: api
+        seed: the app answers its health check
+        conventions: One .bru request per test under api/claims/, its test() named with the case it runs; scripts/api.sh starts the app on port 3996 with an empty store, waits for /health, runs `bru run --env local --reporter-junit junit-api.xml` and stops it; the caller is set by the X-Test-Employee header the local env sends.
+    app:
+      start: [npm, run, dev]
+      ready: http://localhost:3996/health
+    openQuestions: []
+---
+# The test cases of CAP-1's Spec, designed before T-1 is built (39-test-process.md): a scenario whose When is a request is an
+# api case, a rule inside the Claim aggregate a unit case. T-1's cases are TC-1, TC-3, TC-8, TC-9 and TC-10.
+apiVersion: sdd.persimmon.ai/v1
+kind: TestDesign
+metadata: {name: submit-a-claim-tests.r1}
+spec:
+  identity: {id: submit-a-claim-tests, revision: 1}
+  content:
+    spec: submit-a-claim
+    harness: expense-claims-architecture-harness
+    cases:
+      - id: TC-1
+        title: a meals line without a receipt keeps the claim not complete
+        verifies: [AC-1, FR-2, BR-2]
+        level: api
+        priority: P0
+        execution: automated
+        preconditions: [employee E-1 signed in]
+        steps:
+          - {action: "POST /claims with one meals line of 30 EUR dated 2026-03-02 and no receipt", expected: 201 with the claim id}
+          - {action: "GET /claims/{claimId}", expected: "complete is false"}
+        expected: the claim is not complete and names the meals line and BR-2
+      - id: TC-2
+        title: attaching a receipt completes the claim
+        verifies: [AC-2, FR-2]
+        level: api
+        priority: P1
+        execution: automated
+        preconditions: [employee E-1 signed in, a drafted claim with one meals line of 30 EUR and no receipt]
+        steps:
+          - {action: "PUT /claims/{claimId}/lines/{lineId}/receipt with a PNG receipt", expected: "204"}
+          - {action: "GET /claims/{claimId}", expected: the line shows its receipt}
+        expected: the receipt shows on the meals line and the claim is complete
+      - id: TC-3
+        title: a per diem line needs no receipt
+        verifies: [AC-3, BR-2]
+        level: unit
+        priority: P1
+        execution: automated
+        expected: a claim with one per diem line of 120 EUR and no receipt is complete
+      - id: TC-4
+        title: a complete claim is submitted with today's date
+        verifies: [AC-4, FR-3]
+        level: api
+        priority: P0
+        execution: automated
+        preconditions: [employee E-1 signed in, a complete claim with lines of 30 EUR and 40 EUR, each with a receipt]
+        steps:
+          - {action: "POST /claims/{claimId}/submission", expected: "200"}
+        expected: the claim is submitted with today's date as submission date
+      - id: TC-5
+        title: a line over its policy limit refuses the submission and changes nothing
+        verifies: [AC-5, FR-4, FR-5, BR-3]
+        level: api
+        priority: P0
+        execution: automated
+        preconditions: [employee E-1 signed in, a complete claim with one equipment line of 900 EUR and its receipt, no justification]
+        steps:
+          - {action: "POST /claims/{claimId}/submission", expected: 422 naming the equipment line and BR-3}
+          - {action: "GET /claims/{claimId}", expected: "the claim, its line and its receipt as before"}
+        expected: the submission is refused naming the equipment line and BR-3, and nothing changed
+      - id: TC-6
+        title: a line without a receipt refuses the submission
+        verifies: [AC-6, FR-4, BR-2]
+        level: api
+        priority: P1
+        execution: automated
+        preconditions: [employee E-1 signed in, a claim with one meals line of 30 EUR and no receipt]
+        steps:
+          - {action: "POST /claims/{claimId}/submission", expected: 422 naming the meals line and BR-2}
+        expected: the submission is refused naming the meals line and BR-2
+      - id: TC-7
+        title: my claims list each claim's total and submission date
+        verifies: [AC-7, FR-6]
+        level: api
+        priority: P2
+        execution: automated
+        preconditions: [employee E-1 with a claim of 70 EUR submitted on 2026-09-28 and one of 130 EUR submitted on 2026-10-01]
+        steps:
+          - {action: GET /claims/mine, expected: 200 with two claims}
+        expected: both claims listed with their totals and submission dates
+      - id: TC-8
+        title: drafting a claim records each line's amount, date and category
+        verifies: [AC-8, FR-1]
+        level: unit
+        priority: P1
+        execution: automated
+        expected: the claim holds one taxi line of 24.99 EUR dated 2026-03-02 and is complete
+      - id: TC-9
+        title: a taxi line at the receipt threshold needs a receipt
+        verifies: [AC-9, BR-2]
+        level: unit
+        priority: P1
+        execution: automated
+        expected: a claim with one taxi line of 25.00 EUR and no receipt is not complete and names the taxi line and BR-2
+      - id: TC-10
+        title: a request naming another employee's claim is refused and logged
+        verifies: [QS-3]
+        level: api
+        priority: P0
+        execution: automated
+        preconditions: [employee E-1 signed in, a claim of employee E-2]
+        steps:
+          - {action: "GET /claims/{claimId} of E-2's claim", expected: "404"}
+          - {action: "PUT /claims/{claimId}/lines/{lineId}/receipt on E-2's claim", expected: "404"}
+        expected: both refused, and each refusal is in the access log
+    openQuestions: []
+---
 # T-1 of the Plan, built: the builder names the test that proves each AC-n and QS-n the task is verified by (35-build-process.md).
 apiVersion: sdd.persimmon.ai/v1
 kind: AcceptanceRecord
