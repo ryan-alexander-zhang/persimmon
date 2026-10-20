@@ -6,11 +6,13 @@
 // coverage mapped onto the index. A red suite is an answer, never a failure: the ledger records it.
 // `mutantResults`: run-mutants applies each of the Tester's patches to a scratch clone of the checkout, never the checkout,
 // and reruns one by one the tests green on the source that cite the patched item, each after the level's reset.
+// `runs` alone: run-rewrite runs the levels that run on a rewrite (`app`, `records`) with PERSIMMON_TARGET=rewrite and the
+// TestHarness's start command and ready URL. `ledger`: compute-ledger answers the ParityLedger's next revision.
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { AdapterError, redact, serve } from '../lib/agent.mjs'
-import { cites } from '../parity/ledger.mjs'
+import { cites, computeLedger } from '../parity/ledger.mjs'
 import { diffFault, mutantResult, parseDiff, patchFault } from '../parity/mutants.mjs'
 import { clearLevel, mergeCoverage, readLevel } from '../parity/runs.mjs'
 import { indexSource, sourceState } from '../parity/source.mjs'
@@ -176,6 +178,67 @@ async function runMutants(payload, workspace, call) {
   }
 }
 
+/** run-rewrite: the suite's levels that run on a rewrite (`app`, `records`) against it, the suite told so by PERSIMMON_TARGET
+ * and given the TestHarness's command that starts the rewrite and the URL that answers once it is up. */
+async function runRewrite(payload, workspace, call) {
+  const inputs = payload.inputs ?? {}
+  const suite = inputs.written?.value?.suite
+  if (!payload.workspace) refuse('the suite runs in the project: action.workspace names the project, never the engine directory by default')
+  if (!suite?.levels) refuse('the suite inputs.written names is required: written.suite.levels')
+  const app = inputs.harness?.kind === 'artifact' ? (await call('getArtifact', inputs.harness.ref)).spec.content?.app : undefined
+  const env = { PERSIMMON_TARGET: 'rewrite', ...(app?.start ? { PERSIMMON_REWRITE_START: app.start } : {}), ...(app?.ready ? { PERSIMMON_REWRITE_READY: app.ready } : {}) }
+  const clean = (s) => redact(s, payload.credentials)
+  let head
+  try {
+    head = execFileSync('git', ['--no-optional-locks', 'rev-parse', 'HEAD'], { cwd: workspace, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
+  } catch {} // a project outside git has no commit to name
+  const runs = []
+  const steps = []
+  const inRewrite = (script) => ['env', [...Object.entries(env).map(([k, v]) => `${k}=${v}`), 'sh', '-c', script]]
+  for (const name of ['app', 'records'].filter((n) => suite.levels[n])) {
+    const level = suite.levels[name]
+    if (typeof level.run !== 'string' || !level.run.trim()) refuse(`suite level ${name} has no run command`)
+    try {
+      clearLevel(workspace, level)
+    } catch (e) {
+      refuse(e.message)
+    }
+    if (level.reset) steps.push({ name, kind: 'reset', command: inRewrite(level.reset) })
+    steps.push({ name, kind: 'run', level, command: inRewrite(level.run) })
+  }
+  state = {
+    steps,
+    finish: () => ({ runs }),
+    parse(step, { stdout, stderr, exitCode }) {
+      if (step.kind === 'reset' && exitCode !== 0) {
+        state.steps = state.steps.filter((s) => s.name !== step.name)
+        runs.push({ level: step.name, command: step.command.flat().map(clean), exitCode, ...(head ? { head } : {}), tests: [], observations: {}, reason: `reset exited ${exitCode}: the level did not run` })
+      } else if (step.kind === 'run') {
+        runs.push(readLevel({ workspace, name: step.name, level: step.level, command: step.command.flat(), exitCode, head, output: `${stdout}\n${stderr}`, clean }).run)
+      }
+    },
+  }
+}
+
+/** compute-ledger: the ParityLedger's next revision from what the Tasks before it answered (adapters/parity/ledger.mjs). */
+async function computeLedgerTask(payload, call) {
+  const inputs = payload.inputs ?? {}
+  const artifact = async (port) => (inputs[port]?.kind === 'artifact' ? { ref: inputs[port].ref, content: (await call('getArtifact', inputs[port].ref)).spec.content } : undefined)
+  const value = (port) => inputs[port]?.value
+  const inventory = await artifact('inventory')
+  if (!inventory) refuse('compute-ledger needs inputs.inventory, the SourceInventory revision it pins')
+  const rules = await artifact('rules')
+  try {
+    return computeLedger({
+      inventory: inventory.content, inventoryRef: { id: inventory.ref.id, revision: inventory.ref.revision }, last: (await artifact('ledger'))?.content, slice: value('slice'),
+      decisions: value('decisions') ?? {}, suite: value('written')?.suite, runs: value('runs') ?? [], coverage: value('coverage')?.files, mutants: value('mutantResults') ?? [],
+      rules: rules?.content, rulesRef: rules ? { id: rules.ref.id, revision: rules.ref.revision } : undefined, rewrite: value('rewriteRuns') ? { runs: value('rewriteRuns') } : undefined,
+    })
+  } catch (e) {
+    refuse(e.message)
+  }
+}
+
 serve({
   adapterId: 'parity-run/v1',
   executorTypes: ['script'],
@@ -197,9 +260,11 @@ serve({
         refuse(e.message)
       }
     }
+    if (ports.includes('ledger')) return { outputs: { ledger: await computeLedgerTask(payload, call) } }
     if (ports.includes('runs') && ports.includes('coverage')) runSource(payload, workspace)
+    else if (ports.includes('runs')) await runRewrite(payload, workspace, call)
     else if (ports.includes('mutantResults')) await runMutants(payload, workspace, call)
-    else refuse(`parity-run/v1 answers a sourceIndex output, runs and coverage outputs, or a mutantResults output; this Task declares ${ports.join(', ')}`)
+    else refuse(`parity-run/v1 answers a sourceIndex output, runs and coverage outputs (run-source), a runs output (run-rewrite), a mutantResults output, or a ledger output; this Task declares ${ports.join(', ')}`)
     let next
     try {
       next = advance()

@@ -462,10 +462,74 @@ describe('parity-run/v1 over stdio', () => {
     }
   })
 
+  // a fake engine: getArtifact by id, putBlob and publishArtifact answered as the engine would
+  const engine = async (artifacts: Record<string, unknown>, published: any[]) => {
+    const sock = join(realpathSync(mkdtempSync(join(tmpdir(), 'parity-eng-'))), 'engine.sock')
+    const server = createServer((req, res) => {
+      let body = ''
+      req.on('data', (c) => (body += c)).on('end', () => {
+        const name = req.url!.split('/').pop()
+        const args = JSON.parse(body || '{}')
+        const result = name === 'getArtifact' ? { spec: { content: artifacts[args.id] } } : name === 'putBlob' ? { digest: `sha256:${'a'.repeat(64)}` } : name === 'publishArtifact' ? (published.push(args), { ...args.kind, namespace: 'demo', id: args.id, revision: 4 }) : {}
+        res.setHeader('content-type', 'application/json').end(JSON.stringify({ result }))
+      })
+    })
+    await new Promise<void>((r) => server.listen(sock, r))
+    return { endpoint: `unix://${sock}`, close: () => server.close() }
+  }
+  const ref = (kind: string, id: string, revision: number) => ({ kind: 'artifact', ref: { apiVersion: 'rewrite.persimmon.ai/v1', kind, namespace: 'demo', id, revision } })
+
+  it('run-rewrite: runs app and records on the rewrite, told so and given the TestHarness\'s start command', async () => {
+    const project = realpathSync(mkdtempSync(join(tmpdir(), 'parity-rw-prj-')))
+    writeFileSync(join(project, 'suite.mjs'), [
+      "import { mkdirSync, writeFileSync } from 'node:fs'",
+      "mkdirSync('build', { recursive: true })",
+      'const ok = process.env.PERSIMMON_TARGET === "rewrite" && process.env.PERSIMMON_REWRITE_START === "npm start"',
+      "writeFileSync(`build/${process.argv[2]}.xml`, `<testsuite><testcase name=\"test_EP1_${process.argv[2]}\">${ok ? '' : '<failure/>'}</testcase></testsuite>`)",
+      "writeFileSync(`build/${process.argv[2]}.json`, JSON.stringify({ [`test_EP1_${process.argv[2]}`]: { on: process.env.PERSIMMON_TARGET } }))",
+    ].join('\n'))
+    const level = (name: string) => ({ tool: 'node', run: `node suite.mjs ${name}`, one: 'node suite.mjs {test}', junit: `build/${name}.xml`, observations: `build/${name}.json`, testDir: '.' })
+    const eng = await engine({ harness: { architecture: 'a', levels: {}, app: { start: 'npm start', ready: 'http://localhost:8080/health' } } }, [])
+    try {
+      const r: any = execute(project, { runs: { type: { kind: 'value', schema: { type: 'array' } } } })
+      r.payload.engine = { endpoint: eng.endpoint, token: 'ct-1' }
+      r.payload.inputs = { written: { kind: 'value', value: { files: [], suite: { levels: { app: level('app'), units: level('units'), records: level('records') }, drivers: { source: 's' }, conventions: '' } } }, harness: { kind: 'artifact', ref: { apiVersion: 'sdd.persimmon.ai/v1', kind: 'TestHarness', namespace: 'demo', id: 'harness', revision: 1 } } }
+      const out = await stdio('parity-run', r, project)
+      expect(out.result.outputs.runs.value.map((x: any) => [x.level, x.tests, x.observations])).toEqual([
+        ['app', [{ name: 'test_EP1_app', status: 'passed' }], { test_EP1_app: { on: 'rewrite' } }],
+        ['records', [{ name: 'test_EP1_records', status: 'passed' }], { test_EP1_records: { on: 'rewrite' } }],
+      ]) // units are the source's own toolchain: never run on the rewrite
+    } finally {
+      eng.close()
+    }
+  })
+
+  it('compute-ledger: publishes the ledger\'s next revision, pinned to the inventory and rules revisions it read', async () => {
+    const project = realpathSync(mkdtempSync(join(tmpdir(), 'parity-cl-prj-')))
+    const published: any[] = []
+    const eng = await engine({ 'jpetstore-inventory': named('jpetstore-inventory.r2'), 'jpetstore-parity': named('jpetstore-parity.r1'), 'jpetstore-rules': { title: 'r', owner: 'o', rules: [] } }, published)
+    try {
+      const r: any = execute(undefined, { ledger: { type: { kind: 'artifact', artifactKind: { apiVersion: 'rewrite.persimmon.ai/v1', kind: 'ParityLedger' } } } })
+      r.payload.task.outputIds = { ledger: 'jpetstore-parity' }
+      r.payload.task.outputSchemas = { ledger: { type: 'object' } } // the engine sends the frozen content schema of every artifact output
+      r.payload.engine = { endpoint: eng.endpoint, token: 'ct-1' }
+      r.payload.inputs = {
+        inventory: ref('SourceInventory', 'jpetstore-inventory', 2), ledger: ref('ParityLedger', 'jpetstore-parity', 1), rules: ref('BusinessRules', 'jpetstore-rules', 3),
+        slice: { kind: 'value', value: 'SL-1' }, decisions: { kind: 'value', value: { plumbing: ['PP-1'] } }, runs: { kind: 'value', value: [] },
+      }
+      const out = await stdio('parity-run', r, project)
+      expect(out.error?.message).toBeUndefined()
+      expect(out.result.outputs.ledger).toMatchObject({ kind: 'artifact', ref: { id: 'jpetstore-parity', revision: 4 } })
+      expect(published[0].content).toMatchObject({ inventory: { id: 'jpetstore-inventory', revision: 2 }, rules: { id: 'jpetstore-rules', revision: 3 }, slice: 'SL-1', decisions: { plumbing: ['PP-1'] }, verdict: { result: 'fail' } }) // no rule recovered yet: every guard open
+    } finally {
+      eng.close()
+    }
+  })
+
   it('refuses a Task with no workspace, or one that asks for another output', async () => {
     const noWorkspace = await stdio('parity-run', execute(undefined, asks))
     expect(noWorkspace.error).toMatchObject({ code: 'invalid_input', message: expect.stringContaining('action.workspace') })
-    const other = await stdio('parity-run', execute(tmpdir(), { ledger: { type: { kind: 'value', schema: { type: 'object' } } } }))
+    const other = await stdio('parity-run', execute(tmpdir(), { report: { type: { kind: 'value', schema: { type: 'object' } } } }))
     expect(other.error).toMatchObject({ code: 'invalid_input', message: expect.stringContaining('answers a sourceIndex output') })
   })
 })
