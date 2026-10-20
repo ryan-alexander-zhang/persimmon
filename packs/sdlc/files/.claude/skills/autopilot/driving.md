@@ -30,6 +30,8 @@ A park prints `parked on you: persimmon complete <taskRun>`; its form is
   Reviewer subagent for it (below).
 - an artifact port `record` (an AcceptanceRecord): a builder form. Start a new builder subagent for
   it (`autopilot-code`).
+- an artifact port `harness` (a TestHarness) or a value port `written`: a Tester form. Start a new
+  tester subagent for it (`autopilot-code`), never the builder subagent of that task.
 
 Each subagent writes `.persimmon/autopilot/<taskRun>.answer.yaml` and stops. Then you run, in the
 background or with no time limit:
@@ -89,7 +91,7 @@ Stop and report, never work around it, when:
 ## Report
 
 At the end, or at a stop: the runs, the revisions each produced (Prd, BusinessRules, the domain
-kinds, Architecture, Adrs, DesignSystem, Designs, Specs, Plans, AcceptanceRecords, TestOutcomes,
-Issues), every `Q-n` an agent decided, every `question-agent-resolved` and `defect-reported`
+kinds, Architecture, Adrs, DesignSystem, Designs, Specs, Plans, TestHarness, TestDesigns,
+AcceptanceRecords, TestOutcomes, TestReports with their verdicts and residual risks, Issues), every `Q-n` an agent decided, every `question-agent-resolved` and `defect-reported`
 warning, the files changed, and, at a stop, what stopped it and the command that resumes. The
 developer reads it, reviews the diff and commits.

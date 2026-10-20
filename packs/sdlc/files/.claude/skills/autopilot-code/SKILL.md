@@ -1,6 +1,6 @@
 ---
 name: autopilot-code
-description: Build approved persimmon Plans into tested code with no human - scaffold when there is no app, build-all per Plan with a fresh builder subagent per task, every reported defect investigated as an Issue and fixed. Use when the developer asks to autopilot the build, the code, or the Plans.
+description: Build approved persimmon Plans into tested code with no human - scaffold when there is no app, set up the test levels and design each Spec's test cases, build-all per Plan with a fresh builder subagent per task and a fresh tester subagent per Tester form, every reported defect investigated as an Issue and fixed. Use when the developer asks to autopilot the build, the code, or the Plans.
 ---
 
 # Autopilot: Plans to code
@@ -20,27 +20,24 @@ When the project has no app yet, stand in for the developer once:
 
 - Scaffold the app the Architecture describes, on the technology its Adrs chose, in the repository
   root unless the Architecture says otherwise. Add no dependency an Adr does not name.
-- Give it a unit test command that writes JUnit XML and passes on the empty app.
-- Override the Executor `test-runner` with that command (`persimmon apply <file>`):
+- Give it a unit test command that writes JUnit XML and passes on the empty app, and a health
+  check the api and e2e seed tests can reach.
 
-```yaml
-apiVersion: persimmon.ai/v1
-kind: Executor
-metadata: {name: test-runner}
-spec:
-  type: script
-  adapter: junit/v1
-  configuration: {program: [npm, test], junit: junit.xml}
-  security: {networkAccess: deny}
-```
+An app already there: use it as it is.
 
-An app already there: use its test setup as it is.
+Then, once per product:
+
+1. `setup-tests`: `architecture`, `adrs` (the Adrs it applies), `designs` (every Design),
+   `repository`. Its Tester form is a tester subagent's (below). Gives the TestHarness.
+2. `test-design-all`, once per BoundedContext: `prd`, `capabilities` (the context's), `architecture`,
+   `designs` (every Design), the context's `glossary`, `rules`, `harness`. Each Spec's TestDesign,
+   `<spec>-tests`, confirmed at its Gate by a Reviewer subagent.
 
 ## 2. Build each Plan
 
 Plans in the order of their capabilities, `CAP-1` first. Per Plan, `build-all`: `plan`, `tasks`
 (every `T-n`, in order), `spec`, `architecture`, `designs` (the Designs the Plan lists), `glossary`
-and `rules` of its context, `repository` (the app's path).
+and `rules` of its context, `repository` (the app's path), `testDesign` (the Spec's) and `harness`.
 
 Each task parks a builder form. Start a new builder subagent per form, each round too, with:
 
@@ -50,13 +47,26 @@ Each task parks a builder form. Start a new builder subagent per form, each roun
 > answer file to `.persimmon/autopilot/<taskRun>.answer.yaml` and stop. Never run git or
 > `persimmon`. Reply with the record's `verifies` and every `Q-n` and `D-n` you wrote.
 
+A task with api or e2e cases parks Tester forms too, the api one before the builder's and the e2e
+one after it. Start a new tester subagent per Tester form, never the task's builder subagent, with:
+
+> You are the Tester of one persimmon Plan task. Read `AGENTS.md` section 6, "Setting up and
+> writing tests", and do exactly that for `.persimmon/inbox/<taskRun>.yaml`, except: no developer is
+> there to ask, so a case you cannot write goes in `notWritten`; do not run `persimmon complete`;
+> write the answer file to `.persimmon/autopilot/<taskRun>.answer.yaml` and stop. Never run git or
+> `persimmon`, never change the app's code. Reply with `written`.
+
+`setup-tests`'s form is a Tester form too: the same prompt, its answer the TestHarness.
+
 Then `persimmon complete` as `driving.md` says: it runs the tests and the Gate. A rejected round
-parks the next round's form with the findings in `inputs.feedback`: a new builder subagent again.
+parks the next round's forms with the findings in `inputs.feedback`: new subagents again.
+After the last task the TestReport follows (`persimmon get TestReport/<plan>-test-report`): its
+verdict and every residual risk go in the report.
 
 ## 3. Defects
 
 Once a task's Gate passed, each `D-n` its record reports (`defect-reported`), and a run ended
-`plan_regressed`, is an `Issue`, as `AGENTS.md` section 6 says: investigate it yourself, write it
+`plan_regressed` (a red no round showed, or a `fail` verdict), is an `Issue`, as `AGENTS.md` section 6 says: investigate it yourself, write it
 with `persimmon create`, schema from `persimmon get KindDefinition/issues.sdd.persimmon.ai`. One
 Issue per root cause, however many records report it.
 
