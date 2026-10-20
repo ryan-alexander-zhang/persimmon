@@ -32,9 +32,11 @@ const matches = (file, globs) => globs.some((g) => matchesGlob(file, g))
 export const touched = (changes, paths = ['**'], cwd) => [...(changes?.keys() ?? [])].filter((f) => matches(f, paths) && (!cwd || existsSync(join(cwd, f))))
 
 /** What one level runs: {mode: none | affected | full, reason}. `tier` round, baseline or plan; `held` the level whose new red holds this one;
- * `named` the record's tests of this level; `changes` the Change set, absent without a baseline commit. */
-export function select({ tier, level, config, changes, named = [], held }) {
+ * `named` the record's tests of this level, or the round's case ids; `changes` the Change set, absent without a baseline commit;
+ * `everyCase` the plan tier under a TestDesign, whose report reads every case (39-test-process.md). */
+export function select({ tier, level, config, changes, named = [], held, everyCase }) {
   if (tier === 'baseline') return { mode: 'full', reason: 'baseline' }
+  if (tier === 'plan' && level === 'unit' && everyCase) return { mode: 'full', reason: 'the TestReport reads every case' }
   if (tier === 'plan') return level === 'unit' && !config.affected ? { mode: 'none', reason: 'the last round ran every unit test over the same tree' } : { mode: 'full', reason: 'plan tier' }
   if (held) return { mode: 'none', reason: `held: ${held}` }
   if (!changes) return { mode: 'full', reason: 'no Change set: no baseline commit' }

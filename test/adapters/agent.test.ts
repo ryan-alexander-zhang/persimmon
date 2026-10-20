@@ -720,6 +720,52 @@ describe('junit/v1', () => {
     expect(last(w)).toMatchObject({ ok: false, error: { code: 'invalid_input', message: expect.stringContaining('artifacts output with levels') } })
     rmSync(dir, { recursive: true })
   })
+  // 39-test-process.md: a TestHarness names the levels and their commands; a round's cases are what each level must run
+  it('reads the levels from a TestHarness bound, the Executor keeping the minimums (39-test-process.md)', async () => {
+    const { dir, head } = gitWs()
+    writeFileSync(join(dir, 'src', 'claim.ts'), 'a\nB\nc\n')
+    const cov = '<coverage><packages><package><classes><class filename="src/claim.ts"><lines><line number="2" hits="1"/></lines></class></classes></package></packages></coverage>'
+    const unitRun = [process.execPath, '-e', `const fs = require('node:fs'); fs.writeFileSync('junit.xml', '<testsuites><testsuite><testcase classname="c" name="CAP-1/TC-3 per diem"/></testsuite></testsuites>'); fs.writeFileSync('cov.xml', '${cov}')`]
+    stored['h'] = { architecture: 'a', openQuestions: [], levels: {
+      unit: { tool: 'node', run: unitRun, one: ['x'], junit: 'junit.xml', paths: ['src/**'], testDir: 'test', seed: 's', conventions: 'c', coverage: { report: 'cov.xml' } },
+      api: { tool: 'bru', run: tests('<testcase classname="a" name="CAP-1/TC-1 refused"/>'), one: ['x'], junit: 'junit.xml', testDir: 'api', seed: 's', conventions: 'c' },
+    } }
+    const harness = { kind: 'artifact', ref: { ...record, kind: 'TestHarness', id: 'h' } }
+    calls.length = 0
+    const unit = round(dir, { program: ['npm', 'test'], junit: 'junit.xml' }, head) // the pack's placeholder, never run
+    unit.inputs = { ...unit.inputs, harness } as never
+    await adapter('junit', { id: 67, op: 'execute', payload: unit })
+    expect(published()[0]!.content).toMatchObject({ command: unitRun, tests: [{ name: 'CAP-1/TC-3 per diem', status: 'passed' }], coverage: { min: 90, covered: 1, total: 1 } })
+    const levels = round(dir, { levels: {} }, head)
+    levels.task.outputs = { outcomes: { type: { kind: 'artifacts', artifactKind: outcome } } } as never
+    levels.task.outputIds = { outcomes: 'p-t-1-levels' } as never
+    levels.inputs = { record: levels.inputs.record, harness, cases: { kind: 'value', value: { unit: [], integration: [], api: ['CAP-1/TC-1'], e2e: [], manual: [], write: { api: false, e2e: false } } } } as never
+    calls.length = 0
+    await adapter('junit', { id: 68, op: 'execute', payload: levels })
+    expect(published().map((x) => [x.content.level, x.content.selection])).toEqual([['api', { mode: 'full', reason: 'no Change set: no baseline commit' }]]) // the harness's api, not the Executor's empty map
+    const half = round(dir, { program: ['npm', 'test'], junit: 'junit.xml', coverage: { min: 80 } }, head)
+    const r = await adapter('junit', { id: 69, op: 'execute', payload: half })
+    expect(last(r)).toMatchObject({ ok: false, error: { code: 'invalid_input', message: expect.stringContaining('no report') } }) // a minimum alone measures nothing
+    rmSync(dir, { recursive: true })
+  })
+
+  it('runs a round\'s case ids as named tests, and unit in full in the plan tier under a TestDesign (39-test-process.md)', async () => {
+    const { dir, head } = gitWs()
+    writeFileSync(join(dir, 'src', 'claim.ts'), 'a\nB\nc\n')
+    const config = { program: tests('<testcase classname="c" name="CAP-1/TC-3 per diem"/>'), junit: 'junit.xml', paths: ['src/**'], affected: [...tests('<testcase classname="c" name="near"/>'), '{files}'] }
+    const r = round(dir, config, head)
+    r.inputs = { ...r.inputs, cases: { kind: 'value', value: { unit: ['CAP-1/TC-3'], integration: [], api: [], e2e: [], manual: [], write: { api: false, e2e: false } } } } as never
+    calls.length = 0
+    await adapter('junit', { id: 70, op: 'execute', payload: r })
+    expect(published()[0]!.content.selection).toEqual({ mode: 'full', reason: '1 named test not selected: CAP-1/TC-3' }) // the narrowed run missed the case: everything again
+    const plan = p(dir, { program: config.program, junit: 'junit.xml' })
+    stored['p-baseline'] = { command: ['t'], exitCode: 0, head, tests: [] }
+    plan.inputs = { baseline: { kind: 'artifact', ref: baselineRef }, testDesign: { kind: 'artifact', ref: { ...record, kind: 'TestDesign', id: 'td' } } } as never
+    calls.length = 0
+    await adapter('junit', { id: 71, op: 'execute', payload: plan })
+    expect(published()[0]!.content.selection).toEqual({ mode: 'full', reason: 'the TestReport reads every case' })
+    rmSync(dir, { recursive: true })
+  })
 })
 
 describe('testdesign/v1', () => {

@@ -3,12 +3,15 @@
 // the Gate judges. No test case read (a compile error, a killed suite, unreadable XML) answers `tests: []` and the output tail.
 // Configured with `levels`, it runs each test level the map names in order, integration, api, e2e, and answers an artifacts
 // list. Each level selects by the Change set before it runs: nothing, the affected tests or every test (36-test-levels.md).
+// A TestHarness bound as `harness` names the levels and their commands instead; the Executor keeps the minimums. A round's
+// `cases` are the case ids each level must run, as a record's names are (39-test-process.md).
 import { execFileSync } from 'node:child_process'
 import { readFileSync, rmSync } from 'node:fs'
 import { AdapterError, redact, serve } from '../lib/agent.mjs'
 import { isReport, reportPath, reports, testCases } from './read.mjs'
 import { coverage, mutation } from './measure.mjs'
 import { changeSet, expand, namedFor, newRed, select, touched, unmatched } from './select.mjs'
+import { carries } from '../sdd/check.mjs'
 
 const tailLines = 50
 const order = ['integration', 'api', 'e2e'] // cheapest first; unit runs on its own Executor before them
@@ -38,14 +41,18 @@ const levelSchema = { type: 'object', required: ['program', 'junit'], additional
 const min = { type: 'number', minimum: 0, maximum: 100, description: 'the minimum percent over the Change set' }
 const report = (what) => ({ type: 'string', minLength: 1, description: `the ${what} report it writes, relative to the workspace` })
 // the unit level's measures, taken in a round over the Change set
+// the report and the command come from here or from a TestHarness bound; the minimum is always the Executor's
 const unitSchema = {
   ...levelSchema,
   properties: {
     ...level,
-    coverage: { type: 'object', required: ['report', 'min'], additionalProperties: false, properties: { report: report('Cobertura or JaCoCo XML'), min } },
-    mutation: { type: 'object', required: ['program', 'report', 'min'], additionalProperties: false, properties: { program: { ...programSchema, description: 'the mutation command: {base} and {files} as in affected' }, report: report('mutation-testing-elements JSON'), min, paths: { ...globs, description: 'globs of the source to mutate, never the tests; default the level\'s paths' } } },
+    coverage: { type: 'object', required: ['min'], additionalProperties: false, properties: { report: report('Cobertura or JaCoCo XML'), min } },
+    mutation: { type: 'object', required: ['min'], additionalProperties: false, properties: { program: { ...programSchema, description: 'the mutation command: {base} and {files} as in affected' }, report: report('mutation-testing-elements JSON'), min, paths: { ...globs, description: 'globs of the source to mutate, never the tests; default the level\'s paths' } } },
   },
 }
+const defaultMin = 90 // the minimums a harness's measures are held to when the Executor names none (36-test-levels.md)
+/** One level as the runner reads it, from a TestHarness level: its `run` is the program. */
+const fromHarness = (level, h) => ({ level, program: h.run, junit: h.junit, ...(h.paths ? { paths: h.paths } : {}), ...(h.fullOn ? { fullOn: h.fullOn } : {}), ...(h.affected ? { affected: h.affected } : {}) })
 
 // one attempt per Adapter process: what prepare decided, what each level answered
 let run
@@ -54,8 +61,7 @@ let run
 function advance(workspace) {
   while (++run.i < run.levels.length) {
     const l = run.levels[run.i]
-    const named = namedFor(run.record, l.level)
-    const selection = select({ tier: run.tier, level: l.level, config: l, changes: run.changes, named, held: run.held })
+    const selection = select({ tier: run.tier, level: l.level, config: l, changes: run.changes, named: run.named(l.level), held: run.held, everyCase: run.everyCase })
     if (selection.mode === 'none') {
       answered({ command: l.program, exitCode: 0, tests: [], selection }, l)
       continue
@@ -101,19 +107,28 @@ serve({
     const [[port, spec]] = outputs
     const list = 'levels' in c
     if (list !== (spec.type.kind === 'artifacts')) throw new AdapterError('invalid_input', `junit/v1 answers ${list ? 'an artifacts output with levels' : 'an artifact output with one program'}; ${port} is ${spec.type.kind}`, false)
-    const levels = list ? order.filter((l) => c.levels[l]).map((l) => ({ level: l, ...c.levels[l] })) : [{ level: 'unit', ...c }]
+    const content = async (v) => (v?.kind === 'artifact' ? (await call('getArtifact', v.ref)).spec.content : undefined)
+    const { record, baseline, baselines, testOutcome, harness: harnessRef, cases, testDesign } = payload.inputs ?? {}
+    const harness = (await content(harnessRef))?.levels
+    const measure = (name, h) => (h || c[name] ? { ...c[name], ...h, min: c[name]?.min ?? defaultMin } : undefined)
+    const unit = harness?.unit && { ...fromHarness('unit', harness.unit), coverage: measure('coverage', harness.unit.coverage), mutation: measure('mutation', harness.unit.mutation) }
+    const levels = list
+      ? order.filter((l) => (harness ?? c.levels)[l]).map((l) => (harness ? fromHarness(l, harness[l]) : { level: l, ...c.levels[l] }))
+      : [unit ?? { level: 'unit', ...c }]
+    for (const l of levels) {
+      for (const m of ['coverage', 'mutation']) if (!l[m]) delete l[m]
+      if (l.coverage && !l.coverage.report) throw new AdapterError('invalid_input', 'coverage names a minimum but no report: the Executor or a TestHarness names it', false)
+      if (l.mutation && !(l.mutation.program && l.mutation.report)) throw new AdapterError('invalid_input', 'mutation names a minimum but no program and report: the Executor or a TestHarness names them', false)
+    }
     try {
       for (const l of levels) for (const f of [l.junit, l.coverage?.report, l.mutation?.report].filter(Boolean)) reportPath(workspace, f) // deleted before a run: never outside the workspace
     } catch (e) {
       throw new AdapterError('invalid_input', e.message, false)
     }
-    const content = async (v) => (v?.kind === 'artifact' ? (await call('getArtifact', v.ref)).spec.content : undefined)
-    const { record, baseline, baselines, testOutcome } = payload.inputs ?? {}
     const bases = list ? await Promise.all((baselines?.refs ?? []).map((r) => call('getArtifact', r).then((a) => a.spec.content))) : [await content(baseline)].filter(Boolean)
     for (const l of levels) l.baseline = bases.find((b) => (b.level ?? 'unit') === l.level)
     // a record is a round; no record, a baseline; no record beside baselines, the plan tier
     const tier = record ? 'round' : bases.length ? 'plan' : 'baseline'
-    const unit = await content(testOutcome)
     const base = bases.find((b) => b.head)?.head
     let changes
     if (tier === 'round' && base) {
@@ -121,7 +136,16 @@ serve({
         changes = changeSet(workspace, base)
       } catch {} // no such commit here: select runs every test
     }
-    run = { port, list, tier, base, changes, levels, i: -1, record: await content(record), tested: gitState(workspace), held: unit && (unit.newRed > 0 || unit.selection?.reason.startsWith('held')) ? 'unit' : undefined }
+    const round = await content(testOutcome)
+    const named = await content(record)
+    const ids = cases?.value // a round under a TestDesign: the case ids each level must run, carried in the tests' names
+    run = {
+      port, list, tier, base, changes, levels, i: -1, tested: gitState(workspace),
+      held: round && (round.newRed > 0 || round.selection?.reason.startsWith('held')) ? 'unit' : undefined,
+      everyCase: !!testDesign, // the plan tier under a TestDesign runs unit in full: the TestReport reads every case
+      named: (level) => (ids ? ids[level] ?? [] : namedFor(named, level)),
+      missed: (level, tests) => (ids ? (ids[level] ?? []).filter((q) => !tests.some((t) => carries(t, q))) : unmatched(namedFor(named, level), tests)),
+    }
     const next = advance(workspace)
     if (!next.next) return next
     run.first = next.next
@@ -144,7 +168,7 @@ serve({
       unreadable = `\nunreadable JUnit XML: ${e.message}`
     }
     // a named test the narrowed run did not select runs, with every other, once more
-    const missed = l.selection.mode === 'affected' ? unmatched(namedFor(run.record, l.level), tests) : []
+    const missed = l.selection.mode === 'affected' ? run.missed(l.level, tests) : []
     if (missed.length) {
       l.selection = { mode: 'full', reason: `${missed.length} named test${missed.length > 1 ? 's' : ''} not selected: ${missed.join('; ')}` }
       return { next: start(workspace, l, l.program) }
