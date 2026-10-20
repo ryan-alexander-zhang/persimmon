@@ -684,6 +684,7 @@ spec:
     taskId: {type: {kind: value, schema: {type: string, pattern: "^T-[0-9]+$"}}}
     spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}, required: false, description: "the Adrs the Architecture applies"}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, description: "the Designs the Plan lists"}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
@@ -710,6 +711,7 @@ spec:
       - {kind: artifact, input: plan}
       - {kind: artifact, input: spec}
       - {kind: artifact, input: architecture}
+      - {kind: artifact, input: adrs}
       - {kind: artifact, input: designs}
       - {kind: artifact, input: glossary}
       - {kind: artifact, input: rules}

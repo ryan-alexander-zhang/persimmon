@@ -37,7 +37,7 @@ Then, once per product:
 ## 2. Build each Plan
 
 Plans in the order of their capabilities, `CAP-1` first. Per Plan, `build-all`: `plan`, `tasks`
-(every `T-n`, in order), `spec`, `architecture`, `designs` (the Designs the Plan lists), `glossary`
+(every `T-n`, in order), `spec`, `architecture`, `adrs` (the Adrs it applies), `designs` (the Designs the Plan lists), `glossary`
 and `rules` of its context, `repository` (the app's path), `testDesign` (the Spec's) and `harness`.
 
 Each task parks a builder form. Start a new builder subagent per form, each round too, with:

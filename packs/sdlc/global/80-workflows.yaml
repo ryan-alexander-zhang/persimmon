@@ -667,6 +667,7 @@ spec:
     taskId: {type: {kind: value, schema: {type: string, pattern: "^T-[0-9]+$"}}}
     spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}, required: false, description: "the Adrs the Architecture applies"}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
@@ -719,6 +720,7 @@ spec:
         taskId: {fromInput: taskId}
         spec: {fromInput: spec}
         architecture: {fromInput: architecture}
+        adrs: {fromInput: adrs, onMissing: omit}
         designs: {fromInput: designs}
         glossary: {fromInput: glossary}
         rules: {fromInput: rules}
@@ -811,6 +813,7 @@ spec:
     taskId: {type: {kind: value, schema: {type: string, pattern: "^T-[0-9]+$"}}}
     spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}, required: false, description: "the Adrs the Architecture applies"}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
@@ -826,6 +829,7 @@ spec:
       taskId: {fromInput: taskId}
       spec: {fromInput: spec}
       architecture: {fromInput: architecture}
+      adrs: {fromInput: adrs, onMissing: omit}
       designs: {fromInput: designs}
       glossary: {fromInput: glossary}
       rules: {fromInput: rules}
@@ -871,6 +875,7 @@ spec:
     tasks: {type: {kind: value, schema: {type: array, minItems: 1, maxItems: 20, items: {type: string, pattern: "^T-[0-9]+$"}}}}
     spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}, required: false, description: "the Adrs the Architecture applies"}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
@@ -904,6 +909,7 @@ spec:
         taskId: {expression: "inputs.tasks[state.index - 1]"}
         spec: {fromInput: spec}
         architecture: {fromInput: architecture}
+        adrs: {fromInput: adrs, onMissing: omit}
         designs: {fromInput: designs}
         glossary: {fromInput: glossary}
         rules: {fromInput: rules}

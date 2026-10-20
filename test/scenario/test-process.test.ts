@@ -113,13 +113,13 @@ describe('scenario: the Test process', () => {
   })
 
   it('build-all under a TestDesign: the Tester writes the api tests, the builder the code, the Gate reads by case, a TestReport follows', { timeout: 90_000 }, async () => {
-    await setup(['Plan', 'Spec', 'Architecture', 'Design', 'Glossary', 'BusinessRules', 'TestDesign'])
+    await setup(['Plan', 'Spec', 'Architecture', 'Adr', 'Design', 'Glossary', 'BusinessRules', 'TestDesign'])
     expect(await run('create', file('harness.yaml', [{ ...one('TestHarness'), spec: { identity: { id: 'expense-claims-architecture-harness', revision: 1 }, content: harness } }]))).toBe(0)
     writeFileSync(join(repo, 'unit.xml'), xml(...seeds))
     writeFileSync(join(repo, 'api.xml'), xml(...apiSeed))
     out = []
     expect(await run('run', 'build-all', '--input', `plan=${ref('Plan', 'submit-a-claim-plan')}`, '--input', 'tasks=[T-1]', '--input', `spec=${ref('Spec', 'submit-a-claim')}`, '--input', `architecture=${ref('Architecture', 'expense-claims-architecture')}`,
-      '--input', designs, '--input', `glossary=${ref('Glossary', 'expenses-glossary')}`, '--input', `rules=${ref('BusinessRules', 'expenses-rules')}`, '--input', `repository=${repo}`,
+      '--input', 'adrs={kind: artifacts, refs: [{apiVersion: sdd.persimmon.ai/v1, kind: Adr, id: adr-receipts-as-blobs, revision: 1}]}', '--input', designs, '--input', `glossary=${ref('Glossary', 'expenses-glossary')}`, '--input', `rules=${ref('BusinessRules', 'expenses-rules')}`, '--input', `repository=${repo}`,
       '--input', `testDesign=${ref('TestDesign', 'submit-a-claim-tests')}`, '--input', `harness=${ref('TestHarness', 'expense-claims-architecture-harness')}`, '--follow')).toBe(0)
 
     // round one: the Tester writes T-1's api cases before the code, and misses TC-10
@@ -131,6 +131,7 @@ describe('scenario: the Test process', () => {
     f = form() // the builder: the cases, what the Tester wrote, the harness
     expect(f.inputs.written.value.cases).toEqual(['CAP-1/TC-1'])
     expect(f.reading.map((r: { kind: string }) => r.kind).slice(-3)).toEqual(['TestOutcome', 'TestDesign', 'TestHarness'])
+    expect(f.reading.map((r: { kind: string }) => r.kind)).toContain('Adr') // the decisions the Architecture applies (35-build-process.md)
     const units: [string][] = [['CAP-1/TC-3 a per diem line needs no receipt'], ['CAP-1/TC-8 drafting records each line'], ['CAP-1/TC-9 a taxi line at 25.00 EUR needs a receipt']]
     writeFileSync(join(repo, 'unit.xml'), xml(...seeds, ...units))
     const { verifies, ...record } = one('AcceptanceRecord').spec.content // no rows: the test names carry the case ids
