@@ -94,7 +94,8 @@ export function view(phase: Phase, product: string, runs: Run[]): PhaseView {
   const newest = mine[0];
   const round = newest && roundOf(newest);
   const inRound = round ? `Round ${round}, ` : "";
-  if (parked.length) return { ...base, state: "needs-you", detail: `${inRound}${parked.length > 1 ? `${parked.length} reviews wait` : "your review"}` };
+  // a gate asks for a verdict; any other parked step (a human drafting, the builder) asks for its work
+  if (parked.length) return { ...base, state: "needs-you", detail: `${inRound}${parked.length > 1 ? `${parked.length} steps wait on you` : parked[0]!.verdict ? "your review" : "your input"}` };
   if (!newest) return { ...base, state: "idle", detail: "Not started" };
   if (newest.phase === "Failed" || newest.phase === "Cancelled") return { ...base, state: "failed", detail: newest.error?.code ? `Failed: ${newest.error.code}` : newest.phase };
   if (newest.phase !== "Succeeded") return { ...base, state: "running", detail: `${inRound}${newest.waitingReason === "human" ? "waiting on a reviewer" : "running"}` };

@@ -22,6 +22,8 @@ export interface Node {
   created: string;
   task?: string;
   parked?: boolean;
+  /** Parked and answered with Approve or Request changes; false: it asks for work, at the terminal. */
+  verdict?: boolean;
   outputs?: Record<string, { kind: string; ref?: RevisionRef; refs?: RevisionRef[]; value?: unknown }>;
   result?: Verdict;
   children: Node[];

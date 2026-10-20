@@ -149,10 +149,10 @@ function Step({ node, onReview, onArtifact, depth = 0 }: { node: api.Node; onRev
       <div className="flex items-center gap-3 py-1.5">
         <Glyph state={parkedTask ? "needs-you" : stateOf(node)} size={18} />
         <span className="font-medium">{nameOf(node)}</span>
-        <span className="text-[14px] text-ink-2">{parkedTask ? "waiting on you" : describe(node, v)}</span>
+        <span className="text-[14px] text-ink-2">{parkedTask ? (parkedTask.verdict ? "waiting for your review" : "waiting for your input") : describe(node, v)}</span>
         {parkedTask && (
           <button type="button" onClick={() => onReview(parkedTask.name)} className="ml-auto rounded-lg bg-persimmon px-3.5 py-1.5 text-[14px] font-semibold text-white hover:brightness-95">
-            Review
+            {parkedTask.verdict ? "Review" : "Open"}
           </button>
         )}
       </div>
@@ -216,10 +216,11 @@ function describe(n: api.Node, v: api.Verdict | undefined): string {
 }
 
 const hasParked = (n: api.Node): boolean => !!n.parked || n.children.some(hasParked);
+const hasReview = (n: api.Node): boolean => (!!n.parked && !!n.verdict) || n.children.some(hasReview);
 
 function roundSummary(r: api.Node): string {
   const gate = r.children.find((c) => c.kind === "GateRun");
-  if (hasParked(r)) return "waiting on your review";
+  if (hasParked(r)) return hasReview(r) ? "waiting for your review" : "waiting for your input";
   if (r.phase !== "Succeeded") return gate ? "in review" : "drafting";
   const v = gate && verdictOf(gate);
   return v ? (v.passed ? "approved" : "changes requested") : "done";

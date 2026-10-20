@@ -42,6 +42,7 @@ export function App() {
 
   const views = useMemo(() => (runs && product ? phases.map((p) => view(p, product, runs)) : []), [runs, product]);
   const waiting = useMemo(() => all.map((p) => ({ product: p, phase: phases.map((ph) => view(ph, p, runs ?? [])).find((v) => v.state === "needs-you") })).filter((w) => w.phase), [all, runs]);
+  const reviews = waiting.every((w) => w.phase!.runs.every((r) => r.parked.every((t) => t.verdict)));
   const open = views.find((v) => v.phase.id === phase);
 
   return (
@@ -81,7 +82,7 @@ export function App() {
             }}
             className="rounded-full bg-persimmon px-3.5 py-1.5 text-sm font-semibold text-white hover:brightness-95"
           >
-            {waiting.length === 1 ? "1 review waits on you" : `${waiting.length} reviews wait on you`}
+            {waiting.length === 1 ? `1 ${reviews ? "review waits" : "step waits"} on you` : `${waiting.length} ${reviews ? "reviews" : "steps"} wait on you`}
           </button>
         )}
       </header>

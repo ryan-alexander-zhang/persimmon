@@ -27,6 +27,8 @@ describe("view", () => {
     expect(view(phase("domain"), "p", [])).toMatchObject({ state: "idle", detail: "Not started" });
     const parked = run({ upstream: prd, steps: { rounds: { phase: "Pending", iteration: 2 } }, parked: [{ taskRun: "t", task: "confirm-prd", verdict: true }] });
     expect(view(phase("prd"), "p", [parked])).toMatchObject({ state: "needs-you", detail: "Round 2, your review" });
+    const drafting = { ...parked, parked: [{ taskRun: "t", task: "draft-prd", verdict: false }] };
+    expect(view(phase("prd"), "p", [drafting])).toMatchObject({ state: "needs-you", detail: "Round 2, your input" }); // no verdict to give: not a review
   });
 
   it("reads the newest run: running with its round, approved or rejected after its rounds, failed with its code", () => {

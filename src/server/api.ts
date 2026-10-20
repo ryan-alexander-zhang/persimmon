@@ -243,13 +243,19 @@ function runs(engine: Engine, rest: string[], url: URL): { status: number; body:
       ...(s.waitingReason ? { waitingReason: s.waitingReason } : {}),
       ...(s.error ? { error: s.error } : {}),
       created: r.metadata.creationTimestamp,
-      ...(r.kind === 'TaskRun' ? { task: (r.spec as { taskRef: { name: string } }).taskRef.name, parked: notAnswerable(engine, r) === undefined && !!readForm(engine, r) } : {}),
+      ...(r.kind === 'TaskRun' ? taskOf(engine, r) : {}),
       ...(s.outputs ? { outputs: s.outputs } : {}),
       ...(s.result ? { result: s.result } : {}),
       children: ownedBy(engine, r).map((c) => node(c, r)),
     }
   }
   return { status: 200, body: node(root, undefined) }
+}
+
+/** A TaskRun's task, whether it is parked here with a form, and whether a click answers it. */
+function taskOf(engine: Engine, r: Resource): { task: string; parked: boolean; verdict?: boolean } {
+  const form = notAnswerable(engine, r) === undefined ? readForm(engine, r) : undefined
+  return { task: (r.spec as { taskRef: { name: string } }).taskRef.name, parked: !!form, ...(form ? { verdict: isVerdict(form) } : {}) }
 }
 
 /** A form the Inbox answers with a click: every output a ValidationResult value port. */

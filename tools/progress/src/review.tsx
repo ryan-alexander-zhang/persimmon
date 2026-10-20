@@ -43,7 +43,8 @@ export function Review({ namespace, taskRun, onAnswered }: { namespace: string; 
   return (
     <div className="flex min-h-full flex-col">
       <div className="flex-1 px-7 pt-5 pb-10">
-        <Instructions text={form.instructions} />
+        {!form.verdict && <WorkWanted taskRun={taskRun} outputs={form.outputs} />}
+        <Instructions text={form.instructions} title={form.verdict ? "What to judge" : "What this step asks"} />
         {Object.entries(form.inputs ?? {})
           .filter(([, v]) => v.kind === "value" && isVerdict(v.value))
           .map(([port, v]) => (
@@ -112,24 +113,38 @@ export function Review({ namespace, taskRun, onAnswered }: { namespace: string; 
             </p>
           )}
         </footer>
-      ) : (
-        <footer className="border-t border-line bg-surface px-7 py-4 text-[14px] text-ink-2">
-          This step needs more than approve or request changes. Stop <code>persimmon ui</code>, then run <code>persimmon complete {taskRun}</code>.
-        </footer>
-      )}
+      ) : null}
+    </div>
+  );
+}
+
+/** A parked step that is not a gate: it asks for work (a draft, code), which a click cannot give. */
+function WorkWanted({ taskRun, outputs }: { taskRun: string; outputs: Record<string, unknown> }) {
+  const wanted = Object.entries(outputs).map(([port, o]) => {
+    const t = (o as { type?: { kind?: string; artifactKind?: { kind?: string } } }).type;
+    return t?.artifactKind?.kind ? `${t.artifactKind.kind} (${port})` : port;
+  });
+  return (
+    <div className="mb-4 rounded-xl border border-persimmon/40 bg-persimmon-soft px-4 py-3 text-[14px] leading-relaxed text-ink">
+      <p className="font-semibold">This step asks you to write {wanted.join(" and ")}, not to approve.</p>
+      <p className="mt-1 text-ink-2">
+        There is nothing to approve here: the review comes after the draft. Write the answer as a file, stop <code>persimmon ui</code>, then run{" "}
+        <code className="rounded bg-surface px-1.5 py-0.5 text-[13px]">persimmon complete {taskRun} --file answer.yaml</code>. In the pack's own setup an agent writes this draft, and you only see the review.
+      </p>
+      <p className="mt-1 text-ink-2">Below is what the step reads.</p>
     </div>
   );
 }
 
 const isVerdict = (v: unknown) => !!v && typeof v === "object" && "passed" in v && "findings" in v;
 
-function Instructions({ text }: { text: string }) {
+function Instructions({ text, title }: { text: string; title: string }) {
   const [open, setOpen] = useState(false);
   const paras = text.split(/\n\s*\n/).map((p) => p.replace(/\s*\n\s*/g, " ")); // a pack's YAML block wraps its lines
   return (
     <div className="rounded-xl bg-line-2/70 px-4 py-3 text-[14px] leading-relaxed text-ink-2">
       <button type="button" onClick={() => setOpen(!open)} className="flex w-full items-center justify-between text-left font-semibold text-ink" aria-expanded={open}>
-        What to judge
+        {title}
         <ChevronDown className={`size-4 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden />
       </button>
       <div className={open ? "mt-2 space-y-2" : "mt-1 line-clamp-2"}>

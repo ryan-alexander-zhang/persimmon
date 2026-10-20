@@ -154,7 +154,7 @@ describe('persimmon ui server', () => {
     expect(runs.runs).toEqual([expect.objectContaining({ namespace: 'default', name: 'r1', workflow: 'ask-wf', phase: 'Running', steps: { ask: { phase: 'Pending' } }, upstream: [], parked: [{ taskRun: 'r1-ask', task: 'ask', verdict: true }] })])
     const tree = (await (await get('/api/runs/default/r1')).json()) as { kind: string; label: string; children: Record<string, unknown>[] }
     expect([tree.kind, tree.label]).toEqual(['WorkflowRun', 'r1'])
-    expect(tree.children).toEqual([expect.objectContaining({ kind: 'TaskRun', name: 'r1-ask', label: 'ask', task: 'ask', phase: 'Waiting', waitingReason: 'human', parked: true, children: [] })])
+    expect(tree.children).toEqual([expect.objectContaining({ kind: 'TaskRun', name: 'r1-ask', label: 'ask', task: 'ask', phase: 'Waiting', waitingReason: 'human', parked: true, verdict: true, children: [] })])
     expect((await get('/api/runs/default/nope')).status).toBe(404)
     const form = (await (await get('/api/inbox/default/r1-ask')).json()) as { instructions: string; verdict: boolean }
     expect([form.instructions, form.verdict]).toEqual(['Answer', true])
