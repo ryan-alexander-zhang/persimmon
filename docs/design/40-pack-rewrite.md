@@ -210,7 +210,10 @@ failed on the source is no witness: its entry point is `unreached`, the Slice's 
 none. A recorded test that observed nothing (its observation `null`) rests on its status alone: its
 entry point is `unreached` too, so the verdict is at best `concerns`. `run-rewrite` runs every
 recorded test, every Slice's, so an earlier Slice's regression shows; a test it leaves out is a
-difference. A difference an Issue explains keeps that cause while it persists. An item a later
+difference. It runs every level: a `units` test runs through the rewrite's driver to the rewrite's
+code, and one the rewrite cannot run is a difference a human decides. A record runs on the rewrite
+only: a `records` test that ran there holds its entry point's Oracle, and one not green there is a
+difference, `source` `recorded`. A difference an Issue explains keeps that cause while it persists. An item a later
 inventory revision no longer lists stays in the ledger, `open`, until a human decides it.
 
 ## Protocol drivers
@@ -283,8 +286,8 @@ What the agents are taught, as Prompts the pack ships, one per Task, overridable
 | Human Tasks `cut-slices`, `decide-recovery`, `review-parity` | `cli-human/v1`; each answers the `decisions` value its row of Decisions says, its schema written inline (a port schema takes no `$ref` beyond the well-known ones, `10-ports.md`); the form shows the audit beside the artifacts; `produce` runs each round, so the human answers once per round |
 | The Tester's Tasks | the SDLC pack's Executor `tester` is a human one by default (`cli-human/v1`, the developer's agent in a fresh subagent), so its Tasks answer values, never `artifacts`; a Namespace that puts it on `claude-code/v1` read-only may find reads outside the workspace refused, and the source is read through the `source` input's `locator.path` |
 | Task `write-rewrite-driver` | Executor `tester`; inputs `suite`, the Slice's Designs, `feedback`; output value `written` (the driver's files); `written.driver` is `{methods[] {name, entryPoint EP-n, element EL-n}}`, one method per operation of the source's driver, each citing the entry point it serves and the Design element it lands on |
-| Task `run-rewrite` | `parity-run/v1`: the suite's tests through the rewrite's driver (or the source's, the interface kept) against the rewrite's app, started and reset by the TestHarness's `app`; value `runs` as `run-source`'s |
-| Task `compute-ledger` | `parity-run/v1`; inputs `inventory`, `sourceIndex`, `written`, `runs` (the source's, and the rewrite's in `parity`), `coverage`, `mutantResults`, `rules?`, `decisions`, the last `ledger`; output its next revision |
+| Task `run-rewrite` | `parity-run/v1`: every level's tests through the rewrite's driver (or the source's, the interface kept) against the rewrite, its app started by the TestHarness's `app.start` and awaited at `app.ready` (refused without them), with `PERSIMMON_TARGET=rewrite`; value `runs` as `run-source`'s, `head` the project's commit only when no tracked file differs from it |
+| Task `compute-ledger` | `parity-run/v1`; inputs `inventory`, `sourceIndex`, `written`, `slice?`, `runs` (the source's), `rewriteRuns?` (the rewrite's, in `parity`), `coverage`, `mutantResults`, `rules?`, `decisions`, the last `ledger`; output its next revision under `outputIds.ledger`, `<productId>-parity` (refused without it) |
 | Gates | `survey-gate`, `inventory-gate`, `characterize-gate`, `recover-gate`, `parity-gate`: pure, over the loop's artifacts and values |
 | ReviewLoops | `survey` (`maxRounds: 2`), `inventory` (2), `characterize` (3), `recover-prd` (3, `carry: {rules: previousRules}` as `author-prd`), `parity` (2) |
 
