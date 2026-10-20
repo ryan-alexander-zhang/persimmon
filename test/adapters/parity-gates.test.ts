@@ -124,12 +124,21 @@ describe('checkParity (parity-consistency)', () => {
   })
 
   it('driver-uncited: a method citing no entry point or Design element, an entry point no method maps and no non-goal names', () => {
-    const passed = ledger({ last: recovered, rewrite: { runs: runs() } })
+    const passed = { ...ledger({ last: recovered, rewrite: { runs: runs() } }), driver: { confirmed: true } }
     const driver = { methods: [{ name: 'viewCart', entryPoint: 'EP-1', element: 'EL-3' }, { name: 'addItem', entryPoint: 'EP-2' }] }
     expect(checkParity({ ledger: passed, slice: 'SL-1', driver }).map((f: { message: string }) => f.message)).toEqual([
       "the rewrite driver's addItem cites EP-2 and no Design element: each method cites both",
       'EP-3 has no rewrite driver method and is no non-goal',
     ])
     expect(codes(checkParity({ ledger: passed, slice: 'SL-1', driver, prd: { nonGoals: ['EP-3 order submission moves to the new checkout'] } }))).toEqual(['driver-uncited'])
+  })
+
+  it('driver-unconfirmed: a changed interface\'s driver passes only once review-parity confirmed it; a kept one needs no confirmation', () => {
+    const compared = ledger({ last: recovered, rewrite: { runs: runs() } })
+    const methods = ['EP-1', 'EP-2', 'EP-3'].map((ep, i) => ({ name: `op${i}`, entryPoint: ep, element: `EL-${i + 1}` }))
+    expect(codes(checkParity({ ledger: compared, slice: 'SL-1', driver: { methods } }))).toEqual(['driver-unconfirmed'])
+    expect(codes(checkParity({ ledger: { ...compared, driver: { confirmed: false } }, slice: 'SL-1', driver: { methods } }))).toEqual(['driver-unconfirmed'])
+    expect(checkParity({ ledger: { ...compared, driver: { confirmed: true } }, slice: 'SL-1', driver: { methods } })).toEqual([])
+    expect(checkParity({ ledger: compared, slice: 'SL-1', driver: { kept: true, methods } })).toEqual([])
   })
 })

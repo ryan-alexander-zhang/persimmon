@@ -263,6 +263,7 @@ export function checkParity({ ledger, slice, driver, prd }) {
   // a rewrite driver in the suite means the interface changed: its methods must be bound and must cite what they map
   if (ledger.suite?.drivers?.rewrite && !driver) found.push(error('driver-uncited', 'the suite has a rewrite driver, and its methods were not bound to the gate'))
   if (driver) {
+    if (!driver.kept && ledger.driver?.confirmed !== true) found.push(error('driver-unconfirmed', 'the rewrite driver changes the interface and review-parity did not confirm it renames and reshapes only'))
     for (const m of driver.methods ?? []) if (!/^EP-\d+$/.test(m.entryPoint ?? '') || !/^EL-\d+$/.test(m.element ?? '')) found.push(error('driver-uncited', `the rewrite driver's ${m.name} cites ${m.entryPoint ?? 'no entry point'} and ${m.element ?? 'no Design element'}: each method cites both`))
     const dropped = idsIn((prd?.nonGoals ?? []).join('\n'))
     const cut = ledger.slices?.find((s) => s.id === slice)
