@@ -61,6 +61,7 @@ Per-step phase, recorded in `WorkflowRun.status.steps.<id>` (`17-runs.md`):
 | threshold unreachable | the Transition is dead; its `to` steps are `Skipped`; skip propagates through dead Transitions |
 | `dispatch: all` | every `to` whose `when` is true or absent |
 | `dispatch: first` | the first such `to` in order |
+| a `to` step the dispatch did not choose | `Skipped`, unless another Transition lists it in its `to`: it then waits for that one, whose death skips it |
 | `when` reads a `Skipped` step or an unfinished step's outputs | evaluates to false |
 | `steps.<id>.iterations` | how many iterations a finished `repeat` step ran; absent without `repeat` |
 | a step input reads an unfinished or `Skipped` step | absent; requires `onMissing: omit` (static) |
@@ -136,6 +137,11 @@ has no `repeat`; the run name already carries the enclosing iterations (`<parent
 - A Transition counts as fired once any of its `to` steps has a run, even one another Transition
   started; a step that is `to` of two Transitions therefore fires the second one at most through
   its own guard. Recording fired Transitions in `status` is roadmap. Found in implementation.
+- A step a dispatch passes over waits while another Transition lists it: a step passed by on
+  a condition (`cases` to `write-api` or `implement`, then `write-api` to `implement`) was
+  `Skipped` the moment the first dispatch chose `write-api`, so the second Transition found it
+  finished and the run ended `no_progress`. The skip now falls to the other Transition, which
+  dies when its `from` step is skipped. Found in implementation (`39-test-process.md`).
 - `logicalExecutionId` is `<runName>/<own iteration>/<stepId>`: the child run of a repeat body is
   named `<parent>-<step>-<n>`, so repeating the enclosing `iterationPath` doubled it in artifact
   ids (`...-rounds-1-rounds-1-implement-report`). `address.iterationPath` keeps the full path.

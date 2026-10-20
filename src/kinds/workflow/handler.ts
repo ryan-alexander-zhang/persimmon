@@ -191,7 +191,9 @@ export function workflowHandler(deps: HandlerDeps): HandlerImpl {
                     else start(step)
                   } else if (!selected) selected = { terminal: x.terminal, ...(x.reason ? { reason: x.reason } : {}) }
                 }
-                for (const x of toSteps) if (!steps[x.stepRef]!.runRef && steps[x.stepRef]!.phase === 'Pending' && !chosen.includes(x)) steps[x.stepRef] = { phase: 'Skipped' }
+                // a step passed over here that another Transition can still start waits for that one; its death skips the step
+                const elsewhere = (id: string) => spec.transitions.some((o) => o !== t && o.to.some((y) => 'stepRef' in y && y.stepRef === id))
+                for (const x of toSteps) if (!steps[x.stepRef]!.runRef && steps[x.stepRef]!.phase === 'Pending' && !chosen.includes(x) && !elsewhere(x.stepRef)) steps[x.stepRef] = { phase: 'Skipped' }
               }
               changed = true
             } else if (t.from.length - dead < need) {

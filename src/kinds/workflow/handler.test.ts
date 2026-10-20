@@ -44,6 +44,21 @@ const listLoop = {
     timeout: '2h',
   },
 }
+// a step passed over by a dispatch, `b`, beside the step it leads to, `c`, which the same dispatch could start
+const passBy = {
+  apiVersion: 'persimmon.ai/v1', kind: 'Workflow', metadata: { name: 'pass-by', namespace: 'demo' },
+  spec: {
+    inputs: { flag: { type: { kind: 'value', schema: { type: 'boolean' } } } },
+    outputs: {}, outputBindings: {}, entry: ['a'],
+    steps: ['a', 'b', 'c'].map((id) => ({ id, uses: { kind: 'Task', name: 'handle-item' }, timeout: '1h', inputs: { item: { literal: id } } })),
+    transitions: [
+      { id: 'from-a', from: [{ stepRef: 'a', outcomes: ['Succeeded'] }], to: [{ stepRef: 'b', when: 'inputs.flag' }, { stepRef: 'c' }], dispatch: 'first' },
+      { id: 'from-b', from: [{ stepRef: 'b', outcomes: ['Succeeded'] }], to: [{ stepRef: 'c' }] },
+      { id: 'done', from: [{ stepRef: 'c', outcomes: ['Succeeded'] }], to: [{ terminal: 'Succeeded' }] },
+    ],
+    timeout: '2h',
+  },
+}
 const closure: Closure = {
   ...base,
   resources: [
@@ -54,6 +69,7 @@ const closure: Closure = {
     { apiVersion: 'persimmon.ai/v1', kind: 'Workflow', metadata: { name: 'prd-review-round', namespace: 'demo' }, spec: { inputs: { prd: { type: prd }, research: { type: report } }, outputs: { prd: { type: prd }, accepted: { type: { kind: 'value', schema: { type: 'boolean' } } } }, outputBindings: {}, entry: ['x'], steps: [], transitions: [], timeout: '1h' } },
     taskLike('handle-item', { item: { type: text } }, { echo: { type: text } }),
     listLoop,
+    passBy,
     taskLike('security-review', { prd: { type: prd } }, { report: { type: report } }),
     taskLike('product-review', { prd: { type: prd } }, { report: { type: report } }),
     { apiVersion: 'persimmon.ai/v1', kind: 'Gate', metadata: { name: 'prd-approval-gate', namespace: 'demo' }, spec: { inputs: { prd: { type: prd }, security: { type: report, required: false }, product: { type: report, required: false } }, outputs: { result: { type: { kind: 'value', schema: { $ref: 'persimmon.ai/v1#/GateResult' } } } }, validators: [], timeout: '1h' } },
@@ -229,6 +245,28 @@ describe('workflow Handler', () => {
     r = apply(r, res)
     res = handler.reconcile(childFinished(r, 'approval', 'Succeeded', { phase: 'Succeeded', outputs: { result: { kind: 'value', value: { passed: true, results: {} } } } })) as ReconcileResult
     expect(clean(res.statusPatch)).toMatchObject({ phase: 'Succeeded', outputs: { approved: { kind: 'value', value: true } } })
+  })
+
+  it('a step one dispatch passes over stays Pending while another Transition can still start it (11-workflow.md)', () => {
+    const drive = (flag: boolean) => {
+      let r = run('pass-by', { flag: { kind: 'value', value: flag } }, `pass-${flag}`)
+      r = apply(r, handler.reconcile(input(r, { type: 'Created', dedupeKey: 'created' })) as ReconcileResult)
+      let res = handler.reconcile(childFinished(r, 'a', 'Succeeded', { phase: 'Succeeded', outputs: { echo: { kind: 'value', value: 'a' } } })) as ReconcileResult
+      const first = created(res).map((c) => c.metadata.name)
+      r = apply(r, res)
+      const phases = Object.fromEntries(Object.entries(r.status!.steps).map(([k, v]) => [k, v.runRef ? `${v.phase} started` : v.phase]))
+      for (const step of first.map((n) => n.replace(`pass-${flag}-`, ''))) {
+        res = handler.reconcile(childFinished(r, step, 'Succeeded', { phase: 'Succeeded', outputs: { echo: { kind: 'value', value: step } } })) as ReconcileResult
+        r = apply(r, res)
+        for (const next of created(res).map((c) => c.metadata.name.replace(`pass-${flag}-`, ''))) {
+          res = handler.reconcile(childFinished(r, next, 'Succeeded', { phase: 'Succeeded', outputs: { echo: { kind: 'value', value: next } } })) as ReconcileResult
+          r = apply(r, res)
+        }
+      }
+      return { first, phases, end: r.status!.phase, steps: Object.fromEntries(Object.entries(r.status!.steps).map(([k, v]) => [k, v.phase])) }
+    }
+    expect(drive(true)).toEqual({ first: ['pass-true-b'], phases: { a: 'Succeeded started', b: 'Pending started', c: 'Pending' }, end: 'Succeeded', steps: { a: 'Succeeded', b: 'Succeeded', c: 'Succeeded' } }) // c waits for b
+    expect(drive(false)).toEqual({ first: ['pass-false-c'], phases: { a: 'Succeeded started', b: 'Skipped', c: 'Pending started' }, end: 'Succeeded', steps: { a: 'Succeeded', b: 'Skipped', c: 'Succeeded' } })
   })
 
   it('timeout cancels activated children; cancel is immediate', () => {
