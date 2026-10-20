@@ -605,6 +605,18 @@ after the check and before a human). An error of its fails the round; whether a 
 citation resolves is never its question.
 _Avoid_: reviewer (a human at a Gate), judge, LLM validator
 
+**Autopilot**:
+The developer's agent running the whole run order from one idea with no human: it starts each run,
+hands every human Gate's form to a fresh **Reviewer subagent** and every **Builder** form to a fresh
+builder subagent, and writes the **Issue**s. `autopilot-doc` runs it to the **Plan**s, `autopilot-code`
+from them; `autopilot` is both. Three agent skills `init` places in the project.
+_Avoid_: unattended Namespace (an Executor override inside the engine), auto mode, agent mode
+
+**Reviewer subagent**:
+The **Autopilot**'s stand-in for the human at a Gate: a subagent with no part in the authoring,
+started fresh for one form, that answers its ValidationResult.
+_Avoid_: auditor (the pack's own agent), self-review, judge
+
 **Architecture process**:
 The pack process from a **Prd** and the domain kinds of its contexts to the **Architecture** and its
 **Adr**s: ReviewLoop `architect`, once per product, checked by `architecture-consistency` and a human.
