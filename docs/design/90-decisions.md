@@ -585,3 +585,4 @@ appears twice; the earlier file owns it.
 | 543 | `39-test-process.md` | `select-cases` reads only `error` findings: a warning naming a case calls no Tester back. Found in UAT. |
 | 544 | `39-test-process.md` | `harness-evidence` and `test-design-consistency` read the last round, so `question-agent-resolved` tells an answer once. Found in UAT. |
 | 545 | `39-test-process.md` | A level's conventions say how a test keeps its data apart from the run's other tests. Found in UAT. |
+| 545 | `38-autopilot.md` | The Autopilot revises a Spec as often as a TestDesign brings new answers for it, sending only answers not applied before; only a failed Spec Gate stops it. Supersedes the once-per-Spec limit of 543, which stopped the live run on the second set of real gaps. `question-upstream` repeats every answer the TestDesign holds, so the Autopilot keeps the ones it sent. Chosen by the developer. |
