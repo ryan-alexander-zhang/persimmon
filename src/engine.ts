@@ -1,7 +1,8 @@
 // Engine bootstrap: config ─▶ Store ─▶ registries ─▶ builtin Handlers ─▶ callbacks server ─▶ dispatcher (ARCHITECTURE.md).
 import { createHash, randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
+import { dirname, join, resolve } from 'node:path'
 import { isDeepStrictEqual } from 'node:util'
 import type { Server } from 'node:http'
 import { callback, type CallbackEngine } from './adapter/callbacks.js'
@@ -59,7 +60,11 @@ export class Engine {
     this.cwd = cwd
     const now = o.now ?? (() => new Date())
     const sqlite = 'sqlite' in o.config.store ? o.config.store.sqlite : ':memory:'
-    this.store = new SqliteStore(o.storePath ?? `${cwd}/${sqlite}`, { blobs: o.blobs ?? new FileBlobStore(`${cwd}/${o.config.blobs}`), now })
+    // relative to the project directory; an absolute or `~/` path may be shared by several (08-store.md)
+    const at = (p: string) => resolve(cwd, p.startsWith('~/') ? join(homedir(), p.slice(2)) : p)
+    const storePath = o.storePath ?? at(sqlite)
+    if (storePath !== ':memory:') mkdirSync(dirname(storePath), { recursive: true })
+    this.store = new SqliteStore(storePath, { blobs: o.blobs ?? new FileBlobStore(at(o.config.blobs)), now })
     this.credentials = new ConfigCredentialStore(o.config.credentials)
     this.adapters = new AdapterRegistry(this.credentials, cwd)
     // sun_path is 104 bytes on macOS; a deep cwd gets a short socket in the temp dir keyed by cwd
@@ -211,7 +216,7 @@ export class Engine {
     const scope = this.kinds.get(input.apiVersion, input.kind).definition.spec.scope
     const existing = this.store.resources.get({ kind: input.kind, namespace: input.metadata.namespace ?? (scope === 'Namespaced' ? this.dispatch.defaultNamespace : undefined), name: input.metadata.name })
     if (!existing) {
-      const r = await createResourceRaw(this.dispatch, input, { actor })
+      const r = await createResourceRaw(this.dispatch, input, { actor, directory: this.cwd })
       return { ...r, changed: r.created }
     }
     // SpecMutable update: CAS on the stored version, generation bump, SpecUpdated when spec changed
@@ -232,7 +237,7 @@ export class Engine {
   }
 
   create(input: Resource, o: Partial<CreateOptions> = {}): Promise<{ resource: Resource; created: boolean }> {
-    return createResourceRaw(this.dispatch, input, { actor: localActor, ...o })
+    return createResourceRaw(this.dispatch, input, { actor: localActor, directory: this.cwd, ...o })
   }
 
   /** Signal a Resource: API (`persimmon signal`, `complete`) or adapter callback. Audits `change: signal`. */

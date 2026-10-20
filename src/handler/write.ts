@@ -31,8 +31,13 @@ export interface Engine {
   now: () => Date
 }
 
+/** The project directory a Run belongs to; only that directory's engine drives it (08-store.md). */
+export const projectDirectory = 'persimmon.ai/project-directory'
+
 export interface CreateOptions {
   actor: Actor
+  /** Project directory of the writing engine; stamps a Run written without an owner. */
+  directory?: string
   /** The creating Resource; `owned` adds the ownerReference (03-reconcile.md createResource). */
   owner?: Resource
   owned?: boolean
@@ -99,6 +104,8 @@ export function storeCreate(engine: Engine, prepared: Resource, o: CreateOptions
         { apiVersion: ow.apiVersion, kind: ow.kind, ...(ow.metadata.namespace ? { namespace: ow.metadata.namespace } : {}), name: ow.metadata.name, uid: ow.metadata.uid as string },
       ]
     }
+    const directory = o.owner ? o.owner.metadata.annotations?.[projectDirectory] : o.directory // a child Run inherits its owner's
+    if (kd.spec.terminal && directory) resource.metadata.annotations = { ...resource.metadata.annotations, [projectDirectory]: directory }
     const snapshot = snapshotFor(engine, resource, kd.spec.snapshotOnCreate ?? false, o)
     if (snapshot) resource.metadata.snapshot = snapshot
     const identity = kd.spec.revisioned ? stampRevision(engine, resource, o.actor) : undefined

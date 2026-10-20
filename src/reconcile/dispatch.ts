@@ -2,7 +2,7 @@
 import { randomUUID } from 'node:crypto'
 import { resolve } from 'node:path'
 import type { Context, ReconcileInput, ReconcileResult } from '../handler/types.js'
-import { audit } from '../handler/write.js'
+import { audit, projectDirectory } from '../handler/write.js'
 import { deliverOnce } from '../outbox/deliver.js'
 import { engineActor, makeEvent } from '../outbox/event.js'
 import type { Resource } from '../resource/types.js'
@@ -107,7 +107,7 @@ function stall(engine: Engine, resource: Resource, attempts: number, lastError: 
 /** Due timers become TimerFired Events and are cleared. */
 export function pumpTimers(engine: Engine): number {
   const now = engine.now().toISOString()
-  const due = engine.store.timers.due(now)
+  const due = engine.store.timers.due(now).filter((t) => owns(engine, t.uid))
   for (const t of due) {
     engine.store.transaction(() => {
       appendEvent(engine, t.uid, { type: 'TimerFired', dedupeKey: `timer/${t.key}/${t.at}`, payload: { key: t.key, at: t.at } })
@@ -119,7 +119,7 @@ export function pumpTimers(engine: Engine): number {
 
 /** Dispatches every outstanding callAdapter not already in flight; answers arrive as AdapterFinished. */
 export async function dispatchCalls(engine: Engine): Promise<number> {
-  const calls = engine.store.runLog.outstandingCalls().filter((c) => !engine.inFlight.has(`${c.uid}/${c.action.idempotencyKey}`))
+  const calls = engine.store.runLog.outstandingCalls().filter((c) => !engine.inFlight.has(`${c.uid}/${c.action.idempotencyKey}`) && owns(engine, c.uid))
   await Promise.all(
     calls.map(async (c) => {
       const key = `${c.uid}/${c.action.idempotencyKey}`
@@ -172,7 +172,7 @@ function credentialsFor(engine: Engine, payload: Record<string, unknown>): { cre
 
 /** On start: every call with no recorded answer is delivered as `unknown` (03-reconcile.md). */
 export function recoverCalls(engine: Engine): number {
-  const calls = engine.store.runLog.outstandingCalls()
+  const calls = engine.store.runLog.outstandingCalls().filter((c) => owns(engine, c.uid))
   for (const c of calls) {
     const key = (c.action as { idempotencyKey: string }).idempotencyKey
     appendEvent(engine, c.uid, { type: 'AdapterFinished', dedupeKey: `adapter/${key}`, payload: { idempotencyKey: key, state: 'unknown' } })
@@ -180,12 +180,18 @@ export function recoverCalls(engine: Engine): number {
   return calls.length
 }
 
+/** A Run is driven only from the project directory its tree began in; a Resource without one, from any (08-store.md). */
+function owns(engine: Engine, uid: string): boolean {
+  const directory = engine.store.resources.getByUid(uid)?.metadata.annotations?.[projectDirectory]
+  return directory === undefined || directory === engine.cwd
+}
+
 /** Runs timers, Outbox delivery, open Events and adapter calls until nothing moves. */
 export async function drain(engine: Engine): Promise<void> {
   for (;;) {
     let moved = pumpTimers(engine) > 0
     moved = deliverOnce(engine.store, engine.kinds, 100, { maxCausationDepth: engine.maxCausationDepth, leaseTtlMs: engine.leaseTtlMs, holder: engine.holder, now: engine.now }) > 0 || moved
-    for (const { uid, entry } of engine.store.runLog.listOpen()) moved = (await reconcileOnce(engine, uid, entry)) !== 'skipped' || moved
+    for (const { uid, entry } of engine.store.runLog.listOpen().filter((o) => owns(engine, o.uid))) moved = (await reconcileOnce(engine, uid, entry)) !== 'skipped' || moved
     moved = (await dispatchCalls(engine)) > 0 || moved
     if (!moved) return
   }

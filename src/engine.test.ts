@@ -324,3 +324,43 @@ it('one listening engine per project: a second listen fails while the first live
   rmSync(cwd, { recursive: true, force: true })
 })
 
+
+it('project directories share one store: each drives and recovers only the Runs its own tree began', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'persimmon-shared-'))
+  const home = process.env.HOME
+  process.env.HOME = root // `~/` resolves against the home directory
+  const config = parseConfig({ store: { sqlite: '~/projects/demo/persimmon.db' }, blobs: '~/projects/demo/blobs' })
+  const [main, tree] = ['main', 'tree'].map((d) => join(root, d))
+  for (const d of [main!, tree!]) mkdirSync(d)
+  const open = (cwd: string) => new Engine({ config, cwd })
+  const a = open(main!)
+  const b = open(tree!)
+  try {
+    await a.start()
+    await a.apply(fakeAdapter('claude-code/v1'))
+    for (const n of ['kind-definition-productrequirement', 'kind-definition-researchreport']) await a.apply(example(n))
+    for (const r of closure.resources.filter((r) => r.kind !== 'KindDefinition')) await a.apply(fresh(r as Resource))
+    await b.start() // reads the definitions main applied
+    const { resource: run } = await a.create(fresh(example('run-workflowrun')))
+    expect(run.metadata.annotations?.['persimmon.ai/project-directory']).toBe(main)
+    await b.drain() // the tree's engine leaves main's run alone
+    expect(b.store.runLog.read(run.metadata.uid!).filter((e) => !e.appliedAt)).toHaveLength(1)
+    // main reconciles up to its first adapter call, then stops as a killed process would
+    const { reconcileOnce } = await import('./reconcile/dispatch.js')
+    while (a.store.runLog.listOpen().length) for (const { uid, entry } of a.store.runLog.listOpen()) await reconcileOnce(a.dispatch, uid, entry)
+    const research = a.store.resources.get({ kind: 'TaskRun', namespace: 'demo', name: 'prd-create-001-research' })!
+    expect(research.metadata.annotations?.['persimmon.ai/project-directory']).toBe(main) // a child Run inherits its owner's
+    expect(a.store.runLog.outstandingCalls()).toHaveLength(1)
+    for (const [cwd, left] of [[tree!, 1], [main!, 0]] as const) {
+      const next = open(cwd) // another directory's engine never marks the call unknown; main's next one recovers it
+      await next.start()
+      expect(a.store.runLog.outstandingCalls()).toHaveLength(left)
+      await next.close()
+    }
+  } finally {
+    await a.close()
+    await b.close()
+    process.env.HOME = home
+    rmSync(root, { recursive: true, force: true })
+  }
+})
