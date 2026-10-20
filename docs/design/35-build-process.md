@@ -39,7 +39,7 @@ ReviewLoop build-one
 | Prompt `build-rules` | one task per round, its block only; at least one test per `AC-n` and `QS-n`, named in `record`; a failing test is never deleted, skipped or weakened; a dependency the Architecture and its Adrs do not name is a `Q-n`, never installed; an unknown is a `Q-n`, never a guess; wrong behaviour the task does not cover is a `D-n`, reported and never fixed; no git; the code uses the Glossary's terms |
 | Executor `builder` | `cli-human/v1`, `type: human`: the form in `.persimmon/inbox/<taskRun>.yaml` is the task brief, every context entry with its content (`20-pack.md`); the developer's agent reads it, builds, and answers with `persimmon complete <taskRun> --file record.yaml` holding `{outputs: {record: <content>}}` |
 | Executor `test-runner` | `junit/v1`, `type: script`, configuration `{program, junit}`: the project's test command and the JUnit XML it writes (a file, or a directory of `.xml` files); the pack's `{program: [npm, test], junit: junit.xml}` is a placeholder a project overrides by name (`mvn test` with `target/surefire-reports`, `pytest --junitxml=junit.xml`) |
-| Task `implement` | inputs `plan`, `taskId` (value), `spec`, `architecture`, `designs` (artifacts), `glossary`, `rules`, `repository` (the workspace), `previous`, `previousOutcome` (what the tests did last round), `feedback`, `baseline` (the tests before `build-all`, optional); output `record`, id `<plan>-<t-n>`; `workspace: {input: repository}`; `sideEffects: nonIdempotent` (it writes the repository); `timeout: 72h`, a human's |
+| Task `implement` | inputs `plan`, `taskId` (value), `spec`, `architecture`, `adrs` (artifacts, optional: the Adrs the Architecture applies), `designs` (artifacts), `glossary`, `rules`, `repository` (the workspace), `previous`, `previousOutcome` (what the tests did last round), `feedback`, `baseline` (the tests before `build-all`, optional); output `record`, id `<plan>-<t-n>`; `workspace: {input: repository}`; `sideEffects: nonIdempotent` (it writes the repository); `timeout: 72h`, a human's |
 | Task `run-baseline` | inputs `plan`, `repository`; output `baseline`, a TestOutcome, id `<plan>-baseline`; Executor `test-runner`; `workspace: {input: repository}`; `sideEffects: idempotent`; `timeout: 2h`; the project's tests before any task is built |
 | Task `run-tests` | inputs `record`, `repository`; output `testOutcome`, id `<record>-tests`; `workspace: {input: repository}`; the `record` input pins the record in the outcome's provenance; `sideEffects: idempotent`; `timeout: 2h`, a ceiling an Executor override cannot raise |
 | Prompt `audit-rules` | for each row of the record, read the named tests in the repository and judge whether they prove the scenario: an `AC-n`'s Given/When/Then with its values, a `QS-n`'s stimulus and its response and measure as one run decides it (the Spec's `delta` replacing what it tightens), a `fitness` one the structure; a test that asserts nothing the scenario says, mocks the thing under test or proves another scenario is `test-unfit`; wrong behaviour it sees in the code it read that no row covers and no `D-n` reports is a `defect-seen` warning; pass and fail are `acceptance-evidence`'s, not the auditor's; never edit a file |
@@ -333,6 +333,11 @@ name`; a name is never split (vitest's own `name` holds ` > `). Cases with the s
   extra rounds were the Plan's, not the defect's: `T-1` is verified by `AC-1` to `AC-3`, so its
   Gate refused a record without them. Reporting is reliable; writing the Issue is not, which the
   roadmap's listing of the `D-n` no Issue cites covers. Found in UAT.
+- The builder reads the Adrs the Architecture applies: `build-all`, `build-one` and `build-work`
+  pass an optional `adrs` to `implement`. In the live run the Architecture's decisions named
+  `adr-receipts-as-blobs` and the builder could not read it, so it asked what the receipt store was
+  and built a stand-in; the task took all three rounds. The Architecture, the Specs and the Designs
+  reached it already; the Adrs were the one upstream decision it could not see. Found in UAT.
 
 ## Examples
 
