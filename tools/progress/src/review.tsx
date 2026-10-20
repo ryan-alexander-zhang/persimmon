@@ -3,7 +3,8 @@ import { ChevronDown, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import * as api from "./api";
 import { DocView } from "./doc";
-import { type Finding, message, type Schema, verdict } from "./lib/document";
+import { countChanges, diffDoc } from "./lib/diff";
+import { type Finding, message, type Schema, toDoc, verdict } from "./lib/document";
 
 export function Review({ namespace, taskRun, onAnswered }: { namespace: string; taskRun: string; onAnswered: (passed: boolean) => void }) {
   const [form, setForm] = useState<api.Form | undefined>();
@@ -12,13 +13,17 @@ export function Review({ namespace, taskRun, onAnswered }: { namespace: string; 
   const [general, setGeneral] = useState("");
   const [sending, setSending] = useState(false);
   const [schemas, setSchemas] = useState<Record<number, Schema | undefined>>({});
+  // the revision each document had in the round before: what this round changed is the reviewer's first question
+  const [prevs, setPrevs] = useState<Record<number, { revision: number; content: unknown } | undefined>>({});
+  const [hidden, setHidden] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     api.form(namespace, taskRun).then(setForm, (e) => setError((e as Error).message));
   }, [namespace, taskRun]);
   useEffect(() => {
     form?.reading?.forEach((r, i) => r.ref && void api.schemaOf(r.ref).then((s) => setSchemas((m) => ({ ...m, [i]: s }))));
-  }, [form]);
+    form?.reading?.forEach((r, i) => r.ref && r.ref.revision > 1 && void api.previous(r.ref, namespace).then((p) => setPrevs((m) => ({ ...m, [i]: p })), () => undefined));
+  }, [form, namespace]);
 
   const evidence = useMemo(() => (form?.reading ?? []).filter((r) => r.ref && !r.error).map((r) => r.ref!), [form]); // only what was shown
   const all = general.trim() ? [...findings, { anchor: "", text: general.trim() }] : findings;
@@ -61,13 +66,14 @@ export function Review({ namespace, taskRun, onAnswered }: { namespace: string; 
                   <span className="font-medium text-ink-2">{r.ref.id}</span>, revision {r.ref.revision}
                 </>
               )}
+              {prevs[i] && <ChangesSwitch on={!hidden[i]} onChange={(on) => setHidden((h) => ({ ...h, [i]: !on }))} since={prevs[i]!.revision} count={countOf(prevs[i]!.content, r.content, schemas[i], r.ref!.id)} />}
               {r.ref?.kind === "EventStorming" && (
                 <a className="ml-3 font-medium text-run hover:underline" href={`/tools/eventstorming/?${new URLSearchParams({ ns: namespace, id: r.ref.id, rev: String(r.ref.revision) })}`} target="_blank" rel="noreferrer">
                   Open the board
                 </a>
               )}
             </p>
-            {r.error ? <p className="text-bad">Could not read it: {r.error}</p> : <DocView content={r.content} schema={schemas[i]} base={r.ref?.id ?? r.name ?? r.kind} noting={noting} />}
+            {r.error ? <p className="text-bad">Could not read it: {r.error}</p> : <DocView content={r.content} schema={schemas[i]} base={r.ref?.id ?? r.name ?? r.kind} noting={noting} {...(prevs[i] && !hidden[i] ? { prev: prevs[i]!.content } : {})} />}
           </article>
         ))}
       </div>
@@ -115,6 +121,23 @@ export function Review({ namespace, taskRun, onAnswered }: { namespace: string; 
         </footer>
       ) : null}
     </div>
+  );
+}
+
+const countOf = (prev: unknown, next: unknown, schema: Schema | undefined, base: string) => {
+  const d = diffDoc(toDoc(prev, schema, base), toDoc(next, schema, base));
+  return countChanges(d.blocks) + d.meta.filter((m) => m.change).length;
+};
+
+function ChangesSwitch({ on, onChange, since, count }: { on: boolean; onChange: (on: boolean) => void; since: number; count: number }) {
+  return (
+    <label className="relative ml-3 inline-flex cursor-pointer items-center gap-2 align-middle text-[13px] text-ink-2">
+      <input type="checkbox" role="switch" checked={on} onChange={(e) => onChange(e.target.checked)} className="peer sr-only" />
+      <span className="relative h-[18px] w-8 rounded-full bg-line transition-colors peer-checked:bg-done peer-focus-visible:outline-2 peer-focus-visible:outline-run" aria-hidden>
+        <span className={`absolute top-[2px] size-[14px] rounded-full bg-white transition-[left] ${on ? "left-[16px]" : "left-[2px]"}`} />
+      </span>
+      {count === 0 ? `No changes since revision ${since}` : `Show ${count} change${count > 1 ? "s" : ""} since revision ${since}`}
+    </label>
   );
 }
 

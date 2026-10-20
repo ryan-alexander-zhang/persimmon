@@ -77,6 +77,15 @@ export function schemaOf(ref: { apiVersion: string; kind: string }): Promise<Sch
   return schemas.get(key)!;
 }
 
+/** The revision before `ref` of the same artifact, and its content; none for a first revision. */
+export async function previous(ref: RevisionRef, namespace: string): Promise<{ revision: number; content: unknown } | undefined> {
+  const n = await kindName(ref);
+  if (!n) return undefined;
+  const { revisions } = await call<{ revisions: number[] }>(`/api/artifacts/${ref.namespace ?? namespace}/${n}/${ref.id}`);
+  const rev = revisions.filter((r) => r < ref.revision).at(-1); // the counter may have skipped an abandoned one
+  return rev === undefined ? undefined : { revision: rev, content: await revision({ ...ref, revision: rev }, namespace) };
+}
+
 /** One stored revision's content. */
 export async function revision(ref: RevisionRef, namespace: string): Promise<unknown> {
   const n = await kindName(ref);

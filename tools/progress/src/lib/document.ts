@@ -5,18 +5,31 @@ export type Schema = Record<string, unknown>;
 /** What a finding on a passage names: the nearest `id` (else the artifact id) and the field path below it. */
 export type Anchor = string;
 
-export type Block =
+/** Set only on a document compared with an earlier revision (`diff.ts`). */
+export type Change = "added" | "removed" | "changed";
+
+/** A run of prose words, added or removed against the earlier revision. */
+export interface Part {
+  text: string;
+  change?: "added" | "removed";
+}
+
+export type Block = (
   | { t: "section"; heading: string; description?: string; anchor: Anchor; blocks: Block[] }
   | { t: "element"; id?: string; title?: string; meta: Meta[]; anchor: Anchor; blocks: Block[] }
-  | { t: "prose"; label?: string; description?: string; text: string; anchor: Anchor }
-  | { t: "list"; label?: string; description?: string; items: { text: string; anchor: Anchor }[]; tags: boolean }
+  | { t: "prose"; label?: string; description?: string; text: string; anchor: Anchor; parts?: Part[] }
+  | { t: "list"; label?: string; description?: string; items: { text: string; anchor: Anchor; change?: Change }[]; tags: boolean }
   | { t: "group"; label?: string; description?: string; blocks: Block[] }
-  | { t: "empty"; label?: string };
+  | { t: "empty"; label?: string }
+) & { change?: Change };
 
 export interface Meta {
   label: string;
   value: string;
   anchor: Anchor;
+  change?: Change;
+  /** The earlier value of a changed field. */
+  was?: string;
 }
 
 export interface Doc {

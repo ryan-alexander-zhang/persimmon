@@ -1,15 +1,17 @@
 // An artifact set as a document (37-progress.md); in a review, selecting text or a heading's button notes a finding.
 import { MessageSquarePlus } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { type Anchor, type Block, type Finding, type Meta, type Schema, toDoc } from "./lib/document";
+import { diffDoc } from "./lib/diff";
+import { type Anchor, type Block, type Finding, type Meta, type Part, type Schema, toDoc } from "./lib/document";
 
 export interface Noting {
   findings: Finding[];
   add: (f: Finding) => void;
 }
 
-export function DocView({ content, schema, base, noting }: { content: unknown; schema?: Schema; base: string; noting?: Noting }) {
-  const doc = useMemo(() => toDoc(content, schema, base), [content, schema, base]);
+/** With `prev`, the document is marked with what changed since that earlier revision's content. */
+export function DocView({ content, schema, base, noting, prev }: { content: unknown; schema?: Schema; base: string; noting?: Noting; prev?: unknown }) {
+  const doc = useMemo(() => (prev === undefined ? toDoc(content, schema, base) : diffDoc(toDoc(prev, schema, base), toDoc(content, schema, base))), [content, schema, base, prev]);
   const box = useRef<HTMLDivElement>(null);
   const [pick, setPick] = useState<{ anchor: Anchor; quote?: string; x: number; y: number } | undefined>();
   const [draft, setDraft] = useState<typeof pick>();
@@ -33,7 +35,7 @@ export function DocView({ content, schema, base, noting }: { content: unknown; s
   }, [noting, base]);
 
   const noted = (anchor: Anchor) => noting?.findings.filter((f) => f.anchor === anchor).length ?? 0;
-  const ctx: Ctx = { noted, onHeading: noting ? (anchor, el) => setDraft({ anchor, ...corner(el) }) : undefined };
+  const ctx: Ctx = { diffing: prev !== undefined, noted, onHeading: noting ? (anchor, el) => setDraft({ anchor, ...corner(el) }) : undefined };
 
   return (
     <div ref={box} className="max-w-[68ch] font-read text-[17px] leading-[1.65] text-ink">
@@ -79,6 +81,7 @@ const corner = (el: HTMLElement) => {
 };
 
 interface Ctx {
+  diffing: boolean;
   noted: (anchor: Anchor) => number;
   onHeading?: (anchor: Anchor, el: HTMLElement) => void;
 }
@@ -89,25 +92,15 @@ const mark = (ctx: Ctx, anchor: Anchor) => (ctx.noted(anchor) ? "border-l-2 bord
 function BlockView({ block, ctx }: { block: Block; ctx: Ctx }) {
   switch (block.t) {
     case "section":
-      return (
-        <section data-anchor={block.anchor}>
-          <h2 className="font-sans text-[19px] font-semibold text-ink" title={block.description}>
-            {block.heading}
-          </h2>
-          <div className="mt-3 space-y-5">
-            {block.blocks.map((b, i) => (
-              <BlockView key={i} block={b} ctx={ctx} />
-            ))}
-          </div>
-        </section>
-      );
+      return <Section block={block} ctx={ctx} />;
     case "element":
       return (
         <div data-anchor={block.anchor} className={`group/el ${mark(ctx, block.anchor)}`}>
           {(block.id || block.title) && (
-            <h3 className="flex items-baseline gap-2.5">
+            <h3 className={`flex items-baseline gap-2.5 ${block.change === "removed" ? "opacity-50" : ""}`}>
               {block.id && <span className="shrink-0 rounded bg-line-2 px-1.5 py-px font-sans text-[13px] font-semibold text-ink-2 tabular-nums">{block.id}</span>}
-              {block.title && <span className="font-semibold">{block.title}</span>}
+              {block.title && <span className={`font-semibold ${block.change === "removed" ? "line-through decoration-bad/60" : ""}`}>{block.title}</span>}
+              <ChangeTag change={block.change} />
               {ctx.onHeading && (
                 <button
                   type="button"
@@ -121,9 +114,9 @@ function BlockView({ block, ctx }: { block: Block; ctx: Ctx }) {
               )}
             </h3>
           )}
-          {block.meta.length > 0 && <MetaLine meta={block.meta} className="mt-0.5" ctx={ctx} />}
+          {block.meta.length > 0 && <MetaLine meta={block.meta} className={`mt-0.5 ${block.change === "removed" ? "opacity-50" : ""}`} ctx={ctx} />}
           {block.blocks.length > 0 && (
-            <div className="mt-1.5 space-y-2">
+            <div className={`mt-1.5 space-y-2 ${block.change === "removed" ? "opacity-50" : ""}`}>
               {block.blocks.map((b, i) => (
                 <BlockView key={i} block={b} ctx={ctx} />
               ))}
@@ -134,16 +127,29 @@ function BlockView({ block, ctx }: { block: Block; ctx: Ctx }) {
     case "prose":
       return (
         <div data-anchor={block.anchor} className={mark(ctx, block.anchor)}>
-          {block.text.split(/\n\s*\n/).map((para, i) => (
-            <p key={i} className="whitespace-pre-line">
-              {i === 0 && block.label && (
+          {block.parts || block.change ? (
+            <p className="whitespace-pre-line">
+              {block.label && (
                 <span className="font-sans text-[14px] font-semibold text-ink-2" title={block.description}>
                   {block.label}.{" "}
                 </span>
               )}
-              {para}
+              {(block.parts ?? [{ text: block.text, ...(block.change === "added" || block.change === "removed" ? { change: block.change } : {}) }]).map((p, i) => (
+                <Words key={i} part={p} />
+              ))}
             </p>
-          ))}
+          ) : (
+            block.text.split(/\n\s*\n/).map((para, i) => (
+              <p key={i} className="whitespace-pre-line">
+                {i === 0 && block.label && (
+                  <span className="font-sans text-[14px] font-semibold text-ink-2" title={block.description}>
+                    {block.label}.{" "}
+                  </span>
+                )}
+                {para}
+              </p>
+            ))
+          )}
         </div>
       );
     case "list":
@@ -158,7 +164,7 @@ function BlockView({ block, ctx }: { block: Block; ctx: Ctx }) {
           {block.tags ? (
             <span className="inline-flex flex-wrap gap-1.5 align-baseline">
               {block.items.map((it, i) => (
-                <span key={i} className="rounded bg-line-2 px-1.5 font-sans text-[13px] font-medium text-ink-2">
+                <span key={i} className={`rounded px-1.5 font-sans text-[13px] font-medium ${it.change === "added" ? "bg-done-soft text-done" : it.change === "removed" ? "bg-bad-soft text-bad line-through" : "bg-line-2 text-ink-2"}`}>
                   {it.text}
                 </span>
               ))}
@@ -166,7 +172,7 @@ function BlockView({ block, ctx }: { block: Block; ctx: Ctx }) {
           ) : (
             <ul className="mt-1 list-disc space-y-1 pl-6 marker:text-ink-3">
               {block.items.map((it, i) => (
-                <li key={i}>{it.text}</li>
+                <li key={i}>{it.change ? <Words part={{ text: it.text, change: it.change === "removed" ? "removed" : "added" }} /> : it.text}</li>
               ))}
             </ul>
           )}
@@ -202,11 +208,64 @@ function MetaLine({ meta, className, ctx }: { meta: Meta[]; className?: string; 
       {meta.map((m, i) => (
         <span key={i} data-anchor={m.anchor} className={ctx.noted(m.anchor) ? "text-persimmon" : ""}>
           {i > 0 && ", "}
-          {i === 0 ? m.label : m.label.toLowerCase()} <span className="font-medium text-ink">{m.value}</span>
+          {i === 0 ? m.label : m.label.toLowerCase()}{" "}
+          {m.change === "removed" ? (
+            <Words part={{ text: m.value, change: "removed" }} />
+          ) : m.change ? (
+            <>
+              <Words part={{ text: m.value, change: "added" }} />
+              {m.was !== undefined && (
+                <>
+                  {" "}
+                  <Words part={{ text: m.was, change: "removed" }} />
+                </>
+              )}
+            </>
+          ) : (
+            <span className="font-medium text-ink">{m.value}</span>
+          )}
         </span>
       ))}
     </p>
   );
+}
+
+/** A section; unchanged ones fold to their heading while changes are shown. */
+function Section({ block, ctx }: { block: Extract<Block, { t: "section" }>; ctx: Ctx }) {
+  const [opened, setOpen] = useState<boolean>(); // the reader's choice; until then, folded when unchanged (the earlier revision may load after this mounts)
+  const open = opened ?? (!ctx.diffing || !!block.change);
+  return (
+    <section data-anchor={block.anchor} className={block.change === "removed" ? "opacity-50" : ""}>
+      <h2 className="flex items-baseline gap-2.5 font-sans text-[19px] font-semibold text-ink" title={block.description}>
+        {block.heading}
+        <ChangeTag change={block.change === "changed" ? undefined : block.change} />
+        {ctx.diffing && !block.change && (
+          <button type="button" onClick={() => setOpen(!open)} className="text-[13px] font-normal text-ink-3 hover:text-ink">
+            {open ? "unchanged, fold" : "unchanged, show"}
+          </button>
+        )}
+      </h2>
+      {open && (
+        <div className="mt-3 space-y-5">
+          {block.blocks.map((b, i) => (
+            <BlockView key={i} block={b} ctx={ctx} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** Words added (green underline) or removed (struck in red) since the earlier revision. */
+function Words({ part }: { part: Part }) {
+  if (part.change === "added") return <ins className="bg-done-soft text-ink underline decoration-done decoration-2 underline-offset-4">{part.text}</ins>;
+  if (part.change === "removed") return <del className="text-bad decoration-bad/70">{part.text}</del>;
+  return <>{part.text}</>;
+}
+
+function ChangeTag({ change }: { change?: string }) {
+  if (change !== "added" && change !== "removed") return null;
+  return <span className={`self-center rounded px-1.5 py-px font-sans text-[12px] font-semibold ${change === "added" ? "bg-done-soft text-done" : "bg-bad-soft text-bad"}`}>{change === "added" ? "Added" : "Removed"}</span>;
 }
 
 function Composer({ at, onKeep, onDrop }: { at: { anchor: Anchor; quote?: string; x: number; y: number }; onKeep: (text: string) => void; onDrop: () => void }) {
