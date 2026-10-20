@@ -382,7 +382,7 @@ spec:
     - `steps`: for an `api` case each request, `METHOD /path` as the Designs name the operation, and what it answers; for an `e2e` case each action on a screen the `ui` Designs name; for a `manual` one what the person does. A `unit` or `integration` case may leave them out: its scenario's Given/When/Then is then the case.
     - `expected`: what the case observes at the end, the scenario's Then with its values. `title`: the case in a few words, the Glossary's.
 
-    `spec` and `harness` are the artifact ids of the inputs with those names. `openQuestions`, `Q-n` from 1: a scenario no level can reach, an operation no Design has.
+    `spec` and `harness` are the artifact ids of the inputs with those names. `openQuestions`, `Q-n` from 1: a scenario no level can reach, an operation no Design has. A question is the human's to answer when they confirm the cases: leave it without a `resolution`. A `resolution` is only an answer a finding in `feedback` gave, in its words; never one you decide, and never in the human's name.
 
     Ids `TC-n`, `Q-n` unique and increasing; a revision keeps every id in place and never reuses one.
 

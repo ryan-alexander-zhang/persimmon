@@ -526,7 +526,6 @@ export function checkTestDesign({ testDesign, spec, architecture, rules, harness
   }
   for (const id of acs) if (!verified.has(id)) bad('scenario-uncovered', `${id}: no case verifies it`)
   for (const id of cited) if (provenAt.get(id) === 'build' && !verified.has(id)) bad('scenario-uncovered', `quality scenario ${id} is proven at build but no case verifies it`)
-  for (const q of testDesign.openQuestions ?? []) if (!q.resolution) bad('question-open', `${q.id} is open: ${q.question}`)
   sequence(bad, 'TC', testDesign.cases.map((c) => c.id))
   sequence(bad, 'Q', (testDesign.openQuestions ?? []).map((q) => q.id))
   return findings

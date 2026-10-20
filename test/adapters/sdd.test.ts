@@ -1011,7 +1011,7 @@ describe('sdd/v1 over the Test process', () => {
     const e2e = td(); e2e.cases[0].level = 'e2e'; expect(designFindings(e2e)).toEqual(['level-unavailable'])
     const steps = td(); delete steps.cases[0].steps; expect(designFindings(steps)).toEqual(['steps-missing'])
     const manual = td(); manual.cases[0].execution = 'manual'; expect(designFindings(manual)).toEqual(['p0-manual'])
-    const open = td(); open.openQuestions = [{ id: 'Q-1', question: 'which receipt formats?' }]; expect(designFindings(open)).toEqual(['question-open'])
+    const open = td(); open.openQuestions = [{ id: 'Q-1', question: 'which receipt formats?' }]; expect(designFindings(open)).toEqual([]) // the human's, at the Gate
     const other = td(); other.spec = 'other'; other.harness = 'other'; expect(designFindings(other)).toEqual(['spec-mismatch', 'harness-mismatch'])
     expect(checkTestDesign({ testDesign: { title: 'x' } }).map((f: { code: string }) => f.code)).toEqual(['not-a-test-design'])
   })

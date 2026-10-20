@@ -877,6 +877,8 @@ spec:
       Confirm the test cases of the Spec before any of it is built. Judge whether each case tests what its scenario
       accepts, at the level a person or a client meets it, with a priority its failure deserves; the check covers every
       scenario beside you. Approve, or reject with one finding per TC-n that must change, naming it in the message.
+      Each open Q-n is yours to answer: reject with a finding naming it and giving the answer, which the next round
+      records as its resolution.
       `audit`, when bound, is the auditor's verdict on this draft: it passed, and each warning is a doubt for you to judge,
       not a defect already decided.
     context:
