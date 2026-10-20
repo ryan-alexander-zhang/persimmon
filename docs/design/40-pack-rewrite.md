@@ -172,7 +172,7 @@ One per Source system, a revision per step per Slice.
 | `slices[]` | the human's cut, from `cut-slices` |
 | `suite?` | `{levels {app?, units?, records?: {tool, run, one, reset?, junit, observations, testDir, coverage?}}, drivers {source, rewrite?}, conventions}`; `observations` is the JSON file a run writes, `{<test>: <what it observed>}`, so the ledger records what the source answered without reading a test; `levels` empty when nothing runs; absent before characterization |
 | `entryPoints[]` | `{id EP-n, oracle}` |
-| `items[]` | `{ref GD-n\|DC-n\|ST-n\|EX-n\|AB-n, slice, reached, mutant?: killed\|survived\|invalid\|none, tests[], rules[] BR-n, disposition?, dead?, accepted?, plumbing? PP-n, reader?, account: complete\|unverified\|open, reason?}`: every decision a typed field, as given |
+| `items[]` | `{ref GD-n\|DC-n\|ST-n\|EX-n\|AB-n, slice, reached, pinnable, pinned, mutant?: killed\|survived\|invalid\|none, tests[], rules[] BR-n, disposition?, dead?, accepted?, plumbing? PP-n, reader?, account: complete\|unverified\|open, reason?}`: every decision a typed field, as given; `pinnable` its Oracle can pin it (a `running` or `partial` entry point, its lines measured, not volatile), `pinned` a test citing it and green on the source failed on its mutant, so a check reads the facts, never the reason's words |
 | `answers[]` | `{test, observed}`: what the source answered, recorded when the test passed on it, never edited |
 | `differences[]` | `{test, source, rewrite, cause?: {rule BR-n} \| {issue}}` |
 | `unreached[]` | `{ref, slice, why}` |
