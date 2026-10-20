@@ -1,5 +1,5 @@
 // The JSON API over the Engine (25-ui.md): revisioned kinds, their artifacts, one revision, its representations, create the next one;
-// the Inbox (37-inbox.md): TaskRuns parked on a human, their forms, the answer.
+// the Inbox (37-progress.md): TaskRuns parked on a human, their forms, the answer.
 // Local mode binds loopback and trusts the user, so there is no auth here; server mode adds https and tokens.
 import { existsSync, readFileSync } from 'node:fs'
 import type { IncomingMessage, ServerResponse } from 'node:http'
@@ -131,7 +131,7 @@ async function route(engine: Engine, req: IncomingMessage, path: string[], url: 
   return { status: 200, raw: { bytes: blob.bytes, mediaType: rep.mediaType } }
 }
 
-/** The Inbox (37-inbox.md): only the TaskRuns this engine drives; the answer goes through the path `persimmon complete` takes. */
+/** The Inbox (37-progress.md): only the TaskRuns this engine drives; the answer goes through the path `persimmon complete` takes. */
 async function inbox(engine: Engine, req: IncomingMessage, rest: string[], method: string, url: URL): Promise<{ status: number; body?: unknown }> {
   const formOf = (r: Resource) => (existsSync(formPath(engine, r.metadata.name)) ? (parse(readFileSync(formPath(engine, r.metadata.name), 'utf8')) as Form & { deadline?: string }) : undefined)
   if (rest.length === 0 && method === 'GET') {

@@ -93,7 +93,7 @@ runs beside it (`34-subdomains.md`): `derived-subdomain-mismatch`, `derived-clas
   Found in design review.
 - The human gate is `cli-human/v1` pointing at `persimmon ui`: the form carries the artifact name,
   the editor shows the board, the terminal takes the verdict. A `review-ui` Adapter waits for server
-  mode. Superseded: the Inbox answers the verdict in `persimmon ui` (`37-inbox.md`).
+  mode. Superseded: Progress answers the verdict in `persimmon ui` (`37-progress.md`).
 - `confirm-storming` is its own Task rather than an Approval, because the phase Gate also needs
   the grammar Validator with a bound level, and an Approval's approvers are Tasks only.
 

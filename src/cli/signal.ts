@@ -69,7 +69,7 @@ export async function complete(cli: Cli, taskRun: string, file: string | undefin
   })
 }
 
-/** Why `r` takes no answer here, or undefined: it must wait on a human and belong to this project directory (37-inbox.md). */
+/** Why `r` takes no answer here, or undefined: it must wait on a human and belong to this project directory (37-progress.md). */
 export function notAnswerable(engine: Engine, r: Resource): string | undefined {
   const status = (r.status ?? {}) as { phase?: string; waitingReason?: string }
   if (status.phase !== 'Waiting' || status.waitingReason !== 'human') return `TaskRun/${r.metadata.name} is ${status.phase ?? 'Pending'}${status.waitingReason ? ` (${status.waitingReason})` : ''}, not waiting for a human`

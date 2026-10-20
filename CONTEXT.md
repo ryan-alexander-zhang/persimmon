@@ -521,9 +521,15 @@ The event storming **Tool**, `tools/eventstorming/`, opened at `/tools/eventstor
 _Avoid_: board app, canvas (for the whole tool), event storming web tool
 
 **Inbox**:
-The **Tool** at `/tools/inbox/` that lists the TaskRuns parked on a human, renders their
-**Reading** for any kind, and answers a ValidationResult from the browser (`37-inbox.md`).
-_Avoid_: review page, approval UI, dashboard
+The TaskRuns parked on a human that this project directory's engine drives, each with its
+`cli-human/v1` form; served under `/api/inbox` and answered there or with `persimmon complete`.
+_Avoid_: queue, task list, approvals
+
+**Progress**:
+The **Tool** at `/tools/progress/`, home of `persimmon ui`: one product's SDLC phases as a map, a
+phase's runs round by round, artifacts as documents, and the **Inbox** entries answered on it
+(`37-progress.md`).
+_Avoid_: dashboard, board (the Editor's), pipeline view
 
 **DomainModel**:
 **Artifact kind**, one per **BoundedContext**, derived from a design-level **EventStorming**:

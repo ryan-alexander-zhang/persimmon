@@ -80,7 +80,7 @@ persimmon get Spec --behind                     # latest revisions whose pinned 
 persimmon get Design/<id> --files out/          # its representations (the HTML, the mockups the agent drew) as files
 persimmon tree WorkflowRun/<name>               # the run, what it produced and every run it owns
 persimmon complete <taskRun>                    # answer a human Task; use --file result.yaml to script it
-persimmon ui                                    # the Inbox: read a parked approval in the browser, note findings, approve or reject
+persimmon ui                                    # Progress: the product's phases as a map; read a parked approval, note findings, approve or reject
 persimmon resume                                # drive waiting work after a Signal or a timer
 persimmon adapter test claude-code/v1           # conformance suite over an installed Adapter; --live makes one real call
 persimmon --help                                # every verb, including skill install and digest

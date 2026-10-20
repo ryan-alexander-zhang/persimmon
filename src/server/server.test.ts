@@ -138,7 +138,7 @@ describe('persimmon ui server', () => {
     expect([root.status, root.headers.get('location')]).toEqual([302, '/tools/inbox/'])
   })
 
-  it('the Inbox lists a TaskRun parked on a human, serves its form and answers it through the complete path (37-inbox.md)', async () => {
+  it('the Inbox lists a TaskRun parked on a human, serves its form and answers it through the complete path (37-progress.md)', async () => {
     const vr = { type: { kind: 'value', schema: { $ref: 'persimmon.ai/v1#/ValidationResult' } } }
     const ask = { apiVersion: 'persimmon.ai/v1', kind: 'Task', metadata: { name: 'ask', namespace: 'default' }, spec: { inputs: {}, outputs: { result: vr }, executorRef: { kind: 'Executor', name: 'local-reviewer' }, action: { instructions: 'Answer' }, timeout: '1h', sideEffects: 'none' } }
     const wf = { apiVersion: 'persimmon.ai/v1', kind: 'Workflow', metadata: { name: 'ask-wf', namespace: 'default' }, spec: { entry: ['ask'], steps: [{ id: 'ask', uses: { kind: 'Task', name: 'ask' }, timeout: '1h' }], transitions: [{ id: 'done', from: [{ stepRef: 'ask', outcomes: ['Succeeded'] }], to: [{ terminal: 'Succeeded' }] }], timeout: '3h' } }
