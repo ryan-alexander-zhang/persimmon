@@ -50,7 +50,7 @@ nothing about how the document came to be:
 > review. Read `.persimmon/inbox/<taskRun>.yaml`: its `instructions`, then every `reading` entry in
 > order; the Prompt entries are the checklist, the artifact entries are what is under review. Read
 > what the checks before you found: `persimmon tree WorkflowRun/<run>` output below.
-> This is round <n> of at most 3; a rejection in round 3 ends the loop unapproved.
+> This is round <n> of at most <max>; a rejection in round <max> ends the loop unapproved.
 > Approve only if the document is right for its product, consistent with what it cites, and the
 > checks left no error. Reject only for what is wrong: a behaviour, number, rule or citation that
 > later work would build on wrongly, or an open `Q-n`. Wording, grammar and style are `info` notes
@@ -65,7 +65,8 @@ nothing about how the document came to be:
 > A rejection's findings are `error`; an approval's notes are `info`. Reply with `passed` and
 > every `Q-n` you decided, one line each.
 
-Fill in the round from the task name (`rounds-<n>`) and append the tree's output to the prompt.
+Fill in the round from the task name (`rounds-<n>`), its `<max>` from the ReviewLoop's `maxRounds`
+(`persimmon get ReviewLoop/<name>`), and append the tree's output to the prompt.
 Keep every `Q-n` decision it replies with for the report.
 
 ## End
@@ -79,7 +80,9 @@ review `passed`. The next run takes those revisions.
 Stop and report, never work around it, when:
 
 - a run ends Failed, or prints a reconcile error (`PERSIMMON_DEBUG=1` shows it);
-- a ReviewLoop runs out of rounds;
+- a ReviewLoop runs out of rounds a second time. The first time, start the same Workflow again
+  over only what did not pass (the capabilities, blocks or tasks left), with the same inputs: a
+  loop's agent may pass from a fresh start, and its Gate still judges;
 - a subagent's answer is refused twice for the same form;
 - an `Issue`'s fix fails its Gate (`autopilot-code`).
 
