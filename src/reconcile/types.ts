@@ -57,6 +57,6 @@ export type Action =
   | { type: 'emitEvent'; eventType: string; payload: Record<string, unknown> }
   | { type: 'setTimer'; key: string; at: string }
   | { type: 'clearTimer'; key: string }
-  | { type: 'callAdapter'; adapterId: string; op: string; payload: Record<string, unknown>; idempotencyKey: string; deadline?: string }
+  | { type: 'callAdapter'; adapterId: string; op: string; payload: Record<string, unknown>; idempotencyKey: string; deadline?: string; exclusive?: string }
 
 export type ActionType = Action['type']

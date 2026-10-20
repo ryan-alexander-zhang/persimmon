@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { parse } from 'yaml'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { parseConfig } from './config.js'
 import { Engine, localActor } from './engine.js'
 import { readClosure } from './snapshot/snapshot.js'
@@ -299,6 +299,27 @@ describe('Engine', () => {
     expect(wr.status).toMatchObject({ phase: 'Failed', error: { code: 'schema_violation' }, steps: { research: { phase: 'Failed' }, 'write-prd': { phase: 'Skipped' } } })
     expect(engine.store.runLog.listOpen()).toEqual([])
     expect(engine.store.timers.due('2099-01-01T00:00:00Z')).toEqual([])
+  })
+
+  it('an exclusive Executor\'s call waits while another holds the name, and the drain with it (13-executor.md)', async () => {
+    process.env.PERSIMMON_CRED_DEMO__GITHUB_TOKEN = 'ghp-test'
+    await engine.start()
+    await engine.apply(fakeAdapter('claude-code/v1'))
+    for (const n of ['kind-definition-productrequirement', 'kind-definition-researchreport']) await engine.apply(example(n))
+    for (const r of closure.resources.filter((r) => r.kind !== 'KindDefinition') as Resource[]) await engine.apply(fresh(r.kind === 'Executor' ? { ...r, spec: { ...r.spec, exclusive: 'tests' } } : r))
+    expect(engine.store.leases.acquire('exclusive/tests', 'another-worktree', 60_000)).toBe(true)
+    await engine.create(fresh(example('run-workflowrun')))
+    let drained = false
+    const draining = engine.drain().then(() => (drained = true))
+    await vi.waitFor(() => expect(engine.store.runLog.outstandingCalls()).toHaveLength(1), { timeout: 5000 })
+    await new Promise((r) => setTimeout(r, 1200)) // a poll later, still not dispatched
+    expect(drained).toBe(false)
+    expect(engine.store.runLog.outstandingCalls()).toHaveLength(1)
+    engine.store.leases.release('exclusive/tests', 'another-worktree')
+    await draining
+    const research = engine.store.resources.get({ kind: 'TaskRun', namespace: 'demo', name: 'prd-create-001-research' })!
+    expect((research.status as { error: { code: string } }).error.code).toBe('schema_violation') // the fake answered: the call went out
+    expect(engine.store.leases.acquire('exclusive/tests', 'next', 1)).toBe(true) // released with the answer
   })
 })
 

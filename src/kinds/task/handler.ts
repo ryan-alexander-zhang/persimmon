@@ -206,6 +206,7 @@ export function taskHandler(deps: HandlerDeps): HandlerImpl {
               op: 'execute',
               idempotencyKey: key,
               deadline: rfc3339(attemptDeadline),
+              ...(executor.exclusive ? { exclusive: executor.exclusive } : {}),
               payload: {
                 taskRun: { ref: ref(run), logicalExecutionId: lei, idempotencyKey: key, attempt: index },
                 task: { instructions: task.spec.action.instructions, parameters: task.spec.action.parameters ?? {}, sideEffects: task.spec.sideEffects, outputs, outputSchemas, outputIds },

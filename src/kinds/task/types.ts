@@ -42,6 +42,7 @@ export interface ExecutorSpec {
   adapter: string
   configuration?: Record<string, unknown>
   security?: { networkAccess?: 'deny' | 'allowlist'; allowedHosts?: string[]; credentialBindings?: string[] }
+  exclusive?: string
 }
 
 export interface TaskResult {

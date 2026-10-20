@@ -117,14 +117,19 @@ export function pumpTimers(engine: Engine): number {
   return due.length
 }
 
-/** Dispatches every outstanding callAdapter not already in flight; answers arrive as AdapterFinished. */
-export async function dispatchCalls(engine: Engine): Promise<number> {
-  const calls = engine.store.runLog.outstandingCalls().filter((c) => !engine.inFlight.has(`${c.uid}/${c.action.idempotencyKey}`) && owns(engine, c.uid))
+/** Dispatches every outstanding callAdapter not already in flight; answers arrive as AdapterFinished. `waiting`: exclusive calls another holds the Lease for. */
+export async function dispatchCalls(engine: Engine): Promise<{ dispatched: number; waiting: number }> {
+  const open = engine.store.runLog.outstandingCalls().filter((c) => !engine.inFlight.has(`${c.uid}/${c.action.idempotencyKey}`) && owns(engine, c.uid))
+  // an exclusive call goes out only under the Lease on its name, held per call so two of one engine wait too (03-reconcile.md)
+  const lease = (c: (typeof open)[number]) => ({ name: `exclusive/${c.action.exclusive}`, holder: `${engine.holder}/${c.uid}/${c.action.idempotencyKey}` })
+  const calls = open.filter((c) => !c.action.exclusive || engine.store.leases.acquire(lease(c).name, lease(c).holder, engine.leaseTtlMs))
   await Promise.all(
     calls.map(async (c) => {
       const key = `${c.uid}/${c.action.idempotencyKey}`
       engine.inFlight.add(key)
       const a = c.action as { adapterId: string; op: string; payload: Record<string, unknown>; idempotencyKey: string; deadline?: string }
+      const held = c.action.exclusive ? lease(c) : undefined
+      const renew = held && setInterval(() => engine.store.leases.renew(held.name, held.holder, engine.leaseTtlMs), engine.leaseTtlMs / 3)
       const scope = { kind: 'call', uid: c.uid, idempotencyKey: a.idempotencyKey, adapterId: a.adapterId }
       const finished = (payload: AdapterFinishedPayload) => appendEvent(engine, c.uid, { type: 'AdapterFinished', dedupeKey: `adapter/${a.idempotencyKey}`, payload: { ...payload, finishedAt: engine.now().toISOString() } }) // answer time; delivery waits for the other calls of this drain
       try {
@@ -151,10 +156,14 @@ export async function dispatchCalls(engine: Engine): Promise<number> {
       } finally {
         engine.store.tokens.revoke(scope)
         engine.inFlight.delete(key)
+        if (held) {
+          clearInterval(renew)
+          engine.store.leases.release(held.name, held.holder)
+        }
       }
     }),
   )
-  return calls.length
+  return { dispatched: calls.length, waiting: open.length - calls.length }
 }
 
 /** Executor credentials resolve at dispatch, per attempt, and never enter the RunLog (13-executor.md). */
@@ -192,8 +201,11 @@ export async function drain(engine: Engine): Promise<void> {
     let moved = pumpTimers(engine) > 0
     moved = deliverOnce(engine.store, engine.kinds, 100, { maxCausationDepth: engine.maxCausationDepth, leaseTtlMs: engine.leaseTtlMs, holder: engine.holder, now: engine.now }) > 0 || moved
     for (const { uid, entry } of engine.store.runLog.listOpen().filter((o) => owns(engine, o.uid))) moved = (await reconcileOnce(engine, uid, entry)) !== 'skipped' || moved
-    moved = (await dispatchCalls(engine)) > 0 || moved
-    if (!moved) return
+    const { dispatched, waiting } = await dispatchCalls(engine)
+    moved = dispatched > 0 || moved
+    if (moved) continue
+    if (!waiting) return
+    await new Promise((r) => setTimeout(r, 1000)) // another holds an exclusive name; exiting now would leave the call to be marked unknown
   }
 }
 
