@@ -7,7 +7,10 @@ code and tests of one `T-n` in the project's repository and names the test that 
 and `build` `QS-n` the task is verified by; the project's own tests run; a Validator checks the names against the
 outcome. By default the builder is the developer with their own coding agent, as spec-kit, Kiro and
 BMAD hand `/implement` to the developer's session; a Namespace that wants it unattended overrides
-one Executor. Persimmon owns what is built and the proof; the builder owns how.
+one Executor. Persimmon owns what is built and the proof; the builder owns how. Under a TestDesign
+(`39-test-process.md`) the round opens with `select-cases`, a Tester writes the task's api tests before
+`implement` and its e2e tests after it, the builder writes the unit and integration ones, and the
+record names no test: each test carries the id of the case it runs, and the Gate reads by case.
 
 ```text
 Workflow build-all: Task run-baseline (Executor test-runner) ─▶ TestOutcome <plan>-baseline; repeat over `tasks` ─▶ ReviewLoop build-one per T-n
@@ -26,7 +29,7 @@ ReviewLoop build-one
 | Kind | Content |
 |---|---|
 | `AcceptanceRecord` | `plan`, `spec` (artifact ids), `task` (`T-n`), `verifies[]` (`scenario`: `AC-n` or `QS-n`, `tests[]`, `minItems: 1`: test names as JUnit gives them), `summary`, `openQuestions[]` (`Q-n`, `resolution?`), `defects?[]` (`D-n`, `observed`, `expected`, `where`): wrong behaviour the task does not cover, reported; what the builder says proves each scenario |
-| `TestOutcome` | `command`, `exitCode`, `head?` (the commit), `dirty?` (uncommitted changes), `tests[]` (`classname`, `name`, `status`: `passed`, `failed`, `errored`, `skipped`, `message?`), `outputTail?`, present exactly when no test case was read; what the project's tests did, read from JUnit XML |
+| `TestOutcome` | `command`, `exitCode`, `head?` (the commit), `dirty?` (uncommitted changes), `tests[]` (`classname`, `name`, `status`: `passed`, `failed`, `errored`, `skipped`, `message?`), `outputTail?`, present exactly when no test was read; what the project's tests did, read from JUnit XML |
 | `Issue` | `title`, `found?` (`{record, defect}`: the AcceptanceRecord and `D-n` it investigates), `observed`, `expected` (and what says so: an `AC-n`, `FR-n`, `BR-n` or an invariant), `trigger`, `impact` (`affected`, `ongoing`, `since?`, `severity`: why it ranks there), `rootCause` (`statement`, `at[]` (`file:line`), `introducedBy?`), `scope[]` (`site`, `affected`, `note?`: every site of the mechanism), `reproduction` (`{test, failure}`: a test red for that reason, or `{why}` it cannot be one), `verdict` (`code-nonconformant`, `spec-wrong`, `spec-missing`), `blocks[]` (`artifact`, `items?[]`: what the fix revises, `minItems: 1`), `status` (`open`, `resolved`, `wontfix`), `fixedBy?[]` (AcceptanceRecord ids), `detectionGap?`, `residual?`, `reason?`; `resolved` requires `fixedBy`, `detectionGap` and `residual`, `wontfix` requires `reason`; one investigated Defect, written by hand |
 
 ## Process
@@ -61,16 +64,16 @@ attempt, in the workspace: refuse a `junit` that is the workspace or outside it 
 delete the stale reports there (only files whose root is `testsuite` or `testsuites`; a `pom.xml`
 stays), read `head` and `dirty` before the run, run `program` with its output as the log, read every file
 `junit` names (`<testsuites>` or `<testsuite>` root), and answer the Task's one output port; XML
-that does not parse counts as no test case read, its error in `outputTail`. The
+that does not parse counts as no test read, its error in `outputTail`. The
 command's exit code is recorded, never an error, `128` plus the signal number when a signal killed
 it (the shell's convention; a killed suite may leave reports written so far, so `suite-exit`
 catches it, and with a baseline whose reds explain a non-zero exit, when the exit differs from the baseline's): failing tests exit non-zero, which is an outcome
-the Gate judges, not a failed attempt; a run with no test case read (a compile error) answers
+the Gate judges, not a failed attempt; a run with no test read (a compile error) answers
 `tests: []` and the last 50 lines of output as `outputTail`. `head` and `dirty` come from
 `git rev-parse HEAD` and `git --no-optional-locks status --porcelain`, so no index lock is taken;
 outside a repository both are absent. `outputTail` and every failure `message` pass through the
 runner's credential redaction: the program had the credentials, and what it printed is stored. A
-test case without a `name` takes its `classname`. Under `anyExit` the runner keeps the last 1 MiB
+test without a `name` takes its `classname`. Under `anyExit` the runner keeps the last 1 MiB
 of output, and an attempt stopped with the Adapter (engine shutdown) is `agent_failed`, never an
 outcome.
 The runner gains two driver hooks for this: `prepare`, run in the workspace before the program,
@@ -88,25 +91,25 @@ or the reverse, is `invalid_input`. Every finding `error` but `suite-baseline` (
 | Code | Finding |
 |---|---|
 | `not-a-record` | content without `task` or `verifies`; the only finding then |
-| `suite-empty` | the outcome holds no test case; the only finding then, its message the `outputTail` |
+| `suite-empty` | the outcome holds no test; the only finding then, its message the `outputTail` |
 | `task-mismatch` | `task` is not the `taskId` the record was written for |
 | `plan-mismatch`, `spec-mismatch` | `plan` or `spec` is not the artifact bound, or the Plan's `spec` is not the Spec bound |
 | `unknown-task` | `task` is no `T-n` of the Plan |
 | `scenario-unrecorded` | an `AC-n` or `QS-n` in the task's `verifiedBy` with no `verifies[]` row |
 | `scenario-duplicate` | two rows for one scenario |
 | `unknown-scenario` | a row's scenario not in the task's `verifiedBy`; or one the task's `verifiedBy` names that the Spec lacks (an `AC-n` it has not, a `QS-n` its `qualities` do not cite): the Spec was revised after the Plan |
-| `test-missing` | a test a row names matches no test case |
-| `test-ambiguous` | a test a row names matches two test cases |
+| `test-missing` | a test a row names matches no test of the outcome |
+| `test-ambiguous` | a test a row names matches two tests of the outcome |
 | `test-failed`, `test-skipped` | a test a row names failed, errored or was skipped |
-| `test-dropped` | a test the previous round's record named, which ran in the previous round's outcome and which the current record no longer names, matches no test case now (one it still names is `test-missing`; a name that never ran was a wrong name, not a test) |
-| `suite-failed` | a test case no row names failed or errored, and was not red in the baseline: a change broke another test |
-| `suite-baseline` | info: the test cases no row names that were red in the baseline and are red still; tolerated, never failing |
+| `test-dropped` | a test the previous round's record named, which ran in the previous round's outcome and which the current record no longer names, matches no test now (one it still names is `test-missing`; a name that never ran was a wrong name, not a test) |
+| `suite-failed` | a test no row names failed or errored, and was not red in the baseline: a change broke another test |
+| `suite-baseline` | info: the tests no row names that were red in the baseline and are red still; tolerated, never failing |
 | `baseline-dirty` | warning: a red was tolerated and the baseline ran over uncommitted changes, so that red may be one an earlier build left |
-| `suite-exit` | `exitCode` is not 0 while no test case failed or errored, or only tolerated ones did and the baseline exited otherwise: the suite was killed part way, or failed after its tests (a coverage threshold, a build step) |
+| `suite-exit` | `exitCode` is not 0 while no test failed or errored, or only tolerated ones did and the baseline exited otherwise: the suite was killed part way, or failed after its tests (a coverage threshold, a build step) |
 | `question-open` | an open question without a `resolution`: code built on an unknown is not done |
 | `defect-reported` | warning: one per `D-n`, every round it is in the record; the human reads it in the tree |
 
-A row names a test by string equality with the test case's `name`, or with `classname + ' > ' +
+A row names a test by string equality with the JUnit entry's `name`, or with `classname + ' > ' +
 name`; a name is never split (vitest's own `name` holds ` > `). Cases with the same `classname` and
 `name` (a retried or parameterized test JUnit writes twice) are one test, red if any of them is.
 

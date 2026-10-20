@@ -8,7 +8,10 @@ and decides when each level runs. A `round` tier runs on every `build-one` round
 levels the Change set touches and the tests the record names. Levels run cheapest first, and a
 level after a new red is held. A `plan` tier runs every configured level in full once after the
 last task, as the backstop for what selection missed. A `release` tier is declared and deferred. A
-project configures the levels it has; `unit` alone is the build of `35-build-process.md`.
+project configures the levels it has; `unit` alone is the build of `35-build-process.md`. Under the
+Test process (`39-test-process.md`) a TestHarness bound names the levels and their commands, the
+Executors keeping only the minimums, and a round's case ids stand for the record's names: a level runs
+whatever its cases need, and a narrowed run that missed one runs in full again.
 
 ```text
 Workflow build-all
