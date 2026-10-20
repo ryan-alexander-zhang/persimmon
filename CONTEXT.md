@@ -750,6 +750,43 @@ are the **DomainModel**'s; no NFR text or entity of its own. Always the capitali
 envelope field is `spec`.
 _Avoid_: feature spec, requirements doc, spec.md
 
+**Rewrite pack**:
+The process pack for rebuilding an existing system (`packs/rewrite/`, `40-pack-rewrite.md`): it
+recovers the knowledge in the **Source system**'s code into SDLC pack artifacts, then rebuilds on
+the SDLC pack's processes. Installed beside the SDLC pack; uses its kinds and processes by name and
+copies none.
+_Avoid_: migration pack, modernization pack, brownfield pack, reverse pack
+
+**Source system**:
+The existing system a rewrite replaces: its repository pinned at one commit, and the app it runs
+when it can be started. Read, never changed.
+_Avoid_: legacy system, old system, as-is system, target (the new system is the rewrite)
+
+**SourceInventory**:
+**Artifact kind** of the **Rewrite pack**, one per **Source system**: facts read off the source at
+its commit (entry points, state changes, guards, entities, external systems, tests), each with
+where it is. The evidence a recovered **Prd**, its **BusinessRules** and the storming cite.
+_Avoid_: code facts, knowledge graph, analysis report, code map
+
+**Recovery process**:
+The **Rewrite pack** process from a **Source system** to a **Prd** and its **BusinessRules**:
+ReviewLoop `inventory` writes the **SourceInventory**, ReviewLoop `recover-prd` the Prd and rules
+citing it, with a **Disposition** per item confirmed by a human. **Domain discovery** then runs on
+that Prd unchanged.
+_Avoid_: reverse engineering (for the process), extraction phase, archaeology
+
+**Disposition**:
+What a rewrite does with one recovered `CAP-n` or `BR-n`: `keep`, `change` or `drop`, decided by a
+human at the **Recovery process**'s Gate. `keep` leaves it; `change` deprecates the rule and adds
+one sourced from the decision; `drop` moves the capability to the Prd's `nonGoals`.
+_Avoid_: parity policy (for one item), triage, verdict
+
+**Parity check**:
+The **Rewrite pack** run of the **TestDesign**s' `api` and `e2e` tests against the running
+**Source system**, before `build-all`: a case verifying a kept rule must pass there, so the test
+says what the source does and the rewrite is held to it.
+_Avoid_: regression (the build's), equivalence test, golden master, characterization test (for the check)
+
 ## Flagged ambiguities
 
 - **Tool vs `tool`.** A web surface under `tools/` and the Executor type. Resolution: the surface is
@@ -768,6 +805,9 @@ _Avoid_: feature spec, requirements doc, spec.md
   acceptance findings call a test case, and a **TestDesign**'s `TC-n`. Resolution: **Test case** is
   the `TC-n`; JUnit's entry is a test, one `TestOutcome.tests[]` entry, in those files' prose and
   in the Gate's messages; a Decision recorded before keeps its words.
+- **Source.** The **Source system** and the `BusinessRules` field `source` (law, policy, contract,
+  decision). Resolution: the system is always **Source system** in full; the field is `source` in
+  code font, and a recovered rule's `source` names the **SourceInventory** item it rests on.
 
 - **ArtifactRef vs RevisionRef.** Same shape. Framework says RevisionRef; reference well-known
   schemas exposed `persimmon.ai/v1#/ArtifactRef`. Resolution: **RevisionRef** everywhere,
