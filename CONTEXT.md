@@ -514,6 +514,11 @@ The event storming **Tool**, `tools/eventstorming/`, opened at `/tools/eventstor
 `persimmon ui`; reads one revision, saves the next.
 _Avoid_: board app, canvas (for the whole tool), event storming web tool
 
+**Inbox**:
+The **Tool** at `/tools/inbox/` that lists the TaskRuns parked on a human, renders their
+**Reading** for any kind, and answers a ValidationResult from the browser (`37-inbox.md`).
+_Avoid_: review page, approval UI, dashboard
+
 **DomainModel**:
 **Artifact kind**, one per **BoundedContext**, derived from a design-level **EventStorming**:
 aggregates with their commands, events and invariants, policies, read models, external systems;
