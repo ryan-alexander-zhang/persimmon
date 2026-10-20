@@ -72,11 +72,11 @@ several cases; one case may have several tests.
 | Prompt `harness-rules` | per test level, the tool the Architecture's `testing` concepts or its Adrs name, else the one the repository already has, else a `Q-n`, never one chosen; a level the Designs need (an `http-api` Design: `api`; a `ui` Design: `e2e`) and the project lacks is scaffolded; every level gets one seed test that passes on the app as it is; the commands are the project's own scripts, written once; an `api` or `e2e` level's `conventions` say how a test asserts a refused request, its `4xx` or `5xx` status, so the client in use never throws on one; never a change to the app's code |
 | Task `write-harness` | inputs `architecture`, `adrs`, `designs` (artifacts), `repository`, `previous`, `feedback`; output `harness`, id `<architecture>-harness`; `workspace: {input: repository}`; `sideEffects: nonIdempotent` |
 | Tasks `run-seed`, `run-seed-levels` | as `run-baseline` and `run-levels` with no Plan: inputs `harness`, `repository`; ids `<harness>-seed`, `<harness>-seed-levels` |
-| Validator `harness-evidence` | `sdd/v1`, `checkHarness`, below |
+| Validator `harness-evidence` | `sdd/v1`, `checkHarness`, below; with `previous?`, the last round's harness, so an answer already told is not told again |
 | Task `confirm-harness`, Validator `harness-confirmed` | the human reads the harness once its seed tests pass and answers each open `Q-n`, on `local-reviewer` |
 | Prompt `test-design-rules` | at least one case per `AC-n` and per `build` `QS-n` the Spec cites; the level from the boundary the scenario's When crosses: the API `api`, a screen `e2e`, a store or a queue `integration`, a rule inside one block `unit`; steps and data from the Designs' operations and screens, the Glossary's terms; `P0` when a failure loses data, money or access or stops the capability's main path, `P1` a variant of the main path or a rule's edge, `P2` a secondary path, `P3` the rest; `P0` is `automated`; a case the harness's tools cannot run is `manual`, the reason in `preconditions`; a case's steps use only the operations its Plan task, or a task before it, builds; a rule's threshold the Spec has no scenario at or beside is no case but a `Q-n` whose answer names the Spec in `upstream` |
 | Task `design-tests` | inputs `spec`, `plan`, `base?` (the Spec's TestDesign before this run), `architecture`, `designs` (artifacts), `glossary`, `rules`, `harness`, `previous`, `feedback`; output `testDesign`, id `<spec>-tests`; read only |
-| Validator `test-design-consistency` | `sdd/v1`, `checkTestDesign`, below; inputs add `plan`, `designs` and `base?` |
+| Validator `test-design-consistency` | `sdd/v1`, `checkTestDesign`, below; inputs add `plan`, `designs`, `base?` and `previous?`, the last round's TestDesign, so an answer already told is not told again |
 | Task `audit-test-design`, Validator `test-design-audited` | `draft-audit-rules`, its part for a TestDesign: a case's level stops short of the boundary its scenario's When crosses, its steps do not reach its expected, its expected is not the scenario's Then with its values (`case-unfit`); a rule's threshold with no case beside it is `boundary-untested` when the Spec has a scenario there and `spec-gap` when it has none, both warnings |
 | Task `confirm-test-design`, Validator `test-design-confirmed` | the human reads the cases before code exists, on `local-reviewer` |
 | ReviewLoop `test-design-one`, Workflow `test-design-all` | `maxRounds: 3`; `repeat` over `capabilities` as `plan-all`, the Spec of `CAP-n` bound by id, and `base` to its TestDesign `<spec>-tests` when one exists (`fromArtifact`, `onMissing: omit`) |
@@ -257,6 +257,10 @@ no case has none to miss.
 - `select-cases` reads only the `error` findings of the last round. In the live run a
   `question-upstream` warning quoting `TC-11` called the Tester back to a round refused for an open
   question alone; the Tester re-ran its tests and changed nothing. Found in UAT.
+- `harness-evidence` and `test-design-consistency` read the last round's document. Without it
+  `question-agent-resolved` warned of every resolution in every round, the human's own answers
+  from round one among them, since the warning names only what the last round did not have
+  (`23-pack-sdlc.md`). Found in UAT.
 - Not adopted: `TestRun` and `TestResult` kinds (a TestOutcome is already one run of one level at
   one commit); a test plan document (ISO 29119-3's agile example puts its content in the plan, here
   the Plan and the harness); a `waived` verdict (it needs a human sign-off of its own, later); a test
