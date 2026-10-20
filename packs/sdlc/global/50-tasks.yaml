@@ -39,7 +39,7 @@ spec:
     backoff: {strategy: exponential, initial: 1m, max: 5m, jitter: none}
   sideEffects: none
 ---
-# The human gate of a phase: open the model in `persimmon ui`, then approve or reject here with findings.
+# The human gate of a phase: read the model in the Inbox of `persimmon ui` (37-inbox.md), approve or reject with findings there or here.
 apiVersion: persimmon.ai/v1
 kind: Task
 metadata: {name: confirm-storming}
@@ -51,9 +51,9 @@ spec:
   executorRef: {kind: Executor, name: local-reviewer}
   action:
     instructions: |
-      Confirm this phase of the event storming. Open the model in the editor: run `persimmon ui` in this project and
-      open the EventStorming artifact named below at its latest revision. Approve when the phase gate holds; reject
-      with one finding per node, edge or context that must change, naming its id.
+      Confirm this phase of the event storming. Run `persimmon ui` in this project: the Inbox shows the model, and
+      "Open the board" opens it in the editor. Approve when the phase gate holds; reject with one finding per node,
+      edge or context that must change, naming its id.
     context:
       - {kind: artifact, input: model}
   timeout: 72h
