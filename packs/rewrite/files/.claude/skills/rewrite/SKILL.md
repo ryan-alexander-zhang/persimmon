@@ -40,9 +40,10 @@ on the first Slice.
 2. `characterize`: `source`, `repository` (the project), `brief`, `productId`, `slice`,
    `inventory` (step 1's), `ledger`. The Tester writes the Characterization tests and the mutants;
    the Gate passes when every item its Oracle can pin is pinned. Out of rounds: go on to step 3 with
-   its last ledger; its open items reach the human there. Keep the Tester's `written.unreachable`
-   for that human's form.
-3. `recover-prd`: `brief`, `productId`, `slice`, `inventory`, `ledger` (step 2's), `prd`, `rules`.
+   its last ledger; its open items reach the human there.
+3. `recover-prd`: `brief`, `productId`, `slice`, `inventory`, `ledger` (step 2's), `prd`, `rules`, and
+   when not empty `unreachable` (step 2's `written.unreachable`) and `disagreements` (step 1's
+   `reader-disagreement` warnings), each a YAML list in a file under `.persimmon/rewrite/`.
    The human decides each Disposition, dead item, plumbing pattern and accepted open item.
 4. The SDLC run order for the Slice's capabilities, as `autopilot-doc` and `autopilot-code` say, from
    the recovered Prd and rules, with these inputs added:

@@ -430,6 +430,8 @@ spec:
     inventory: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: SourceInventory}}}
     ledger: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: ParityLedger}}}
     audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}, description: "the auditor's verdict on this recovery"}
+    unreachable: {type: {kind: value, schema: {type: array}}, required: false, description: "the Tester's written.unreachable from characterize: items proposed dead, with evidence"}
+    disagreements: {type: {kind: value, schema: {type: array}}, required: false, description: "the inventory gate's reader-disagreement warnings, for decisions.readers"}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
   outputs:
     decisions:
@@ -462,7 +464,9 @@ spec:
       Decide the Slice's recovery, following the recovery review in your context: the Disposition of each capability,
       rule or absence that is not `keep`, the items dead with their evidence, the plumbing patterns accepted, the items
       accepted open with why, and each reader disagreement. Approve when the Prd and rules are right and nothing open is
-      left undecided, or reject with one finding per id the Prd agent must fix. `audit` is the auditor's verdict.
+      left undecided, or reject with one finding per id the Prd agent must fix. `audit` is the auditor's verdict;
+      `unreachable`, when bound, the Tester's proposals of dead items; `disagreements`, when bound, the guards one reader
+      found and the other did not, each settled in `readers`.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: recovery-review}}
       - {kind: artifact, input: prd}

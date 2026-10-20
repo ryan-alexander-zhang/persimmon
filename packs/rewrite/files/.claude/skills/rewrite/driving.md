@@ -48,8 +48,8 @@ and, per Task:
 - `cut-slices`: take the reader's proposed Slices unless one breaks the Survey rules (an entry
   point in no Slice or in two, a Slice beyond one agent's context); `SL-1` the least connected.
 - `decide-recovery`: every Disposition is the brief's default unless a recorded answer shows the
-  rule is a bug the brief says to fix; `dead` only with the evidence named in the Tester's
-  `unreachable` list or the ledger; accept an open item only with why no test can reach it; settle
+  rule is a bug the brief says to fix; `dead` only with the evidence named in the form's
+  `unreachable` or the ledger; accept an open item only with why no test can reach it; settle
   each reader disagreement by reading the code at both `where`s.
 - `review-parity`: approve only on a `pass` verdict, or `concerns` you accept with a reason naming
   each unverified item or unreached entry point; confirm the driver only after reading every method

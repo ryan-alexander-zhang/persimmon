@@ -351,6 +351,8 @@ spec:
     ledger: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: ParityLedger}}}
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
+    unreachable: {type: {kind: value, schema: {type: array}}, required: false, description: "the Tester's written.unreachable from characterize: items proposed dead, with evidence"}
+    disagreements: {type: {kind: value, schema: {type: array}}, required: false, description: "the inventory gate's reader-disagreement warnings, for decisions.readers"}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false}
     previousRules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
@@ -398,6 +400,8 @@ spec:
         inventory: {fromInput: inventory}
         ledger: {fromInput: ledger}
         audit: {fromStep: {stepRef: audit, output: audit}}
+        unreachable: {fromInput: unreachable, onMissing: omit}
+        disagreements: {fromInput: disagreements, onMissing: omit}
         feedback: {fromInput: feedback, onMissing: omit}
       timeout: 72h
     - id: ledger # measures nothing: the characterization's measurements carry, every account recomputed with the decisions
@@ -430,6 +434,8 @@ spec:
     ledger: {type: {kind: artifact, artifactKind: {apiVersion: rewrite.persimmon.ai/v1, kind: ParityLedger}}, description: "the characterization's"}
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false, description: "the product's last approved Prd; the first Slice has none"}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false, description: "the product's last approved rules"}
+    unreachable: {type: {kind: value, schema: {type: array}}, required: false, description: "the Tester's written.unreachable from characterize: items proposed dead, with evidence"}
+    disagreements: {type: {kind: value, schema: {type: array}}, required: false, description: "the inventory gate's reader-disagreement warnings, for decisions.readers"}
   produce:
     uses: {kind: Workflow, name: recover-work}
     inputs:
@@ -440,6 +446,8 @@ spec:
       ledger: {fromInput: ledger}
       prd: {fromInput: prd}
       rules: {fromInput: rules}
+      unreachable: {fromInput: unreachable}
+      disagreements: {fromInput: disagreements}
     timeout: 80h
   review:
     uses: {kind: Gate, name: recover-gate}
