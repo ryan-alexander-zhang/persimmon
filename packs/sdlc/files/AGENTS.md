@@ -76,8 +76,9 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 ## 6. Artifact Workflow
 
 - The run order: `author-prd`, `domain-discovery`, `architect`, `spec-all`, `design-all`,
-  `design-system` before a `ui` `design-all`, `plan-all`, `build-all`. Each artifact cites
-  upstream only.
+  `design-system` before a `ui` `design-all`, `setup-tests`, `test-design-all`, `plan-all`,
+  `build-all` with `testDesign` and `harness` bound. Each artifact cites upstream only.
+  `setup-tests` needs the app's skeleton in the repository: its seed tests run on it.
 - Read an artifact with `persimmon get <Kind>/<id>`; `--files <dir>` exports its representations,
   for a kind that has them. An exported file is a copy: change the artifact through its process, never the copy.
 - A Gate's finding is fixed where it points, upstream; never worked around downstream. A
@@ -101,6 +102,17 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
   and its own context names. A run moves only from the directory that started it: run its
   `complete` there. Never suggest removing a worktree whose runs are not finished.
 
+Setting up and writing tests (`setup-tests`, and `write-api-tests` and `write-e2e-tests` under
+`build-all`), as the developer's own agent reading a Tester's inbox form:
+- Answer it in a fresh subagent given only the form path, never in the context that builds the
+  task: the tests are written from the cases, not from the code.
+- `setup-tests` asks for the TestHarness: the tool of each test level as the Architecture or an Adr
+  names it, a seed test per level, the commands written once in the project's own scripts.
+- A test-writing form names the task's cases of one level in `inputs.cases`: write one test per
+  case, its title opening with the case's `CAP-n/TC-n`, in the level's `testDir`, with the harness's
+  tool. An api test is written before the code and stays red; an e2e test after it, against the
+  running app. Answer `{outputs: {written: {kind: value, value: {files, cases}}}}`.
+
 Building a Plan task (`build-all`), as the developer's own agent reading an inbox form:
 - The run waits on you at each task: `.persimmon/inbox/<taskRun>.yaml` is the brief, its
   `reading` the build rules, the Plan, the Spec, the Architecture, the Designs, the Glossary
@@ -117,6 +129,9 @@ Building a Plan task (`build-all`), as the developer's own agent reading an inbo
   record's `defects`, never fixed in this task; the Gate warns `defect-reported`. Once the
   task's Gate passed, tell the developer and write each `D-n` as an `Issue` with
   `found: {record, defect}`.
+- With `inputs.cases` bound, write the tests of its `unit` and `integration` cases, each title
+  opening with the case's `CAP-n/TC-n`, and leave the record's `verifies` out; the api and e2e
+  tests are the Tester's, never edited: one you hold wrong is a `Q-n` naming the case.
 - Answer with a file holding `outputs: {record: <the AcceptanceRecord>}` and run
   `persimmon complete <taskRun> --file <file>` from the project directory, in the background or
   with no time limit: it runs the tests and the Gate before it returns. The next round or task
@@ -124,7 +139,9 @@ Building a Plan task (`build-all`), as the developer's own agent reading an inbo
 - Never run git; once the Gate passed, the developer reviews the diff and commits.
 - After the last task `build-all` runs every test level in full once more; a red no round showed
   ends the run `plan_regressed`. No task is to blame: tell the developer and investigate it as an
-  `Issue`, its `reproduction` the red test.
+  `Issue`, its `reproduction` the red test. Under a TestDesign the TestReport follows
+  (`persimmon get TestReport/<plan>-test-report`): a `fail` verdict ends the run the same way, its
+  rule naming the cases or scenarios to look at.
 
 ## 7. Output Discipline
 
