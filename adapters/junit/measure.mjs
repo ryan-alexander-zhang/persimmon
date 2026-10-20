@@ -1,5 +1,5 @@
-// The unit level's measures over the Change set for junit/v1 (36-test-levels.md): coverage from a Cobertura report, mutation
-// from a mutation-testing-elements report; apart from index.mjs so tests import it without starting the Adapter.
+// The unit level's measures over the Change set for junit/v1 (36-test-levels.md): coverage from a Cobertura or JaCoCo XML report,
+// mutation from a mutation-testing-elements report; apart from index.mjs so tests import it without starting the Adapter.
 import { readFileSync, realpathSync } from 'node:fs'
 import { basename, isAbsolute, matchesGlob, relative, resolve } from 'node:path'
 import { DOMParser } from '@xmldom/xmldom'
@@ -48,13 +48,27 @@ export function coverage({ workspace, report, min, changes, paths }) {
   } catch (e) {
     return { min, error: `${report} not read: ${e.message}` }
   }
-  if (doc.documentElement?.nodeName !== 'coverage') return { min, error: `${report} is not a Cobertura report` }
-  const roots = list(doc.getElementsByTagName('source')).map((s) => s.textContent.trim())
+  const root = doc.documentElement?.nodeName
+  if (root !== 'coverage' && root !== 'report') return { min, error: `${report} is neither a Cobertura nor a JaCoCo report` }
   const executable = new Map() // file → line → run
-  for (const c of list(doc.getElementsByTagName('class'))) {
-    const file = inWorkspace(workspace, c.getAttribute('filename'), roots, changes)
+  const record = (file, number, run) => {
     const lines = executable.get(file) ?? executable.set(file, new Map()).get(file)
-    for (const l of list(c.getElementsByTagName('line'))) lines.set(Number(l.getAttribute('number')), lines.get(Number(l.getAttribute('number'))) || Number(l.getAttribute('hits')) > 0)
+    lines.set(number, lines.get(number) || run)
+  }
+  if (root === 'coverage') {
+    const roots = list(doc.getElementsByTagName('source')).map((s) => s.textContent.trim())
+    for (const c of list(doc.getElementsByTagName('class'))) {
+      const file = inWorkspace(workspace, c.getAttribute('filename'), roots, changes)
+      for (const l of list(c.getElementsByTagName('line'))) record(file, Number(l.getAttribute('number')), Number(l.getAttribute('hits')) > 0)
+    }
+  } else {
+    // JaCoCo: a sourcefile under its package's path, a line run when any instruction on it was covered
+    for (const p of list(doc.getElementsByTagName('package'))) {
+      for (const s of list(p.getElementsByTagName('sourcefile'))) {
+        const file = inWorkspace(workspace, [p.getAttribute('name'), s.getAttribute('name')].filter(Boolean).join('/'), [], changes)
+        for (const l of list(s.getElementsByTagName('line'))) record(file, Number(l.getAttribute('nr')), Number(l.getAttribute('ci')) > 0)
+      }
+    }
   }
   const lost = unmapped(new Set(executable.keys()), changes, paths)
   if (lost) return { min, error: lost }

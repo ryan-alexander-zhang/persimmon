@@ -42,7 +42,7 @@ const unitSchema = {
   ...levelSchema,
   properties: {
     ...level,
-    coverage: { type: 'object', required: ['report', 'min'], additionalProperties: false, properties: { report: report('Cobertura XML'), min } },
+    coverage: { type: 'object', required: ['report', 'min'], additionalProperties: false, properties: { report: report('Cobertura or JaCoCo XML'), min } },
     mutation: { type: 'object', required: ['program', 'report', 'min'], additionalProperties: false, properties: { program: { ...programSchema, description: 'the mutation command: {base} and {files} as in affected' }, report: report('mutation-testing-elements JSON'), min, paths: { ...globs, description: 'globs of the source to mutate, never the tests; default the level\'s paths' } } },
   },
 }
