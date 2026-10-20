@@ -111,16 +111,17 @@ and the ledger computes `static`. The verdict reads the weakest.
 ## `SourceInventory`
 
 Facts read off the Source system at one commit, before any interpretation. A `where` is
-`<path>:<line>` or `<path>:<from>-<to>` relative to the repository root, cut as `inventory-rules`
-says; or `{in: db|config|external, locator}` for what lives only in a deployed database, a
-configuration store or another system.
+`<path>`, `<path>:<line>` or `<path>:<from>-<to>` relative to the repository root, no leading `/`
+or `..`, lines from 1, cut as `inventory-rules` says; or `{in: db|config|external, locator}` for
+what lives only in a deployed database, a configuration store or another system. Every list is
+present, empty when nothing was found, so two readers' inventories compare field by field.
 
 | Field | Content |
 |---|---|
-| `source` | `{repository, commit}` |
+| `source`, `slice?` | `{repository, commit}`; the Slice this revision read, absent on the Survey's |
 | `entryPoints[]` | `{id EP-n, kind: http\|message\|job\|cli\|ui\|report, name, where[], reaches {files[], entities[] EN-n, externalSystems[] EX-n}}` |
 | `stateChanges[]` | `{id ST-n, entity EN-n, change: create\|update\|delete\|status\|send, name, where[], from[] EP-n}`: a write that outlives the request (a row, a session, a file, a message, an email); candidate domain events |
-| `guards[]` | `{id GD-n, condition, outcome, role: rule\|plumbing\|unknown, where[], in[] EP-n, volatile?: [time\|random\|order\|concurrency]}`: every branch that refuses, computes or decides |
+| `guards[]` | `{id GD-n, condition, outcome, role: rule\|plumbing\|unknown, where[], in[] EP-n, volatile?: [time\|random\|order\|concurrency], note?}`: every branch that refuses, computes or decides; `time` only when the condition reads the clock, not a date the input carries |
 | `declarations[]` | `{id DC-n, kind: key\|uniqueness\|retention\|ordering\|schema\|data\|config\|contract, statement, where[]}`: a rule stated without a branch |
 | `absences[]` | `{id AB-n, statement, where[]}`: a check the source could make and does not, so its keeping or adding is decided, not assumed |
 | `plumbingPatterns[]` | `{id PP-n, pattern, examples[] GD-n}`: one shape of plumbing, accepted once |
@@ -163,15 +164,16 @@ One per Source system, a revision per step per Slice.
 
 | Field | Content |
 |---|---|
-| `source`, `inventory`, `rules?`, `slice` | the commit, the ids, the Slice of this revision |
+| `source`, `inventory`, `rules?`, `slice?` | the commit; the SourceInventory and BusinessRules as `{id, revision}`, so a ledger is never checked against a revision it was not computed from; the Slice of this revision, absent on the Survey's |
 | `slices[]` | the human's cut, from `cut-slices` |
-| `suite` | `{levels {app?, units?, records?: {tool, run, one, reset?, junit, testDir, coverage?}}, drivers {source, rewrite?}, conventions}`; `levels` empty when nothing runs |
+| `suite?` | `{levels {app?, units?, records?: {tool, run, one, reset?, junit, testDir, coverage?}}, drivers {source, rewrite?}, conventions}`; `levels` empty when nothing runs; absent before characterization |
 | `entryPoints[]` | `{id EP-n, oracle}` |
-| `items[]` | `{ref GD-n\|DC-n\|ST-n\|EX-n\|AB-n, slice, reached, mutant?: killed\|survived\|invalid\|none, tests[], rules[] BR-n, disposition?, dead?, accepted?, account: complete\|unverified\|open, reason?}` |
+| `items[]` | `{ref GD-n\|DC-n\|ST-n\|EX-n\|AB-n, slice, reached, mutant?: killed\|survived\|invalid\|none, tests[], rules[] BR-n, disposition?, dead?, accepted?, plumbing? PP-n, reader?, account: complete\|unverified\|open, reason?}`: every decision a typed field, as given |
 | `answers[]` | `{test, observed}`: what the source answered, recorded when the test passed on it, never edited |
 | `differences[]` | `{test, source, rewrite, cause?: {rule BR-n} \| {issue}}` |
-| `unreached[]` | `{ref, why}` |
-| `verdict` | `{result: pass\|concerns\|fail, rule}` |
+| `unreached[]` | `{ref, slice, why}` |
+| `driver?`, `concerns?` | `{confirmed}`, `{accepted, reason}`: `review-parity`'s decisions, as given |
+| `verdict?` | `{result: pass\|concerns\|fail, rule}`: the Slice's, over its items, unreached entries and differences; absent on the Survey's |
 
 `items[].tests` are the tests whose names cite the item or its entry point; coverage says whether
 an item was reached, never which test reached it.
