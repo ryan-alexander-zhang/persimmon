@@ -69,7 +69,7 @@ several cases; one case may have several tests.
 | Executor `test-design-agent` | `claude-code/v1`, read only, as `plan-agent` |
 | Executors `case-selector`, `test-reporter` | `testdesign/v1`, `type: script`; `test-reporter`'s configuration `{thresholds: {p0: 100, p1: 90, p1Concerns: 80, overall: 80}}`, a project overriding it by name |
 | Adapter `testdesign/v1` | an executor on the shared runner that runs no program: in `prepare` it reads the artifacts bound through `getArtifact` and answers `selectCases` or `buildReport` from `adapters/sdd/check.mjs`, by the Task's output port (`cases` or `report`) |
-| Prompt `harness-rules` | per test level, the tool the Architecture's `testing` concepts or its Adrs name, else the one the repository already has, else a `Q-n`, never one chosen; a level the Designs need (an `http-api` Design: `api`; a `ui` Design: `e2e`) and the project lacks is scaffolded; every level gets one seed test that passes on the app as it is; the commands are the project's own scripts, written once; never a change to the app's code |
+| Prompt `harness-rules` | per test level, the tool the Architecture's `testing` concepts or its Adrs name, else the one the repository already has, else a `Q-n`, never one chosen; a level the Designs need (an `http-api` Design: `api`; a `ui` Design: `e2e`) and the project lacks is scaffolded; every level gets one seed test that passes on the app as it is; the commands are the project's own scripts, written once; an `api` or `e2e` level's `conventions` say how a test asserts a refused request, its `4xx` or `5xx` status, so the client in use never throws on one; never a change to the app's code |
 | Task `write-harness` | inputs `architecture`, `adrs`, `designs` (artifacts), `repository`, `previous`, `feedback`; output `harness`, id `<architecture>-harness`; `workspace: {input: repository}`; `sideEffects: nonIdempotent` |
 | Tasks `run-seed`, `run-seed-levels` | as `run-baseline` and `run-levels` with no Plan: inputs `harness`, `repository`; ids `<harness>-seed`, `<harness>-seed-levels` |
 | Validator `harness-evidence` | `sdd/v1`, `checkHarness`, below |
@@ -230,6 +230,10 @@ no case has none to miss.
   and `T-4` build, so its test could not pass after `T-1`. `plan-all` already runs before
   `test-design-all`. An operation no task realises is the Plan's gap and `checkPlan`'s, not this
   check's. Found in UAT.
+- An `api` level's conventions say how a test asserts a refused request. In the live run the Bruno
+  seed and conventions covered only a `2xx` answer; the Tester's test of a `403` failed on the
+  client throwing, the builder answered `204` to make it pass and raised a question, and a round
+  went to settle what one line of the harness should have said. Found in UAT.
 - Not adopted: `TestRun` and `TestResult` kinds (a TestOutcome is already one run of one level at
   one commit); a test plan document (ISO 29119-3's agile example puts its content in the plan, here
   the Plan and the harness); a `waived` verdict (it needs a human sign-off of its own, later); a test
