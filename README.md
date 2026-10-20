@@ -106,7 +106,9 @@ persimmon run author-prd --input productId=<another id> --input brief=@brief.md 
 ```
 
 Each idea takes its own `productId`. A run moves only from the directory that started it, so
-answer its `complete` there, and let a worktree's runs finish before removing it. To keep an
+answer its `complete` there, and let a worktree's runs finish before removing it. The integration,
+api and e2e levels run one worktree at a time (`exclusive: tests` on `level-runner`); a project's
+override of that Executor keeps the line. To keep an
 existing project's documents, move `.persimmon/persimmon.db` and `.persimmon/blobs` to the shared
 path first.
 
