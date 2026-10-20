@@ -16,7 +16,7 @@ Architecture, the app skeleton
        produce: Workflow harness-work
                 Task write-harness (Executor tester) ─▶ TestHarness <architecture>-harness
                 Task run-seed (test-runner), Task run-seed-levels (level-runner) ─▶ TestOutcomes
-       review:  Gate harness-gate = harness-evidence (sdd/v1)
+       review:  Gate harness-gate = harness-evidence (sdd/v1), then harness-confirmed (a human)
 Spec, Designs, TestHarness
   ─▶ ReviewLoop test-design-one per Spec, repeated by Workflow test-design-all
        produce: Task design-tests (Executor test-design-agent) ─▶ TestDesign <spec>-tests
@@ -73,6 +73,7 @@ several cases; one case may have several tests.
 | Task `write-harness` | inputs `architecture`, `adrs`, `designs` (artifacts), `repository`, `previous`, `feedback`; output `harness`, id `<architecture>-harness`; `workspace: {input: repository}`; `sideEffects: nonIdempotent` |
 | Tasks `run-seed`, `run-seed-levels` | as `run-baseline` and `run-levels` with no Plan: inputs `harness`, `repository`; ids `<harness>-seed`, `<harness>-seed-levels` |
 | Validator `harness-evidence` | `sdd/v1`, `checkHarness`, below |
+| Task `confirm-harness`, Validator `harness-confirmed` | the human reads the harness once its seed tests pass and answers each open `Q-n`, on `local-reviewer` |
 | Prompt `test-design-rules` | at least one case per `AC-n` and per `build` `QS-n` the Spec cites; the level from the boundary the scenario's When crosses: the API `api`, a screen `e2e`, a store or a queue `integration`, a rule inside one block `unit`; steps and data from the Designs' operations and screens, the Glossary's terms; `P0` when a failure loses data, money or access or stops the capability's main path, `P1` a variant of the main path or a rule's edge, `P2` a secondary path, `P3` the rest; `P0` is `automated`; a case the harness's tools cannot run is `manual`, the reason in `preconditions` |
 | Task `design-tests` | inputs `spec`, `architecture`, `designs` (artifacts), `glossary`, `rules`, `harness`, `previous`, `feedback`; output `testDesign`, id `<spec>-tests`; read only |
 | Validator `test-design-consistency` | `sdd/v1`, `checkTestDesign`, below |
@@ -101,7 +102,6 @@ Every finding `error`:
 | `level-unrun` | a level of the harness with no outcome among the seed runs |
 | `suite-empty` | a level's seed run read no test |
 | `seed-missing`, `seed-failed` | a level's seed test is not in its outcome, or is not green |
-| `question-open` | an open question without a `resolution` |
 
 ## `checkTestDesign`
 
@@ -117,7 +117,6 @@ Every finding `error`:
 | `level-unavailable` | a case's level the harness has not |
 | `steps-missing` | an `api`, `e2e` or `manual` case without steps |
 | `p0-manual` | a `P0` case that is `manual` |
-| `question-open` | an open question without a `resolution` |
 | `id-sequence` | `TC-n` not unique and increasing |
 
 ## `acceptance-evidence` by case
@@ -161,7 +160,8 @@ no case has none to miss.
 | Rule | Enforcer |
 |---|---|
 | the tools are recorded once, by the Tester, and every runner and test-writing Task reads them from the TestHarness | `harness-rules`, `harness-evidence`, `junit/v1` |
-| a level's tool comes from the Architecture or its Adrs, else the repository; never a choice the Tester makes | `harness-rules`; `question-open` |
+| a level's tool comes from the Architecture or its Adrs, else the repository; never a choice the Tester makes | `harness-rules`; the human at `harness-gate` |
+| an open `Q-n` of a TestHarness or a TestDesign is answered by the human at its Gate; an agent never writes a `resolution` the inputs and the feedback do not give | `harness-rules`, `test-design-rules`; `confirm-harness`, `confirm-test-design` |
 | every acceptance scenario and `build` quality scenario has a case, its level decided before code | `checkTestDesign`, the Auditor, a human |
 | the Tester writes the `api` and `e2e` tests, the Builder the code and the `unit` and `integration` tests | Tasks, `build-rules`, `test-writing-rules` |
 | the Builder never edits a Tester's test; one it holds wrong is a `Q-n` | `build-rules`; the Auditor holds each test to its case; the developer's diff review |
@@ -218,6 +218,12 @@ no case has none to miss.
   needed, the vocabulary being ours). The verdict thresholds are BMAD's `trace` gate: `P0` 100,
   `P1` 90 for `pass` and 80 for `concerns`, all cases 80. The `plan` tier runs `unit` in full under
   a TestDesign, so every case has a result over the last tree. Found in design review.
+- An open question of a TestHarness or a TestDesign goes to the human at the Gate, not to the
+  check. In the live run `question-open` refused each TestDesign with an open `Q-n` before the human
+  saw it, and in round two the agent closed six questions itself, under the human's name. The
+  upstream checks (`checkPrd`, `checkSpec`, `checkPlan`) leave a question to the confirm Task as
+  well. `harness-gate` had no human at all, so a harness `Q-n` could not be answered in an
+  unattended run; it gains one after the seed runs. Found in UAT.
 - Not adopted: `TestRun` and `TestResult` kinds (a TestOutcome is already one run of one level at
   one commit); a test plan document (ISO 29119-3's agile example puts its content in the plan, here
   the Plan and the harness); a `waived` verdict (it needs a human sign-off of its own, later); a test
