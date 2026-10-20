@@ -10,7 +10,7 @@ for the project lock.
 ```text
 persimmon run … --follow ──▶ parked on you: persimmon complete <taskRun>   (or open persimmon ui)
 persimmon ui ──▶ / ──▶ /tools/inbox/
-  GET  /api/inbox                       TaskRuns Waiting on a human, every Namespace
+  GET  /api/inbox                       TaskRuns Waiting on a human that this project directory drives
   GET  /api/inbox/<ns>/<taskRun>        the cli-human/v1 form: instructions, reading[], inputs, outputs
   GET  /api/kinds/<kindName>            the kind's content schema: field descriptions for the page
   POST /api/inbox/<ns>/<taskRun>        {outputs} ──▶ the complete path ──▶ Signal ──▶ drain in this process
@@ -21,7 +21,7 @@ browser: list ──▶ page per Reading entry ──▶ hover an item ──▶
 
 | Part | Behaviour |
 |---|---|
-| list | the parked TaskRuns, newest first: Task name, Namespace, deadline; refreshed every 5 s, so the next gate a drain parks appears without a reload |
+| list | headed by the project directory, so two worktrees' Inboxes are told apart; the parked TaskRuns, newest first: Task name, Namespace, deadline; refreshed every 5 s, so the next gate a drain parks appears without a reload |
 | header | the Task's `instructions`, then each value input as a callout (`audit` on `confirm-prd`: the auditor's warnings, read before the human) |
 | reading | one section per `reading[]` entry, in order, titled `<Kind> <id> r<n>`; a Prompt as text; an entry with `error` shows the error |
 | render | any kind, generically, from the content and the kind schema: an object is a section of labelled fields, the label the property name in words with its schema `description` on hover; an array of objects is a list of cards, one per element, titled by its `id` when it has one; an array of scalars is a bullet list; a string keeps its line breaks |
@@ -49,16 +49,17 @@ Added to `src/server/api.ts` (`25-ui.md`), under the same Host and content-type 
 
 | Route | Answer |
 |---|---|
-| `GET /api/inbox` | `[{namespace, taskRun, task, deadline, form: boolean, verdict: boolean}]`: every TaskRun with `phase: Waiting`, `waitingReason: human`; `form` whether its inbox file exists, `verdict` whether every output is a ValidationResult value port |
+| `GET /api/inbox` | `{directory, parked: [{namespace, taskRun, task, deadline, form: boolean, verdict: boolean}]}`: every TaskRun with `phase: Waiting`, `waitingReason: human` that this engine drives (`08-store.md`: its own project directory's, or none named); `form` whether its inbox file exists, `verdict` whether every output is a ValidationResult value port |
 | `GET /api/inbox/<ns>/<taskRun>` | the parsed form; 404 when the TaskRun is not parked or has no form |
 | `GET /api/kinds/<kindName>` | `{name, apiVersion, kind, schema}`, the kind's content schema; 404 for an unknown or unrevisioned kind |
-| `POST /api/inbox/<ns>/<taskRun>` `{outputs}` | `fromFile` with the form, then the signal `complete` sends, the form removed, one drain after the response; 200; 400 with the schema message; 404 unknown; 409 when the TaskRun is no longer waiting on a human |
+| `POST /api/inbox/<ns>/<taskRun>` `{outputs}` | `fromFile` with the form, then the signal `complete` sends, the form removed, one drain after the response; 200; 400 with the schema message; 404 unknown; 409 when the TaskRun is no longer waiting on a human, or belongs to another project directory, which the message names |
 
 ## Rules
 
 | Rule | Enforcer |
 |---|---|
-| one completion path: the UI and `persimmon complete` share `fromFile`, the Waiting check, the signal and the form removal | `src/server` imports `cli/signal` |
+| one completion path: the UI and `persimmon complete` share `fromFile`, the Waiting check, the project directory check, the signal and the form removal | `src/server` imports `cli/signal` |
+| the Inbox and the dispatcher agree on which Runs this engine drives: one predicate | `owns` exported from `src/reconcile/dispatch.ts` |
 | agent content is rendered as text by React, never as HTML; a representation stays on its sandboxed route (`25-ui.md`) | `tools/inbox` renders `spec.content` only |
 | the content-to-page tree and the finding builder are pure and tested without a DOM | `tools/inbox/src/lib/*.test.ts` |
 | the inbox directory is the CLI's, `.persimmon/inbox` under the project | `persimmon ui` passes it to `serve` |
@@ -84,6 +85,12 @@ Added to `src/server/api.ts` (`25-ui.md`), under the same Host and content-type 
 - A Tool of its own, `tools/inbox/`, its own Vite config beside the Editor's, no dependency added:
   React and Tailwind are already in the root `package.json`; the Editor is a canvas, the Inbox a list
   and a page. `/` redirects to the Inbox: a parked gate is what a user opens the UI for.
+- The Inbox lists only the TaskRuns its engine drives, and the shared completion path refuses another
+  directory's, naming it: worktrees share one Store (`08-store.md`), a form lives in the inbox of the
+  directory whose engine ran the attempt, and a signal from another engine leaves the run stopped until
+  its own directory drains. `persimmon complete` gains the same refusal, where the README only asked.
+  Each worktree runs its own `persimmon ui`; the second takes `--port`, as the lock and socket are per
+  directory. Found in design review, after the shared Store landed.
 - Polling, not a push channel: a 5 s `GET` on loopback costs nothing, and the server stays
   request-response.
 - A non-verdict form, the builder's `implement`, is read in the Inbox and answered with
