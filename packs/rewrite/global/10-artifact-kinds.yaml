@@ -1,0 +1,344 @@
+# Artifact kinds of the Rewrite pack (40-pack-rewrite.md). Every other kind a rewrite uses is the SDLC pack's, by name.
+# Every object closes with additionalProperties: false so a misspelt field is refused, not ignored.
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata: {name: sourceinventories.rewrite.persimmon.ai}
+spec:
+  group: rewrite.persimmon.ai
+  names: {kind: SourceInventory, plural: sourceinventories}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [source, entryPoints, stateChanges, guards, declarations, absences, plumbingPatterns, entities, externalSystems, tests, unread, openQuestions]
+        additionalProperties: false
+        $defs:
+          Where:
+            description: "a file, or a file and line or lines, relative to the repository root and never leaving it (`src/a.java`, `src/a.java:12`, `src/a.java:12-30`), or a locator for what lives only in a deployed database, a configuration store or another system; a range's order is the check's"
+            anyOf:
+              - {type: string, pattern: "^(?!/)(?!(.*/)?\\.\\.(/|:|$))[^\\s:]+(:[1-9][0-9]*(-[1-9][0-9]*)?)?$"}
+              - type: object
+                required: [in, locator]
+                additionalProperties: false
+                properties:
+                  in: {enum: [db, config, external]}
+                  locator: {type: string, minLength: 1, description: "what names it there: a trigger, a table and its rows, a key path"}
+          Wheres: {type: array, minItems: 1, items: {$ref: "#/$defs/Where"}}
+        properties:
+          source:
+            type: object
+            required: [repository, commit]
+            additionalProperties: false
+            properties:
+              repository: {type: string, minLength: 1}
+              commit: {type: string, pattern: "^[0-9a-f]{7,64}$", description: "the commit every where is read at"}
+          slice: {type: string, pattern: "^SL-[0-9]+$", description: "the Slice this revision read; absent on the Survey's"}
+          entryPoints:
+            type: array
+            description: "where the outside starts work; the Survey writes them for the whole source, without guards"
+            items:
+              type: object
+              required: [id, kind, name, where, reaches]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^EP-[0-9]+$"}
+                kind: {enum: [http, message, job, cli, ui, report]}
+                name: {type: string, minLength: 1}
+                where: {$ref: "#/$defs/Wheres"}
+                reaches:
+                  type: object
+                  required: [files]
+                  additionalProperties: false
+                  properties:
+                    files: {type: array, items: {type: string, minLength: 1}, description: "paths relative to the repository root"}
+                    entities: {type: array, items: {type: string, pattern: "^EN-[0-9]+$"}}
+                    externalSystems: {type: array, items: {type: string, pattern: "^EX-[0-9]+$"}}
+          stateChanges:
+            type: array
+            description: "a write that outlives the request: a row, a session, a file, a message, an email; candidate domain events"
+            items:
+              type: object
+              required: [id, entity, change, name, where, from]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^ST-[0-9]+$"}
+                entity: {type: string, pattern: "^EN-[0-9]+$"}
+                change: {enum: [create, update, delete, status, send]}
+                name: {type: string, minLength: 1}
+                where: {$ref: "#/$defs/Wheres"}
+                from: {type: array, minItems: 1, items: {type: string, pattern: "^EP-[0-9]+$"}}
+          guards:
+            type: array
+            description: "every branch that refuses, computes or decides"
+            items:
+              type: object
+              required: [id, condition, outcome, role, where, in]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^GD-[0-9]+$"}
+                condition: {type: string, minLength: 1, description: "what the code tests, in the source's names"}
+                outcome: {type: string, minLength: 1, description: "what follows on each side"}
+                role: {enum: [rule, plumbing, unknown]}
+                where: {$ref: "#/$defs/Wheres"}
+                in: {type: array, minItems: 1, items: {type: string, pattern: "^EP-[0-9]+$"}}
+                volatile: {type: array, minItems: 1, uniqueItems: true, items: {enum: [time, random, order, concurrency]}, description: "its outcome depends on more than its input; time only when the condition reads the clock, not a date the input carries"}
+                note: {type: string, minLength: 1}
+          declarations:
+            type: array
+            description: "a rule stated without a branch"
+            items:
+              type: object
+              required: [id, kind, statement, where]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^DC-[0-9]+$"}
+                kind: {enum: [key, uniqueness, retention, ordering, schema, data, config, contract]}
+                statement: {type: string, minLength: 1}
+                where: {$ref: "#/$defs/Wheres"}
+          absences:
+            type: array
+            description: "a check the source could make and does not"
+            items:
+              type: object
+              required: [id, statement, where]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^AB-[0-9]+$"}
+                statement: {type: string, minLength: 1}
+                where: {$ref: "#/$defs/Wheres"}
+          plumbingPatterns:
+            type: array
+            description: "one shape of plumbing, accepted once by a human"
+            items:
+              type: object
+              required: [id, pattern, examples]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^PP-[0-9]+$"}
+                pattern: {type: string, minLength: 1}
+                examples: {type: array, minItems: 1, items: {type: string, pattern: "^GD-[0-9]+$"}}
+          entities:
+            type: array
+            items:
+              type: object
+              required: [id, name, where]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^EN-[0-9]+$"}
+                name: {type: string, minLength: 1}
+                store: {type: string}
+                where: {$ref: "#/$defs/Wheres"}
+          externalSystems:
+            type: array
+            items:
+              type: object
+              required: [id, name, direction, where]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^EX-[0-9]+$"}
+                name: {type: string, minLength: 1}
+                direction: {enum: [in, out, both]}
+                where: {$ref: "#/$defs/Wheres"}
+          tests:
+            type: array
+            description: "the source's own tests"
+            items:
+              type: object
+              required: [name, where, covers]
+              additionalProperties: false
+              properties:
+                name: {type: string, minLength: 1}
+                where: {$ref: "#/$defs/Where"}
+                covers: {type: array, items: {type: string, pattern: "^(EP|GD)-[0-9]+$"}}
+          unread:
+            type: array
+            items:
+              type: object
+              required: [path, reason]
+              additionalProperties: false
+              properties:
+                path: {type: string, minLength: 1}
+                reason: {type: string, minLength: 1}
+          openQuestions:
+            type: array
+            items:
+              type: object
+              required: [id, question]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^Q-[0-9]+$"}
+                question: {type: string, minLength: 1}
+                resolution: {type: string, minLength: 1}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"
+---
+# What holds a rewrite to its Source system, computed by parity/v1 and never written by an agent (40-pack-rewrite.md).
+apiVersion: persimmon.ai/v1
+kind: KindDefinition
+metadata: {name: parityledgers.rewrite.persimmon.ai}
+spec:
+  group: rewrite.persimmon.ai
+  names: {kind: ParityLedger, plural: parityledgers}
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        type: object
+        required: [source, inventory, slices, entryPoints, items, answers, differences, unreached]
+        additionalProperties: false
+        $defs:
+          Pin:
+            type: object
+            required: [id, revision]
+            additionalProperties: false
+            properties:
+              id: {type: string, minLength: 1}
+              revision: {type: integer, minimum: 1}
+          Level:
+            type: object
+            required: [tool, run, one, junit, testDir]
+            additionalProperties: false
+            properties:
+              tool: {type: string, minLength: 1, description: "the tool and its version"}
+              run: {type: string, minLength: 1, description: "the command that runs the level's tests and writes JUnit XML; it starts what they need"}
+              one: {type: string, minLength: 1, description: "the same for one test, `{test}` its name; run-mutants runs the tests citing an item with it"}
+              reset: {type: string, description: "the command that restores the data before each test"}
+              junit: {type: string, minLength: 1}
+              testDir: {type: string, minLength: 1}
+              coverage: {type: string, description: "the JaCoCo, Cobertura or lcov report the run writes"}
+          Ref: {type: string, pattern: "^(GD|DC|ST|EX|AB)-[0-9]+$"}
+        properties:
+          source:
+            type: object
+            required: [repository, commit]
+            additionalProperties: false
+            properties:
+              repository: {type: string, minLength: 1}
+              commit: {type: string, pattern: "^[0-9a-f]{7,64}$"}
+          inventory: {$ref: "#/$defs/Pin", description: "the SourceInventory revision this ledger was computed from"}
+          rules: {$ref: "#/$defs/Pin", description: "the BusinessRules revision, once recovered"}
+          slice: {type: string, pattern: "^SL-[0-9]+$", description: "the Slice of this revision; absent on the Survey's"}
+          slices:
+            type: array
+            description: "the human's cut, from cut-slices"
+            items:
+              type: object
+              required: [id, name, entryPoints, order]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^SL-[0-9]+$"}
+                name: {type: string, minLength: 1}
+                entryPoints: {type: array, minItems: 1, items: {type: string, pattern: "^EP-[0-9]+$"}}
+                order: {type: integer, minimum: 1}
+          suite:
+            type: object
+            required: [levels, drivers, conventions]
+            additionalProperties: false
+            properties:
+              levels:
+                type: object
+                additionalProperties: false
+                description: "empty when nothing runs: the Oracle is then static"
+                properties:
+                  app: {$ref: "#/$defs/Level"}
+                  units: {$ref: "#/$defs/Level"}
+                  records: {$ref: "#/$defs/Level"}
+              drivers:
+                type: object
+                required: [source]
+                additionalProperties: false
+                properties:
+                  source: {type: string, minLength: 1, description: "the source's Protocol driver, a path in the project"}
+                  rewrite: {type: string, minLength: 1, description: "the rewrite's Protocol driver, when the interface changes"}
+              conventions: {type: string}
+          entryPoints:
+            type: array
+            items:
+              type: object
+              required: [id, oracle]
+              additionalProperties: false
+              properties:
+                id: {type: string, pattern: "^EP-[0-9]+$"}
+                oracle: {enum: [running, partial, recorded, static]}
+          items:
+            type: array
+            items:
+              type: object
+              required: [ref, slice, reached, tests, rules, account]
+              additionalProperties: false
+              properties:
+                ref: {$ref: "#/$defs/Ref"}
+                slice: {type: string, pattern: "^SL-[0-9]+$"}
+                reached: {type: boolean}
+                mutant: {enum: [killed, survived, invalid, none]}
+                tests: {type: array, items: {type: string}, description: "the tests whose names cite the item or its entry point"}
+                rules: {type: array, items: {type: string, pattern: "^BR-[0-9]+$"}}
+                disposition: {enum: [keep, change, drop]}
+                dead: {type: string, minLength: 1, description: "the evidence the human decided on"}
+                accepted: {type: string, minLength: 1, description: "why the human accepted it open"}
+                plumbing: {type: string, pattern: "^PP-[0-9]+$", description: "the plumbing pattern the human accepted it under"}
+                reader: {type: string, minLength: 1, description: "how the human settled the two readers' disagreement on it"}
+                account: {enum: [complete, unverified, open]}
+                reason: {type: string}
+          answers:
+            type: array
+            description: "what the source answered, recorded when the test passed on it, never edited"
+            items:
+              type: object
+              required: [test, observed]
+              additionalProperties: false
+              properties:
+                test: {type: string, minLength: 1}
+                observed: {description: "the observation as the test read it"}
+          differences:
+            type: array
+            items:
+              type: object
+              required: [test, source, rewrite]
+              additionalProperties: false
+              properties:
+                test: {type: string, minLength: 1}
+                source: {description: "the source's recorded answer"}
+                rewrite: {description: "the rewrite's"}
+                cause:
+                  oneOf:
+                    - {type: object, required: [rule], additionalProperties: false, properties: {rule: {type: string, pattern: "^BR-[0-9]+$"}}}
+                    - {type: object, required: [issue], additionalProperties: false, properties: {issue: {type: string, minLength: 1}}}
+          unreached:
+            type: array
+            items:
+              type: object
+              required: [ref, slice, why]
+              additionalProperties: false
+              properties:
+                ref: {type: string, pattern: "^(EP|GD|DC|ST|EX|AB)-[0-9]+$"}
+                slice: {type: string, pattern: "^SL-[0-9]+$"}
+                why: {type: string, minLength: 1}
+          driver:
+            type: object
+            required: [confirmed]
+            additionalProperties: false
+            description: "review-parity's decision on the rewrite's Protocol driver, as given"
+            properties:
+              confirmed: {type: boolean}
+          concerns:
+            type: object
+            required: [accepted, reason]
+            additionalProperties: false
+            description: "review-parity's decision on a concerns verdict, as given"
+            properties:
+              accepted: {type: boolean}
+              reason: {type: string, minLength: 1}
+          verdict:
+            type: object
+            description: "the Slice's, over its items, unreached entries and differences; absent on the Survey's"
+            required: [result, rule]
+            additionalProperties: false
+            properties:
+              result: {enum: [pass, concerns, fail]}
+              rule: {type: string, minLength: 1, description: "which rule of 40-pack-rewrite.md gave it"}
+  mutability: Immutable
+  revisioned: true
+  snapshot: "None"

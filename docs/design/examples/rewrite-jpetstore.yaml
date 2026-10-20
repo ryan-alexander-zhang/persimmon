@@ -1,0 +1,182 @@
+# JPetStore 6 under the Rewrite pack's kinds (40-pack-rewrite.md), from the JPetStore pilot: the Survey's inventory of
+# the whole source, the first Slice's inventory, the ledger after the Survey's cut and after the Slice's recovery. Ids are
+# this example's own, renumbered from the pilot. The ledger cites jpetstore-rules, the recovered BusinessRules, and its
+# BR-1 to BR-4, not shown here. Validates after `persimmon init --pack rewrite`.
+apiVersion: rewrite.persimmon.ai/v1
+kind: SourceInventory
+metadata: {name: jpetstore-inventory.r1}
+spec:
+  identity: {id: jpetstore-inventory, revision: 1}
+  content:
+    source: {repository: https://github.com/mybatis/jpetstore-6, commit: c9a37f22e0afa06c11dfad26b1a8bf0e1a111d3e}
+    entryPoints:
+      - id: EP-1
+        kind: http
+        name: GET /cart, view the cart
+        where: ["src/main/java/org/mybatis/jpetstore/web/controllers/CartController.java:76-80"]
+        reaches: {files: [src/main/java/org/mybatis/jpetstore/web/controllers/CartController.java, src/main/java/org/mybatis/jpetstore/domain/Cart.java]}
+      - id: EP-2
+        kind: http
+        name: GET /cart/addItem, add one item to the cart
+        where: ["src/main/java/org/mybatis/jpetstore/web/controllers/CartController.java:94-111"]
+        reaches:
+          files: [src/main/java/org/mybatis/jpetstore/web/controllers/CartController.java, src/main/java/org/mybatis/jpetstore/domain/Cart.java, src/main/java/org/mybatis/jpetstore/service/CatalogService.java]
+          entities: [EN-1]
+      - id: EP-3
+        kind: http
+        name: POST /order/new, submit the order
+        where: ["src/main/java/org/mybatis/jpetstore/web/controllers/OrderController.java:137-207"]
+        reaches:
+          files: [src/main/java/org/mybatis/jpetstore/web/controllers/OrderController.java, src/main/java/org/mybatis/jpetstore/service/OrderService.java, src/main/java/org/mybatis/jpetstore/domain/Order.java]
+          entities: [EN-1, EN-2]
+      - id: EP-4
+        kind: http
+        name: GET /catalog/categories, browse a category
+        where: ["src/main/java/org/mybatis/jpetstore/web/controllers/CatalogController.java:60-75"]
+        reaches: {files: [src/main/java/org/mybatis/jpetstore/web/controllers/CatalogController.java, src/main/java/org/mybatis/jpetstore/service/CatalogService.java]}
+      - id: EP-5
+        kind: http
+        name: POST /account/signon, sign on
+        where: ["src/main/java/org/mybatis/jpetstore/web/controllers/AccountController.java:88-100"]
+        reaches: {files: [src/main/java/org/mybatis/jpetstore/web/controllers/AccountController.java, src/main/java/org/mybatis/jpetstore/service/AccountService.java]}
+    stateChanges: []
+    guards: []
+    declarations: []
+    absences: []
+    plumbingPatterns: []
+    entities:
+      - {id: EN-1, name: Inventory, store: table INVENTORY, where: [src/main/resources/org/mybatis/jpetstore/mapper/ItemMapper.xml]}
+      - {id: EN-2, name: LineItem, store: table LINEITEM, where: [src/main/java/org/mybatis/jpetstore/domain/LineItem.java]}
+    externalSystems: []
+    tests: []
+    unread:
+      - {path: src/main/webapp/WEB-INF/jsp, reason: "views; their observations are the Protocol driver's"}
+    openQuestions: []
+---
+apiVersion: rewrite.persimmon.ai/v1
+kind: SourceInventory
+metadata: {name: jpetstore-inventory.r2}
+spec:
+  identity: {id: jpetstore-inventory, revision: 2}
+  content:
+    source: {repository: https://github.com/mybatis/jpetstore-6, commit: c9a37f22e0afa06c11dfad26b1a8bf0e1a111d3e}
+    slice: SL-1
+    entryPoints:
+      - id: EP-1
+        kind: http
+        name: GET /cart, view the cart
+        where: ["src/main/java/org/mybatis/jpetstore/web/controllers/CartController.java:76-80"]
+        reaches: {files: [src/main/java/org/mybatis/jpetstore/web/controllers/CartController.java, src/main/java/org/mybatis/jpetstore/domain/Cart.java]}
+      - id: EP-2
+        kind: http
+        name: GET /cart/addItem, add one item to the cart
+        where: ["src/main/java/org/mybatis/jpetstore/web/controllers/CartController.java:94-111"]
+        reaches:
+          files: [src/main/java/org/mybatis/jpetstore/web/controllers/CartController.java, src/main/java/org/mybatis/jpetstore/domain/Cart.java, src/main/java/org/mybatis/jpetstore/service/CatalogService.java]
+          entities: [EN-1]
+      - id: EP-3
+        kind: http
+        name: POST /order/new, submit the order
+        where: ["src/main/java/org/mybatis/jpetstore/web/controllers/OrderController.java:137-207"]
+        reaches:
+          files: [src/main/java/org/mybatis/jpetstore/web/controllers/OrderController.java, src/main/java/org/mybatis/jpetstore/service/OrderService.java, src/main/java/org/mybatis/jpetstore/domain/Order.java]
+          entities: [EN-1, EN-2]
+      - id: EP-4
+        kind: http
+        name: GET /catalog/categories, browse a category
+        where: ["src/main/java/org/mybatis/jpetstore/web/controllers/CatalogController.java:60-75"]
+        reaches: {files: [src/main/java/org/mybatis/jpetstore/web/controllers/CatalogController.java, src/main/java/org/mybatis/jpetstore/service/CatalogService.java]}
+      - id: EP-5
+        kind: http
+        name: POST /account/signon, sign on
+        where: ["src/main/java/org/mybatis/jpetstore/web/controllers/AccountController.java:88-100"]
+        reaches: {files: [src/main/java/org/mybatis/jpetstore/web/controllers/AccountController.java, src/main/java/org/mybatis/jpetstore/service/AccountService.java]}
+    stateChanges:
+      - id: ST-1
+        entity: EN-2
+        change: create
+        name: one line item row per cart item, numbered from 1 in cart order
+        where: ["src/main/java/org/mybatis/jpetstore/service/OrderService.java:87-90", "src/main/java/org/mybatis/jpetstore/domain/Order.java:658"]
+        from: [EP-3]
+    guards:
+      - id: GD-1
+        condition: session attribute 'cart' is null
+        outcome: a new empty Cart is created and stored in the session
+        role: plumbing
+        where: ["src/main/java/org/mybatis/jpetstore/web/controllers/CartController.java:59"]
+        in: [EP-1, EP-2]
+      - id: GD-2
+        condition: the item's INVENTORY.QTY is greater than 0
+        outcome: the cart item is marked in stock; else out of stock
+        role: rule
+        where: ["src/main/java/org/mybatis/jpetstore/service/CatalogService.java:152"]
+        in: [EP-2]
+    declarations:
+      - {id: DC-1, kind: key, statement: "an order's ORDERID is the next value of the SEQUENCE row 'ordernum'", where: [src/main/resources/org/mybatis/jpetstore/mapper/SequenceMapper.xml]}
+    absences:
+      - {id: AB-1, statement: "stock is not checked again when the order is submitted, so an order may take more than is in stock", where: ["src/main/java/org/mybatis/jpetstore/service/OrderService.java:80-95"]}
+    plumbingPatterns:
+      - {id: PP-1, pattern: a session attribute created on first use, examples: [GD-1]}
+    entities:
+      - {id: EN-1, name: Inventory, store: table INVENTORY, where: [src/main/resources/org/mybatis/jpetstore/mapper/ItemMapper.xml]}
+      - {id: EN-2, name: LineItem, store: table LINEITEM, where: [src/main/java/org/mybatis/jpetstore/domain/LineItem.java]}
+    externalSystems: []
+    tests:
+      - {name: CartTest.shouldBeAddedItem, where: "src/test/java/org/mybatis/jpetstore/domain/CartTest.java:40-52", covers: [EP-2]}
+    unread:
+      - {path: src/main/webapp/WEB-INF/jsp, reason: "views; their observations are the Protocol driver's"}
+    openQuestions: []
+---
+apiVersion: rewrite.persimmon.ai/v1
+kind: ParityLedger
+metadata: {name: jpetstore-parity.r1}
+spec:
+  identity: {id: jpetstore-parity, revision: 1}
+  content:
+    source: {repository: https://github.com/mybatis/jpetstore-6, commit: c9a37f22e0afa06c11dfad26b1a8bf0e1a111d3e}
+    inventory: {id: jpetstore-inventory, revision: 1}
+    slices:
+      - {id: SL-1, name: cart and checkout, entryPoints: [EP-1, EP-2, EP-3], order: 1}
+      - {id: SL-2, name: catalog and account, entryPoints: [EP-4, EP-5], order: 2}
+    entryPoints: []
+    items: []
+    answers: []
+    differences: []
+    unreached: []
+---
+apiVersion: rewrite.persimmon.ai/v1
+kind: ParityLedger
+metadata: {name: jpetstore-parity.r3}
+spec:
+  identity: {id: jpetstore-parity, revision: 3}
+  content:
+    source: {repository: https://github.com/mybatis/jpetstore-6, commit: c9a37f22e0afa06c11dfad26b1a8bf0e1a111d3e}
+    inventory: {id: jpetstore-inventory, revision: 2}
+    rules: {id: jpetstore-rules, revision: 1}
+    slice: SL-1
+    slices:
+      - {id: SL-1, name: cart and checkout, entryPoints: [EP-1, EP-2, EP-3], order: 1}
+      - {id: SL-2, name: catalog and account, entryPoints: [EP-4, EP-5], order: 2}
+    suite:
+      levels:
+        app: {tool: pytest 8.3 with requests, run: "scripts/characterize.sh app", one: "scripts/characterize.sh app -k {test}", reset: "scripts/source.sh restart", junit: build/characterize/app.xml, testDir: tests/characterization, coverage: build/characterize/jacoco.xml}
+      drivers: {source: tests/characterization/drivers/source.py}
+      conventions: one observation object per entry point; a test is named after the entry point and the items it targets
+    entryPoints:
+      - {id: EP-1, oracle: running}
+      - {id: EP-2, oracle: running}
+      - {id: EP-3, oracle: running}
+    items:
+      - {ref: GD-1, slice: SL-1, reached: true, mutant: none, tests: [], rules: [], plumbing: PP-1, account: complete}
+      - {ref: GD-2, slice: SL-1, reached: true, mutant: killed, tests: [test_EP2_GD2_add_in_stock, test_EP2_GD2_add_out_of_stock], rules: [BR-1], account: complete}
+      - {ref: DC-1, slice: SL-1, reached: true, mutant: killed, tests: [test_EP3_DC1_order_ids_follow_the_sequence], rules: [BR-2], account: complete}
+      - {ref: ST-1, slice: SL-1, reached: true, mutant: killed, tests: [test_EP3_ST1_line_items_numbered_from_1], rules: [BR-3], account: complete}
+      - {ref: AB-1, slice: SL-1, reached: true, tests: [test_EP3_AB1_order_over_stock_is_taken], rules: [BR-4], disposition: change, account: complete}
+    answers:
+      - test: test_EP2_GD2_add_in_stock
+        observed: {lines: {EST-4: {quantity: 1, inStock: true, total: "18.50"}}, subtotal: "18.50"}
+      - test: test_EP2_GD2_add_out_of_stock
+        observed: {lines: {EST-9: {quantity: 1, inStock: false, total: "18.50"}}, subtotal: "18.50"}
+    differences: []
+    unreached: []
+    verdict: {result: pass, rule: "nothing open, nothing unverified, nothing unreached, no difference without a cause"}

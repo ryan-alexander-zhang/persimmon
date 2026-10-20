@@ -278,6 +278,13 @@ describe('persimmon CLI', () => {
     expect(existsSync(join(dir, '.persimmon'))).toBe(false)
   })
 
+  it('init --pack rewrite installs the Rewrite pack beside the SDLC pack (40-pack-rewrite.md)', async () => {
+    expect([await run('init', '--pack', 'rewrite'), err]).toEqual([0, []])
+    expect(out).toContain('created KindDefinition/sourceinventories.rewrite.persimmon.ai')
+    expect(out).toContain('created KindDefinition/parityledgers.rewrite.persimmon.ai')
+    expect(out).toContain('created KindDefinition/prds.sdd.persimmon.ai')
+  })
+
   it('init --pack names a pack under packs/, and refuses one that is not there or a name that leaves packs/', async () => {
     expect(await run('init', '--pack', 'nope')).toBe(1)
     expect(err.join('\n')).toMatch(/no pack at .*packs\/nope/)

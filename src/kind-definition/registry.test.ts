@@ -189,3 +189,85 @@ describe('the SDLC pack Design kind', () => {
     expect(() => reg.validateResource(record([{ name: 'submit a claim' }]))).toThrow(/must match a schema in anyOf/)
   })
 })
+
+describe('the Rewrite pack kinds (40-pack-rewrite.md)', () => {
+  const load = (f: string) => parseAllDocuments(readFileSync(f, 'utf8')).map((d) => d.toJS())
+  const registry = () => {
+    const reg = new KindRegistry()
+    for (const k of [...load('packs/sdlc/global/10-artifact-kinds.yaml'), ...load('packs/rewrite/global/10-artifact-kinds.yaml')]) reg.register(k)
+    return reg
+  }
+  const example = () => load('docs/design/examples/rewrite-jpetstore.yaml').map((d) => ({ ...d, metadata: { ...d.metadata, namespace: 'demo' } }))
+  const inventory = () => structuredClone(example().find((d) => d.metadata.name === 'jpetstore-inventory.r2'))
+  const ledger = () => structuredClone(example().find((d) => d.metadata.name === 'jpetstore-parity.r3'))
+
+  it('every revision of the JPetStore example validates', () => {
+    const reg = registry()
+    for (const d of example()) expect(() => reg.validateResource(d)).not.toThrow()
+  })
+
+  it('a where is a file, a file and line or lines, or a locator outside the repository', () => {
+    const reg = registry()
+    const at = (where: unknown) => {
+      const d = inventory()
+      d.spec.content.guards[1].where = [where]
+      return () => reg.validateResource(d)
+    }
+    expect(at('src/a.java')).not.toThrow()
+    expect(at('src/a.java:12-30')).not.toThrow()
+    expect(at({ in: 'db', locator: 'trigger ORDERS_BI' })).not.toThrow()
+    expect(at('src/a.java:twelve')).toThrow(/must match a schema in anyOf/)
+    expect(at({ in: 'memory', locator: 'x' })).toThrow(/must match a schema in anyOf/)
+    for (const outside of ['src/a.java:0', '/etc/passwd', '../other/a.java', 'src/../../a.java', 'table ORDERS']) expect(at(outside)).toThrow(/must match a schema in anyOf/)
+  })
+
+  it('a write comes from an entry point, a guard sits in one, and the enums hold', () => {
+    const reg = registry()
+    const refused = (mutate: (c: any) => void, message: RegExp) => {
+      const d = inventory()
+      mutate(d.spec.content)
+      expect(() => reg.validateResource(d)).toThrow(message)
+    }
+    refused((c) => (c.stateChanges[0].from = []), /stateChanges\/0\/from must NOT have fewer than 1 items/)
+    refused((c) => (c.guards[1].in = []), /guards\/1\/in must NOT have fewer than 1 items/)
+    refused((c) => (c.stateChanges[0].change = 'upsert'), /change must be equal to one of the allowed values/)
+    refused((c) => (c.guards[1].volatile = ['weather']), /volatile\/0 must be equal to one of the allowed values/)
+  })
+
+  it('a suite level names how to run one test, the suite its source driver, and a ledger pins its inventory', () => {
+    const reg = registry()
+    const refused = (mutate: (c: any) => void, message: RegExp) => {
+      const d = ledger()
+      mutate(d.spec.content)
+      expect(() => reg.validateResource(d)).toThrow(message)
+    }
+    refused((c) => delete c.suite.levels.app.one, /levels\/app must have required property 'one'/)
+    refused((c) => delete c.suite.drivers.source, /drivers must have required property 'source'/)
+    refused((c) => (c.inventory = 'jpetstore-inventory'), /inventory must be object/)
+    refused((c) => (c.items[1].account = 'done'), /account must be equal to one of the allowed values/)
+    refused((c) => (c.concerns = { accepted: true }), /concerns must have required property 'reason'/)
+  })
+
+  it('ids carry their prefix, and a misspelt field is refused', () => {
+    const reg = registry()
+    const bad = inventory()
+    bad.spec.content.guards[1].id = 'G-2'
+    expect(() => reg.validateResource(bad)).toThrow(/guards\/1\/id must match pattern/)
+    const extra = inventory()
+    extra.spec.content.guards[1].severity = 'high'
+    expect(() => reg.validateResource(extra)).toThrow(/must NOT have additional properties/)
+  })
+
+  it('a ledger item is a guard, declaration, state change, external system or absence; a difference has one cause', () => {
+    const reg = registry()
+    const item = ledger()
+    item.spec.content.items[0].ref = 'EP-1'
+    expect(() => reg.validateResource(item)).toThrow(/items\/0\/ref must match pattern/)
+    const both = ledger()
+    both.spec.content.differences = [{ test: 't', source: 1, rewrite: 2, cause: { rule: 'BR-1', issue: 'i' } }]
+    expect(() => reg.validateResource(both)).toThrow(/must match exactly one schema in oneOf/)
+    const fine = ledger()
+    fine.spec.content.differences = [{ test: 't', source: { a: 1 }, rewrite: { a: 2 } }]
+    expect(() => reg.validateResource(fine)).not.toThrow()
+  })
+})
