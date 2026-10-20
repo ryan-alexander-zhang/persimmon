@@ -40,8 +40,9 @@ Plan, TestDesign, TestHarness
 ```
 
 The run order becomes `author-prd`, `domain-discovery`, `architect`, `spec-all`, `design-all`,
-`design-system` before a `ui` `design-all`, `setup-tests`, `test-design-all`, `plan-all`,
-`build-all`. Without a TestDesign bound, `select-cases` answers no case, both Tester steps are
+`design-system` before a `ui` `design-all`, `plan-all`, `setup-tests`, `test-design-all`,
+`build-all`: the Plan reads no case, and `setup-tests` needs the app's skeleton, which the build's
+side of the order brings. Without a TestDesign bound, `select-cases` answers no case, both Tester steps are
 passed by, and `build-one` is the build of `35-build-process.md`.
 
 ## Kinds
@@ -179,7 +180,7 @@ A case reads its tests in the `plan` tier's outcome of its level. A rate is the 
   and addyosmani's "discover the stack first" each record the stack once. The Executor override per
   level was the only record, and no Task reads an Executor (decision 451). The harness is checked by
   running each level once and finding its seed test green. Found in design review.
-- Test cases are designed per Spec before the Plan, in one TestDesign a human confirms: the level of
+- Test cases are designed per Spec before the build, in one TestDesign a human confirms: the level of
   each case is decided before code, as BMAD's `test-design` and Playwright's `specs/*.md` plan do,
   not judged by the Auditor after it. An agent writes it, read only, as the Plan's: it needs the
   Spec and the Designs, not the app. One artifact holding the cases, not a `TestCase` per case (the

@@ -76,7 +76,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 ## 6. Artifact Workflow
 
 - The run order: `author-prd`, `domain-discovery`, `architect`, `spec-all`, `design-all`,
-  `design-system` before a `ui` `design-all`, `setup-tests`, `test-design-all`, `plan-all`,
+  `design-system` before a `ui` `design-all`, `plan-all`, `setup-tests`, `test-design-all`,
   `build-all` with `testDesign` and `harness` bound. Each artifact cites upstream only.
   `setup-tests` needs the app's skeleton in the repository: its seed tests run on it.
 - Read an artifact with `persimmon get <Kind>/<id>`; `--files <dir>` exports its representations,
