@@ -1,7 +1,7 @@
 // The unit level's measures over the Change set for junit/v1 (36-test-levels.md): coverage from a Cobertura report, mutation
 // from a mutation-testing-elements report; apart from index.mjs so tests import it without starting the Adapter.
 import { readFileSync, realpathSync } from 'node:fs'
-import { isAbsolute, matchesGlob, relative, resolve } from 'node:path'
+import { basename, isAbsolute, matchesGlob, relative, resolve } from 'node:path'
 import { DOMParser } from '@xmldom/xmldom'
 
 const list = (nodes) => Array.from({ length: nodes.length }, (_, i) => nodes.item(i))
@@ -18,11 +18,25 @@ export function ranges(lines) {
   return out.map(([a, b]) => (a === b ? `${a}` : `${a}-${b}`)).join(',')
 }
 
-/** A report's path as the Change set names it: relative to the workspace, the real path tried too (a temp dir behind a symlink). */
+/** A report's path as the Change set names it: relative to the workspace, the real path tried too (a temp dir behind a symlink);
+ * else the one changed file it is a suffix of, or that is a suffix of it (PIT's `com/x/Claim.java`, a Go import path). */
 function inWorkspace(workspace, path, roots, changes) {
   const bases = [...new Set([resolve(workspace), realpathSync(workspace)])]
   const candidates = isAbsolute(path) ? bases.map((b) => relative(b, path)) : [path, ...roots.flatMap((r) => bases.map((b) => relative(b, resolve(b, r, path))))]
-  return candidates.find((c) => changes.has(c)) ?? candidates[0]
+  const found = candidates.find((c) => changes.has(c))
+  if (found) return found
+  const tail = path.replace(/^\.?\//, '')
+  const hits = [...changes.keys()].filter((f) => f.endsWith(`/${tail}`) || tail.endsWith(`/${f}`))
+  return hits.length === 1 ? hits[0] : candidates[0]
+}
+
+/** A changed file under `paths` the report seems to name, a file of the same name, yet resolved to no changed file: the paths
+ * did not map, and counting nothing would pass the minimum unmeasured. */
+function unmapped(reported, changes, paths) {
+  const changed = [...changes.keys()].filter((f) => under(f, paths) && !reported.has(f))
+  const names = new Set([...reported].map((r) => basename(r)))
+  const lost = changed.filter((f) => names.has(basename(f)))
+  return lost.length ? `the report names ${lost.join(', ')} by a path that resolves to no changed file; nothing was measured there` : undefined
 }
 
 /** The changed executable lines the unit tests ran: {min, covered, total, uncovered[]}, or {min, error}. */
@@ -42,6 +56,8 @@ export function coverage({ workspace, report, min, changes, paths }) {
     const lines = executable.get(file) ?? executable.set(file, new Map()).get(file)
     for (const l of list(c.getElementsByTagName('line'))) lines.set(Number(l.getAttribute('number')), lines.get(Number(l.getAttribute('number'))) || Number(l.getAttribute('hits')) > 0)
   }
+  const lost = unmapped(new Set(executable.keys()), changes, paths)
+  if (lost) return { min, error: lost }
   let covered = 0
   let total = 0
   const uncovered = []
@@ -69,8 +85,10 @@ export function mutation({ workspace, report, min, changes, paths, command }) {
   if (!json || typeof json.files !== 'object') return { min, command, error: `${report} is not a mutation-testing-elements report` }
   const counts = { killed: 0, survived: 0, noCoverage: 0, timeout: 0 }
   const survivors = []
-  for (const [path, f] of Object.entries(json.files)) {
-    const file = inWorkspace(workspace, path, [], changes ?? new Map())
+  const files = Object.entries(json.files).map(([path, f]) => [inWorkspace(workspace, path, [], changes ?? new Map()), f])
+  const lost = changes && unmapped(new Set(files.map(([file]) => file)), changes, paths)
+  if (lost) return { min, command, error: lost }
+  for (const [file, f] of files) {
     const changed = changes?.get(file)
     if (!under(file, paths) || (changes && !changed)) continue
     for (const m of f.mutants ?? []) {

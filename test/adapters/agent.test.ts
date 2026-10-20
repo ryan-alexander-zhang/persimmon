@@ -651,6 +651,15 @@ describe('junit/v1', () => {
       survivors: [{ file: 'src/a.ts', line: 2, mutator: 'EqualityOperator' }, { file: 'src/a.ts', line: 4, mutator: 'EqualityOperator' }],
     })
     expect(mutation({ workspace: dir, report: 'mutation.json', min: 90, command: ['stryker'] })).toMatchObject({ survived: 3 }) // no Change set: every mutant
+    // a report naming a file by another root resolves by suffix; one that cannot is an error, never a pass unmeasured
+    const deep = new Map([['src/main/java/com/x/Claim.java', new Set([3])]])
+    writeFileSync(join(dir, 'pit.json'), JSON.stringify({ files: { 'com/x/Claim.java': { mutants: [mutant(3, 'Survived')] } } }))
+    expect(mutation({ workspace: dir, report: 'pit.json', min: 90, changes: deep, paths: ['src/**'], command: [] })).toMatchObject({ survived: 1, score: 0 })
+    writeFileSync(join(dir, 'jacoco.xml'), '<coverage><sources><source>src/main/java</source></sources><packages><package><classes><class filename="com/x/Claim.java"><lines><line number="3" hits="1"/></lines></class></classes></package></packages></coverage>')
+    expect(coverage({ workspace: dir, report: 'jacoco.xml', min: 90, changes: deep, paths: ['src/**'] })).toEqual({ min: 90, covered: 1, total: 1, uncovered: [] })
+    const twins = new Map([['a/Claim.java', new Set([3])], ['b/Claim.java', new Set([3])]])
+    writeFileSync(join(dir, 'twin.json'), JSON.stringify({ files: { 'x/Claim.java': { mutants: [mutant(3, 'Survived')] } } }))
+    expect(mutation({ workspace: dir, report: 'twin.json', min: 90, changes: twins, command: [] }).error).toContain('resolves to no changed file')
     writeFileSync(join(dir, 'bad.json'), '{}')
     expect(mutation({ workspace: dir, report: 'bad.json', min: 90, command: [] }).error).toContain('not a mutation-testing-elements report')
 
