@@ -1,6 +1,6 @@
 # Test process
 
-status: draft · layer: 2 (`35-build-process.md`, `36-test-levels.md`, `31-architecture-process.md`, `29-design-process.md`) · schema: the `TestHarness`, `TestDesign` and `TestReport` kinds in `packs/sdlc/global/10-artifact-kinds.yaml`
+status: active · layer: 2 (`35-build-process.md`, `36-test-levels.md`, `31-architecture-process.md`, `29-design-process.md`) · schema: the `TestHarness`, `TestDesign` and `TestReport` kinds in `packs/sdlc/global/10-artifact-kinds.yaml`
 
 Testing is decided and written apart from the code. A Tester records the project's test tools once,
 in a TestHarness. Per Spec, an agent designs the test cases before any task is built, in a

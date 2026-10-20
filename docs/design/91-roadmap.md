@@ -55,7 +55,6 @@ later     eager joins · retention policy · policy resource · external event s
 | Item | Deferred by | Note |
 |---|---|---|
 | pack format: manifest, version, dependency resolution, `pack` verb | `20-pack.md` | v1: directory and `apply` |
-| tester as its own Task, apart from the coder | `examples/example04` | v1: the coder writes its tests; a Validator reads them |
 | the SDLC pack on `codex/v1`: an open object with no `properties` (`references[].locator`, the DMN `decision` map) is not closed by the codex Adapter's strict rewrite, and OpenAI strict mode refuses it | `29-design-process.md` | the pack binds claude-code Executors only; close property-less objects in the rewrite when a codex Executor is bound |
 | a listing of the `D-n` no Issue cites | `35-build-process.md` | v1: the `defect-reported` warning is the only reminder; nothing makes a reported defect become an Issue |
 | one defect reported by several records merged | `35-build-process.md` | v1: each record of a `build-all` reports the same old red test again; the human writes one Issue |
@@ -77,7 +76,6 @@ later     eager joins · retention policy · policy resource · external event s
 | `describe` at every snapshot resolution | `04-snapshot.md` | cached digest checked instead |
 | `secretManager` credential source | `08-store.md` | server mode |
 | `security.networkAccess` and `allowedHosts` enforced by the agent Adapters | `13-executor.md` | declarative today; needs a sandbox the CLIs do not expose |
-| the verification layer of the SDLC pack: `TestCase` (`verifies[] {kind: AC\|FR\|BR\|QS, ref}`, steps, assertions, `executionMode`), `TestRun` (build, environment, time), `TestResult` (one per executed case and data set, evidence), `TestReport` (runs, coverage split into requirements, execution and verification, defects, quality gate); a scenario and a test case are N:M; a Spec cites none of them | `23-pack-sdlc.md`, `27-spec-process.md` | the Spec's `AC-n`, `FR-n` and the rules' `BR-n` are the ids it will cite; nothing verifies yet |
 | fired Transitions recorded in `WorkflowRun.status` | `11-workflow.md` | derived from step runs |
 | `allowedHosts` enforcement and a network switch for `claude-code/v1` | `19-adapter-roles.md` | agent runs with the CLI's own sandbox; codex has the on/off switch |
 

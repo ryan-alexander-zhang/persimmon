@@ -766,8 +766,8 @@ _Avoid_: feature spec, requirements doc, spec.md
   TestOutcome's and the record row's only.
 - **Test case.** JUnit's `testcase`, which `35-build-process.md`, `36-test-levels.md` and the
   acceptance findings call a test case, and a **TestDesign**'s `TC-n`. Resolution: **Test case** is
-  the `TC-n`; JUnit's entry is a test, one `TestOutcome.tests[]` entry. Those files' prose follows
-  when `39-test-process.md` becomes active.
+  the `TC-n`; JUnit's entry is a test, one `TestOutcome.tests[]` entry, in those files' prose and
+  in the Gate's messages; a Decision recorded before keeps its words.
 
 - **ArtifactRef vs RevisionRef.** Same shape. Framework says RevisionRef; reference well-known
   schemas exposed `persimmon.ai/v1#/ArtifactRef`. Resolution: **RevisionRef** everywhere,
