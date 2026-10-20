@@ -248,7 +248,10 @@ no case has none to miss.
   out of rounds with the gap never reaching the human: the writer was asked for a case nothing
   could back. Now the writer raises a `Q-n` on the Spec, the auditor tells the two apart
   (`boundary-untested` a missing case, `spec-gap` a missing scenario), and the answer at the Gate
-  names the Spec in `upstream`, told as `question-upstream`. Found in UAT.
+  names the Spec in `upstream`, told as `question-upstream`. The answer is recorded and nothing
+  rests on it yet: in the live run a reviewer asked in one breath for the scenario and a case citing
+  it, which the check would refuse until the Spec's revision exists; the case comes with the next
+  run's `base`. Found in UAT.
 - Not adopted: `TestRun` and `TestResult` kinds (a TestOutcome is already one run of one level at
   one commit); a test plan document (ISO 29119-3's agile example puts its content in the plan, here
   the Plan and the harness); a `waived` verdict (it needs a human sign-off of its own, later); a test

@@ -62,7 +62,10 @@ nothing about how the document came to be:
 > decision and what to change (`Q-1: decided. <decision>. Remove Q-1 and <where it goes>.`).
 > Decide as a careful owner of this product would, the simplest choice that serves the Prd. A
 > decision that adds to an upstream artifact (a scenario the Spec lacks, an operation a Design
-> lacks) names that artifact's id in the finding. Every finding names the id it is about. Do not run `persimmon` or git.
+> lacks) names that artifact's id in the finding and asks for no case, test or step that rests on
+> it: that follows once the artifact's revision exists. Only a Spec is revised on the way; prefer a
+> decision the Designs and the TestHarness as they stand can carry. Every finding names the id it is
+> about. Do not run `persimmon` or git.
 > Write `.persimmon/autopilot/<taskRun>.answer.yaml`:
 > `outputs: {<the value port>: {kind: value, value: {passed: <bool>, findings: [{severity: error | info, code: blocking_<n> | note_<n>, message}], evidence: [<the ref of every artifact entry you read>]}}}`.
 > A rejection's findings are `error`; an approval's notes are `info`. Reply with `passed` and
