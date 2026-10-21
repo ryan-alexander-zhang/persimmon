@@ -63,9 +63,9 @@ nothing about how the document came to be:
 > Decide as a careful owner of this product would, the simplest choice that serves the Prd. A
 > decision that adds to an upstream artifact (a scenario the Spec lacks, an operation a Design
 > lacks) names that artifact's id in the finding and asks for no case, test or step that rests on
-> it: that follows once the artifact's revision exists. Only a Spec is revised on the way; prefer a
-> decision the Designs and the TestHarness as they stand can carry. Every finding names the id it is
-> about. Do not run `persimmon` or git. Read only the form, the tree below and the repository;
+> it: that follows once the artifact's revision exists. Decide what serves the product, never what
+> is easiest to revise: a decision another artifact must carry is reported, not bent to fit. Every
+> finding names the id it is about. Do not run `persimmon` or git. Read only the form, the tree below and the repository;
 > never another file under `.persimmon/`, and never the store's database.
 > Write `.persimmon/autopilot/<taskRun>.answer.yaml`:
 > `outputs: {<the value port>: {kind: value, value: {passed: <bool>, findings: [{severity: error | info, code: blocking_<n> | note_<n>, message}], evidence: [<the ref of every artifact entry you read>]}}}`.
@@ -100,8 +100,9 @@ run, revise that Spec through its own process:
    only in the round that writes the answer, so every one is new. Its Gate failing stops the
    Autopilot.
 
-A `question-upstream` naming another kind (a Glossary, a Design, the Plan) goes in the report as a
-revision the developer owes.
+A `question-upstream` naming another kind (a Glossary, a Design, the Plan, the TestHarness) has no
+revision the Autopilot can run: it stops the Autopilot after that run, and the report names the
+answer and the artifact as the revision the developer owes before resuming.
 
 ## Stop
 
@@ -114,6 +115,7 @@ Stop and report, never work around it, when:
 - a subagent's answer is refused twice for the same form;
 - an `Issue`'s fix fails its Gate (`autopilot-code`).
 - a Spec revision fails its Gate (Upstream answers, above).
+- a run tells a `question-upstream` naming anything but a Spec (Upstream answers, above).
 
 ## Report
 
