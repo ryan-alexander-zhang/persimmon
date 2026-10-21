@@ -25,7 +25,7 @@ Workflow spec-all: repeat over `capabilities` ─▶ ReviewLoop spec-one per CAP
 | Executor `spec-agent` | `claude-code/v1`, read-only, the same configuration as `storming-agent` under its own name, so a Namespace overrides the model per Task |
 | Task `write-spec` | inputs `prd`, `capabilityId`, `architecture`, `context` (the BoundedContext, `34-subdomains.md`), `domainModel`, `glossary`, `rules`, `previous`, `feedback`, `base?` (the Spec this run revises), `changes?` (the downstream answers it applies, each `<artifact id> Q-n: <resolution>`); output `spec` |
 | Validator `spec-consistency` | `sdd/v1` over `spec`, `prd`, `domainModel`, `architecture`, `rules`, and optionally `context`, `base` and the value `capabilityId`; the rule row of `23-pack-sdlc.md` as findings, `rules-mismatch` when the Spec's `businessRules` is not the artifact bound |
-| Prompt `draft-audit-rules`, part "A Spec" | what the auditor judges that `spec-consistency` cannot (`23-pack-sdlc.md`): `ac-undecidable`, `ac-contradicts-rule`, `requirement-unproven`, `boundary-untested`, `value-missing` and `scenario-unreachable` errors; a `scope-doubt` warning |
+| Prompt `draft-audit-rules`, part "A Spec" | what the auditor judges that `spec-consistency` cannot (`23-pack-sdlc.md`): `ac-undecidable`, `ac-contradicts-rule`, `requirement-unproven`, `boundary-untested`, `value-missing`, `scenario-unreachable` and `term-unknown` errors; a `scope-doubt` warning; the auditor reads the Glossary `spec-one` was given |
 | Task `audit-spec` | inputs `spec`, `prd`, `rules`, `domainModel`, `architecture`, and from round two `previous` and `feedback` (`spec-one`'s `review` binds them; `23-pack-sdlc.md`); Executor `auditor`; output `audit`, a ValidationResult whose schema ties `passed` to "no `error` finding"; 30m, three attempts |
 | Validator `spec-audited` | `task` over `audit-spec`, `resultOutput: audit` |
 | Gate `spec-gate` | consistency, then `audit` `after: [consistency]`, `all`, 35m; a human sign-off is an Approval the project adds |
@@ -68,7 +68,8 @@ nothing: the schema refuses those (`minItems: 1`).
 | `spec-all` runs over one context: its `context`, `domainModel`, `glossary` and `rules` are one artifact each, and its capability ids are ones the `context` lists; a product over several contexts runs it once per context | convention; `context-mismatch` per Spec |
 | a revision with `base` bound starts from it, keeps every id and changes only what `changes` asks; a new scenario takes the next id | `spec-rules`; `checkSpec` `id-reused` |
 | `spec-gate` has no human, only the auditor: a project that wants sign-off wraps `spec-one` in an Approval, as example06 does for its Prd ReviewLoop | convention |
-| the Glossary bound is the context's: a convention, since `spec-gate` binds no Glossary; a wrong one shows as field findings in the Designs | convention |
+| the Glossary bound is the context's: a convention, since nothing checks which Glossary `spec-gate` is given; a wrong one shows as field findings in the Designs | convention |
+| a scenario's value that stands for a domain category, a status or a kind is a Glossary term | `spec-rules`; the auditor's `term-unknown` |
 
 ## Decisions
 
@@ -151,5 +152,11 @@ nothing: the schema refuses those (`minItems: 1`).
   per diem line only another capability's Add Trip creates reachable, a warning, until the rule
   said so. A Design operation for every command is the coverage Gate's, so no later Gate needs
   the Spec beside the Designs.
+- The Spec's auditor reads the Glossary, and `term-unknown` refuses a scenario value that stands
+  for a domain category and is no term of it. In the full-Plan UAT the Spec's AC-8 and AC-9 named
+  "a taxi line" where the categories are travel, meals, lodging, equipment, per diem and other;
+  `spec-rules` already asked for Glossary terms, but no auditor could see the Glossary, so the
+  TestDesign raised it a round and a Spec revision later. Three auditor runs over that Spec, with
+  and without the codes above, all passed it. Found in UAT.
   `spec-rules` asks for the same three, so the writer meets them before the auditor does. Found in
   UAT.

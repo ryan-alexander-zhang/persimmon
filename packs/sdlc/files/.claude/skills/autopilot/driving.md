@@ -65,7 +65,8 @@ nothing about how the document came to be:
 > lacks) names that artifact's id in the finding and asks for no case, test or step that rests on
 > it: that follows once the artifact's revision exists. Only a Spec is revised on the way; prefer a
 > decision the Designs and the TestHarness as they stand can carry. Every finding names the id it is
-> about. Do not run `persimmon` or git.
+> about. Do not run `persimmon` or git. Read only the form, the tree below and the repository;
+> never another file under `.persimmon/`, and never the store's database.
 > Write `.persimmon/autopilot/<taskRun>.answer.yaml`:
 > `outputs: {<the value port>: {kind: value, value: {passed: <bool>, findings: [{severity: error | info, code: blocking_<n> | note_<n>, message}], evidence: [<the ref of every artifact entry you read>]}}}`.
 > A rejection's findings are `error`; an approval's notes are `info`. Reply with `passed` and
@@ -95,8 +96,9 @@ run, revise that Spec through its own process:
 2. Its Gate passed: `plan-all` and then `test-design-all` for that capability alone, on the new
    Spec. Later runs take the new Spec, Plan and TestDesign. A loop that ran out of rounds with
    such a warning is run again this way, not by the retry under Stop.
-3. Once per Spec in an Autopilot run: a second `question-upstream` naming it, or its Gate failing,
-   stops the Autopilot.
+3. The Spec is revised as often as a run tells new answers for it: each `question-upstream` is told
+   only in the round that writes the answer, so every one is new. Its Gate failing stops the
+   Autopilot.
 
 A `question-upstream` naming another kind (a Glossary, a Design, the Plan) goes in the report as a
 revision the developer owes.
@@ -111,7 +113,7 @@ Stop and report, never work around it, when:
   loop's agent may pass from a fresh start, and its Gate still judges;
 - a subagent's answer is refused twice for the same form;
 - an `Issue`'s fix fails its Gate (`autopilot-code`).
-- a Spec is asked for twice, or its revision fails its Gate (Upstream answers, above).
+- a Spec revision fails its Gate (Upstream answers, above).
 
 ## Report
 

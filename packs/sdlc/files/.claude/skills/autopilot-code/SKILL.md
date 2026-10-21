@@ -57,7 +57,9 @@ one after it. Start a new tester subagent per Tester form, never the task's buil
 > write the answer file to `.persimmon/autopilot/<taskRun>.answer.yaml` and stop. Never run git or
 > `persimmon`, never change the app's code. Reply with `written`.
 
-`setup-tests`'s form is a Tester form too: the same prompt, its answer the TestHarness.
+`setup-tests`'s form is a Tester form too: the same prompt, except that its answer is the TestHarness
+(the form's artifact port `harness`), not `written`, and its last line "Reply with the harness's
+levels, their commands and each open question."
 
 Then `persimmon complete` as `driving.md` says: it runs the tests and the Gate. A rejected round
 parks the next round's forms with the findings in `inputs.feedback`: new subagents again.
