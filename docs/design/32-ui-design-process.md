@@ -62,12 +62,13 @@ an invented one. No `interface`: a client block provides none.
 |---|---|
 | Prompt `design-system-rules` | the DESIGN.md spec as the pack reads it: every section present and in order, `omitted` for token groups only, with a reason; the Overview from the Prd's users and the client blocks' `technology` (a kiosk read at ten metres is not a phone); contrast WCAG AA; components for every control the client blocks need; nothing the product does not show |
 | Executor `design-system-agent` | `claude-code/v1`, read-only, its own name for per-Namespace override |
-| Task `write-design-system` | inputs `prd`, `architecture`, `previous`, `feedback`; output `designSystem` (id `<prd>-design-system`) |
+| Task `write-design-system` | inputs `prd`, `architecture`, `previous`, `feedback`; output `designSystem` (id `<prd>-design-system`); `decisions?` (the owner's answers to this round's open questions, recorded with `previous` the draft); output `open`, the ids of its open `Q-n` |
+| Task `decide-design-system`, Workflow `design-system-draft` | the owner decides a draft's open questions inside the round (`23-pack-sdlc.md`): `design-system-draft` runs `write-design-system`, then, when `open` names any, `decide-design-system` on `local-reviewer` (inputs `draft`, `open`, `prd`; output `decisions`; Prompt `owner-decisions`) and `write-design-system` again with `decisions`; output `designSystem` from whichever path ran (`first`) |
 | Task `confirm-design-system` | human on `cli-human/v1`: reads the DESIGN.md; approve, or one finding per section or token that must change |
 | Validator `design-system-lint` | `designmd/v1` over `designSystem`, `failOnWarning: true` |
 | Validator `design-system-confirmed` | over `confirm-design-system` |
 | Gate `design-system-gate` | lint and confirmed, `all`, 72h; `confirmed` `after: [lint]` (`14-gate.md`) |
-| ReviewLoop `design-system` | `produce` `write-design-system`, `review` `design-system-gate`, `maxRounds: 3` |
+| ReviewLoop `design-system` | `produce` `design-system-draft` (73h: the owner may be a human), `review` `design-system-gate`, `maxRounds: 3` |
 | Prompt `design-rules` | gains the `ui` paragraph above |
 | Task `design-asset`, ReviewLoop `design-one`, Workflow `design-all` | `type` enum gains `ui`; inputs `designSystem` and `designs` (artifacts: the `http-api` Designs of the interfaces the block requires) `required: {expression: "inputs.type == 'ui'"}`, `domainModel` and `glossary` `required: {expression: "inputs.type != 'ui'"}` (`10-ports.md`): a run that lacks what its `type` needs is refused at `run`; threaded through with `onMissing: omit` where the engine does not add it (a Workflow step, a Gate's Validator binding; the loop adds it to `produce` and `review`, `21-composition.md`); `design-all` with `type: ui` runs over the client blocks listed |
 | Validator `design-consistency`, Gate `design-gate` | `designSystem` and `designs` (optional) threaded through; `domainModel` and `glossary` optional, both unbound for a `ui` Design: its field names come from the API Designs, not a Glossary |

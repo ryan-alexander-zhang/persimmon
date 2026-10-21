@@ -76,9 +76,9 @@ report names the answer and the artifact as the revision the developer owes befo
 Stop and report, never work around it, when:
 
 - a run ends Failed, or prints a reconcile error (`PERSIMMON_DEBUG=1` shows it);
-- a ReviewLoop runs out of rounds and its last verdict decided no `Q-n` (no finding `Q-n: decided.`).
-  One whose last verdict did decide questions is continued from its last round, so the answers
-  reach the artifact: run the loop that ran out (`persimmon describe WorkflowRun/<loop run>` names
+- a ReviewLoop runs out of rounds and its last verdict decided nothing (no finding opening `<id>: decided.`).
+  One whose last verdict did decide something, a question or a conflict the owner settled, is
+  continued from its last round, so the decisions reach the artifact: run the loop that ran out (`persimmon describe WorkflowRun/<loop run>` names
   its inputs) with the same inputs plus `previous`, the last round's subject, `feedback`, the `value`
   of its review's result (`persimmon get GateRun/<loop run>-rounds-<n>-review`,
   `status.outputs.result`, in a file passed with `@`), and each input its `carry` names

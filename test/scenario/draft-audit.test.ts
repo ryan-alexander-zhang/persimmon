@@ -66,7 +66,7 @@ describe('scenario: a draft audited before it passes', () => {
     expect(await run('apply', file('humans.yaml', [human('prd-agent'), human('auditor')]), '-n', 'default')).toBe(0)
     out = []
     expect(await run('run', 'author-prd', '--input', 'brief=Employees claim expenses.', '--input', 'productId=expense-claims', '--follow')).toBe(0)
-    const draft = { prd: { ...one('Prd').spec.content, businessRules: 'expense-claims-rules' }, rules: one('BusinessRules').spec.content }
+    const draft = { prd: { ...one('Prd').spec.content, businessRules: 'expense-claims-rules' }, rules: one('BusinessRules').spec.content, open: { kind: 'value', value: [] } }
     expect(await answer(inbox()[0]!, 'p1.yaml', draft)).toBe(0)
     const [auditor] = inbox()
     expect(form(auditor!).reading.map((r: { kind: string }) => r.kind)).toEqual(['Prompt', 'Prd', 'BusinessRules'])

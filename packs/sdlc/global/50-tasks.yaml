@@ -173,8 +173,10 @@ spec:
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false}
     previousRules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false, description: "the rules the last round answered; the loop carries them (21-composition.md)"}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}, required: false, description: "the owner's answers to this draft's open questions, recorded in this round (23-pack-sdlc.md)"}
   outputs:
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, id: {expression: "inputs.productId + '-prd'"}}
+    open: {type: {kind: value, schema: {type: array, items: {type: string, pattern: "^Q-[0-9]+$"}}}, description: "the ids of the questions this draft leaves without a resolution; empty when none"}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, id: {expression: "inputs.productId + '-rules'"}}
   executorRef: {kind: Executor, name: prd-agent}
   action:
@@ -186,6 +188,9 @@ spec:
       given (`previousRules` when bound, the last round's answer; else `rules`): every `BR-n` keeps its id, statement and
       rationale; a finding that names a `BR-n` changes that rule; a new policy takes the next number. Never renumber,
       reorder or reword a rule unasked: the gate refuses a rule that changed without a finding naming it.
+      `open` lists the ids of every `Q-n` the Prd leaves without a `resolution`. With `decisions` bound, `previous` is this
+      round's draft (the rules start from `previousRules`, as in a round): record each decision as its `Q-n`'s `resolution`, apply what the
+      answer implies and change nothing else; `open` is then what still has none.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: prd-rules}}
       - {kind: artifact, input: rules}
@@ -419,8 +424,10 @@ spec:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}, required: false, description: "the owner's answers to this draft's open questions, recorded in this round (23-pack-sdlc.md)"}
   outputs:
     designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, id: {expression: "inputs.prd.id + '-design-system'"}}
+    open: {type: {kind: value, schema: {type: array, items: {type: string, pattern: "^Q-[0-9]+$"}}}, description: "the ids of the questions this draft leaves without a resolution; empty when none"}
   executorRef: {kind: Executor, name: design-system-agent}
   action:
     instructions: |
@@ -428,6 +435,9 @@ spec:
       `document.content` is the whole DESIGN.md, front matter and the eight sections in order; `prd` is the Prd's
       artifact id. With `previous` and `feedback` bound, fix what the findings name and change nothing else; answer
       the whole file again.
+      `open` lists the ids of every `Q-n` the DesignSystem leaves without a `resolution`. With `decisions` bound, `previous` is this
+      round's draft: record each decision as its `Q-n`'s `resolution`, apply what the
+      answer implies and change nothing else; `open` is then what still has none.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: design-system-rules}}
       - {kind: artifact, input: prd}
@@ -1317,5 +1327,54 @@ spec:
       - {kind: artifact, input: draft}
       - {kind: artifact, input: spec}
       - {kind: artifact, input: plan}
+  timeout: 72h
+  sideEffects: none
+---
+# The owner decides a Prd draft's open questions inside the round, before its Gate (23-pack-sdlc.md): the brief's unknowns
+# are settled before the auditor and the confirm read the Prd.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: decide-prd}
+spec:
+  inputs:
+    draft: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, description: "this round's Prd, with the questions open"}
+    open: {type: {kind: value, schema: {type: array, items: {type: string, pattern: "^Q-[0-9]+$"}}}, description: "the ids to decide"}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, description: "the rules the draft cites"}
+    brief: {type: {kind: value, schema: {type: string, minLength: 1}}, description: "the developer's brief, the only source the Prd had"}
+  outputs:
+    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}}
+  executorRef: {kind: Executor, name: local-reviewer}
+  action:
+    instructions: |
+      Decide every question `open` names in the Prd `draft`, as the product's owner, following the owner's rules in your
+      context; `brief` is what the developer gave. Answer `decisions` with one entry per id in `open` and no other: its
+      `resolution`; a decision that becomes a policy names it so the writer adds the rule.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: owner-decisions}}
+      - {kind: artifact, input: draft}
+      - {kind: artifact, input: rules}
+  timeout: 72h
+  sideEffects: none
+---
+# The owner decides a DesignSystem draft's open questions inside the round, before its Gate (23-pack-sdlc.md).
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: decide-design-system}
+spec:
+  inputs:
+    draft: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, description: "this round's DesignSystem, with the questions open"}
+    open: {type: {kind: value, schema: {type: array, items: {type: string, pattern: "^Q-[0-9]+$"}}}, description: "the ids to decide"}
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+  outputs:
+    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}}
+  executorRef: {kind: Executor, name: local-reviewer}
+  action:
+    instructions: |
+      Decide every question `open` names in the DesignSystem `draft`, as the product's owner, following the owner's rules
+      in your context. Answer `decisions` with one entry per id in `open` and no other: its `resolution`.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: owner-decisions}}
+      - {kind: artifact, input: draft}
+      - {kind: artifact, input: prd}
   timeout: 72h
   sideEffects: none

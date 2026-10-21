@@ -36,7 +36,7 @@ autopilot = autopilot-doc then autopilot-code
 | before the first run the skill applies `files/.claude/skills/autopilot/autopilot.yaml`: Executors `local-reviewer`, `builder` and `tester` in the project's Namespace, `claude-code/v1`, `claude-opus-5`, the owner read-only, the builder and the Tester `workspace-write` with the stack's commands in `allowedTools`; the report says they are in place, and `persimmon delete Executor/<name> -n default` gives a role back to the human | skill; `autopilot.yaml` |
 | a question is decided where it is raised: the writer's open `Q-n` by the owner inside the round (`decide-<kind>`), the builder's or Tester's by the owner inside the build round (`decide-build`), the ones the confirm finds itself at the Gate, as a rejection `Q-n: decided.` the next round records; every decision an agent took is in the report | pack (`23-pack-sdlc.md`); skill |
 | a form that parks is a Task on a human Executor the overrides do not cover: the Autopilot stops and reports it, never answers it | skill |
-| a loop out of rounds whose last verdict decided a `Q-n` is continued once from its last round (`previous`, `feedback`, its carried inputs, `21-composition.md`), so the writer records the answers and its Gate judges again; one whose last verdict decided nothing, a Failed run for another reason or a reconcile error stops the Autopilot with a report | skill |
+| a loop out of rounds whose last verdict decided something (a finding opening `<id>: decided.`, a question or a conflict the owner settled) is continued once from its last round (`previous`, `feedback`, its carried inputs, `21-composition.md`), so the writer records the answers and its Gate judges again; one whose last verdict decided nothing, a Failed run for another reason or a reconcile error stops the Autopilot with a report | skill |
 | before the first `build-all` the orchestrator does what the pack leaves to the developer: when the project has no app, it scaffolds one on the Architecture's technology and Adrs, with a unit test command that writes JUnit XML; then `setup-tests` and `test-design-all`; the project must already be a git repository | skill |
 | a `D-n` whose task passed becomes an `Issue`, its fix a `build-one`, then the Issue's `resolved` revision; one fix attempt per Issue, then stop; an Issue that finds the Spec wrong or missing stops it, a Spec revision being the developer's call | skill |
 | `plan_regressed` is an Issue with the red test as its `reproduction`, fixed the same way | skill |
@@ -70,7 +70,8 @@ autopilot = autopilot-doc then autopilot-code
   model for the owner was weighed against the live run's cost and refused: the owner's decisions
   are the product's, and the time went to rounds and reruns, not to the model. Chosen by the
   developer.
-- A loop out of rounds is continued only while its last verdict decided something: the confirm's
+- A loop out of rounds is continued only while its last verdict decided something, a question or a
+  conflict the owner found, each a finding opening `<id>: decided.` (`owner-review`): the confirm's
   own decisions reach the artifact through one more round; a loop whose last round decided nothing
   is stuck, and a person reads why. The first cut continued once and stopped at the second
   exhaustion whatever the verdict said. Found in UAT.

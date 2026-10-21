@@ -181,6 +181,8 @@ spec:
     Ids: `G-n`, `CAP-n`, `SC-n`, `Q-n`, `BR-n` each unique and increasing in document order, from 1 on a first draft; a revision keeps every id in place and never reuses one, so a removed item leaves a gap and a new one takes the next number. Prose uses Glossary term names when a Glossary is bound, never aliases.
 
     With `previous` and `feedback` bound, the last round was refused: a Validator finding names an id or a rule, a human finding names what to change; fix those and change nothing else. Answer the whole Prd and the whole rules artifact again.
+
+    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's Prd, `previousRules` its rules: give each `Q-n` its `resolution` in the decision's words, apply what the answer implies (a capability, a criterion, a rule with the next `BR-n` when the answer is a policy), and change nothing else; `open` is then what still has no resolution.
 ---
 # The Design author's rules (29-design-process.md): one standard contract per block and type, indexed against the DomainModel.
 apiVersion: persimmon.ai/v1
@@ -288,6 +290,8 @@ spec:
     Nothing the product does not show: a component no client block needs, a colour no section names. Brand facts the Prd and the Architecture do not give (a company colour, a typeface the office owns, a kiosk's viewing distance) are `openQuestions`, `Q-n` from 1, with a neutral choice in the file until answered. `prd` is the Prd's artifact id; `decisions` lists, from the Architecture's `decisions`, the Adr ids that concern the visual language.
 
     With `previous` and `feedback` bound, the last round was refused: a linter finding names a token path or a section, a human finding names a section or a token to change; fix those and change nothing else. Answer the whole file again.
+
+    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's draft: give each `Q-n` its `resolution` in the decision's words, apply what the answer implies, and change nothing else; `open` is then what still has no resolution.
 ---
 apiVersion: persimmon.ai/v1
 kind: Prompt
@@ -542,8 +546,10 @@ spec:
     From round two, read the last round's findings first and check they were fixed; what an earlier round left
     unflagged stands unless it is wrong in that sense. A `Q-n` with a `resolution` is decided, whoever recorded it:
     reject it only when the decision is wrong. A `Q-n` still open is yours: reject with one finding per question,
-    `Q-n: decided. <decision>. <what changes>.`, and the writer records it as that question's `resolution`. Decide as
-    a careful owner would, the simplest choice that serves the product, never what is easiest to revise: a decision
-    another artifact must carry is reported in the finding, naming that artifact, not bent to fit this one.
+    `Q-n: decided. <decision>. <what changes>.`, and the writer records it as that question's `resolution`. A conflict
+    or a gap you find yourself and settle is a decision too: its finding opens `<id>: decided.` the same way, so the
+    writer carries it and the next round is known to be worth running. Decide as a careful owner would, the simplest
+    choice that serves the product, never what is easiest to revise: a decision another artifact must carry is
+    reported in the finding, naming that artifact, not bent to fit this one.
 
     Every finding names the id it is about. A rejection's findings are `error`; an approval's notes are `info`.

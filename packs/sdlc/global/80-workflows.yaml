@@ -393,6 +393,70 @@ spec:
       dispatch: first
   timeout: 12h
 ---
+# One round's Prd and rules (23-pack-sdlc.md): the writer drafts; a draft with open questions goes to the owner, decide-prd, and
+# the writer records the decisions in the same round, the rules kept as the loop keeps them; a draft with none goes to the Gate.
+apiVersion: persimmon.ai/v1
+kind: Workflow
+metadata: {name: prd-draft}
+spec:
+  inputs:
+    brief: {type: {kind: value, schema: {type: string, minLength: 1}}}
+    productId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
+    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: false}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false}
+    previousRules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+  outputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+  outputBindings:
+    prd: {first: [{fromStep: {stepRef: record, output: prd}}, {fromStep: {stepRef: write, output: prd}}]}   # whichever path ran
+    rules: {first: [{fromStep: {stepRef: record, output: rules}}, {fromStep: {stepRef: write, output: rules}}]}
+  entry: [write]
+  steps:
+    - id: write
+      uses: {kind: Task, name: draft-prd}
+      inputs:
+        brief: {fromInput: brief}
+        productId: {fromInput: productId}
+        rules: {fromInput: rules, onMissing: omit}
+        glossary: {fromInput: glossary, onMissing: omit}
+        previous: {fromInput: previous, onMissing: omit}
+        previousRules: {fromInput: previousRules, onMissing: omit}
+        feedback: {fromInput: feedback, onMissing: omit}
+      timeout: 30m
+    - id: decide
+      uses: {kind: Task, name: decide-prd}
+      inputs:
+        draft: {fromStep: {stepRef: write, output: prd}}
+        open: {fromStep: {stepRef: write, output: open}}
+        rules: {fromStep: {stepRef: write, output: rules}}
+        brief: {fromInput: brief}
+      timeout: 72h
+    - id: record
+      uses: {kind: Task, name: draft-prd}
+      inputs:
+        brief: {fromInput: brief}
+        productId: {fromInput: productId}
+        glossary: {fromInput: glossary, onMissing: omit}
+        previous: {fromStep: {stepRef: write, output: prd}}
+        previousRules: {fromStep: {stepRef: write, output: rules}}
+        decisions: {fromStep: {stepRef: decide, output: decisions}}
+      timeout: 30m
+  transitions:
+    - id: after-write
+      from: [{stepRef: write, outcomes: [Succeeded]}]
+      to: [{stepRef: decide, when: "steps.write.outputs.open.size() > 0"}, {terminal: Succeeded}]
+      dispatch: first
+    - id: after-decide
+      from: [{stepRef: decide, outcomes: [Succeeded]}]
+      to: [{stepRef: record}]
+    - id: after-record
+      from: [{stepRef: record, outcomes: [Succeeded]}]
+      to: [{terminal: Succeeded}]
+  timeout: 73h
+---
 # The Prd process (28-prd-process.md): write, check, confirm at the terminal, up to three rounds.
 apiVersion: persimmon.ai/v1
 kind: ReviewLoop
@@ -404,13 +468,13 @@ spec:
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: false}
   produce:
-    uses: {kind: Task, name: draft-prd}
+    uses: {kind: Workflow, name: prd-draft}
     inputs:
       brief: {fromInput: brief}
       productId: {fromInput: productId}
       rules: {fromInput: rules}
       glossary: {fromInput: glossary}
-    timeout: 30m
+    timeout: 73h   # the owner may be a human (23-pack-sdlc.md decide step)
   review:
     uses: {kind: Gate, name: prd-gate}
     inputs:
@@ -888,6 +952,59 @@ spec:
   maxRounds: 3
   timeout: 240h
 ---
+# One round's DesignSystem (23-pack-sdlc.md): the writer drafts; a draft with open questions goes to the owner,
+# decide-design-system, and the writer records the decisions in the same round; a draft with none goes to the Gate.
+apiVersion: persimmon.ai/v1
+kind: Workflow
+metadata: {name: design-system-draft}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: false}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+  outputs:
+    designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}}
+  outputBindings:
+    designSystem: {first: [{fromStep: {stepRef: record, output: designSystem}}, {fromStep: {stepRef: write, output: designSystem}}]}   # whichever path ran
+  entry: [write]
+  steps:
+    - id: write
+      uses: {kind: Task, name: write-design-system}
+      inputs:
+        prd: {fromInput: prd}
+        architecture: {fromInput: architecture}
+        previous: {fromInput: previous, onMissing: omit}
+        feedback: {fromInput: feedback, onMissing: omit}
+      timeout: 30m
+    - id: decide
+      uses: {kind: Task, name: decide-design-system}
+      inputs:
+        draft: {fromStep: {stepRef: write, output: designSystem}}
+        open: {fromStep: {stepRef: write, output: open}}
+        prd: {fromInput: prd}
+      timeout: 72h
+    - id: record
+      uses: {kind: Task, name: write-design-system}
+      inputs:
+        prd: {fromInput: prd}
+        architecture: {fromInput: architecture}
+        previous: {fromStep: {stepRef: write, output: designSystem}}
+        decisions: {fromStep: {stepRef: decide, output: decisions}}
+      timeout: 30m
+  transitions:
+    - id: after-write
+      from: [{stepRef: write, outcomes: [Succeeded]}]
+      to: [{stepRef: decide, when: "steps.write.outputs.open.size() > 0"}, {terminal: Succeeded}]
+      dispatch: first
+    - id: after-decide
+      from: [{stepRef: decide, outcomes: [Succeeded]}]
+      to: [{stepRef: record}]
+    - id: after-record
+      from: [{stepRef: record, outcomes: [Succeeded]}]
+      to: [{terminal: Succeeded}]
+  timeout: 73h
+---
 # The UI design process (32-ui-design-process.md): the DesignSystem once per product, linted and confirmed by a human.
 #   persimmon run design-system --input 'prd={kind: artifact, ref: {...}}' --input 'architecture={...}'
 apiVersion: persimmon.ai/v1
@@ -898,11 +1015,11 @@ spec:
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
   produce:
-    uses: {kind: Task, name: write-design-system}
+    uses: {kind: Workflow, name: design-system-draft}
     inputs:
       prd: {fromInput: prd}
       architecture: {fromInput: architecture}
-    timeout: 30m
+    timeout: 73h   # the owner may be a human (23-pack-sdlc.md decide step)
   review:
     uses: {kind: Gate, name: design-system-gate}
     inputs:
