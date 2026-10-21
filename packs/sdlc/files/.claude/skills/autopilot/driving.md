@@ -59,7 +59,8 @@ nothing about how the document came to be:
 > on an approval. From round 2 the tree holds the earlier rounds' findings: check those were fixed
 > first; what an earlier round left unflagged stands unless it is wrong in that sense.
 > Every open `Q-n` you settle: reject, with a finding naming it, the
-> decision and what to change (`Q-1: decided. <decision>. Remove Q-1 and <where it goes>.`).
+> decision and what to change (`Q-1: decided. <decision>. <what changes>.`; the writer records it as Q-1's `resolution`, and the
+> question stays).
 > Decide as a careful owner of this product would, the simplest choice that serves the Prd. A
 > decision that adds to an upstream artifact (a scenario the Spec lacks, an operation a Design
 > lacks) names that artifact's id in the finding and asks for no case, test or step that rests on
