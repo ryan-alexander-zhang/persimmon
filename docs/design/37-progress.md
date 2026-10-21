@@ -88,11 +88,13 @@ Any kind, from its content and schema, set as prose to read rather than a form.
 | the content's `title` or `name` | the document title |
 | a top-level field | a section, its heading the field name in words, its schema `description` on hover |
 | a string | paragraphs; line breaks kept |
-| an array of objects | one subsection per element, headed by its `id` and its short `name`, `title`, `label` or `statement` |
+| an array of objects | one subsection per element, headed by its `id` (else its `ref`, as a ParityLedger item names what it accounts for) and its short `name`, `title`, `label` or `statement` |
 | short scalar fields of an element (enum, number, id, short string) | one line under its heading: `Priority P1, subdomain expenses` |
 | an array of scalars | a list; ids (`BR-2`) as inline tags |
 | a nested object | an indented block of the same rules |
 | EventStorming | the same, and "Open the board" to the Editor at that revision |
+| SourceInventory | the same, sections in reading order rather than the agent's: entry points, then the entities and external systems they reach, guards, declarations, state changes, absences, plumbing patterns, tests, unread, open questions |
+| ParityLedger | the same, the verdict first, then slices, entry points with their Oracle, items with their account and reason, differences, unreached, then the rest |
 
 ## Changes between rounds
 
@@ -165,7 +167,10 @@ but `POST /api/inbox`.
   first draft is grouped by its `productId`, the stem the Prd id takes.
 - Documents, not forms: the Inbox's grid of labels and values read as a database row. Sections,
   paragraphs and one meta line per element read as the PRD or architecture document it is. Still one
-  generic renderer; a per-kind layout comes when a kind reads badly in it.
+  generic renderer; a per-kind layout comes when a kind reads badly in it. The first is a section
+  order: a SourceInventory set its guards before the entities and external systems its entry points
+  cite, and a ParityLedger's verdict, the reader's first question, goes first. Found in UAT (the
+  jpetstore Survey).
 - Findings by selecting text, as in a document editor, plus a heading button for a whole element:
   the Inbox's outline and button on every hovered item was noise. The anchor is still the nearest
   `id` in the message, the quote added, because the ReviewLoop feeds messages back and ValidationResult
