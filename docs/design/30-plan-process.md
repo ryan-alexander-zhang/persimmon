@@ -20,7 +20,7 @@ ReviewLoop plan-one, run per Spec by ref or from plan-all, the Designs listed by
 
 | Member | Content |
 |---|---|
-| Prompt `plan-rules` | one block per task; tasks cover every `FR-n` and verify every `AC-n` and every `build` `QS-n` the Spec cites; elements only of Designs in context, of the task's block; earlier tasks only; no estimate, owner, path or technology |
+| Prompt `plan-rules` | one block per task; tasks cover every `FR-n` and verify every `AC-n` and every `build` `QS-n` the Spec cites; a scenario on the task after which it can pass, every operation its When calls and its Then observes built by that task or one before it; elements only of Designs in context, of the task's block; earlier tasks only; no estimate, owner, path or technology |
 | Executor `plan-agent` | `claude-code/v1`, read-only, its own name for per-Namespace override |
 | Task `write-plan` | inputs `spec`, `architecture`, `designs` (artifacts), `domainModel?`, `base?` (the Spec's Plan before this run), `previous`, `feedback`; output `plan` |
 | Validator `plan-consistency` | `sdd/v1` over `plan`, `spec`, `architecture`, `designs`, `domainModel?`, `base?`; the Plan rule row of `23-pack-sdlc.md` as findings |
@@ -94,6 +94,14 @@ The Adapter picks the mode from the payload: `artifacts.plan` first (a Plan payl
   the TestDesign's `case-renumbered` (`39-test-process.md`): document order is build order, so a new
   task an old one needs can come first only under a lower id, and the Plan Gate has no human to
   overrule a refusal. Found in UAT.
+- A scenario sits on the task after which it can pass: the operations its When calls and its Then
+  observes are built by then. In the live Autopilot run `AC-2` (Bob's cancel of Alice's booking is
+  refused, and her booking stays) was on `T-1`, which builds the cancel, while `GET /my-bookings`,
+  the only operation showing that the booking stays, is `T-3`'s: no case could pass, as the check
+  refused the step `step-premature`, the auditor refused the case at `unit`, and the human refused it
+  without the assertion. No check enforces it here: which operation a Then observes is prose until
+  the TestDesign names it in a step, where `step-premature` finds it (`39-test-process.md`). Found in
+  UAT.
 - `verifiedBy` and `covers` may both be empty on a task (groundwork), but every `FR-n`, `AC-n` and cited
   `build` `QS-n` of the Spec must be in some task: coverage is a Spec-level rule, not a task-level one. Found in
   design review.

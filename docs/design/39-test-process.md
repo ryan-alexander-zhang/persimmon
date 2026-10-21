@@ -74,7 +74,7 @@ several cases; one case may have several tests.
 | Tasks `run-seed`, `run-seed-levels` | as `run-baseline` and `run-levels` with no Plan: inputs `harness`, `repository`; ids `<harness>-seed`, `<harness>-seed-levels` |
 | Validator `harness-evidence` | `sdd/v1`, `checkHarness`, below; with `previous?`, the last round's harness, so an answer already told is not told again; with `designs?`, the Designs `setup-tests` was given; with `base?`, the harness this one replaces |
 | Task `confirm-harness`, Validator `harness-confirmed` | the human reads the harness once its seed tests pass and answers each open `Q-n`, on `local-reviewer` |
-| Prompt `test-design-rules` | at least one case per `AC-n` and per `build` `QS-n` the Spec cites; the level from the boundary the scenario's When crosses: the API `api`, a screen `e2e`, a store or a queue `integration`, a rule inside one block `unit`; a quality scenario whose method is `fitness` at `fitness`; steps and data from the Designs' operations and screens, the Glossary's terms; `P0` when a failure loses data, money or access or stops the capability's main path, `P1` a variant of the main path or a rule's edge, `P2` a secondary path, `P3` the rest; `P0` is `automated`; a case the harness's tools cannot run is `manual`, the reason in `preconditions`; a case's steps use only the operations its Plan task, or a task before it, builds; a rule's threshold the Spec has no scenario at or beside is no case but a `Q-n` whose answer names the Spec in `upstream`; a scenario that needs a level the harness lacks is no case but a `Q-n` naming the scenario, with the TestHarness in `upstream`, its case written in the run after the harness's revision, from `base` |
+| Prompt `test-design-rules` | at least one case per `AC-n` and per `build` `QS-n` the Spec cites; the level from the boundary the scenario's When crosses: the API `api`, a screen `e2e`, a store or a queue `integration`, a rule inside one block `unit`; a quality scenario whose method is `fitness` at `fitness`; steps and data from the Designs' operations and screens, the Glossary's terms; `P0` when a failure loses data, money or access or stops the capability's main path, `P1` a variant of the main path or a rule's edge, `P2` a secondary path, `P3` the rest; `P0` is `automated`; a case the harness's tools cannot run is `manual`, the reason in `preconditions`; a case's steps use only the operations its Plan task, or a task before it, builds; a rule's threshold the Spec has no scenario at or beside is no case but a `Q-n` whose answer names the Spec in `upstream`; a step needing an operation a later task builds stays in its case, beside a `Q-n` naming the case and its scenario with the Plan in `upstream`, whose answer moves the scenario to that task; a scenario that needs a level the harness lacks is no case but a `Q-n` naming the scenario, with the TestHarness in `upstream`, its case written in the run after the harness's revision, from `base` |
 | Task `design-tests` | inputs `spec`, `plan`, `base?` (the Spec's TestDesign before this run), `architecture`, `designs` (artifacts), `glossary`, `rules`, `harness`, `previous`, `feedback`; output `testDesign`, id `<spec>-tests`; read only |
 | Validator `test-design-consistency` | `sdd/v1`, `checkTestDesign`, below; inputs add `plan`, `designs`, `base?` and `previous?`, the last round's TestDesign, so an answer already told is not told again |
 | Task `audit-test-design`, Validator `test-design-audited` | `draft-audit-rules`, its part for a TestDesign: a case's level stops short of the boundary its scenario's When crosses or a `fitness` scenario's case is not at `fitness`, its steps do not reach its expected, its expected is not the scenario's Then with its values (`case-unfit`); a rule's threshold with no case beside it is `boundary-untested` when the Spec has a scenario there and `spec-gap` when it has none, both warnings |
@@ -120,7 +120,7 @@ Every finding `error`:
 | `steps-missing` | an `api`, `e2e` or `manual` case without steps |
 | `p0-manual` | a `P0` case that is `manual` |
 | `case-renumbered` | with `base` bound, a `TC-n` of the base whose `AC-n` and `QS-n` share none with the case holding that id now |
-| `step-premature` | an `api` step whose `METHOD /path` is a Design element only a Plan task after the case's task realises; the case's task is the first whose `verifiedBy` holds a scenario it verifies |
+| `step-premature` | an `api` step whose `METHOD /path` is a Design element only a Plan task after the case's task realises; the case's task is the first whose `verifiedBy` holds a scenario it verifies; not for a case a `Q-n` names (the case or a scenario it verifies) with the Plan in `upstream`, held as `scenario-uncovered` holds its gap |
 | `id-sequence` | `TC-n` not unique and increasing |
 
 ## `acceptance-evidence` by case
@@ -268,6 +268,15 @@ no case has none to miss.
   with `base` and `changes`. A question already resolved in `base` no longer excuses the scenario:
   by the next run the harness's revision exists and the case is due. The scenario is found by its
   id in the question's words, as the question has no field for it. Found in UAT.
+- A case whose scenario sits on a task before the one building what its Then observes is the
+  Plan's gap, told as a question on the Plan. In the live run `TC-2`'s step `GET /my-bookings` was
+  `step-premature`, at `unit` the auditor refused it `case-unfit`, and without that step the human
+  refused a scenario's assertion dropped: every way out was refused. The case keeps the step, the
+  writer asks the Plan to move the scenario, and `step-premature` holds the case pending while the
+  question is open or answered in this run, as `scenario-uncovered` does; the answer is told as
+  `question-upstream` naming the Plan. Re-pairing the case with the latest task building one of its
+  steps was rejected: the Plan would still claim the earlier task proves the scenario, and that
+  round would run the case red. Found in UAT.
 - The writer raises every gap of the Spec in round one. In the full-Plan UAT the gaps came one or
   two a round, and each answer was a Spec revision; one batch costs one. The Autopilot already
   revises a Spec once per run with every answer (`38-autopilot.md`). Found in UAT.
