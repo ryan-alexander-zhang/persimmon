@@ -24,8 +24,8 @@ export interface Engine extends CommitEngine {
   /** Base of the exponential backoff between attempts; 0 in tests. */
   retryBaseMs: number
   holder: string
-  /** callAdapter keys this engine is executing right now. */
-  inFlight: Set<string>
+  /** callAdapter keys this engine is executing right now, each with the promise that settles when its answer is in the RunLog. */
+  inFlight: Map<string, Promise<void>>
   onError?: (uid: string, event: Event, error: Error) => void
 }
 
@@ -117,21 +117,21 @@ export function pumpTimers(engine: Engine): number {
   return due.length
 }
 
-/** Dispatches every outstanding callAdapter not already in flight; answers arrive as AdapterFinished. `waiting`: exclusive calls another holds the Lease for. */
-export async function dispatchCalls(engine: Engine): Promise<{ dispatched: number; waiting: number }> {
+/** Starts every outstanding callAdapter not already in flight and returns at once; each answer lands as AdapterFinished when its own
+ * call ends, so a finished sibling is reconciled while the slow ones still run. `waiting`: exclusive calls another holds the Lease for. */
+export function dispatchCalls(engine: Engine): { dispatched: number; waiting: number } {
   const open = engine.store.runLog.outstandingCalls().filter((c) => !engine.inFlight.has(`${c.uid}/${c.action.idempotencyKey}`) && owns(engine, c.uid))
   // an exclusive call goes out only under the Lease on its name, held per call so two of one engine wait too (03-reconcile.md)
   const lease = (c: (typeof open)[number]) => ({ name: `exclusive/${c.action.exclusive}`, holder: `${engine.holder}/${c.uid}/${c.action.idempotencyKey}` })
   const calls = open.filter((c) => !c.action.exclusive || engine.store.leases.acquire(lease(c).name, lease(c).holder, engine.leaseTtlMs))
-  await Promise.all(
-    calls.map(async (c) => {
-      const key = `${c.uid}/${c.action.idempotencyKey}`
-      engine.inFlight.add(key)
+  for (const c of calls) {
+    const key = `${c.uid}/${c.action.idempotencyKey}`
+    const run = async () => {
       const a = c.action as { adapterId: string; op: string; payload: Record<string, unknown>; idempotencyKey: string; deadline?: string }
       const held = c.action.exclusive ? lease(c) : undefined
       const renew = held && setInterval(() => engine.store.leases.renew(held.name, held.holder, engine.leaseTtlMs), engine.leaseTtlMs / 3)
       const scope = { kind: 'call', uid: c.uid, idempotencyKey: a.idempotencyKey, adapterId: a.adapterId }
-      const finished = (payload: AdapterFinishedPayload) => appendEvent(engine, c.uid, { type: 'AdapterFinished', dedupeKey: `adapter/${a.idempotencyKey}`, payload: { ...payload, finishedAt: engine.now().toISOString() } }) // answer time; delivery waits for the other calls of this drain
+      const finished = (payload: AdapterFinishedPayload) => appendEvent(engine, c.uid, { type: 'AdapterFinished', dedupeKey: `adapter/${a.idempotencyKey}`, payload: { ...payload, finishedAt: engine.now().toISOString() } }) // answer time; the drain delivers it as soon as this call ends
       try {
         const deadline = a.deadline ? new Date(a.deadline) : new Date(engine.now().getTime() + engine.defaultCallDeadlineMs)
         const token = engine.store.tokens.issue(scope, deadline.toISOString())
@@ -155,14 +155,14 @@ export async function dispatchCalls(engine: Engine): Promise<{ dispatched: numbe
         finished({ idempotencyKey: a.idempotencyKey, state: 'failed', error: { code: 'permission_denied', message: (e as Error).message, retryable: false } })
       } finally {
         engine.store.tokens.revoke(scope)
-        engine.inFlight.delete(key)
         if (held) {
           clearInterval(renew)
           engine.store.leases.release(held.name, held.holder)
         }
       }
-    }),
-  )
+    }
+    engine.inFlight.set(key, run().finally(() => engine.inFlight.delete(key))) // the key leaves the map only after it entered, however fast the call failed, so the drain's race never spins on a settled promise
+  }
   return { dispatched: calls.length, waiting: open.length - calls.length }
 }
 
@@ -201,9 +201,13 @@ export async function drain(engine: Engine): Promise<void> {
     let moved = pumpTimers(engine) > 0
     moved = deliverOnce(engine.store, engine.kinds, 100, { maxCausationDepth: engine.maxCausationDepth, leaseTtlMs: engine.leaseTtlMs, holder: engine.holder, now: engine.now }) > 0 || moved
     for (const { uid, entry } of engine.store.runLog.listOpen().filter((o) => owns(engine, o.uid))) moved = (await reconcileOnce(engine, uid, entry)) !== 'skipped' || moved
-    const { dispatched, waiting } = await dispatchCalls(engine)
+    const { dispatched, waiting } = dispatchCalls(engine)
     moved = dispatched > 0 || moved
     if (moved) continue
+    if (engine.inFlight.size) {
+      await Promise.race(engine.inFlight.values()) // the first call to end is reconciled now; its siblings keep running (11-workflow.md parallel)
+      continue
+    }
     if (!waiting) return
     await new Promise((r) => setTimeout(r, 1000)) // another holds an exclusive name; exiting now would leave the call to be marked unknown
   }

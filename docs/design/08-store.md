@@ -202,8 +202,13 @@ imports into a server unchanged.
 - `complete` drains and ends with the `tree` of the run its Task belongs to, whichever mode: the
   scripted path printed one line and the caller had to go looking. Found in UAT.
 - `tree` measures a finished TaskRun to its last attempt's `finishedAt`, not to the RunLog entry
-  that applied the answer: local mode delivers the answers of one drain together, so two parallel
-  reviewers showed the same duration. Found in UAT.
+  that applied the answer: local mode once delivered the answers of one drain together, so two
+  parallel reviewers showed the same duration. Found in UAT.
+- A drain delivers each call's answer as that call ends, not when every call it started has
+  ended. The dispatcher awaited all its calls before reconciling any, so three capabilities
+  written side by side waited for the slowest at every step, a barrier the Autopilot retest
+  measured as identical durations for every loop; now the drain races the calls in flight,
+  reconciles the first to end and starts what that unblocks while the others run. Found in UAT.
 - `--follow` prints the lines of one tick in commit order, the latest applied RunLog entry of each
   run: one drain commits a child's finish and its parent's reaction together, and the walk order
   printed the parent first. Found in UAT.

@@ -44,7 +44,7 @@ describe('dispatcher', () => {
     for (const r of closure.resources.filter((r) => r.kind !== 'KindDefinition')) store.resources.put(fresh(r as Resource))
     engine = {
       store, kinds, handlers, adapters, resolver: liveResolver(kinds, store, adapters), defaultNamespace: 'default', now: () => new Date(clock),
-      maxCausationDepth: 32, defaultCallDeadlineMs: 60_000, endpoint: 'unix://test.sock', cwd: '/proj', credentials: { resolve: () => undefined }, maxReconcileAttempts: 3, leaseTtlMs: 30_000, retryBaseMs: 0, holder: 'test', inFlight: new Set(),
+      maxCausationDepth: 32, defaultCallDeadlineMs: 60_000, endpoint: 'unix://test.sock', cwd: '/proj', credentials: { resolve: () => undefined }, maxReconcileAttempts: 3, leaseTtlMs: 30_000, retryBaseMs: 0, holder: 'test', inFlight: new Map(),
       onError: (_uid, event, error) => errors.push(`${event.type}: ${error.message}`),
     }
   })
