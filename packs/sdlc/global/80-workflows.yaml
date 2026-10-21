@@ -364,6 +364,8 @@ spec:
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: {expression: "inputs.type == 'ui'"}}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: {expression: "inputs.type == 'ui'"}}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "the Design this run revises; bound with changes"}
+    changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false, description: "the downstream answers this revision applies, each <artifact id> Q-n: <resolution>"}
   produce:
     uses: {kind: Task, name: design-asset}
     inputs:
@@ -377,6 +379,8 @@ spec:
       rules: {fromInput: rules}
       designSystem: {fromInput: designSystem}
       designs: {fromInput: designs}
+      base: {fromInput: base}
+      changes: {fromInput: changes}
     timeout: 30m
   review:
     uses: {kind: Gate, name: design-gate}
@@ -535,6 +539,7 @@ spec:
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: false, description: "which aggregate handles each of the Spec's commands"}
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}, required: false, description: "the Spec's Plan before this run, whose task ids the tasks keep"}
+    changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false, description: "the downstream answers this run applies to base, each <artifact id> Q-n: <resolution>"}
   produce:
     uses: {kind: Task, name: write-plan}
     inputs:
@@ -543,6 +548,7 @@ spec:
       designs: {fromInput: designs}
       domainModel: {fromInput: domainModel, onMissing: omit}
       base: {fromInput: base, onMissing: omit}
+      changes: {fromInput: changes, onMissing: omit}
     timeout: 30m
   review:
     uses: {kind: Gate, name: plan-gate}

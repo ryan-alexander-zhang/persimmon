@@ -232,6 +232,8 @@ spec:
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: {expression: "inputs.type == 'ui'"}, description: "for a ui Design: the product's DesignSystem (32-ui-design-process.md)"}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: {expression: "inputs.type == 'ui'"}, description: "for a ui Design: the http-api Designs of the interfaces the block requires; its elements realise their operations"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "the Design this run revises"}
+    changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false, description: "the downstream answers this run applies to base"}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
   outputs:
@@ -245,6 +247,7 @@ spec:
       interface. Every element realises a label the DomainModel names; every rule id is in `rules`. For a `ui` Design,
       `designSystem` is the artifact id of the DesignSystem in your context, there is no `domainModel`, and every
       element realises an operation of the Designs in your context.
+      With `base` and `changes` bound, revise `base` as the Design rules say for a revision.
       With `previous` and `feedback` bound, fix what the error findings name and change nothing else; a warning
       (a `dialect` word the block's store lacks) is advice you may take without changing anything else.
     context:
@@ -255,6 +258,7 @@ spec:
       - {kind: artifact, input: rules}
       - {kind: artifact, input: designSystem}
       - {kind: artifact, input: designs}
+      - {kind: artifact, input: base}
       - {kind: artifact, input: previous}
     parameters: {effort: high}
   timeout: 30m
@@ -273,6 +277,7 @@ spec:
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, description: "every Design of the blocks the Spec touches"}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: false, description: "which aggregate handles each of the Spec's commands"}
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}, required: false, description: "the Spec's Plan before this run: start from it and keep its task ids"}
+    changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false, description: "the downstream answers this run applies to base"}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
   outputs:
@@ -284,6 +289,7 @@ spec:
       are the artifact ids of the inputs with those names; `designs` lists the artifact ids of the Designs in your
       context that some task realises an element of. Every task sits on one block, covers requirements and is
       verified by scenarios of the Spec, and depends on earlier tasks only.
+      With `base` and `changes` bound, apply the answers to `base` as the Plan rules say.
       With `previous` and `feedback` bound, fix what the findings name and change nothing else.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: plan-rules}}
