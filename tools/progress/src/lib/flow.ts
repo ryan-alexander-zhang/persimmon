@@ -67,6 +67,9 @@ export const edges: [string, string][] = [
   ["build", "parity"],
 ];
 
+/** The Rewrite pack's human Tasks: each answers a typed `decisions` value, not a verdict (40-pack-rewrite.md). */
+export const decisionTasks = ["cut-slices", "decide-recovery", "review-parity"];
+
 export const phaseOf = (workflow: string) => phases.find((p) => p.workflows.includes(workflow));
 
 /** The Prd ids a run belongs to: what its artifacts cite, else the id its `productId` gives the Prd (`author-prd`'s first draft, a rewrite before `recover-prd`). */

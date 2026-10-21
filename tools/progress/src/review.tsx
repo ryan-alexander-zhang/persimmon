@@ -4,9 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import * as api from "./api";
 import { DocView } from "./doc";
 import { countChanges, diffDoc } from "./lib/diff";
-import { type Finding, message, type Schema, toDoc, verdict } from "./lib/document";
+import { type Finding, message, type Schema, toDoc, verdict, words } from "./lib/document";
+import { decisionTasks } from "./lib/flow";
 
-export function Review({ namespace, taskRun, onAnswered }: { namespace: string; taskRun: string; onAnswered: (passed: boolean) => void }) {
+export function Review({ namespace, taskRun, task, onAnswered }: { namespace: string; taskRun: string; task: string; onAnswered: (passed: boolean) => void }) {
   const [form, setForm] = useState<api.Form | undefined>();
   const [error, setError] = useState<string | undefined>();
   const [findings, setFindings] = useState<Finding[]>([]);
@@ -48,7 +49,7 @@ export function Review({ namespace, taskRun, onAnswered }: { namespace: string; 
   return (
     <div className="flex min-h-full flex-col">
       <div className="flex-1 px-7 pt-5 pb-10">
-        {!form.verdict && <WorkWanted taskRun={taskRun} outputs={form.outputs} />}
+        {!form.verdict && (decisionTasks.includes(task) ? <DecisionsWanted taskRun={taskRun} outputs={form.outputs} /> : <WorkWanted taskRun={taskRun} outputs={form.outputs} />)}
         <Instructions text={form.instructions} title={form.verdict ? "What to judge" : "What this step asks"} />
         {Object.entries(form.inputs ?? {})
           .filter(([, v]) => v.kind === "value" && isVerdict(v.value))
@@ -155,6 +156,31 @@ function WorkWanted({ taskRun, outputs }: { taskRun: string; outputs: Record<str
         <code className="rounded bg-surface px-1.5 py-0.5 text-[13px]">persimmon complete {taskRun} --file answer.yaml</code>. In the pack's own setup an agent writes this draft, and you only see the review.
       </p>
       <p className="mt-1 text-ink-2">Below is what the step reads.</p>
+    </div>
+  );
+}
+
+/** A Rewrite pack decision: the human's own, a typed value written as a file; the form's schema names its fields. */
+function DecisionsWanted({ taskRun, outputs }: { taskRun: string; outputs: Record<string, unknown> }) {
+  const ports = Object.entries(outputs).map(([port, o]) => ({ port, schema: (o as { type?: { schema?: Schema } }).type?.schema }));
+  return (
+    <div className="mb-4 rounded-xl border border-persimmon/40 bg-persimmon-soft px-4 py-3 text-[14px] leading-relaxed text-ink">
+      <p className="font-semibold">This step asks for your decisions, not a click.</p>
+      <p className="mt-1 text-ink-2">
+        Read what is below, write the answer as a file, stop <code>persimmon ui</code>, then run{" "}
+        <code className="rounded bg-surface px-1.5 py-0.5 text-[13px]">persimmon complete {taskRun} --file answer.yaml</code> with{" "}
+        <code className="rounded bg-surface px-1.5 py-0.5 text-[13px]">{`{outputs: {${ports.map((p) => `${p.port}: {kind: value, value: ...}`).join(", ")}}}`}</code>.
+      </p>
+      {ports.map(({ port, schema }) => (
+        <dl key={port} className="mt-2 space-y-1">
+          {Object.entries((schema?.properties ?? {}) as Record<string, Schema>).map(([k, s]) => (
+            <div key={k}>
+              <dt className="inline font-semibold">{words(k)}</dt>
+              {typeof s.description === "string" && <dd className="inline text-ink-2">: {s.description}</dd>}
+            </div>
+          ))}
+        </dl>
+      ))}
     </div>
   );
 }
