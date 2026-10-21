@@ -461,6 +461,11 @@ Each its own unit, before the pack content that needs it:
   several repositories needs per-checkout coverage paths and a scratch clone per checkout, so
   `run-source` and `run-mutants` refuse a suite level on it and its Oracle is `static`. Found in
   a reading of `cai-workspace`.
+- Live on `claude-sonnet-5` over three checkouts of one claims app (example10): the Survey wrote
+  `source.repositories[]` and six entry points with prefixed paths first time, and `survey-consistency`
+  passed; the Slice reader then wrote guards for the first checkout only, twice, and `branch-uncovered`
+  named every java and go branch both rounds. The rules now say a branch in a second repository is a
+  guard of its own even when it reads as the first's. Found in UAT (example10).
 - Analysis is the rewrite's first half, not a pack: an existing system understood and modelled
   (inventory, Prd and rules with Dispositions, storming, domain kinds) is the same runs stopped
   after `domain-discovery`, with `characterize` skipped since nothing is rebuilt to hold to the

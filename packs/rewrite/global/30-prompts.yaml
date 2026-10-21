@@ -98,7 +98,9 @@ spec:
 
     A check holds you to the source: every `where` must name a file and lines the index has, and every branch line of a file
     the Slice reaches must sit inside some guard's or plumbing pattern's line `where`. A finding naming a line you missed is a
-    guard you missed.
+    guard you missed. In a directory of checkouts, a branch in a second repository is a guard of its own with its own id and
+    `where`, even when it reads as the first repository's: the check counts branch lines per file, and a later reader needs
+    each repository's facts to say where the two differ.
 ---
 apiVersion: persimmon.ai/v1
 kind: Prompt
