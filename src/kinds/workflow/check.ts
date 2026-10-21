@@ -13,6 +13,9 @@ export interface Used {
   outputs: Record<string, OutputSpec>
 }
 
+/** A parallel repeat's `iteration`: the index alone, no outputs to wait for (11-workflow.md). */
+const indexOnly = { type: 'object', properties: { index: { type: 'integer' } } }
+
 export type Resolve = (ref: { kind: string; name: string }) => Used | undefined
 
 export function checkWorkflow(spec: WorkflowSpec, resolve: Resolve): Finding[] {
@@ -88,7 +91,7 @@ export function checkWorkflow(spec: WorkflowSpec, resolve: Resolve): Finding[] {
     siteOf({
       inputs: spec.inputs ?? {},
       steps: Object.fromEntries([...visible].map((id) => [id, stepOutputs(id)])),
-      ...(step?.repeat ? { ...(withState ? { state: step.repeat.state } : {}), iterationOutputs: stepOutputs(step.id) } : {}), // `until` reads iteration and inputs, not state (11-workflow.md)
+      ...(step?.repeat ? { ...(withState ? { state: step.repeat.state } : {}), ...(step.repeat.parallel !== undefined ? { extra: { iteration: indexOnly } } : { iterationOutputs: stepOutputs(step.id) }) } : {}), // `until` reads iteration and inputs, not state; a parallel repeat reads no iteration outputs (11-workflow.md)
     })
   const bindingType = (b: Binding, step: Step | undefined, visible: Set<string>, path: string): PortType | 'value' | undefined => {
     if ('literal' in b || 'expression' in b) {
@@ -121,6 +124,7 @@ export function checkWorkflow(spec: WorkflowSpec, resolve: Resolve): Finding[] {
     }
     if ('fromIterationOutput' in b) {
       if (!step?.repeat) bad(path, 'fromIterationOutput outside repeat')
+      else if (step.repeat.parallel !== undefined) bad(path, 'fromIterationOutput in a parallel repeat: its iterations do not wait for one another')
       return stepOutputs(step?.id ?? '')[b.fromIterationOutput]?.type
     }
     if ('fromArtifact' in b) {

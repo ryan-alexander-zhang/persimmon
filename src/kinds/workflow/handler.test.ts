@@ -243,6 +243,42 @@ describe('workflow Handler', () => {
     expect(clean(any.statusPatch).steps.each.reusedFrom.name).toBe('c-rejected') // the newest of every run of the Task, whatever its item
   })
 
+  it('a parallel repeat runs its iterations side by side, records every result, and one failure stops the rest', () => {
+    const wf = structuredClone(listLoop)
+    Object.assign(wf.spec.steps[0]!.repeat, { parallel: 2 })
+    Object.assign(wf.spec, { outputs: { ...wf.spec.outputs, all: { type: { kind: 'value', schema: { type: 'string' } } } }, outputBindings: { ...wf.spec.outputBindings, all: { expression: 'steps.each.results.map(r, r.echo).join("")' } } })
+    const altered: Closure = { ...closure, resources: closure.resources.map((r) => (r === listLoop ? wf : r)) }
+    const kinds = new KindRegistry()
+    for (const kd of closure.resources.filter((r) => r.kind === 'KindDefinition')) kinds.register(kd)
+    const h = workflowHandler({ kinds, adapters: new AdapterRegistry({ resolve: () => undefined }), now: () => new Date(clock), closure: () => altered, callback: () => undefined, getResource: () => undefined, getByUid: () => undefined, random: () => 0 })
+    const finish = (r: WorkflowRun, name: string, value: string, status: Record<string, unknown>) => {
+      const ref = { apiVersion: 'persimmon.ai/v1', kind: 'TaskRun', namespace: 'demo', name }
+      return input(r, { type: 'ChildFinished', dedupeKey: `child/${name}`, payload: { ref: { ...ref, uid: 'c' }, value } }, [{ ref, terminal: true, status }])
+    }
+    const echo = (v: string) => ({ phase: 'Succeeded', outputs: { echo: { kind: 'value', value: v } } })
+    let r = run('per-item', { items: { kind: 'value', value: ['a', 'b', 'c'] } }, 'par')
+    let res = h.reconcile(input(r, { type: 'Created', dedupeKey: 'created' })) as ReconcileResult
+    expect(created(res).map((c) => [c.metadata.name, (c.spec as { inputs: { item: { value: unknown } } }).inputs.item.value])).toEqual([['par-each-1', 'a'], ['par-each-2', 'b']]) // two at once
+    expect(clean(res.statusPatch).steps.each).toMatchObject({ phase: 'Running', iteration: 2, active: [{ iteration: 1 }, { iteration: 2 }] })
+    r = apply(r, res)
+    res = h.reconcile(finish(r, 'par-each-1', 'Succeeded', echo('A'))) as ReconcileResult
+    expect(created(res).map((c) => c.metadata.name)).toEqual(['par-each-3']) // the slot freed starts the third
+    expect(clean(res.statusPatch).steps.each).toMatchObject({ results: [{ echo: { kind: 'value', value: 'A' } }], active: [{ iteration: 2 }, { iteration: 3 }] })
+    r = apply(r, res)
+    res = h.reconcile(finish(r, 'par-each-3', 'Succeeded', echo('C'))) as ReconcileResult // out of order
+    expect(created(res)).toEqual([])
+    expect(clean(res.statusPatch).phase).toBe('Running')
+    r = apply(r, res)
+    res = h.reconcile(finish(r, 'par-each-2', 'Succeeded', echo('B'))) as ReconcileResult
+    expect(clean(res.statusPatch)).toMatchObject({ phase: 'Succeeded', outputs: { last: { kind: 'value', value: 'C' }, all: { kind: 'value', value: 'ABC' } }, steps: { each: { phase: 'Succeeded', active: [] } } })
+    // one iteration fails: the step fails and its running siblings are cancelled
+    let f = run('per-item', { items: { kind: 'value', value: ['a', 'b', 'c'] } }, 'parf')
+    f = apply(f, h.reconcile(input(f, { type: 'Created', dedupeKey: 'created' })) as ReconcileResult)
+    const failed = h.reconcile(finish(f, 'parf-each-2', 'Failed', { phase: 'Failed', error: { code: 'boom', message: 'x', retryable: false } })) as ReconcileResult
+    expect(clean(failed.statusPatch)).toMatchObject({ phase: 'Failed', error: { code: 'boom' }, steps: { each: { phase: 'Failed', active: [] } } })
+    expect(failed.actions.filter((a) => a.type === 'cancelResource').map((a) => (a as { ref: ObjectRef }).ref.name)).toEqual(['parf-each-1'])
+  })
+
   it('a repeat whose initial or next binding fails fails the step invalid_input, not the reconcile', () => {
     const gone = { fromArtifact: { kind: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement' }, id: '"nope"' } } // no store at the site: absent, no onMissing
     const variant = (repeat: Record<string, unknown>) => {

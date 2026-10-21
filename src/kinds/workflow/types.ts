@@ -11,6 +11,8 @@ export interface RepeatPolicy {
   next: Bindings
   until: string
   maxIterations: number
+  /** iterations to run at once; `until` and `next` then read no iteration outputs (11-workflow.md) */
+  parallel?: number
 }
 
 /** Reuse an earlier Succeeded run of the used definition with the same snapshot and inputs (11-workflow.md). */
@@ -81,6 +83,10 @@ export interface StepStatus {
   /** the earlier run a memo step reused; `runRef` names it too, and `outputs` holds its outputs, since it is no child of this run */
   reusedFrom?: ObjectRef
   outputs?: RuntimeValues
+  /** a parallel repeat's running iterations */
+  active?: { iteration: number; runRef: ObjectRef }[]
+  /** each finished iteration's outputs, by index; null while a parallel iteration still runs */
+  results?: (RuntimeValues | null)[]
 }
 
 export interface WorkflowRunStatus {

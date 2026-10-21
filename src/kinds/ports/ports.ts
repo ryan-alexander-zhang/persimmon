@@ -147,7 +147,7 @@ export function checkOutputs(specs: Record<string, OutputSpec>, values: RuntimeV
 export interface Sources {
   inputs?: RuntimeValues
   /** stepId → outputs, for finished steps only; a Skipped or unfinished step is absent. */
-  steps?: Record<string, { phase: string; outputs?: RuntimeValues; error?: unknown; iterations?: number }>
+  steps?: Record<string, { phase: string; outputs?: RuntimeValues; error?: unknown; iterations?: number; results?: (RuntimeValues | null)[] }>
   state?: RuntimeValues
   iteration?: { index: number; outputs?: RuntimeValues }
   /** Engine projection of the Outbox event (16-trigger.md). */
@@ -225,7 +225,7 @@ export function unwrap(values: RuntimeValues | undefined): Record<string, unknow
 export function celContext(s: Sources): Record<string, unknown> {
   const ctx: Record<string, unknown> = {}
   if (s.inputs) ctx.inputs = unwrap(s.inputs)
-  if (s.steps) ctx.steps = Object.fromEntries(Object.entries(s.steps).map(([id, st]) => [id, { phase: st.phase, outputs: unwrap(st.outputs), ...(st.error ? { error: st.error } : {}), ...(st.iterations ? { iterations: st.iterations } : {}) }]))
+  if (s.steps) ctx.steps = Object.fromEntries(Object.entries(s.steps).map(([id, st]) => [id, { phase: st.phase, outputs: unwrap(st.outputs), ...(st.error ? { error: st.error } : {}), ...(st.iterations ? { iterations: st.iterations } : {}), ...(st.results ? { results: st.results.map((r) => unwrap(r ?? undefined)) } : {}) }]))
   if (s.state) ctx.state = unwrap(s.state)
   if (s.iteration) ctx.iteration = { index: s.iteration.index, outputs: unwrap(s.iteration.outputs) }
   if (s.event) ctx.event = s.event
@@ -246,7 +246,7 @@ export function siteOf(roots: { inputs?: Record<string, InputSpec>; steps?: Reco
       properties: Object.fromEntries(
         Object.entries(roots.steps).map(([id, outs]) => [
           id,
-          { type: 'object', properties: { phase: { type: 'string' }, outputs: objectOf(outs), error: { type: 'object', properties: { code: { type: 'string' }, message: { type: 'string' }, retryable: { type: 'boolean' } } }, iterations: { type: 'integer' } } },
+          { type: 'object', properties: { phase: { type: 'string' }, outputs: objectOf(outs), error: { type: 'object', properties: { code: { type: 'string' }, message: { type: 'string' }, retryable: { type: 'boolean' } } }, iterations: { type: 'integer' }, results: { type: 'array', items: objectOf(outs) ?? {} } } },
         ]),
       ),
     }

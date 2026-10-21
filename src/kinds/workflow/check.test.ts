@@ -117,6 +117,15 @@ describe('checkWorkflow', () => {
         timeout: '2h',
       }) as unknown as Workflow['spec']
     expect(checkWorkflow(perItem('state.items[state.index - 1]', true), resolve)).toEqual([])
+    // parallel: iterations do not wait for one another, so until and next read no iteration outputs
+    const par = (until: string, next?: Record<string, unknown>) => {
+      const w = perItem('state.items[state.index - 1]', true, until)
+      Object.assign(w.steps[0]!.repeat!, { parallel: 3, ...(next ? { next } : {}) })
+      return checkWorkflow(w, resolve).map((f) => [f.path, f.message])
+    }
+    expect(par('iteration.index >= inputs.items.size()')).toEqual([])
+    expect(par('iteration.outputs.echo == "x"')[0]).toEqual(['/spec/steps/0/repeat/until', expect.stringMatching(/^until: /)])
+    expect(par('iteration.index >= 2', { index: { expression: 'state.index + 1' }, items: { fromIterationOutput: 'echo' } })).toEqual([['/spec/steps/0/repeat/next/items', 'fromIterationOutput in a parallel repeat: its iterations do not wait for one another'], ['/spec/steps/0/repeat/next/items', 'producer type differs from consumer type']])
     // memo: when is a bool over the used outputs; ignore names its inputs
     const memo = (m: Record<string, unknown>) => {
       const w = perItem('state.items[state.index - 1]', true)

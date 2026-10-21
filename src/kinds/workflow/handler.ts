@@ -13,11 +13,14 @@ import { rfc3339 } from '../task/handler.js'
 import { checkWorkflow, contractPorts, type Used } from './check.js'
 import type { Outcome, Step, StepContract, StepStatus, Transition, Workflow, WorkflowRun, WorkflowRunStatus, WorkflowSpec } from './types.js'
 
+/** A parallel repeat's `iteration`: the index alone, no outputs to wait for (11-workflow.md). */
+const indexOnly = { type: 'object', properties: { index: { type: 'integer' } } }
+
 const err = (code: string, message: string, retryable = false): ReconcileError => ({ code, message, retryable })
 const terminalPhases = new Set(['Succeeded', 'Failed', 'Cancelled'])
 const finished = new Set(['Succeeded', 'Failed', 'Cancelled', 'Skipped'])
-/** Started and not finished: the child exists (runRef) and no terminal phase was reported. */
-const isActive = (st: StepStatus): boolean => st.runRef !== undefined && !finished.has(st.phase)
+/** Started and not finished: the child exists (runRef) and no terminal phase was reported; a parallel repeat, while any iteration runs. */
+const isActive = (st: StepStatus): boolean => (st.runRef !== undefined || (st.active?.length ?? 0) > 0) && !finished.has(st.phase)
 
 interface Loaded {
   workflow: Workflow
@@ -90,7 +93,7 @@ export function workflowHandler(deps: HandlerDeps): HandlerImpl {
         const child = st.runRef && childByName.get(st.runRef.name)
         const contract = used.get(id)!.contract
         const outputs = st.outputs ?? (child ? (readPath({ status: child.status }, contract.outputsValuePath) as RuntimeValues | undefined) : undefined) // a reused run is no child; its outputs sit on the step
-        return { phase: st.phase, ...(outputs ? { outputs } : {}), ...(st.error ? { error: st.error } : {}), ...(st.iteration ? { iterations: st.iteration } : {}) } // iterations: how many rounds a repeat step ran
+        return { phase: st.phase, ...(outputs ? { outputs } : {}), ...(st.error ? { error: st.error } : {}), ...(st.iteration ? { iterations: st.iteration } : {}), ...(st.results ? { results: st.results } : {}) } // iterations: how many rounds a repeat step ran; results: each round's outputs
       }
       const sources = (extra: Partial<Sources> = {}): Sources => ({
         inputs: runInputs,
@@ -103,14 +106,14 @@ export function workflowHandler(deps: HandlerDeps): HandlerImpl {
         siteOf({
           inputs: spec.inputs ?? {},
           steps: Object.fromEntries(spec.steps.map((s) => [s.id, used.get(s.id)!.outputs])),
-          ...(step?.repeat ? { ...(withState ? { state: step.repeat.state } : {}), iterationOutputs: used.get(step.id)!.outputs } : {}), // `until` reads iteration and inputs, not state (11-workflow.md)
+          ...(step?.repeat ? { ...(withState ? { state: step.repeat.state } : {}), ...(step.repeat.parallel !== undefined ? { extra: { iteration: indexOnly } } : { iterationOutputs: used.get(step.id)!.outputs }) } : {}), // `until` reads iteration and inputs, not state; a parallel repeat reads no iteration outputs (11-workflow.md)
         })
 
       const cancelActivated = () => {
         for (const [id, st] of Object.entries(steps))
           if (isActive(st)) {
-            actions.push({ type: 'cancelResource', ref: st.runRef as ObjectRef })
-            steps[id] = { ...st, phase: 'Cancelled' }
+            for (const ref of st.active ? st.active.map((a) => a.runRef) : [st.runRef as ObjectRef]) actions.push({ type: 'cancelResource', ref })
+            steps[id] = { ...st, phase: 'Cancelled', active: [] }
           }
       }
       const finish = (patch: Partial<WorkflowRunStatus>): ReconcileResult => ({
@@ -156,19 +159,48 @@ export function workflowHandler(deps: HandlerDeps): HandlerImpl {
         const deadline = held ? new Date(Date.parse(held)) : new Date(Math.min(runDeadline.getTime(), now.getTime() + durationMs(step.timeout))) // step timeout bounds the whole loop, not one iteration
         const name = iteration ? `${run.metadata.name}-${step.id}-${iteration}` : `${run.metadata.name}-${step.id}`
         const runRef: ObjectRef = { apiVersion: `${u.contract.runKind.group}/v1`, kind: u.contract.runKind.kind, namespace: ns, name }
+        const parallel = step.repeat?.parallel !== undefined
         const earlier = step.memo ? reusable(step, u, inputs) : undefined
         if (earlier) {
           // the work was done: the step is Succeeded with that run's outputs and no child starts (11-workflow.md memo)
           const { uid: _e, ...ref } = refOf(earlier.run)
-          steps[step.id] = { phase: 'Succeeded', runRef: ref, reusedFrom: ref, outputs: earlier.outputs, deadline: rfc3339(deadline), ...(iteration ? { iteration } : {}), ...(state ? { state } : {}) }
-          succeeded(step.id, earlier.outputs)
+          steps[step.id] = { ...(parallel ? steps[step.id]! : steps[step.id]?.results ? { results: steps[step.id]!.results! } : {}), phase: parallel ? (steps[step.id]!.phase === 'Pending' ? 'Running' : steps[step.id]!.phase) : 'Succeeded', runRef: ref, reusedFrom: ref, ...(parallel ? {} : { outputs: earlier.outputs }), deadline: rfc3339(deadline), ...(iteration ? { iteration } : {}), ...(state ? { state } : {}) }
+          succeeded(step.id, earlier.outputs, iteration)
           return
         }
         const { uid: _u, ...workflowRunRef } = refOf(run)
         const address = { workflowRunRef, stepRef: step.id, iterationPath, logicalExecutionId: `${run.metadata.name}/${own}/${step.id}` } // the run name already carries the enclosing iterations
         const resource: Resource = { apiVersion: runRef.apiVersion, kind: runRef.kind, metadata: { name, namespace: ns }, spec: childSpec(u.contract.runKind.kind, step, inputs, address, deadline, now, run) }
         actions.push({ type: 'createResource', resource, snapshot: 'inherit', owned: true })
-        steps[step.id] = { phase: 'Pending', runRef, deadline: rfc3339(deadline), ...(iteration ? { iteration } : {}), ...(state ? { state } : {}) } // the child reports its phase through ChildFinished; the state is kept for `next`
+        if (parallel) steps[step.id] = { ...steps[step.id]!, phase: 'Running', runRef, deadline: rfc3339(deadline), iteration: iteration!, ...(state ? { state } : {}), active: [...(steps[step.id]!.active ?? []), { iteration: iteration!, runRef }] } // iteration and state: the last started, so `next` goes on from it
+        else steps[step.id] = { phase: 'Pending', runRef, deadline: rfc3339(deadline), ...(iteration ? { iteration } : {}), ...(state ? { state } : {}), ...(steps[step.id]?.results ? { results: steps[step.id]!.results! } : {}) } // the child reports its phase through ChildFinished; the state is kept for `next`, the earlier rounds' results too
+      }
+
+      /** A repeat step starts: round one, and a parallel one as many as it may run at once. */
+      const activate = (step: Step): void => {
+        if (step.repeat!.parallel !== undefined) {
+          steps[step.id] = { phase: 'Pending', active: [], results: [] }
+          fill(step)
+        } else iterate(step, 1, step.repeat!.initial, sources())
+      }
+
+      /** A parallel repeat: start iterations until `parallel` run at once or `until` says the last one started (11-workflow.md). */
+      const fill = (step: Step): void => {
+        const r = step.repeat!
+        for (;;) {
+          const st = steps[step.id]!
+          if (finished.has(st.phase) || (st.active?.length ?? 0) >= r.parallel!) return
+          const last = st.iteration ?? 0
+          const done = last > 0 && site(step, false).evaluate(r.until, { ...celContext(sources()), iteration: { index: last } }) === true
+          if (done || last >= r.maxIterations) {
+            if (!st.active?.length) steps[step.id] = { ...st, phase: last >= r.maxIterations && !done ? 'Failed' : 'Succeeded', ...(last >= r.maxIterations && !done ? { error: err('iteration_limit', `${r.maxIterations} iterations`) } : { outputs: st.results?.[last - 1] ?? {} }) }
+            return
+          }
+          const before = st.active?.length ?? 0
+          iterate(step, last + 1, last ? r.next : r.initial, sources(st.state ? { state: st.state } : {}))
+          if (steps[step.id]!.phase === 'Failed') return
+          if ((steps[step.id]!.active?.length ?? 0) === before && (steps[step.id]!.results?.length ?? 0) <= last) return // nothing started and nothing reused: stop rather than spin
+        }
       }
 
       /** An earlier Succeeded run of the step's definition, same snapshot, same inputs but `memo.ignore`, outputs passing `memo.when`; the newest (11-workflow.md). */
@@ -191,14 +223,22 @@ export function workflowHandler(deps: HandlerDeps): HandlerImpl {
         return hits[0]
       }
 
-      /** A step's child (or reused run) Succeeded with `outputs`: a repeat evaluates `until` and goes on or ends; a plain step is done. */
-      const succeeded = (id: string, outputs: RuntimeValues): void => {
+      /** A step's child (or reused run) Succeeded with `outputs`: a repeat records the round and evaluates `until` to go on or end; a parallel one fills up; a plain step is done. */
+      const succeeded = (id: string, outputs: RuntimeValues, which?: number): void => {
         const step = stepsById.get(id)!
         if (!step.repeat) {
           steps[id] = { ...steps[id]!, phase: 'Succeeded' }
           return
         }
-        const iteration = steps[id]!.iteration ?? 1
+        const iteration = which ?? steps[id]!.iteration ?? 1
+        const results: (RuntimeValues | null)[] = [...(steps[id]!.results ?? [])]
+        while (results.length < iteration - 1) results.push(null) // a parallel sibling may end first: its slot waits
+        results[iteration - 1] = outputs
+        steps[id] = { ...steps[id]!, results }
+        if (step.repeat.parallel !== undefined) {
+          steps[id] = { ...steps[id]!, active: (steps[id]!.active ?? []).filter((a) => a.iteration !== iteration) }
+          return fill(step)
+        }
         const done = site(step, false).evaluate(step.repeat.until, { ...celContext(sources()), iteration: { index: iteration, outputs: unwrap(outputs) } }) === true
         if (done) steps[id] = { ...steps[id]!, phase: 'Succeeded' }
         else if (iteration >= step.repeat.maxIterations) steps[id] = { ...steps[id]!, phase: 'Failed', error: err('iteration_limit', `${step.repeat.maxIterations} iterations`) }
@@ -230,7 +270,7 @@ export function workflowHandler(deps: HandlerDeps): HandlerImpl {
                 for (const x of chosen) {
                   if ('stepRef' in x) {
                     const step = stepsById.get(x.stepRef)!
-                    if (step.repeat) iterate(step, 1, step.repeat.initial, sources())
+                    if (step.repeat) activate(step)
                     else start(step)
                   } else if (!selected) selected = { terminal: x.terminal, ...(x.reason ? { reason: x.reason } : {}) }
                 }
@@ -281,7 +321,7 @@ export function workflowHandler(deps: HandlerDeps): HandlerImpl {
         case 'Created': {
           for (const id of spec.entry) {
             const step = stepsById.get(id)!
-            if (step.repeat) iterate(step, 1, step.repeat.initial, sources())
+            if (step.repeat) activate(step)
             else start(step)
           }
           actions.push({ type: 'setTimer', key: 'deadline', at: rfc3339(runDeadline) })
@@ -291,13 +331,18 @@ export function workflowHandler(deps: HandlerDeps): HandlerImpl {
 
         case 'ChildFinished': {
           const child = childByName.get(ev.payload.ref.name)
-          const id = Object.entries(steps).find(([, st]) => st.runRef?.name === ev.payload.ref.name)?.[0]
+          const name = ev.payload.ref.name
+          const id = Object.entries(steps).find(([, st]) => st.runRef?.name === name || st.active?.some((a) => a.runRef.name === name))?.[0]
           if (!id || !child) return { actions: [] }
           const contract = used.get(id)!.contract
           const phase = ev.payload.value as StepStatus['phase']
           const error = readPath({ status: child.status }, contract.errorPath) as ReconcileError | undefined
-          if (phase === 'Succeeded') succeeded(id, (readPath({ status: child.status }, contract.outputsValuePath) ?? {}) as RuntimeValues)
-          else steps[id] = { ...steps[id]!, phase, ...(error && phase === 'Failed' ? { error } : {}) }
+          const which = steps[id]!.active?.find((a) => a.runRef.name === name)?.iteration
+          if (phase === 'Succeeded') succeeded(id, (readPath({ status: child.status }, contract.outputsValuePath) ?? {}) as RuntimeValues, which)
+          else {
+            for (const a of steps[id]!.active ?? []) if (a.runRef.name !== name) actions.push({ type: 'cancelResource', ref: a.runRef }) // one iteration failed: the step has, and its siblings stop
+            steps[id] = { ...steps[id]!, phase, active: [], ...(error && phase === 'Failed' ? { error } : {}) }
+          }
           return conclude()
         }
 

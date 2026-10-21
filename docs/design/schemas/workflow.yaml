@@ -114,3 +114,4 @@ $defs:
       next: {$ref: "ports.yaml#/$defs/Bindings"}
       until: {type: string, minLength: 1}
       maxIterations: {type: integer, minimum: 1}
+      parallel: {type: integer, minimum: 2, description: "iterations run at once; until and next then read no iteration outputs"}

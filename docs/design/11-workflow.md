@@ -65,6 +65,7 @@ Per-step phase, recorded in `WorkflowRun.status.steps.<id>` (`17-runs.md`):
 | a `to` step the dispatch did not choose | `Skipped`, unless another Transition lists it in its `to`: it then waits for that one, whose death skips it |
 | `when` reads a `Skipped` step or an unfinished step's outputs | evaluates to false |
 | `steps.<id>.iterations` | how many iterations a finished `repeat` step ran; absent without `repeat` |
+| `steps.<id>.results` | each finished iteration's outputs, by index, `null` while a parallel iteration still runs; absent without `repeat` |
 | a step input reads an unfinished or `Skipped` step | absent; requires `onMissing: omit` (static) |
 | no `to` matches | `noMatch: fail` fails the run with `no_match`; `skip` skips every `to` step |
 | terminal Succeeded selected | wait for every activated step; then a step ended `Failed` whose Transition does not list `Failed` fails the run with `unconsumed_failure`; else evaluate `outputBindings`, a source absent fails with `output_unbound`; else Succeeded |
@@ -101,6 +102,7 @@ iteration, so a loop over capabilities redoes only the ones whose inputs changed
 | `next` | `{<var>: Binding}`; `fromState`, `fromIterationOutput` and `state.<var>` read the state and outputs of the iteration that just finished; every required var bound; keys ⊆ `state` |
 | `until` | CEL over `iteration.outputs`, `iteration.index`, `inputs`; no `state`; boolean |
 | `maxIterations` | ≥ 1; includes the first |
+| `parallel` | optional, ≥ 2: that many iterations run at once; `until` and `next` then read `iteration.index`, `state` and `inputs` only, never an iteration's outputs, and `fromIterationOutput` is refused, since the iterations do not wait for one another |
 
 | Case | Behaviour |
 |---|---|
@@ -108,6 +110,11 @@ iteration, so a loop over capabilities redoes only the ones whose inputs changed
 | iteration Succeeded, `until` false, index < `maxIterations` | `next` state; new iteration at a new invocation address |
 | iteration Succeeded, `until` false, index = `maxIterations` | step Failed with `iteration_limit`; no outputs |
 | iteration Failed | step Failed with the iteration's error; `until` not evaluated |
+| `parallel`: step activated | iterations start from `initial` through `next` until `parallel` run at once, or `until` holds for the last one started, or `maxIterations` is reached |
+| `parallel`: an iteration Succeeded | its outputs recorded in `steps.<id>.results`; the next iteration starts in its place; none left and none running: step Succeeded, outputs = the last iteration's |
+| `parallel`: an iteration Failed | step Failed with its error; the running siblings are `Cancelled` |
+| `parallel`: `maxIterations` reached with `until` still false | step Failed with `iteration_limit` once the running iterations end |
+| `steps.<id>.results` | every finished iteration's outputs in index order, serial or parallel; `steps.each.results.all(r, r.passed)` asks whether every loop passed |
 
 Invocation address: `{workflowRunRef, stepRef, iterationPath, logicalExecutionId}`. `iterationPath`
 is empty without `repeat`, `<stepId>[<index>]` per enclosing repeat level, joined by `/`.
@@ -180,6 +187,14 @@ has no `repeat`; the run name already carries the enclosing iterations (`<parent
   the remaining time as `timeout`. The code had given every iteration a fresh `timeout`, so a `6h`
   step could run three `4h` rounds. Found in UAT.
 
+- A `repeat` may run its iterations side by side, `parallel`. The live Autopilot run spent 5.1
+  hours of agent time in 5.1 hours of wall clock: the capabilities of a Prd are independent at
+  every documentation step, yet `spec-all`, `plan-all` and `test-design-all` walked them one
+  after another, because a `repeat` is a state machine whose next state may read the last
+  iteration's outputs. When it does not, the states are known up front, and the engine already
+  runs outstanding calls together. `parallel` is refused statically where `until` or `next` reads
+  an iteration's outputs; `steps.<id>.results` gives the outputs the serial `until` used to read,
+  so a loop over capabilities ends Succeeded only when every loop passed. Found in UAT.
 - A step may reuse an earlier run, `memo`. In the live Autopilot run `test-design-all` walked
   CAP-1 four times in ten hours, three of them with its Spec, Plan and harness unchanged, each
   time a writer, an auditor and a reviewer again; the skill kept a hand-written dependency table

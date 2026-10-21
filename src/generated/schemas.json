@@ -5274,7 +5274,42 @@
             },
             "outputs": {
              "$ref": "ports.yaml#/$defs/RuntimeValues",
-             "description": "a reused run's outputs, since no child of this run holds them"
+             "description": "a reused run's outputs, since no child of this run holds them; a parallel repeat's last iteration's"
+            },
+            "active": {
+             "type": "array",
+             "description": "a parallel repeat's running iterations",
+             "items": {
+              "type": "object",
+              "required": [
+               "iteration",
+               "runRef"
+              ],
+              "additionalProperties": false,
+              "properties": {
+               "iteration": {
+                "type": "integer",
+                "minimum": 1
+               },
+               "runRef": {
+                "$ref": "resource.yaml#/$defs/ObjectRef"
+               }
+              }
+             }
+            },
+            "results": {
+             "type": "array",
+             "items": {
+              "oneOf": [
+               {
+                "$ref": "ports.yaml#/$defs/RuntimeValues"
+               },
+               {
+                "type": "null"
+               }
+              ]
+             },
+             "description": "each finished repeat iteration's outputs, by index; null while a parallel iteration still runs"
             }
            }
           }
@@ -7235,6 +7270,11 @@
      "maxIterations": {
       "type": "integer",
       "minimum": 1
+     },
+     "parallel": {
+      "type": "integer",
+      "minimum": 2,
+      "description": "iterations run at once; until and next then read no iteration outputs"
      }
     }
    }
