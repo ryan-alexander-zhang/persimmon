@@ -2,7 +2,7 @@
 import { ChevronDown, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import * as api from "./api";
-import { DocView } from "./doc";
+import { DocView, type Jump, Linked } from "./doc";
 import { countChanges, diffDoc } from "./lib/diff";
 import { type Finding, message, type Schema, toDoc, verdict, words } from "./lib/document";
 import { decisionTasks } from "./lib/flow";
@@ -17,6 +17,7 @@ export function Review({ namespace, taskRun, task, onAnswered }: { namespace: st
   // the revision each document had in the round before: what this round changed is the reviewer's first question
   const [prevs, setPrevs] = useState<Record<number, { revision: number; content: unknown } | undefined>>({});
   const [hidden, setHidden] = useState<Record<number, boolean>>({});
+  const [jump, setJump] = useState<Jump | undefined>(); // the element a prior finding names, in whichever document holds it
 
   useEffect(() => {
     api.form(namespace, taskRun).then(setForm, (e) => setError((e as Error).message));
@@ -54,7 +55,7 @@ export function Review({ namespace, taskRun, task, onAnswered }: { namespace: st
         {Object.entries(form.inputs ?? {})
           .filter(([, v]) => v.kind === "value" && isVerdict(v.value))
           .map(([port, v]) => (
-            <Prior key={port} port={port} verdict={v.value as api.Verdict} />
+            <Prior key={port} port={port} verdict={v.value as api.Verdict} onId={(id) => setJump({ anchor: id })} />
           ))}
         {noting && <p className="mt-5 text-[13px] text-ink-3">Select any passage to add a finding on it, or use the button beside a heading.</p>}
         {(form.reading ?? []).map((r, i) => (
@@ -74,7 +75,7 @@ export function Review({ namespace, taskRun, task, onAnswered }: { namespace: st
                 </a>
               )}
             </p>
-            {r.error ? <p className="text-bad">Could not read it: {r.error}</p> : <DocView content={r.content} schema={schemas[i]} base={r.ref?.id ?? r.name ?? r.kind} kind={r.ref?.kind} noting={noting} {...(prevs[i] && !hidden[i] ? { prev: prevs[i]!.content } : {})} />}
+            {r.error ? <p className="text-bad">Could not read it: {r.error}</p> : <DocView content={r.content} schema={schemas[i]} base={r.ref?.id ?? r.name ?? r.kind} kind={r.ref?.kind} noting={noting} jump={jump} {...(prevs[i] && !hidden[i] ? { prev: prevs[i]!.content } : {})} />}
           </article>
         ))}
       </div>
@@ -206,7 +207,7 @@ function Instructions({ text, title }: { text: string; title: string }) {
 }
 
 /** The auditor's verdict on this draft, read before the human (23-pack-sdlc.md). */
-function Prior({ port, verdict: v }: { port: string; verdict: api.Verdict }) {
+function Prior({ port, verdict: v, onId }: { port: string; verdict: api.Verdict; onId: (id: string) => void }) {
   const findings = v.findings ?? [];
   return (
     <div className="mt-3 rounded-xl border border-line px-4 py-3 text-[14px]">
@@ -217,7 +218,9 @@ function Prior({ port, verdict: v }: { port: string; verdict: api.Verdict }) {
       {findings.length > 0 && (
         <ul className="mt-1.5 space-y-1 text-ink-2">
           {findings.map((f, i) => (
-            <li key={i}>{f.message}</li>
+            <li key={i}>
+              <Linked text={f.message} onId={onId} />
+            </li>
           ))}
         </ul>
       )}

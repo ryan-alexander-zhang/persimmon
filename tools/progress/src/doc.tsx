@@ -9,9 +9,59 @@ export interface Noting {
   add: (f: Finding) => void;
 }
 
-/** With `prev`, the document is marked with what changed since that earlier revision's content. */
-export function DocView({ content, schema, base, kind, noting, prev }: { content: unknown; schema?: Schema; base: string; kind?: string; noting?: Noting; prev?: unknown }) {
+/** A place to scroll to: an element's anchor; a fresh object each time, so the same id jumps again. */
+export interface Jump {
+  anchor: Anchor;
+}
+
+/** Scrolls to and flashes the passage `anchor` names, when it is on the page. */
+export function jumpTo(anchor: Anchor) {
+  const el = document.querySelector<HTMLElement>(`[data-anchor="${CSS.escape(anchor)}"]`);
+  if (!el) return;
+  el.scrollIntoView({ block: "center", behavior: "smooth" });
+  el.classList.remove("jumped");
+  void el.offsetWidth; // restart the animation
+  el.classList.add("jumped");
+}
+
+/** `BR-6`, `GD-14`: the ids a finding names, each a button to the element. */
+export function Linked({ text, onId }: { text: string; onId: (id: string) => void }) {
+  const parts = text.split(/\b([A-Z]{1,6}-\d+)\b/);
+  return (
+    <>
+      {parts.map((p, i) =>
+        i % 2 ? (
+          <button key={i} type="button" onClick={() => onId(p)} className="rounded bg-line-2 px-1 font-sans text-[13px] font-semibold text-ink-2 hover:bg-ink hover:text-white" title={`Go to ${p}`}>
+            {p}
+          </button>
+        ) : (
+          p
+        ),
+      )}
+    </>
+  );
+}
+
+/** The ids of every element in the document: what a tag or a finding can jump to. */
+function idsOf(blocks: Block[], into = new Set<string>()): Set<string> {
+  for (const b of blocks) {
+    if (b.t === "element" && b.id) into.add(b.id);
+    if ("blocks" in b) idsOf(b.blocks, into);
+  }
+  return into;
+}
+
+const contains = (blocks: Block[], anchor: Anchor): boolean => blocks.some((b) => ("anchor" in b && b.anchor === anchor) || ("blocks" in b && contains(b.blocks, anchor)));
+
+/** With `prev`, the document is marked with what changed since that earlier revision's content; `jump` scrolls to one element. */
+export function DocView({ content, schema, base, kind, noting, prev, jump: wanted }: { content: unknown; schema?: Schema; base: string; kind?: string; noting?: Noting; prev?: unknown; jump?: Jump }) {
   const doc = useMemo(() => (prev === undefined ? toDoc(content, schema, base, kind) : diffDoc(toDoc(prev, schema, base, kind), toDoc(content, schema, base, kind))), [content, schema, base, kind, prev]);
+  const ids = useMemo(() => idsOf(doc.blocks), [doc]);
+  const [jump, setJump] = useState(wanted);
+  useEffect(() => setJump(wanted), [wanted]);
+  useEffect(() => {
+    if (jump && contains(doc.blocks, jump.anchor)) jumpTo(jump.anchor); // after the sections holding it opened
+  }, [jump, doc]);
   const box = useRef<HTMLDivElement>(null);
   const [pick, setPick] = useState<{ anchor: Anchor; quote?: string; x: number; y: number } | undefined>();
   const [draft, setDraft] = useState<typeof pick>();
@@ -35,7 +85,7 @@ export function DocView({ content, schema, base, kind, noting, prev }: { content
   }, [noting, base]);
 
   const noted = (anchor: Anchor) => noting?.findings.filter((f) => f.anchor === anchor).length ?? 0;
-  const ctx: Ctx = { diffing: prev !== undefined, noted, onHeading: noting ? (anchor, el) => setDraft({ anchor, ...corner(el) }) : undefined };
+  const ctx: Ctx = { diffing: prev !== undefined, noted, onHeading: noting ? (anchor, el) => setDraft({ anchor, ...corner(el) }) : undefined, jump: jump && contains(doc.blocks, jump.anchor) ? jump.anchor : undefined, onId: (id) => setJump({ anchor: id }), ids };
 
   return (
     <div ref={box} className="max-w-[68ch] font-read text-[17px] leading-[1.65] text-ink">
@@ -84,6 +134,10 @@ interface Ctx {
   diffing: boolean;
   noted: (anchor: Anchor) => number;
   onHeading?: (anchor: Anchor, el: HTMLElement) => void;
+  /** The element the reader asked for: a section holding it opens. */
+  jump?: Anchor;
+  onId: (id: string) => void;
+  ids: Set<string>;
 }
 
 /** A passage with findings carries a persimmon rule in the margin. */
@@ -163,11 +217,18 @@ function BlockView({ block, ctx }: { block: Block; ctx: Ctx }) {
           )}
           {block.tags ? (
             <span className="inline-flex flex-wrap gap-1.5 align-baseline">
-              {block.items.map((it, i) => (
-                <span key={i} className={`rounded px-1.5 font-sans text-[13px] font-medium ${it.change === "added" ? "bg-done-soft text-done" : it.change === "removed" ? "bg-bad-soft text-bad line-through" : "bg-line-2 text-ink-2"}`}>
-                  {it.text}
-                </span>
-              ))}
+              {block.items.map((it, i) => {
+                const cls = `rounded px-1.5 font-sans text-[13px] font-medium ${it.change === "added" ? "bg-done-soft text-done" : it.change === "removed" ? "bg-bad-soft text-bad line-through" : "bg-line-2 text-ink-2"}`;
+                return ctx.ids.has(it.text) ? (
+                  <button key={i} type="button" onClick={() => ctx.onId(it.text)} className={`${cls} cursor-pointer hover:bg-ink hover:text-white`} title={`Go to ${it.text}`}>
+                    {it.text}
+                  </button>
+                ) : (
+                  <span key={i} className={cls}>
+                    {it.text}
+                  </span>
+                );
+              })}
             </span>
           ) : (
             <ul className="mt-1 list-disc space-y-1 pl-6 marker:text-ink-3">
@@ -233,7 +294,7 @@ function MetaLine({ meta, className, ctx }: { meta: Meta[]; className?: string; 
 /** A section; unchanged ones fold to their heading while changes are shown. */
 function Section({ block, ctx }: { block: Extract<Block, { t: "section" }>; ctx: Ctx }) {
   const [opened, setOpen] = useState<boolean>(); // the reader's choice; until then, folded when unchanged (the earlier revision may load after this mounts)
-  const open = opened ?? (!ctx.diffing || !!block.change);
+  const open = opened ?? (!ctx.diffing || !!block.change || (!!ctx.jump && contains(block.blocks, ctx.jump)));
   return (
     <section data-anchor={block.anchor} className={block.change === "removed" ? "opacity-50" : ""}>
       <h2 className="flex items-baseline gap-2.5 font-sans text-[19px] font-semibold text-ink" title={block.description}>

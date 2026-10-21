@@ -3,9 +3,10 @@ import { ArrowLeft, ChevronRight, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import type { Place, View } from "./lib/route";
 import * as api from "./api";
-import { DocView } from "./doc";
+import { DocView, type Jump, Linked } from "./doc";
 import { type RevisionRef, type Schema, words } from "./lib/document";
 import { type PhaseView, roundOf, sliceOf, type State } from "./lib/flow";
+import { useMemo } from "react";
 import { Glyph } from "./map";
 import { ChangesSwitch, countOf, Review } from "./review";
 
@@ -54,7 +55,7 @@ export function Panel({ view, place, go, onClose, onAnswered }: { view: PhaseVie
             }}
           />
         ) : mode.t === "artifact" ? (
-          <Artifact ref_={mode.ref} namespace={run.namespace} onRevision={(n) => go(at({ t: "artifact", ref: { ...mode.ref, revision: n } }))} />
+          <Artifact ref_={mode.ref} namespace={run.namespace} anchor={mode.anchor} onRevision={(n) => go(at({ t: "artifact", ref: { ...mode.ref, revision: n } }))} />
         ) : (
           <div className="px-7 py-5">
             {view.runs.length > 1 && (
@@ -67,7 +68,7 @@ export function Panel({ view, place, go, onClose, onAnswered }: { view: PhaseVie
                 ))}
               </div>
             )}
-            <Rounds namespace={run.namespace} name={run.name} round={roundOf(run)} onReview={(taskRun) => go(at({ t: "review", taskRun }))} onArtifact={(ref) => go(at({ t: "artifact", ref }))} />
+            <Rounds namespace={run.namespace} name={run.name} round={roundOf(run)} onReview={(taskRun) => go(at({ t: "review", taskRun }))} onArtifact={(ref, anchor) => go(at({ t: "artifact", ref, ...(anchor ? { anchor } : {}) }))} />
           </div>
         )}
       </div>
@@ -76,7 +77,8 @@ export function Panel({ view, place, go, onClose, onAnswered }: { view: PhaseVie
 }
 
 /** One revision read as a document, marked with what changed since the revision before it, and the way to its neighbours. */
-function Artifact({ ref_, namespace, onRevision }: { ref_: RevisionRef; namespace: string; onRevision: (n: number) => void }) {
+function Artifact({ ref_, namespace, anchor, onRevision }: { ref_: RevisionRef; namespace: string; anchor?: string; onRevision: (n: number) => void }) {
+  const jump = useMemo<Jump | undefined>(() => (anchor ? { anchor } : undefined), [anchor]);
   const [content, setContent] = useState<unknown>();
   const [schema, setSchema] = useState<Schema | undefined>();
   const [revs, setRevs] = useState<number[]>([]);
@@ -117,12 +119,25 @@ function Artifact({ ref_, namespace, onRevision }: { ref_: RevisionRef; namespac
           </a>
         )}
       </p>
-      {error ? <p className="text-bad">{error}</p> : content === undefined ? <p className="text-ink-2">Loading…</p> : <DocView content={content} schema={schema} base={ref_.id} kind={ref_.kind} {...(prev && !hidden ? { prev: prev.content } : {})} />}
+      {error ? <p className="text-bad">{error}</p> : content === undefined ? <p className="text-ink-2">Loading…</p> : <DocView content={content} schema={schema} base={ref_.id} kind={ref_.kind} jump={jump} {...(prev && !hidden ? { prev: prev.content } : {})} />}
     </article>
   );
 }
 
-function Rounds({ namespace, name, round, onReview, onArtifact }: { namespace: string; name: string; round?: number; onReview: (taskRun: string) => void; onArtifact: (ref: RevisionRef) => void }) {
+const refsOf = (n: api.Node): RevisionRef[] => Object.values(n.outputs ?? {}).flatMap((o) => (o.kind === "artifact" && o.ref ? [o.ref] : o.kind === "artifacts" ? (o.refs ?? []) : []));
+const refKey = (r: RevisionRef) => `${r.kind}/${r.id}/${r.revision}`;
+/** Every artifact a run and the runs it owns made, each once. */
+const madeBy = (n: api.Node): RevisionRef[] => {
+  const seen = new Map<string, RevisionRef>();
+  const walk = (x: api.Node) => {
+    for (const r of refsOf(x)) seen.set(refKey(r), r);
+    x.children.forEach(walk);
+  };
+  walk(n);
+  return [...seen.values()];
+};
+
+function Rounds({ namespace, name, round, onReview, onArtifact }: { namespace: string; name: string; round?: number; onReview: (taskRun: string) => void; onArtifact: (ref: RevisionRef, anchor?: string) => void }) {
   const [root, setRoot] = useState<api.Node | undefined>();
   const [error, setError] = useState<string | undefined>();
   const load = useCallback(() => api.tree(namespace, name).then(setRoot, (e) => setError((e as Error).message)), [namespace, name]);
@@ -133,7 +148,15 @@ function Rounds({ namespace, name, round, onReview, onArtifact }: { namespace: s
   }, [load, round]);
   if (!root) return <p className="text-ink-2">{error ?? "Loading…"}</p>;
   const rounds = root.children.filter((c) => /^rounds-\d+$/.test(c.label));
-  const act = { onReview, onArtifact };
+  // a finding names an element by id; the artifact of this round that holds it opens there
+  const jump = (made: RevisionRef[]) => async (id: string) => {
+    for (const ref of made) {
+      const text = JSON.stringify(await api.revision(ref, namespace).catch(() => undefined));
+      if (text?.includes(`"id":"${id}"`) || text?.includes(`"ref":"${id}"`)) return onArtifact(ref, id);
+    }
+    if (made[0]) onArtifact(made[0]);
+  };
+  const act = { onReview, onArtifact, onJump: jump(madeBy(root)) };
   if (rounds.length === 0)
     return (
       <ol className="space-y-1">
@@ -156,7 +179,7 @@ function Rounds({ namespace, name, round, onReview, onArtifact }: { namespace: s
             </summary>
             <ol className="space-y-1 border-t border-line-2 px-4 py-3">
               {r.children.map((c) => (
-                <Step key={c.name} node={c} {...act} />
+                <Step key={c.name} node={c} {...act} onJump={jump(madeBy(r))} />
               ))}
               {r.error && <ErrorLine error={r.error} />}
             </ol>
@@ -168,9 +191,9 @@ function Rounds({ namespace, name, round, onReview, onArtifact }: { namespace: s
 }
 
 /** One run in a round, in words: a draft and what it made, a review and each check's verdict, a step waiting on you. */
-function Step({ node, onReview, onArtifact, depth = 0 }: { node: api.Node; onReview: (taskRun: string) => void; onArtifact: (ref: RevisionRef) => void; depth?: number }) {
+function Step({ node, onReview, onArtifact, onJump, depth = 0 }: { node: api.Node; onReview: (taskRun: string) => void; onArtifact: (ref: RevisionRef) => void; onJump: (id: string) => void; depth?: number }) {
   const parkedTask = node.kind === "TaskRun" ? (node.parked ? node : undefined) : node.children.find((c) => c.kind === "TaskRun" && c.parked);
-  const artifacts = Object.values(node.outputs ?? {}).flatMap((o) => (o.kind === "artifact" && o.ref ? [o.ref] : o.kind === "artifacts" ? (o.refs ?? []) : []));
+  const artifacts = refsOf(node);
   const v = verdictOf(node);
   // a check's own TaskRun (the auditor, the human) reads as the check itself
   const kids = node.kind === "ValidationRun" ? [] : node.children;
@@ -200,7 +223,9 @@ function Step({ node, onReview, onArtifact, depth = 0 }: { node: api.Node; onRev
           {v.findings!.map((f, i) => (
             <li key={i} className="flex gap-2">
               <span className={`mt-[7px] size-1.5 shrink-0 rounded-full ${f.severity === "error" ? "bg-bad" : f.severity === "warning" ? "bg-[#c08a1e]" : "bg-ink-3"}`} aria-label={f.severity} />
-              <span className="text-ink-2">{f.message}</span>
+              <span className="text-ink-2">
+                <Linked text={f.message} onId={onJump} />
+              </span>
             </li>
           ))}
         </ul>
@@ -209,7 +234,7 @@ function Step({ node, onReview, onArtifact, depth = 0 }: { node: api.Node; onRev
       {kids.length > 0 && (
         <ol>
           {kids.map((c) => (
-            <Step key={c.name} node={c} onReview={onReview} onArtifact={onArtifact} depth={depth + 1} />
+            <Step key={c.name} node={c} onReview={onReview} onArtifact={onArtifact} onJump={onJump} depth={depth + 1} />
           ))}
         </ol>
       )}
