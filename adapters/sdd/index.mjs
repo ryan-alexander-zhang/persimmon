@@ -34,11 +34,14 @@ const agentAnswers = (payload, doc) => {
     .filter((q) => q.resolution && before.get(q.id) !== q.resolution)
     .map((q) => ({ severity: 'warning', code: 'question-agent-resolved', message: `${q.id}'s resolution was written by ${doc.provenance.actor.id}; check a human gave it: ${q.question} — ${q.resolution}` }))
 }
-// an answer that changes an upstream artifact, told so its revision is not forgotten (23-pack-sdlc.md)
-const upstreamAnswers = (doc) =>
-  (doc.content?.openQuestions ?? []).filter((q) => q.resolution && q.upstream?.length).map((q) => ({ severity: 'warning', code: 'question-upstream', message: `${q.id}'s answer changes ${q.upstream.join(', ')}; revise ${q.upstream.length > 1 ? 'them' : 'it'} through ${q.upstream.length > 1 ? 'their' : 'its'} process: ${q.resolution}` }))
+// an answer that changes an upstream artifact, told so its revision is not forgotten (23-pack-sdlc.md); one the last
+// round or the base already gave was told then
+const upstreamAnswers = (payload, doc) => {
+  const told = ['previous', 'base'].map((name) => new Map((payload.artifacts?.[name]?.content?.openQuestions ?? []).map((q) => [q.id, q.resolution])))
+  return (doc.content?.openQuestions ?? []).filter((q) => q.resolution && q.upstream?.length && !told.some((m) => m.get(q.id) === q.resolution)).map((q) => ({ severity: 'warning', code: 'question-upstream', message: `${q.id}'s answer changes ${q.upstream.join(', ')}; revise ${q.upstream.length > 1 ? 'them' : 'it'} through ${q.upstream.length > 1 ? 'their' : 'its'} process: ${q.resolution}` }))
+}
 const done = (payload, findings, doc) => {
-  const all = [...findings, ...agentAnswers(payload, doc), ...upstreamAnswers(doc)]
+  const all = [...findings, ...agentAnswers(payload, doc), ...upstreamAnswers(payload, doc)]
   return { passed: passes(all), findings: all, evidence: [] }
 }
 const invalid = (message) => Object.assign(new Error(message), { code: 'invalid_input' })

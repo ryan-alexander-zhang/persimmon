@@ -792,13 +792,22 @@ describe('sdd/v1 over an AcceptanceRecord', () => {
     expect((await by({ kind: 'service', id: 'claude-code/v1' })).result.findings).toEqual([]) // carried from the last round: told then
   })
 
-  // an answer that changes an upstream artifact is told, every round, so its revision is not forgotten (23-pack-sdlc.md)
+  // an answer that changes an upstream artifact is told once, so its revision is not forgotten (23-pack-sdlc.md)
   it('warns of an answer naming the upstream artifacts it changes', async () => {
     const answered = structuredClone(recordExample())
     answered.record.openQuestions = [{ id: 'Q-1', question: 'which currency?', resolution: 'EUR', upstream: ['expenses-glossary', 'submit-a-claim Q-2'] }]
     const r = await adapter({ id: ++id, op: 'evaluate', payload: recordPayload(answered) })
     expect(r.result.passed).toBe(true)
     expect(r.result.findings.filter((f: { code: string }) => f.code === 'question-upstream')).toEqual([{ severity: 'warning', code: 'question-upstream', message: "Q-1's answer changes expenses-glossary, submit-a-claim Q-2; revise them through their process: EUR" }])
+    const upstream = async () => (await adapter({ id: ++id, op: 'evaluate', payload: recordPayload(answered) })).result.findings.filter((f: { code: string }) => f.code === 'question-upstream')
+    answered.base = { ...structuredClone(answered.record) }
+    expect(await upstream()).toEqual([]) // given by the run this one started from: told then
+    delete answered.base
+    answered.previous = structuredClone(answered.record)
+    answered.previousOutcome = answered.testOutcome
+    expect(await upstream()).toEqual([]) // given by the last round: told then
+    answered.record.openQuestions[0].resolution = 'EUR, converted at the day rate'
+    expect(await upstream()).toHaveLength(1) // a changed answer is told again
   })
 
   // 36-test-levels.md: the other levels' outcomes beside the unit one, paired by level
