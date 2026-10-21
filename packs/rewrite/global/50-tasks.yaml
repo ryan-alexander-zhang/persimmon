@@ -172,8 +172,9 @@ spec:
   action:
     instructions: |
       Read the Slice `slice` of the Source system in your working directory, its entry points as the ledger's `slices` cut
-      them, following the second reading's order and the inventory rules in your context. Answer `second`: the Slice's
-      items in the inventory's shape, `guards` above all, each with its exact `where`.
+      them, following the second reading's order and the inventory rules in your context. First list every file those
+      entry points reach, in every checkout, and read each one. Answer `second`: the Slice's items in the inventory's
+      shape, `guards` above all, each with its exact `where`.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: source-reading}}
       - {kind: prompt, ref: {kind: Prompt, name: inventory-rules}}
