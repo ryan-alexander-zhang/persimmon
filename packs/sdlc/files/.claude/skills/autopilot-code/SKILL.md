@@ -31,12 +31,13 @@ Then, once per product:
    `repository`. Its Tester form is a tester subagent's (below). Gives the TestHarness.
 2. `test-design-all`, once per BoundedContext: `prd`, `capabilities` (the context's), `architecture`,
    `designs` (every Design), the context's `glossary`, `rules`, `harness`. Each Spec's TestDesign,
-   `<spec>-tests`, confirmed at its Gate by a Reviewer subagent.
+   `<spec>-tests`, confirmed at its Gate by a Reviewer subagent. Then apply its upstream answers
+   (`driving.md`, Upstream answers) before any build.
 
 ## 2. Build each Plan
 
 Plans in the order of their capabilities, `CAP-1` first. Per Plan, `build-all`: `plan`, `tasks`
-(every `T-n`, in order), `spec`, `architecture`, `designs` (the Designs the Plan lists), `glossary`
+(every `T-n`, in order), `spec`, `architecture`, `adrs` (the Adrs it applies), `designs` (the Designs the Plan lists), `glossary`
 and `rules` of its context, `repository` (the app's path), `testDesign` (the Spec's) and `harness`.
 
 Each task parks a builder form. Start a new builder subagent per form, each round too, with:
@@ -56,7 +57,9 @@ one after it. Start a new tester subagent per Tester form, never the task's buil
 > write the answer file to `.persimmon/autopilot/<taskRun>.answer.yaml` and stop. Never run git or
 > `persimmon`, never change the app's code. Reply with `written`.
 
-`setup-tests`'s form is a Tester form too: the same prompt, its answer the TestHarness.
+`setup-tests`'s form is a Tester form too: the same prompt, except that its answer is the TestHarness
+(the form's artifact port `harness`), not `written`, and its last line "Reply with the harness's
+levels, their commands and each open question."
 
 Then `persimmon complete` as `driving.md` says: it runs the tests and the Gate. A rejected round
 parks the next round's forms with the findings in `inputs.feedback`: new subagents again.
@@ -76,6 +79,11 @@ Append its lines to the next round's builder and tester prompts: "The human deci
 on these; the builder writes each as its `Q-n`'s `resolution`." Keep them for the report.
 After the last task the TestReport follows (`persimmon get TestReport/<plan>-test-report`): its
 verdict and every residual risk go in the report.
+
+`setup-tests` warned `level-deferred` and this `build-all` built the screens of the `ui` Design it
+names: before the next Plan, run `setup-tests` again with the same inputs and `base` the TestHarness, which adds the `e2e`
+level, then `test-design-one` for each Spec with a screen case, `base` its TestDesign, so those
+cases move to `e2e`. Once per Autopilot run.
 
 ## 3. Defects
 

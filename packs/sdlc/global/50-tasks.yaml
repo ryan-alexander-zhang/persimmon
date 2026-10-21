@@ -119,6 +119,8 @@ spec:
     context: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext}}}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, required: false}
+    changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false}
   outputs:
     spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, id: {expression: "inputs.prd.id + '-' + inputs.capabilityId.lowerAscii()"}}
   executorRef: {kind: Executor, name: spec-agent}
@@ -131,7 +133,7 @@ spec:
       `capabilityId`: a finding that the context does not list it is the caller's to fix, so answer it with a `Q-n`.
       Every command, event and read model label is the DomainModel's; every rule id is in `rules`; every quality
       scenario id is in `architecture`. With `previous` and `feedback` bound, fix what the findings name and
-      change nothing else.
+      change nothing else. With `base` and `changes` bound, revise `base` as the Spec rules say for a revision.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: spec-rules}}
       - {kind: artifact, input: prd}
@@ -141,6 +143,7 @@ spec:
       - {kind: artifact, input: rules}
       - {kind: artifact, input: context}
       - {kind: artifact, input: previous}
+      - {kind: artifact, input: base}
     parameters: {effort: high}
   timeout: 30m
   retryPolicy: # a transient API refusal (19-adapter-roles.md) gets another attempt within the step deadline; a dead login is permission_denied and never retried
@@ -268,6 +271,8 @@ spec:
     spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, description: "every Design of the blocks the Spec touches"}
+    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: false, description: "which aggregate handles each of the Spec's commands"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}, required: false, description: "the Spec's Plan before this run: start from it and keep its task ids"}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
   outputs:
@@ -285,6 +290,8 @@ spec:
       - {kind: artifact, input: spec}
       - {kind: artifact, input: architecture}
       - {kind: artifact, input: designs}
+      - {kind: artifact, input: domainModel}
+      - {kind: artifact, input: base}
       - {kind: artifact, input: previous}
     parameters: {effort: high}
   timeout: 30m
@@ -615,6 +622,7 @@ spec:
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: false, description: "the context's: a scenario's category is one of its terms"}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, required: false, description: "the last round's, beside the draft; round one has none"}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict; round one has none"}
   outputs:
@@ -630,6 +638,7 @@ spec:
       - {kind: artifact, input: rules}
       - {kind: artifact, input: domainModel}
       - {kind: artifact, input: architecture}
+      - {kind: artifact, input: glossary}
       - {kind: artifact, input: previous}
   timeout: 30m
   retryPolicy: # a transient API refusal gets another attempt
@@ -689,6 +698,7 @@ spec:
     taskId: {type: {kind: value, schema: {type: string, pattern: "^T-[0-9]+$"}}}
     spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}, required: false, description: "the Adrs the Architecture applies"}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, description: "the Designs the Plan lists"}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
@@ -715,6 +725,7 @@ spec:
       - {kind: artifact, input: plan}
       - {kind: artifact, input: spec}
       - {kind: artifact, input: architecture}
+      - {kind: artifact, input: adrs}
       - {kind: artifact, input: designs}
       - {kind: artifact, input: glossary}
       - {kind: artifact, input: rules}
@@ -741,6 +752,8 @@ spec:
     adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}, required: false, description: "the Adrs the Architecture applies: a tool one names is the level's"}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "the product's Designs: an http-api one needs an api level, a ui one an e2e level"}
     repository: {type: {kind: externalResource, provider: git, type: repository}, description: "the project's code, where the tests are set up"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, required: false, description: "the harness before this run: its levels are kept"}
+    changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false, description: "the downstream answers this run applies to base"}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
   outputs:
@@ -756,6 +769,7 @@ spec:
       - {kind: artifact, input: architecture}
       - {kind: artifact, input: adrs}
       - {kind: artifact, input: designs}
+      - {kind: artifact, input: base}
       - {kind: artifact, input: previous}
     workspace: {input: repository}
   timeout: 72h   # a human's: the developer's agent sets it up in its own session
@@ -806,6 +820,7 @@ spec:
   inputs:
     spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
     plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}, description: "the Spec's Plan: the task each case is built in, and what the tasks before it build"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, required: false, description: "the Spec's TestDesign before this run: start from it and keep its ids"}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, description: "the product's Designs: the operations and screens a case's steps name"}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
@@ -830,6 +845,7 @@ spec:
       - {kind: artifact, input: glossary}
       - {kind: artifact, input: rules}
       - {kind: artifact, input: harness}
+      - {kind: artifact, input: base}
       - {kind: artifact, input: previous}
     parameters: {effort: high}
   timeout: 30m

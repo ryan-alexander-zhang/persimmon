@@ -39,7 +39,9 @@ autopilot = autopilot-doc then autopilot-code
 | a build round refused on an open `Q-n` (`question-open`) has it decided by a new Reviewer subagent, as a human Gate's would be; the orchestrator gives the decisions to the next round's builder and tester subagents, and the builder writes each as its `Q-n`'s `resolution`; every decision is in the report | skill |
 | a `D-n` whose task passed becomes an `Issue`, its fix a `build-one`, then the Issue's `resolved` revision; one fix attempt per Issue, then stop; an Issue that finds the Spec wrong or missing stops it, a Spec revision being the developer's call | skill |
 | `plan_regressed` is an Issue with the red test as its `reproduction`, fixed the same way | skill |
-| the report names every Prd, Architecture, Adr, Spec, Plan and AcceptanceRecord revision, every `Q-n` an agent resolved, every Issue and the files changed; the developer reviews the diff and commits | skill |
+| a `question-upstream` warning naming a Spec, from a TestHarness, TestDesign or AcceptanceRecord run that passed or ran out of rounds, is applied before the build goes on: `spec-one` with the Spec as `base` and the answers as `changes`, then `plan-all` and `test-design-all` for that capability; as often as a run tells new answers, a failed Spec Gate stopping it; one naming another kind than a Spec or the TestHarness stops it, reported as the revision the developer owes; the Reviewer subagent decides what serves the product, never what is easiest to revise | skill |
+| a `question-upstream` warning naming the TestHarness is applied the same way: `setup-tests` with the harness as `base` and the answers as `changes`, then `test-design-all` again for the capabilities whose TestDesign told it | skill |
+| the report names every Prd, Architecture, Adr, Spec, Plan and AcceptanceRecord revision, every `Q-n` an agent resolved, every `question-upstream` warning as an upstream revision the developer owes, every Issue and the files changed; the developer reviews the diff and commits | skill |
 
 ## Decisions
 
@@ -80,5 +82,17 @@ autopilot = autopilot-doc then autopilot-code
   only the refusal, and the question was settled by the stand-in human outside the Autopilot. A
   human Validator on every build round would park each round on a person; the refusal already
   marks the rounds that need one. Found in UAT.
+- The Autopilot applies a downstream answer to a Spec itself, through `spec-one` and its Gate. In
+  the live run a TestDesign could not pass without a scenario the Spec lacked, and leaving the
+  Spec to the developer stopped the product there. The Spec's own process keeps the revision
+  judged as any Spec is. An answer another kind must carry stops it instead: told to prefer
+  what the Designs and the TestHarness could carry, a reviewer narrowed CAP-1's availability to
+  the current status rather than ask a Design for a slot parameter, the product bent to the tool.
+  No count bounds it: a limit of once per Spec stopped the live run on the
+  second set of real gaps; an answer is told only in the round that writes it, so each revision
+  applies new answers, and a Spec Gate failing stops it. A loop out
+  of rounds counts too: a question that finds the Spec wrong, not missing, lets no TestDesign pass
+  against the old Spec, as the live run's third round showed. Revising
+  another upstream kind (a Glossary, a Design) stays the developer's call, reported.
 - The Autopilot never runs git, as no agent in the pack does: the developer commits the diff once,
   after reading the report.

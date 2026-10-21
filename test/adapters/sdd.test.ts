@@ -149,6 +149,18 @@ describe('sdd/v1', () => {
     expect(await codes((a) => { a.spec.openQuestions[0].id = 'Q-2' })).toEqual(['id-sequence']) // Q-2, Q-2, Q-3: the duplicate is the second
   })
 
+  // a Spec revised from base keeps its ids (27-spec-process.md)
+  it('fails an id a revision reuses, and a scenario moved to another story', async () => {
+    const kept: Record<string, any> = structuredClone(example())
+    kept.base = structuredClone(kept.spec)
+    kept.spec.stories[0].acceptance.push({ ...kept.spec.stories[0].acceptance[0], id: 'AC-10' }) // a new scenario takes the next id
+    expect((await adapter({ id: ++id, op: 'evaluate', payload: payload(kept) })).result).toMatchObject({ passed: true, findings: [] })
+    const reused = async (mutate: (base: Record<string, any>) => void) => codes((a: Record<string, any>) => { a.base = structuredClone(a.spec); mutate(a.base) })
+    expect(await reused((b) => { b.stories[0].acceptance.splice(1, 1) })).toEqual(['id-reused']) // AC-2 removed earlier, now back
+    expect(await reused((b) => { b.requirements.splice(1, 1) })).toEqual(['id-reused'])
+    expect(await reused((b) => { b.stories[1].acceptance.push(b.stories[0].acceptance.pop()) })).toEqual(['id-reused']) // under US-2 before
+  })
+
   it('is invalid_input without a required artifact and on an unknown op', async () => {
     const { rules, ...rest } = example()
     const missing = await adapter({ id: 1004, op: 'evaluate', payload: payload(rest) })
@@ -619,12 +631,31 @@ describe('sdd/v1 over a Plan', () => {
   })
 
   it('fails an element of a design not listed, not evaluated, of another block, or missing', async () => {
-    expect(await planCodes((a) => { a.plan.tasks[0].elements![0].design = 'ghost' })).toEqual(['unknown-design'])
-    expect(await planCodes((a) => { a.plan.designs.push('ghost'); a.plan.tasks[0].elements![0].design = 'ghost' })).toEqual(['design-unread'])
-    expect(await planCodes(() => {}, [{ ...designRef, id: 'other' }])).toEqual(['design-unread', 'design-unread', 'design-unread', 'design-unread'])
-    expect(await planCodes((a) => { a.plan.tasks[0].block = 'BB-2' })).toEqual(['design-block', 'design-block'])
-    expect(await planCodes((a) => { a.plan.tasks[0].elements![0].element = 'EL-99' })).toEqual(['unknown-element'])
+    expect(await planCodes((a) => { a.plan.tasks[0].elements![0].design = 'ghost' })).toEqual(['unknown-design', 'element-unplanned']) // EL-1 of claims-api is then in no task
+    expect(await planCodes((a) => { a.plan.designs.push('ghost'); a.plan.tasks[0].elements![0].design = 'ghost' })).toEqual(['design-unread', 'element-unplanned'])
+    expect(await planCodes(() => {}, [{ ...designRef, id: 'other' }])).toEqual([...Array(6).fill('design-unread'), ...Array(4).fill('element-unplanned')])
+    expect(await planCodes((a) => { a.plan.tasks[0].block = 'BB-2' })).toEqual(['design-block', 'design-block', 'design-block', 'design-block'])
+    expect(await planCodes((a) => { a.plan.tasks[0].elements![0].element = 'EL-99' })).toEqual(['unknown-element', 'element-unplanned'])
     expect(await planCodes((a) => { a.plan.designs.push('spare') })).toEqual(['design-unused'])
+  })
+
+  it('fails a Design element the capability needs that no task realises (30-plan-process.md)', async () => {
+    expect(await planCodes((a) => { a.plan.tasks[3].elements = [] })).toEqual(['element-unplanned']) // EL-4 realises My Claims View, a story's read model
+    const reads = (a: any) => { a.plan.tasks[0].elements = a.plan.tasks[0].elements.slice(0, 2) } // EL-11 and EL-12 read the Claim, AG-1
+    expect((await adapter({ id: 4010, op: 'evaluate', payload: planPayload((() => { const a = structuredClone(planExample()); reads(a); return a })()) })).result.passed).toBe(true) // no DomainModel: the aggregate is not known
+    expect(await planCodes((a: any) => { a.domainModel = content('DomainModel'); reads(a) })).toEqual(['element-unplanned', 'element-unplanned'])
+  })
+
+  it('warns of a task whose id now names other work than in the Plan it replaces (30-plan-process.md)', async () => {
+    const run = async (mutate: (a: any) => void) => {
+      const a: any = structuredClone(planExample()); a.base = content('Plan'); mutate(a)
+      return (await adapter({ id: ++id, op: 'evaluate', payload: planPayload(a) })).result
+    }
+    expect(await run(() => {})).toEqual({ passed: true, findings: [], evidence: [] })
+    expect(await run((a) => { a.plan.tasks[0].title = 'Draft a claim'; a.plan.tasks[0].elements.pop() })).toEqual({ passed: true, findings: [], evidence: [] }) // a task may change
+    const swapped = await run((a) => { const [t1, t2] = a.plan.tasks; a.plan.tasks[1] = { ...t1, id: 'T-2', dependsOn: [] }; a.plan.tasks[0] = { ...t2, id: 'T-1', dependsOn: [] } })
+    expect(swapped.passed).toBe(true) // told, not refused
+    expect(swapped.findings.map((f: any) => [f.severity, f.code])).toEqual([['warning', 'task-renumbered'], ['warning', 'task-renumbered']])
   })
 
   it('fails a spec or architecture that is not the one evaluated, and a design listed twice', async () => {
@@ -773,6 +804,24 @@ describe('sdd/v1 over an AcceptanceRecord', () => {
     expect((await by({ kind: 'service', id: 'claude-code/v1' })).result.findings).toEqual([]) // carried from the last round: told then
   })
 
+  // an answer that changes an upstream artifact is told once, so its revision is not forgotten (23-pack-sdlc.md)
+  it('warns of an answer naming the upstream artifacts it changes', async () => {
+    const answered = structuredClone(recordExample())
+    answered.record.openQuestions = [{ id: 'Q-1', question: 'which currency?', resolution: 'EUR', upstream: ['expenses-glossary', 'submit-a-claim Q-2'] }]
+    const r = await adapter({ id: ++id, op: 'evaluate', payload: recordPayload(answered) })
+    expect(r.result.passed).toBe(true)
+    expect(r.result.findings.filter((f: { code: string }) => f.code === 'question-upstream')).toEqual([{ severity: 'warning', code: 'question-upstream', message: "Q-1's answer changes expenses-glossary, submit-a-claim Q-2; revise them through their process: EUR" }])
+    const upstream = async () => (await adapter({ id: ++id, op: 'evaluate', payload: recordPayload(answered) })).result.findings.filter((f: { code: string }) => f.code === 'question-upstream')
+    answered.base = { ...structuredClone(answered.record) }
+    expect(await upstream()).toEqual([]) // given by the run this one started from: told then
+    delete answered.base
+    answered.previous = structuredClone(answered.record)
+    answered.previousOutcome = answered.testOutcome
+    expect(await upstream()).toEqual([]) // given by the last round: told then
+    answered.record.openQuestions[0].resolution = 'EUR, converted at the day rate'
+    expect(await upstream()).toHaveLength(1) // a changed answer is told again
+  })
+
   // 36-test-levels.md: the other levels' outcomes beside the unit one, paired by level
   const api = (cases: Record<string, unknown>[], over: Record<string, unknown> = {}) => ({ command: ['bru', 'run'], exitCode: cases.some((c) => c.status === 'failed') ? 1 : 0, level: 'api', selection: { mode: 'full', reason: '1 changed file' }, tests: cases, ...over })
   const levelCodes = async (a: Record<string, any>, levelOutcomes: unknown[], levelBaselines: unknown[] = []) => {
@@ -875,6 +924,7 @@ describe('sdd/v1 over an Architecture', () => {
     // a second context listing the same four, realised by no block
     expect(await archCodes((a) => a.contexts.push(structuredClone(a.contexts[0])), { contexts: { kind: 'artifacts', refs: [ref('BoundedContext', 'expenses'), ref('BoundedContext', 'expenses-two')] } })).toEqual(['context-unrealised', ...Array(4).fill('capability-twice')])
     expect(await archCodes((a) => (a.architecture.buildingBlocks[0].parent = 'BB-9'))).toEqual(['unknown-parent'])
+    expect(await archCodes((a) => delete a.architecture.buildingBlocks[0].technology)).toEqual(['technology-missing']) // a level 1 block names its stack
   })
   it('fails a listed model, glossary or Adr that was not evaluated, and one evaluated but not listed', async () => {
     expect(await archCodes((a) => (a.architecture.domainModels = ['expenses-model']))).toEqual(['model-mismatch'])
@@ -892,7 +942,7 @@ describe('sdd/v1 over an Architecture', () => {
     expect(await archCodes((a) => (a.architecture.relations[0].to = 'approver'))).toEqual(['relation-no-block'])
     expect(await archCodes((a) => (a.architecture.relations[3].interface = 'blob API'))).toEqual(['unknown-interface'])
     expect(await archCodes((a) => a.architecture.relations.splice(8, 1))).toEqual(['partner-unrelated'])
-    expect(await archCodes((a) => a.architecture.buildingBlocks.push({ id: 'BB-6', name: 'spare', responsibility: 'nothing yet', interfaces: [], contexts: [] }))).toEqual(['block-unrelated'])
+    expect(await archCodes((a) => a.architecture.buildingBlocks.push({ id: 'BB-6', name: 'spare', technology: 'Node 22', responsibility: 'nothing yet', interfaces: [], contexts: [] }))).toEqual(['block-unrelated'])
   })
   it('fails an Adr that is not accepted, and a driver that resolves nowhere; a superseded slot is skipped', async () => {
     expect(await archCodes((a) => (a.adrs[0].status = 'proposed'))).toEqual(['adr-status'])
@@ -1014,6 +1064,11 @@ describe('sdd/v1 over the Test process', () => {
     const open = td(); open.openQuestions = [{ id: 'Q-1', question: 'which receipt formats?' }]; expect(designFindings(open)).toEqual([]) // the human's, at the Gate
     const late = td(); late.cases[0].steps.push({ action: 'POST /claims/{claimId}/submission' }) // TC-1 is T-1's; T-3 builds submission
     expect(checkTestDesign({ testDesign: late, spec: content('Spec'), architecture: content('Architecture'), rules: content('BusinessRules'), harness: content('TestHarness'), plan: content('Plan'), designs: { 'claims-api': content('Design') } }).map((f: any) => [f.code, f.message])).toEqual([['step-premature', 'TC-1: POST /claims/{claimId}/submission is built by T-3, after T-1, the task of this case']])
+    const run = (testDesign: any, base: any) => checkTestDesign({ testDesign, spec: content('Spec'), architecture: content('Architecture'), rules: content('BusinessRules'), harness: content('TestHarness'), base }).map((f: any) => [f.code, f.message])
+    const swapped = td(); [swapped.cases[0].id, swapped.cases[1].id] = ['TC-2', 'TC-1']; swapped.cases.reverse() // written again from scratch, TC-1 and TC-2 trade places
+    expect(run(swapped, td()).filter(([c]: string[]) => c === 'case-renumbered')).toEqual([['case-renumbered', 'TC-1 verified AC-1 in the TestDesign it replaces and now verifies AC-2: a case keeps its id'], ['case-renumbered', 'TC-2 verified AC-2 in the TestDesign it replaces and now verifies AC-1: a case keeps its id']])
+    const kept = td(); kept.cases[0].title = 'reworded'; kept.cases = kept.cases.filter((c: any) => c.id !== 'TC-7'); kept.cases.push({ ...td().cases[6], id: 'TC-11' }) // a reworded case, a removed one, a new id
+    expect(run(kept, td())).toEqual([])
     const other = td(); other.spec = 'other'; other.harness = 'other'; expect(designFindings(other)).toEqual(['spec-mismatch', 'harness-mismatch'])
     expect(checkTestDesign({ testDesign: { title: 'x' } }).map((f: { code: string }) => f.code)).toEqual(['not-a-test-design'])
   })
@@ -1031,6 +1086,13 @@ describe('sdd/v1 over the Test process', () => {
     expect(codes({ ...harness, openQuestions: [{ id: 'Q-1', question: 'Bruno or Hurl?' }] }, seed, [apiSeed])).toEqual([]) // the human's, at the Gate
     expect(codes({ ...harness, architecture: 'other' }, seed, [apiSeed])).toEqual(['architecture-mismatch'])
     expect(codes({ levels: {} }, seed, [])).toEqual(['not-a-harness'])
+    // a ui Design and no e2e level: told, never refused (39-test-process.md)
+    const deferred = checkHarness({ harness, seed, levelOutcomes: [apiSeed], designs: { 'claims-api': { type: 'http-api' }, 'claims-ui': { type: 'ui' } } })
+    expect(deferred).toEqual([{ severity: 'warning', code: 'level-deferred', message: 'claims-ui is a ui Design and the harness has no e2e level: run setup-tests again once the screens are built' }])
+    expect(checkHarness({ harness, seed, levelOutcomes: [apiSeed], designs: { 'claims-api': { type: 'http-api' } } })).toEqual([])
+    // set up again: the levels of base are kept (39-test-process.md)
+    expect(checkHarness({ harness: { ...harness, levels: { unit: harness.levels.unit } }, seed, levelOutcomes: [], base: harness }).map((f: { code: string }) => f.code)).toEqual(['level-dropped'])
+    expect(checkHarness({ harness, seed, levelOutcomes: [apiSeed], base: { ...harness, levels: { unit: harness.levels.unit } } })).toEqual([]) // a level added
   })
 
   it('selects a task\'s cases by level, and whether the Tester writes this round', () => {
@@ -1039,6 +1101,8 @@ describe('sdd/v1 over the Test process', () => {
     const gate = (message: string) => ({ passed: false, results: { evidence: { passed: false, findings: [{ severity: 'error', code: 'x', message }] } } })
     expect(selectCases({ ...ids, feedback: gate('CAP-1/TC-10: no api test carries it') }).write).toEqual({ api: true, e2e: false })
     expect(selectCases({ ...ids, feedback: gate('CAP-1/TC-3: claim > x failed') }).write).toEqual({ api: false, e2e: false }) // a round refused for the code alone
+    const warned = gate('Q-1 is open: which currency?'); warned.results.evidence.findings.push({ severity: 'warning', code: 'question-upstream', message: "Q-2's answer changes claims-api: CAP-1/TC-10 asks only for a 4xx" })
+    expect(selectCases({ ...ids, feedback: warned }).write).toEqual({ api: false, e2e: false }) // a warning naming a case calls no Tester back
     expect(selectCases({ ...ids, testDesign: undefined })).toEqual({ unit: [], integration: [], api: [], e2e: [], manual: [], write: { api: false, e2e: false } })
   })
 
@@ -1086,6 +1150,11 @@ describe('sdd/v1 over the Test process', () => {
   it('the Adapter dispatches a TestDesign and a TestHarness to their checks', async () => {
     const r = await adapter({ id: ++id, op: 'evaluate', payload: payload({ testDesign: content('TestDesign'), spec: content('Spec'), architecture: content('Architecture'), rules: content('BusinessRules'), harness: content('TestHarness'), plan: content('Plan') }) })
     expect(r.result).toEqual({ passed: true, findings: [], evidence: [] })
+    // an answer the last round had was told then: with previous bound only a new one is (39-test-process.md)
+    const answered = { ...content('TestDesign'), openQuestions: [{ id: 'Q-1', question: 'which formats?', resolution: 'PNG and PDF' }, { id: 'Q-2', question: 'which limit?', resolution: '500 EUR' }] }
+    const told = payload({ testDesign: answered, spec: content('Spec'), architecture: content('Architecture'), rules: content('BusinessRules'), harness: content('TestHarness'), plan: content('Plan'), previous: { ...answered, openQuestions: [answered.openQuestions[0], { id: 'Q-2', question: 'which limit?' }] } })
+    told.artifacts.testDesign.provenance = { ...provenance, actor: { kind: 'service', id: 'claude-code/v1' } }
+    expect((await adapter({ id: ++id, op: 'evaluate', payload: told })).result.findings.map((f: { message: string }) => f.message.slice(0, 3))).toEqual(['Q-2'])
     const h = await adapter({ id: ++id, op: 'evaluate', payload: payload({ harness: content('TestHarness'), seed: unit([]) }) })
     expect(h.result.findings.map((f: { code: string }) => f.code)).toEqual(['suite-empty', 'level-unrun'])
   })

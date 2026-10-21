@@ -42,7 +42,7 @@ const rulesSource = (bad, doc, ids, upstream) => {
   if (upstream?.doc?.businessRules !== undefined && ids.rules && upstream.doc.businessRules !== ids.rules) bad('rules-mismatch', `${upstream.name} names businessRules ${upstream.doc.businessRules}, not ${ids.rules}, the BusinessRules bound`)
 }
 
-export function checkSpec({ spec, prd, domainModel, architecture, rules, context, ids = {} }) {
+export function checkSpec({ spec, prd, domainModel, architecture, rules, context, base, ids = {} }) {
   if (!spec || !Array.isArray(spec.stories) || !Array.isArray(spec.requirements) || !spec.capability) {
     return [{ severity: 'error', code: 'not-a-spec', message: 'content is not a Spec: it has no stories array, no requirements array or no capability' }]
   }
@@ -111,6 +111,17 @@ export function checkSpec({ spec, prd, domainModel, architecture, rules, context
   sequence(bad, 'FR', requirementIds)
   sequence(bad, 'US', storyIds)
   sequence(bad, 'Q', (spec.openQuestions ?? []).map((q) => q.id))
+
+  // a Spec revised from base keeps its ids: the Plan and the TestDesign cite them (27-spec-process.md)
+  if (base) {
+    const baseStory = new Map((base.stories ?? []).flatMap((s) => (s.acceptance ?? []).map((ac) => [ac.id, s.id])))
+    const kinds = { US: [storyIds, (base.stories ?? []).map((s) => s.id)], FR: [requirementIds, (base.requirements ?? []).map((r) => r.id)], AC: [[...criterionStory.keys()], [...baseStory.keys()]] }
+    for (const [prefix, [now, was]] of Object.entries(kinds)) {
+      const top = Math.max(0, ...was.map((id) => Number(String(id).slice(prefix.length + 1))))
+      for (const id of now) if (!was.includes(id) && Number(String(id).slice(prefix.length + 1)) <= top) bad('id-reused', `${id} is not in the Spec it replaces, whose ids reach ${prefix}-${top}: a new item takes the next id`)
+    }
+    for (const [ac, story] of criterionStory) if (baseStory.has(ac) && baseStory.get(ac) !== story) bad('id-reused', `${ac} was under ${baseStory.get(ac)} in the Spec it replaces and is now under ${story}: a scenario keeps its id`)
+  }
   return findings
 }
 
@@ -365,8 +376,9 @@ export function checkCoverage({ domainModel, designs = {}, ids = {} }) {
 
 // One Plan against the Spec it builds, the Architecture its tasks name blocks of, and the Designs it realises elements
 // of; `designs` is artifact id → content, paired by the caller from inputs.designs.refs and artifacts.designs.
-// `ids` are the bound inputs' artifact ids, `{spec, architecture}`, which a content never carries.
-export function checkPlan({ plan, spec, architecture, designs = {}, ids = {} }) {
+// `ids` are the bound inputs' artifact ids, `{spec, architecture}`, which a content never carries. `domainModel`: which
+// aggregate handles each command; `base`: the Plan this one replaces, whose task ids it keeps.
+export function checkPlan({ plan, spec, architecture, designs = {}, domainModel, base, ids = {} }) {
   if (!plan || !Array.isArray(plan.tasks) || !plan.spec) {
     return [{ severity: 'error', code: 'not-a-plan', message: 'content is not a Plan: it has no tasks array or no spec' }]
   }
@@ -421,7 +433,22 @@ export function checkPlan({ plan, spec, architecture, designs = {}, ids = {} }) 
   for (const id of scenarios) if (!verified.has(id)) bad('scenario-unverified', `scenario ${id} verifies no task`)
   for (const id of cited) if (provenAt.get(id) === 'build' && !verified.has(id)) bad('scenario-unverified', `quality scenario ${id} is proven at build but verifies no task`)
   for (const d of listed) if (!used.has(d)) bad('design-unused', `design ${d} is listed but no task realises an element of it`)
+  // the elements the capability needs: its stories' commands and read models, and the aggregates handling those commands
+  const commands = (spec?.stories ?? []).flatMap((s) => s.commands ?? [])
+  const needed = new Set([...commands, ...(spec?.stories ?? []).flatMap((s) => s.readModels ?? [])])
+  for (const a of domainModel?.aggregates ?? []) if ((a.commands ?? []).some((c) => commands.includes(c.name ?? c))) needed.add(a.id).add(a.name)
+  const realised = new Set(plan.tasks.flatMap((t) => (t.elements ?? []).map((e) => `${e.design} ${e.element}`)))
+  for (const [id, d] of Object.entries(designs)) {
+    for (const e of d?.elements ?? []) if (needed.has(e.realises?.name) && !realised.has(`${id} ${e.id}`)) bad('element-unplanned', `${id} ${e.id} (${e.name}) realises ${e.realises.name}, which the capability needs, but no task realises it`)
+  }
 
+  // a task of the Plan this one replaces keeps its id: its AcceptanceRecord is <plan>-<t-n> (30-plan-process.md)
+  const work = (t) => [...(t.covers ?? []), ...(t.verifiedBy ?? []), ...(t.elements ?? []).map((e) => `${e.design} ${e.element}`)]
+  for (const b of base?.tasks ?? []) {
+    const now = plan.tasks.find((t) => t.id === b.id)
+    // a warning: a new task an old one needs can only come first under a lower id, so renumbering may be right, and is told
+    if (now && (now.block !== b.block || !work(b).some((w) => work(now).includes(w)))) findings.push({ severity: 'warning', code: 'task-renumbered', message: `${b.id} was "${b.title}" in the Plan it replaces and is now "${now.title}": its AcceptanceRecord now names other work` })
+  }
   sequence(bad, 'T', taskIds)
   sequence(bad, 'Q', (plan.openQuestions ?? []).map((q) => q.id))
   return findings
@@ -463,18 +490,19 @@ export function taskCases({ plan, taskId, spec, testDesign }) {
   return (testDesign?.cases ?? []).filter((c) => (c.verifies ?? []).some((v) => due.has(v))).map((c) => ({ ...c, qid: qualified(spec, c.id) }))
 }
 /** What one build round runs (39-test-process.md): the task's automated case ids by level, its manual ones, and whether the
- * Tester writes this round's api and e2e tests: in round one when the task has such cases, later when a finding names one. */
+ * Tester writes this round's api and e2e tests: in round one when the task has such cases, later when an error finding names
+ * one; a warning refuses no round. */
 export function selectCases({ plan, taskId, spec, testDesign, feedback }) {
   const cases = taskCases({ plan, taskId, spec, testDesign })
   const of = (level) => cases.filter((c) => c.execution !== 'manual' && c.level === level).map((c) => c.qid)
-  const named = Object.values(feedback?.results ?? {}).flatMap((r) => r?.findings ?? []).map((f) => f.message ?? '').join('\n')
+  const named = Object.values(feedback?.results ?? {}).flatMap((r) => r?.findings ?? []).filter((f) => f.severity === 'error').map((f) => f.message ?? '').join('\n')
   const write = (level) => of(level).length > 0 && (!feedback || of(level).some((q) => named.includes(q)))
   return { unit: of('unit'), integration: of('integration'), api: of('api'), e2e: of('e2e'), manual: cases.filter((c) => c.execution === 'manual').map((c) => c.qid), write: { api: write('api'), e2e: write('e2e') } }
 }
 
 /** One TestHarness against the seed runs of its levels (39-test-process.md): every level ran and its seed test is green.
  * `seed`: the unit level's outcome; `levelOutcomes` the others'. `ids`: {architecture} bound. Every finding `error`. */
-export function checkHarness({ harness, seed, levelOutcomes = [], ids = {} }) {
+export function checkHarness({ harness, seed, levelOutcomes = [], designs = {}, base, ids = {} }) {
   if (!harness?.levels?.unit) return [{ severity: 'error', code: 'not-a-harness', message: 'content is not a TestHarness: it has no levels.unit' }]
   const findings = []
   const bad = (code, message) => findings.push({ severity: 'error', code, message })
@@ -494,13 +522,19 @@ export function checkHarness({ harness, seed, levelOutcomes = [], ids = {} }) {
     if (m.length === 0) bad('seed-missing', `${level}: no test is named ${l.seed}`)
     else if (!m.every((c) => c.status === 'passed')) bad('seed-failed', `${level}: ${l.seed} ${m.find((c) => c.status !== 'passed').status}`)
   }
+  // a harness set up again keeps the levels the cases name (39-test-process.md)
+  for (const level of Object.keys(base?.levels ?? {})) if (!harness.levels[level]) bad('level-dropped', `${level}: a level of the harness this one replaces is gone; the cases of that level have nothing to run on`)
+  // an e2e level may wait for the screens its seed opens, and is told while it waits (39-test-process.md)
+  const ui = Object.entries(designs).filter(([, d]) => d?.type === 'ui').map(([id]) => id)
+  if (ui.length && !harness.levels.e2e) findings.push({ severity: 'warning', code: 'level-deferred', message: `${ui.join(', ')} ${ui.length > 1 ? 'are ui Designs' : 'is a ui Design'} and the harness has no e2e level: run setup-tests again once the screens are built` })
   return findings
 }
 
 /** One TestDesign against its Spec, the Architecture's quality scenarios, the BusinessRules, the TestHarness and the Plan
  * (39-test-process.md): an api step's `METHOD /path` is a Design element its case's task, or one before it, realises.
- * `designs` maps a Design id to its content. `ids`: {spec, harness} bound. Every finding `error`. */
-export function checkTestDesign({ testDesign, spec, architecture, rules, harness, plan, designs = {}, ids = {} }) {
+ * `designs` maps a Design id to its content; `base`, the TestDesign this one replaces, whose ids it keeps. `ids`: {spec,
+ * harness} bound. Every finding `error`. */
+export function checkTestDesign({ testDesign, spec, architecture, rules, harness, plan, designs = {}, base, ids = {} }) {
   if (!testDesign || !Array.isArray(testDesign.cases) || !testDesign.spec) {
     return [{ severity: 'error', code: 'not-a-test-design', message: 'content is not a TestDesign: it has no cases array or no spec' }]
   }
@@ -536,6 +570,11 @@ export function checkTestDesign({ testDesign, spec, architecture, rules, harness
       const op = /^[A-Z]+ \S+/.exec(s.action ?? '')?.[0]
       if (realisedAt.get(op) > at) bad('step-premature', `${c.id}: ${op} is built by ${tasks[realisedAt.get(op)].id}, after ${tasks[at].id}, the task of this case`)
     }
+  }
+  const anchors = (c) => (c?.verifies ?? []).filter((v) => /^(AC|QS)-/.test(v))
+  for (const b of base?.cases ?? []) {
+    const now = anchors(testDesign.cases.find((c) => c.id === b.id))
+    if (now.length && !anchors(b).some((v) => now.includes(v))) bad('case-renumbered', `${b.id} verified ${anchors(b).join(', ')} in the TestDesign it replaces and now verifies ${now.join(', ')}: a case keeps its id`)
   }
   for (const id of acs) if (!verified.has(id)) bad('scenario-uncovered', `${id}: no case verifies it`)
   for (const id of cited) if (provenAt.get(id) === 'build' && !verified.has(id)) bad('scenario-uncovered', `quality scenario ${id} is proven at build but no case verifies it`)
@@ -784,6 +823,7 @@ export function checkArchitecture({ architecture, prd, rules, ids = {}, adrs = {
   const realised = new Set()
   for (const b of a.buildingBlocks) {
     if (b.parent && !blocks.has(b.parent)) bad('unknown-parent', `${b.id}: parent ${b.parent} is not a building block`)
+    if (!b.parent && !String(b.technology ?? '').trim()) bad('technology-missing', `${b.id}: a level 1 block names its technology, the language, framework or store it runs on`)
     for (const c of b.contexts ?? []) {
       if (!contexts.has(c)) bad('unknown-context', `${b.id}: context ${c} is not among the BoundedContexts evaluated`)
       else if (!b.parent) realised.add(c)

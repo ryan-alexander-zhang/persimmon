@@ -56,6 +56,7 @@ spec:
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     context: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext}}, required: false, description: "the BoundedContext that lists the capability; its DomainModel is the one bound (34-subdomains.md)"}
     capabilityId: {type: {kind: value, schema: {type: string, pattern: "^CAP-[0-9]+$"}}, required: false, description: "the capability the Spec was written for; its `capability` must be it"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, required: false, description: "the Spec this one revises: its ids are kept"}
   evaluator:
     type: adapter
     adapter: sdd/v1
@@ -139,6 +140,8 @@ spec:
     spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
+    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: false, description: "which aggregate handles each of the Spec's commands"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}, required: false, description: "the Plan this one replaces: its task ids are kept"}
   evaluator:
     type: adapter
     adapter: sdd/v1
@@ -271,6 +274,7 @@ spec:
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: false}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
   evaluator:
@@ -344,6 +348,9 @@ spec:
     seed: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, description: "the unit level's seed run"}
     levelOutcomes: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}, required: false, description: "the other levels' seed runs"}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}, required: false, description: "the Architecture the harness was set up for"}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, required: false, description: "the last round's harness: an answer it had is not told again"}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "the Designs setup-tests was given: a ui one without an e2e level is level-deferred"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, required: false, description: "the harness this one replaces: its levels are kept"}
   evaluator:
     type: adapter
     adapter: sdd/v1
@@ -374,6 +381,8 @@ spec:
     testDesign: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}}
     plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}, description: "the Spec's Plan: which task builds each operation a step names"}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, description: "the operations a step names, by element"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, required: false, description: "the TestDesign this one replaces: its ids are kept"}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, required: false, description: "the last round's TestDesign: an answer it had is not told again"}
     spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}

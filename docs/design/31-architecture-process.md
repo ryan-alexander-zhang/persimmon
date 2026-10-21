@@ -24,7 +24,7 @@ ReviewLoop architect, run once per product with the contexts, models and glossar
 | Executor `architecture-agent` | `claude-code/v1`, read-only, its own name for per-Namespace override |
 | Task `write-architecture` | inputs `prd`, `rules`, `contexts`, `domainModels`, `glossaries` (artifacts), `previous`, `previousAdrs` (the last round's Adrs, carried by the loop), `feedback`; outputs `architecture` (id `<prd>-architecture`) and `adrs` (artifacts, prefix `<prd>-adr`); `base` and `baseAdrs` (optional): the product's last Architecture and Adrs, read as `previous` and `previousAdrs` when those are unbound, so a later Rewrite pack Slice extends the Architecture instead of starting blind (`40-pack-rewrite.md`) |
 | Task `confirm-architecture` | human on `cli-human/v1`: reads the Architecture and its Adrs; approve, or one finding per `BB-n`, `S-n`, `QG-n`, `C-n`, `QS-n` or Adr id |
-| Validators | `architecture-consistency`: `sdd/v1` over `architecture`, `prd`, `rules`, `contexts`, `domainModels`, `glossaries`, `adrs` (`rules-mismatch` when the Architecture's `businessRules` is not the artifact bound); `architecture-audited`: `task` over `audit-architecture` (inputs `architecture`, `adrs`, `prd`, `rules`, and from round two `previous`, `previousAdrs`, `feedback`; Executor `auditor`; the Prompt `draft-audit-rules`, part "An Architecture": `scenario-undecidable` and `strategy-unfit` errors, `adr-unargued` and `responsibility-overlap` warnings; `23-pack-sdlc.md`); `architecture-confirmed` over `confirm-architecture`, whose form shows the auditor's verdict as `audit` (`fromValidator: audit`) |
+| Validators | `architecture-consistency`: `sdd/v1` over `architecture`, `prd`, `rules`, `contexts`, `domainModels`, `glossaries`, `adrs` (`rules-mismatch` when the Architecture's `businessRules` is not the artifact bound); `architecture-audited`: `task` over `audit-architecture` (inputs `architecture`, `adrs`, `prd`, `rules`, and from round two `previous`, `previousAdrs`, `feedback`; Executor `auditor`; the Prompt `draft-audit-rules`, part "An Architecture": `scenario-undecidable`, `strategy-unfit` and `technology-vague` errors, `adr-unargued` and `responsibility-overlap` warnings; `23-pack-sdlc.md`); `architecture-confirmed` over `confirm-architecture`, whose form shows the auditor's verdict as `audit` (`fromValidator: audit`) |
 | Gate `architecture-gate` | consistency, audit and confirmed, `all`, 72h; `audit` `after: [consistency]`, `confirmed` `after: [consistency, audit]` (`14-gate.md`) |
 | ReviewLoop `architect` | `produce` `write-architecture`, `review` `architecture-gate`, `maxRounds: 3`; the subject is the Architecture; the Adrs ride beside it as a second output, come back as `previousAdrs` (`carry`, `21-composition.md`) and are republished whole each round, each a copy of its last revision unless a finding names it; `base` and `baseAdrs` (optional) handed to `produce` |
 
@@ -46,6 +46,7 @@ BoundedContext id to its content, paired the same way; every finding
 | `capability-unplaced`, `capability-twice` | a Prd capability no BoundedContext evaluated lists, or two do (`34-subdomains.md`) |
 | `unknown-context`, `context-unrealised` | a block's context not among those evaluated; a context evaluated that no level 1 block realises (the Prd names no context; `context.business[].context` is not checked: it may name a context of another Namespace or one not yet written) |
 | `unknown-parent` | a block's `parent` is no `BB-n` |
+| `technology-missing` | a level 1 block without `technology` |
 | `model-mismatch`, `glossary-mismatch`, `adr-mismatch` | `domainModels[]`, `glossaries[]`, `decisions[]` differ from the ids evaluated, either way |
 | `unknown-driver` | a strategy `addresses` id that is neither a `QG-n` nor a `C-n` |
 | `unknown-quality-goal`, `goal-unscenarioed` | a scenario's goal not in the introduction; a goal with no scenario |
@@ -131,6 +132,13 @@ else `artifacts.prd`.
 
 ## Examples
 
+- A level 1 block names its stack: the language and its version, the framework, the store's
+  product ("Node 22, Fastify 5", "PostgreSQL 16", "MinIO"). In the full-Plan UAT the blocks said
+  "Node service" and "object store, EU region", and the scaffold, the TestHarness and every
+  builder chose for themselves. `checkArchitecture` refuses `technology-missing`; whether a label
+  names a product is the auditor's `technology-vague`, since no word list tells a product from a
+  category. A choice the Prd and the Adrs do not settle is an Adr or a `Q-n` for the human.
+  `examples/` keeps the labels its live runs wrote. Found in UAT.
 - `docs/design/examples/sdlc-domain.yaml`: `Architecture/expense-claims-architecture` with its
   two Adrs; passes `checkArchitecture` against the Prd, the `expenses` context, its Glossary and the
   rules (`test/adapters/sdd.test.ts`).

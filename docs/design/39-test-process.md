@@ -69,19 +69,19 @@ several cases; one case may have several tests.
 | Executor `test-design-agent` | `claude-code/v1`, read only, as `plan-agent` |
 | Executors `case-selector`, `test-reporter` | `testdesign/v1`, `type: script`; `test-reporter`'s configuration `{thresholds: {p0: 100, p1: 90, p1Concerns: 80, overall: 80}}`, a project overriding it by name |
 | Adapter `testdesign/v1` | an executor on the shared runner that runs no program: in `prepare` it reads the artifacts bound through `getArtifact` and answers `selectCases` or `buildReport` from `adapters/sdd/check.mjs`, by the Task's output port (`cases` or `report`) |
-| Prompt `harness-rules` | per test level, the tool the Architecture's `testing` concepts or its Adrs name, else the one the repository already has, else a `Q-n`, never one chosen; a level the Designs need (an `http-api` Design: `api`; a `ui` Design: `e2e`) and the project lacks is scaffolded; every level gets one seed test that passes on the app as it is; the commands are the project's own scripts, written once; an `api` or `e2e` level's `conventions` say how a test asserts a refused request, its `4xx` or `5xx` status, so the client in use never throws on one; never a change to the app's code |
-| Task `write-harness` | inputs `architecture`, `adrs`, `designs` (artifacts), `repository`, `previous`, `feedback`; output `harness`, id `<architecture>-harness`; `workspace: {input: repository}`; `sideEffects: nonIdempotent` |
+| Prompt `harness-rules` | per test level, the tool the Architecture's `testing` concepts or its Adrs name, else the one the repository already has, else a `Q-n`, never one chosen; a level the Designs need (an `http-api` Design: `api`; a `ui` Design: `e2e`) and the project lacks is scaffolded; every level gets one seed test that passes on the app as it is; the commands are the project's own scripts, written once; an `api` or `e2e` level's `conventions` say how a test asserts a refused request, its `4xx` or `5xx` status, so the client in use never throws on one; every level's `conventions` say how a test keeps its data apart from the other tests of the same run (its own caller or ids, or a reset between tests); never a change to the app's code |
+| Task `write-harness` | inputs `architecture`, `adrs`, `designs` (artifacts), `repository`, `base?` (the harness before this run, from `setup-tests`), `changes?` (the downstream answers this run applies, each `<artifact id> Q-n: <resolution>`, with `base`), `previous`, `feedback`; output `harness`, id `<architecture>-harness`; `workspace: {input: repository}`; `sideEffects: nonIdempotent` |
 | Tasks `run-seed`, `run-seed-levels` | as `run-baseline` and `run-levels` with no Plan: inputs `harness`, `repository`; ids `<harness>-seed`, `<harness>-seed-levels` |
-| Validator `harness-evidence` | `sdd/v1`, `checkHarness`, below |
+| Validator `harness-evidence` | `sdd/v1`, `checkHarness`, below; with `previous?`, the last round's harness, so an answer already told is not told again; with `designs?`, the Designs `setup-tests` was given; with `base?`, the harness this one replaces |
 | Task `confirm-harness`, Validator `harness-confirmed` | the human reads the harness once its seed tests pass and answers each open `Q-n`, on `local-reviewer` |
-| Prompt `test-design-rules` | at least one case per `AC-n` and per `build` `QS-n` the Spec cites; the level from the boundary the scenario's When crosses: the API `api`, a screen `e2e`, a store or a queue `integration`, a rule inside one block `unit`; steps and data from the Designs' operations and screens, the Glossary's terms; `P0` when a failure loses data, money or access or stops the capability's main path, `P1` a variant of the main path or a rule's edge, `P2` a secondary path, `P3` the rest; `P0` is `automated`; a case the harness's tools cannot run is `manual`, the reason in `preconditions`; a case's steps use only the operations its Plan task, or a task before it, builds |
-| Task `design-tests` | inputs `spec`, `plan`, `architecture`, `designs` (artifacts), `glossary`, `rules`, `harness`, `previous`, `feedback`; output `testDesign`, id `<spec>-tests`; read only |
-| Validator `test-design-consistency` | `sdd/v1`, `checkTestDesign`, below; inputs add `plan` and `designs` |
-| Task `audit-test-design`, Validator `test-design-audited` | `draft-audit-rules`, its part for a TestDesign: a case's level stops short of the boundary its scenario's When crosses, its steps do not reach its expected, its expected is not the scenario's Then with its values (`case-unfit`) |
+| Prompt `test-design-rules` | at least one case per `AC-n` and per `build` `QS-n` the Spec cites; the level from the boundary the scenario's When crosses: the API `api`, a screen `e2e`, a store or a queue `integration`, a rule inside one block `unit`; steps and data from the Designs' operations and screens, the Glossary's terms; `P0` when a failure loses data, money or access or stops the capability's main path, `P1` a variant of the main path or a rule's edge, `P2` a secondary path, `P3` the rest; `P0` is `automated`; a case the harness's tools cannot run is `manual`, the reason in `preconditions`; a case's steps use only the operations its Plan task, or a task before it, builds; a rule's threshold the Spec has no scenario at or beside is no case but a `Q-n` whose answer names the Spec in `upstream` |
+| Task `design-tests` | inputs `spec`, `plan`, `base?` (the Spec's TestDesign before this run), `architecture`, `designs` (artifacts), `glossary`, `rules`, `harness`, `previous`, `feedback`; output `testDesign`, id `<spec>-tests`; read only |
+| Validator `test-design-consistency` | `sdd/v1`, `checkTestDesign`, below; inputs add `plan`, `designs`, `base?` and `previous?`, the last round's TestDesign, so an answer already told is not told again |
+| Task `audit-test-design`, Validator `test-design-audited` | `draft-audit-rules`, its part for a TestDesign: a case's level stops short of the boundary its scenario's When crosses, its steps do not reach its expected, its expected is not the scenario's Then with its values (`case-unfit`); a rule's threshold with no case beside it is `boundary-untested` when the Spec has a scenario there and `spec-gap` when it has none, both warnings |
 | Task `confirm-test-design`, Validator `test-design-confirmed` | the human reads the cases before code exists, on `local-reviewer` |
-| ReviewLoop `test-design-one`, Workflow `test-design-all` | `maxRounds: 3`; `repeat` over `capabilities` as `plan-all`, the Spec of `CAP-n` bound by id |
-| Task `select-cases` | inputs `plan`, `taskId`, `spec`, `testDesign?`, `feedback?`; output `cases` (value): the task's qualified case ids by level, the `manual` ones, and `write: {api, e2e}`, true in round one when the task has cases of that level and later when a finding names one |
-| Prompt `test-writing-rules` | write only the cases given, one test per case unless its `data` holds several rows; the test's title holds `<CAP-n>/TC-n`; follow the level's `conventions` and its seed test; the level's tool as the harness names it, never another; run each test with the level's `one`; a test of a case the code does not yet do is red, never skipped; never edit a file outside the level's `testDir` |
+| ReviewLoop `test-design-one`, Workflow `test-design-all` | `maxRounds: 3`; `repeat` over `capabilities` as `plan-all`, the Spec of `CAP-n` bound by id, and `base` to its TestDesign `<spec>-tests` when one exists (`fromArtifact`, `onMissing: omit`) |
+| Task `select-cases` | inputs `plan`, `taskId`, `spec`, `testDesign?`, `feedback?`; output `cases` (value): the task's qualified case ids by level, the `manual` ones, and `write: {api, e2e}`, true in round one when the task has cases of that level and later when an `error` finding names one; a warning (`question-upstream`, `defect-reported`) refuses no round, so it calls no Tester back |
+| Prompt `test-writing-rules` | write only the cases given, one test per case unless its `data` holds several rows; the test's title holds `<CAP-n>/TC-n`; follow the level's `conventions` and its seed test; the level's tool as the harness names it, never another; run each test with the level's `one`; a test reads only the data it set up, never counting on running alone; a test of a case the code does not yet do is red, never skipped; never edit a file outside the level's `testDir` |
 | Tasks `write-api-tests`, `write-e2e-tests` | inputs `plan`, `taskId`, `spec`, `designs`, `testDesign`, `harness`, `cases`, `repository`, `feedback?`; output `written` (value: `files[]`, `cases[]`); `write-e2e-tests` starts the app with the harness's `app.start` and walks each step in the browser before it writes the test, as Playwright's generator does |
 | Task `implement` | adds inputs `testDesign`, `harness`, `cases`, `written`; `build-rules`: with cases bound, the task's `unit` and `integration` cases are the Builder's and `verifies` is left out; a Tester's test the Builder holds wrong is a `Q-n` naming the case, never an edit |
 | Tasks `run-tests`, `run-levels`, `run-baseline`, `run-final` | add input `harness`: `junit/v1` reads the levels from it when bound, the Executor keeping the coverage and mutation minimums (90 when it names none); `run-tests`, `run-levels` add `cases`: the case ids a level must run, as the record's names did; `run-final` adds `testDesign`: the `plan` tier then runs `unit` in full, since the report reads every case |
@@ -93,7 +93,7 @@ several cases; one case may have several tests.
 
 ## `checkHarness`
 
-Every finding `error`:
+Every finding `error`, except `level-deferred`:
 
 | Code | Finding |
 |---|---|
@@ -102,6 +102,8 @@ Every finding `error`:
 | `level-unrun` | a level of the harness with no outcome among the seed runs |
 | `suite-empty` | a level's seed run read no test |
 | `seed-missing`, `seed-failed` | a level's seed test is not in its outcome, or is not green |
+| `level-dropped` | a level of `base` the harness no longer has |
+| `level-deferred` | warning: a `ui` Design is bound and the harness has no `e2e` level; `setup-tests` runs again once its screens are built |
 
 ## `checkTestDesign`
 
@@ -117,6 +119,7 @@ Every finding `error`:
 | `level-unavailable` | a case's level the harness has not |
 | `steps-missing` | an `api`, `e2e` or `manual` case without steps |
 | `p0-manual` | a `P0` case that is `manual` |
+| `case-renumbered` | with `base` bound, a `TC-n` of the base whose `AC-n` and `QS-n` share none with the case holding that id now |
 | `step-premature` | an `api` step whose `METHOD /path` is a Design element only a Plan task after the case's task realises; the case's task is the first whose `verifiedBy` holds a scenario it verifies |
 | `id-sequence` | `TC-n` not unique and increasing |
 
@@ -164,6 +167,7 @@ no case has none to miss.
 | a level's tool comes from the Architecture or its Adrs, else the repository; never a choice the Tester makes | `harness-rules`; the human at `harness-gate` |
 | an open `Q-n` of a TestHarness or a TestDesign is answered by the human at its Gate; an agent never writes a `resolution` the inputs and the feedback do not give | `harness-rules`, `test-design-rules`; `confirm-harness`, `confirm-test-design` |
 | every acceptance scenario and `build` quality scenario has a case, its level decided before code | `checkTestDesign`, the Auditor, a human |
+| a case tests only what a scenario of the Spec says; a threshold no scenario covers is the Spec's gap, raised as a `Q-n` on the Spec, never a case | `test-design-rules`, `case-unfit`, `spec-gap` |
 | the Tester writes the `api` and `e2e` tests, the Builder the code and the `unit` and `integration` tests | Tasks, `build-rules`, `test-writing-rules` |
 | the Builder never edits a Tester's test; one it holds wrong is a `Q-n` | `build-rules`; the Auditor holds each test to its case; the developer's diff review |
 | a test carries the qualified id of the case it runs; the Gate matches by it | `acceptance-evidence` |
@@ -234,6 +238,59 @@ no case has none to miss.
   seed and conventions covered only a `2xx` answer; the Tester's test of a `403` failed on the
   client throwing, the builder answered `204` to make it pass and raised a question, and a round
   went to settle what one line of the harness should have said. Found in UAT.
+- A TestDesign written again starts from the one it replaces, `base`, and keeps every case's id.
+  In the live run a fresh `test-design-one` wrote the cases from scratch: `TC-5` became `TC-4`
+  and `TC-10` became `TC-11`, and the Tester had to retitle tests that already passed, since a
+  test is found by its case's id. Within one loop `previous` already kept the ids; across runs
+  nothing did. The check compares by the scenarios a case verifies, since a case's title and steps
+  may rightly change. Found in UAT.
+- A rule's threshold the Spec has no scenario for is the Spec's gap, not a case. In the live run
+  the auditor warned `boundary-untested` on BR-4's accepted side, the writer added a case citing a
+  scenario that did not say it, the auditor then refused that case `case-unfit`, and the loop ran
+  out of rounds with the gap never reaching the human: the writer was asked for a case nothing
+  could back. Now the writer raises a `Q-n` on the Spec, the auditor tells the two apart
+  (`boundary-untested` a missing case, `spec-gap` a missing scenario), and the answer at the Gate
+  names the Spec in `upstream`, told as `question-upstream`. The answer is recorded and nothing
+  rests on it yet: in the live run a reviewer asked in one breath for the scenario and a case citing
+  it, which the check would refuse until the Spec's revision exists; the case comes with the next
+  run's `base`. A case kept from `base` is held to the same rule: one that tests what no scenario
+  says is removed and becomes the question, since the live rerun kept such a case from a TestDesign
+  written before the rule and lost its last round to it. Found in UAT.
+- The writer raises every gap of the Spec in round one. In the full-Plan UAT the gaps came one or
+  two a round, and each answer was a Spec revision; one batch costs one. The Autopilot already
+  revises a Spec once per run with every answer (`38-autopilot.md`). Found in UAT.
+- `select-cases` reads only the `error` findings of the last round. In the live run a
+  `question-upstream` warning quoting `TC-11` called the Tester back to a round refused for an open
+  question alone; the Tester re-ran its tests and changed nothing. Found in UAT.
+- `harness-evidence` and `test-design-consistency` read the last round's document. Without it
+  `question-agent-resolved` warned of every resolution in every round, the human's own answers
+  from round one among them, since the warning names only what the last round did not have
+  (`23-pack-sdlc.md`). Found in UAT.
+- A level's conventions say how a test keeps its data apart from the other tests of the run. In
+  the live run every api test ran against one app as the same employee, so the case "two claims
+  show for the employee" could not be asserted as written; the Tester located its own claims among
+  the others instead. `harness-rules` asked how test data is "set up and reset", and the harness
+  said neither. Found in UAT.
+- An `e2e` level may wait for the screens, and is told while it waits: `level-deferred`, a warning,
+  when a `ui` Design is bound and the harness has no `e2e` level. Its seed must pass on the app as
+  it is, and before `build-all` the app has no screen to open, so in the UAT the Tester left the
+  level out and nothing asked for it again; the screen cases ran at `api` or not at all. Once
+  `build-all` has built a `ui` block's screens, `setup-tests` runs again and adds the level, and
+  `test-design-one` runs from `base` to move the screen cases to `e2e`. A warning, not an error:
+  refusing the harness would stop every build before the screens could exist. A scaffold serving a
+  first page was rejected: a seed that opens a placeholder proves the browser runs, not that a
+  screen's test can. Found in UAT.
+- `setup-tests` run again starts from the harness it replaces, `base`, and `level-dropped` refuses
+  a harness that lost one of its levels. A harness has no ids for others to cite, but every
+  TestDesign case names a level and every build runs them: a re-run that drops `api` while adding
+  `e2e` leaves those cases with nothing to run on, and only the human at `confirm-harness` would
+  see it. A changed command or convention is not checked: changing them may be why it was run.
+  Found in design review.
+- A downstream answer that changes the harness reaches it through `setup-tests` with `base` and
+  `changes`, as a Spec's does through `spec-one` (`27-spec-process.md`): in the live run a
+  TestDesign question found QS-3 needed a level reading the source, and with no way to add one the
+  reviewer settled for a weaker case at another level. The harness keeps its levels and adds or
+  changes only what the answers ask; its seed runs and its Gate judge it again. Found in UAT.
 - Not adopted: `TestRun` and `TestResult` kinds (a TestOutcome is already one run of one level at
   one commit); a test plan document (ISO 29119-3's agile example puts its content in the plan, here
   the Plan and the harness); a `waived` verdict (it needs a human sign-off of its own, later); a test

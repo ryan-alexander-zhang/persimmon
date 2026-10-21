@@ -61,7 +61,9 @@ spec:
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     context: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext}}}
     capabilityId: {type: {kind: value, schema: {type: string, pattern: "^CAP-[0-9]+$"}}}
+    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: false, description: "the context's, for the auditor"}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, required: false, description: "the last round's Spec; round one has none"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, required: false, description: "the Spec this one revises"}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict"}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
@@ -76,6 +78,7 @@ spec:
         rules: {fromInput: rules}
         context: {fromInput: context}
         capabilityId: {fromInput: capabilityId}
+        base: {fromInput: base, onMissing: omit}
     - name: audit
       ref: {kind: Validator, name: spec-audited}
       after: [consistency]   # no agent call on a Spec the check refuses (23-pack-sdlc.md)
@@ -85,6 +88,7 @@ spec:
         rules: {fromInput: rules}
         domainModel: {fromInput: domainModel}
         architecture: {fromInput: architecture}
+        glossary: {fromInput: glossary, onMissing: omit}
         previous: {fromInput: previous, onMissing: omit}
         feedback: {fromInput: feedback, onMissing: omit}
   policy: {strategy: all}
@@ -197,6 +201,8 @@ spec:
     spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
+    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: false}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}, required: false, description: "the Plan this one replaces"}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
   validators:
@@ -207,6 +213,8 @@ spec:
         spec: {fromInput: spec}
         architecture: {fromInput: architecture}
         designs: {fromInput: designs}
+        domainModel: {fromInput: domainModel, onMissing: omit}
+        base: {fromInput: base, onMissing: omit}
   policy: {strategy: all}
   timeout: 5m
 ---
@@ -364,6 +372,9 @@ spec:
     seed: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}}
     levelOutcomes: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, required: false, description: "the last round's harness; round one has none"}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "the Designs setup-tests was given"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, required: false, description: "the harness this one replaces"}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
   validators:
@@ -371,9 +382,12 @@ spec:
       ref: {kind: Validator, name: harness-evidence}
       inputs:
         harness: {fromInput: harness}
+        previous: {fromInput: previous, onMissing: omit}
         seed: {fromInput: seed}
         levelOutcomes: {fromInput: levelOutcomes}
         architecture: {fromInput: architecture}
+        designs: {fromInput: designs, onMissing: omit}
+        base: {fromInput: base, onMissing: omit}
     - name: confirmed
       ref: {kind: Validator, name: harness-confirmed}
       after: [evidence]   # the human confirms only a harness whose seed tests pass (14-gate.md)
@@ -397,6 +411,7 @@ spec:
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, required: false, description: "the TestDesign this one replaces"}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, required: false, description: "the last round's TestDesign; round one has none"}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict"}
   outputs:
@@ -408,6 +423,8 @@ spec:
         testDesign: {fromInput: testDesign}
         plan: {fromInput: plan}
         designs: {fromInput: designs}
+        base: {fromInput: base, onMissing: omit}
+        previous: {fromInput: previous, onMissing: omit}
         spec: {fromInput: spec}
         architecture: {fromInput: architecture}
         rules: {fromInput: rules}

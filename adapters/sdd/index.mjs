@@ -34,8 +34,14 @@ const agentAnswers = (payload, doc) => {
     .filter((q) => q.resolution && before.get(q.id) !== q.resolution)
     .map((q) => ({ severity: 'warning', code: 'question-agent-resolved', message: `${q.id}'s resolution was written by ${doc.provenance.actor.id}; check a human gave it: ${q.question} — ${q.resolution}` }))
 }
+// an answer that changes an upstream artifact, told so its revision is not forgotten (23-pack-sdlc.md); one the last
+// round or the base already gave was told then
+const upstreamAnswers = (payload, doc) => {
+  const told = ['previous', 'base'].map((name) => new Map((payload.artifacts?.[name]?.content?.openQuestions ?? []).map((q) => [q.id, q.resolution])))
+  return (doc.content?.openQuestions ?? []).filter((q) => q.resolution && q.upstream?.length && !told.some((m) => m.get(q.id) === q.resolution)).map((q) => ({ severity: 'warning', code: 'question-upstream', message: `${q.id}'s answer changes ${q.upstream.join(', ')}; revise ${q.upstream.length > 1 ? 'them' : 'it'} through ${q.upstream.length > 1 ? 'their' : 'its'} process: ${q.resolution}` }))
+}
 const done = (payload, findings, doc) => {
-  const all = [...findings, ...agentAnswers(payload, doc)]
+  const all = [...findings, ...agentAnswers(payload, doc), ...upstreamAnswers(payload, doc)]
   return { passed: passes(all), findings: all, evidence: [] }
 }
 const invalid = (message) => Object.assign(new Error(message), { code: 'invalid_input' })
@@ -76,11 +82,11 @@ function evaluate(payload) {
     const notATestDesign = checkTestDesign({ testDesign }).filter((f) => f.code === 'not-a-test-design')
     if (notATestDesign.length) return { passed: false, findings: notATestDesign, evidence: [] }
     const ids = { spec: payload.inputs?.spec?.ref?.id, harness: payload.inputs?.harness?.ref?.id }
-    const findings = checkTestDesign({ testDesign, spec: required(artifacts, 'spec'), architecture: required(artifacts, 'architecture'), rules: required(artifacts, 'rules'), harness: required(artifacts, 'harness'), plan: required(artifacts, 'plan'), designs: boundDesigns(payload, artifacts), ids })
+    const findings = checkTestDesign({ testDesign, spec: required(artifacts, 'spec'), architecture: required(artifacts, 'architecture'), rules: required(artifacts, 'rules'), harness: required(artifacts, 'harness'), plan: required(artifacts, 'plan'), designs: boundDesigns(payload, artifacts), base: artifacts.base?.content, ids })
     return done(payload, findings, artifacts.testDesign)
   }
   if (artifacts.harness) {
-    const findings = checkHarness({ harness: required(artifacts, 'harness'), seed: artifacts.seed?.content, levelOutcomes: (artifacts.levelOutcomes ?? []).map((a) => a.content), ids: { architecture: payload.inputs?.architecture?.ref?.id } })
+    const findings = checkHarness({ harness: required(artifacts, 'harness'), seed: artifacts.seed?.content, levelOutcomes: (artifacts.levelOutcomes ?? []).map((a) => a.content), designs: boundDesigns(payload, artifacts), base: artifacts.base?.content, ids: { architecture: payload.inputs?.architecture?.ref?.id } })
     return done(payload, findings, artifacts.harness)
   }
   if (artifacts.plan) {
@@ -89,7 +95,7 @@ function evaluate(payload) {
     if (notAPlan.length) return { passed: false, findings: notAPlan, evidence: [] }
     const designs = boundDesigns(payload, artifacts)
     const ids = { spec: payload.inputs?.spec?.ref?.id, architecture: payload.inputs?.architecture?.ref?.id }
-    const findings = checkPlan({ plan, spec: required(artifacts, 'spec'), architecture: required(artifacts, 'architecture'), designs, ids })
+    const findings = checkPlan({ plan, spec: required(artifacts, 'spec'), architecture: required(artifacts, 'architecture'), designs, domainModel: artifacts.domainModel?.content, base: artifacts.base?.content, ids })
     return done(payload, findings, artifacts.plan)
   }
   if (artifacts.domainModel && artifacts.designs && !artifacts.design && !artifacts.spec) {
@@ -145,6 +151,7 @@ function evaluate(payload) {
     architecture: required(artifacts, 'architecture'),
     rules: required(artifacts, 'rules'),
     context: artifacts.context?.content,
+    base: artifacts.base?.content,
     ids: { rules: payload.inputs?.rules?.ref?.id, context: payload.inputs?.context?.ref?.id, capability: payload.inputs?.capabilityId?.value },
   })
   // the payload carries each artifact as {content, provenance}: no RevisionRef, so no evidence (19-adapter-roles.md)

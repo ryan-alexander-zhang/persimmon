@@ -12,7 +12,7 @@ Designs.
 Workflow plan-all: repeat over `capabilities` ─▶ ReviewLoop plan-one per Spec, the Spec bound by id (fromArtifact)
 ReviewLoop plan-one, run per Spec by ref or from plan-all, the Designs listed by the caller (an artifacts port, 10-ports.md)
   produce: Task write-plan (plan-agent) ─▶ Plan
-  review:  Gate plan-gate = Validator plan-consistency (sdd/v1: plan, spec, architecture, designs)
+  review:  Gate plan-gate = Validator plan-consistency (sdd/v1: plan, spec, architecture, designs, domainModel?, base?)
   previous and feedback fed back; maxRounds 2
 ```
 
@@ -22,11 +22,11 @@ ReviewLoop plan-one, run per Spec by ref or from plan-all, the Designs listed by
 |---|---|
 | Prompt `plan-rules` | one block per task; tasks cover every `FR-n` and verify every `AC-n` and every `build` `QS-n` the Spec cites; elements only of Designs in context, of the task's block; earlier tasks only; no estimate, owner, path or technology |
 | Executor `plan-agent` | `claude-code/v1`, read-only, its own name for per-Namespace override |
-| Task `write-plan` | inputs `spec`, `architecture`, `designs` (artifacts), `previous`, `feedback`; output `plan` |
-| Validator `plan-consistency` | `sdd/v1` over `plan`, `spec`, `architecture`, `designs`; the Plan rule row of `23-pack-sdlc.md` as findings |
+| Task `write-plan` | inputs `spec`, `architecture`, `designs` (artifacts), `domainModel?`, `base?` (the Spec's Plan before this run), `previous`, `feedback`; output `plan` |
+| Validator `plan-consistency` | `sdd/v1` over `plan`, `spec`, `architecture`, `designs`, `domainModel?`, `base?`; the Plan rule row of `23-pack-sdlc.md` as findings |
 | Gate `plan-gate` | consistency only |
 | ReviewLoop `plan-one` | `produce` `write-plan`, `review` `plan-gate`, `maxRounds: 2` |
-| Workflow `plan-all` | `repeat` over `capabilities` as `spec-all` does; each iteration binds `spec` by `fromArtifact` to `<prd>-cap-n` at its latest revision (`10-ports.md`), `designs` once for the product; a Spec the loop could not plan ends the run `plan_inconsistent`; a step that fails ends it `step_failed`, `steps.each.error` naming the cause (`spec: source absent` for a capability without a Spec, `iteration_limit` past twenty); output `written` |
+| Workflow `plan-all` | `repeat` over `capabilities` as `spec-all` does; each iteration binds `spec` by `fromArtifact` to `<prd>-cap-n` at its latest revision (`10-ports.md`), `designs` once for the product, `base` to the Spec's Plan `<spec>-plan` when one exists (`fromArtifact`, `onMissing: omit`); a Spec the loop could not plan ends the run `plan_inconsistent`; a step that fails ends it `step_failed`, `steps.each.error` naming the cause (`spec: source absent` for a capability without a Spec, `iteration_limit` past twenty); output `written` |
 
 Run one: `persimmon run plan-one --input 'spec={kind: artifact, ref: {...}}' --input 'architecture={...}' --input designs=@designs.yaml`,
 where `designs.yaml` is a YAML list of RevisionRefs (`08-store.md`). Run all:
@@ -34,9 +34,9 @@ where `designs.yaml` is a YAML list of RevisionRefs (`08-store.md`). Run all:
 
 ## `checkPlan`
 
-`adapters/sdd/check.mjs`, pure, `checkPlan({plan, spec, architecture, designs, ids})` where `designs`
+`adapters/sdd/check.mjs`, pure, `checkPlan({plan, spec, architecture, designs, domainModel, base, ids})` where `designs`
 maps artifact id to content, paired by `index.mjs` from `inputs.designs.refs[i]` and
-`artifacts.designs[i]`; every finding `error`:
+`artifacts.designs[i]`; every finding `error` but `task-renumbered` (warning):
 
 | Code | Finding |
 |---|---|
@@ -50,6 +50,8 @@ maps artifact id to content, paired by `index.mjs` from `inputs.designs.refs[i]`
 | `unknown-task`, `dependency-forward` | `dependsOn` names no task; names one not earlier (itself included) |
 | `unknown-design`, `design-unread`, `design-unused` | an element's `design` not in `designs[]`; listed but not among the Designs evaluated; listed but no task realises an element of it |
 | `design-block`, `unknown-element` | the Design's `block` is not the task's; the `EL-n` is not in the Design |
+| `task-renumbered` | warning: with `base` bound, a `T-n` of the base now on another block, or whose `covers`, `verifiedBy` and elements share nothing with the task holding that id now |
+| `element-unplanned` | an element of a Design evaluated that realises a command or read model a story of the Spec names, or, with `domainModel` bound, the aggregate handling such a command, and that no task realises |
 | `id-sequence` | `T-n`, `Q-n` not unique and increasing |
 
 The Adapter picks the mode from the payload: `artifacts.plan` first (a Plan payload carries a
@@ -63,6 +65,8 @@ The Adapter picks the mode from the payload: `artifacts.plan` first (a Plan payl
 | a Design's content carries no artifact id, so the Validator pairs `artifacts.designs[i]` with `inputs.designs.refs[i].id`; a Plan run without `inputs.designs` finds every element `design-unread` | `index.mjs`; convention |
 | the Plan cites Spec, Architecture and Designs; never a Prd, DomainModel or Glossary directly: the Spec already names the domain, the Designs the contracts | `plan-rules`; convention |
 | a task sits on one block; `elements` of a Design whose `block` differs from the task's is a finding; a block without a Design in context gets no elements and a `Q-n` | `plan-rules`; `plan-consistency` |
+| every operation the capability needs is built by a task: the elements realising its stories' commands and read models, and the aggregate those commands act on | `plan-rules`; `plan-consistency` |
+| a Plan written again starts from the one it replaces and keeps its task ids: a built task's AcceptanceRecord is `<plan>-<t-n>` | `plan-rules`; `plan-consistency` |
 | document order is build order: `dependsOn` names lower ids only, so a cycle cannot be written | `plan-consistency` |
 
 ## Decisions
@@ -75,6 +79,21 @@ The Adapter picks the mode from the payload: `artifacts.plan` first (a Plan payl
   The Designs are passed once for the whole product: a Plan lists only the Designs its tasks
   realise elements of, so extra Designs in the payload are no finding. The per-capability query
   ("every Design of the blocks this Spec touches") stays roadmap. Found in design review.
+- A Plan names a task for every Design element its capability needs, and the check finds one left
+  out. In the live run no task named `EL-11`, `GET /claims/{claimId}`, the read of the Claim that
+  nearly every case goes through; the TestDesign's human had to decide it was `T-1`'s, and the
+  Plan never said so. A story names its commands and read models; the aggregate's read is reached
+  through the DomainModel, which says which aggregate handles each command, so the check reads it
+  when bound. The Plan still cites no DomainModel. Every element of the Design is not required: one
+  Design serves several capabilities. Found in UAT.
+- A Plan written again starts from the one it replaces, `base`, and keeps every task's id. In the
+  live run a fresh `plan-one` split four tasks into six: the old `T-2`, the receipt store, became
+  `T-3`, and `T-2` now meant the claim's read, so the AcceptanceRecord `submit-a-claim-plan-t-2`
+  named other work in each revision. The check compares a task by its block and by what it covers,
+  verifies and realises, since a task may rightly grow or shrink. A warning, not an error, unlike
+  the TestDesign's `case-renumbered` (`39-test-process.md`): document order is build order, so a new
+  task an old one needs can come first only under a lower id, and the Plan Gate has no human to
+  overrule a refusal. Found in UAT.
 - `verifiedBy` and `covers` may both be empty on a task (groundwork), but every `FR-n`, `AC-n` and cited
   `build` `QS-n` of the Spec must be in some task: coverage is a Spec-level rule, not a task-level one. Found in
   design review.

@@ -23,13 +23,13 @@ Workflow spec-all: repeat over `capabilities` ─▶ ReviewLoop spec-one per CAP
 |---|---|
 | Prompt `spec-rules` | how a Spec is written: cite, never restate; Connextra stories covering EARS requirements enforcing rules; Given/When/Then scenarios with values; an unknown is a `Q-n` |
 | Executor `spec-agent` | `claude-code/v1`, read-only, the same configuration as `storming-agent` under its own name, so a Namespace overrides the model per Task |
-| Task `write-spec` | inputs `prd`, `capabilityId`, `architecture`, `context` (the BoundedContext, `34-subdomains.md`), `domainModel`, `glossary`, `rules`, `previous`, `feedback`; output `spec` |
-| Validator `spec-consistency` | `sdd/v1` over `spec`, `prd`, `domainModel`, `architecture`, `rules`, and optionally `context` and the value `capabilityId`; the rule row of `23-pack-sdlc.md` as findings, `rules-mismatch` when the Spec's `businessRules` is not the artifact bound |
-| Prompt `draft-audit-rules`, part "A Spec" | what the auditor judges that `spec-consistency` cannot (`23-pack-sdlc.md`): `ac-undecidable`, `ac-contradicts-rule` and `requirement-unproven` errors; `boundary-untested` and `scope-doubt` warnings |
+| Task `write-spec` | inputs `prd`, `capabilityId`, `architecture`, `context` (the BoundedContext, `34-subdomains.md`), `domainModel`, `glossary`, `rules`, `previous`, `feedback`, `base?` (the Spec this run revises), `changes?` (the downstream answers it applies, each `<artifact id> Q-n: <resolution>`); output `spec` |
+| Validator `spec-consistency` | `sdd/v1` over `spec`, `prd`, `domainModel`, `architecture`, `rules`, and optionally `context`, `base` and the value `capabilityId`; the rule row of `23-pack-sdlc.md` as findings, `rules-mismatch` when the Spec's `businessRules` is not the artifact bound |
+| Prompt `draft-audit-rules`, part "A Spec" | what the auditor judges that `spec-consistency` cannot (`23-pack-sdlc.md`): `ac-undecidable`, `ac-contradicts-rule`, `requirement-unproven`, `boundary-untested`, `value-missing`, `scenario-unreachable` and `term-unknown` errors; a `scope-doubt` warning; the auditor reads the Glossary `spec-one` was given |
 | Task `audit-spec` | inputs `spec`, `prd`, `rules`, `domainModel`, `architecture`, and from round two `previous` and `feedback` (`spec-one`'s `review` binds them; `23-pack-sdlc.md`); Executor `auditor`; output `audit`, a ValidationResult whose schema ties `passed` to "no `error` finding"; 30m, three attempts |
 | Validator `spec-audited` | `task` over `audit-spec`, `resultOutput: audit` |
 | Gate `spec-gate` | consistency, then `audit` `after: [consistency]`, `all`, 35m; a human sign-off is an Approval the project adds |
-| ReviewLoop `spec-one` | `produce` `write-spec`, `review` `spec-gate` (35m), `maxRounds: 2`, 140m; the findings go back as `feedback` with the last `spec` as `previous` |
+| ReviewLoop `spec-one` | `produce` `write-spec`, `review` `spec-gate` (35m), `maxRounds: 2`, 140m; the findings go back as `feedback` with the last `spec` as `previous`; `base` and `changes` passed to `write-spec`, both or neither, and `base` to `spec-gate` |
 | Workflow `spec-all` | `repeat` over `capabilities` as `derive-all` repeats over contexts; one BoundedContext, DomainModel, Glossary and rules artifact, so one context per run; a capability the loop could not write ends the run `spec_inconsistent`, an iteration that died before its Gate ran `step_failed`; output `written` |
 
 ## `checkSpec`
@@ -66,8 +66,10 @@ nothing: the schema refuses those (`minItems: 1`).
 | the Spec's `prd`, `architecture`, `domainModel` artifact ids are not checked against the inputs: the evaluator payload carries content and provenance, no RevisionRef (`19-adapter-roles.md`); provenance pins what was read | convention; Validator later |
 | the capability lives in the bound BoundedContext and the DomainModel is that context's (`context-mismatch`, `34-subdomains.md`) | `spec-consistency` |
 | `spec-all` runs over one context: its `context`, `domainModel`, `glossary` and `rules` are one artifact each, and its capability ids are ones the `context` lists; a product over several contexts runs it once per context | convention; `context-mismatch` per Spec |
+| a revision with `base` bound starts from it, keeps every id and changes only what `changes` asks; a new scenario takes the next id | `spec-rules`; `checkSpec` `id-reused` |
 | `spec-gate` has no human, only the auditor: a project that wants sign-off wraps `spec-one` in an Approval, as example06 does for its Prd ReviewLoop | convention |
-| the Glossary bound is the context's: a convention, since `spec-gate` binds no Glossary; a wrong one shows as field findings in the Designs | convention |
+| the Glossary bound is the context's: a convention, since nothing checks which Glossary `spec-gate` is given; a wrong one shows as field findings in the Designs | convention |
+| a scenario's value that stands for a domain category, a status or a kind is a Glossary term | `spec-rules`; the auditor's `term-unknown` |
 
 ## Decisions
 
@@ -126,3 +128,35 @@ nothing: the schema refuses those (`minItems: 1`).
 - `docs/design/examples/sdlc-domain.yaml`: the `Spec` of `CAP-1`: three stories, six
   requirements, nine scenarios; passes `checkSpec` against the Prd, DomainModel, Architecture and
   BusinessRules beside it (`test/adapters/sdd.test.ts`).
+- A downstream answer that adds to a Spec reaches it through `spec-one` with `base` and `changes`,
+  not by a rewrite downstream: the revision is the Spec's own, under its own Gate. Before, a run
+  wrote the Spec from scratch, and nothing carried the answer it was run for: in the live
+  Autopilot run the TestDesign found BR-4's accepted side with no scenario, and only a fresh Spec
+  that happened to add one could close it. `base` keeps the ids the Plan and the TestDesign cite.
+  A loop input named `feedback` was compared: the loop reserves it for its rounds. Found in UAT.
+- `base` is checked, not only asked for: `checkSpec` refuses `id-reused`, a `US-n`, `FR-n` or
+  `AC-n` not in `base` whose number is at or below `base`'s highest of its kind, and a `base`
+  `AC-n` now under another story. The Plan cites stories and the TestDesign scenarios by id, so a
+  reused id moves their citations onto other behaviour unseen. By id position, not by text: a
+  revision may rightly reword a scenario, and comparing words would refuse it. An error, not a
+  warning as `task-renumbered` is: a Spec has no build order that a renumbering could serve.
+  Found in UAT.
+- A Spec's gaps are refused at its own Gate, not found by the TestDesign. In the full-Plan UAT the
+  TestDesign raised the Spec's gaps over eight revisions, each one a round and a Spec revision: a
+  threshold with no scenario beside it, a policy limit no scenario or rule gave, a per diem line
+  only a command of no story creates. `boundary-untested` becomes an error, and two codes join it:
+  `value-missing`, an outcome turning on a value neither the scenario, the Spec nor the rules give;
+  `scenario-unreachable`, a Given no command of the Spec's own stories produces and no test can
+  set directly. Its own stories, not the whole DomainModel: another capability may be built later,
+  and a test of this one cannot wait for it; measured against the UAT's Spec, the auditor judged a
+  per diem line only another capability's Add Trip creates reachable, a warning, until the rule
+  said so. A Design operation for every command is the coverage Gate's, so no later Gate needs
+  the Spec beside the Designs.
+- The Spec's auditor reads the Glossary, and `term-unknown` refuses a scenario value that stands
+  for a domain category and is no term of it. In the full-Plan UAT the Spec's AC-8 and AC-9 named
+  "a taxi line" where the categories are travel, meals, lodging, equipment, per diem and other;
+  `spec-rules` already asked for Glossary terms, but no auditor could see the Glossary, so the
+  TestDesign raised it a round and a Spec revision later. Three auditor runs over that Spec, with
+  and without the codes above, all passed it. Found in UAT.
+  `spec-rules` asks for the same three, so the writer meets them before the auditor does. Found in
+  UAT.
