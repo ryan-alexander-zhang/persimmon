@@ -1,0 +1,44 @@
+# The Autopilot's Executors (38-autopilot.md): the autopilot skill applies this file into the project's Namespace before
+# its first run, so every Task the pack gives to a person (local-reviewer: the owner who decides a draft's questions and
+# confirms it at its Gate; builder; tester) runs on an agent instead, inside the engine, with the same instructions, context
+# and feedback a human would read. `persimmon delete Executor/<name> -n default` gives a role back to the human.
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: local-reviewer, namespace: default}
+spec:
+  type: agent
+  adapter: claude-code/v1
+  configuration:
+    model: claude-opus-5      # the owner judges documents: the pack's strongest model, as its writers
+    sandbox: read-only        # decide-* and confirm-* answer JSON and write no file
+  security:
+    networkAccess: allowlist
+    allowedHosts: [api.anthropic.com]
+---
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: builder, namespace: default}
+spec:
+  type: agent
+  adapter: claude-code/v1
+  configuration:
+    model: claude-opus-5
+    sandbox: workspace-write  # builds in the repository the Task names
+    allowedTools: ["Bash(npm:*)", "Bash(npx:*)", "Bash(node:*)", "Bash(pnpm:*)", "Bash(yarn:*)", "Bash(python:*)", "Bash(python3:*)", "Bash(pytest:*)", "Bash(pip:*)", "Bash(mvn:*)", "Bash(gradle:*)", "Bash(go:*)", "Bash(cargo:*)", "Bash(dotnet:*)", "Bash(make:*)"]   # its test and build commands; a project widens this list for its stack
+  security:
+    networkAccess: allowlist
+    allowedHosts: [api.anthropic.com]
+---
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: tester, namespace: default}
+spec:
+  type: agent
+  adapter: claude-code/v1
+  configuration:
+    model: claude-opus-5
+    sandbox: workspace-write  # sets up and writes tests in the repository; never the app's code (39-test-process.md)
+    allowedTools: ["Bash(npm:*)", "Bash(npx:*)", "Bash(node:*)", "Bash(pnpm:*)", "Bash(yarn:*)", "Bash(python:*)", "Bash(python3:*)", "Bash(pytest:*)", "Bash(pip:*)", "Bash(mvn:*)", "Bash(gradle:*)", "Bash(go:*)", "Bash(cargo:*)", "Bash(dotnet:*)", "Bash(make:*)"]
+  security:
+    networkAccess: allowlist
+    allowedHosts: [api.anthropic.com]

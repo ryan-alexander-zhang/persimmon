@@ -3,17 +3,19 @@
 status: draft · layer: 2 (`23-pack-sdlc.md`, `20-pack.md` `files/`, `35-build-process.md`) · schema: none
 
 The developer gives an idea; their own agent runs the SDLC pack's whole run order and leaves code,
-evidence and every artifact in the store. No engine change: the Autopilot is three agent skills the
-pack ships in `files/`, read by the developer's agent. It drives the runs with the `persimmon` CLI,
-the same verbs a developer types, and puts a fresh subagent where the human sat.
+evidence and every artifact in the store. The Autopilot is three agent skills the pack ships in
+`files/`, read by the developer's agent, plus one file of Executor overrides. The skill drives the
+runs with the `persimmon` CLI, the same verbs a developer types; the overrides put an agent on every
+Executor the pack gives to a person, so the engine itself runs the owner, the builder and the
+Tester, and no form parks.
 
 ```text
-idea ─▶ autopilot-doc ───────────────────────────────────────────────────────────────▶ autopilot-code ─────────────────────────────▶ report
-        brief.md, author-prd, domain-discovery, architect, spec-all, design-all,        scaffold, setup-tests, test-design-all,
-        design-system, design-all (ui), plan-all                                        build-all per Plan, D-n ─▶ Issue ─▶ build-one,
-                                                                                        Issue resolved
-        each human Gate form ─▶ Reviewer subagent                                       each builder form ─▶ builder subagent
-                                                                                        each Tester form ─▶ tester subagent
+idea ─▶ autopilot-doc ───────────────────────────────────────────────────────────▶ autopilot-code ─────────────────────────▶ report
+        brief.md, author-prd, domain-discovery, architect, spec-all, design-all,    scaffold, setup-tests, test-design-all,
+        design-system, design-all (ui), plan-all                                    build-all per Plan, D-n ─▶ Issue ─▶ build-one,
+                                                                                    Issue resolved
+        autopilot.yaml: local-reviewer, builder, tester ─▶ claude-code/v1 agents in the project's Namespace
+        every decide-* and confirm-* Task: the owner agent     every implement and Tester Task: the builder and tester agents
 autopilot = autopilot-doc then autopilot-code
 ```
 
@@ -21,85 +23,77 @@ autopilot = autopilot-doc then autopilot-code
 
 | Who | Does | Never |
 |---|---|---|
-| orchestrator (the developer's agent running the skill) | writes the brief, starts each run with `--follow`, reads `persimmon tree` for the artifacts the next run takes, hands each parked form to a subagent, runs `persimmon complete <taskRun> --file` on its answer, writes Issues, reports | answers a form itself; runs git |
-| Reviewer subagent | reads one human Gate's form (`.persimmon/inbox/<taskRun>.yaml`) and the run's tree, writes the answer file: `{passed, findings, evidence}` on the form's value port | took part in the authoring; approves past a check's error; runs `persimmon` |
-| builder subagent | builds one `implement` form's task and writes its answer file, as `AGENTS.md` section 6 says | runs git or `persimmon`; fixes a `D-n`; edits a Tester's test |
-| tester subagent | answers one Tester form (`write-harness`, `write-api-tests`, `write-e2e-tests`) and writes its answer file, as `AGENTS.md` section 6 says (`39-test-process.md`) | saw the builder's context; runs git or `persimmon`; changes the app's code |
+| orchestrator (the developer's agent running the skill) | applies `autopilot.yaml`, writes the brief, starts each run with `--follow`, reads `persimmon tree` for the artifacts the next run takes, applies upstream answers through the `-one` loops, writes Issues, reports | answers a form; runs git |
+| owner agent (`local-reviewer` overridden) | decides a draft's open questions inside its round (`decide-*`, `owner-decisions`) and confirms a document at its Gate (`confirm-*`, `owner-review`), as the human would, with the same instructions, context and `feedback` | took part in the authoring (a fresh agent per Task); approves past a check's error; runs `persimmon` |
+| builder agent (`builder` overridden) | builds one `implement` Task in the repository, as `AGENTS.md` section 6 says | runs git or `persimmon`; fixes a `D-n`; edits a Tester's test |
+| tester agent (`tester` overridden) | answers one Tester Task (`write-harness`, `write-api-tests`, `write-e2e-tests`), as `AGENTS.md` section 6 says (`39-test-process.md`) | saw the builder's context; runs git or `persimmon`; changes the app's code |
 
 ## Rules
 
 | Rule | Enforcer |
 |---|---|
 | the run order is `AGENTS.md` section 6's; each run takes the latest revision whose Gate passed | skill |
-| a human Gate (`confirm-prd`, `confirm-storming`, `confirm-architecture`, `confirm-design-system`, `confirm-harness`, `confirm-test-design`) is answered by a new Reviewer subagent per form, given only the form path and the review checklist | skill |
-| the Reviewer subagent settles a `Q-n` only a domain owner could by rejecting with the decision as a finding, as the human would (`example07` step 2); every such decision is in the report | skill |
-| a loop out of rounds is continued once from its last round: the loop's Workflow run again with its inputs plus `previous` (the last round's subject), `feedback` (its verdict) and its carried outputs (`21-composition.md`), so the writer records the human's last answers and its Gate judges again; out of rounds a second time, a Failed run for another reason or a reconcile error stops the Autopilot with a report | skill |
-| before the first `build-all` the orchestrator does what the pack leaves to the developer: when the project has no app, it scaffolds one on the Architecture's technology and Adrs, with a unit test command that writes JUnit XML; then `setup-tests`, whose Tester records every level's tool in the TestHarness, and `test-design-all`, whose TestDesigns each `build-all` binds with the harness; the project must already be a git repository | skill |
-| a Tester form is answered by a new tester subagent, never the builder subagent of that task | skill |
-| a build round refused on an open `Q-n` (`question-open`) has it decided by a new Reviewer subagent, as a human Gate's would be; the orchestrator gives the decisions to the next round's builder and tester subagents, and the builder writes each as its `Q-n`'s `resolution`; every decision is in the report | skill |
+| before the first run the skill applies `files/.claude/skills/autopilot/autopilot.yaml`: Executors `local-reviewer`, `builder` and `tester` in the project's Namespace, `claude-code/v1`, `claude-opus-5`, the owner read-only, the builder and the Tester `workspace-write` with the stack's commands in `allowedTools`; the report says they are in place, and `persimmon delete Executor/<name> -n default` gives a role back to the human | skill; `autopilot.yaml` |
+| a question is decided where it is raised: the writer's open `Q-n` by the owner inside the round (`decide-<kind>`), the builder's or Tester's by the owner inside the build round (`decide-build`), the ones the confirm finds itself at the Gate, as a rejection `Q-n: decided.` the next round records; every decision an agent took is in the report | pack (`23-pack-sdlc.md`); skill |
+| a form that parks is a Task on a human Executor the overrides do not cover: the Autopilot stops and reports it, never answers it | skill |
+| a loop out of rounds whose last verdict decided a `Q-n` is continued once from its last round (`previous`, `feedback`, its carried inputs, `21-composition.md`), so the writer records the answers and its Gate judges again; one whose last verdict decided nothing, a Failed run for another reason or a reconcile error stops the Autopilot with a report | skill |
+| before the first `build-all` the orchestrator does what the pack leaves to the developer: when the project has no app, it scaffolds one on the Architecture's technology and Adrs, with a unit test command that writes JUnit XML; then `setup-tests` and `test-design-all`; the project must already be a git repository | skill |
 | a `D-n` whose task passed becomes an `Issue`, its fix a `build-one`, then the Issue's `resolved` revision; one fix attempt per Issue, then stop; an Issue that finds the Spec wrong or missing stops it, a Spec revision being the developer's call | skill |
 | `plan_regressed` is an Issue with the red test as its `reproduction`, fixed the same way | skill |
-| a `question-upstream` warning naming a Spec, from a TestHarness, TestDesign or AcceptanceRecord run that passed or ran out of rounds, is applied before the build goes on: `spec-one` with the Spec as `base` and the answers as `changes`, then `plan-all` and `test-design-all` for that capability; as often as a run tells new answers, a failed Spec Gate stopping it; one naming the Architecture, an Adr or a Glossary stops it, reported as the revision the developer owes; the Reviewer subagent decides what serves the product, never what is easiest to revise | skill |
-| a `question-upstream` warning naming the TestHarness is applied the same way: `setup-tests` with the harness as `base` and the answers as `changes`, then `test-design-all` again for the capabilities whose TestDesign told it | skill |
-| a `question-upstream` warning naming a Design or a Plan is applied the same way: `design-one` or `plan-one` with it as `base` and the answers as `changes`; then what cites it again, a revised Design's Plans (`plan-all` for the capabilities whose Plan lists it) and, for an `http-api` one, the `ui` Designs calling it, and every revised Plan's TestDesign; an answer that contradicts the Architecture or an Adr stops it | skill |
-| the report names every Prd, Architecture, Adr, Spec, Plan and AcceptanceRecord revision, every `Q-n` an agent resolved, every `question-upstream` warning as an upstream revision the developer owes, every Issue and the files changed; the developer reviews the diff and commits | skill |
+| a `question-upstream` warning naming a Spec, the TestHarness, a Design or a Plan is applied before the next run: that artifact's `-one` loop with `base` its latest passed revision and the answers as `changes`, Specs first; then the run order again from the first `*-all` after the revised kind, whose loops reuse every capability or block the revision did not touch (`memo`, `11-workflow.md`) and run the others again; as often as a run tells new answers; one naming the Architecture, an Adr or a Glossary stops it, reported as the revision the developer owes | skill |
+| the report names every Prd, Architecture, Adr, Spec, Plan and AcceptanceRecord revision, every `Q-n` an agent decided, every `question-agent-resolved` and `question-upstream` warning, every Issue, the files changed and the overrides in place; the developer reviews the diff and commits | skill |
 
 ## Decisions
 
-- A skill, not an engine mode. The pack already lets the developer's agent answer a form
-  (`35-build-process.md`, proven live), and every verb the Autopilot needs exists. An unattended
-  Namespace overriding `local-reviewer` to `claude-code/v1` was compared: it makes the engine run
-  alone, but nothing then writes an Issue, picks the next run's inputs or stops on a stuck loop, so
-  a driver is needed anyway; the override stays available beside it.
-- A fresh Reviewer subagent answers each human Gate, not the orchestrator and not a pause for the
-  human. The orchestrator has watched every round and would approve its own story; a pause defeats
-  "give an idea, get code". A subagent with only the form reads what the human would read. The
-  pack's Auditor still runs before it; the subagent is the human's place, not the Auditor's.
-- A fresh reviewer per round moves the goalposts: in the first live run each found new nits
-  (a wrong count in a rejected alternative's prose, then an article) and the architect loop ran out
-  of rounds. The reviewer is told its round and rejects only what later work would build on
-  wrongly; wording is a note; from round 2 it checks the earlier findings first and leaves what
-  earlier rounds did not flag unless it is wrong. Fresh still, so no reviewer approves its own asks.
-- The orchestrator answers no form at all, builder forms included: a builder subagent per task keeps
-  each task's context to its brief, and the orchestrator's context to the run order across hours.
+- A skill plus an Executor override, not a skill alone and not an engine mode. The first cut was a
+  skill that put a fresh Reviewer subagent where the human sat, a builder subagent per task and a
+  tester subagent per Tester form, each given a form path and a prompt the skill carried. It worked,
+  and it was where the Autopilot's own bugs lived: a reviewer reopening recorded answers, one
+  rejecting over an article, a wrong Tester prompt, reviewers reading the orchestrator's notes and
+  the store's database, 4.6 minutes per verdict rereading a tree the skill pasted by hand. The
+  pack already has the instructions, the context, the `feedback` and the Gate order for every one
+  of those roles; only the Executor was a person. `autopilot.yaml` swaps the three Executors in the
+  project's Namespace (`13-executor.md`: a Namespace overrides a pack Executor by name; the walk
+  resolves every hop in the run's Namespace, `04-snapshot.md`), so the engine runs them as it runs
+  the auditor, and the skill keeps what no override gives: the run order, the brief, the scaffold,
+  the Issues, the upstream answers and the report. The earlier decision that an unattended
+  Namespace alone was not enough still holds, for those parts. Found in UAT.
+- The owner decides a draft's open questions inside the round, before the Gate (`23-pack-sdlc.md`).
+  In the live run the human's place came after the check and the auditor, so a question was
+  answered by rejecting and recorded a round later, and the next round raised the next: three
+  rounds spent answering, loops dead at `maxRounds` with their answers in a GateResult alone. With
+  `decide-<kind>` and `decide-build` the owner answers where the question is raised and the Gate
+  judges a document with no open question of the writer's. The confirm still decides what it finds
+  itself, by rejecting with `Q-n: decided.`, so no round is lost to a decision alone when the
+  decide step had nothing to decide. Found in UAT.
+- The owner, the builder and the Tester keep the pack's strongest model, `claude-opus-5`. A cheaper
+  model for the owner was weighed against the live run's cost and refused: the owner's decisions
+  are the product's, and the time went to rounds and reruns, not to the model. Chosen by the
+  developer.
+- A loop out of rounds is continued only while its last verdict decided something: the confirm's
+  own decisions reach the artifact through one more round; a loop whose last round decided nothing
+  is stuck, and a person reads why. The first cut continued once and stopped at the second
+  exhaustion whatever the verdict said. Found in UAT.
+- Upstream answers are applied through the artifact's own loop and then the run order again, not
+  through a dependency table the skill keeps. The first cut listed what each revised kind
+  invalidates (a Design: its Plans, the `ui` Designs calling it, their TestDesigns) and still reran
+  too much (CAP-1's TestDesign four times in ten hours with nothing changed). A `*-all` loop with
+  `memo` reuses a capability whose inputs are unchanged since it passed and runs the others, so the
+  engine decides what a revision touched from the revisions themselves (`11-workflow.md`). Found in
+  UAT.
+- The `*-all` loops run their capabilities side by side (`parallel: 4`), and one rejected stops
+  none: the live run's agent time equalled its wall clock, and one failing capability blocked the
+  ones after it. Found in UAT.
 - Quality is capped by the checks: the Autopilot passes what `sdd/v1`, the Auditor, the tests and
-  the Reviewer subagent pass, nothing more. Agent-resolved `Q-n` are warned (`question-agent-resolved`)
+  the owner agent pass, nothing more. Agent-resolved `Q-n` are warned (`question-agent-resolved`)
   and listed in the report, so the developer reads the guesses an idea alone forced.
-- Shipped as `files/.claude/skills/<name>/SKILL.md`, so `init` places them and updates untouched
-  ones like `AGENTS.md`; `init` now places files below `files/` at their relative path. Claude Code
-  only: Codex reads `.agents/skills/`, a second copy added when a Codex user asks.
+- Shipped as `files/.claude/skills/<name>/SKILL.md` and `autopilot.yaml`, so `init` places them and
+  updates untouched ones like `AGENTS.md`; `init` places files below `files/` at their relative
+  path. Claude Code only: Codex reads `.agents/skills/`, a second copy added when a Codex user asks.
 - An idea has no app, and the pack expects the developer's own app and test setup, which a builder
   never changes. The orchestrator stands in for the developer there too: one scaffold from the
   Architecture and its Adrs, with a unit test command. The test levels are then the Tester's:
   `setup-tests` records each level the Designs need with the tool the Architecture names, so the
-  api and e2e levels exist before the first case needs them (`39-test-process.md`). The
-  `test-runner` override the first cut wrote is gone: `junit/v1` reads the harness.
-- A tester subagent per Tester form, apart from the builder subagent: the tests are written from
-  the cases, before the code for the api level, and a context that saw the build would write tests
-  that pass it rather than tests that judge it (`39-test-process.md`).
-- A builder's or a Tester's open `Q-n` is decided by a Reviewer subagent, and the decision reaches
-  the next round's subagents in their prompt. `build-gate` has no human Validator, so its refusal
-  on `question-open` asked a human who was not there: in the live run the next round's builder saw
-  only the refusal, and the question was settled by the stand-in human outside the Autopilot. A
-  human Validator on every build round would park each round on a person; the refusal already
-  marks the rounds that need one. Found in UAT.
-- The Autopilot applies a downstream answer to a Spec itself, through `spec-one` and its Gate. In
-  the live run a TestDesign could not pass without a scenario the Spec lacked, and leaving the
-  Spec to the developer stopped the product there. The Spec's own process keeps the revision
-  judged as any Spec is. An answer another kind must carry stops it instead: told to prefer
-  what the Designs and the TestHarness could carry, a reviewer narrowed CAP-1's availability to
-  the current status rather than ask a Design for a slot parameter, the product bent to the tool.
-  No count bounds it: a limit of once per Spec stopped the live run on the
-  second set of real gaps; an answer is told only in the round that writes it, so each revision
-  applies new answers, and a Spec Gate failing stops it. A loop out
-  of rounds counts too: a question that finds the Spec wrong, not missing, lets no TestDesign pass
-  against the old Spec, as the live run's third round showed. Revising
-  another upstream kind (a Glossary, a Design) stays the developer's call, reported.
-- Designs and Plans are revised on the way too, each through its own loop, once the live run met
-  answers neither could skip: a 404 on the Booking API, a scenario moved to a later task. A Design
-  revision spreads: the Plans listing it, the `ui` Designs calling it and their TestDesigns are run
-  again. An answer that changes the Architecture or an Adr still stops it: that is an architecture
-  decision, the developer's, and an `architect` revision would write the Adr. Chosen by the
-  developer.
+  api and e2e levels exist before the first case needs them (`39-test-process.md`).
 - The Autopilot never runs git, as no agent in the pack does: the developer commits the diff once,
   after reading the report.

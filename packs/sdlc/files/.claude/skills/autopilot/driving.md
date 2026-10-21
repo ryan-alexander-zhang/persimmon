@@ -2,7 +2,19 @@
 
 How the Autopilot (`autopilot`, `autopilot-doc`, `autopilot-code`) starts one persimmon run and takes
 it to its end with no human. You are the orchestrator: you run every `persimmon` command, from the
-project directory. You never answer a form yourself and you never run git.
+project directory. You answer no form and you never run git.
+
+## Before the first run
+
+```sh
+persimmon apply .claude/skills/autopilot/autopilot.yaml -n default
+```
+
+It overrides the pack's three human Executors in the project's Namespace with agents: `local-reviewer`
+(the owner, who decides a draft's open questions inside its round and confirms a document at its
+Gate), `builder` and `tester`. From then on the engine runs those Tasks itself, with the instructions,
+context and `feedback` a human would read, and nothing parks. Tell the developer in the report that
+the overrides are in place; `persimmon delete Executor/<name> -n default` gives a role back to them.
 
 ## Start
 
@@ -10,8 +22,8 @@ project directory. You never answer a form yourself and you never run git.
 persimmon run <Workflow> --input <port>=<yaml | @file> ... --follow
 ```
 
-Run it in the background or with no time limit: it returns when the run ends or parks on a human.
-Write long inputs to files under `.persimmon/autopilot/` and pass them with `@`.
+Run it in the background or with no time limit: it returns when the run ends. Write long inputs to
+files under `.persimmon/autopilot/` and pass them with `@`.
 
 Input shapes:
 
@@ -22,106 +34,38 @@ Input shapes:
 
 ## Parked
 
-A park prints `parked on you: persimmon complete <taskRun>`; its form is
-`.persimmon/inbox/<taskRun>.yaml`. Several may park at once: answer each. Tell the form by its
-`outputs`:
-
-- a value port whose schema requires `passed`, `findings`, `evidence`: a human Gate. Start a new
-  Reviewer subagent for it (below).
-- an artifact port `record` (an AcceptanceRecord): a builder form. Start a new builder subagent for
-  it (`autopilot-code`).
-- an artifact port `harness` (a TestHarness) or a value port `written`: a Tester form. Start a new
-  tester subagent for it (`autopilot-code`), never the builder subagent of that task.
-
-Each subagent writes `.persimmon/autopilot/<taskRun>.answer.yaml` and stops. Then you run, in the
-background or with no time limit:
-
-```sh
-persimmon complete <taskRun> --file .persimmon/autopilot/<taskRun>.answer.yaml
-```
-
-It drains the engine and returns at the next park or at the run's end. A refused answer file
-prints why: give the reason to a new subagent of the same kind, never edit the answer yourself.
-
-## Reviewer subagent
-
-One per form, new each time, never one that wrote or saw an earlier round. Give it this prompt and
-nothing about how the document came to be:
-
-> You are the human reviewer at a persimmon Gate, the domain owner. You did not write what you
-> review. Read `.persimmon/inbox/<taskRun>.yaml`: its `instructions`, then every `reading` entry in
-> order; the Prompt entries are the checklist, the artifact entries are what is under review. Read
-> what the checks before you found: `persimmon tree WorkflowRun/<run>` output below.
-> This is round <n> of at most <max>; a rejection in round <max> ends the loop unapproved.
-> Approve only if the document is right for its product, consistent with what it cites, and the
-> checks left no error. Reject only for what is wrong: a behaviour, number, rule or citation that
-> later work would build on wrongly, or an open `Q-n`. Wording, grammar and style are `info` notes
-> on an approval. From round 2 the tree holds the earlier rounds' findings: check those were fixed
-> first; what an earlier round left unflagged stands unless it is wrong in that sense.
-> A `Q-n` with a `resolution` is not open, even under a `question-agent-resolved` warning: when the
-> resolution says what an earlier verdict decided, it is that answer recorded; reject it only if it
-> is wrong. Every open `Q-n` you settle: reject, with a finding naming it, the
-> decision and what to change (`Q-1: decided. <decision>. <what changes>.`; the writer records it as Q-1's `resolution`, and the
-> question stays).
-> Decide as a careful owner of this product would, the simplest choice that serves the Prd. A
-> decision that adds to an upstream artifact (a scenario the Spec lacks, an operation a Design
-> lacks) names that artifact's id in the finding and asks for no case, test or step that rests on
-> it: that follows once the artifact's revision exists. Decide what serves the product, never what
-> is easiest to revise: a decision another artifact must carry is reported, not bent to fit. Every
-> finding names the id it is about. Do not run `persimmon` or git. Read only the form, the tree below and the repository;
-> never another file under `.persimmon/`, and never the store's database.
-> Write `.persimmon/autopilot/<taskRun>.answer.yaml`:
-> `outputs: {<the value port>: {kind: value, value: {passed: <bool>, findings: [{severity: error | info, code: blocking_<n> | note_<n>, message}], evidence: [<the ref of every artifact entry you read>]}}}`.
-> A rejection's findings are `error`; an approval's notes are `info`. Reply with `passed` and
-> every `Q-n` you decided, one line each.
-
-Fill in the round from the task name (`rounds-<n>`), its `<max>` from the ReviewLoop's `maxRounds`
-(`persimmon get ReviewLoop/<name>`), and append the tree's output to the prompt.
-Keep every `Q-n` decision it replies with for the report.
+A park (`parked on you: persimmon complete <taskRun>`) means a Task reached a human Executor the
+overrides do not cover. Stop and report it: never answer the form yourself.
 
 ## End
 
 `persimmon tree WorkflowRun/<run>` names what the run produced and each Gate's result. A ReviewLoop
 out of rounds still publishes its rejected revision: take a revision only from a round whose
-review `passed`. The next run takes those revisions.
+review `passed`. The next run takes those revisions. A `*-all` run's loops run side by side and
+one rejected does not stop the others; its tree says which capability or block failed.
+
+A step that found the same work done already (same inputs, same definitions, a passed loop) is
+reused, not run again: `tree` shows it as reused. So a `*-all` run after an upstream change redoes
+only the capabilities or blocks that change touched.
 
 ## Upstream answers
 
-A run whose tree warns `question-upstream` naming a Spec (`<spec id>` or `<spec id> Q-n`) left an
-answer the Spec does not have yet, whether the run passed or its loop ran out of rounds: a question
-that finds the Spec wrong lets no downstream round pass until the Spec changes. Before the next
-run, revise that Spec through its own process:
+A run whose tree warns `question-upstream` naming an artifact (`<artifact id>` or `<artifact id>
+Q-n`) carries an answer that artifact does not have yet: a scenario the Spec lacks, a level the
+harness lacks, an operation a Design lacks, a task the Plan moves. Apply it before the next run of
+the order:
 
-1. `persimmon run spec-one` with the inputs `spec-all` gave it (`prd`, `capabilityId`,
-   `architecture`, `context`, `domainModel`, `glossary`, `rules`), `base` the Spec's latest passed
-   revision, and `changes=@<file>` listing each answer as `<artifact id> Q-n: <resolution>`, from
-   the warnings.
-2. Its Gate passed: `plan-all` and then `test-design-all` for that capability alone, on the new
-   Spec. Later runs take the new Spec, Plan and TestDesign. A loop that ran out of rounds with
-   such a warning is run again this way, not by the retry under Stop.
-3. The Spec is revised as often as a run tells new answers for it: each `question-upstream` is told
-   only in the round that writes the answer, so every one is new. Its Gate failing stops the
-   Autopilot.
-
-A `question-upstream` naming the TestHarness is applied the same way: `persimmon run setup-tests`
-with the inputs it had (`architecture`, `adrs`, `designs`, `repository`), `base` the harness's latest
-passed revision and `changes=@<file>` the answers; its Tester and confirm forms are answered as
-usual. Its Gate passed: `test-design-all` again for the capabilities whose TestDesign told the
-answer, with the new harness, and every later run takes it. Its Gate failing stops the Autopilot.
-
-A `question-upstream` naming a Design is applied through `persimmon run design-one` with the inputs
-`design-all` gave it (`architecture`, `blockId`, `type`, `interface`, `qualifier`, `domainModel`,
-`glossary`, `rules`, and for a `ui` Design `designSystem` and `designs`), `base` its latest passed
-revision and `changes=@<file>`. Its Gate passed: for an `http-api` Design, `design-one` again for the
-`ui` Designs that call it; then `plan-all` for the capabilities whose Plan lists a revised Design,
-and `test-design-all` for them. Later runs take the new revisions.
-
-A `question-upstream` naming a Plan is applied through `persimmon run plan-one` with the inputs
-`plan-all` gave it (`spec`, `architecture`, `designs`, `domainModel`), `base` its latest passed
-revision and `changes=@<file>`; its Gate passed, `test-design-all` for that capability.
-
-Apply Specs first, then the TestHarness, Designs and Plans, then the TestDesigns once; one answer may
-name several artifacts. Any of these Gates failing stops the Autopilot.
+1. Revise the artifact through its own loop with `base` its latest passed revision and
+   `changes=@<file>` listing each answer as `<artifact id> Q-n: <resolution>`, from the warnings:
+   `spec-one` with the inputs `spec-all` gave it (`prd`, `capabilityId`, `architecture`, `context`,
+   `domainModel`, `glossary`, `rules`); `setup-tests` with the inputs it had (`architecture`, `adrs`,
+   `designs`, `repository`); `design-one` with the inputs `design-all` gave it; `plan-one` with the
+   inputs `plan-all` gave it. Specs first, then the harness, Designs and Plans; one answer may name
+   several artifacts.
+2. Its Gate passed: run the order again from the first `*-all` after the revised kind (`design-all`
+   for a Spec; `plan-all`; `test-design-all`), with the same inputs as before. Unchanged capabilities
+   and blocks are reused; the ones the revision touched run again.
+3. As often as a run tells new answers: each is told only in the round that writes it.
 
 A `question-upstream` naming the Architecture, an Adr or a Glossary has no revision the Autopilot
 runs: an architecture decision is the developer's. It stops the Autopilot after that run, and the
@@ -132,24 +76,25 @@ report names the answer and the artifact as the revision the developer owes befo
 Stop and report, never work around it, when:
 
 - a run ends Failed, or prints a reconcile error (`PERSIMMON_DEBUG=1` shows it);
-- a ReviewLoop runs out of rounds a second time. The first time, continue it from its last round,
-  so the answers its Reviewer gave there reach the artifact: run the loop that ran out itself (the
-  `-one` loop of the capability, block or task, or the top-level loop) with the inputs that run had
-  (`persimmon describe WorkflowRun/<loop run>`), plus `previous`, the last round's subject as one
-  artifact; `feedback`, the `value` of its review's result (`persimmon get
-  GateRun/<loop run>-rounds-<n>-review`, `status.outputs.result`), in a file passed with `@`; and
-  each input its `carry` names (`persimmon get ReviewLoop/<name>`) from that round's output. Once it
-  passes, start the `-all` Workflow again over what came after it;
-- a subagent's answer is refused twice for the same form;
-- an `Issue`'s fix fails its Gate (`autopilot-code`).
-- a Spec revision fails its Gate (Upstream answers, above).
-- a run tells a `question-upstream` naming the Architecture, an Adr or a Glossary, or a TestHarness,
-  Design or Plan revision fails its Gate (Upstream answers, above).
+- a ReviewLoop runs out of rounds and its last verdict decided no `Q-n` (no finding `Q-n: decided.`).
+  One whose last verdict did decide questions is continued from its last round, so the answers
+  reach the artifact: run the loop that ran out (`persimmon describe WorkflowRun/<loop run>` names
+  its inputs) with the same inputs plus `previous`, the last round's subject, `feedback`, the `value`
+  of its review's result (`persimmon get GateRun/<loop run>-rounds-<n>-review`,
+  `status.outputs.result`, in a file passed with `@`), and each input its `carry` names
+  (`persimmon get ReviewLoop/<name>`) from that round's output; then the `*-all` run again;
+- a form parks (above);
+- an `Issue`'s fix fails its Gate (`autopilot-code`);
+- an upstream revision fails its Gate, or a run names the Architecture, an Adr or a Glossary in a
+  `question-upstream` (above).
 
 ## Report
 
 At the end, or at a stop: the runs, the revisions each produced (Prd, BusinessRules, the domain
 kinds, Architecture, Adrs, DesignSystem, Designs, Specs, Plans, TestHarness, TestDesigns,
-AcceptanceRecords, TestOutcomes, TestReports with their verdicts and residual risks, Issues), every `Q-n` an agent decided, every `question-agent-resolved` and `defect-reported`
-warning, every `question-upstream` warning as an upstream revision the developer owes, the files changed, and, at a stop, what stopped it and the command that resumes. The
+AcceptanceRecords, TestOutcomes, TestReports with their verdicts and residual risks, Issues), every
+`Q-n` the owner agent decided (each `decide-*` TaskRun's `decisions`, and each confirm verdict's
+`Q-n: decided.` finding), every `question-agent-resolved` and `defect-reported` warning, every
+`question-upstream` warning as an upstream revision the developer owes, the files changed, the
+Executor overrides in place, and, at a stop, what stopped it and the command that resumes. The
 developer reads it, reviews the diff and commits.

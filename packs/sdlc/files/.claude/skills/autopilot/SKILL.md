@@ -1,6 +1,6 @@
 ---
 name: autopilot
-description: Build a product from one idea with persimmon and no human at any Gate - the whole SDLC run order from Prd to tested code. Runs autopilot-doc, then autopilot-code. Use when the developer says "autopilot", gives an idea to build end to end, or asks to run the whole persimmon flow unattended.
+description: Build a product from one idea with persimmon and no human at any Gate - the whole SDLC run order from Prd to tested code. The pack's human roles (owner, builder, tester) run on agents inside the engine. Runs autopilot-doc, then autopilot-code. Use when the developer says "autopilot", gives an idea to build end to end, or asks to run the whole persimmon flow unattended.
 ---
 
 # Autopilot

@@ -1,6 +1,6 @@
 ---
 name: autopilot-doc
-description: Take one idea to approved persimmon Plans with no human - Prd, domain discovery, Architecture and Adrs, Specs, Designs, DesignSystem, Plans - a fresh reviewer subagent at each human Gate. Use when the developer asks to autopilot the documents, the design, or everything up to the Plans.
+description: Take one idea to approved persimmon Plans with no human - Prd, domain discovery, Architecture and Adrs, Specs, Designs, DesignSystem, Plans - an owner agent in the human's place at every question and Gate. Use when the developer asks to autopilot the documents, the design, or everything up to the Plans.
 ---
 
 # Autopilot: idea to Plans
@@ -11,6 +11,8 @@ below, and when to stop. Every run takes the passed revisions the runs before it
 ## 0. Before
 
 - `persimmon.yaml` in the project directory; if absent, `persimmon init`.
+- The Executor overrides: `persimmon apply .claude/skills/autopilot/autopilot.yaml -n default`
+  (`driving.md`, Before the first run).
 - A `productId`: lowercase kebab from the idea, at most 40 characters, no Prd with that stem in
   `persimmon get Prd`.
 

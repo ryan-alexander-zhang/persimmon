@@ -606,16 +606,18 @@ citation resolves is never its question.
 _Avoid_: reviewer (a human at a Gate), judge, LLM validator
 
 **Autopilot**:
-The developer's agent running the whole run order from one idea with no human: it starts each run,
-hands every human Gate's form to a fresh **Reviewer subagent** and every **Builder** form to a fresh
-builder subagent, and writes the **Issue**s. `autopilot-doc` runs it to the **Plan**s, `autopilot-code`
-from them; `autopilot` is both. Three agent skills `init` places in the project.
-_Avoid_: unattended Namespace (an Executor override inside the engine), auto mode, agent mode
+The developer's agent running the whole run order from one idea with no human: it applies the
+Executor overrides that put an agent on every human role (the **Owner**, the **Builder**, the Tester),
+starts each run, applies upstream answers, and writes the **Issue**s. `autopilot-doc` runs it to the
+**Plan**s, `autopilot-code` from them; `autopilot` is both. Three agent skills and one override file
+`init` places in the project.
+_Avoid_: Reviewer subagent (the first cut's stand-in, gone), auto mode, agent mode
 
-**Reviewer subagent**:
-The **Autopilot**'s stand-in for the human at a Gate: a subagent with no part in the authoring,
-started fresh for one form, that answers its ValidationResult.
-_Avoid_: auditor (the pack's own agent), self-review, judge
+**Owner**:
+Who decides a draft's open questions inside its round (Task `decide-<kind>`, Prompt `owner-decisions`)
+and confirms a document at its Gate (Task `confirm-<kind>`, Prompt `owner-review`): a human on the
+Executor `local-reviewer`, or under the **Autopilot** the agent overriding it.
+_Avoid_: reviewer, approver, product owner (a job title), Reviewer subagent
 
 **Architecture process**:
 The pack process from a **Prd** and the domain kinds of its contexts to the **Architecture** and its
