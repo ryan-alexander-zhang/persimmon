@@ -4,6 +4,10 @@ import * as api from "./api";
 import { phasesOf, products, type Run, view } from "./lib/flow";
 import { Map } from "./map";
 import { Panel } from "./panel";
+import { Products } from "./products";
+
+/** The products page, `#products`, over every product: how they talk (37-progress.md). */
+const PRODUCTS = "products";
 
 /** `#<product>/<phase>`: what is open survives a reload and can be linked. */
 const fromHash = () => {
@@ -14,8 +18,9 @@ const fromHash = () => {
 export function App() {
   const [runs, setRuns] = useState<Run[] | undefined>();
   const [error, setError] = useState<string | undefined>();
-  const [product, setProduct] = useState(fromHash().product);
+  const [product, setProduct] = useState(fromHash().product === PRODUCTS ? undefined : fromHash().product);
   const [phase, setPhase] = useState(fromHash().phase);
+  const [showProducts, setShowProducts] = useState(fromHash().product === PRODUCTS);
 
   const refresh = useCallback(async () => {
     try {
@@ -37,8 +42,9 @@ export function App() {
     if (all.length && (!product || !all.includes(product))) setProduct(all[0]);
   }, [all, product]);
   useEffect(() => {
-    if (product) history.replaceState(null, "", `#${product}${phase ? `/${phase}` : ""}`);
-  }, [product, phase]);
+    if (showProducts) history.replaceState(null, "", `#${PRODUCTS}`);
+    else if (product) history.replaceState(null, "", `#${product}${phase ? `/${phase}` : ""}`);
+  }, [product, phase, showProducts]);
 
   const views = useMemo(() => (runs && product ? phasesOf(product, runs).map((p) => view(p, product, runs)) : []), [runs, product]);
   const waiting = useMemo(() => all.map((p) => ({ product: p, phase: phasesOf(p, runs ?? []).map((ph) => view(ph, p, runs ?? [])).find((v) => v.state === "needs-you") })).filter((w) => w.phase), [all, runs]);
@@ -71,6 +77,17 @@ export function App() {
             </select>
           </label>
         )}
+        {/* the Products page reads Prds, so it stands even before any run */}
+        {runs && (
+          <button
+            type="button"
+            onClick={() => setShowProducts((v) => !v)}
+            className={`rounded-md border px-2.5 py-1.5 text-sm font-medium ${showProducts ? "border-ink bg-ink text-white" : "border-line bg-surface text-ink-2 hover:text-ink"}`}
+            aria-pressed={showProducts}
+          >
+            Products
+          </button>
+        )}
         <span className="ml-auto" />
         {error && <span className="text-sm text-bad">{error}</span>}
         {waiting.length > 0 && (
@@ -87,8 +104,16 @@ export function App() {
         )}
       </header>
       <div className="flex min-h-0 flex-1">
-        <section className="relative min-w-0 flex-1" aria-label="Phases">
-          {runs && all.length === 0 ? (
+        <section className="relative min-w-0 flex-1" aria-label={showProducts ? "Products" : "Phases"}>
+          {showProducts ? (
+            <Products
+              onOpen={(p) => {
+                setProduct(p);
+                setPhase(undefined);
+                setShowProducts(false);
+              }}
+            />
+          ) : runs && all.length === 0 ? (
             <div className="grid h-full place-items-center p-8 text-center text-ink-2">
               <div className="max-w-md">
                 <p className="text-lg font-medium text-ink">No product yet</p>
@@ -101,7 +126,7 @@ export function App() {
             <Map key={open ? "beside" : "alone"} views={views} selected={phase} onSelect={setPhase} /> // remounted to fit the space left beside the panel
           )}
         </section>
-        {open && <Panel key={`${product}/${open.phase.id}`} view={open} onClose={() => setPhase(undefined)} onAnswered={() => void refresh()} />}
+        {open && !showProducts && <Panel key={`${product}/${open.phase.id}`} view={open} onClose={() => setPhase(undefined)} onAnswered={() => void refresh()} />}
       </div>
     </div>
   );

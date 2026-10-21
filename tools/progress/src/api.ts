@@ -93,3 +93,16 @@ export async function revision(ref: RevisionRef, namespace: string): Promise<unk
   const r = await call<{ spec: { content: unknown } }>(`/api/artifacts/${ref.namespace ?? namespace}/${n}/${ref.id}/${ref.revision}`);
   return r.spec.content;
 }
+
+/** Every artifact of a kind, one per id at its latest revision. */
+export const artifacts = (kindName: string) => call<{ namespace: string; id: string; revision: number }[]>(`/api/artifacts?kind=${encodeURIComponent(kindName)}`);
+
+/** The latest revision's content of one artifact, or undefined when there is none. */
+export async function latest(kindName: string, namespace: string, id: string): Promise<unknown> {
+  try {
+    const r = await call<{ spec: { content: unknown } }>(`/api/artifacts/${namespace}/${kindName}/${id}/latest`);
+    return r.spec.content;
+  } catch {
+    return undefined;
+  }
+}

@@ -70,6 +70,18 @@ A rewrite's map: the Rewrite pack's phases before Domain, Recover PRD in the PRD
 | edges | as the artifacts cite upstream (`23-pack-sdlc.md`), Architecture to Designs drawn through Design system, a Spec to its TestDesign through Test setup: solid once the upstream phase is done |
 | refresh | every 3 s; the open panel and the review in progress are kept |
 
+## Products
+
+`#products`, a button in the top bar: every product of the project and how they talk, read from
+the store, not from runs, so it stands before any run.
+
+| Part | Behaviour |
+|---|---|
+| node | one per Prd (`prds.sdd.persimmon.ai`, latest revision): its `title`, a chip per subdomain with its type; clicking it opens the product's map |
+| edge | one per `externalSystem` of the product's latest storming (`<prd id>-storming`, `26-domain-discovery.md`) whose `properties.product` (DSL 4.2, `24-eventstorming.md`) names another product, labelled with the external system's label, from the product that talks to the one it names |
+| missing | a product named and not in the store is a dashed node titled by its stem, "No Prd": the link is wrong or the Prd not yet published; nothing opens from it |
+| no relationship type | an edge says who talks to whom; the DDD pattern between products is the Architecture's `context.business` (`31-architecture-process.md`) |
+
 ## Panel
 
 | Part | Behaviour |
@@ -152,10 +164,17 @@ but `POST /api/inbox`.
 | the map, the inbox and the dispatcher agree on which Runs this engine drives: one predicate | `owns` from `src/reconcile/dispatch.ts` |
 | the run tree is the CLI's walk: `ownedBy` and the label rule | `src/server` imports `cli/tree` |
 | agent content is rendered as text by React, never as HTML | `tools/progress` renders `spec.content` only |
-| the flow, the document blocks and the finding builder are pure and tested without a DOM | `tools/progress/src/lib/*.test.ts` |
+| the flow, the document blocks, the finding builder and the product graph are pure and tested without a DOM | `tools/progress/src/lib/*.test.ts` |
 
 ## Decisions
 
+- A Products page, not a Domain kind: an organisation of several products (a CRM and the agent it
+  routes to, each its own Prd, domain and storming) needed one picture of who talks to whom, and the
+  only cross-product fact persimmon holds is an external system naming another product (DSL 4.2).
+  The page reads Prds and stormings and draws that; a product's inside stays its own map. No
+  relationship type on the edge, since the pattern between products is the Architecture's, and no
+  gate on the link, since a Gate cannot query every Prd: a wrong id shows as a dashed node. Found
+  in a reading of `cai-workspace`.
 - A map of the product's phases is the home, not a list of tasks: the human asked where the product
   is, what came before the gate and what comes after, and a list of parked tasks answered none of it.
   The review is a panel on the map so the place stays in view. Found in UAT; supersedes the Inbox list.
