@@ -13,14 +13,16 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ContextRelationEdge } from "@/components/edges/context-relation-edge";
 import { ContextNode, type ContextFlowNode } from "@/components/nodes/context-node";
+import { SubdomainNode, type SubdomainFlowNode } from "@/components/nodes/subdomain-node";
 import { contextTint } from "@/lib/eventstorming/context-color";
 import { CONTEXT_RELATION_STYLE } from "@/lib/eventstorming/context-relations";
-import { contextEdgeHandles, contextMapPositions } from "@/lib/layout/context-map";
+import { contextEdgeHandles, contextMapGroups, contextMapPositions } from "@/lib/layout/context-map";
 import { computeEdgeOffsets } from "@/lib/layout/edge-spread";
 import { computeFocus } from "@/lib/store/focus";
 import { useESStore } from "@/lib/store/store";
 
-const nodeTypes: NodeTypes = { context: ContextNode };
+const nodeTypes: NodeTypes = { context: ContextNode, subdomain: SubdomainNode };
+type MapNode = ContextFlowNode | SubdomainFlowNode;
 const edgeTypes: EdgeTypes = { contextRelation: ContextRelationEdge };
 
 const NODE_DIM_OPACITY = 0.15;
@@ -32,6 +34,7 @@ const NODE_DIM_OPACITY = 0.15;
 // the model).
 function ContextMapSurface() {
   const contexts = useESStore((s) => s.contexts);
+  const domain = useESStore((s) => s.doc?.name);
   const relationships = useESStore((s) => s.contextRelationships);
   const addContextRelationship = useESStore((s) => s.addContextRelationship);
   const hoveredEdgeId = useESStore((s) => s.hoveredEdgeId);
@@ -42,9 +45,26 @@ function ContextMapSurface() {
   // state; the board's `hoveredId` names a board node and must not take a context id.
   const [hoveredContext, setHoveredContext] = useState<string | null>(null);
 
-  const seeded = useMemo<ContextFlowNode[]>(() => {
+  // Domain > Subdomain > Bounded Context: a subdomain box per group behind its
+  // contexts (DSL 4.1), the type read off its first context (the gate holds them equal).
+  const seeded = useMemo<MapNode[]>(() => {
     const pos = contextMapPositions(contexts);
-    return contexts.map((c) => ({
+    const groups: MapNode[] = contextMapGroups(contexts).map((g) => ({
+      id: `subdomain:${g.subdomain ?? ""}`,
+      type: "subdomain",
+      position: { x: g.box.x, y: g.box.y },
+      draggable: false,
+      selectable: false,
+      connectable: false,
+      zIndex: -1,
+      data: {
+        subdomain: g.subdomain,
+        classification: g.contexts[0].classification,
+        w: g.box.w,
+        h: g.box.h,
+      },
+    }));
+    const ctxNodes: MapNode[] = contexts.map((c) => ({
       id: c.id,
       type: "context",
       position: pos.get(c.id)!,
@@ -55,6 +75,7 @@ function ContextMapSurface() {
         bigBallOfMud: c.bigBallOfMud,
       },
     }));
+    return [...groups, ...ctxNodes];
   }, [contexts]);
 
   // The hovered id only isolates while it still names a live relationship —
@@ -81,7 +102,7 @@ function ContextMapSurface() {
       ? hoveredRelationship
       : null;
 
-  const [nodes, setNodes, onNodesChange] = useNodesState<ContextFlowNode>([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<MapNode>([]);
   // Re-seed when the set of contexts (or their names/classification/mud mark) changes;
   // editing relationships does not touch this, so drag positions survive.
   useEffect(() => setNodes(seeded), [seeded, setNodes]);
@@ -154,10 +175,11 @@ function ContextMapSurface() {
 
   const decoratedNodes = useMemo(() => {
     if (!brightNodeIds) return nodes;
-    return nodes.map((n) => ({
-      ...n,
-      style: { ...n.style, opacity: brightNodeIds.has(n.id) ? 1 : NODE_DIM_OPACITY },
-    }));
+    return nodes.map((n) =>
+      n.type === "subdomain"
+        ? n
+        : { ...n, style: { ...n.style, opacity: brightNodeIds.has(n.id) ? 1 : NODE_DIM_OPACITY } },
+    );
   }, [nodes, brightNodeIds]);
 
   const onConnect = useCallback(
@@ -177,8 +199,8 @@ function ContextMapSurface() {
       onConnect={onConnect}
       onEdgeMouseEnter={(_, e) => setHoveredEdge(e.id)}
       onEdgeMouseLeave={() => setHoveredEdge(null)}
-      onNodeClick={(_, n) => setFocusedContext(n.id)}
-      onNodeMouseEnter={(_, n) => setHoveredContext(n.id)}
+      onNodeClick={(_, n) => n.type === "context" && setFocusedContext(n.id)}
+      onNodeMouseEnter={(_, n) => n.type === "context" && setHoveredContext(n.id)}
       onNodeMouseLeave={() => setHoveredContext(null)}
       onPaneClick={() => setFocusedContext(null)}
       deleteKeyCode={null}
@@ -188,6 +210,14 @@ function ContextMapSurface() {
     >
       <Background />
       <Controls showInteractive={false} />
+      {domain && (
+        <div className="pointer-events-none absolute left-3 top-3 z-10 flex items-baseline gap-2">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
+            Domain
+          </span>
+          <span className="text-sm font-semibold text-zinc-700">{domain}</span>
+        </div>
+      )}
       {contexts.length === 0 && (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
           <p className="rounded-md bg-white/80 px-4 py-2 text-sm text-zinc-500 shadow-sm">

@@ -56,6 +56,7 @@ export function BoardChrome({
   const renameContext = useESStore((s) => s.renameContext);
   const setContextClassification = useESStore((s) => s.setContextClassification);
   const setContextBigBallOfMud = useESStore((s) => s.setContextBigBallOfMud);
+  const setContextSubdomain = useESStore((s) => s.setContextSubdomain);
   const removeContext = useESStore((s) => s.removeContext);
   const setSelected = useESStore((s) => s.setSelected);
   const focusedContext = useESStore((s) => s.focusedContext);
@@ -119,7 +120,7 @@ export function BoardChrome({
       })}
 
       {/* Context legend — one compact, fixed-height row that scales to many
-          contexts (spec-00010). A chip shows colour + name + subdomain badge; its
+          contexts (spec-00010). A chip shows colour + name + type badge; its
           body toggles Bounded Context Focus (dim the rest). Rename / classify /
           add-event / delete live behind the `⋯` menu (progressive disclosure). On
           the board a context is a sticky tint, not a spanning box (decision-00005);
@@ -270,8 +271,22 @@ export function BoardChrome({
                     <Crosshair size={13} /> Isolate this context
                   </button>
                   <div className="my-1 border-t border-zinc-100" />
+                  {/* The Prd subdomain this context realises (DSL 4.1); the grammar's
+                      `bad-subdomain` and the gate's `checkSubdomains` judge the id. */}
+                  <button
+                    type="button"
+                    className={MENU_ITEM}
+                    onClick={() => {
+                      const v = window.prompt("Subdomain id (empty clears)", menuCtx.subdomain ?? "");
+                      if (v !== null) setContextSubdomain(menuCtx.id, v.trim() || undefined);
+                      setMenu(null);
+                    }}
+                  >
+                    <Pencil size={13} /> Subdomain{menuCtx.subdomain ? `: ${menuCtx.subdomain}` : "…"}
+                  </button>
+                  <div className="my-1 border-t border-zinc-100" />
                   <div className="px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
-                    Subdomain
+                    Type
                   </div>
                   {(["core", "supporting", "generic"] as const).map((k) => (
                     <button
