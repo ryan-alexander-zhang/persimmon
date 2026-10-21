@@ -109,8 +109,8 @@ export function expandReviewLoop(r: ReviewLoop, ports: Ports): [Workflow, Workfl
     kind: 'Workflow',
     metadata: meta(r as unknown as Resource),
     spec: {
-      // a run may ask for fewer rounds than the ceiling, never more
-      inputs: { ...inputs, maxRounds: { type: { kind: 'value', schema: { type: 'integer', minimum: 1 } }, required: false, default: { kind: 'value', value: maxRounds } } },
+      // a run may ask for fewer rounds than the ceiling, never more; and resume from an earlier run's last round (21-composition.md)
+      inputs: { ...inputs, maxRounds: { type: { kind: 'value', schema: { type: 'integer', minimum: 1 } }, required: false, default: { kind: 'value', value: maxRounds } }, ...carried },
       outputs: { ...surfaced, passed: { type: { kind: 'value', schema: { type: 'boolean' } } }, rounds: { type: { kind: 'value', schema: { type: 'integer' } } } },
       outputBindings: { ...Object.fromEntries(Object.keys(surfaced).map((p) => [p, { fromStep: { stepRef: 'rounds', output: p } }])), passed: { fromStep: { stepRef: 'rounds', output: 'passed' } }, rounds: { expression: 'steps.rounds.iterations' } },
       entry: ['rounds'],
@@ -122,7 +122,7 @@ export function expandReviewLoop(r: ReviewLoop, ports: Ports): [Workflow, Workfl
           timeout,
           repeat: {
             state: carried,
-            initial: {},
+            initial: Object.fromEntries(Object.keys(carried).map((p) => [p, { fromInput: p, onMissing: 'omit' as const }])),
             next: { ...(previous ? { previous: { fromIterationOutput: subject } } : {}), ...(feedback ? { feedback: { fromIterationOutput: 'verdict' } } : {}), ...Object.fromEntries(Object.entries(carry).map(([out, inp]) => [inp, { fromIterationOutput: out }])) },
             until: `iteration.outputs.passed || iteration.index >= (inputs.maxRounds < ${maxRounds} ? inputs.maxRounds : ${maxRounds})`,
             maxIterations: maxRounds,

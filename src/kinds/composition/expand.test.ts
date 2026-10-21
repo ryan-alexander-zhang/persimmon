@@ -138,7 +138,7 @@ describe('expandReviewLoop', () => {
     })
     const maxRounds = { type: { kind: 'value', schema: { type: 'integer', minimum: 1 } }, required: false, default: { kind: 'value', value: 3 } } // a run may ask for fewer rounds
     expect(outer.spec).toEqual({
-      inputs: { research: report, maxRounds },
+      inputs: { research: report, maxRounds, previous: { ...prd, required: false }, feedback: { type: gateResult, required: false } }, // an earlier run's last round, to resume from
       outputs: { prd, notes, passed: { type: { kind: 'value', schema: { type: 'boolean' } } }, rounds: { type: { kind: 'value', schema: { type: 'integer' } } } },
       outputBindings: { prd: { fromStep: { stepRef: 'rounds', output: 'prd' } }, notes: { fromStep: { stepRef: 'rounds', output: 'notes' } }, passed: { fromStep: { stepRef: 'rounds', output: 'passed' } }, rounds: { expression: 'steps.rounds.iterations' } },
       entry: ['rounds'],
@@ -147,7 +147,7 @@ describe('expandReviewLoop', () => {
         uses: { kind: 'Workflow', name: 'prd-with-review-round' },
         inputs: { research: { fromInput: 'research' }, previous: { fromState: 'previous', onMissing: 'omit' }, feedback: { fromState: 'feedback', onMissing: 'omit' } },
         timeout: '24h',
-        repeat: { state: { previous: { ...prd, required: false }, feedback: { type: gateResult, required: false } }, initial: {}, next: { previous: { fromIterationOutput: 'prd' }, feedback: { fromIterationOutput: 'verdict' } }, until: 'iteration.outputs.passed || iteration.index >= (inputs.maxRounds < 3 ? inputs.maxRounds : 3)', maxIterations: 3 },
+        repeat: { state: { previous: { ...prd, required: false }, feedback: { type: gateResult, required: false } }, initial: { previous: { fromInput: 'previous', onMissing: 'omit' }, feedback: { fromInput: 'feedback', onMissing: 'omit' } }, next: { previous: { fromIterationOutput: 'prd' }, feedback: { fromIterationOutput: 'verdict' } }, until: 'iteration.outputs.passed || iteration.index >= (inputs.maxRounds < 3 ? inputs.maxRounds : 3)', maxIterations: 3 },
       }],
       transitions: [{ id: 'after-rounds', from: [{ stepRef: 'rounds', outcomes: ['Succeeded'] }], to: [{ terminal: 'Succeeded' }] }],
       timeout: '24h',
@@ -181,7 +181,8 @@ describe('expandReviewLoop', () => {
     expect(body.spec.steps[0]!.inputs).toMatchObject({ lastNotes: { fromInput: 'lastNotes', onMissing: 'omit' } })
     expect(body.spec.steps[1]!.inputs).toMatchObject({ notes: { fromInput: 'lastNotes', onMissing: 'omit' } })
     expect(outer.spec.steps[0]!.inputs).toMatchObject({ lastNotes: { fromState: 'lastNotes', onMissing: 'omit' } })
-    expect(outer.spec.steps[0]!.repeat).toMatchObject({ state: { lastNotes }, next: { lastNotes: { fromIterationOutput: 'notes' } } })
+    expect(outer.spec.steps[0]!.repeat).toMatchObject({ state: { lastNotes }, initial: { lastNotes: { fromInput: 'lastNotes', onMissing: 'omit' } }, next: { lastNotes: { fromIterationOutput: 'notes' } } })
+    expect(outer.spec.inputs).toMatchObject({ lastNotes }) // resumed, the carried output comes back as round one's
   })
 
   it('review may read previous and feedback, the reserved names, absent in round one', () => {

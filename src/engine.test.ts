@@ -215,6 +215,18 @@ describe('Engine', () => {
     expect(engine.store.resources.getByUid(short.metadata.uid as string)?.status).toMatchObject({ phase: 'Succeeded', outputs: { passed: { value: false }, rounds: { value: 1 } } })
     expect(errors).toEqual([])
 
+    // a loop out of rounds resumes from its last round: round one of a new run gets that round's subject, verdict and carried output
+    const last = (engine.store.resources.getByUid(short.metadata.uid as string)!.status as { outputs: { prd: unknown } }).outputs.prd
+    const lastVerdict = (engine.store.resources.get({ kind: 'GateRun', namespace: 'demo', name: 'prd-loop-003-rounds-1-review' })!.status as { outputs: { result: unknown } }).outputs.result // the last round's GateResult
+    const { resource: resumed } = await engine.create({ apiVersion: 'persimmon.ai/v1', kind: 'WorkflowRun', metadata: { name: 'prd-loop-004', namespace: 'demo' }, spec: { workflowRef: { kind: 'ReviewLoop', name: 'prd-loop' }, inputs: { research, previous: last, feedback: lastVerdict, lastCopy: last }, origin: { kind: 'manual' } } } as Resource)
+    await engine.drain()
+    const seeded = (engine.store.resources.get({ kind: 'TaskRun', namespace: 'demo', name: 'prd-loop-004-rounds-1-produce' })!.spec as { inputs: Record<string, unknown> }).inputs
+    expect(seeded).toMatchObject({ last, lastCopy: last, verdict: lastVerdict })
+    expect((engine.store.resources.get({ kind: 'GateRun', namespace: 'demo', name: 'prd-loop-004-rounds-1-review' })!.spec as { inputs: { before?: unknown } }).inputs.before).toEqual(last) // its review sees it too
+    await answer('prd-loop-004', 1, true)
+    expect(engine.store.resources.getByUid(resumed.metadata.uid as string)?.status).toMatchObject({ phase: 'Succeeded', outputs: { passed: { value: true }, rounds: { value: 1 } } })
+    expect(errors).toEqual([])
+
     // an `-all` loop over the ReviewLoop (the pack's shape): a Gate rejection after maxRounds is <x>_inconsistent; an iteration that died before its Gate ran is step_failed, the step's error naming the cause
     const kindRef = { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ResearchReport' }
     const all = (name: string, research: object): Resource => ({ apiVersion: 'persimmon.ai/v1', kind: 'Workflow', metadata: { name, namespace: 'demo' }, spec: {
