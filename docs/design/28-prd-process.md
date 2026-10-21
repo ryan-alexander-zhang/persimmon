@@ -35,7 +35,7 @@ form is refused by the engine when wrong and the method is a Prompt a Namespace 
 | Task `confirm-prd` | human on `cli-human/v1`: reads the Prd and the rules at the terminal, approves or rejects with one finding per id |
 | Validators | `prd-consistency`: `sdd/v1` over `prd` and `rules` (`rules-mismatch` when the Prd's `businessRules` is not the artifact bound), and from round two `previousRules` and `feedback` (`rule-drift`: a rule dropped, or changed in statement or status, that no finding of the last verdict names); `prd-audited`: `task` over `audit-prd` (inputs `prd`, `rules`, and from round two `previous`, `previousRules`, `feedback`; Executor `auditor`; the Prompt `draft-audit-rules`, part "A Prd": `rule-conflict` and `rule-misplaced` errors, `capability-overlap` and `vague-term` warnings; `23-pack-sdlc.md`); `prd-confirmed`: over `confirm-prd`, whose form shows the auditor's verdict as `audit` (`fromValidator: audit`) |
 | Gate `prd-gate` | all three, `all`; `audit` `after: [consistency]`, `confirmed` `after: [consistency, audit]`, so the human confirms only a draft the check and the auditor passed (`14-gate.md`) |
-| ReviewLoop `author-prd` | `produce` `prd-draft` (73h: the owner may be a human), `review` `prd-gate`, `maxRounds: 3`; the subject is the Prd; `carry: {rules: previousRules}`, and the review reads `previousRules` and `feedback` (`21-composition.md`) |
+| ReviewLoop `author-prd` | `produce` `prd-draft` (73h: the owner may be a human), `review` `prd-gate`, `maxRounds: 4` (a Prd from a brief alone settles the most questions, and each answer can move a rule); the subject is the Prd; `carry: {rules: previousRules}`, and the review reads `previousRules` and `feedback` (`21-composition.md`) |
 
 ## `checkPrd`
 
@@ -121,3 +121,10 @@ conformance suite's name) runs `checkSpec`; otherwise `artifacts.prd` runs `chec
 
 - `docs/design/examples/sdlc-domain.yaml`: `Prd/expense-claims` passes `checkPrd` against
   `BusinessRules/expenses-rules` beside it (`test/adapters/sdd.test.ts`).
+- `prd-consistency` reads `previous`, the last round's Prd: without it every round re-told each agent-written
+  answer as `question-agent-resolved`, nine warnings a round in the Autopilot retest. The check tells an answer once,
+  as `23-pack-sdlc.md` says, and needed the last round to know which were new. Found in UAT.
+- `author-prd` runs four rounds, the other writer loops two or three: in the retest a Prd with nine brief questions
+  spent a round on each wave of decisions and their consequences. The owner now decides the questions together and
+  the writer applies each answer everywhere the draft deferred to it, so fewer rounds follow; the fourth is the
+  margin a brief alone needs. Found in UAT.

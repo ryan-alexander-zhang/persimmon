@@ -115,6 +115,7 @@ spec:
         prd: {fromInput: prd}
         rules: {fromInput: rules}
         previousRules: {fromInput: previousRules, onMissing: omit}
+        previous: {fromInput: previous, onMissing: omit}
         feedback: {fromInput: feedback, onMissing: omit}
     - name: audit
       ref: {kind: Validator, name: prd-audited}

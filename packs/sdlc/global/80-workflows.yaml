@@ -488,7 +488,7 @@ spec:
   previous: previous
   feedback: feedback
   carry: {rules: previousRules} # the rules come back beside the Prd: round two revises them instead of rewriting them from the Prd
-  maxRounds: 3
+  maxRounds: 4   # a Prd from a brief alone settles the most questions, and each answer can move a rule (28-prd-process.md)
   timeout: 240h
 ---
 # One round's Design (23-pack-sdlc.md): the writer drafts; a draft with open questions goes to the owner, decide-design,
