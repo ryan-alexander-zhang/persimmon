@@ -1,3 +1,67 @@
+# One round of a storming phase (23-pack-sdlc.md): the storming drafts the model; a model with open hotspots goes to the
+# owner, decide-storming, and the storming records the decisions in the same round; a model with none goes to the Gate.
+apiVersion: persimmon.ai/v1
+kind: Workflow
+metadata: {name: storming-draft}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    level: {type: {kind: value, schema: {type: string, enum: [big-picture, process, design]}}}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}, required: false}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
+    inventory: {type: {kind: value, schema: {type: object}}, required: false}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}, required: false}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+  outputs:
+    model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
+    contexts: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}}
+  outputBindings:
+    model: {first: [{fromStep: {stepRef: record, output: model}}, {fromStep: {stepRef: write, output: model}}]}   # whichever path ran
+    contexts: {first: [{fromStep: {stepRef: record, output: contexts}}, {fromStep: {stepRef: write, output: contexts}}]}
+  entry: [write]
+  steps:
+    - id: write
+      uses: {kind: Task, name: event-storm}
+      inputs:
+        prd: {fromInput: prd}
+        level: {fromInput: level}
+        base: {fromInput: base, onMissing: omit}
+        rules: {fromInput: rules, onMissing: omit}
+        inventory: {fromInput: inventory, onMissing: omit}
+        previous: {fromInput: previous, onMissing: omit}
+        feedback: {fromInput: feedback, onMissing: omit}
+      timeout: 30m
+    - id: decide
+      uses: {kind: Task, name: decide-storming}
+      inputs:
+        draft: {fromStep: {stepRef: write, output: model}}
+        open: {fromStep: {stepRef: write, output: open}}
+        prd: {fromInput: prd}
+        rules: {fromInput: rules, onMissing: omit}
+      timeout: 72h
+    - id: record
+      uses: {kind: Task, name: event-storm}
+      inputs:
+        prd: {fromInput: prd}
+        level: {fromInput: level}
+        rules: {fromInput: rules, onMissing: omit}
+        inventory: {fromInput: inventory, onMissing: omit}
+        previous: {fromStep: {stepRef: write, output: model}}
+        decisions: {fromStep: {stepRef: decide, output: decisions}}
+      timeout: 30m
+  transitions:
+    - id: after-write
+      from: [{stepRef: write, outcomes: [Succeeded]}]
+      to: [{stepRef: decide, when: "steps.write.outputs.open.size() > 0"}, {terminal: Succeeded}]
+      dispatch: first
+    - id: after-decide
+      from: [{stepRef: decide, outcomes: [Succeeded]}]
+      to: [{stepRef: record}]
+    - id: after-record
+      from: [{stepRef: record, outcomes: [Succeeded]}]
+      to: [{terminal: Succeeded}]
+  timeout: 73h
+---
 # The domain discovery process (26-domain-discovery.md): three storming phases, each a ReviewLoop until its gate passes,
 # then one derivation per context. Composition kinds expand to Workflows and Gates at run start (21-composition.md).
 apiVersion: persimmon.ai/v1
@@ -10,14 +74,14 @@ spec:
     inventory: {type: {kind: value, schema: {type: object}}, required: false}
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}, required: false}
   produce:
-    uses: {kind: Task, name: event-storm}
+    uses: {kind: Workflow, name: storming-draft}
     inputs:
       prd: {fromInput: prd}
       rules: {fromInput: rules}
       inventory: {fromInput: inventory}
       base: {fromInput: base}
       level: {literal: big-picture}
-    timeout: 30m
+    timeout: 73h   # the owner may be a human (23-pack-sdlc.md decide step)
   review:
     uses: {kind: Gate, name: storming-gate}
     inputs:
@@ -42,14 +106,14 @@ spec:
     inventory: {type: {kind: value, schema: {type: object}}, required: false}
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
   produce:
-    uses: {kind: Task, name: event-storm}
+    uses: {kind: Workflow, name: storming-draft}
     inputs:
       prd: {fromInput: prd}
       rules: {fromInput: rules}
       inventory: {fromInput: inventory}
       base: {fromInput: base}
       level: {literal: process}
-    timeout: 30m
+    timeout: 73h   # the owner may be a human (23-pack-sdlc.md decide step)
   review:
     uses: {kind: Gate, name: storming-gate}
     inputs:
@@ -74,14 +138,14 @@ spec:
     inventory: {type: {kind: value, schema: {type: object}}, required: false}
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
   produce:
-    uses: {kind: Task, name: event-storm}
+    uses: {kind: Workflow, name: storming-draft}
     inputs:
       prd: {fromInput: prd}
       rules: {fromInput: rules}
       inventory: {fromInput: inventory}
       base: {fromInput: base}
       level: {literal: design}
-    timeout: 30m
+    timeout: 73h   # the owner may be a human (23-pack-sdlc.md decide step)
   review:
     uses: {kind: Gate, name: storming-gate}
     inputs:
@@ -154,6 +218,7 @@ spec:
         rules: {fromInput: rules, onMissing: omit}
         contextId: {expression: "inputs.contexts[state.index - 1]"}
       timeout: 12h
+      memo: {when: "outputs.passed"}   # unchanged inputs, a passed loop: done already (11-workflow.md)
       repeat:
         state:
           index: {type: {kind: value, schema: {type: integer, minimum: 1}}}
@@ -161,14 +226,15 @@ spec:
           index: {literal: 1}
         next:
           index: {expression: "state.index + 1"}
-        until: "!iteration.outputs.passed || iteration.index >= inputs.contexts.size()"
+        until: "iteration.index >= inputs.contexts.size()"
         maxIterations: 20
+        parallel: 4   # the contexts are independent; one rejected does not stop the others (11-workflow.md)
   transitions:
     - id: done
       from: [{stepRef: each, outcomes: [Succeeded, Failed]}]
       to:
-        - {terminal: Succeeded, when: 'steps.each.phase == "Succeeded" && steps.each.outputs.passed'}
-        - {terminal: Failed, reason: derivation_inconsistent, when: 'steps.each.phase == "Succeeded"'} # the Gate rejected the last round
+        - {terminal: Succeeded, when: 'steps.each.phase == "Succeeded" && steps.each.results.all(r, r.passed)'}
+        - {terminal: Failed, reason: derivation_inconsistent, when: 'steps.each.phase == "Succeeded"'} # a Gate rejected some loop's last round; steps.each.results says which
         - {terminal: Failed, reason: step_failed} # the iteration died before its Gate ran; steps.each.error names the cause
       dispatch: first
   timeout: 12h

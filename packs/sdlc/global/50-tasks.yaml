@@ -11,8 +11,10 @@ spec:
     inventory: {type: {kind: value, schema: {type: object}}, required: false, description: "the content of a Rewrite pack SourceInventory (40-pack-rewrite.md): the existing system's facts; a value, so this pack names no kind of another"}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, minLength: 1, description: "a hotspot node id"}, resolution: {type: string, minLength: 1}}}}}, required: false, description: "the owner's answers to this round's open hotspots, recorded in this round (23-pack-sdlc.md)"}
   outputs:
     model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}, id: {expression: "inputs.prd.id + '-storming'"}}
+    open: {type: {kind: value, schema: {type: array, items: {type: string, minLength: 1}}}, description: "the ids of the hotspot nodes still open (no resolution); empty when none"}
     contexts: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}}
   executorRef: {kind: Executor, name: storming-agent}
   action:
@@ -27,6 +29,9 @@ spec:
       being rewritten: a domain event is one of its state changes in the source's own words, a pivotal event a `status`
       change, a command one of its entry points; cut contexts by language and events, never by the source's packages,
       and mark a part with no model boundary `bigBallOfMud`.
+      `open` lists the ids of every `hotspot` node left `open`, without a `resolution`. With `decisions` bound, `previous` is
+      this round's model: give each named hotspot `state: resolved` and its `resolution` in the decision's words, model
+      what the answer implies at this phase's level, and change nothing else; `open` is then what still has none.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: storming-dsl}}
       - {kind: prompt, ref: {kind: Prompt, name: storming-big-picture}}
@@ -1376,5 +1381,32 @@ spec:
       - {kind: prompt, ref: {kind: Prompt, name: owner-decisions}}
       - {kind: artifact, input: draft}
       - {kind: artifact, input: prd}
+  timeout: 72h
+  sideEffects: none
+---
+# The owner decides a storming phase's open hotspots inside the round, before its Gate (23-pack-sdlc.md): the unknowns the
+# storming parked are settled before the grammar check and the confirm read the model.
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: decide-storming}
+spec:
+  inputs:
+    draft: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}, description: "this round's model, with the hotspots open"}
+    open: {type: {kind: value, schema: {type: array, items: {type: string, minLength: 1}}}, description: "the hotspot ids to decide"}
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
+  outputs:
+    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, minLength: 1, description: "a hotspot node id"}, resolution: {type: string, minLength: 1}}}}}}
+  executorRef: {kind: Executor, name: local-reviewer}
+  action:
+    instructions: |
+      Decide every hotspot `open` names in the EventStorming `draft`, as the product's owner, following the owner's rules
+      in your context: a `question` gets its answer, a `conflict` which side holds, a `risk` whether the product accepts
+      it or what guards it. Answer `decisions` with one entry per id in `open` and no other: its `resolution`.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: owner-decisions}}
+      - {kind: artifact, input: draft}
+      - {kind: artifact, input: prd}
+      - {kind: artifact, input: rules}
   timeout: 72h
   sideEffects: none
