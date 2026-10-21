@@ -151,6 +151,12 @@ that kept its own `AGENTS.md` or `CLAUDE.md` carries section 8 itself.
   answers, so the check, the auditor and the confirm judge a document with no open question of the
   writer's. The confirm step keeps its right to decide what it finds itself. A `first` output
   binding carries whichever path ran (`10-ports.md`). Found in UAT.
+- A fix carries to what restated or rested on it. Told to "fix what the findings name and change
+  nothing else", a writer changed an Adr's decision and left its context saying the old thing, and a
+  Prd's rule rationale still deferred to a question its resolution had settled; each cost a round
+  the auditor or the owner spent on the stale sentence. Every writer's feedback rule now says the
+  fix reaches every sentence that restated or rested on what changed, which the finding need not
+  name, and nothing else moves. Found in UAT.
 - The confirm Task reads the owner's rules and the last round's verdict. The Autopilot's reviewer
   prompt carried those rules outside the pack and appended the run's tree by hand, and each
   wording bug cost a round (a reviewer reopening recorded answers, one rejecting over an article).

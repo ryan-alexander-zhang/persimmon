@@ -626,6 +626,16 @@ describe('persimmon CLI', () => {
     out = []
     expect(await run('get', `WorkflowRun/${pairRun}`)).toBe(0)
     expect(parse(out.join('\n')).spec.inputs.prds).toEqual({ kind: 'artifacts', refs: [{ ...r2, revision: 1 }, r2] })
+    // a composition's run takes the ports its expansion adds: a ReviewLoop's `previous` is coerced like a declared artifact port (21-composition.md)
+    const echo = { apiVersion: 'persimmon.ai/v1', kind: 'Task', metadata: { name: 'echo-prd' }, spec: { inputs: { prd: { type: { kind: 'artifact', artifactKind: pk } }, previous: { type: { kind: 'artifact', artifactKind: pk }, required: false } }, outputs: { prd: { type: { kind: 'artifact', artifactKind: pk }, id: { expression: "inputs.prd.id + '-echo'" } } }, executorRef: { kind: 'Executor', name: 'local-reviewer' }, action: { instructions: 'Echo', context: [{ kind: 'artifact', input: 'prd' }] }, timeout: '1h', sideEffects: 'none' } }
+    const loop = { apiVersion: 'persimmon.ai/v1', kind: 'ReviewLoop', metadata: { name: 'echo-loop' }, spec: { inputs: { prd: { type: { kind: 'artifact', artifactKind: pk } } }, produce: { uses: { kind: 'Task', name: 'echo-prd' }, inputs: { prd: { fromInput: 'prd' } }, timeout: '1h' }, review: { uses: { kind: 'Gate', name: 'prd-approval-gate' }, inputs: { prd: { fromStep: { stepRef: 'produce', output: 'prd' } } }, timeout: '1h' }, subject: 'prd', previous: 'previous', maxRounds: 2, timeout: '4h' } }
+    expect(await run('apply', file('echo.yaml', [echo, loop]))).toBe(0)
+    out = []
+    expect(await run('run', 'echo-loop', '--input', `prd=@${file('prd-in.yaml', [prdDoc])}`, '--input', `previous=@${file('prd-prev.yaml', [prdDoc])}`)).toBe(0)
+    const loopRun = out[0]!.split('/')[1]!
+    out = []
+    expect(await run('get', `WorkflowRun/${loopRun}`)).toBe(0)
+    expect(parse(out.join('\n')).spec.inputs.previous).toEqual({ kind: 'artifact', ref: { ...r2, revision: 1 } })
     // kind:<Kind> lists every artifact of the kind in the run's Namespace at its latest revision (33-multi-context-product.md)
     expect(await run('run', 'pair-wf', '--input', 'prds=kind:Glossary')).toBe(1)
     expect(err.at(-1)).toMatch(/--input prds: no Glossary in Namespace default/)

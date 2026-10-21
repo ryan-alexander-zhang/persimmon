@@ -22,7 +22,7 @@ ReviewLoop ──expand──▶ Workflow + Workflow      produce ─▶ review,
 | `validate` expands, then runs the schema, the static checker and the target Handler's `validate` on every expanded Resource; findings carry the path into the composition where one exists, else the expanded Resource's name | Handler `validate` |
 | the expansion is a pure function of `spec`; the same spec expands to the same bytes | Handler author |
 | a run names the composition (`workflowRef: {kind: Pipeline, name}`, `gateRef: {kind: Approval, name}`); the closure holds the expansion under the target kind and the composition's name, plus the composition's KindDefinition | snapshot walk, run schemas |
-| `persimmon run <name>` accepts a Workflow or any kind expanding to Workflow; `tree`, `describe` and `get` of a run show the expanded step ids | CLI |
+| `persimmon run <name>` accepts a Workflow or any kind expanding to Workflow, and reads the run's ports from the expansion, so a ReviewLoop's `previous`, `feedback`, `maxRounds` and carried inputs take a file or a bare ref as a declared port does; `tree`, `describe` and `get` of a run show the expanded step ids | CLI |
 
 ## Pipeline
 
@@ -186,3 +186,6 @@ Expansion:
 - [`examples/pipeline-prd.yaml`](examples/pipeline-prd.yaml): research, write, approve as phases
 - [`examples/approval-prd.yaml`](examples/approval-prd.yaml): two reviewers, quorum 1
 - [`examples/review-loop-prd.yaml`](examples/review-loop-prd.yaml): `prd-with-review` of `11-workflow.md` as a ReviewLoop
+- `run` resolves a composition's ports through its expansion: continuing a loop from its last round
+  (`previousAdrs=@adrs.yaml`) failed `expected artifacts, got value`, since the CLI read the ports the
+  user wrote and the carried input is one the expansion adds. Found in UAT.

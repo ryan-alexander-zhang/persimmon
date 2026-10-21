@@ -270,7 +270,10 @@ function workflowOf(engine: Engine, doc: Resource): Resource | undefined {
       const hit = engine.store.resources.get(scope ? { kind, namespace: scope, name: workflowRef.name } : { kind, name: workflowRef.name })
       if (hit) {
         workflowRef.kind = kind
-        return hit
+        if (kind === 'Workflow') return hit
+        // a composition's run takes the ports its expansion declares: a ReviewLoop's `previous`, `feedback`, `maxRounds` and carried inputs are not in what the user wrote (21-composition.md)
+        const expanded = engine.handlers.get(hit.apiVersion, hit.kind).impl?.expand?.(hit, ns).resources.find((r) => r.kind === 'Workflow' && r.metadata.name === workflowRef.name)
+        return expanded ?? hit
       }
     }
   return undefined

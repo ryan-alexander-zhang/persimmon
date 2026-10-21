@@ -146,7 +146,7 @@ spec:
 
     Open questions: `Q-n`. An unknown fact, a contradiction between the inputs, or a name the model lacks is a question here, never a guess in a story or a requirement.
 
-    With `previous` and `feedback` bound, the consistency check refused the last Spec: every finding names an id, a label or a rule; fix those and change nothing else.
+    With `previous` and `feedback` bound, the consistency check refused the last Spec: every finding names an id, a label or a rule; fix those, and with each every sentence that restated or rested on what changed (a story's text, a scenario's given, a requirement's rationale), which the finding need not name; change nothing else.
 
     With `decisions` bound, the owner answered this round's open questions and `previous` is this round's draft: give each `Q-n` its `resolution` in the decision's words, apply what the answer implies everywhere the draft deferred to the question (a scenario, a requirement, a story, a statement that waited on it), and change nothing else; `open` is then what still has no resolution.
 
@@ -180,7 +180,7 @@ spec:
 
     Ids: `G-n`, `CAP-n`, `SC-n`, `Q-n`, `BR-n` each unique and increasing in document order, from 1 on a first draft; a revision keeps every id in place and never reuses one, so a removed item leaves a gap and a new one takes the next number. Prose uses Glossary term names when a Glossary is bound, never aliases.
 
-    With `previous` and `feedback` bound, the last round was refused: a Validator finding names an id or a rule, a human finding names what to change; fix those and change nothing else. Answer the whole Prd and the whole rules artifact again.
+    With `previous` and `feedback` bound, the last round was refused: a Validator finding names an id or a rule, a human finding names what to change; fix those and carry each fix into every sentence that restated or rested on what changed (a rule's rationale, a capability's text, a criterion), which the finding need not name; change nothing else. Answer the whole Prd and the whole rules artifact again.
 
     With `decisions` bound, the owner answered this round's open questions and `previous` is this round's Prd, `previousRules` its rules: give each `Q-n` its `resolution` in the decision's words, apply what the answer implies everywhere the draft deferred to the question (a capability, a criterion, a rule's statement and rationale that waited on it, a new rule with the next `BR-n` when the answer is a policy), and change nothing else; `open` is then what still has no resolution.
 ---
@@ -211,7 +211,7 @@ spec:
 
     With `base` and `changes` bound, this run revises `base`, the Design as it stands, to apply answers given downstream (each `<artifact id> Q-n: <resolution>`): start from it, keep every `EL-n` and every operation, channel, message or table it has, and change only what the answers ask; an element added takes the next unused number. An answer that settles one of `base`'s own open questions gives it that `resolution`.
 
-    With `previous` and `feedback` bound, the consistency check refused the last Design: every finding names an id, a label or a rule; fix those and change nothing else.
+    With `previous` and `feedback` bound, the consistency check refused the last Design: every finding names an id, a label or a rule; fix those, and with each every part of the document that restated or rested on what changed, which the finding need not name; change nothing else.
 
     With `decisions` bound, the owner answered this round's open questions and `previous` is this round's draft: give each `Q-n` its `resolution` in the decision's words, apply what the answer implies everywhere the draft deferred to the question, in the document and its index, and change nothing else; `open` is then what still has no resolution.
 ---
@@ -240,7 +240,7 @@ spec:
 
     With `base` and `changes` bound, this run applies answers given downstream (each `<artifact id> Q-n: <resolution>`) to `base`: keep every task id and change only what the answers ask (a scenario moved to another task, a task reordered or added); a task added takes the next unused id.
 
-    With `previous` and `feedback` bound, the consistency check refused the last Plan: every finding names a task, a requirement, a scenario, a block or an element; fix those and change nothing else.
+    With `previous` and `feedback` bound, the consistency check refused the last Plan: every finding names a task, a requirement, a scenario, a block or an element; fix those, and with each every task description that restated or rested on what changed, which the finding need not name; change nothing else.
 
     With `decisions` bound, the owner answered this round's open questions and `previous` is this round's draft: give each `Q-n` its `resolution` in the decision's words, apply what the answer implies everywhere the draft deferred to the question, in the tasks, and change nothing else; `open` is then what still has no resolution.
 ---
@@ -270,7 +270,7 @@ spec:
 
     Ids `QG-n`, `C-n`, `S-n`, `BB-n`, `REL-n`, `CC-n`, `QS-n`, `RK-n` unique and increasing; a revision keeps every id in place and never reuses one. Prose uses Glossary term names.
 
-    An unknown fact is a risk or a constraint stated as an assumption, never a guess presented as fact. With `previous` and `feedback` bound, the last round was refused: a Validator finding names an id, a human finding names a block, a decision, a goal or an Adr; fix those and change nothing else. Answer the whole Architecture and every Adr again.
+    An unknown fact is a risk or a constraint stated as an assumption, never a guess presented as fact. With `previous` and `feedback` bound, the last round was refused: a Validator finding names an id, a human finding names a block, a decision, a goal or an Adr; fix those and carry each fix into every sentence that restated or rested on what changed (an Adr's context and consequences when its decision changes, a block's responsibility when its relations do, a quality scenario's measure when its goal does), which the finding need not name; change nothing else. Answer the whole Architecture and every Adr again.
 ---
 # The DesignSystem author's rules (32-ui-design-process.md): one DESIGN.md per product, in Google Labs' format, linted.
 apiVersion: persimmon.ai/v1
