@@ -642,6 +642,8 @@ spec:
       glossaries: {fromInput: glossaries}
       previous: {fromInput: previous}
       previousAdrs: {fromInput: previousAdrs}
+      base: {fromInput: base}
+      baseAdrs: {fromInput: baseAdrs}
       feedback: {fromInput: feedback}
     timeout: 72h
   subject: architecture

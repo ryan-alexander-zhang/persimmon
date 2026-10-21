@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest'
 import { bind, siteOf } from '../../src/kinds/ports/ports.js'
 
 const docs = (f: string) => parseAllDocuments(readFileSync(`packs/sdlc/global/${f}.yaml`, 'utf8')).map((d) => d.toJS())
-const all = [...docs('50-tasks'), ...docs('80-workflows')]
+const all = [...docs('50-tasks'), ...docs('60-validators'), ...docs('70-gates'), ...docs('80-workflows')]
 const named = (kind: string, name: string) => all.find((d) => d.kind === kind && d.metadata.name === name).spec
 
 describe('the SDLC pack takes a Rewrite pack inventory and base, optionally', () => {
@@ -54,5 +54,26 @@ describe('the SDLC pack takes a Rewrite pack inventory and base, optionally', ()
     expect(task.action.context).toEqual(expect.arrayContaining([{ kind: 'artifact', input: 'base' }, { kind: 'artifact', input: 'baseAdrs' }]))
     const loop = named('ReviewLoop', 'architect')
     expect([loop.produce.inputs.base, loop.produce.inputs.baseAdrs]).toEqual([{ fromInput: 'base' }, { fromInput: 'baseAdrs' }])
+  })
+
+  it('the Architecture\'s auditor takes the same base, through the gate, so round one judges what changed', () => {
+    const task = named('Task', 'audit-architecture')
+    expect([task.inputs.base.required, task.inputs.baseAdrs.required]).toEqual([false, false])
+    expect(task.action.context).toEqual(expect.arrayContaining([{ kind: 'artifact', input: 'base' }, { kind: 'artifact', input: 'baseAdrs' }]))
+    expect(task.action.instructions).toMatch(/With `base` bound/)
+    const validator = named('Validator', 'architecture-audited')
+    expect([validator.inputs.base.required, validator.inputs.baseAdrs.required]).toEqual([false, false])
+    const gate = named('Gate', 'architecture-gate')
+    expect([gate.inputs.base.required, gate.inputs.baseAdrs.required]).toEqual([false, false])
+    const loop = named('ReviewLoop', 'architect')
+    expect([loop.review.inputs.base, loop.review.inputs.baseAdrs]).toEqual([{ fromInput: 'base' }, { fromInput: 'baseAdrs' }])
+    // the gate's validators bind as written: the audit gets the base when bound and binds as before when not
+    const audit = gate.validators.find((v: { name: string }) => v.name === 'audit').inputs
+    const ref = (kind: string) => ({ kind: 'artifact' as const, ref: { apiVersion: 'sdd.persimmon.ai/v1', kind, id: 'p', revision: 1 } })
+    const adrs = { kind: 'artifacts' as const, refs: [ref('Adr').ref] }
+    const round = { architecture: ref('Architecture'), adrs, prd: ref('Prd'), rules: ref('BusinessRules') }
+    expect(Object.keys(bind(audit, { inputs: round }, siteOf({})))).toEqual(['architecture', 'adrs', 'prd', 'rules'])
+    const based = bind(audit, { inputs: { ...round, base: ref('Architecture'), baseAdrs: adrs } }, siteOf({}))
+    expect([based.base, based.baseAdrs]).toEqual([ref('Architecture'), adrs])
   })
 })

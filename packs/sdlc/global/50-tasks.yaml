@@ -559,6 +559,8 @@ spec:
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}, required: false, description: "the last round's, beside the draft; round one has none"}
     previousAdrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}, required: false, description: "the last round's, beside the draft; round one has none"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}, required: false, description: "the product's last Architecture, when a later Rewrite pack Slice extends it (40-pack-rewrite.md)"}
+    baseAdrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}, required: false, description: "the Adrs that Architecture applies"}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict; round one has none"}
   outputs:
     audit: {type: {kind: value, schema: {allOf: [{$ref: "persimmon.ai/v1#/ValidationResult"}, {if: {required: [findings], properties: {findings: {contains: {required: [severity], properties: {severity: {const: error}}}}}}, then: {properties: {passed: {const: false}}}, else: {properties: {passed: {const: true}}}}]}}}
@@ -566,6 +568,7 @@ spec:
   action:
     instructions: |
       Audit the Architecture `architecture` following the draft audit rules in your context, their part for an Architecture.
+      With `base` bound, the draft extends it and `baseAdrs`: judge what changed against them, never what they already settled.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: draft-audit-rules}}
       - {kind: artifact, input: architecture}
@@ -574,6 +577,8 @@ spec:
       - {kind: artifact, input: rules}
       - {kind: artifact, input: previous}
       - {kind: artifact, input: previousAdrs}
+      - {kind: artifact, input: base}
+      - {kind: artifact, input: baseAdrs}
   timeout: 30m
   retryPolicy: # a transient API refusal gets another attempt
     maxAttempts: 3

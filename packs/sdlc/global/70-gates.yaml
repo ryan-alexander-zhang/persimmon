@@ -233,6 +233,8 @@ spec:
     glossaries: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}, required: false, description: "the last round's Architecture; round one has none"}
     previousAdrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}, required: false, description: "the last round's Adrs"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}, required: false, description: "the Architecture the draft extends, when a later Rewrite pack Slice does"}
+    baseAdrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}, required: false, description: "the Adrs that Architecture applies"}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict"}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
@@ -257,6 +259,8 @@ spec:
         rules: {fromInput: rules}
         previous: {fromInput: previous, onMissing: omit}
         previousAdrs: {fromInput: previousAdrs, onMissing: omit}
+        base: {fromInput: base, onMissing: omit}
+        baseAdrs: {fromInput: baseAdrs, onMissing: omit}
         feedback: {fromInput: feedback, onMissing: omit}
     - name: confirmed
       ref: {kind: Validator, name: architecture-confirmed}
