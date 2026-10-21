@@ -56,6 +56,8 @@ function sourceInputs(payload) {
     refuse(`${source} is not a git checkout`)
   }
   if (now.commit !== index.commit || now.dirty.length) refuse(`the checkout is at ${now.commit}${now.dirty.length ? ` with ${now.dirty.join(', ')} changed` : ''}; the index read ${index.commit}: index it again`)
+  // ponytail: a directory of checkouts is read, never run; a suite over several repositories needs per-checkout coverage paths and a scratch clone per checkout
+  if (index.repositories && Object.keys(suite.levels).length) refuse(`the source is a directory of checkouts (${Object.keys(index.repositories).join(', ')}): it is read, not run; a suite level cannot run on it, so its Oracle is static`)
   checkLevels(suite)
   return { inputs, suite, source, index, clean: (s) => redact(s, payload.credentials) }
 }

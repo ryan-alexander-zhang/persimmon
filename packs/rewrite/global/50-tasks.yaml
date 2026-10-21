@@ -17,8 +17,9 @@ spec:
     instructions: |
       Survey the Source system in your working directory, following the reading method and the Survey rules in your context,
       and answer its SourceInventory's first revision. `source.repository` is the `source` input's repository and
-      `source.commit` the commit checked out (`git rev-parse HEAD`). With `previous` and `feedback` bound, fix what the
-      findings name and change nothing else.
+      `source.commit` the commit checked out (`git rev-parse HEAD`); for a directory of checkouts, `source.repositories[]`
+      instead, one per subdirectory. With `previous` and `feedback` bound, fix what the findings name and change nothing
+      else.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: source-reading}}
       - {kind: prompt, ref: {kind: Prompt, name: survey-rules}}

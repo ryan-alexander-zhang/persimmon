@@ -104,6 +104,40 @@ describe('indexSource', () => {
     expect(() => indexSource(realpathSync(mkdtempSync(join(tmpdir(), 'parity-none-'))), tmpdir())).toThrow(/is not a git checkout with a commit/)
   })
 
+  it('a directory of checkouts: one entry per subdirectory that is a repository, paths and dirt prefixed by its name', () => {
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'parity-multi-')))
+    const a = join(dir, 'a')
+    mkdirSync(a)
+    git(a, 'init', '-q')
+    writeFileSync(join(a, 'A.java'), 'if (x) {}\n')
+    git(a, 'add', 'A.java')
+    git(a, 'commit', '-qm', 'a')
+    const b = join(dir, 'b')
+    mkdirSync(b)
+    git(b, 'init', '-q')
+    writeFileSync(join(b, 'b.py'), 'x = 1\n')
+    git(b, 'add', 'b.py')
+    git(b, 'commit', '-qm', 'b')
+    mkdirSync(join(dir, 'notes')) // no repository: not a checkout
+    writeFileSync(join(b, 'b.py'), 'x = 2\n')
+    const index = indexSource(dir, realpathSync(mkdtempSync(join(tmpdir(), 'parity-project-'))))
+    expect(Object.keys(index.repositories)).toEqual(['a', 'b'])
+    expect(index.commit).toBe(`a@${git(a, 'rev-parse', 'HEAD')} b@${git(b, 'rev-parse', 'HEAD')}`)
+    expect(index.files).toEqual({ 'a/A.java': { lines: 1, branchLines: [1] }, 'b/b.py': { lines: 1, branchLines: [] } })
+    expect(index.dirty).toEqual(['b/b.py'])
+    expect(index.root).toBe(dir)
+    expect(index.repositories.a.root).toBe(a)
+    // pinned per checkout: the inventory lists each by name
+    const inventory = { source: { repositories: [{ name: 'a', commit: index.repositories.a.commit }, { name: 'b', commit: 'deadbeef00' }, { name: 'c', commit: 'deadbeef00' }] } }
+    expect(checkInventory({ inventory, index: { ...index, dirty: [] }, slices: [] }).map((f: { code: string; message: string }) => f.message)).toEqual([
+      `the checkout b is at ${index.repositories.b.commit}, the inventory was read at deadbeef00`,
+      'the inventory names a checkout c the source directory lacks',
+    ])
+    expect(checkInventory({ inventory: { source: { commit: index.commit } }, index: { ...index, dirty: [] }, slices: [] }).map((f: { code: string }) => f.code)).toEqual(['source-moved', 'source-moved'])
+    // placed per checkout: one of them inside the project is inside
+    expect(checkInventory({ inventory, index: { ...index, dirty: [], project: { root: a, gitCommonDir: undefined } }, slices: [] }).map((f: { code: string }) => f.code)).toContain('source-inside-project')
+  })
+
   it('a worktree of the source shares its git directory, which is how source-inside-project tells it from a clone', () => {
     const source = checkout()
     const worktree = join(realpathSync(mkdtempSync(join(tmpdir(), 'parity-wt-'))), 'wt')

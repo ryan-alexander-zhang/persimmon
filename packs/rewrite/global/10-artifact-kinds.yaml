@@ -28,11 +28,24 @@ spec:
         properties:
           source:
             type: object
-            required: [repository, commit]
+            required: [repository]
+            oneOf: [{required: [commit]}, {required: [repositories]}]
             additionalProperties: false
             properties:
-              repository: {type: string, minLength: 1}
-              commit: {type: string, pattern: "^[0-9a-f]{7,64}$", description: "the commit every where is read at"}
+              repository: {type: string, minLength: 1, description: "the repository, or the directory of checkouts"}
+              commit: {type: string, pattern: "^[0-9a-f]{7,64}$", description: "the commit every where is read at; absent for a directory of checkouts"}
+              repositories:
+                type: array
+                minItems: 1
+                description: "a directory of checkouts: one per subdirectory, every where of it prefixed <name>/"
+                items:
+                  type: object
+                  required: [name, repository, commit]
+                  additionalProperties: false
+                  properties:
+                    name: {type: string, pattern: "^[^/\\s]+$", description: "the subdirectory"}
+                    repository: {type: string, minLength: 1}
+                    commit: {type: string, pattern: "^[0-9a-f]{7,64}$"}
           slice: {type: string, pattern: "^SL-[0-9]+$", description: "the Slice this revision read; absent on the Survey's"}
           entryPoints:
             type: array
@@ -214,11 +227,13 @@ spec:
         properties:
           source:
             type: object
-            required: [repository, commit]
+            required: [repository]
+            oneOf: [{required: [commit]}, {required: [repositories]}]
             additionalProperties: false
             properties:
               repository: {type: string, minLength: 1}
               commit: {type: string, pattern: "^[0-9a-f]{7,64}$"}
+              repositories: {type: array, minItems: 1, items: {type: object, required: [name, repository, commit], additionalProperties: false, properties: {name: {type: string, pattern: "^[^/\\s]+$"}, repository: {type: string, minLength: 1}, commit: {type: string, pattern: "^[0-9a-f]{7,64}$"}}}}
           inventory: {$ref: "#/$defs/Pin", description: "the SourceInventory revision this ledger was computed from"}
           rules: {$ref: "#/$defs/Pin", description: "the BusinessRules revision, once recovered"}
           slice: {type: string, pattern: "^SL-[0-9]+$", description: "the Slice of this revision; absent on the Survey's"}

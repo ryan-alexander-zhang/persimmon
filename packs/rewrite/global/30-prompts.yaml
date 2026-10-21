@@ -15,6 +15,11 @@ spec:
     Use whatever analysis the checkout allows (grep, ripgrep, the language's own tools if present); read every file a path you
     follow reaches, not a sample.
 
+    The working directory may instead be a directory of checkouts, one Source repository per subdirectory (`git rev-parse HEAD`
+    in each). Then every `where` starts with the subdirectory's name (`backend/src/Order.java:12`), `source.repositories[]`
+    lists each checkout as `{name, repository, commit}` in place of `source.commit`, and a call from one repository into
+    another is read through to the code that answers it, never recorded as an external system.
+
     Where rules hide, per stack:
 
     - Java, Kotlin, C#: validators and annotations (`@NotNull`, `@Size`, `@Pattern`, `[Required]`), ORM mappings and their

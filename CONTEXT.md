@@ -763,7 +763,8 @@ _Avoid_: migration pack, modernization pack, brownfield pack, reverse pack, refa
 
 **Source system**:
 The existing system a rewrite replaces: its repository pinned at one commit, a checkout outside the
-project, and the app it runs when it can be started. Read, never changed.
+project, or a directory of such checkouts when it spans several repositories, and the app it runs
+when it can be started. Read, never changed.
 _Avoid_: legacy system, old system, as-is system, target (the new system is the rewrite)
 
 **Survey**:

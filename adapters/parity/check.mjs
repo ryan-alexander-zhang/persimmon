@@ -21,17 +21,26 @@ const inside = (child, parent) => {
 }
 const has = (files, path) => Object.hasOwn(files, path)
 
-/** source-inside-project, source-moved: the index against the project and the inventory. */
+/** source-inside-project, source-moved: the index against the project and the inventory. A directory of checkouts is
+ * placed and pinned per checkout: `index.repositories` against the inventory's `source.repositories[]`, by name. */
 function placement(inventory, index) {
   const found = []
-  const { root, gitCommonDir, project } = index
-  if (inside(root, project.root) || inside(project.root, root) || (gitCommonDir && gitCommonDir === project.gitCommonDir)) {
-    found.push(error('source-inside-project', `the Source system's checkout ${root} and the project ${project.root} are one repository or one inside the other: a rewrite lives in a repository of its own; a change in place is a refactor`))
+  const { project } = index
+  const repos = index.repositories ? Object.entries(index.repositories).map(([name, r]) => ({ name, ...r })) : [{ name: '', root: index.root, gitCommonDir: index.gitCommonDir, commit: index.commit }]
+  for (const { root, gitCommonDir } of [{ root: index.root, gitCommonDir: index.gitCommonDir }, ...repos]) {
+    if (inside(root, project.root) || inside(project.root, root) || (gitCommonDir && gitCommonDir === project.gitCommonDir)) {
+      found.push(error('source-inside-project', `the Source system's checkout ${root} and the project ${project.root} are one repository or one inside the other: a rewrite lives in a repository of its own; a change in place is a refactor`))
+      break
+    }
   }
-  const commit = inventory.source?.commit ?? ''
-  if (!commit || !(index.commit.startsWith(commit) || commit.startsWith(index.commit))) {
-    found.push(error('source-moved', `the checkout is at ${index.commit}, the inventory was read at ${commit || 'no commit'}`))
+  const pinned = (read, commit, what) => {
+    if (!commit || !(read.startsWith(commit) || commit.startsWith(read))) found.push(error('source-moved', `${what} is at ${read}, the inventory was read at ${commit || 'no commit'}`))
   }
+  if (index.repositories) {
+    const listed = new Map((inventory.source?.repositories ?? []).map((r) => [r.name, r.commit]))
+    for (const { name, commit } of repos) pinned(commit, listed.get(name) ?? '', `the checkout ${name}`)
+    for (const name of listed.keys()) if (!index.repositories[name]) found.push(error('source-moved', `the inventory names a checkout ${name} the source directory lacks`))
+  } else pinned(index.commit, inventory.source?.commit ?? '', 'the checkout')
   if (index.dirty?.length) found.push(error('source-moved', `the checkout differs from its commit in ${index.dirty.join(', ')}: the facts must be the commit's`))
   return found
 }

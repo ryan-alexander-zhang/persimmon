@@ -103,7 +103,7 @@ and the ledger computes `static`. The verdict reads the weakest.
 
 | Input | Shape | Why |
 |---|---|---|
-| `source` | `externalResource`: `locator.path` a checkout of the Source system outside the project, `version` its commit | the readers' and `parity/v1`'s workspace; provenance pins the commit every `where` is read at |
+| `source` | `externalResource`: `locator.path` a checkout of the Source system outside the project, `version` its commit; or a directory of checkouts, one repository per subdirectory, each at its commit | the readers' and `parity/v1`'s workspace; provenance pins the commit every `where` is read at. A directory of checkouts is read, never run: its Oracle is `static` |
 | `brief` | text | why the rewrite, the target stack and constraints, how the source runs (or that it does not), where records are, the default Disposition, whether the interface is kept; text, as `28-prd-process.md` decided |
 | `productId` | string | stems every artifact id |
 | `slice` | `SL-n` | the Slice a per-Slice run works on |
@@ -118,7 +118,7 @@ present, empty when nothing was found, so two readers' inventories compare field
 
 | Field | Content |
 |---|---|
-| `source`, `slice?` | `{repository, commit}`; the Slice this revision read, absent on the Survey's |
+| `source`, `slice?` | `{repository, commit}`, or for a directory of checkouts `{repository, repositories[] {name, repository, commit}}` with every `where` prefixed `<name>/`; the Slice this revision read, absent on the Survey's |
 | `entryPoints[]` | `{id EP-n, kind: http\|message\|job\|cli\|ui\|report, name, where[], reaches {files[], entities[] EN-n, externalSystems[] EX-n}}` |
 | `stateChanges[]` | `{id ST-n, entity EN-n, change: create\|update\|delete\|status\|send, name, where[], from[] EP-n}`: a write that outlives the request (a row, a session, a file, a message, an email); candidate domain events |
 | `guards[]` | `{id GD-n, condition, outcome, role: rule\|plumbing\|unknown, where[], in[] EP-n, volatile?: [time\|random\|order\|concurrency], note?}`: every branch that refuses, computes or decides; `time` only when the condition reads the clock, not a date the input carries |
@@ -138,7 +138,10 @@ checkout: `{commit, dirty[], root, gitCommonDir, project: {root, gitCommonDir}, 
 {lines, branchLines[] | null}}}`. `dirty` names every tracked file that differs from the commit, since
 the facts must be the commit's. `root` and `project.root` are real paths, symlinks resolved;
 `gitCommonDir` tells a worktree of the same repository apart from a second clone. Every tracked
-regular file is indexed; a symlink is not followed. `branchLines` are the lines the language's
+regular file is indexed; a symlink is not followed. A directory of checkouts (the path is no
+repository's top, its subdirectories are) adds `repositories: {<name>: {commit, root, gitCommonDir,
+dirty}}`, prefixes every path `<name>/`, and sets `commit` to `name@commit` per checkout in name
+order; `placement` places and pins each checkout by name. `branchLines` are the lines the language's
 branch keywords start a branch on, calibrated per language (COBOL fixed and free format, with
 `INVALID KEY`, `AT END`, `WHEN`, without `END-IF`, `ELSE`, comments and data names that contain a
 keyword; strings and comments spanning lines left out), and `null` when the index cannot read them:
@@ -313,7 +316,7 @@ Adapter process answering one Role (`adapters/lib/agent.mjs` serves `executor` o
 
 | Code | Finding | In |
 |---|---|---|
-| `source-inside-project` | `sourceIndex.root` inside `project.root` or the reverse, or the two share a `gitCommonDir`: a rewrite in place is a refactor | every gate with a `sourceIndex` |
+| `source-inside-project` | `sourceIndex.root` inside `project.root` or the reverse, or the two share a `gitCommonDir`: a rewrite in place is a refactor; for a directory of checkouts, any one of them | every gate with a `sourceIndex` |
 | `source-moved` | `sourceIndex.commit` is not the inventory's, or `dirty` names a changed file | same |
 | `inventory-location` | a file `where` or a `reaches.files` path naming a file the index lacks, a line past its end, a range that runs backwards; a Slice the cut lacks | `survey-consistency`, `inventory-consistency` |
 | `branch-unread` (warning) | a file the Slice reaches whose branch lines the index could not read; its guards rest on the readers alone | `inventory-consistency` |
@@ -451,6 +454,13 @@ Each its own unit, before the pack content that needs it:
 - The method is Prompts, not a `Skill`, as `26-domain-discovery.md` decided. A team with its own
   bundle overrides the Task in its Namespace with a `skill` context entry; context is no port, so
   the override is allowed. Found in design review.
+- A directory of checkouts is a source: a product spread over several repositories (fourteen in the
+  first case seen) is one domain, and cutting it per repository would make the code's structure the
+  model's. One `source` input, every path prefixed by the checkout's name, pinned per checkout; no
+  second input shape, no list of paths. The ceiling: it is read, never run, since a suite over
+  several repositories needs per-checkout coverage paths and a scratch clone per checkout, so
+  `run-source` and `run-mutants` refuse a suite level on it and its Oracle is `static`. Found in
+  a reading of `cai-workspace`.
 - The inventory before the Prd, and the Prd before the storming: `checkSubdomains` needs the Prd's
   subdomains to judge the storming's contexts (`34-subdomains.md`). One storming, not an as-is and a
   to-be: it runs after the Dispositions, over the inventory, cut by language and events, so the

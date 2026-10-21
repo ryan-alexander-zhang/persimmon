@@ -15,8 +15,9 @@ Read `.claude/skills/rewrite/driving.md` first: how to start each run, answer it
 
 - `persimmon.yaml` in the project directory; if absent, `persimmon init --pack rewrite`. The
   project is a git repository; you never run git in it.
-- The source: a checkout path outside the project, at the commit to rewrite. A URL: ask the
-  developer to clone it outside the project. A path inside the project, or the project inside it:
+- The source: a checkout path outside the project, at the commit to rewrite; or a directory of
+  checkouts, one repository per subdirectory, when the product spans several (read, never run).
+  A URL: ask the developer to clone it outside the project. A path inside the project, or the project inside it:
   stop, it is a refactor. Never edit, build or commit in the checkout.
 - A `productId`: lowercase kebab, at most 40 characters, no Prd with that stem in `persimmon get Prd`.
 - `.persimmon/rewrite/brief.md`, from what the developer said, asking for what is missing: why the

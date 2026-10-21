@@ -63,7 +63,8 @@ later     eager joins · retention policy · policy resource · external event s
 | a Change set per task, from a tree snapshot before each `implement` | `36-test-levels.md` | v1: measured from the baseline's `head`, so a later task's holds the earlier tasks' changes |
 | test levels in parallel, each in its own workspace | `36-test-levels.md` | v1: one after the other in the round's workspace, cheapest first |
 | coverage from lcov or Go's coverprofile; mutation for Python's tools | `36-test-levels.md` | v1: Cobertura and JaCoCo XML; mutation-testing-elements JSON, PIT's `report.js` and Gremlins' JSON; Go converts its profile with `gocover-cobertura` |
-| evidence beyond the code and records: a database schema, tickets, several repositories | `40-pack-rewrite.md` | v1: one checkout and the `records` Oracle; the brief may describe the rest in text |
+| evidence beyond the code and records: a database schema, tickets | `40-pack-rewrite.md` | v1: one checkout or a directory of checkouts, and the `records` Oracle; the brief may describe the rest in text |
+| a directory of checkouts run: a suite level over several repositories, coverage per checkout, a scratch clone per checkout for mutants | `40-pack-rewrite.md` | v1: a directory of checkouts is read, its Oracle `static` |
 | shadow traffic: production requests replayed to the Source system and the rewrite, answers compared | `40-pack-rewrite.md` | v1: the inputs are the Characterization tests'; needs production access the pack does not assume |
 | the cutover of a Slice: traffic switched, old and new data kept in step while both run, rollback | `40-pack-rewrite.md` | v1: the pack checks a Slice; the developer cuts it over by hand |
 
