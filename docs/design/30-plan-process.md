@@ -51,7 +51,7 @@ maps artifact id to content, paired by `index.mjs` from `inputs.designs.refs[i]`
 | `unknown-design`, `design-unread`, `design-unused` | an element's `design` not in `designs[]`; listed but not among the Designs evaluated; listed but no task realises an element of it |
 | `design-block`, `unknown-element` | the Design's `block` is not the task's; the `EL-n` is not in the Design |
 | `task-renumbered` | warning: with `base` bound, a `T-n` of the base now on another block, or whose `covers`, `verifiedBy` and elements share nothing with the task holding that id now |
-| `element-unplanned` | an element of a Design evaluated that realises a command or read model a story of the Spec names, or, with `domainModel` bound, the aggregate handling such a command, and that no task realises |
+| `element-unplanned` | an element of a Design evaluated that realises a command or read model a story of the Spec names, or, with `domainModel` bound, the aggregate handling such a command, and that no task realises; a Design whose `domainModel` is not the Spec's is another context's and needs nothing |
 | `id-sequence` | `T-n`, `Q-n` not unique and increasing |
 
 The Adapter picks the mode from the payload: `artifacts.plan` first (a Plan payload carries a
