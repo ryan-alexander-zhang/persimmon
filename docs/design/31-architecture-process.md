@@ -24,9 +24,9 @@ ReviewLoop architect, run once per product with the contexts, models and glossar
 | Executor `architecture-agent` | `claude-code/v1`, read-only, its own name for per-Namespace override |
 | Task `write-architecture` | inputs `prd`, `rules`, `contexts`, `domainModels`, `glossaries` (artifacts), `previous`, `previousAdrs` (the last round's Adrs, carried by the loop), `feedback`; outputs `architecture` (id `<prd>-architecture`) and `adrs` (artifacts, prefix `<prd>-adr`); `base` and `baseAdrs` (optional): the product's last Architecture and Adrs, read as `previous` and `previousAdrs` when those are unbound, so a later Rewrite pack Slice extends the Architecture instead of starting blind (`40-pack-rewrite.md`) |
 | Task `confirm-architecture` | human on `cli-human/v1`: reads the Architecture and its Adrs; approve, or one finding per `BB-n`, `S-n`, `QG-n`, `C-n`, `QS-n` or Adr id |
-| Validators | `architecture-consistency`: `sdd/v1` over `architecture`, `prd`, `rules`, `contexts`, `domainModels`, `glossaries`, `adrs` (`rules-mismatch` when the Architecture's `businessRules` is not the artifact bound); `architecture-audited`: `task` over `audit-architecture` (inputs `architecture`, `adrs`, `prd`, `rules`, and from round two `previous`, `previousAdrs`, `feedback`; Executor `auditor`; the Prompt `draft-audit-rules`, part "An Architecture": `scenario-undecidable`, `strategy-unfit` and `technology-vague` errors, `adr-unargued` and `responsibility-overlap` warnings; `23-pack-sdlc.md`); `architecture-confirmed` over `confirm-architecture`, whose form shows the auditor's verdict as `audit` (`fromValidator: audit`) |
-| Gate `architecture-gate` | consistency, audit and confirmed, `all`, 72h; `audit` `after: [consistency]`, `confirmed` `after: [consistency, audit]` (`14-gate.md`) |
-| ReviewLoop `architect` | `produce` `write-architecture`, `review` `architecture-gate`, `maxRounds: 3`; the subject is the Architecture; the Adrs ride beside it as a second output, come back as `previousAdrs` (`carry`, `21-composition.md`) and are republished whole each round, each a copy of its last revision unless a finding names it; `base` and `baseAdrs` (optional) handed to `produce` |
+| Validators | `architecture-consistency`: `sdd/v1` over `architecture`, `prd`, `rules`, `contexts`, `domainModels`, `glossaries`, `adrs` (`rules-mismatch` when the Architecture's `businessRules` is not the artifact bound); `architecture-audited`: `task` over `audit-architecture` (inputs `architecture`, `adrs`, `prd`, `rules`, and from round two `previous`, `previousAdrs`, `feedback`; `base` and `baseAdrs` (optional), the Architecture and Adrs the draft extends, so the auditor judges the changes against them; Executor `auditor`; the Prompt `draft-audit-rules`, part "An Architecture": `scenario-undecidable`, `strategy-unfit` and `technology-vague` errors, `adr-unargued` and `responsibility-overlap` warnings; `23-pack-sdlc.md`); `architecture-confirmed` over `confirm-architecture`, whose form shows the auditor's verdict as `audit` (`fromValidator: audit`) |
+| Gate `architecture-gate` | consistency, audit and confirmed, `all`, 72h; `audit` `after: [consistency]`, `confirmed` `after: [consistency, audit]` (`14-gate.md`); `base` and `baseAdrs` (optional) handed to `audit` with `onMissing: omit` |
+| ReviewLoop `architect` | `produce` `write-architecture`, `review` `architecture-gate`, `maxRounds: 3`; the subject is the Architecture; the Adrs ride beside it as a second output, come back as `previousAdrs` (`carry`, `21-composition.md`) and are republished whole each round, each a copy of its last revision unless a finding names it; `base` and `baseAdrs` (optional) handed to `produce` and `review` |
 
 Run: `persimmon run architect --input 'prd={...}' --input 'rules={...}' --input contexts=@contexts.yaml --input domainModels=@models.yaml --input glossaries=@glossaries.yaml`,
 each list a YAML list of RevisionRefs (`08-store.md`), one entry per context in the same order.
@@ -129,6 +129,10 @@ else `artifacts.prd`.
   rerun live: the check is pure and the next end-to-end UAT records the first conformant Adrs;
   example07's recording predates the slot rule (`adr-2` backs `S-3`) and names no strategy, said in
   its README. Found in UAT; the field built from the roadmap.
+- The auditor takes `base` and `baseAdrs` as the writer does: without them, round one of a later
+  Rewrite pack Slice judged a revised Architecture without the one it revises, and could flag a
+  block or an Adr the base already settled. The human's form does not take them; the auditor's
+  verdict reaches it. Found in review.
 
 ## Examples
 
