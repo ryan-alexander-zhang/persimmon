@@ -112,7 +112,7 @@ iteration, so a loop over capabilities redoes only the ones whose inputs changed
 | iteration Failed | step Failed with the iteration's error; `until` not evaluated |
 | `parallel`: step activated | iterations start from `initial` through `next` until `parallel` run at once, or `until` holds for the last one started, or `maxIterations` is reached |
 | `parallel`: an iteration Succeeded | its outputs recorded in `steps.<id>.results`; the next iteration starts in its place; none left and none running: step Succeeded, outputs = the last iteration's |
-| `parallel`: an iteration Failed | step Failed with its error; the running siblings are `Cancelled` |
+| `parallel`: an iteration Failed | its siblings go on and the pending ones still start, since they are independent; once every iteration has ended the step is Failed with the first error, `results` holding what passed, so a run again reuses those through `memo` |
 | `parallel`: `maxIterations` reached with `until` still false | step Failed with `iteration_limit` once the running iterations end |
 | `steps.<id>.results` | every finished iteration's outputs in index order, serial or parallel; `steps.each.results.all(r, r.passed)` asks whether every loop passed |
 
@@ -193,7 +193,8 @@ has no `repeat`; the run name already carries the enclosing iterations (`<parent
   after another, because a `repeat` is a state machine whose next state may read the last
   iteration's outputs. When it does not, the states are known up front, and the engine already
   runs outstanding calls together. `parallel` is refused statically where `until` or `next` reads
-  an iteration's outputs; `steps.<id>.results` gives the outputs the serial `until` used to read,
+  an iteration's outputs; a failed iteration leaves its siblings running, since one Design's bad id
+  cancelled seven others in the retest, and what passed is kept for `memo`; `steps.<id>.results` gives the outputs the serial `until` used to read,
   so a loop over capabilities ends Succeeded only when every loop passed. Found in UAT.
 - A step may reuse an earlier run, `memo`. In the live Autopilot run `test-design-all` walked
   CAP-1 four times in ten hours, three of them with its Spec, Plan and harness unchanged, each

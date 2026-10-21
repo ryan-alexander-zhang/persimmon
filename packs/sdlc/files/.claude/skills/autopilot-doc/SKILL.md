@@ -35,7 +35,8 @@ is a question in the brief, for the Prd's `Q-n`.
 5. `design-all`, one run for every non-client building block: `blocks`, a list with one entry
    per Design, `{block: BB-n, type, interface?, qualifier?, context}`: one `http-api` entry per HTTP
    interface the block `provides` and one `async-api` per message interface (`interface` named when
-   the block has several of one type, `qualifier` for its second of one type), one `data-schema`
+   the block has several of one type, `qualifier` for its second of one type, short: the Design id
+   `<architecture id>-<block>-<qualifier>-<type>` is at most 63 characters), one `data-schema`
    entry when it or a child block stores data; `context` the bounded context the block (or that
    interface) realises, from the Architecture's block `contexts`. A block with no context (an event
    bus, a scheduler, a database) gets no entry. Inputs: `blocks`, `architecture`, `rules`. The

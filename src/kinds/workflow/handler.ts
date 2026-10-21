@@ -193,7 +193,10 @@ export function workflowHandler(deps: HandlerDeps): HandlerImpl {
           const last = st.iteration ?? 0
           const done = last > 0 && site(step, false).evaluate(r.until, { ...celContext(sources()), iteration: { index: last } }) === true
           if (done || last >= r.maxIterations) {
-            if (!st.active?.length) steps[step.id] = { ...st, phase: last >= r.maxIterations && !done ? 'Failed' : 'Succeeded', ...(last >= r.maxIterations && !done ? { error: err('iteration_limit', `${r.maxIterations} iterations`) } : { outputs: st.results?.[last - 1] ?? {} }) }
+            if (!st.active?.length) {
+              const limit = last >= r.maxIterations && !done
+              steps[step.id] = st.error || limit ? { ...st, phase: 'Failed', error: st.error ?? err('iteration_limit', `${r.maxIterations} iterations`) } : { ...st, phase: 'Succeeded', outputs: st.results?.[last - 1] ?? {} } // every iteration ended: the first failure fails the step, else the last one's outputs are its
+            }
             return
           }
           const before = st.active?.length ?? 0
@@ -339,10 +342,11 @@ export function workflowHandler(deps: HandlerDeps): HandlerImpl {
           const error = readPath({ status: child.status }, contract.errorPath) as ReconcileError | undefined
           const which = steps[id]!.active?.find((a) => a.runRef.name === name)?.iteration
           if (phase === 'Succeeded') succeeded(id, (readPath({ status: child.status }, contract.outputsValuePath) ?? {}) as RuntimeValues, which)
-          else {
-            for (const a of steps[id]!.active ?? []) if (a.runRef.name !== name) actions.push({ type: 'cancelResource', ref: a.runRef }) // one iteration failed: the step has, and its siblings stop
-            steps[id] = { ...steps[id]!, phase, active: [], ...(error && phase === 'Failed' ? { error } : {}) }
-          }
+          else if (which !== undefined && phase === 'Failed') {
+            // a parallel iteration failed: its siblings are independent and go on; the step fails once they have all ended, with the first error (11-workflow.md)
+            steps[id] = { ...steps[id]!, active: (steps[id]!.active ?? []).filter((a) => a.iteration !== which), ...(steps[id]!.error ? {} : error ? { error } : {}) }
+            fill(stepsById.get(id)!)
+          } else steps[id] = { ...steps[id]!, phase, active: [], ...(error && phase === 'Failed' ? { error } : {}) }
           return conclude()
         }
 

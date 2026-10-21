@@ -271,12 +271,17 @@ describe('workflow Handler', () => {
     r = apply(r, res)
     res = h.reconcile(finish(r, 'par-each-2', 'Succeeded', echo('B'))) as ReconcileResult
     expect(clean(res.statusPatch)).toMatchObject({ phase: 'Succeeded', outputs: { last: { kind: 'value', value: 'C' }, all: { kind: 'value', value: 'ABC' } }, steps: { each: { phase: 'Succeeded', active: [] } } })
-    // one iteration fails: the step fails and its running siblings are cancelled
+    // one iteration fails: its independent siblings go on, the third still starts, and the step fails with the first error once all have ended
     let f = run('per-item', { items: { kind: 'value', value: ['a', 'b', 'c'] } }, 'parf')
     f = apply(f, h.reconcile(input(f, { type: 'Created', dedupeKey: 'created' })) as ReconcileResult)
-    const failed = h.reconcile(finish(f, 'parf-each-2', 'Failed', { phase: 'Failed', error: { code: 'boom', message: 'x', retryable: false } })) as ReconcileResult
-    expect(clean(failed.statusPatch)).toMatchObject({ phase: 'Failed', error: { code: 'boom' }, steps: { each: { phase: 'Failed', active: [] } } })
-    expect(failed.actions.filter((a) => a.type === 'cancelResource').map((a) => (a as { ref: ObjectRef }).ref.name)).toEqual(['parf-each-1'])
+    let failed = h.reconcile(finish(f, 'parf-each-2', 'Failed', { phase: 'Failed', error: { code: 'boom', message: 'x', retryable: false } })) as ReconcileResult
+    expect(clean(failed.statusPatch)).toMatchObject({ phase: 'Running', steps: { each: { phase: 'Running', error: { code: 'boom' }, active: [{ iteration: 1 }, { iteration: 3 }] } } })
+    expect(failed.actions.filter((a) => a.type === 'cancelResource')).toEqual([])
+    expect(created(failed).map((c) => c.metadata.name)).toEqual(['parf-each-3'])
+    f = apply(f, failed)
+    f = apply(f, h.reconcile(finish(f, 'parf-each-1', 'Succeeded', echo('A'))) as ReconcileResult)
+    failed = h.reconcile(finish(f, 'parf-each-3', 'Succeeded', echo('C'))) as ReconcileResult
+    expect(clean(failed.statusPatch)).toMatchObject({ phase: 'Failed', error: { code: 'boom' }, steps: { each: { phase: 'Failed', active: [], results: [{ echo: { kind: 'value', value: 'A' } }, null, { echo: { kind: 'value', value: 'C' } }] } } })
   })
 
   it('a repeat whose initial or next binding fails fails the step invalid_input, not the reconcile', () => {
