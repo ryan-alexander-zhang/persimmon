@@ -278,7 +278,7 @@ What the agents are taught, as Prompts the pack ships, one per Task, overridable
 | `recovery-review` | for the human's form and the Reviewer subagent: accuracy first, then each Disposition; a `drop` names its reason; a `dead` needs the evidence the ledger shows; an accepted open item names why no test can reach it |
 | `rewrite-audit-rules` | the auditor's checklist per audit Task: an inventory (a plumbing label hiding a rule, a `where` that misses an arm, a directory neither read nor `unread`), mutants (a crash no token names, a change no test can observe, a change of another item), a recovery (a rule a recorded answer contradicts, a capability with no entry point), a rewrite driver (a computation, a missing operation) |
 | `driver-rules` | the rewrite driver renames, reshapes, selects and converts; never arithmetic, never a branch on a value, never a call the operation does not need; each method cites its `EP-n` and the Design element it lands on |
-| skill `rewrite` | `files/.claude/skills/rewrite/SKILL.md` and its `driving.md`: the run order above per Slice, each run's inputs including the product's last approved artifacts; then `autopilot-doc`'s and `autopilot-code`'s order for the Slice's capabilities; with `--autopilot` a Reviewer subagent answers each human Task as `38-autopilot.md` says, and every Disposition is the brief's default |
+| skill `rewrite` | `files/.claude/skills/rewrite/SKILL.md` and its `driving.md`: the run order above per Slice, each run's inputs including the product's last approved artifacts; then `autopilot-doc`'s and `autopilot-code`'s order for the Slice's capabilities; with `--autopilot` a Reviewer subagent answers each human Task as `38-autopilot.md` says, and every Disposition is the brief's default. Analysis only: the same runs per Slice without `characterize`, stopping after `domain-discovery`; the ledger then carries no measurement of the Slice, every item `unverified`, and the human still decides each Disposition |
 
 ## Process
 
@@ -461,6 +461,13 @@ Each its own unit, before the pack content that needs it:
   several repositories needs per-checkout coverage paths and a scratch clone per checkout, so
   `run-source` and `run-mutants` refuse a suite level on it and its Oracle is `static`. Found in
   a reading of `cai-workspace`.
+- Analysis is the rewrite's first half, not a pack: an existing system understood and modelled
+  (inventory, Prd and rules with Dispositions, storming, domain kinds) is the same runs stopped
+  after `domain-discovery`, with `characterize` skipped since nothing is rebuilt to hold to the
+  source. `compute-ledger` already tolerates a Slice never measured (`runs` absent, no earlier
+  revision: `reached`, `pinnable`, `pinned` false, Oracle `static`), so no run changes. The ceiling:
+  no as-is Architecture, since the Architecture kind is the target's; the inventory's entry points
+  and external systems are the as-is map. Found in a reading of `cai-workspace`.
 - The inventory before the Prd, and the Prd before the storming: `checkSubdomains` needs the Prd's
   subdomains to judge the storming's contexts (`34-subdomains.md`). One storming, not an as-is and a
   to-be: it runs after the Dispositions, over the inventory, cut by language and events, so the

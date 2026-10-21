@@ -1,6 +1,6 @@
 ---
 name: rewrite
-description: Rewrite an existing system into a new repository with persimmon, Slice by Slice, without losing a business rule or an edge case - survey the source, inventory and characterize each Slice against the running source, recover the Prd and rules, rebuild with the SDLC run order, then hold the rewrite to the source's recorded answers. Use when the developer asks to rewrite, migrate, port or rebuild an existing codebase. With --autopilot, a fresh subagent answers each human form.
+description: Rewrite an existing system into a new repository with persimmon, Slice by Slice, without losing a business rule or an edge case - survey the source, inventory and characterize each Slice against the running source, recover the Prd and rules, rebuild with the SDLC run order, then hold the rewrite to the source's recorded answers; or only analyze it, stopping at the domain model. Use when the developer asks to rewrite, migrate, port or rebuild an existing codebase, or to analyze, model or understand one. With --autopilot, a fresh subagent answers each human form.
 ---
 
 # Rewrite
@@ -60,6 +60,18 @@ on the first Slice.
    rewrite or report; never the source. Then `parity` again.
 
 A Slice is done when its `parity` Gate passed. Cutting it over is the developer's.
+
+## 2a. Analysis only
+
+The developer asks to understand or model the source, not rebuild it: the same runs, stopping at
+the domain model. Per Slice, steps 1 and 3 of section 2, then `domain-discovery` of step 4 with
+the same inputs; skip `characterize` (step 3 takes the Survey's or the last Slice's ledger: every
+item of the Slice stays `unverified`, its Oracle `static`, and the human still decides each
+Disposition), and skip `architect`, the rest of the SDLC run order and `parity`. The result per
+Slice: the SourceInventory, the Prd and rules with their Dispositions, the EventStorming at design
+level, and a BoundedContext, Glossary and DomainModel per context. An as-is architecture is not
+written: the Architecture is the rewrite's. A directory of checkouts is analysis only, since it
+cannot be run.
 
 ## 3. Stop
 
