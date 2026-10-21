@@ -60,7 +60,8 @@ export const answer = (ns: string, taskRun: string, outputs: Record<string, unkn
 let kinds: Promise<{ name: string; apiVersion: string; kind: string }[]> | undefined;
 const kindName = async (ref: { apiVersion: string; kind: string }) => {
   kinds ??= call("/api/kinds");
-  return (await kinds).find((k) => k.apiVersion === ref.apiVersion && k.kind === ref.kind)?.name;
+  // a ref from the hash names no apiVersion (lib/route.ts): the kind name alone, unique across the packs
+  return (await kinds).find((k) => k.kind === ref.kind && (!ref.apiVersion || k.apiVersion === ref.apiVersion))?.name;
 };
 
 const schemas = new Map<string, Promise<Schema | undefined>>();

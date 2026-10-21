@@ -1,6 +1,7 @@
 // One phase opened beside the map (37-progress.md): its runs round by round, an artifact as a document, the review waiting on you.
 import { ArrowLeft, ChevronRight, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import type { Place, View } from "./lib/route";
 import * as api from "./api";
 import { DocView } from "./doc";
 import { type RevisionRef, type Schema, words } from "./lib/document";
@@ -8,14 +9,12 @@ import { type PhaseView, roundOf, sliceOf, type State } from "./lib/flow";
 import { Glyph } from "./map";
 import { Review } from "./review";
 
-type Mode = { t: "rounds" } | { t: "review"; taskRun: string; task: string } | { t: "artifact"; ref: RevisionRef };
-
-export function Panel({ view, onClose, onAnswered }: { view: PhaseView; onClose: () => void; onAnswered: () => void }) {
-  const [runIndex, setRunIndex] = useState(0);
-  const run = view.runs[runIndex];
+export function Panel({ view, place, go, onClose, onAnswered }: { view: PhaseView; place: Place; go: (r: Place) => void; onClose: () => void; onAnswered: () => void }) {
+  const run = view.runs.find((r) => r.name === place.run) ?? view.runs[0];
   const parked = run?.parked.find((p) => p.verdict) ?? run?.parked[0];
   // a phase waiting on you opens on the review: that is why you clicked it
-  const [mode, setMode] = useState<Mode>(parked ? { t: "review", taskRun: parked.taskRun, task: parked.task } : { t: "rounds" });
+  const mode: View = place.view ?? (parked ? { t: "review", taskRun: parked.taskRun } : { t: "rounds" });
+  const at = (v: View): Place => ({ product: place.product, phase: place.phase, run: run?.name, view: v });
   const [notice, setNotice] = useState<string | undefined>();
 
   return (
@@ -36,7 +35,7 @@ export function Panel({ view, onClose, onAnswered }: { view: PhaseView; onClose:
         </p>
       )}
       {mode.t !== "rounds" && (
-        <button type="button" onClick={() => setMode({ t: "rounds" })} className="flex items-center gap-1.5 px-7 pt-4 pb-1 text-[14px] font-medium text-ink-2 hover:text-ink">
+        <button type="button" onClick={() => go(at({ t: "rounds" }))} className="flex items-center gap-1.5 px-7 pt-4 pb-1 text-[14px] font-medium text-ink-2 hover:text-ink">
           <ArrowLeft className="size-4" aria-hidden /> All rounds
         </button>
       )}
@@ -47,10 +46,10 @@ export function Panel({ view, onClose, onAnswered }: { view: PhaseView; onClose:
           <Review
             namespace={run.namespace}
             taskRun={mode.taskRun}
-            task={mode.task}
+            task={run.parked.find((p) => p.taskRun === mode.taskRun)?.task ?? ""}
             onAnswered={(passed) => {
               setNotice(passed ? "Approved. The run continues." : "Changes requested. The next round starts with your findings.");
-              setMode({ t: "rounds" });
+              go(at({ t: "rounds" }));
               onAnswered();
             }}
           />
@@ -60,15 +59,15 @@ export function Panel({ view, onClose, onAnswered }: { view: PhaseView; onClose:
           <div className="px-7 py-5">
             {view.runs.length > 1 && (
               <div className="mb-5 flex flex-wrap gap-1.5" role="tablist" aria-label="Runs">
-                {view.runs.map((r, i) => (
-                  <button key={r.name} role="tab" aria-selected={i === runIndex} onClick={() => setRunIndex(i)} className={`rounded-full px-3 py-1 text-[13px] ${i === runIndex ? "bg-ink text-white" : "bg-line-2 text-ink-2 hover:text-ink"}`}>
+                {view.runs.map((r) => (
+                  <button key={r.name} role="tab" aria-selected={r === run} onClick={() => go({ product: place.product, phase: place.phase, run: r.name })} className={`rounded-full px-3 py-1 text-[13px] ${r === run ? "bg-ink text-white" : "bg-line-2 text-ink-2 hover:text-ink"}`}>
                     {sliceOf(r) ? `${sliceOf(r)}, ` : ""}
                     {new Date(r.created).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                   </button>
                 ))}
               </div>
             )}
-            <Rounds namespace={run.namespace} name={run.name} round={roundOf(run)} onReview={(taskRun, task) => setMode({ t: "review", taskRun, task })} onArtifact={(ref) => setMode({ t: "artifact", ref })} />
+            <Rounds namespace={run.namespace} name={run.name} round={roundOf(run)} onReview={(taskRun) => go(at({ t: "review", taskRun }))} onArtifact={(ref) => go(at({ t: "artifact", ref }))} />
           </div>
         )}
       </div>
@@ -94,7 +93,7 @@ function Artifact({ ref_, namespace }: { ref_: RevisionRef; namespace: string })
   );
 }
 
-function Rounds({ namespace, name, round, onReview, onArtifact }: { namespace: string; name: string; round?: number; onReview: (taskRun: string, task: string) => void; onArtifact: (ref: RevisionRef) => void }) {
+function Rounds({ namespace, name, round, onReview, onArtifact }: { namespace: string; name: string; round?: number; onReview: (taskRun: string) => void; onArtifact: (ref: RevisionRef) => void }) {
   const [root, setRoot] = useState<api.Node | undefined>();
   const [error, setError] = useState<string | undefined>();
   const load = useCallback(() => api.tree(namespace, name).then(setRoot, (e) => setError((e as Error).message)), [namespace, name]);
@@ -140,7 +139,7 @@ function Rounds({ namespace, name, round, onReview, onArtifact }: { namespace: s
 }
 
 /** One run in a round, in words: a draft and what it made, a review and each check's verdict, a step waiting on you. */
-function Step({ node, onReview, onArtifact, depth = 0 }: { node: api.Node; onReview: (taskRun: string, task: string) => void; onArtifact: (ref: RevisionRef) => void; depth?: number }) {
+function Step({ node, onReview, onArtifact, depth = 0 }: { node: api.Node; onReview: (taskRun: string) => void; onArtifact: (ref: RevisionRef) => void; depth?: number }) {
   const parkedTask = node.kind === "TaskRun" ? (node.parked ? node : undefined) : node.children.find((c) => c.kind === "TaskRun" && c.parked);
   const artifacts = Object.values(node.outputs ?? {}).flatMap((o) => (o.kind === "artifact" && o.ref ? [o.ref] : o.kind === "artifacts" ? (o.refs ?? []) : []));
   const v = verdictOf(node);
@@ -153,7 +152,7 @@ function Step({ node, onReview, onArtifact, depth = 0 }: { node: api.Node; onRev
         <span className="font-medium">{nameOf(node)}</span>
         <span className="text-[14px] text-ink-2">{parkedTask ? (parkedTask.verdict ? "waiting for your review" : "waiting for your input") : describe(node, v)}</span>
         {parkedTask && (
-          <button type="button" onClick={() => onReview(parkedTask.name, parkedTask.task ?? "")} className="ml-auto rounded-lg bg-persimmon px-3.5 py-1.5 text-[14px] font-semibold text-white hover:brightness-95">
+          <button type="button" onClick={() => onReview(parkedTask.name)} className="ml-auto rounded-lg bg-persimmon px-3.5 py-1.5 text-[14px] font-semibold text-white hover:brightness-95">
             {parkedTask.verdict ? "Review" : "Open"}
           </button>
         )}
