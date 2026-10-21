@@ -497,7 +497,7 @@ spec:
     buildingBlocks:
       - id: BB-1
         name: claims core
-        technology: Node service, event store
+        technology: Node 22, Fastify 5, PostgreSQL 16 as the event store
         responsibility: "the Expenses context: claims, claim lines, trips, per diem, rules, routing, approval state"
         interfaces:
           - {name: claims API, kind: provides, description: "submit, read, decide a claim; list by employee, approver, state"}
@@ -505,21 +505,21 @@ spec:
         contexts: [expenses]
       - id: BB-2
         name: receipt store
-        technology: object store, EU region
+        technology: MinIO (S3 API), EU region
         responsibility: "immutable receipt blobs by digest, retention, access by claim membership"
         interfaces:
           - {name: blob API, kind: provides, description: "put by content, get by digest, with the claim's access rule"}
         contexts: []
       - id: BB-3
         name: risk check
-        technology: Node service
+        technology: Node 22, Fastify 5
         responsibility: sets the risk flag on a submitted claim from Finance's fraud patterns
         interfaces:
           - {name: risk API, kind: provides, description: flag or clear a submitted claim against the fraud patterns}
         contexts: [expenses]
       - id: BB-4
         name: export gateway
-        technology: Node service
+        technology: Node 22, Fastify 5
         responsibility: "one signed export record per approved claim to Accounting, with export status"
         interfaces:
           - {name: export intake, kind: provides, description: takes an approved claim once and owns its export status}
@@ -527,7 +527,7 @@ spec:
         contexts: [expenses]
       - id: BB-5
         name: web client
-        technology: browser app
+        technology: React 18, Vite 5
         responsibility: "the employee, approver and finance operator screens over the claims API"
         interfaces:
           - {name: claims API, kind: requires, description: everything shown comes from the core}
