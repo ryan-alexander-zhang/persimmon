@@ -39,8 +39,9 @@ autopilot = autopilot-doc then autopilot-code
 | a build round refused on an open `Q-n` (`question-open`) has it decided by a new Reviewer subagent, as a human Gate's would be; the orchestrator gives the decisions to the next round's builder and tester subagents, and the builder writes each as its `Q-n`'s `resolution`; every decision is in the report | skill |
 | a `D-n` whose task passed becomes an `Issue`, its fix a `build-one`, then the Issue's `resolved` revision; one fix attempt per Issue, then stop; an Issue that finds the Spec wrong or missing stops it, a Spec revision being the developer's call | skill |
 | `plan_regressed` is an Issue with the red test as its `reproduction`, fixed the same way | skill |
-| a `question-upstream` warning naming a Spec, from a TestHarness, TestDesign or AcceptanceRecord run that passed or ran out of rounds, is applied before the build goes on: `spec-one` with the Spec as `base` and the answers as `changes`, then `plan-all` and `test-design-all` for that capability; as often as a run tells new answers, a failed Spec Gate stopping it; one naming another kind than a Spec or the TestHarness stops it, reported as the revision the developer owes; the Reviewer subagent decides what serves the product, never what is easiest to revise | skill |
+| a `question-upstream` warning naming a Spec, from a TestHarness, TestDesign or AcceptanceRecord run that passed or ran out of rounds, is applied before the build goes on: `spec-one` with the Spec as `base` and the answers as `changes`, then `plan-all` and `test-design-all` for that capability; as often as a run tells new answers, a failed Spec Gate stopping it; one naming the Architecture, an Adr or a Glossary stops it, reported as the revision the developer owes; the Reviewer subagent decides what serves the product, never what is easiest to revise | skill |
 | a `question-upstream` warning naming the TestHarness is applied the same way: `setup-tests` with the harness as `base` and the answers as `changes`, then `test-design-all` again for the capabilities whose TestDesign told it | skill |
+| a `question-upstream` warning naming a Design or a Plan is applied the same way: `design-one` or `plan-one` with it as `base` and the answers as `changes`; then what cites it again, a revised Design's Plans (`plan-all` for the capabilities whose Plan lists it) and, for an `http-api` one, the `ui` Designs calling it, and every revised Plan's TestDesign; an answer that contradicts the Architecture or an Adr stops it | skill |
 | the report names every Prd, Architecture, Adr, Spec, Plan and AcceptanceRecord revision, every `Q-n` an agent resolved, every `question-upstream` warning as an upstream revision the developer owes, every Issue and the files changed; the developer reviews the diff and commits | skill |
 
 ## Decisions
@@ -94,5 +95,11 @@ autopilot = autopilot-doc then autopilot-code
   of rounds counts too: a question that finds the Spec wrong, not missing, lets no TestDesign pass
   against the old Spec, as the live run's third round showed. Revising
   another upstream kind (a Glossary, a Design) stays the developer's call, reported.
+- Designs and Plans are revised on the way too, each through its own loop, once the live run met
+  answers neither could skip: a 404 on the Booking API, a scenario moved to a later task. A Design
+  revision spreads: the Plans listing it, the `ui` Designs calling it and their TestDesigns are run
+  again. An answer that changes the Architecture or an Adr still stops it: that is an architecture
+  decision, the developer's, and an `architect` revision would write the Adr. Chosen by the
+  developer.
 - The Autopilot never runs git, as no agent in the pack does: the developer commits the diff once,
   after reading the report.

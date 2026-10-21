@@ -22,11 +22,11 @@ Workflow design-all: repeat over `blocks` with one `type` ─▶ ReviewLoop desi
 |---|---|
 | Prompt `design-rules` | one asset per block and type; the contract whole and standard; the index names what each operation, channel or table realises in the DomainModel; refusals name the rule; field names are Glossary terms; nothing the DomainModel lacks is invented |
 | Executor `design-agent` | `claude-code/v1`, read-only, its own name for per-Namespace override |
-| Task `design-asset` | inputs `architecture`, `blockId`, `type`, `interface` (optional: which provided interface, else the block's first), `domainModel` and `glossary` (required unless `type` is `ui`), `rules`, `designSystem` and `designs` (required when it is), `previous`, `feedback`; output `design` |
+| Task `design-asset` | inputs `architecture`, `blockId`, `type`, `interface` (optional: which provided interface, else the block's first), `domainModel` and `glossary` (required unless `type` is `ui`), `rules`, `designSystem` and `designs` (required when it is), `previous`, `feedback`; output `design`; `base?` (the Design this run revises) and `changes?` (the downstream answers it applies, each `<artifact id> Q-n: <resolution>`), both or neither |
 | Validator `design-consistency` | `sdd/v1` over `design`, `architecture`, `domainModel` and `glossary` (optional), `rules`, and for a `ui` Design `designSystem` and `designs`; the Design rule row of `23-pack-sdlc.md` as findings, the document's field names held to the Glossary (`alias-used`, `term-unknown`), and a `ui` screen's Actions and Layout prose read past the index (`32-ui-design-process.md`) |
 | Validator `design-audited` | `task` over `audit-design` (inputs `design`, `architecture`, `rules`, and `domainModel` or, for `ui`, `designs`, and from round two `previous` and `feedback`; Executor `auditor`; the Prompt `draft-audit-rules`, part "A Design": `rule-unenforced` and `contract-mismatch` errors, `contract-gap` warnings; `23-pack-sdlc.md`) |
 | Gate `design-gate` | consistency, then `audit` `after: [consistency]`, `all`, 35m |
-| ReviewLoop `design-one` | `produce` `design-asset`, `review` `design-gate` (35m), `maxRounds: 2`, 140m; takes `interface` too, so a block with two provided interfaces gets its second Design from a direct run |
+| ReviewLoop `design-one` | `produce` `design-asset`, `review` `design-gate` (35m), `maxRounds: 2`, 140m; takes `interface` too, so a block with two provided interfaces gets its second Design from a direct run; `base` and `changes` passed to `design-asset` |
 | Workflow `design-all` | `repeat` over `blocks` (BB-n ids) for one `type`, as `spec-all` repeats over capabilities; a block the loop could not design ends the run `design_inconsistent`, an iteration that died before its Gate ran `step_failed`; output `written` |
 | Validator `domain-coverage` | `sdd/v1` over `domainModel` and `designs` (every Design; the ones naming the model are read): each name the model owns with no element realising it is `unrealised`, a warning, or `unrealised-internal`, an info, for a command a policy invokes or an event an external system emits |
 | Gate `coverage-gate`, Workflow `design-coverage` | the Gate alone, no Task: `persimmon run design-coverage --input domainModel=<ref> --follow`, the step querying the Designs that name the model (`fromQuery`, `10-ports.md`); output `passed`, the tree lists every gap |
@@ -78,6 +78,13 @@ The Adapter picks the mode from the payload: `artifacts.spec` (or `artifacts.mod
 | a Design cites Architecture, DomainModel, Glossary, BusinessRules and Adrs; never a Spec or a Prd: the contract follows from the domain and the block, not from one capability. A `ui` Design cites the DesignSystem and the block's API Designs in place of the DomainModel and Glossary (`32-ui-design-process.md`) | `design-rules`; convention; `ui-domainmodel` |
 
 ## Decisions
+
+- A downstream answer that changes a Design reaches it through `design-one` with `base` and
+  `changes`, as a Spec's does through `spec-one` (`27-spec-process.md`): the revision keeps every
+  `EL-n` the Plans and the TestDesigns cite and passes the Design's own Gate. In the live run a
+  TestDesign answer asked the Booking API for a 404 on an unknown booking, and no run could carry
+  it. Keeping the ids is the prompt's rule; a check against `base`, as `checkSpec` has, is the
+  upgrade. Found in UAT.
 
 - The Task takes `blockId` and `type` and the loop repeats over blocks for one type: a product's
   blocks are few and known from the Architecture, and one asset per block and type is the unit of
