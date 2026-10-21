@@ -5,7 +5,7 @@ import type { Place, View } from "./lib/route";
 import * as api from "./api";
 import { DocView, type Jump, Linked } from "./doc";
 import { type RevisionRef, type Schema, words } from "./lib/document";
-import { type PhaseView, roundOf, sliceOf, type State } from "./lib/flow";
+import { type PhaseView, roundOf, runView, type State } from "./lib/flow";
 import { useMemo } from "react";
 import { Glyph } from "./map";
 import { ChangesSwitch, countOf, Review } from "./review";
@@ -61,9 +61,10 @@ export function Panel({ view, place, go, onClose, onAnswered }: { view: PhaseVie
             {view.runs.length > 1 && (
               <div className="mb-5 flex flex-wrap gap-1.5" role="tablist" aria-label="Runs">
                 {view.runs.map((r) => (
-                  <button key={r.name} role="tab" aria-selected={r === run} onClick={() => go({ product: place.product, phase: place.phase, run: r.name })} className={`rounded-full px-3 py-1 text-[13px] ${r === run ? "bg-ink text-white" : "bg-line-2 text-ink-2 hover:text-ink"}`}>
-                    {sliceOf(r) ? `${sliceOf(r)}, ` : ""}
-                    {new Date(r.created).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                  <button key={r.name} role="tab" aria-selected={r === run} onClick={() => go({ product: place.product, phase: place.phase, run: r.name })} className={`flex items-center gap-1.5 rounded-full py-1 pr-3 pl-1.5 text-[13px] ${r === run ? "bg-ink text-white" : "bg-line-2 text-ink-2 hover:text-ink"}`}>
+                    <Glyph state={runView(r).state} size={14} />
+                    {runView(r).detail}
+                    <span className={r === run ? "text-white/70" : "text-ink-3"}>{new Date(r.created).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
                   </button>
                 ))}
               </div>
@@ -147,7 +148,6 @@ function Rounds({ namespace, name, round, onReview, onArtifact }: { namespace: s
     return () => clearInterval(t);
   }, [load, round]);
   if (!root) return <p className="text-ink-2">{error ?? "Loading…"}</p>;
-  const rounds = root.children.filter((c) => /^rounds-\d+$/.test(c.label));
   // a finding names an element by id; the artifact of this round that holds it opens there
   const jump = (made: RevisionRef[]) => async (id: string) => {
     for (const ref of made) {
@@ -156,14 +156,28 @@ function Rounds({ namespace, name, round, onReview, onArtifact }: { namespace: s
     }
     if (made[0]) onArtifact(made[0]);
   };
-  const act = { onReview, onArtifact, onJump: jump(madeBy(root)) };
+  return <Tree node={root} act={{ onReview, onArtifact, jump }} />;
+}
+
+interface Act {
+  onReview: (taskRun: string) => void;
+  onArtifact: (ref: RevisionRef, anchor?: string) => void;
+  /** The jump for findings under `made`: the artifacts of the round they judge. */
+  jump: (made: RevisionRef[]) => (id: string) => void;
+}
+
+const isRound = (n: api.Node) => /^rounds-\d+$/.test(n.label);
+
+/** The runs a run owns: a review loop's as folded rounds, newest open; anything else as steps. */
+function Tree({ node, act }: { node: api.Node; act: Act }) {
+  const rounds = node.children.filter(isRound);
   if (rounds.length === 0)
     return (
       <ol className="space-y-1">
-        {root.children.map((c) => (
-          <Step key={c.name} node={c} {...act} />
+        {node.children.map((c) => (
+          <Step key={c.name} node={c} act={act} onJump={act.jump(madeBy(node))} />
         ))}
-        {root.error && <ErrorLine error={root.error} />}
+        {node.error && <ErrorLine error={node.error} />}
       </ol>
     );
   return (
@@ -179,7 +193,7 @@ function Rounds({ namespace, name, round, onReview, onArtifact }: { namespace: s
             </summary>
             <ol className="space-y-1 border-t border-line-2 px-4 py-3">
               {r.children.map((c) => (
-                <Step key={c.name} node={c} {...act} onJump={jump(madeBy(r))} />
+                <Step key={c.name} node={c} act={act} onJump={act.jump(madeBy(r))} />
               ))}
               {r.error && <ErrorLine error={r.error} />}
             </ol>
@@ -191,9 +205,12 @@ function Rounds({ namespace, name, round, onReview, onArtifact }: { namespace: s
 }
 
 /** One run in a round, in words: a draft and what it made, a review and each check's verdict, a step waiting on you. */
-function Step({ node, onReview, onArtifact, onJump, depth = 0 }: { node: api.Node; onReview: (taskRun: string) => void; onArtifact: (ref: RevisionRef) => void; onJump: (id: string) => void; depth?: number }) {
+function Step({ node, act, onJump, depth = 0 }: { node: api.Node; act: Act; onJump: (id: string) => void; depth?: number }) {
+  const { onReview, onArtifact } = act;
   const parkedTask = node.kind === "TaskRun" ? (node.parked ? node : undefined) : node.children.find((c) => c.kind === "TaskRun" && c.parked);
-  const artifacts = refsOf(node);
+  // an artifact is listed where it was made, not again on every run that passed it up
+  const below = new Set(node.children.flatMap(madeBy).map(refKey));
+  const artifacts = refsOf(node).filter((r) => !below.has(refKey(r)));
   const v = verdictOf(node);
   // a check's own TaskRun (the auditor, the human) reads as the check itself
   const kids = node.kind === "ValidationRun" ? [] : node.children;
@@ -231,12 +248,18 @@ function Step({ node, onReview, onArtifact, onJump, depth = 0 }: { node: api.Nod
         </ul>
       )}
       {node.error && <ErrorLine error={node.error} />}
-      {kids.length > 0 && (
-        <ol>
-          {kids.map((c) => (
-            <Step key={c.name} node={c} onReview={onReview} onArtifact={onArtifact} onJump={onJump} depth={depth + 1} />
-          ))}
-        </ol>
+      {kids.some(isRound) ? (
+        <div className="mt-1.5 mb-2 ml-[30px]">
+          <Tree node={node} act={act} />
+        </div>
+      ) : (
+        kids.length > 0 && (
+          <ol>
+            {kids.map((c) => (
+              <Step key={c.name} node={c} act={act} onJump={onJump} depth={depth + 1} />
+            ))}
+          </ol>
+        )
       )}
     </li>
   );

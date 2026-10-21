@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { edges, phases, phasesOf, products, productsOf, type Run, view } from "./flow";
+import { edges, phases, phasesOf, products, productsOf, type Run, runView, view } from "./flow";
 
 const run = (o: Partial<Run>): Run => ({ namespace: "default", name: "r", workflow: "author-prd", phase: "Running", created: "2026-10-20T01:00:00Z", steps: {}, inputs: {}, outputs: {}, upstream: [], parked: [], ...o });
 const phase = (id: string) => phases.find((p) => p.id === id)!;
@@ -65,6 +65,14 @@ describe("view", () => {
     const other = run({ workflow: "architect", upstream: [{ kind: "Prd", id: "q" }] });
     expect(view(phase("architecture"), "p", [other]).state).toBe("idle");
     expect(view(phase("architecture"), "q", [other]).state).toBe("running");
+  });
+});
+
+describe("runView", () => {
+  it("says one run's outcome, its Slice first", () => {
+    const rejected = run({ phase: "Succeeded", inputs: { slice: { kind: "value", value: "SL-1" } }, outputs: { passed: { kind: "value", value: false }, rounds: { kind: "value", value: 2 } } });
+    expect(runView(rejected)).toEqual({ state: "rejected", detail: "SL-1: Rejected after 2 rounds" });
+    expect(runView(run({ phase: "Failed", error: { code: "adapter", message: "" } }))).toEqual({ state: "failed", detail: "Failed: adapter" });
   });
 });
 

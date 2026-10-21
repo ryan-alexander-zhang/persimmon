@@ -116,23 +116,28 @@ export const sliceOf = (run: Run) => (typeof run.inputs.slice?.value === "string
 /** A review loop's round, the step `rounds` its expansion runs (21-composition.md). */
 export const roundOf = (run: Run) => run.steps.rounds?.iteration;
 
+/** `SL-2: ` before a run's line, and `Round 1, ` while its loop runs. */
+const lead = (run: Run, inRound: boolean) => `${sliceOf(run) ? `${sliceOf(run)}: ` : ""}${inRound && roundOf(run) ? `Round ${roundOf(run)}, ` : ""}`;
+
+/** One run's state and the line that says it: `SL-2: Round 1, running`, `Approved after 2 rounds`. */
+export function runView(run: Run): { state: State; detail: string } {
+  // a gate asks for a verdict; any other parked step (a human drafting, the builder) asks for its work
+  if (run.parked.length) return { state: "needs-you", detail: `${lead(run, true)}${run.parked.length > 1 ? `${run.parked.length} steps wait on you` : run.parked[0]!.verdict ? "your review" : "your input"}` };
+  if (run.phase === "Failed" || run.phase === "Cancelled") return { state: "failed", detail: `${lead(run, false)}${run.error?.code ? `Failed: ${run.error.code}` : run.phase}` };
+  if (run.phase !== "Succeeded") return { state: "running", detail: `${lead(run, true)}${run.waitingReason === "human" ? "waiting on a reviewer" : "running"}` };
+  const rounds = value(run.outputs.rounds);
+  const after = typeof rounds === "number" ? ` after ${rounds} round${rounds === 1 ? "" : "s"}` : "";
+  if (value(run.outputs.passed) === false) return { state: "rejected", detail: `${lead(run, false)}Rejected${after}` };
+  return { state: "done", detail: `${lead(run, false)}Approved${after}` };
+}
+
 /** What one phase of one product shows: the newest run's state, unless any run waits on you. */
 export function view(phase: Phase, product: string, runs: Run[]): PhaseView {
   const mine = runs.filter((r) => phase.workflows.includes(r.workflow) && productsOf(r).includes(product)).sort((a, b) => b.created.localeCompare(a.created));
   const base = { phase, runs: mine };
   const parked = mine.flatMap((r) => r.parked);
   const newest = mine[0];
-  const round = newest && roundOf(newest);
-  const slice = newest && sliceOf(newest);
-  const inRound = `${slice ? `${slice}: ` : ""}${round ? `Round ${round}, ` : ""}`;
-  // a gate asks for a verdict; any other parked step (a human drafting, the builder) asks for its work
-  if (parked.length) return { ...base, state: "needs-you", detail: `${inRound}${parked.length > 1 ? `${parked.length} steps wait on you` : parked[0]!.verdict ? "your review" : "your input"}` };
+  if (parked.length) return { ...base, state: "needs-you", detail: `${lead(newest!, true)}${parked.length > 1 ? `${parked.length} steps wait on you` : parked[0]!.verdict ? "your review" : "your input"}` };
   if (!newest) return { ...base, state: "idle", detail: "Not started" };
-  const at = slice ? `${slice}: ` : "";
-  if (newest.phase === "Failed" || newest.phase === "Cancelled") return { ...base, state: "failed", detail: `${at}${newest.error?.code ? `Failed: ${newest.error.code}` : newest.phase}` };
-  if (newest.phase !== "Succeeded") return { ...base, state: "running", detail: `${inRound}${newest.waitingReason === "human" ? "waiting on a reviewer" : "running"}` };
-  const rounds = value(newest.outputs.rounds);
-  const after = typeof rounds === "number" ? ` after ${rounds} round${rounds === 1 ? "" : "s"}` : "";
-  if (value(newest.outputs.passed) === false) return { ...base, state: "rejected", detail: `${at}Rejected${after}` };
-  return { ...base, state: "done", detail: `${at}Approved${after}` };
+  return { ...base, ...runView(newest) };
 }
