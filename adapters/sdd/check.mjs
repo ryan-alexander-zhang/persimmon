@@ -42,7 +42,7 @@ const rulesSource = (bad, doc, ids, upstream) => {
   if (upstream?.doc?.businessRules !== undefined && ids.rules && upstream.doc.businessRules !== ids.rules) bad('rules-mismatch', `${upstream.name} names businessRules ${upstream.doc.businessRules}, not ${ids.rules}, the BusinessRules bound`)
 }
 
-export function checkSpec({ spec, prd, domainModel, architecture, rules, context, ids = {} }) {
+export function checkSpec({ spec, prd, domainModel, architecture, rules, context, base, ids = {} }) {
   if (!spec || !Array.isArray(spec.stories) || !Array.isArray(spec.requirements) || !spec.capability) {
     return [{ severity: 'error', code: 'not-a-spec', message: 'content is not a Spec: it has no stories array, no requirements array or no capability' }]
   }
@@ -111,6 +111,17 @@ export function checkSpec({ spec, prd, domainModel, architecture, rules, context
   sequence(bad, 'FR', requirementIds)
   sequence(bad, 'US', storyIds)
   sequence(bad, 'Q', (spec.openQuestions ?? []).map((q) => q.id))
+
+  // a Spec revised from base keeps its ids: the Plan and the TestDesign cite them (27-spec-process.md)
+  if (base) {
+    const baseStory = new Map((base.stories ?? []).flatMap((s) => (s.acceptance ?? []).map((ac) => [ac.id, s.id])))
+    const kinds = { US: [storyIds, (base.stories ?? []).map((s) => s.id)], FR: [requirementIds, (base.requirements ?? []).map((r) => r.id)], AC: [[...criterionStory.keys()], [...baseStory.keys()]] }
+    for (const [prefix, [now, was]] of Object.entries(kinds)) {
+      const top = Math.max(0, ...was.map((id) => Number(String(id).slice(prefix.length + 1))))
+      for (const id of now) if (!was.includes(id) && Number(String(id).slice(prefix.length + 1)) <= top) bad('id-reused', `${id} is not in the Spec it replaces, whose ids reach ${prefix}-${top}: a new item takes the next id`)
+    }
+    for (const [ac, story] of criterionStory) if (baseStory.has(ac) && baseStory.get(ac) !== story) bad('id-reused', `${ac} was under ${baseStory.get(ac)} in the Spec it replaces and is now under ${story}: a scenario keeps its id`)
+  }
   return findings
 }
 

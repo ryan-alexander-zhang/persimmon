@@ -151,6 +151,7 @@ function evaluate(payload) {
     architecture: required(artifacts, 'architecture'),
     rules: required(artifacts, 'rules'),
     context: artifacts.context?.content,
+    base: artifacts.base?.content,
     ids: { rules: payload.inputs?.rules?.ref?.id, context: payload.inputs?.context?.ref?.id, capability: payload.inputs?.capabilityId?.value },
   })
   // the payload carries each artifact as {content, provenance}: no RevisionRef, so no evidence (19-adapter-roles.md)

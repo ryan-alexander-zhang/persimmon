@@ -243,6 +243,7 @@ spec:
       architecture: {fromInput: architecture}
       rules: {fromInput: rules}
       context: {fromInput: context}
+      base: {fromInput: base, onMissing: omit}
       previous: {fromInput: previous}
       feedback: {fromInput: feedback}
     timeout: 35m

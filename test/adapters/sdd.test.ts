@@ -149,6 +149,18 @@ describe('sdd/v1', () => {
     expect(await codes((a) => { a.spec.openQuestions[0].id = 'Q-2' })).toEqual(['id-sequence']) // Q-2, Q-2, Q-3: the duplicate is the second
   })
 
+  // a Spec revised from base keeps its ids (27-spec-process.md)
+  it('fails an id a revision reuses, and a scenario moved to another story', async () => {
+    const kept: Record<string, any> = structuredClone(example())
+    kept.base = structuredClone(kept.spec)
+    kept.spec.stories[0].acceptance.push({ ...kept.spec.stories[0].acceptance[0], id: 'AC-10' }) // a new scenario takes the next id
+    expect((await adapter({ id: ++id, op: 'evaluate', payload: payload(kept) })).result).toMatchObject({ passed: true, findings: [] })
+    const reused = async (mutate: (base: Record<string, any>) => void) => codes((a: Record<string, any>) => { a.base = structuredClone(a.spec); mutate(a.base) })
+    expect(await reused((b) => { b.stories[0].acceptance.splice(1, 1) })).toEqual(['id-reused']) // AC-2 removed earlier, now back
+    expect(await reused((b) => { b.requirements.splice(1, 1) })).toEqual(['id-reused'])
+    expect(await reused((b) => { b.stories[1].acceptance.push(b.stories[0].acceptance.pop()) })).toEqual(['id-reused']) // under US-2 before
+  })
+
   it('is invalid_input without a required artifact and on an unknown op', async () => {
     const { rules, ...rest } = example()
     const missing = await adapter({ id: 1004, op: 'evaluate', payload: payload(rest) })
