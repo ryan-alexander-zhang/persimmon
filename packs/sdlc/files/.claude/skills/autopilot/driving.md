@@ -106,9 +106,23 @@ passed revision and `changes=@<file>` the answers; its Tester and confirm forms 
 usual. Its Gate passed: `test-design-all` again for the capabilities whose TestDesign told the
 answer, with the new harness, and every later run takes it. Its Gate failing stops the Autopilot.
 
-A `question-upstream` naming another kind (a Glossary, a Design, the Plan) has no
-revision the Autopilot can run: it stops the Autopilot after that run, and the report names the
-answer and the artifact as the revision the developer owes before resuming.
+A `question-upstream` naming a Design is applied through `persimmon run design-one` with the inputs
+`design-all` gave it (`architecture`, `blockId`, `type`, `interface`, `qualifier`, `domainModel`,
+`glossary`, `rules`, and for a `ui` Design `designSystem` and `designs`), `base` its latest passed
+revision and `changes=@<file>`. Its Gate passed: for an `http-api` Design, `design-one` again for the
+`ui` Designs that call it; then `plan-all` for the capabilities whose Plan lists a revised Design,
+and `test-design-all` for them. Later runs take the new revisions.
+
+A `question-upstream` naming a Plan is applied through `persimmon run plan-one` with the inputs
+`plan-all` gave it (`spec`, `architecture`, `designs`, `domainModel`), `base` its latest passed
+revision and `changes=@<file>`; its Gate passed, `test-design-all` for that capability.
+
+Apply Specs first, then the TestHarness, Designs and Plans, then the TestDesigns once; one answer may
+name several artifacts. Any of these Gates failing stops the Autopilot.
+
+A `question-upstream` naming the Architecture, an Adr or a Glossary has no revision the Autopilot
+runs: an architecture decision is the developer's. It stops the Autopilot after that run, and the
+report names the answer and the artifact as the revision the developer owes before resuming.
 
 ## Stop
 
@@ -126,8 +140,8 @@ Stop and report, never work around it, when:
 - a subagent's answer is refused twice for the same form;
 - an `Issue`'s fix fails its Gate (`autopilot-code`).
 - a Spec revision fails its Gate (Upstream answers, above).
-- a run tells a `question-upstream` naming anything but a Spec or the TestHarness, or a TestHarness
-  revision fails its Gate (Upstream answers, above).
+- a run tells a `question-upstream` naming the Architecture, an Adr or a Glossary, or a TestHarness,
+  Design or Plan revision fails its Gate (Upstream answers, above).
 
 ## Report
 
