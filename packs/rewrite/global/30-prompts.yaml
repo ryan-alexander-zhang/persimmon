@@ -75,7 +75,8 @@ spec:
 
     - `guards[]`: one per decision: a branch that refuses, computes or decides. `condition` is what the code tests;
       `outcome` what follows on each side. `where` runs from the deciding statement to the end of its last arm
-      (`src/A.java:41-58`), never a whole file; a condition name or constant the test reads is a second `where` at its
+      (`src/A.java:41-58`), never a whole file; a guard that returns early has the code after it as its other arm, so its
+      `where` runs to the end of that code; a condition name or constant the test reads is a second `where` at its
       declaration. `in` lists the entry points it sits under. `role`: `rule` (a business decision), `plumbing` (a null
       check, a file status, a retry, a log level), `unknown` when you cannot tell; never guess `plumbing` to shorten the list.
       `volatile`: `time` only when the condition reads the clock (`now()`, `CURRENT-DATE`), never for a date the input
