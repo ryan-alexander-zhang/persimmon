@@ -7,7 +7,7 @@ import { DocView } from "./doc";
 import { type RevisionRef, type Schema, words } from "./lib/document";
 import { type PhaseView, roundOf, sliceOf, type State } from "./lib/flow";
 import { Glyph } from "./map";
-import { Review } from "./review";
+import { ChangesSwitch, countOf, Review } from "./review";
 
 export function Panel({ view, place, go, onClose, onAnswered }: { view: PhaseView; place: Place; go: (r: Place) => void; onClose: () => void; onAnswered: () => void }) {
   const run = view.runs.find((r) => r.name === place.run) ?? view.runs[0];
@@ -54,7 +54,7 @@ export function Panel({ view, place, go, onClose, onAnswered }: { view: PhaseVie
             }}
           />
         ) : mode.t === "artifact" ? (
-          <Artifact ref_={mode.ref} namespace={run.namespace} />
+          <Artifact ref_={mode.ref} namespace={run.namespace} onRevision={(n) => go(at({ t: "artifact", ref: { ...mode.ref, revision: n } }))} />
         ) : (
           <div className="px-7 py-5">
             {view.runs.length > 1 && (
@@ -75,20 +75,49 @@ export function Panel({ view, place, go, onClose, onAnswered }: { view: PhaseVie
   );
 }
 
-function Artifact({ ref_, namespace }: { ref_: RevisionRef; namespace: string }) {
+/** One revision read as a document, marked with what changed since the revision before it, and the way to its neighbours. */
+function Artifact({ ref_, namespace, onRevision }: { ref_: RevisionRef; namespace: string; onRevision: (n: number) => void }) {
   const [content, setContent] = useState<unknown>();
   const [schema, setSchema] = useState<Schema | undefined>();
+  const [revs, setRevs] = useState<number[]>([]);
+  const [prev, setPrev] = useState<{ revision: number; content: unknown } | undefined>();
+  const [hidden, setHidden] = useState(false);
   const [error, setError] = useState<string | undefined>();
   useEffect(() => {
+    setContent(undefined);
+    setPrev(undefined);
     api.revision(ref_, namespace).then(setContent, (e) => setError((e as Error).message));
     void api.schemaOf(ref_).then(setSchema);
+    void api.revisions(ref_, namespace).then(setRevs, () => undefined);
+    if (ref_.revision > 1) void api.previous(ref_, namespace).then(setPrev, () => undefined);
   }, [ref_, namespace]);
+  const before = revs.filter((r) => r < ref_.revision).at(-1);
+  const after = revs.find((r) => r > ref_.revision);
+  const step = (n: number | undefined, label: string) => (
+    <button type="button" disabled={n === undefined} onClick={() => n !== undefined && onRevision(n)} className="rounded px-1 font-medium text-ink-2 hover:text-ink disabled:opacity-30" aria-label={`${label} revision`} title={n === undefined ? undefined : `Revision ${n}`}>
+      {label === "Previous" ? "‹" : "›"}
+    </button>
+  );
   return (
     <article className="px-7 pt-4 pb-10">
-      <p className="mb-4 text-[13px] text-ink-3">
-        {ref_.kind} <span className="font-medium text-ink-2">{ref_.id}</span>, revision {ref_.revision}
+      <p className="mb-4 flex flex-wrap items-center gap-x-1 text-[13px] text-ink-3">
+        <span>
+          {ref_.kind} <span className="font-medium text-ink-2">{ref_.id}</span>,
+        </span>
+        {step(before, "Previous")}
+        <span>
+          revision {ref_.revision}
+          {revs.length > 1 ? ` of ${revs.at(-1)}` : ""}
+        </span>
+        {step(after, "Next")}
+        {prev && content !== undefined && <ChangesSwitch on={!hidden} onChange={(on) => setHidden(!on)} since={prev.revision} count={countOf(prev.content, content, schema, ref_.id, ref_.kind)} />}
+        {ref_.kind === "EventStorming" && (
+          <a className="ml-3 font-medium text-run hover:underline" href={`/tools/eventstorming/?${new URLSearchParams({ ns: ref_.namespace ?? namespace, id: ref_.id, rev: String(ref_.revision) })}`} target="_blank" rel="noreferrer">
+            Open the board
+          </a>
+        )}
       </p>
-      {error ? <p className="text-bad">{error}</p> : content === undefined ? <p className="text-ink-2">Loading…</p> : <DocView content={content} schema={schema} base={ref_.id} kind={ref_.kind} />}
+      {error ? <p className="text-bad">{error}</p> : content === undefined ? <p className="text-ink-2">Loading…</p> : <DocView content={content} schema={schema} base={ref_.id} kind={ref_.kind} {...(prev && !hidden ? { prev: prev.content } : {})} />}
     </article>
   );
 }

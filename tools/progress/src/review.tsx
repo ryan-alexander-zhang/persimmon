@@ -125,12 +125,12 @@ export function Review({ namespace, taskRun, task, onAnswered }: { namespace: st
   );
 }
 
-const countOf = (prev: unknown, next: unknown, schema: Schema | undefined, base: string, kind: string) => {
+export const countOf = (prev: unknown, next: unknown, schema: Schema | undefined, base: string, kind: string) => {
   const d = diffDoc(toDoc(prev, schema, base, kind), toDoc(next, schema, base, kind));
   return countChanges(d.blocks) + d.meta.filter((m) => m.change).length;
 };
 
-function ChangesSwitch({ on, onChange, since, count }: { on: boolean; onChange: (on: boolean) => void; since: number; count: number }) {
+export function ChangesSwitch({ on, onChange, since, count }: { on: boolean; onChange: (on: boolean) => void; since: number; count: number }) {
   return (
     <label className="relative ml-3 inline-flex cursor-pointer items-center gap-2 align-middle text-[13px] text-ink-2">
       <input type="checkbox" role="switch" checked={on} onChange={(e) => onChange(e.target.checked)} className="peer sr-only" />
