@@ -11,7 +11,7 @@ a human gate waits, the document under review with Approve and Reject. That is t
 project lock.
 
 ```text
-persimmon ui ──▶ / ──▶ /tools/progress/#<product>/<phase>
+persimmon ui ──▶ / ──▶ /tools/progress/#<product>/<phase>/<run>/<view>   every place linkable; the back button walks it
   GET  /api/runs                        top-level WorkflowRuns: workflow, phase, steps, inputs, upstream artifacts, parked TaskRuns
   GET  /api/runs/<ns>/<name>            the run and every run it owns, nested, as `persimmon tree` walks it
   GET  /api/artifacts/<ns>/<kind>/<id>/<rev>   (25-ui.md) a revision, read as a document
@@ -69,6 +69,7 @@ A rewrite's map: the Rewrite pack's phases before Domain, Recover PRD in the PRD
 | needs you | the only saturated colour on the map: a phase holding a TaskRun parked on a human here; the top bar counts them across products and jumps to the first |
 | edges | as the artifacts cite upstream (`23-pack-sdlc.md`), Architecture to Designs drawn through Design system, a Spec to its TestDesign through Test setup: solid once the upstream phase is done |
 | refresh | every 3 s; the open panel and the review in progress are kept |
+| place | the hash names what is open: `#<product>/<phase>`, then the run, then `rounds`, `review/<taskRun>` or `artifact/<kind>/<id>/<revision>[/<element id>]`; every move is a hash change, so a place is linked by copying the address and the back button returns to the one before |
 
 ## Products
 
@@ -86,9 +87,10 @@ the store, not from runs, so it stands before any run.
 
 | Part | Behaviour |
 |---|---|
-| runs | the phase's runs, newest first, each named by its Slice when it has one and its start; the newest opens, on its review when one waits on you |
-| rounds | a review loop's rounds in order, each the produced artifacts and the review: one line per Validator, passed or not, its findings under it, the human's own among them; a fan-out (`spec-all`) lists its children the same way |
-| artifact | any artifact a round made opens as a document in the panel, read-only |
+| runs | the phase's runs, newest first, each a tab with its state, its line (`SL-1: Rejected after 2 rounds`) and its start; the newest opens, on its review when one waits on you |
+| rounds | a review loop's rounds in order, newest open, each the produced artifacts and the review: one line per Validator, passed or not, its findings under it, the human's own among them, each with its code and clipped to two lines when long; a loop nested in a workflow (the storms of `domain-discovery`) folds as rounds where it sits; a fan-out (`spec-all`) lists its children the same way |
+| artifact | any artifact a round made opens as a document in the panel, read-only, listed once, on the run that made it; the panel shows what changed since the revision before (the switch below), and steps to the previous and next revision; an EventStorming opens its board |
+| jump | an id in a finding (`BR-6`, `GD-14`) opens the round's artifact that holds that element, scrolled to it and lit for a moment; a tag inside a document (`EP-1` under a guard) scrolls to its element; a folded section opens when it holds the target |
 | review | a TaskRun parked on a human here shows "Review"; it opens the form's Reading as documents, the Task's instructions above them, value inputs (the auditor's verdict) beside them |
 
 ## Document
@@ -110,8 +112,9 @@ Any kind, from its content and schema, set as prose to read rather than a form.
 
 ## Changes between rounds
 
-In a review of revision 2 or later, each document shows what changed since the revision before
-it, the one the last round reviewed. A switch beside the document's title turns it off; it starts on.
+In a review of revision 2 or later, and on any artifact of revision 2 or later opened from a round, each
+document shows what changed since the revision before it, the one the last round reviewed. A switch
+beside the document's title turns it off; it starts on.
 
 | Change | Shown as |
 |---|---|
