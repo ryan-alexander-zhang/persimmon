@@ -70,7 +70,7 @@ several cases; one case may have several tests.
 | Executors `case-selector`, `test-reporter` | `testdesign/v1`, `type: script`; `test-reporter`'s configuration `{thresholds: {p0: 100, p1: 90, p1Concerns: 80, overall: 80}}`, a project overriding it by name |
 | Adapter `testdesign/v1` | an executor on the shared runner that runs no program: in `prepare` it reads the artifacts bound through `getArtifact` and answers `selectCases` or `buildReport` from `adapters/sdd/check.mjs`, by the Task's output port (`cases` or `report`) |
 | Prompt `harness-rules` | per test level, the tool the Architecture's `testing` concepts or its Adrs name, else the one the repository already has, else a `Q-n`, never one chosen; a level the Designs need (an `http-api` Design: `api`; a `ui` Design: `e2e`) and the project lacks is scaffolded; every level gets one seed test that passes on the app as it is; the commands are the project's own scripts, written once; an `api` or `e2e` level's `conventions` say how a test asserts a refused request, its `4xx` or `5xx` status, so the client in use never throws on one; every level's `conventions` say how a test keeps its data apart from the other tests of the same run (its own caller or ids, or a reset between tests); never a change to the app's code |
-| Task `write-harness` | inputs `architecture`, `adrs`, `designs` (artifacts), `repository`, `base?` (the harness before this run, from `setup-tests`), `previous`, `feedback`; output `harness`, id `<architecture>-harness`; `workspace: {input: repository}`; `sideEffects: nonIdempotent` |
+| Task `write-harness` | inputs `architecture`, `adrs`, `designs` (artifacts), `repository`, `base?` (the harness before this run, from `setup-tests`), `changes?` (the downstream answers this run applies, each `<artifact id> Q-n: <resolution>`, with `base`), `previous`, `feedback`; output `harness`, id `<architecture>-harness`; `workspace: {input: repository}`; `sideEffects: nonIdempotent` |
 | Tasks `run-seed`, `run-seed-levels` | as `run-baseline` and `run-levels` with no Plan: inputs `harness`, `repository`; ids `<harness>-seed`, `<harness>-seed-levels` |
 | Validator `harness-evidence` | `sdd/v1`, `checkHarness`, below; with `previous?`, the last round's harness, so an answer already told is not told again; with `designs?`, the Designs `setup-tests` was given; with `base?`, the harness this one replaces |
 | Task `confirm-harness`, Validator `harness-confirmed` | the human reads the harness once its seed tests pass and answers each open `Q-n`, on `local-reviewer` |
@@ -286,6 +286,11 @@ no case has none to miss.
   `e2e` leaves those cases with nothing to run on, and only the human at `confirm-harness` would
   see it. A changed command or convention is not checked: changing them may be why it was run.
   Found in design review.
+- A downstream answer that changes the harness reaches it through `setup-tests` with `base` and
+  `changes`, as a Spec's does through `spec-one` (`27-spec-process.md`): in the live run a
+  TestDesign question found QS-3 needed a level reading the source, and with no way to add one the
+  reviewer settled for a weaker case at another level. The harness keeps its levels and adds or
+  changes only what the answers ask; its seed runs and its Gate judge it again. Found in UAT.
 - Not adopted: `TestRun` and `TestResult` kinds (a TestOutcome is already one run of one level at
   one commit); a test plan document (ISO 29119-3's agile example puts its content in the plan, here
   the Plan and the harness); a `waived` verdict (it needs a human sign-off of its own, later); a test
