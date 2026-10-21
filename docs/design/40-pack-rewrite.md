@@ -198,7 +198,7 @@ characterization's values on, and none can measure the source differently.
 | Item | `complete` when | `unverified` when |
 |---|---|---|
 | rule or unknown guard, declaration | ruled (a `BR-n` cites it) and pinned (its mutant killed), or dropped by a Disposition, or `dead` as a human decided | ruled, and its Oracle cannot pin it (`recorded`, `static`, `volatile` uncontrolled, no coverage), or a human accepted it open with a reason |
-| plumbing guard | it matches a `PP-n` the human accepted and the inventory's audit found no rule among the sampled | never |
+| plumbing guard | it matches a `PP-n` the human accepted and the inventory's audit found no rule among the sampled; or, outside every pattern, the human accepted it with a reason | never |
 | state change, outbound external system | pinned: a test asserts it through the Protocol driver (the row, the message, the email) and its mutant (the write removed) is killed; or dropped | its Oracle cannot pin it |
 | absence | a Disposition: `keep` (the rewrite does not check either) or `change` (a new rule) | never |
 
@@ -466,6 +466,10 @@ Each its own unit, before the pack content that needs it:
   passed; the Slice reader then wrote guards for the first checkout only, twice, and `branch-uncovered`
   named every java and go branch both rounds. The rules now say a branch in a second repository is a
   guard of its own even when it reads as the first's. Found in UAT (example10).
+- A plumbing guard outside every pattern is the human's to accept: example10's three small apps had seven
+  (a method check, a port argument, a script's exit) and no pattern of two, so `recovery-consistency`
+  held them open with no decision that could close them. `accepted` now completes a plumbing guard,
+  since there is nothing to pin. Found in UAT (example10).
 - Analysis is the rewrite's first half, not a pack: an existing system understood and modelled
   (inventory, Prd and rules with Dispositions, storming, domain kinds) is the same runs stopped
   after `domain-discovery`, with `characterize` skipped since nothing is rebuilt to hold to the

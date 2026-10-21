@@ -55,7 +55,8 @@ function patternOf(item, inventory, accepted) {
 /** One item's account, as the design's table says, with why it is not complete. */
 function account(item, x) {
   if (item.kind === 'absence') return x.disposition === 'keep' || x.disposition === 'change' ? ['complete'] : ['open', 'no Disposition decided']
-  if (item.kind === 'plumbing') return x.plumbing ? ['complete'] : ['open', 'its plumbing pattern is not accepted']
+  // a plumbing guard outside every pattern (a lone method check, a script's exit) is the human's to accept, with a reason
+  if (item.kind === 'plumbing') return x.plumbing || x.accepted ? ['complete'] : ['open', 'its plumbing pattern is not accepted']
   if (x.dead || x.disposition === 'drop') return ['complete']
   // a write or a message is pinned, not ruled; a rule changed by a decision is the decision's, its `decision:` rule cites no item
   const ruled = item.kind === 'effect' || x.rules.length > 0 || x.disposition === 'change'

@@ -126,8 +126,9 @@ describe('computeLedger', () => {
     expect(item(ledger, 'GD-2').disposition).toBeUndefined()
   })
 
-  it('a plumbing guard is complete under an accepted pattern only; an absence only with a Disposition', () => {
+  it('a plumbing guard is complete under an accepted pattern, or accepted alone with a reason; an absence only with a Disposition', () => {
     expect(item(slice({ decisions: { ...decisions, plumbing: [] } }), 'GD-1')).toMatchObject({ account: 'open', reason: 'its plumbing pattern is not accepted' })
+    expect(item(slice({ decisions: { ...decisions, plumbing: [], accepted: [{ ref: 'GD-1', reason: 'a lone method check, no pattern' }] } }), 'GD-1')).toMatchObject({ account: 'complete', accepted: 'a lone method check, no pattern' })
     expect(item(slice({ decisions: { plumbing: ['PP-1'] } }), 'AB-1')).toMatchObject({ account: 'open', reason: 'no Disposition decided' })
   })
 
