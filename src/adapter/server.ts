@@ -49,11 +49,15 @@ export function listenUnix(server: Server, endpoint: string): Promise<void> {
   const path = endpoint.replace(/^unix:\/\//, '')
   if (existsSync(path)) unlinkSync(path)
   const umask = process.umask(0o077) // the socket is never world-reachable, not even before the chmod
-  return new Promise((resolve) =>
+  return new Promise((resolve, reject) => {
+    server.once('error', (e) => {
+      process.umask(umask)
+      reject(new Error(`cannot listen on ${path}: ${(e as Error).message}`)) // a message, not an unhandled error, when the path is taken
+    })
     server.listen(path, () => {
       process.umask(umask)
       chmodSync(path, 0o600) // only this user reaches the engine
       resolve()
-    }),
-  )
+    })
+  })
 }

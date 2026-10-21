@@ -159,7 +159,11 @@ imports into a server unchanged.
   only RuntimeValues pass. A publish the engine still refuses fails the attempt with
   `schema_violation`; before, it stalled the TaskRun in Waiting. Found in audit.
 - Local mode has one live engine per project directory: `listen` takes `.persimmon/engine.lock`
-  (pid, stale when the process is gone) and a second write verb fails with the holder's pid. Read verbs
+  (pid, stale when the process is gone) in one create-or-fail write, so two engines starting in the
+  same instant cannot both pass a check-then-write (three `run`s started together once gave two
+  engines and a third dying on the socket's `EEXIST`, found in UAT), and a second write verb fails
+  with the holder's pid; a socket path already taken fails `listen` with a message, never an
+  unhandled error. Read verbs
   (`get`, `describe`, `logs`, `tree`, `validate`) open the store without the socket, without call
   recovery and without a drain, so they are safe beside a running `--follow`. Found in UAT.
 - `persimmon run` is sugar over `create`: it writes the WorkflowRun the user would have written,

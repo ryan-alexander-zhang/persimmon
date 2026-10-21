@@ -168,7 +168,15 @@ export class Engine {
   #lockFile?: string
   #lock(): void {
     const file = `${this.cwd}/.persimmon/engine.lock`
-    if (existsSync(file)) {
+    mkdirSync(`${this.cwd}/.persimmon`, { recursive: true })
+    for (let attempt = 0; ; attempt++) {
+      try {
+        writeFileSync(file, String(process.pid), { flag: 'wx' }) // create or fail, one syscall: two engines starting together cannot both pass a check-then-write
+        this.#lockFile = file
+        return
+      } catch (e) {
+        if ((e as NodeJS.ErrnoException).code !== 'EEXIST' || attempt > 0) throw e
+      }
       const pid = Number(readFileSync(file, 'utf8'))
       let alive = Number.isInteger(pid) && pid > 0
       if (alive)
@@ -178,10 +186,8 @@ export class Engine {
           alive = false // stale lock from a killed process
         }
       if (alive) throw new Error(`another persimmon process (pid ${pid}) is running in this project; wait for it or stop it`)
+      rmSync(file, { force: true }) // stale: take it over, once
     }
-    mkdirSync(`${this.cwd}/.persimmon`, { recursive: true })
-    writeFileSync(file, String(process.pid))
-    this.#lockFile = file
   }
 
   /** API write as the local Actor (00-resource.md write order). Adapters are described on apply. */

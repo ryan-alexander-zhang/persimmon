@@ -373,6 +373,13 @@ it('one listening engine per project: a second listen fails while the first live
   await b.listen()
   expect(readFileSync(join(cwd, '.persimmon', 'engine.lock'), 'utf8')).toBe(String(process.pid))
   await b.close()
+  // two engines starting in the same instant: the lock is one create-or-fail syscall, so exactly one listens
+  const c = new Engine({ config: parseConfig({}), cwd, storePath: ':memory:', blobs: memoryBlobs() })
+  const d = new Engine({ config: parseConfig({}), cwd, storePath: ':memory:', blobs: memoryBlobs() })
+  const race = await Promise.allSettled([c.listen(), d.listen()])
+  expect(race.map((r) => r.status)).toEqual(['fulfilled', 'rejected'])
+  expect((race[1] as PromiseRejectedResult).reason.message).toMatch(/another persimmon process/)
+  await c.close()
   rmSync(cwd, { recursive: true, force: true })
 })
 
