@@ -117,6 +117,14 @@ describe('checkWorkflow', () => {
         timeout: '2h',
       }) as unknown as Workflow['spec']
     expect(checkWorkflow(perItem('state.items[state.index - 1]', true), resolve)).toEqual([])
+    // memo: when is a bool over the used outputs; ignore names its inputs
+    const memo = (m: Record<string, unknown>) => {
+      const w = perItem('state.items[state.index - 1]', true)
+      Object.assign(w.steps[0]!, { memo: m })
+      return checkWorkflow(w, resolve).map((f) => [f.path, f.message])
+    }
+    expect(memo({ when: 'outputs.echo == "x"', ignore: ['item'] })).toEqual([])
+    expect(memo({ when: 'outputs.echo', ignore: ['nope'] })).toEqual([['/spec/steps/0/memo/ignore', 'nope: not an input of Task handle-item'], ['/spec/steps/0/memo/when', 'when is string, not bool']])
     expect(checkWorkflow(perItem('state.items[state.index - 1]', false), resolve).map((f) => f.message)[0]).toMatch(/^expression: Unknown variable: state/)
     expect(checkWorkflow(perItem("state.index + 'x'", true), resolve).map((f) => f.message)[0]).toMatch(/^expression: /) // state carries its declared InputSpec type
     expect(checkWorkflow(perItem('state.items[state.index - 1]', true, 'state.index >= 2'), resolve).map((f) => f.message)[0]).toMatch(/^until: Unknown variable: state/)

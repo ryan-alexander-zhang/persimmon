@@ -2,6 +2,7 @@
 import { durationMs } from '../../config.js'
 import type { Finding, HandlerImpl, ReconcileInput, ReconcileResult } from '../../handler/types.js'
 import { readPath } from '../../reconcile/merge-patch.js'
+import { canonicalJson } from '../../snapshot/canonical.js'
 import type { Action, ReconcileError } from '../../reconcile/types.js'
 import type { ObjectRef, Resource } from '../../resource/types.js'
 import type { Closure, Entry } from '../../snapshot/walk.js'
@@ -88,7 +89,7 @@ export function workflowHandler(deps: HandlerDeps): HandlerImpl {
         if (!finished.has(st.phase) || st.phase === 'Skipped') return undefined
         const child = st.runRef && childByName.get(st.runRef.name)
         const contract = used.get(id)!.contract
-        const outputs = child ? (readPath({ status: child.status }, contract.outputsValuePath) as RuntimeValues | undefined) : undefined
+        const outputs = st.outputs ?? (child ? (readPath({ status: child.status }, contract.outputsValuePath) as RuntimeValues | undefined) : undefined) // a reused run is no child; its outputs sit on the step
         return { phase: st.phase, ...(outputs ? { outputs } : {}), ...(st.error ? { error: st.error } : {}), ...(st.iteration ? { iterations: st.iteration } : {}) } // iterations: how many rounds a repeat step ran
       }
       const sources = (extra: Partial<Sources> = {}): Sources => ({
@@ -155,11 +156,53 @@ export function workflowHandler(deps: HandlerDeps): HandlerImpl {
         const deadline = held ? new Date(Date.parse(held)) : new Date(Math.min(runDeadline.getTime(), now.getTime() + durationMs(step.timeout))) // step timeout bounds the whole loop, not one iteration
         const name = iteration ? `${run.metadata.name}-${step.id}-${iteration}` : `${run.metadata.name}-${step.id}`
         const runRef: ObjectRef = { apiVersion: `${u.contract.runKind.group}/v1`, kind: u.contract.runKind.kind, namespace: ns, name }
+        const earlier = step.memo ? reusable(step, u, inputs) : undefined
+        if (earlier) {
+          // the work was done: the step is Succeeded with that run's outputs and no child starts (11-workflow.md memo)
+          const { uid: _e, ...ref } = refOf(earlier.run)
+          steps[step.id] = { phase: 'Succeeded', runRef: ref, reusedFrom: ref, outputs: earlier.outputs, deadline: rfc3339(deadline), ...(iteration ? { iteration } : {}), ...(state ? { state } : {}) }
+          succeeded(step.id, earlier.outputs)
+          return
+        }
         const { uid: _u, ...workflowRunRef } = refOf(run)
         const address = { workflowRunRef, stepRef: step.id, iterationPath, logicalExecutionId: `${run.metadata.name}/${own}/${step.id}` } // the run name already carries the enclosing iterations
         const resource: Resource = { apiVersion: runRef.apiVersion, kind: runRef.kind, metadata: { name, namespace: ns }, spec: childSpec(u.contract.runKind.kind, step, inputs, address, deadline, now, run) }
         actions.push({ type: 'createResource', resource, snapshot: 'inherit', owned: true })
         steps[step.id] = { phase: 'Pending', runRef, deadline: rfc3339(deadline), ...(iteration ? { iteration } : {}), ...(state ? { state } : {}) } // the child reports its phase through ChildFinished; the state is kept for `next`
+      }
+
+      /** An earlier Succeeded run of the step's definition, same snapshot, same inputs but `memo.ignore`, outputs passing `memo.when`; the newest (11-workflow.md). */
+      const reusable = (step: Step, u: Used & { definition: Entry }, inputs: RuntimeValues): { run: Resource; outputs: RuntimeValues } | undefined => {
+        const memo = step.memo!
+        const ignore = new Set(memo.ignore ?? [])
+        const key = (v: RuntimeValues) => canonicalJson(Object.fromEntries(Object.entries(v).filter(([k]) => !ignore.has(k))))
+        const want = key(inputs)
+        const refField = u.contract.runKind.kind === 'WorkflowRun' ? 'workflowRef' : `${step.uses.kind[0]!.toLowerCase()}${step.uses.kind.slice(1)}Ref`
+        const site = memo.when ? siteOf({ outputs: u.outputs }) : undefined
+        const hits = (deps.listResources?.(u.contract.runKind.kind, ns) ?? [])
+          .filter((r) => r.metadata.snapshot?.digest === run.metadata.snapshot?.digest && readPath(r as unknown as Record<string, unknown>, u.contract.phasePath) === 'Succeeded')
+          .filter((r) => {
+            const ref = (r.spec as Record<string, { kind: string; name: string } | undefined>)[refField]
+            return ref?.kind === step.uses.kind && ref.name === step.uses.name && key(((r.spec as { inputs?: RuntimeValues }).inputs ?? {}) as RuntimeValues) === want
+          })
+          .map((r) => ({ run: r, outputs: (readPath(r as unknown as Record<string, unknown>, u.contract.outputsValuePath) ?? {}) as RuntimeValues }))
+          .filter(({ outputs }) => !site || site.evaluate(memo.when!, { outputs: unwrap(outputs) }) === true)
+          .sort((a, b) => String(b.run.metadata.creationTimestamp).localeCompare(String(a.run.metadata.creationTimestamp)))
+        return hits[0]
+      }
+
+      /** A step's child (or reused run) Succeeded with `outputs`: a repeat evaluates `until` and goes on or ends; a plain step is done. */
+      const succeeded = (id: string, outputs: RuntimeValues): void => {
+        const step = stepsById.get(id)!
+        if (!step.repeat) {
+          steps[id] = { ...steps[id]!, phase: 'Succeeded' }
+          return
+        }
+        const iteration = steps[id]!.iteration ?? 1
+        const done = site(step, false).evaluate(step.repeat.until, { ...celContext(sources()), iteration: { index: iteration, outputs: unwrap(outputs) } }) === true
+        if (done) steps[id] = { ...steps[id]!, phase: 'Succeeded' }
+        else if (iteration >= step.repeat.maxIterations) steps[id] = { ...steps[id]!, phase: 'Failed', error: err('iteration_limit', `${step.repeat.maxIterations} iterations`) }
+        else iterate(step, iteration + 1, step.repeat.next, sources({ ...(steps[id]!.state ? { state: steps[id]!.state } : {}), iteration: { index: iteration, outputs } }))
       }
 
       /** Transition semantics (11-workflow.md), to a fixpoint. Returns the selected terminal, if any. */
@@ -250,22 +293,11 @@ export function workflowHandler(deps: HandlerDeps): HandlerImpl {
           const child = childByName.get(ev.payload.ref.name)
           const id = Object.entries(steps).find(([, st]) => st.runRef?.name === ev.payload.ref.name)?.[0]
           if (!id || !child) return { actions: [] }
-          const step = stepsById.get(id)!
           const contract = used.get(id)!.contract
           const phase = ev.payload.value as StepStatus['phase']
           const error = readPath({ status: child.status }, contract.errorPath) as ReconcileError | undefined
-          if (step.repeat && phase === 'Succeeded') {
-            const iteration = steps[id]!.iteration ?? 1
-            const outputs = (readPath({ status: child.status }, contract.outputsValuePath) ?? {}) as RuntimeValues
-            const done = site(step, false).evaluate(step.repeat.until, { ...celContext(sources()), iteration: { index: iteration, outputs: unwrap(outputs) } }) === true
-            if (!done) {
-              if (iteration >= step.repeat.maxIterations) steps[id] = { ...steps[id]!, phase: 'Failed', error: err('iteration_limit', `${step.repeat.maxIterations} iterations`) }
-              else {
-                iterate(step, iteration + 1, step.repeat.next, sources({ ...(steps[id]!.state ? { state: steps[id]!.state } : {}), iteration: { index: iteration, outputs } }))
-                return conclude()
-              }
-            } else steps[id] = { ...steps[id]!, phase: 'Succeeded' }
-          } else steps[id] = { ...steps[id]!, phase, ...(error && phase === 'Failed' ? { error } : {}) }
+          if (phase === 'Succeeded') succeeded(id, (readPath({ status: child.status }, contract.outputsValuePath) ?? {}) as RuntimeValues)
+          else steps[id] = { ...steps[id]!, phase, ...(error && phase === 'Failed' ? { error } : {}) }
           return conclude()
         }
 

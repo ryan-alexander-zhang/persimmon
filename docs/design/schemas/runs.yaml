@@ -105,6 +105,8 @@ $defs:
                     state: {$ref: "ports.yaml#/$defs/RuntimeValues", description: "repeat state the running iteration was started with; read by next"}
                     deadline: {type: string, format: date-time, description: "effective deadline set at first start; every repeat iteration shares it"}
                     error: {$ref: "reconcile.yaml#/$defs/Error"}
+                    reusedFrom: {$ref: "resource.yaml#/$defs/ObjectRef", description: "the earlier run a memo step reused; runRef names it too"}
+                    outputs: {$ref: "ports.yaml#/$defs/RuntimeValues", description: "a reused run's outputs, since no child of this run holds them"}
               outputs: {$ref: "ports.yaml#/$defs/RuntimeValues"}
               reason: {type: string, pattern: "^[a-z][a-z0-9_]*$"}
             if: {properties: {phase: {const: Succeeded}}}

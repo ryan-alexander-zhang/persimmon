@@ -37,6 +37,15 @@ $defs:
       inputs: {$ref: "ports.yaml#/$defs/Bindings"}
       timeout: {$ref: "ports.yaml#/$defs/Duration"}
       repeat: {$ref: "#/$defs/RepeatPolicy"}
+      memo: {$ref: "#/$defs/Memo"}
+
+  Memo:
+    type: object
+    additionalProperties: false
+    description: "reuse an earlier Succeeded run of the used definition with the same snapshot and inputs instead of starting one"
+    properties:
+      when: {type: string, minLength: 1, description: "CEL bool over `outputs`, the earlier run's; default true"}
+      ignore: {type: array, uniqueItems: true, items: {$ref: "ports.yaml#/$defs/PortName"}, description: "inputs left out of the comparison"}
 
   Outcome: {enum: [Succeeded, Failed]}
 

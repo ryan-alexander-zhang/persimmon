@@ -15,6 +15,8 @@ export interface HandlerDeps {
   /** Live read for kinds outside snapshots (Trigger resolving its Workflow, child runs). Namespace first, then Global. */
   getResource(kind: string, namespace: string | undefined, name: string): Resource | undefined
   getByUid(uid: string): Resource | undefined
+  /** Every live Resource of a kind in a Namespace, for a memo step's lookup of an earlier run (11-workflow.md); absent in handler unit tests. */
+  listResources?(kind: string, namespace: string): Resource[]
   /** Random in [0, 1); injectable for jitter tests. */
   random(): number
   /** The expansion of a live composition Resource (21-composition.md); absent in handler unit tests. */

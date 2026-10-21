@@ -33,6 +33,7 @@ Step uses any kind with a stepContract: Task, Workflow, Gate, pack and user kind
 | `inputs` | `{<port>: Binding}`; every required input of `uses` bound (one with a `required` expression may stay unbound, the bind decides, `10-ports.md`) |
 | `timeout` | Duration; covers queueing, attempts, backoff, and every `repeat` iteration |
 | `repeat` | optional RepeatPolicy |
+| `memo` | optional `{when?, ignore?}`: reuse an earlier run instead of starting one, below |
 
 A Step carries no executor or retry override; the used definition states them once. Step
 outputs are the used definition's outputs; expressions read them per `10-ports.md`.
@@ -75,6 +76,22 @@ Per-step phase, recorded in `WorkflowRun.status.steps.<id>` (`17-runs.md`):
 
 `Cancelled` is never a routable outcome.
 
+## Memo
+
+A step with `memo` looks for the work already done before it starts a child. The engine takes
+every run of the used kind in the run's Namespace with the same snapshot digest, whose
+`<kind>Ref` names the step's `uses`, whose `spec.inputs` equal the bound inputs except the ports
+`ignore` lists, whose phase is Succeeded and whose outputs satisfy `when` (CEL over `outputs`;
+default true). The newest one is reused: the step is Succeeded at once with that run's outputs,
+`steps.<id>.runRef` and `steps.<id>.reusedFrom` name it, `steps.<id>.outputs` holds its outputs,
+and no child is created. A `repeat` iteration is looked up the same way, one lookup per
+iteration, so a loop over capabilities redoes only the ones whose inputs changed.
+
+| Field | Rule |
+|---|---|
+| `when` | CEL over `outputs`, the earlier run's, `bool`; a ReviewLoop step says `outputs.passed`, so a rejected loop is run again |
+| `ignore` | input ports left out of the comparison: a `base` the earlier run itself produced |
+
 ## RepeatPolicy
 
 | Field | Rule |
@@ -112,6 +129,7 @@ has no `repeat`; the run name already carries the enclosing iterations (`<parent
 | every required input of `uses` bound; producer type equals consumer type | static checker |
 | a Binding or `when` reads only steps that precede it; a step reachable only through `any`/`quorum` or a Failed-listing entry needs `onMissing: omit` | static checker |
 | `repeat`: `fromIterationOutput` names a body output of equal type; `until` is boolean | static checker |
+| `memo.ignore` names inputs of `uses`; `memo.when` is boolean over its outputs | static checker |
 | Workflow reference graph acyclic | static checker |
 
 ## Decisions
@@ -161,6 +179,16 @@ has no `repeat`; the run name already carries the enclosing iterations (`<parent
   iteration and kept in `steps.<id>.deadline`; later iterations reuse it, a body WorkflowRun gets
   the remaining time as `timeout`. The code had given every iteration a fresh `timeout`, so a `6h`
   step could run three `4h` rounds. Found in UAT.
+
+- A step may reuse an earlier run, `memo`. In the live Autopilot run `test-design-all` walked
+  CAP-1 four times in ten hours, three of them with its Spec, Plan and harness unchanged, each
+  time a writer, an auditor and a reviewer again; the skill kept a hand-written dependency table
+  to decide what to rerun and still reran too much. The engine has what the table approximated:
+  a run's inputs pin exact revisions and its snapshot pins the definitions, so equal inputs and
+  an equal snapshot are the same work. Only the run's own outputs make the match look different
+  (`base` is the TestDesign the earlier run produced), hence `ignore`; and a loop that ended
+  `passed: false` is a verdict to try again, hence `when`. The reused run is not a child, so its
+  outputs are copied onto the step. Found in UAT.
 
 ## Examples
 

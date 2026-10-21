@@ -13,12 +13,21 @@ export interface RepeatPolicy {
   maxIterations: number
 }
 
+/** Reuse an earlier Succeeded run of the used definition with the same snapshot and inputs (11-workflow.md). */
+export interface Memo {
+  /** CEL bool over `outputs`, the earlier run's; default true. */
+  when?: string
+  /** inputs left out of the comparison */
+  ignore?: string[]
+}
+
 export interface Step {
   id: string
   uses: LocalDefinitionRef
   inputs?: Bindings
   timeout: string
   repeat?: RepeatPolicy
+  memo?: Memo
 }
 
 export type Target = { stepRef: string; when?: string } | { terminal: Outcome; reason?: string; when?: string }
@@ -69,6 +78,9 @@ export interface StepStatus {
   state?: RuntimeValues
   deadline?: string // the step's effective deadline, set at first start and shared by every repeat iteration (11-workflow.md)
   error?: ReconcileError
+  /** the earlier run a memo step reused; `runRef` names it too, and `outputs` holds its outputs, since it is no child of this run */
+  reusedFrom?: ObjectRef
+  outputs?: RuntimeValues
 }
 
 export interface WorkflowRunStatus {

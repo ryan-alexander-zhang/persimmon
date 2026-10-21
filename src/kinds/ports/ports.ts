@@ -233,7 +233,7 @@ export function celContext(s: Sources): Record<string, unknown> {
 }
 
 /** The CEL environment of a site (10-ports.md expression profile). Ports become typed roots. */
-export function siteOf(roots: { inputs?: Record<string, InputSpec>; steps?: Record<string, Record<string, OutputSpec>>; state?: Record<string, InputSpec>; iterationOutputs?: Record<string, OutputSpec>; event?: JsonSchema; extra?: Record<string, JsonSchema> }): Site {
+export function siteOf(roots: { inputs?: Record<string, InputSpec>; steps?: Record<string, Record<string, OutputSpec>>; state?: Record<string, InputSpec>; iterationOutputs?: Record<string, OutputSpec>; outputs?: Record<string, OutputSpec>; event?: JsonSchema; extra?: Record<string, JsonSchema> }): Site {
   const refSchema = (t: PortType): JsonSchema => expandSchema({ $ref: t.kind === 'externalResource' ? 'persimmon.ai/v1#/ExternalResourceRef' : 'persimmon.ai/v1#/RevisionRef' }) ?? {}
   const portSchema = (t: PortType): JsonSchema => (t.kind === 'value' ? (expandSchema(t.schema) ?? {}) : t.kind === 'artifacts' ? { type: 'array', items: refSchema(t) } : refSchema(t))
   const objectOf = (ports: Record<string, { type: PortType }> | undefined): JsonSchema | undefined =>
@@ -252,6 +252,7 @@ export function siteOf(roots: { inputs?: Record<string, InputSpec>; steps?: Reco
     }
   if (roots.state) r.state = objectOf(roots.state)
   if (roots.iterationOutputs) r.iteration = { type: 'object', properties: { index: { type: 'integer' }, outputs: objectOf(roots.iterationOutputs) ?? {} } }
+  if (roots.outputs) r.outputs = objectOf(roots.outputs) // a memo step's `when` reads the earlier run's outputs (11-workflow.md)
   if (roots.event) r.event = roots.event
   Object.assign(r, roots.extra)
   return new Site(r)

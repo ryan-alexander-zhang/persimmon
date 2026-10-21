@@ -207,6 +207,42 @@ describe('workflow Handler', () => {
     expect(clean(res.statusPatch)).toMatchObject({ phase: 'Succeeded', outputs: { last: { kind: 'value', value: 'c' } } })
   })
 
+  it('a memo step reuses an earlier run with the same snapshot and inputs, per iteration, and starts a child otherwise', () => {
+    const wf = structuredClone(listLoop)
+    Object.assign(wf.spec.steps[0]!, { memo: { when: 'outputs.echo != "retry"' } })
+    const altered: Closure = { ...closure, resources: closure.resources.map((r) => (r === listLoop ? wf : r)) }
+    const kinds = new KindRegistry()
+    for (const kd of closure.resources.filter((r) => r.kind === 'KindDefinition')) kinds.register(kd)
+    const earlier = (name: string, item: string, echo: string, hour: number, digest = 'sha256:x') => ({ apiVersion: 'persimmon.ai/v1', kind: 'TaskRun', metadata: { name, namespace: 'demo', uid: `uid-${name}`, creationTimestamp: `2026-09-20T0${hour}:00:00Z`, snapshot: { uri: `snapshot://${digest}`, digest } }, spec: { taskRef: { kind: 'Task', name: 'handle-item' }, address: {}, deadline: 'x', inputs: { item: { kind: 'value', value: item } } }, status: { phase: 'Succeeded', outputs: { echo: { kind: 'value', value: echo } } } }) as unknown as Resource
+    const runs: Resource[] = [
+      earlier('old-a', 'a', 'A0', 1), earlier('new-a', 'a', 'A1', 2), // two for a: the newest wins
+      earlier('b-other-snapshot', 'b', 'B', 3, 'sha256:y'), // another snapshot: not the same work
+      earlier('c-rejected', 'c', 'retry', 4), // when fails: run again
+    ]
+    const h = workflowHandler({ kinds, adapters: new AdapterRegistry({ resolve: () => undefined }), now: () => new Date(clock), closure: () => altered, callback: () => undefined, getResource: () => undefined, getByUid: () => undefined, random: () => 0, listResources: (kind) => (kind === 'TaskRun' ? runs : []) })
+    let r = run('per-item', { items: { kind: 'value', value: ['a', 'b', 'c'] } }, 'memo')
+    let res = h.reconcile(input(r, { type: 'Created', dedupeKey: 'created' })) as ReconcileResult
+    // a: reused, no child; b: a child starts at once, iteration 2
+    expect(created(res).map((c) => [c.metadata.name, (c.spec as { inputs: { item: { value: unknown } } }).inputs.item.value])).toEqual([['memo-each-2', 'b']])
+    expect(clean(res.statusPatch).steps.each).toMatchObject({ phase: 'Pending', iteration: 2, runRef: { name: 'memo-each-2' } })
+    r = apply(r, res)
+    res = h.reconcile(childFinished(r, 'each', 'Succeeded', { phase: 'Succeeded', outputs: { echo: { kind: 'value', value: 'B' } } })) as ReconcileResult
+    expect(created(res).map((c) => c.metadata.name)).toEqual(['memo-each-3']) // c's earlier run fails `when`
+    r = apply(r, res)
+    res = h.reconcile(childFinished(r, 'each', 'Succeeded', { phase: 'Succeeded', outputs: { echo: { kind: 'value', value: 'C' } } })) as ReconcileResult
+    expect(clean(res.statusPatch)).toMatchObject({ phase: 'Succeeded', outputs: { last: { kind: 'value', value: 'C' } } })
+    // every iteration reused: the step and the run finish in the Created reconcile, the outputs the reused run's
+    const all = run('per-item', { items: { kind: 'value', value: ['a'] } }, 'memo2')
+    const done = h.reconcile(input(all, { type: 'Created', dedupeKey: 'created' })) as ReconcileResult
+    expect(created(done)).toEqual([])
+    expect(clean(done.statusPatch)).toMatchObject({ phase: 'Succeeded', outputs: { last: { kind: 'value', value: 'A1' } }, steps: { each: { phase: 'Succeeded', reusedFrom: { kind: 'TaskRun', name: 'new-a' }, outputs: { echo: { kind: 'value', value: 'A1' } } } } })
+    // ignore: an input left out of the comparison
+    Object.assign(wf.spec.steps[0]!, { memo: { ignore: ['item'] } })
+    const any = h.reconcile(input(run('per-item', { items: { kind: 'value', value: ['z'] } }, 'memo3'), { type: 'Created', dedupeKey: 'created' })) as ReconcileResult
+    expect(created(any)).toEqual([])
+    expect(clean(any.statusPatch).steps.each.reusedFrom.name).toBe('c-rejected') // the newest of every run of the Task, whatever its item
+  })
+
   it('a repeat whose initial or next binding fails fails the step invalid_input, not the reconcile', () => {
     const gone = { fromArtifact: { kind: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement' }, id: '"nope"' } } // no store at the site: absent, no onMissing
     const variant = (repeat: Record<string, unknown>) => {

@@ -5267,6 +5267,14 @@
             },
             "error": {
              "$ref": "reconcile.yaml#/$defs/Error"
+            },
+            "reusedFrom": {
+             "$ref": "resource.yaml#/$defs/ObjectRef",
+             "description": "the earlier run a memo step reused; runRef names it too"
+            },
+            "outputs": {
+             "$ref": "ports.yaml#/$defs/RuntimeValues",
+             "description": "a reused run's outputs, since no child of this run holds them"
             }
            }
           }
@@ -7011,6 +7019,29 @@
      },
      "repeat": {
       "$ref": "#/$defs/RepeatPolicy"
+     },
+     "memo": {
+      "$ref": "#/$defs/Memo"
+     }
+    }
+   },
+   "Memo": {
+    "type": "object",
+    "additionalProperties": false,
+    "description": "reuse an earlier Succeeded run of the used definition with the same snapshot and inputs instead of starting one",
+    "properties": {
+     "when": {
+      "type": "string",
+      "minLength": 1,
+      "description": "CEL bool over `outputs`, the earlier run's; default true"
+     },
+     "ignore": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+       "$ref": "ports.yaml#/$defs/PortName"
+      },
+      "description": "inputs left out of the comparison"
      }
     }
    },

@@ -176,6 +176,17 @@ export function checkWorkflow(spec: WorkflowSpec, resolve: Resolve): Finding[] {
     if (!u) continue
     const visible = preds.get(s.id) ?? new Set()
     checkBindings(s.inputs ?? {}, u.inputs, s, visible, `/spec/steps/${i}/inputs`, true)
+    if (s.memo) {
+      for (const port of s.memo.ignore ?? []) if (!u.inputs[port]) bad(`/spec/steps/${i}/memo/ignore`, `${port}: not an input of ${s.uses.kind} ${s.uses.name}`)
+      if (s.memo.when)
+        try {
+          const t = siteOf({ outputs: u.outputs }).check(s.memo.when)
+          if (t !== 'bool') bad(`/spec/steps/${i}/memo/when`, `when is ${t}, not bool`)
+        } catch (e) {
+          if (e instanceof ExpressionError) bad(`/spec/steps/${i}/memo/when`, `when: ${e.message}`)
+          else throw e
+        }
+    }
     if (s.repeat) {
       for (const [v, st] of Object.entries(s.repeat.state)) if (typeof st.required === 'object') bad(`/spec/steps/${i}/repeat/state/${v}/required`, `${v}: a state var is required or not; nothing evaluates an expression there`)
       checkBindings(s.repeat.initial, s.repeat.state, undefined, visible, `/spec/steps/${i}/repeat/initial`, true)
