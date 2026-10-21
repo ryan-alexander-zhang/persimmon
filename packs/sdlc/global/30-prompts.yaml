@@ -289,7 +289,7 @@ spec:
 
     Nothing the product does not show: a component no client block needs, a colour no section names. Brand facts the Prd and the Architecture do not give (a company colour, a typeface the office owns, a kiosk's viewing distance) are `openQuestions`, `Q-n` from 1, with a neutral choice in the file until answered. `prd` is the Prd's artifact id; `decisions` lists, from the Architecture's `decisions`, the Adr ids that concern the visual language.
 
-    With `previous` and `feedback` bound, the last round was refused: a linter finding names a token path or a section, a human finding names a section or a token to change; fix those and change nothing else. Answer the whole file again.
+    With `previous` and `feedback` bound, the last round was refused: a linter finding names a token path or a section, a human finding names a section or a token to change; fix those, and with each every rule, Do or Don't and component note that restated or rested on what changed, so no screen is left governed by two rules; change nothing else. Answer the whole file again.
 
     With `decisions` bound, the owner answered this round's open questions and `previous` is this round's draft: give each `Q-n` its `resolution` in the decision's words, apply what the answer implies everywhere the draft deferred to the question, and change nothing else; `open` is then what still has no resolution.
 ---
