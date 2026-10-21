@@ -488,7 +488,7 @@ spec:
   action:
     instructions: Run each test level of the project in the repository and answer what its JUnit XML says.
     workspace: {input: repository}
-  timeout: 4h   # integration, api and e2e one after the other
+  timeout: 4h   # fitness, integration, api and e2e one after the other
   sideEffects: idempotent
 ---
 # The plan tier's unit tests, after build-all's last task (36-test-levels.md): every one when affected narrows the rounds, none

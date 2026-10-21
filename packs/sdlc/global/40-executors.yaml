@@ -112,7 +112,7 @@ spec:
   security:
     networkAccess: deny   # declarative on junit/v1, as on subprocess/v1 (13-executor.md decisions)
 ---
-# The project's other test levels, integration, api and e2e, run in that order after the unit tests (36-test-levels.md). None
+# The project's other test levels, fitness, integration, api and e2e, run in that order after the unit tests (36-test-levels.md). None
 # here: a project overrides this Executor by name with the levels it has, each {program, junit, paths?, fullOn?, affected?}:
 # integration [npm, run, test:integration] (Testcontainers inside the language's runner), api [npm, run, test:api] (a script that
 # starts the app and runs `bru run --reporter-junit`), e2e [npx, playwright, test] with affected [npx, playwright, test, --only-changed={base}].
