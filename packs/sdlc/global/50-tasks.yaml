@@ -612,6 +612,7 @@ spec:
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: false, description: "the context's: a scenario's category is one of its terms"}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, required: false, description: "the last round's, beside the draft; round one has none"}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict; round one has none"}
   outputs:
@@ -627,6 +628,7 @@ spec:
       - {kind: artifact, input: rules}
       - {kind: artifact, input: domainModel}
       - {kind: artifact, input: architecture}
+      - {kind: artifact, input: glossary}
       - {kind: artifact, input: previous}
   timeout: 30m
   retryPolicy: # a transient API refusal gets another attempt

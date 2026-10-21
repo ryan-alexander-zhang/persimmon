@@ -140,7 +140,7 @@ spec:
     - `businessRules`: the artifact id of the input `rules`, the BusinessRules every `BR-n` here is one of; the same artifact the Prd names.
     - `domainModel`: the DomainModel's artifact id. Command, event and read model labels are its, spelled exactly. A label the model lacks is a gap in the model: leave it out and ask in `openQuestions`; never invent a label. A read model's `updatedBy` may name another context's event; that is not a gap.
     - `architecture`: the Architecture's artifact id. `qualities` cite its quality scenarios by `QS-n`, a `fitness` one too when the capability changes code that scenario's measure names; a `delta` only tightens a measure or a response for this capability. No other non-functional text anywhere in the Spec.
-    - Prose uses Glossary term names, never aliases.
+    - Prose uses Glossary term names, never aliases. A scenario value that stands for a category, a status or a kind is a Glossary term ("a travel line", never "a taxi line" when taxi is no category).
 
     Ids: `US-n`, `FR-n`, `AC-n`, `Q-n` each sequential from 1 in document order; a revision keeps every id and fixes in place, and an item it adds takes the next unused number: a new scenario under its own story, whichever story that is.
 
@@ -436,13 +436,14 @@ spec:
 
     ## A Spec
 
-    The Spec of one Prd capability, beside the Prd, the BusinessRules, the DomainModel and the Architecture.
+    The Spec of one Prd capability, beside the Prd, the BusinessRules, the DomainModel, the Architecture and the Glossary.
     - `ac-undecidable` (error): an `AC-n` one test cannot decide on one run: a `given` without the concrete values and units a test sets up ("a valid claim"), a `when` that is not one thing the role does, a `then` that is not observable ("works correctly", "quickly", "the user is happy").
     - `ac-contradicts-rule` (error): an `AC-n` whose values and outcome disagree with a rule it exercises: accepted where the rule's condition refuses, refused naming a rule whose condition does not hold, or a threshold read the other way.
     - `requirement-unproven` (error): an `FR-n` whose response no `AC-n` observes: no scenario applies its trigger or state and checks its response.
     - `boundary-untested` (error): a threshold of a rule the capability enforces with no scenario at it and one beside it.
     - `value-missing` (error): an `AC-n` whose outcome turns on a value neither it, the Spec nor the rules give: a limit, a date, a category ("over the policy limit" with no limit stated).
     - `scenario-unreachable` (error): an `AC-n` whose `given` holds a state no command of this Spec's stories produces and no test can set directly: a line only another capability's command creates (that capability may be built later), a past date a command records as the day it runs.
+    - `term-unknown` (error): an `AC-n` value that stands for a domain category, a status or a kind and is no term of the Glossary ("a taxi line" where the Glossary's categories are travel, meals and others).
     - `scope-doubt` (warning): behaviour the Prd capability's description does not ask for.
 
     ## A Prd
