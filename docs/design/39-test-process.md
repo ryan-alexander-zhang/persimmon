@@ -74,7 +74,7 @@ several cases; one case may have several tests.
 | Tasks `run-seed`, `run-seed-levels` | as `run-baseline` and `run-levels` with no Plan: inputs `harness`, `repository`; ids `<harness>-seed`, `<harness>-seed-levels` |
 | Validator `harness-evidence` | `sdd/v1`, `checkHarness`, below; with `previous?`, the last round's harness, so an answer already told is not told again; with `designs?`, the Designs `setup-tests` was given; with `base?`, the harness this one replaces |
 | Task `confirm-harness`, Validator `harness-confirmed` | the human reads the harness once its seed tests pass and answers each open `Q-n`, on `local-reviewer` |
-| Prompt `test-design-rules` | at least one case per `AC-n` and per `build` `QS-n` the Spec cites; the level from the boundary the scenario's When crosses: the API `api`, a screen `e2e`, a store or a queue `integration`, a rule inside one block `unit`; steps and data from the Designs' operations and screens, the Glossary's terms; `P0` when a failure loses data, money or access or stops the capability's main path, `P1` a variant of the main path or a rule's edge, `P2` a secondary path, `P3` the rest; `P0` is `automated`; a case the harness's tools cannot run is `manual`, the reason in `preconditions`; a case's steps use only the operations its Plan task, or a task before it, builds; a rule's threshold the Spec has no scenario at or beside is no case but a `Q-n` whose answer names the Spec in `upstream` |
+| Prompt `test-design-rules` | at least one case per `AC-n` and per `build` `QS-n` the Spec cites; the level from the boundary the scenario's When crosses: the API `api`, a screen `e2e`, a store or a queue `integration`, a rule inside one block `unit`; steps and data from the Designs' operations and screens, the Glossary's terms; `P0` when a failure loses data, money or access or stops the capability's main path, `P1` a variant of the main path or a rule's edge, `P2` a secondary path, `P3` the rest; `P0` is `automated`; a case the harness's tools cannot run is `manual`, the reason in `preconditions`; a case's steps use only the operations its Plan task, or a task before it, builds; a rule's threshold the Spec has no scenario at or beside is no case but a `Q-n` whose answer names the Spec in `upstream`; a scenario that needs a level the harness lacks is no case but a `Q-n` naming the scenario, with the TestHarness in `upstream`, its case written in the run after the harness's revision, from `base` |
 | Task `design-tests` | inputs `spec`, `plan`, `base?` (the Spec's TestDesign before this run), `architecture`, `designs` (artifacts), `glossary`, `rules`, `harness`, `previous`, `feedback`; output `testDesign`, id `<spec>-tests`; read only |
 | Validator `test-design-consistency` | `sdd/v1`, `checkTestDesign`, below; inputs add `plan`, `designs`, `base?` and `previous?`, the last round's TestDesign, so an answer already told is not told again |
 | Task `audit-test-design`, Validator `test-design-audited` | `draft-audit-rules`, its part for a TestDesign: a case's level stops short of the boundary its scenario's When crosses, its steps do not reach its expected, its expected is not the scenario's Then with its values (`case-unfit`); a rule's threshold with no case beside it is `boundary-untested` when the Spec has a scenario there and `spec-gap` when it has none, both warnings |
@@ -113,7 +113,7 @@ Every finding `error`:
 |---|---|
 | `not-a-test-design` | content without `cases` or `spec`; the only finding then |
 | `spec-mismatch`, `harness-mismatch` | `spec` or `harness` is not the artifact bound |
-| `scenario-uncovered` | an `AC-n`, or a `build` `QS-n` the Spec cites, that no case verifies |
+| `scenario-uncovered` | an `AC-n`, or a `build` `QS-n` the Spec cites, that no case verifies; not one a `Q-n` names in its question with the Spec or the TestHarness in `upstream`, while that question is open or was resolved in this run (not already in `base`): the gap waits on the upstream revision |
 | `unknown-reference` | a `verifies` id the Spec, its rules or its `qualities` lack |
 | `case-unanchored` | a case that verifies no `AC-n` and no `QS-n` |
 | `level-unavailable` | a case's level the harness has not |
@@ -256,6 +256,18 @@ no case has none to miss.
   run's `base`. A case kept from `base` is held to the same rule: one that tests what no scenario
   says is removed and becomes the question, since the live rerun kept such a case from a TestDesign
   written before the rule and lost its last round to it. Found in UAT.
+- A scenario that needs a level the harness lacks is a question on the harness, not a case. In the
+  live Autopilot run `QS-3` was a `fitness` scenario (static analysis of the write paths) and the
+  harness had `unit`, `integration` and `api`: the writer put its case at `integration`, the
+  auditor refused it `case-unfit`, the writer dropped it, `scenario-uncovered` refused that, and
+  the loop ran out of rounds with the writer's `Q-n` on the harness never reaching the human, who
+  sees only what the check and the auditor passed. Now the writer raises the `Q-n` naming the
+  scenario with the harness in `upstream` and writes no case; `scenario-uncovered` counts the
+  scenario as pending while the question is open and in the round that records the human's answer,
+  so the TestDesign passes and the answer is told as `question-upstream`; `setup-tests` applies it
+  with `base` and `changes`. A question already resolved in `base` no longer excuses the scenario:
+  by the next run the harness's revision exists and the case is due. The scenario is found by its
+  id in the question's words, as the question has no field for it. Found in UAT.
 - The writer raises every gap of the Spec in round one. In the full-Plan UAT the gaps came one or
   two a round, and each answer was a Spec revision; one batch costs one. The Autopilot already
   revises a Spec once per run with every answer (`38-autopilot.md`). Found in UAT.
