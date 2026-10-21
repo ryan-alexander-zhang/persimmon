@@ -238,12 +238,7 @@ function Step({ node, act, onJump, depth = 0 }: { node: api.Node; act: Act; onJu
       {v && (v.findings ?? []).length > 0 && (
         <ul className="mb-1.5 ml-[30px] space-y-1 text-[14px]">
           {v.findings!.map((f, i) => (
-            <li key={i} className="flex gap-2">
-              <span className={`mt-[7px] size-1.5 shrink-0 rounded-full ${f.severity === "error" ? "bg-bad" : f.severity === "warning" ? "bg-[#c08a1e]" : "bg-ink-3"}`} aria-label={f.severity} />
-              <span className="text-ink-2">
-                <Linked text={f.message} onId={onJump} />
-              </span>
-            </li>
+            <FindingLine key={i} finding={f} onJump={onJump} />
           ))}
         </ul>
       )}
@@ -261,6 +256,28 @@ function Step({ node, act, onJump, depth = 0 }: { node: api.Node; act: Act; onJu
           </ol>
         )
       )}
+    </li>
+  );
+}
+
+/** One finding: its severity, its code, and its message, a long one clipped until clicked. */
+function FindingLine({ finding: f, onJump }: { finding: NonNullable<api.Verdict["findings"]>[number]; onJump: (id: string) => void }) {
+  const long = f.message.length > 200;
+  const [open, setOpen] = useState(false);
+  return (
+    <li className="flex gap-2">
+      <span className={`mt-[7px] size-1.5 shrink-0 rounded-full ${f.severity === "error" ? "bg-bad" : f.severity === "warning" ? "bg-[#c08a1e]" : "bg-ink-3"}`} aria-label={f.severity} />
+      <span className="min-w-0 text-ink-2">
+        {f.code && <span className="mr-1.5 rounded bg-line-2 px-1 font-mono text-[11px] text-ink-3">{f.code}</span>}
+        <span className={long && !open ? "line-clamp-2" : ""}>
+          <Linked text={f.message} onId={onJump} />
+        </span>
+        {long && (
+          <button type="button" onClick={() => setOpen(!open)} className="text-[13px] font-medium text-ink-3 hover:text-ink">
+            {open ? "less" : "more"}
+          </button>
+        )}
+      </span>
     </li>
   );
 }
