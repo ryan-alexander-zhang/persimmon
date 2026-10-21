@@ -244,6 +244,7 @@ function runs(engine: Engine, rest: string[], url: URL): { status: number; body:
       ...(s.error ? { error: s.error } : {}),
       created: r.metadata.creationTimestamp,
       ...(r.kind === 'TaskRun' ? taskOf(engine, r) : {}),
+      ...((r.spec as { inputs?: Record<string, unknown> }).inputs ? { inputs: (r.spec as { inputs?: Record<string, unknown> }).inputs } : {}),
       ...(s.outputs ? { outputs: s.outputs } : {}),
       ...(s.result ? { result: s.result } : {}),
       children: ownedBy(engine, r).map((c) => node(c, r)),

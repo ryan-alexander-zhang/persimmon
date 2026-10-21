@@ -89,7 +89,7 @@ the store, not from runs, so it stands before any run.
 |---|---|
 | runs | the phase's runs, newest first, each a tab with its state, its line (`SL-1: Rejected after 2 rounds`) and its start; the newest opens, on its review when one waits on you |
 | rounds | a review loop's rounds in order, newest open, each the produced artifacts and the review: one line per Validator, passed or not, its findings under it, the human's own among them, each with its code and clipped to two lines when long; a loop nested in a workflow (the storms of `domain-discovery`) folds as rounds where it sits; a fan-out (`spec-all`) lists its children the same way |
-| artifact | any artifact a round made opens as a document in the panel, read-only, listed once, on the run that made it; the panel shows what changed since the revision before (the switch below), and steps to the previous and next revision; an EventStorming opens its board |
+| artifact | any artifact a round made opens as a document in the panel, read-only, listed once, on the run that made it; a step with no runs under it (a Task, a check) also lists what it read, dashed, so a round reads `read SourceInventory r9, made Prd r5`; the panel shows what changed since the revision before (the switch below), and steps to the previous and next revision; an EventStorming opens its board |
 | jump | an id in a finding (`BR-6`, `GD-14`) opens the round's artifact that holds that element, scrolled to it and lit for a moment; a tag inside a document (`EP-1` under a guard) scrolls to its element; a folded section opens when it holds the target |
 | review | a TaskRun parked on a human here shows "Review"; it opens the form's Reading as documents, the Task's instructions above them, value inputs (the auditor's verdict) beside them |
 
@@ -152,7 +152,7 @@ but `POST /api/inbox`.
 | Route | Answer |
 |---|---|
 | `GET /api/runs` | `{directory, runs: [{namespace, name, workflow, phase, waitingReason?, error?, created, steps: {<id>: {phase, iteration?}}, inputs, outputs, upstream: [{kind, id}], parked: [{taskRun, task, verdict}]}]}`: every WorkflowRun without an owner; `upstream` every artifact its input and output refs reach through `provenance.inputs`; `parked` its descendants waiting on a human that this engine drives, with an inbox form |
-| `GET /api/runs/<ns>/<name>` | `{kind, name, label, phase, waitingReason?, error?, created, finished?, outputs?, result?, children: [...]}`, nested; `label` the child's name minus its owner's, as the tree prints it |
+| `GET /api/runs/<ns>/<name>` | `{kind, name, label, phase, waitingReason?, error?, created, finished?, inputs?, outputs?, result?, children: [...]}`, nested; `label` the child's name minus its owner's, as the tree prints it |
 | `GET /api/inbox` | `{directory, parked: [{namespace, taskRun, task, deadline, form, verdict}]}`: every TaskRun Waiting on a human that this engine drives (`08-store.md`) |
 | `GET /api/inbox/<ns>/<taskRun>` | the parsed form; 404 when the TaskRun is not parked here or has no form |
 | `GET /api/kinds/<kindName>` | `{name, apiVersion, kind, schema}`, the kind's content schema |

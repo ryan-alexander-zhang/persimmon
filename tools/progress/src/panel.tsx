@@ -125,7 +125,8 @@ function Artifact({ ref_, namespace, anchor, onRevision }: { ref_: RevisionRef; 
   );
 }
 
-const refsOf = (n: api.Node): RevisionRef[] => Object.values(n.outputs ?? {}).flatMap((o) => (o.kind === "artifact" && o.ref ? [o.ref] : o.kind === "artifacts" ? (o.refs ?? []) : []));
+const refsIn = (ports: api.Node["outputs"]): RevisionRef[] => Object.values(ports ?? {}).flatMap((o) => (o.kind === "artifact" && o.ref ? [o.ref] : o.kind === "artifacts" ? (o.refs ?? []) : []));
+const refsOf = (n: api.Node): RevisionRef[] => refsIn(n.outputs);
 const refKey = (r: RevisionRef) => `${r.kind}/${r.id}/${r.revision}`;
 /** Every artifact a run and the runs it owns made, each once. */
 const madeBy = (n: api.Node): RevisionRef[] => {
@@ -214,6 +215,14 @@ function Step({ node, act, onJump, depth = 0 }: { node: api.Node; act: Act; onJu
   const v = verdictOf(node);
   // a check's own TaskRun (the auditor, the human) reads as the check itself
   const kids = node.kind === "ValidationRun" ? [] : node.children;
+  // what a step read, on the step that read it: a workflow only hands its inputs down
+  const made = new Set(artifacts.map(refKey));
+  const read = kids.length === 0 ? refsIn(node.inputs).filter((r) => !made.has(refKey(r))) : [];
+  const chip = (a: RevisionRef, muted: boolean) => (
+    <button key={refKey(a)} type="button" onClick={() => onArtifact(a)} className={`rounded-md border px-2.5 py-1 text-[13px] hover:border-ink-3 hover:text-ink ${muted ? "border-dashed border-line text-ink-3" : "border-line text-ink-2"}`}>
+      {a.kind} <span className={`font-semibold ${muted ? "text-ink-2" : "text-ink"}`}>{a.id}</span> r{a.revision}
+    </button>
+  );
   return (
     <li style={{ paddingLeft: depth * 18 }}>
       <div className="flex items-center gap-3 py-1.5">
@@ -226,13 +235,16 @@ function Step({ node, act, onJump, depth = 0 }: { node: api.Node; act: Act; onJu
           </button>
         )}
       </div>
+      {read.length > 0 && (
+        <div className="mb-1.5 ml-[30px] flex flex-wrap items-center gap-1.5">
+          <span className="w-9 text-[12px] text-ink-3">read</span>
+          {read.map((a) => chip(a, true))}
+        </div>
+      )}
       {artifacts.length > 0 && (
-        <div className="mb-1.5 ml-[30px] flex flex-wrap gap-1.5">
-          {artifacts.map((a) => (
-            <button key={`${a.kind}/${a.id}/${a.revision}`} type="button" onClick={() => onArtifact(a)} className="rounded-md border border-line px-2.5 py-1 text-[13px] text-ink-2 hover:border-ink-3 hover:text-ink">
-              {a.kind} <span className="font-semibold text-ink">{a.id}</span> r{a.revision}
-            </button>
-          ))}
+        <div className="mb-1.5 ml-[30px] flex flex-wrap items-center gap-1.5">
+          {read.length > 0 && <span className="w-9 text-[12px] text-ink-3">made</span>}
+          {artifacts.map((a) => chip(a, false))}
         </div>
       )}
       {v && (v.findings ?? []).length > 0 && (
