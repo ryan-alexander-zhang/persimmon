@@ -6,6 +6,7 @@ import { edges as flowEdges, type PhaseView, type State } from "./lib/flow";
 
 const LANE = 270;
 const STEP = 108;
+const FIT = { padding: 0.12, maxZoom: 1.15 };
 
 type StationData = { view: PhaseView; selected: boolean };
 
@@ -33,7 +34,8 @@ export function Map({ views, selected, onSelect }: { views: PhaseView[]; selecte
       nodeTypes={{ station: Station }}
       onNodeClick={(_, n) => onSelect(n.id)}
       fitView
-      fitViewOptions={{ padding: 0.12, maxZoom: 1.15 }}
+      fitViewOptions={FIT}
+      onInit={(rf) => requestAnimationFrame(() => void rf.fitView(FIT))} // the first fit runs before the stations are measured
       nodesConnectable={false}
       elementsSelectable={false}
       proOptions={{ hideAttribution: true }}
@@ -66,7 +68,7 @@ function Station({ data }: NodeProps<Node<StationData>>) {
       <Glyph state={view.state} />
       <span className="min-w-0">
         <span className={`block text-[15px] font-semibold ${view.state === "idle" ? "text-ink-2" : "text-ink"}`}>{view.phase.title}</span>
-        <span className={`block truncate text-[13px] ${view.state === "needs-you" ? "font-medium text-persimmon" : "text-ink-2"}`}>{view.detail}</span>
+        <span className={`block text-[13px] leading-snug ${view.state === "needs-you" ? "font-medium text-persimmon" : "text-ink-2"}`}>{view.detail}</span>
       </span>
       <Handle type="source" position={Position.Bottom} className="!border-0 !bg-transparent" />
     </button>
