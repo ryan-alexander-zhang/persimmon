@@ -100,7 +100,13 @@ run, revise that Spec through its own process:
    only in the round that writes the answer, so every one is new. Its Gate failing stops the
    Autopilot.
 
-A `question-upstream` naming another kind (a Glossary, a Design, the Plan, the TestHarness) has no
+A `question-upstream` naming the TestHarness is applied the same way: `persimmon run setup-tests`
+with the inputs it had (`architecture`, `adrs`, `designs`, `repository`), `base` the harness's latest
+passed revision and `changes=@<file>` the answers; its Tester and confirm forms are answered as
+usual. Its Gate passed: `test-design-all` again for the capabilities whose TestDesign told the
+answer, with the new harness, and every later run takes it. Its Gate failing stops the Autopilot.
+
+A `question-upstream` naming another kind (a Glossary, a Design, the Plan) has no
 revision the Autopilot can run: it stops the Autopilot after that run, and the report names the
 answer and the artifact as the revision the developer owes before resuming.
 
@@ -115,7 +121,8 @@ Stop and report, never work around it, when:
 - a subagent's answer is refused twice for the same form;
 - an `Issue`'s fix fails its Gate (`autopilot-code`).
 - a Spec revision fails its Gate (Upstream answers, above).
-- a run tells a `question-upstream` naming anything but a Spec (Upstream answers, above).
+- a run tells a `question-upstream` naming anything but a Spec or the TestHarness, or a TestHarness
+  revision fails its Gate (Upstream answers, above).
 
 ## Report
 
