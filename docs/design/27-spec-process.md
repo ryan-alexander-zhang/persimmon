@@ -145,8 +145,11 @@ nothing: the schema refuses those (`minItems: 1`).
   threshold with no scenario beside it, a policy limit no scenario or rule gave, a per diem line
   only a command of no story creates. `boundary-untested` becomes an error, and two codes join it:
   `value-missing`, an outcome turning on a value neither the scenario, the Spec nor the rules give;
-  `scenario-unreachable`, a Given no DomainModel command produces and no test can set directly.
-  Reachability is judged against the DomainModel, the Spec's source of commands: a Design operation
-  for every command is the coverage Gate's, so no later Gate needs the Spec beside the Designs.
+  `scenario-unreachable`, a Given no command of the Spec's own stories produces and no test can
+  set directly. Its own stories, not the whole DomainModel: another capability may be built later,
+  and a test of this one cannot wait for it; measured against the UAT's Spec, the auditor judged a
+  per diem line only another capability's Add Trip creates reachable, a warning, until the rule
+  said so. A Design operation for every command is the coverage Gate's, so no later Gate needs
+  the Spec beside the Designs.
   `spec-rules` asks for the same three, so the writer meets them before the auditor does. Found in
   UAT.
