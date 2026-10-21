@@ -124,7 +124,7 @@ describe('scenario: the Test process', () => {
 
     // round one: the Tester writes T-1's api cases before the code, and misses TC-10
     let f = form()
-    expect(f.inputs.cases.value).toEqual({ unit: ['CAP-1/TC-3', 'CAP-1/TC-8', 'CAP-1/TC-9'], integration: [], api: ['CAP-1/TC-1', 'CAP-1/TC-10'], e2e: [], manual: [], write: { api: true, e2e: false } })
+    expect(f.inputs.cases.value).toEqual({ unit: ['CAP-1/TC-3', 'CAP-1/TC-8', 'CAP-1/TC-9'], fitness: [], integration: [], api: ['CAP-1/TC-1', 'CAP-1/TC-10'], e2e: [], manual: [], write: { api: true, e2e: false } })
     expect(f.reading.map((r: { kind: string }) => r.kind)).toEqual(['Prompt', 'TestDesign', 'TestHarness', 'Plan', 'Spec', 'Design'])
     writeFileSync(join(repo, 'api.xml'), xml(...apiSeed, ['CAP-1/TC-1 a meals line without a receipt keeps the claim not complete']))
     await answer(f.taskRun, { written: { kind: 'value', value: { files: ['api.xml'], cases: ['CAP-1/TC-1'] } } })

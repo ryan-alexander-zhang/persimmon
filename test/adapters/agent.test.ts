@@ -729,6 +729,7 @@ describe('junit/v1', () => {
     stored['h'] = { architecture: 'a', openQuestions: [], levels: {
       unit: { tool: 'node', run: unitRun, one: ['x'], junit: 'junit.xml', paths: ['src/**'], testDir: 'test', seed: 's', conventions: 'c', coverage: { report: 'cov.xml' } },
       api: { tool: 'bru', run: tests('<testcase classname="a" name="CAP-1/TC-1 refused"/>'), one: ['x'], junit: 'junit.xml', testDir: 'api', seed: 's', conventions: 'c' },
+      fitness: { tool: 'node --test', run: tests('<testcase classname="f" name="CAP-1/TC-4 no write bypasses the aggregate"/>'), one: ['x'], junit: 'junit.xml', testDir: 'fitness', seed: 's', conventions: 'c' },
     } }
     const harness = { kind: 'artifact', ref: { ...record, kind: 'TestHarness', id: 'h' } }
     calls.length = 0
@@ -739,10 +740,10 @@ describe('junit/v1', () => {
     const levels = round(dir, { levels: {} }, head)
     levels.task.outputs = { outcomes: { type: { kind: 'artifacts', artifactKind: outcome } } } as never
     levels.task.outputIds = { outcomes: 'p-t-1-levels' } as never
-    levels.inputs = { record: levels.inputs.record, harness, cases: { kind: 'value', value: { unit: [], integration: [], api: ['CAP-1/TC-1'], e2e: [], manual: [], write: { api: false, e2e: false } } } } as never
+    levels.inputs = { record: levels.inputs.record, harness, cases: { kind: 'value', value: { unit: [], fitness: ['CAP-1/TC-4'], integration: [], api: ['CAP-1/TC-1'], e2e: [], manual: [], write: { api: false, e2e: false } } } } as never
     calls.length = 0
     await adapter('junit', { id: 68, op: 'execute', payload: levels })
-    expect(published().map((x) => [x.content.level, x.content.selection])).toEqual([['api', { mode: 'full', reason: 'no Change set: no baseline commit' }]]) // the harness's api, not the Executor's empty map
+    expect(published().map((x) => [x.content.level, x.content.selection])).toEqual([['fitness', { mode: 'full', reason: 'no Change set: no baseline commit' }], ['api', { mode: 'full', reason: 'no Change set: no baseline commit' }]]) // the harness's levels, fitness first, not the Executor's empty map
     const half = round(dir, { program: ['npm', 'test'], junit: 'junit.xml', coverage: { min: 80 } }, head)
     const r = await adapter('junit', { id: 69, op: 'execute', payload: half })
     expect(last(r)).toMatchObject({ ok: false, error: { code: 'invalid_input', message: expect.stringContaining('no report') } }) // a minimum alone measures nothing
@@ -788,7 +789,7 @@ describe('testdesign/v1', () => {
   it('answers a round\'s cases from the TestDesign, the Plan task and the Spec', async () => {
     const inputs = { plan: art('Plan'), spec: art('Spec'), testDesign: art('TestDesign'), taskId: { kind: 'value', value: 'T-1' } }
     const r = last(await adapter('testdesign', { id: 91, op: 'execute', payload: p(inputs, task({ cases: { type: { kind: 'value', schema: { type: 'object' } } } })) }))
-    expect(r.result.outputs.cases).toEqual({ kind: 'value', value: { unit: ['CAP-1/TC-3', 'CAP-1/TC-8', 'CAP-1/TC-9'], integration: [], api: ['CAP-1/TC-1', 'CAP-1/TC-10'], e2e: [], manual: [], write: { api: true, e2e: false } } })
+    expect(r.result.outputs.cases).toEqual({ kind: 'value', value: { unit: ['CAP-1/TC-3', 'CAP-1/TC-8', 'CAP-1/TC-9'], fitness: [], integration: [], api: ['CAP-1/TC-1', 'CAP-1/TC-10'], e2e: [], manual: [], write: { api: true, e2e: false } } })
     const none = last(await adapter('testdesign', { id: 92, op: 'execute', payload: p({ plan: inputs.plan, spec: inputs.spec, taskId: inputs.taskId }, task({ cases: { type: { kind: 'value', schema: { type: 'object' } } } })) }))
     expect(none.result.outputs.cases.value.write).toEqual({ api: false, e2e: false }) // no TestDesign: the build of 35-build-process.md
   })

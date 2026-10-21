@@ -1209,6 +1209,7 @@ spec:
                   conventions: {type: string, minLength: 1, description: "how a test of this level is written here: fixtures, test data, the title carrying a case id"}
               api: *level
               e2e: *level
+              fitness: *level # reads the source, starts nothing (36-test-levels.md)
           app:
             type: object
             description: "what the api and e2e tests run against"
@@ -1261,7 +1262,7 @@ spec:
                 id: {type: string, pattern: "^TC-[0-9]+$"}
                 title: {type: string, minLength: 1}
                 verifies: {type: array, minItems: 1, items: {type: string, pattern: "^(AC|QS|BR|FR)-[0-9]+$"}, description: "the scenarios and rules it verifies; at least one AC-n or QS-n"}
-                level: {enum: [unit, integration, api, e2e]}
+                level: {enum: [unit, fitness, integration, api, e2e]}
                 priority: {enum: [P0, P1, P2, P3], description: "P0: a failure loses data, money or access, or stops the main path; P1: a main-path variant or a rule's edge; P2: a secondary path; P3: the rest"}
                 execution: {enum: [automated, manual]}
                 preconditions: {type: array, items: {type: string, minLength: 1}}
@@ -1332,7 +1333,7 @@ spec:
                         additionalProperties: false
                         properties:
                           name: {type: string, minLength: 1}
-                          level: {enum: [unit, integration, api, e2e]}
+                          level: {enum: [unit, fitness, integration, api, e2e]}
           summary: {type: string, minLength: 1, description: "what was built, in the Glossary's words"}
           openQuestions:
             type: array
@@ -1394,7 +1395,7 @@ spec:
                 status: {enum: [passed, failed, errored, skipped]}
                 message: {type: string}
           outputTail: {type: string, description: "the last lines of output when no test case was read, a compile error; present exactly then, never on a `none` selection"}
-          level: {enum: [unit, integration, api, e2e], description: "the test level run (36-test-levels.md); absent is unit"}
+          level: {enum: [unit, fitness, integration, api, e2e], description: "the test level run (36-test-levels.md); absent is unit"}
           selection:
             type: object
             description: "what the Change set made the runner run: nothing, the affected tests or every test, and why"
@@ -1481,7 +1482,7 @@ spec:
               additionalProperties: false
               properties:
                 case: {type: string, pattern: "^CAP-[0-9]+/TC-[0-9]+$"}
-                level: {enum: [unit, integration, api, e2e]}
+                level: {enum: [unit, fitness, integration, api, e2e]}
                 priority: {enum: [P0, P1, P2, P3]}
                 execution: {enum: [automated, manual]}
                 status: {enum: [ok, nok, notrun]}
@@ -1512,7 +1513,7 @@ spec:
               required: [level, selection, passed, failed, skipped]
               additionalProperties: false
               properties:
-                level: {enum: [unit, integration, api, e2e]}
+                level: {enum: [unit, fitness, integration, api, e2e]}
                 selection: {enum: [none, affected, full]}
                 passed: {type: integer, minimum: 0}
                 failed: {type: integer, minimum: 0}

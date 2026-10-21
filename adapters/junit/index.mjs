@@ -1,7 +1,7 @@
 // junit/v1: runs a project's test command in the workspace and answers what its JUnit XML says as the Task's one artifact
 // output, a TestOutcome (35-build-process.md). The exit code is part of the answer, never a failure: red tests are an outcome
 // the Gate judges. No test read (a compile error, a killed suite, unreadable XML) answers `tests: []` and the output tail.
-// Configured with `levels`, it runs each test level the map names in order, integration, api, e2e, and answers an artifacts
+// Configured with `levels`, it runs each test level the map names in order, fitness, integration, api, e2e, and answers an artifacts
 // list. Each level selects by the Change set before it runs: nothing, the affected tests or every test (36-test-levels.md).
 // A TestHarness bound as `harness` names the levels and their commands instead; the Executor keeps the minimums. A round's
 // `cases` are the case ids each level must run, as a record's names are (39-test-process.md).
@@ -14,7 +14,7 @@ import { changeSet, expand, namedFor, newRed, select, touched, unmatched } from 
 import { carries } from '../sdd/check.mjs'
 
 const tailLines = 50
-const order = ['integration', 'api', 'e2e'] // cheapest first; unit runs on its own Executor before them
+const order = ['fitness', 'integration', 'api', 'e2e'] // cheapest first; unit runs on its own Executor before them
 
 /** The commit and whether the tree differs from it, before the run writes its reports; no index lock taken; both absent outside a git repository. */
 function gitState(cwd) {

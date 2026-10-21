@@ -188,6 +188,26 @@ describe('the SDLC pack Design kind', () => {
     expect(() => reg.validateResource(record(['claim > ac 1', { name: 'submit a claim', level: 'api' }]))).not.toThrow()
     expect(() => reg.validateResource(record([{ name: 'submit a claim' }]))).toThrow(/must match a schema in anyOf/)
   })
+
+  it('fitness is a level: a TestHarness holds one, a case and an outcome name it (36-test-levels.md)', () => {
+    const reg = new KindRegistry()
+    for (const k of packKinds) reg.register(k)
+    const example = (kind: string) => {
+      const d = structuredClone(parseAllDocuments(readFileSync('docs/design/examples/sdlc-domain.yaml', 'utf8')).map((x) => x.toJS()).find((x) => x.kind === kind))
+      d.metadata.namespace = 'demo'
+      return d
+    }
+    const harness = example('TestHarness')
+    harness.spec.content.levels.fitness = { ...harness.spec.content.levels.unit, tool: 'node --test', testDir: 'test/fitness', seed: 'no write bypasses the aggregate', conventions: 'a test reads the source in the test process and starts nothing' }
+    delete harness.spec.content.levels.fitness.coverage
+    delete harness.spec.content.levels.fitness.mutation
+    expect(() => reg.validateResource(harness)).not.toThrow()
+    const design = example('TestDesign')
+    design.spec.content.cases[0].level = 'fitness'
+    expect(() => reg.validateResource(design)).not.toThrow()
+    const outcome = { apiVersion: 'sdd.persimmon.ai/v1', kind: 'TestOutcome', metadata: { name: 'p-t-1-levels-1.r1', namespace: 'demo' }, spec: { identity: { id: 'p-t-1-levels-1', revision: 1 }, content: { command: ['node', '--test'], exitCode: 0, tests: [], level: 'fitness', selection: { mode: 'none', reason: 'untouched' } } } }
+    expect(() => reg.validateResource(outcome)).not.toThrow()
+  })
 })
 
 describe('the Rewrite pack kinds (40-pack-rewrite.md)', () => {

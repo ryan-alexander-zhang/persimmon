@@ -1114,13 +1114,15 @@ describe('sdd/v1 over the Test process', () => {
 
   it('selects a task\'s cases by level, and whether the Tester writes this round', () => {
     const ids = { plan: content('Plan'), taskId: 'T-1', spec: content('Spec'), testDesign: content('TestDesign') }
-    expect(selectCases(ids)).toEqual({ unit: ['CAP-1/TC-3', 'CAP-1/TC-8', 'CAP-1/TC-9'], integration: [], api: ['CAP-1/TC-1', 'CAP-1/TC-10'], e2e: [], manual: [], write: { api: true, e2e: false } })
+    expect(selectCases(ids)).toEqual({ unit: ['CAP-1/TC-3', 'CAP-1/TC-8', 'CAP-1/TC-9'], fitness: [], integration: [], api: ['CAP-1/TC-1', 'CAP-1/TC-10'], e2e: [], manual: [], write: { api: true, e2e: false } })
     const gate = (message: string) => ({ passed: false, results: { evidence: { passed: false, findings: [{ severity: 'error', code: 'x', message }] } } })
     expect(selectCases({ ...ids, feedback: gate('CAP-1/TC-10: no api test carries it') }).write).toEqual({ api: true, e2e: false })
     expect(selectCases({ ...ids, feedback: gate('CAP-1/TC-3: claim > x failed') }).write).toEqual({ api: false, e2e: false }) // a round refused for the code alone
     const warned = gate('Q-1 is open: which currency?'); warned.results.evidence.findings.push({ severity: 'warning', code: 'question-upstream', message: "Q-2's answer changes claims-api: CAP-1/TC-10 asks only for a 4xx" })
     expect(selectCases({ ...ids, feedback: warned }).write).toEqual({ api: false, e2e: false }) // a warning naming a case calls no Tester back
-    expect(selectCases({ ...ids, testDesign: undefined })).toEqual({ unit: [], integration: [], api: [], e2e: [], manual: [], write: { api: false, e2e: false } })
+    const fit = structuredClone(ids.testDesign); fit.cases.find((c: any) => c.id === 'TC-3').level = 'fitness' // the Builder's, like unit
+    expect(selectCases({ ...ids, testDesign: fit })).toMatchObject({ unit: ['CAP-1/TC-8', 'CAP-1/TC-9'], fitness: ['CAP-1/TC-3'], write: { api: true, e2e: false } })
+    expect(selectCases({ ...ids, testDesign: undefined })).toEqual({ unit: [], fitness: [], integration: [], api: [], e2e: [], manual: [], write: { api: false, e2e: false } })
   })
 
   it('a round under a TestDesign reads the task\'s cases, not record rows', () => {

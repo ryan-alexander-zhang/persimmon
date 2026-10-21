@@ -499,7 +499,7 @@ export function selectCases({ plan, taskId, spec, testDesign, feedback }) {
   const of = (level) => cases.filter((c) => c.execution !== 'manual' && c.level === level).map((c) => c.qid)
   const named = Object.values(feedback?.results ?? {}).flatMap((r) => r?.findings ?? []).filter((f) => f.severity === 'error').map((f) => f.message ?? '').join('\n')
   const write = (level) => of(level).length > 0 && (!feedback || of(level).some((q) => named.includes(q)))
-  return { unit: of('unit'), integration: of('integration'), api: of('api'), e2e: of('e2e'), manual: cases.filter((c) => c.execution === 'manual').map((c) => c.qid), write: { api: write('api'), e2e: write('e2e') } }
+  return { unit: of('unit'), fitness: of('fitness'), integration: of('integration'), api: of('api'), e2e: of('e2e'), manual: cases.filter((c) => c.execution === 'manual').map((c) => c.qid), write: { api: write('api'), e2e: write('e2e') } }
 }
 
 /** One TestHarness against the seed runs of its levels (39-test-process.md): every level ran and its seed test is green.
