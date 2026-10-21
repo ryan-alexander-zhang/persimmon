@@ -58,7 +58,9 @@ nothing about how the document came to be:
 > later work would build on wrongly, or an open `Q-n`. Wording, grammar and style are `info` notes
 > on an approval. From round 2 the tree holds the earlier rounds' findings: check those were fixed
 > first; what an earlier round left unflagged stands unless it is wrong in that sense.
-> Every open `Q-n` you settle: reject, with a finding naming it, the
+> A `Q-n` with a `resolution` is not open, even under a `question-agent-resolved` warning: when the
+> resolution says what an earlier verdict decided, it is that answer recorded; reject it only if it
+> is wrong. Every open `Q-n` you settle: reject, with a finding naming it, the
 > decision and what to change (`Q-1: decided. <decision>. <what changes>.`; the writer records it as Q-1's `resolution`, and the
 > question stays).
 > Decide as a careful owner of this product would, the simplest choice that serves the Prd. A
