@@ -25,7 +25,7 @@ Workflow spec-all: repeat over `capabilities` ─▶ ReviewLoop spec-one per CAP
 | Executor `spec-agent` | `claude-code/v1`, read-only, the same configuration as `storming-agent` under its own name, so a Namespace overrides the model per Task |
 | Task `write-spec` | inputs `prd`, `capabilityId`, `architecture`, `context` (the BoundedContext, `34-subdomains.md`), `domainModel`, `glossary`, `rules`, `previous`, `feedback`, `base?` (the Spec this run revises), `changes?` (the downstream answers it applies, each `<artifact id> Q-n: <resolution>`); output `spec` |
 | Validator `spec-consistency` | `sdd/v1` over `spec`, `prd`, `domainModel`, `architecture`, `rules`, and optionally `context`, `base` and the value `capabilityId`; the rule row of `23-pack-sdlc.md` as findings, `rules-mismatch` when the Spec's `businessRules` is not the artifact bound |
-| Prompt `draft-audit-rules`, part "A Spec" | what the auditor judges that `spec-consistency` cannot (`23-pack-sdlc.md`): `ac-undecidable`, `ac-contradicts-rule` and `requirement-unproven` errors; `boundary-untested` and `scope-doubt` warnings |
+| Prompt `draft-audit-rules`, part "A Spec" | what the auditor judges that `spec-consistency` cannot (`23-pack-sdlc.md`): `ac-undecidable`, `ac-contradicts-rule`, `requirement-unproven`, `boundary-untested`, `value-missing` and `scenario-unreachable` errors; a `scope-doubt` warning |
 | Task `audit-spec` | inputs `spec`, `prd`, `rules`, `domainModel`, `architecture`, and from round two `previous` and `feedback` (`spec-one`'s `review` binds them; `23-pack-sdlc.md`); Executor `auditor`; output `audit`, a ValidationResult whose schema ties `passed` to "no `error` finding"; 30m, three attempts |
 | Validator `spec-audited` | `task` over `audit-spec`, `resultOutput: audit` |
 | Gate `spec-gate` | consistency, then `audit` `after: [consistency]`, `all`, 35m; a human sign-off is an Approval the project adds |
@@ -140,3 +140,13 @@ nothing: the schema refuses those (`minItems: 1`).
   revision may rightly reword a scenario, and comparing words would refuse it. An error, not a
   warning as `task-renumbered` is: a Spec has no build order that a renumbering could serve.
   Found in UAT.
+- A Spec's gaps are refused at its own Gate, not found by the TestDesign. In the full-Plan UAT the
+  TestDesign raised the Spec's gaps over eight revisions, each one a round and a Spec revision: a
+  threshold with no scenario beside it, a policy limit no scenario or rule gave, a per diem line
+  only a command of no story creates. `boundary-untested` becomes an error, and two codes join it:
+  `value-missing`, an outcome turning on a value neither the scenario, the Spec nor the rules give;
+  `scenario-unreachable`, a Given no DomainModel command produces and no test can set directly.
+  Reachability is judged against the DomainModel, the Spec's source of commands: a Design operation
+  for every command is the coverage Gate's, so no later Gate needs the Spec beside the Designs.
+  `spec-rules` asks for the same three, so the writer meets them before the auditor does. Found in
+  UAT.

@@ -254,6 +254,9 @@ no case has none to miss.
   run's `base`. A case kept from `base` is held to the same rule: one that tests what no scenario
   says is removed and becomes the question, since the live rerun kept such a case from a TestDesign
   written before the rule and lost its last round to it. Found in UAT.
+- The writer raises every gap of the Spec in round one. In the full-Plan UAT the gaps came one or
+  two a round, and each answer was a Spec revision; one batch costs one. The Autopilot already
+  revises a Spec once per run with every answer (`38-autopilot.md`). Found in UAT.
 - `select-cases` reads only the `error` findings of the last round. In the live run a
   `question-upstream` warning quoting `TC-11` called the Tester back to a round refused for an open
   question alone; the Tester re-ran its tests and changed nothing. Found in UAT.
