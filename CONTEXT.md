@@ -677,8 +677,10 @@ there and red still is not the build's. Always so named: a bare "baseline" is th
 _Avoid_: TestRun (a Run is the engine's), test report, test result, CI run
 
 **Test level**:
-Which kind of test a test or a **Test case** is: `unit`, `integration`, `api` or `e2e`. One **TestOutcome** per
-level and run: `unit` on the Executor `test-runner`, the others on `level-runner`. Coverage and
+Which kind of test a test or a **Test case** is: `unit`, `fitness`, `integration`, `api` or `e2e`. One
+**TestOutcome** per level and run: `unit` on the Executor `test-runner`, the others on `level-runner`.
+A `fitness` test reads the code's structure (dependency direction, a module boundary, a write path)
+and runs nothing of the app: the level of a quality scenario whose method is `fitness`. Coverage and
 mutation are measures of the `unit` level, recorded in its TestOutcome, not levels.
 _Avoid_: test type, test kind, test layer, suite (for the level), stage
 
