@@ -110,6 +110,7 @@ that kept its own `AGENTS.md` or `CLAUDE.md` carries section 8 itself.
 | Rule | Enforcer |
 |---|---|
 | a `Q-n` of a TestHarness, a TestDesign or an AcceptanceRecord whose answer changes an upstream artifact (settles its open `Q-n`, or corrects its words) names it in `upstream`, `<artifact id>` or `<artifact id> Q-n`; each such answer is told as a `question-upstream` warning, a revision the developer owes upstream through that artifact's process, once: an answer `previous` or `base` already gave is not told again, and an entry is dropped once the upstream artifact in the inputs says it | `harness-rules`, `test-design-rules`, `build-rules`; every `sdd/v1` document check |
+| a writer's open `Q-n` is decided inside the round, before its Gate: the draft Workflow of a Spec, a Design, a Plan, a TestHarness or a TestDesign (`spec-draft`, `design-draft`, `plan-draft`, `harness-work`, `test-design-draft`) routes a draft whose `open` output names a question to `decide-<kind>` on `local-reviewer`, the owner (`owner-decisions`), and the writer records the `decisions` as the questions' `resolution`s in the same round (`upstream` named where the answer changes an upstream artifact); a draft with none goes straight to its Gate; the Gate's human, when the Gate has one, confirms a document whose writer left no question open | the draft Workflows; `decide-*`; the writers' Prompts |
 | a `Q-n` resolved in a document an Adapter published is an agent's answer in a human's place, told to the human as a `question-agent-resolved` warning unless the last round had it; who produced it is `provenance.actor`, the channel that published it, not a field the agent fills | every `sdd/v1` document check (`35-build-process.md`) |
 | ids (`BR-n`, `R-n`, `G-n`, `CAP-n`, `SC-n`, `Q-n`, `QG-n`, `C-n`, `S-n`, `BB-n`, `REL-n`, `RT-n`, `CC-n`, `QS-n`, `RK-n`, `US-n`, `FR-n`, `AC-n`) unique in a document and increasing in document order (`AC-n`: within its story, since scenarios nest under stories and a revision's new one may belong to any), from 1 on a first draft, never reused across revisions: a removed item leaves a gap, a new one takes the next number; term and fact type `name`s unique in a Glossary, never reused; a revision keeps every id and name and fixes in place | author Prompt; `spec-consistency` for `US-n`, `FR-n`, `AC-n`, `Q-n` of a Spec; `prd-consistency` for `G-n`, `CAP-n`, `SC-n`, `Q-n` of a Prd and `BR-n` of the rules it writes; Validator later for the rest |
 | a term's `aliases` never name another term; a `relationships[]` entry's `role` fits its `pattern` (conformist, anticorruption-layer: downstream; open-host-service, published-language: upstream; shared-kernel, partnership, separate-ways: peer; customer-supplier: either) | Validator later |
@@ -136,6 +137,18 @@ that kept its own `AGENTS.md` or `CLAUDE.md` carries section 8 itself.
 
 ## Decisions
 
+- An open question is decided inside the round that raised it, before the Gate, by the owner.
+  In the live Autopilot run a TestDesign's questions reached the human only at the confirm step,
+  after the check and the auditor; the human answered by rejecting, the next round recorded the
+  answers and raised the next questions, and a loop of three rounds was spent on answering, not
+  on judging: 42 TestDesign revisions for two capabilities, nine of fourteen rejections answer-only,
+  two loops dead at `maxRounds` with their answers in a GateResult alone. The writer now says
+  which questions it left open (`open`); a draft with any goes to `decide-<kind>`, the owner, a
+  human at the terminal or the Autopilot's agent in the human's place (`38-autopilot.md`); the
+  writer records the decisions in the same round, `previous` being the draft and `decisions` the
+  answers, so the check, the auditor and the confirm judge a document with no open question of the
+  writer's. The confirm step keeps its right to decide what it finds itself. A `first` output
+  binding carries whichever path ran (`10-ports.md`). Found in UAT.
 - Two levels, not one: a `Prd` per product or initiative (why, for whom, capabilities), a `Spec`
   per capability (stories, requirements, acceptance scenarios, cited qualities). spec-kit's `spec.md` is the second;
   BMAD's PRD mixes both. A PRD revises rarely and is judged on goals and scope; a spec revises per

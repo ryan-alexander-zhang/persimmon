@@ -76,11 +76,11 @@ describe('scenario: the Test process', () => {
     let f = form()
     expect(f.reading.map((r: { kind: string }) => r.kind)).toEqual(['Prompt', 'Architecture', 'Design']) // the harness rules, the Architecture's testing concepts, the Designs
     expect(f.outputIds).toEqual({ harness: 'expense-claims-architecture-harness' })
-    await answer(f.taskRun, { harness }) // round one: no api seed test yet
+    await answer(f.taskRun, { harness, open: { kind: 'value', value: [] } }) // round one: no api seed test yet
     f = form()
     expect(f.inputs.feedback.value.results.evidence.findings.map((x: { code: string }) => x.code)).toEqual(['suite-empty'])
     writeFileSync(join(repo, 'api.xml'), xml(...apiSeed))
-    await answer(f.taskRun, { harness })
+    await answer(f.taskRun, { harness, open: { kind: 'value', value: [] } })
     f = form() // the seed tests pass: the human confirms the harness
     expect(f.reading.map((r: { kind: string }) => r.kind)).toEqual(['TestHarness', 'Architecture'])
     await answer(f.taskRun, { result: pass })
@@ -99,10 +99,20 @@ describe('scenario: the Test process', () => {
     expect(f.outputIds).toEqual({ testDesign: 'submit-a-claim-tests' })
     const cases = structuredClone(one('TestDesign').spec.content)
     const short = { ...cases, cases: cases.cases.filter((c: { id: string }) => c.id !== 'TC-10') } // QS-3 has no case
-    await answer(f.taskRun, { testDesign: short })
+    const asked = { ...short, openQuestions: [{ id: 'Q-1', question: 'Is QS-3 proven at build, or only observed in production?' }] }
+    await answer(f.taskRun, { testDesign: asked, open: { kind: 'value', value: ['Q-1'] } })
+    f = form() // an open question: the owner decides it inside the round, before any check
+    expect(f.reading.map((r: { kind: string }) => r.kind)).toEqual(['Prompt', 'TestDesign', 'Spec', 'Plan', 'TestHarness'])
+    expect(f.inputs.open.value).toEqual(['Q-1'])
+    await answer(f.taskRun, { decisions: { kind: 'value', value: [{ id: 'Q-1', resolution: 'At build: QS-3 is a fitness scenario, so it gets a case.' }] } })
+    f = form() // the writer records the decision in the same round
+    expect(f.inputs.decisions.value).toEqual([{ id: 'Q-1', resolution: 'At build: QS-3 is a fitness scenario, so it gets a case.' }])
+    expect(f.inputs.previous.ref).toMatchObject({ kind: 'TestDesign', revision: 1 })
+    expect(f.inputs).not.toHaveProperty('feedback')
+    await answer(f.taskRun, { testDesign: { ...short, openQuestions: [{ ...asked.openQuestions[0]!, resolution: 'At build: QS-3 is a fitness scenario, so it gets a case.' }] }, open: { kind: 'value', value: [] } })
     f = form() // the check refused: round two, the designer again, no auditor call
     expect(f.inputs.feedback.value.results.consistency.findings.map((x: { message: string }) => x.message)).toEqual(['quality scenario QS-3 is proven at build but no case verifies it'])
-    await answer(f.taskRun, { testDesign: cases })
+    await answer(f.taskRun, { testDesign: cases, open: { kind: 'value', value: [] } })
     f = form()
     expect(f.reading.map((r: { kind: string }) => r.kind)[0]).toBe('Prompt') // the auditor, with the draft audit rules
     await answer(f.taskRun, { audit: pass })

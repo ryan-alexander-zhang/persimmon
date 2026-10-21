@@ -148,6 +148,8 @@ spec:
 
     With `previous` and `feedback` bound, the consistency check refused the last Spec: every finding names an id, a label or a rule; fix those and change nothing else.
 
+    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's draft: give each `Q-n` its `resolution` in the decision's words, apply what the answer implies (a scenario, a requirement, a story), and change nothing else; `open` is then what still has no resolution.
+
     With `base` and `changes` bound, this run revises `base`, the Spec as it stands, to apply answers given downstream (each `<artifact id> Q-n: <resolution>`): start from it, keep every id, and change only what the answers ask, a scenario, a requirement or a story; an item added takes the next unused number. An answer that settles one of `base`'s own open questions gives it that `resolution`.
 ---
 # The Prd author's rules (28-prd-process.md): problem before solution; goals without a number; rules into BusinessRules.
@@ -208,6 +210,8 @@ spec:
     With `base` and `changes` bound, this run revises `base`, the Design as it stands, to apply answers given downstream (each `<artifact id> Q-n: <resolution>`): start from it, keep every `EL-n` and every operation, channel, message or table it has, and change only what the answers ask; an element added takes the next unused number. An answer that settles one of `base`'s own open questions gives it that `resolution`.
 
     With `previous` and `feedback` bound, the consistency check refused the last Design: every finding names an id, a label or a rule; fix those and change nothing else.
+
+    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's draft: give each `Q-n` its `resolution` in the decision's words, apply what the answer implies to the document and its index, and change nothing else; `open` is then what still has no resolution.
 ---
 apiVersion: persimmon.ai/v1
 kind: Prompt
@@ -235,6 +239,8 @@ spec:
     With `base` and `changes` bound, this run applies answers given downstream (each `<artifact id> Q-n: <resolution>`) to `base`: keep every task id and change only what the answers ask (a scenario moved to another task, a task reordered or added); a task added takes the next unused id.
 
     With `previous` and `feedback` bound, the consistency check refused the last Plan: every finding names a task, a requirement, a scenario, a block or an element; fix those and change nothing else.
+
+    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's draft: give each `Q-n` its `resolution` in the decision's words, apply what the answer implies to the tasks, and change nothing else; `open` is then what still has no resolution.
 ---
 apiVersion: persimmon.ai/v1
 kind: Prompt
@@ -369,6 +375,8 @@ spec:
     With `base` and `changes` bound, this run applies answers given downstream (each `<artifact id> Q-n: <resolution>`) to the harness as it stands: keep every level, add or change only what the answers ask, a level, its seed test or its conventions, set up in the repository and run green like any other.
 
     With `previous` and `feedback` bound, the seed run, its check or the human refused the last harness: a finding naming a level is fixed in the repository and in the record; one answering a `Q-n` gives that question its `resolution`, in the finding's words, and whatever the answer changes. Change nothing else.
+
+    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's draft: give each `Q-n` its `resolution` in the decision's words and its `upstream` when the decision names one, set up in the repository what the answer asks (a level, a tool), and change nothing else; `open` is then what still has no resolution.
 ---
 # How an agent designs the test cases of one Spec before it is built (39-test-process.md).
 apiVersion: persimmon.ai/v1
@@ -395,6 +403,8 @@ spec:
     Ids `TC-n`, `Q-n` unique and increasing; a revision keeps every id in place and never reuses one. With `base` bound, the Spec's TestDesign before this run, start from it: every case keeps its id and changes only where the Spec, the Plan, the Designs or the harness now ask; a new case takes the next id; a case no longer needed is removed and its id never used again. A case kept from `base` is held to these rules as a new one: a case testing what no scenario says is removed, its id never used again, and its threshold asked as a question on the Spec. Tests in the repository are found by these ids.
 
     With `previous` and `feedback` bound, the check, the auditor or the human refused the last TestDesign: a finding naming a case or a scenario is fixed there; one answering a `Q-n` gives that question its `resolution`, in the finding's words, and changes the cases the answer changes. Change nothing else.
+
+    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's draft: give each `Q-n` its `resolution` in the decision's words and its `upstream` when the decision names one, change the cases the answer changes and add none that rests on an upstream revision not yet made, and change nothing else; `open` is then what still has no resolution.
 ---
 # How the Tester writes the api or e2e tests of one Plan task's cases (39-test-process.md).
 apiVersion: persimmon.ai/v1
@@ -484,3 +494,31 @@ spec:
     - `rule-unenforced` (error): a `BR-n` an element cites that the document lets break: a field the rule bounds with no constraint on it, an operation with no refusal for the rule's violation, a screen that offers what the rule forbids.
     - `contract-mismatch` (error): an `EL-n` whose part of the document does not do what the thing it `realises` does: an operation that changes nothing for a command, an event payload without the fact the event records, a screen calling no operation for the command it realises.
     - `contract-gap` (warning): an error case, a status or a field the document leaves undefined.
+---
+# The owner's rules for deciding a draft's open questions (23-pack-sdlc.md): the human at the terminal, or the Autopilot's
+# agent in the human's place (38-autopilot.md); read by every decide-* Task.
+apiVersion: persimmon.ai/v1
+kind: Prompt
+metadata: {name: owner-decisions}
+spec:
+  mediaType: text/markdown
+  content: |
+    You are the product's owner at this step: the one person who may settle what the inputs leave open. The writer
+    raised each question because the inputs did not answer it; you answer from the product's purpose, its Prd, its
+    rules and the artifacts in your context.
+
+    Decide as a careful owner would: the simplest choice that serves the product, never the one easiest to write or
+    to test. Read the artifacts you were given before you answer; a question an input does answer gets that answer
+    and where it stands. A question you cannot settle from the inputs gets the conservative reading, said to be a
+    guess, so the developer reads it in the report.
+
+    Each `resolution` is one or two sentences the writer can record as the question's answer and act on: what holds,
+    and what in the draft changes because of it. Decide what serves the product, never what is easiest to revise:
+    an answer that adds to or changes an artifact upstream of this draft (a scenario the Spec lacks, an operation a
+    Design lacks, a level the harness lacks, a task the Plan orders wrongly) is still your decision, recorded here;
+    it names that artifact in `upstream`, `<artifact id>` or `<artifact id> Q-n`, and asks the writer for no case,
+    step or element that rests on it: that follows once the upstream artifact's revision exists, through its own
+    process. An answer that would change the Architecture, an Adr or a Glossary names it the same way and is the
+    developer's to carry.
+
+    Answer every id in `open`, no other; never run `persimmon` or git.

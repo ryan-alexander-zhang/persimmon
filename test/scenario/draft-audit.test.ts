@@ -41,7 +41,7 @@ describe('scenario: a draft audited before it passes', () => {
     expect(await run('run', 'spec-one', '--input', `prd=${ref('Prd', 'expense-claims')}`, '--input', 'capabilityId=CAP-1', '--input', `architecture=${ref('Architecture', 'expense-claims-architecture')}`, '--input', `domainModel=${ref('DomainModel', 'expenses-model')}`,
       '--input', `glossary=${ref('Glossary', 'expenses-glossary')}`, '--input', `rules=${ref('BusinessRules', 'expenses-rules')}`, '--input', `context=${ref('BoundedContext', 'expenses')}`, '--follow')).toBe(0)
     const spec = one('Spec').spec.content
-    expect(await answer(inbox()[0]!, 's1.yaml', { spec })).toBe(0)
+    expect(await answer(inbox()[0]!, 's1.yaml', { spec, open: { kind: 'value', value: [] } })).toBe(0)
     const [auditor] = inbox()
     expect(form(auditor!).reading.map((r: { kind: string }) => r.kind)).toEqual(['Prompt', 'Spec', 'Prd', 'BusinessRules', 'DomainModel', 'Architecture', 'Glossary']) // asked only once the check passed
     const unfit = [{ severity: 'error', code: 'ac-undecidable', message: 'AC-1: given names no amount' }]
@@ -52,7 +52,7 @@ describe('scenario: a draft audited before it passes', () => {
     expect(await answer(auditor!, 'a1.yaml', audit(unfit))).toBe(0)
     const [writer] = inbox()
     expect(form(writer!).inputs.feedback.value.results.audit).toMatchObject({ passed: false, findings: [{ code: 'ac-undecidable' }] }) // the writer reads it
-    expect(await answer(writer!, 's2.yaml', { spec })).toBe(0)
+    expect(await answer(writer!, 's2.yaml', { spec, open: { kind: 'value', value: [] } })).toBe(0)
     const round2 = form(inbox()[0]!)
     expect(round2.reading.map((r: { kind: string }) => r.kind)).toEqual(['Prompt', 'Spec', 'Prd', 'BusinessRules', 'DomainModel', 'Architecture', 'Glossary', 'Spec']) // the last round's Spec beside the draft
     expect(round2.inputs.feedback.value.results.audit.findings).toMatchObject([{ code: 'ac-undecidable' }]) // and what the last audit named: only that, or a change, may block

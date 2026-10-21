@@ -217,6 +217,80 @@ spec:
       timeout: 12h
   timeout: 800h
 ---
+# One round's Spec (23-pack-sdlc.md): the writer drafts; a draft with open questions goes to the owner, decide-spec,
+# and the writer records the decisions in the same round; a draft with none goes straight to the Gate.
+apiVersion: persimmon.ai/v1
+kind: Workflow
+metadata: {name: spec-draft}
+spec:
+  inputs:
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    capabilityId: {type: {kind: value, schema: {type: string, pattern: "^CAP-[0-9]+$"}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
+    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    context: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext}}}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, required: false}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, required: false}
+    changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false}
+  outputs:
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+  outputBindings:
+    spec: {first: [{fromStep: {stepRef: record, output: spec}}, {fromStep: {stepRef: write, output: spec}}]}   # whichever path ran
+  entry: [write]
+  steps:
+    - id: write
+      uses: {kind: Task, name: write-spec}
+      inputs:
+        prd: {fromInput: prd}
+        capabilityId: {fromInput: capabilityId}
+        architecture: {fromInput: architecture}
+        domainModel: {fromInput: domainModel}
+        glossary: {fromInput: glossary}
+        rules: {fromInput: rules}
+        context: {fromInput: context}
+        previous: {fromInput: previous, onMissing: omit}
+        feedback: {fromInput: feedback, onMissing: omit}
+        base: {fromInput: base, onMissing: omit}
+        changes: {fromInput: changes, onMissing: omit}
+      timeout: 30m
+    - id: decide
+      uses: {kind: Task, name: decide-spec}
+      inputs:
+        draft: {fromStep: {stepRef: write, output: spec}}
+        open: {fromStep: {stepRef: write, output: open}}
+        prd: {fromInput: prd}
+        rules: {fromInput: rules}
+        glossary: {fromInput: glossary}
+      timeout: 72h
+    - id: record
+      uses: {kind: Task, name: write-spec}
+      inputs:
+        prd: {fromInput: prd}
+        capabilityId: {fromInput: capabilityId}
+        architecture: {fromInput: architecture}
+        domainModel: {fromInput: domainModel}
+        glossary: {fromInput: glossary}
+        rules: {fromInput: rules}
+        context: {fromInput: context}
+        previous: {fromStep: {stepRef: write, output: spec}}
+        decisions: {fromStep: {stepRef: decide, output: decisions}}
+      timeout: 30m
+  transitions:
+    - id: after-write
+      from: [{stepRef: write, outcomes: [Succeeded]}]
+      to: [{stepRef: decide, when: "steps.write.outputs.open.size() > 0"}, {terminal: Succeeded}]
+      dispatch: first
+    - id: after-decide
+      from: [{stepRef: decide, outcomes: [Succeeded]}]
+      to: [{stepRef: record}]
+    - id: after-record
+      from: [{stepRef: record, outcomes: [Succeeded]}]
+      to: [{terminal: Succeeded}]
+  timeout: 73h
+---
 # The Spec process (27-spec-process.md): one ReviewLoop per capability, repeated over the ids the caller lists.
 apiVersion: persimmon.ai/v1
 kind: ReviewLoop
@@ -233,7 +307,7 @@ spec:
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, required: false, description: "the Spec this run revises; bound with changes"}
     changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false, description: "the downstream answers this revision applies, each <artifact id> Q-n: <resolution>"}
   produce:
-    uses: {kind: Task, name: write-spec}
+    uses: {kind: Workflow, name: spec-draft}
     inputs:
       prd: {fromInput: prd}
       capabilityId: {fromInput: capabilityId}
@@ -244,7 +318,7 @@ spec:
       context: {fromInput: context}
       base: {fromInput: base}
       changes: {fromInput: changes}
-    timeout: 30m
+    timeout: 73h   # the owner may be a human (23-pack-sdlc.md decide step)
   review:
     uses: {kind: Gate, name: spec-gate}
     inputs:
@@ -264,7 +338,7 @@ spec:
   previous: previous
   feedback: feedback
   maxRounds: 2
-  timeout: 140m
+  timeout: 240h   # the owner at the decide step may be a human (23-pack-sdlc.md)
 ---
 apiVersion: persimmon.ai/v1
 kind: Workflow
@@ -348,6 +422,88 @@ spec:
   maxRounds: 3
   timeout: 240h
 ---
+# One round's Design (23-pack-sdlc.md): the writer drafts; a draft with open questions goes to the owner, decide-design,
+# and the writer records the decisions in the same round; a draft with none goes straight to the Gate.
+apiVersion: persimmon.ai/v1
+kind: Workflow
+metadata: {name: design-draft}
+spec:
+  inputs:
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    blockId: {type: {kind: value, schema: {type: string, pattern: "^BB-[0-9]+$"}}}
+    type: {type: {kind: value, schema: {type: string, enum: [http-api, async-api, data-schema, ui]}}}
+    interface: {type: {kind: value, schema: {type: string, minLength: 1}}, required: false}
+    qualifier: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}, required: false, description: "tells two Designs of one block and type apart in the id (a block with two APIs, or realising two contexts): the interface or the context, as a label (29-design-process.md)"}
+    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: {expression: "inputs.type != 'ui'"}, description: "what the elements realise; a ui Design realises operations of `designs` instead"}
+    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: {expression: "inputs.type != 'ui'"}, description: "the names the document uses; not for a ui Design"}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: {expression: "inputs.type == 'ui'"}, description: "for a ui Design: the product's DesignSystem (32-ui-design-process.md)"}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: {expression: "inputs.type == 'ui'"}, description: "for a ui Design: the http-api Designs of the interfaces the block requires; its elements realise their operations"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "the Design this run revises"}
+    changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false, description: "the downstream answers this run applies to base"}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+  outputs:
+    design: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
+  outputBindings:
+    design: {first: [{fromStep: {stepRef: record, output: design}}, {fromStep: {stepRef: write, output: design}}]}   # whichever path ran
+  entry: [write]
+  steps:
+    - id: write
+      uses: {kind: Task, name: design-asset}
+      inputs:
+        architecture: {fromInput: architecture}
+        blockId: {fromInput: blockId}
+        type: {fromInput: type}
+        interface: {fromInput: interface, onMissing: omit}
+        qualifier: {fromInput: qualifier, onMissing: omit}
+        domainModel: {fromInput: domainModel, onMissing: omit}
+        glossary: {fromInput: glossary, onMissing: omit}
+        rules: {fromInput: rules}
+        designSystem: {fromInput: designSystem, onMissing: omit}
+        designs: {fromInput: designs, onMissing: omit}
+        base: {fromInput: base, onMissing: omit}
+        changes: {fromInput: changes, onMissing: omit}
+        previous: {fromInput: previous, onMissing: omit}
+        feedback: {fromInput: feedback, onMissing: omit}
+      timeout: 30m
+    - id: decide
+      uses: {kind: Task, name: decide-design}
+      inputs:
+        draft: {fromStep: {stepRef: write, output: design}}
+        open: {fromStep: {stepRef: write, output: open}}
+        architecture: {fromInput: architecture}
+        rules: {fromInput: rules}
+      timeout: 72h
+    - id: record
+      uses: {kind: Task, name: design-asset}
+      inputs:
+        architecture: {fromInput: architecture}
+        blockId: {fromInput: blockId}
+        type: {fromInput: type}
+        interface: {fromInput: interface, onMissing: omit}
+        qualifier: {fromInput: qualifier, onMissing: omit}
+        domainModel: {fromInput: domainModel, onMissing: omit}
+        glossary: {fromInput: glossary, onMissing: omit}
+        rules: {fromInput: rules}
+        designSystem: {fromInput: designSystem, onMissing: omit}
+        designs: {fromInput: designs, onMissing: omit}
+        previous: {fromStep: {stepRef: write, output: design}}
+        decisions: {fromStep: {stepRef: decide, output: decisions}}
+      timeout: 30m
+  transitions:
+    - id: after-write
+      from: [{stepRef: write, outcomes: [Succeeded]}]
+      to: [{stepRef: decide, when: "steps.write.outputs.open.size() > 0"}, {terminal: Succeeded}]
+      dispatch: first
+    - id: after-decide
+      from: [{stepRef: decide, outcomes: [Succeeded]}]
+      to: [{stepRef: record}]
+    - id: after-record
+      from: [{stepRef: record, outcomes: [Succeeded]}]
+      to: [{terminal: Succeeded}]
+  timeout: 73h
+---
 # The Design process (29-design-process.md): one ReviewLoop per block for one type, repeated over the blocks listed.
 apiVersion: persimmon.ai/v1
 kind: ReviewLoop
@@ -367,7 +523,7 @@ spec:
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "the Design this run revises; bound with changes"}
     changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false, description: "the downstream answers this revision applies, each <artifact id> Q-n: <resolution>"}
   produce:
-    uses: {kind: Task, name: design-asset}
+    uses: {kind: Workflow, name: design-draft}
     inputs:
       architecture: {fromInput: architecture}
       blockId: {fromInput: blockId}
@@ -381,7 +537,7 @@ spec:
       designs: {fromInput: designs}
       base: {fromInput: base}
       changes: {fromInput: changes}
-    timeout: 30m
+    timeout: 73h   # the owner may be a human (23-pack-sdlc.md decide step)
   review:
     uses: {kind: Gate, name: design-gate}
     inputs:
@@ -399,7 +555,7 @@ spec:
   previous: previous
   feedback: feedback
   maxRounds: 2
-  timeout: 140m
+  timeout: 240h   # the owner at the decide step may be a human (23-pack-sdlc.md)
 ---
 apiVersion: persimmon.ai/v1
 kind: Workflow
@@ -527,6 +683,70 @@ spec:
       dispatch: first
   timeout: 1h
 ---
+# One round's Plan (23-pack-sdlc.md): the writer drafts; a draft with open questions goes to the owner, decide-plan,
+# and the writer records the decisions in the same round; a draft with none goes straight to the Gate.
+apiVersion: persimmon.ai/v1
+kind: Workflow
+metadata: {name: plan-draft}
+spec:
+  inputs:
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, description: "every Design of the blocks the Spec touches"}
+    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: false, description: "which aggregate handles each of the Spec's commands"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}, required: false, description: "the Spec's Plan before this run: start from it and keep its task ids"}
+    changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false, description: "the downstream answers this run applies to base"}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}, required: false}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+  outputs:
+    plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}}
+  outputBindings:
+    plan: {first: [{fromStep: {stepRef: record, output: plan}}, {fromStep: {stepRef: write, output: plan}}]}   # whichever path ran
+  entry: [write]
+  steps:
+    - id: write
+      uses: {kind: Task, name: write-plan}
+      inputs:
+        spec: {fromInput: spec}
+        architecture: {fromInput: architecture}
+        designs: {fromInput: designs}
+        domainModel: {fromInput: domainModel, onMissing: omit}
+        base: {fromInput: base, onMissing: omit}
+        changes: {fromInput: changes, onMissing: omit}
+        previous: {fromInput: previous, onMissing: omit}
+        feedback: {fromInput: feedback, onMissing: omit}
+      timeout: 30m
+    - id: decide
+      uses: {kind: Task, name: decide-plan}
+      inputs:
+        draft: {fromStep: {stepRef: write, output: plan}}
+        open: {fromStep: {stepRef: write, output: open}}
+        spec: {fromInput: spec}
+        architecture: {fromInput: architecture}
+      timeout: 72h
+    - id: record
+      uses: {kind: Task, name: write-plan}
+      inputs:
+        spec: {fromInput: spec}
+        architecture: {fromInput: architecture}
+        designs: {fromInput: designs}
+        domainModel: {fromInput: domainModel, onMissing: omit}
+        previous: {fromStep: {stepRef: write, output: plan}}
+        decisions: {fromStep: {stepRef: decide, output: decisions}}
+      timeout: 30m
+  transitions:
+    - id: after-write
+      from: [{stepRef: write, outcomes: [Succeeded]}]
+      to: [{stepRef: decide, when: "steps.write.outputs.open.size() > 0"}, {terminal: Succeeded}]
+      dispatch: first
+    - id: after-decide
+      from: [{stepRef: decide, outcomes: [Succeeded]}]
+      to: [{stepRef: record}]
+    - id: after-record
+      from: [{stepRef: record, outcomes: [Succeeded]}]
+      to: [{terminal: Succeeded}]
+  timeout: 73h
+---
 # plan-one: the Plan of one Spec against the Designs the caller lists (30-plan-process.md). Run per Spec by ref:
 #   persimmon run plan-one --input 'spec={kind: artifact, ref: {...}}' --input designs=@designs.yaml ...
 apiVersion: persimmon.ai/v1
@@ -541,7 +761,7 @@ spec:
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}, required: false, description: "the Spec's Plan before this run, whose task ids the tasks keep"}
     changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false, description: "the downstream answers this run applies to base, each <artifact id> Q-n: <resolution>"}
   produce:
-    uses: {kind: Task, name: write-plan}
+    uses: {kind: Workflow, name: plan-draft}
     inputs:
       spec: {fromInput: spec}
       architecture: {fromInput: architecture}
@@ -549,7 +769,7 @@ spec:
       domainModel: {fromInput: domainModel, onMissing: omit}
       base: {fromInput: base, onMissing: omit}
       changes: {fromInput: changes, onMissing: omit}
-    timeout: 30m
+    timeout: 73h   # the owner may be a human (23-pack-sdlc.md decide step)
   review:
     uses: {kind: Gate, name: plan-gate}
     inputs:
@@ -564,7 +784,7 @@ spec:
   previous: previous
   feedback: feedback
   maxRounds: 2
-  timeout: 90m
+  timeout: 240h   # the owner at the decide step may be a human (23-pack-sdlc.md)
 ---
 # plan-all: the Plan of every capability's Spec (30-plan-process.md). The Spec of CAP-n is bound by its chosen id,
 # <prd>-cap-n, at its latest revision; the Designs are the product's, listed once by the caller.
@@ -1079,7 +1299,7 @@ spec:
     seed: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}}
     levelOutcomes: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}}
   outputBindings:
-    harness: {fromStep: {stepRef: write, output: harness}}
+    harness: {first: [{fromStep: {stepRef: record, output: harness}}, {fromStep: {stepRef: write, output: harness}}]}   # whichever path ran
     seed: {fromStep: {stepRef: seed, output: seed}}
     levelOutcomes: {fromStep: {stepRef: seed-levels, output: outcomes}}
   entry: [write]
@@ -1096,21 +1316,45 @@ spec:
         previous: {fromInput: previous, onMissing: omit}
         feedback: {fromInput: feedback, onMissing: omit}
       timeout: 72h
+    - id: decide
+      uses: {kind: Task, name: decide-harness}
+      inputs:
+        draft: {fromStep: {stepRef: write, output: harness}}
+        open: {fromStep: {stepRef: write, output: open}}
+        architecture: {fromInput: architecture}
+      timeout: 72h
+    - id: record
+      uses: {kind: Task, name: write-harness}
+      inputs:
+        architecture: {fromInput: architecture}
+        adrs: {fromInput: adrs, onMissing: omit}
+        designs: {fromInput: designs, onMissing: omit}
+        repository: {fromInput: repository}
+        previous: {fromStep: {stepRef: write, output: harness}}
+        decisions: {fromStep: {stepRef: decide, output: decisions}}
+      timeout: 72h
     - id: seed
       uses: {kind: Task, name: run-seed}
       inputs:
-        harness: {fromStep: {stepRef: write, output: harness}}
+        harness: {first: [{fromStep: {stepRef: record, output: harness}}, {fromStep: {stepRef: write, output: harness}}]}
         repository: {fromInput: repository}
       timeout: 2h
     - id: seed-levels
       uses: {kind: Task, name: run-seed-levels}
       inputs:
-        harness: {fromStep: {stepRef: write, output: harness}}
+        harness: {first: [{fromStep: {stepRef: record, output: harness}}, {fromStep: {stepRef: write, output: harness}}]}
         repository: {fromInput: repository}
       timeout: 4h
   transitions:
-    - id: to-seed
+    - id: after-write
       from: [{stepRef: write, outcomes: [Succeeded]}]
+      to: [{stepRef: decide, when: "steps.write.outputs.open.size() > 0"}, {stepRef: seed}]   # open questions: the owner first (23-pack-sdlc.md)
+      dispatch: first
+    - id: after-decide
+      from: [{stepRef: decide, outcomes: [Succeeded]}]
+      to: [{stepRef: record}]
+    - id: to-seed
+      from: [{stepRef: record, outcomes: [Succeeded]}]
       to: [{stepRef: seed}]
     - id: to-seed-levels
       from: [{stepRef: seed, outcomes: [Succeeded]}]
@@ -1160,6 +1404,78 @@ spec:
   maxRounds: 3
   timeout: 240h
 ---
+# One round's TestDesign (23-pack-sdlc.md): the writer drafts; a draft with open questions goes to the owner, decide-test-design,
+# and the writer records the decisions in the same round; a draft with none goes straight to the Gate.
+apiVersion: persimmon.ai/v1
+kind: Workflow
+metadata: {name: test-design-draft}
+spec:
+  inputs:
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}, description: "the Spec's Plan: the task each case is built in, and what the tasks before it build"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, required: false, description: "the Spec's TestDesign before this run: start from it and keep its ids"}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, description: "the product's Designs: the operations and screens a case's steps name"}
+    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, required: false}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+  outputs:
+    testDesign: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}}
+  outputBindings:
+    testDesign: {first: [{fromStep: {stepRef: record, output: testDesign}}, {fromStep: {stepRef: write, output: testDesign}}]}   # whichever path ran
+  entry: [write]
+  steps:
+    - id: write
+      uses: {kind: Task, name: design-tests}
+      inputs:
+        spec: {fromInput: spec}
+        plan: {fromInput: plan}
+        base: {fromInput: base, onMissing: omit}
+        architecture: {fromInput: architecture}
+        designs: {fromInput: designs}
+        glossary: {fromInput: glossary}
+        rules: {fromInput: rules}
+        harness: {fromInput: harness}
+        previous: {fromInput: previous, onMissing: omit}
+        feedback: {fromInput: feedback, onMissing: omit}
+      timeout: 30m
+    - id: decide
+      uses: {kind: Task, name: decide-test-design}
+      inputs:
+        draft: {fromStep: {stepRef: write, output: testDesign}}
+        open: {fromStep: {stepRef: write, output: open}}
+        spec: {fromInput: spec}
+        plan: {fromInput: plan}
+        harness: {fromInput: harness}
+      timeout: 72h
+    - id: record
+      uses: {kind: Task, name: design-tests}
+      inputs:
+        spec: {fromInput: spec}
+        plan: {fromInput: plan}
+        architecture: {fromInput: architecture}
+        designs: {fromInput: designs}
+        glossary: {fromInput: glossary}
+        rules: {fromInput: rules}
+        harness: {fromInput: harness}
+        previous: {fromStep: {stepRef: write, output: testDesign}}
+        decisions: {fromStep: {stepRef: decide, output: decisions}}
+      timeout: 30m
+  transitions:
+    - id: after-write
+      from: [{stepRef: write, outcomes: [Succeeded]}]
+      to: [{stepRef: decide, when: "steps.write.outputs.open.size() > 0"}, {terminal: Succeeded}]
+      dispatch: first
+    - id: after-decide
+      from: [{stepRef: decide, outcomes: [Succeeded]}]
+      to: [{stepRef: record}]
+    - id: after-record
+      from: [{stepRef: record, outcomes: [Succeeded]}]
+      to: [{terminal: Succeeded}]
+  timeout: 73h
+---
 # The test cases of one Spec (39-test-process.md): designed, checked, audited and confirmed by a human, up to three rounds.
 apiVersion: persimmon.ai/v1
 kind: ReviewLoop
@@ -1175,7 +1491,7 @@ spec:
     harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}}
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, required: false, description: "the Spec's TestDesign before this run, whose ids the cases keep"}
   produce:
-    uses: {kind: Task, name: design-tests}
+    uses: {kind: Workflow, name: test-design-draft}
     inputs:
       spec: {fromInput: spec}
       plan: {fromInput: plan}
@@ -1185,7 +1501,7 @@ spec:
       rules: {fromInput: rules}
       harness: {fromInput: harness}
       base: {fromInput: base, onMissing: omit}
-    timeout: 30m
+    timeout: 73h   # the owner may be a human (23-pack-sdlc.md decide step)
   review:
     uses: {kind: Gate, name: test-design-gate}
     inputs:

@@ -121,8 +121,10 @@ spec:
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, required: false}
     changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false}
+    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}, required: false, description: "the owner's answers to this draft's open questions, recorded in this round (23-pack-sdlc.md)"}
   outputs:
     spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, id: {expression: "inputs.prd.id + '-' + inputs.capabilityId.lowerAscii()"}}
+    open: {type: {kind: value, schema: {type: array, items: {type: string, pattern: "^Q-[0-9]+$"}}}, description: "the ids of the questions this draft leaves without a resolution; empty when none"}
   executorRef: {kind: Executor, name: spec-agent}
   action:
     instructions: |
@@ -134,6 +136,9 @@ spec:
       Every command, event and read model label is the DomainModel's; every rule id is in `rules`; every quality
       scenario id is in `architecture`. With `previous` and `feedback` bound, fix what the findings name and
       change nothing else. With `base` and `changes` bound, revise `base` as the Spec rules say for a revision.
+      `open` lists the ids of every `Q-n` the Spec leaves without a `resolution`. With `decisions` bound, `previous` is this
+      round's draft: record each decision as its `Q-n`'s `resolution`, apply what the
+      answer implies and change nothing else; `open` is then what still has none.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: spec-rules}}
       - {kind: artifact, input: prd}
@@ -236,8 +241,10 @@ spec:
     changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false, description: "the downstream answers this run applies to base"}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}, required: false, description: "the owner's answers to this draft's open questions, recorded in this round (23-pack-sdlc.md)"}
   outputs:
     design: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, id: {expression: "inputs.architecture.id + '-' + inputs.blockId.lowerAscii() + (has(inputs.qualifier) ? '-' + inputs.qualifier : '') + '-' + inputs.type"}}
+    open: {type: {kind: value, schema: {type: array, items: {type: string, pattern: "^Q-[0-9]+$"}}}, description: "the ids of the questions this draft leaves without a resolution; empty when none"}
   executorRef: {kind: Executor, name: design-agent}
   action:
     instructions: |
@@ -250,6 +257,9 @@ spec:
       With `base` and `changes` bound, revise `base` as the Design rules say for a revision.
       With `previous` and `feedback` bound, fix what the error findings name and change nothing else; a warning
       (a `dialect` word the block's store lacks) is advice you may take without changing anything else.
+      `open` lists the ids of every `Q-n` the Design leaves without a `resolution`. With `decisions` bound, `previous` is this
+      round's draft: record each decision as its `Q-n`'s `resolution`, apply what the
+      answer implies and change nothing else; `open` is then what still has none.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: design-rules}}
       - {kind: artifact, input: architecture}
@@ -280,8 +290,10 @@ spec:
     changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false, description: "the downstream answers this run applies to base"}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}, required: false, description: "the owner's answers to this draft's open questions, recorded in this round (23-pack-sdlc.md)"}
   outputs:
     plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}, id: {expression: "inputs.spec.id + '-plan'"}}
+    open: {type: {kind: value, schema: {type: array, items: {type: string, pattern: "^Q-[0-9]+$"}}}, description: "the ids of the questions this draft leaves without a resolution; empty when none"}
   executorRef: {kind: Executor, name: plan-agent}
   action:
     instructions: |
@@ -291,6 +303,9 @@ spec:
       verified by scenarios of the Spec, and depends on earlier tasks only.
       With `base` and `changes` bound, apply the answers to `base` as the Plan rules say.
       With `previous` and `feedback` bound, fix what the findings name and change nothing else.
+      `open` lists the ids of every `Q-n` the Plan leaves without a `resolution`. With `decisions` bound, `previous` is this
+      round's draft: record each decision as its `Q-n`'s `resolution`, apply what the
+      answer implies and change nothing else; `open` is then what still has none.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: plan-rules}}
       - {kind: artifact, input: spec}
@@ -767,14 +782,19 @@ spec:
     changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false, description: "the downstream answers this run applies to base"}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}, required: false, description: "the owner's answers to this draft's open questions, recorded in this round (23-pack-sdlc.md)"}
   outputs:
     harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, id: {expression: "inputs.architecture.id + '-harness'"}}
+    open: {type: {kind: value, schema: {type: array, items: {type: string, pattern: "^Q-[0-9]+$"}}}, description: "the ids of the questions this draft leaves without a resolution; empty when none"}
   executorRef: {kind: Executor, name: tester}
   action:
     instructions: |
       Set up the project's tests in the directory the `repository` input names, following the harness rules in your
       context, and answer with the TestHarness that records them. `architecture` in it is the artifact id of the input
       with that name. With `previous` and `feedback` bound, fix what the findings name and change nothing else.
+      `open` lists the ids of every `Q-n` the TestHarness leaves without a `resolution`. With `decisions` bound, `previous` is this
+      round's draft: record each decision as its `Q-n`'s `resolution` (and `upstream` when it names one), apply what the
+      answer implies and change nothing else; `open` is then what still has none.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: harness-rules}}
       - {kind: artifact, input: architecture}
@@ -839,14 +859,19 @@ spec:
     harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}, required: false, description: "the owner's answers to this draft's open questions, recorded in this round (23-pack-sdlc.md)"}
   outputs:
     testDesign: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, id: {expression: "inputs.spec.id + '-tests'"}}
+    open: {type: {kind: value, schema: {type: array, items: {type: string, pattern: "^Q-[0-9]+$"}}}, description: "the ids of the questions this draft leaves without a resolution; empty when none"}
   executorRef: {kind: Executor, name: test-design-agent}
   action:
     instructions: |
       Design the test cases of the Spec, following the test design rules in your context. `spec` and `harness` in the
       TestDesign are the artifact ids of the inputs with those names. With `previous` and `feedback` bound, fix what
       the findings name and change nothing else.
+      `open` lists the ids of every `Q-n` the TestDesign leaves without a `resolution`. With `decisions` bound, `previous` is this
+      round's draft: record each decision as its `Q-n`'s `resolution` (and `upstream` when it names one), apply what the
+      answer implies and change nothing else; `open` is then what still has none.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: test-design-rules}}
       - {kind: artifact, input: spec}
@@ -1101,3 +1126,140 @@ spec:
     instructions: Compute the TestReport of the Plan from the TestDesign and the plan tier's outcomes.
   timeout: 5m
   sideEffects: idempotent
+---
+# The owner decides a Spec draft's open questions inside the round, before its Gate (23-pack-sdlc.md): a human at the
+# terminal, or the Autopilot's agent overriding local-reviewer (38-autopilot.md).
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: decide-spec}
+spec:
+  inputs:
+    draft: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, description: "this round's Spec, with the questions open"}
+    open: {type: {kind: value, schema: {type: array, items: {type: string, pattern: "^Q-[0-9]+$"}}}, description: "the ids to decide"}
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
+  outputs:
+    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}}
+  executorRef: {kind: Executor, name: local-reviewer}
+  action:
+    instructions: |
+      Decide every question `open` names in the Spec `draft`, as the product's owner, following the owner's rules in
+      your context. Answer `decisions` with one entry per id in `open` and no other: its `resolution`, and `upstream`
+      when the answer changes an artifact upstream of this one.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: owner-decisions}}
+      - {kind: artifact, input: draft}
+      - {kind: artifact, input: prd}
+      - {kind: artifact, input: rules}
+      - {kind: artifact, input: glossary}
+  timeout: 72h
+  sideEffects: none
+---
+# The owner decides a Design draft's open questions inside the round, before its Gate (23-pack-sdlc.md): a human at the
+# terminal, or the Autopilot's agent overriding local-reviewer (38-autopilot.md).
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: decide-design}
+spec:
+  inputs:
+    draft: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, description: "this round's Design, with the questions open"}
+    open: {type: {kind: value, schema: {type: array, items: {type: string, pattern: "^Q-[0-9]+$"}}}, description: "the ids to decide"}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+  outputs:
+    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}}
+  executorRef: {kind: Executor, name: local-reviewer}
+  action:
+    instructions: |
+      Decide every question `open` names in the Design `draft`, as the product's owner, following the owner's rules in
+      your context. Answer `decisions` with one entry per id in `open` and no other: its `resolution`, and `upstream`
+      when the answer changes an artifact upstream of this one.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: owner-decisions}}
+      - {kind: artifact, input: draft}
+      - {kind: artifact, input: architecture}
+      - {kind: artifact, input: rules}
+  timeout: 72h
+  sideEffects: none
+---
+# The owner decides a Plan draft's open questions inside the round, before its Gate (23-pack-sdlc.md): a human at the
+# terminal, or the Autopilot's agent overriding local-reviewer (38-autopilot.md).
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: decide-plan}
+spec:
+  inputs:
+    draft: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}, description: "this round's Plan, with the questions open"}
+    open: {type: {kind: value, schema: {type: array, items: {type: string, pattern: "^Q-[0-9]+$"}}}, description: "the ids to decide"}
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+  outputs:
+    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}}
+  executorRef: {kind: Executor, name: local-reviewer}
+  action:
+    instructions: |
+      Decide every question `open` names in the Plan `draft`, as the product's owner, following the owner's rules in
+      your context. Answer `decisions` with one entry per id in `open` and no other: its `resolution`, and `upstream`
+      when the answer changes an artifact upstream of this one.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: owner-decisions}}
+      - {kind: artifact, input: draft}
+      - {kind: artifact, input: spec}
+      - {kind: artifact, input: architecture}
+  timeout: 72h
+  sideEffects: none
+---
+# The owner decides a TestHarness draft's open questions inside the round, before its Gate (23-pack-sdlc.md): a human at the
+# terminal, or the Autopilot's agent overriding local-reviewer (38-autopilot.md).
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: decide-harness}
+spec:
+  inputs:
+    draft: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, description: "this round's TestHarness, with the questions open"}
+    open: {type: {kind: value, schema: {type: array, items: {type: string, pattern: "^Q-[0-9]+$"}}}, description: "the ids to decide"}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+  outputs:
+    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}}
+  executorRef: {kind: Executor, name: local-reviewer}
+  action:
+    instructions: |
+      Decide every question `open` names in the TestHarness `draft`, as the product's owner, following the owner's rules in
+      your context. Answer `decisions` with one entry per id in `open` and no other: its `resolution`, and `upstream`
+      when the answer changes an artifact upstream of this one.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: owner-decisions}}
+      - {kind: artifact, input: draft}
+      - {kind: artifact, input: architecture}
+  timeout: 72h
+  sideEffects: none
+---
+# The owner decides a TestDesign draft's open questions inside the round, before its Gate (23-pack-sdlc.md): a human at the
+# terminal, or the Autopilot's agent overriding local-reviewer (38-autopilot.md).
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: decide-test-design}
+spec:
+  inputs:
+    draft: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, description: "this round's TestDesign, with the questions open"}
+    open: {type: {kind: value, schema: {type: array, items: {type: string, pattern: "^Q-[0-9]+$"}}}, description: "the ids to decide"}
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}}
+    harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}}
+  outputs:
+    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}}
+  executorRef: {kind: Executor, name: local-reviewer}
+  action:
+    instructions: |
+      Decide every question `open` names in the TestDesign `draft`, as the product's owner, following the owner's rules in
+      your context. Answer `decisions` with one entry per id in `open` and no other: its `resolution`, and `upstream`
+      when the answer changes an artifact upstream of this one.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: owner-decisions}}
+      - {kind: artifact, input: draft}
+      - {kind: artifact, input: spec}
+      - {kind: artifact, input: plan}
+      - {kind: artifact, input: harness}
+  timeout: 72h
+  sideEffects: none
