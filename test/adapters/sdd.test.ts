@@ -644,6 +644,9 @@ describe('sdd/v1 over a Plan', () => {
     const reads = (a: any) => { a.plan.tasks[0].elements = a.plan.tasks[0].elements.slice(0, 2) } // EL-11 and EL-12 read the Claim, AG-1
     expect((await adapter({ id: 4010, op: 'evaluate', payload: planPayload((() => { const a = structuredClone(planExample()); reads(a); return a })()) })).result.passed).toBe(true) // no DomainModel: the aggregate is not known
     expect(await planCodes((a: any) => { a.domainModel = content('DomainModel'); reads(a) })).toEqual(['element-unplanned', 'element-unplanned'])
+    // a Design of another context's DomainModel: its AG-1 is that context's aggregate, not this capability's
+    const other = (() => { const a: any = structuredClone(planExample()); a.domainModel = content('DomainModel'); reads(a); a.designs[0].domainModel = 'other-context-model'; return a })()
+    expect((await adapter({ id: 4011, op: 'evaluate', payload: planPayload(other) })).result.passed).toBe(true)
   })
 
   it('warns of a task whose id now names other work than in the Plan it replaces (30-plan-process.md)', async () => {

@@ -439,6 +439,8 @@ export function checkPlan({ plan, spec, architecture, designs = {}, domainModel,
   for (const a of domainModel?.aggregates ?? []) if ((a.commands ?? []).some((c) => commands.includes(c.name ?? c))) needed.add(a.id).add(a.name)
   const realised = new Set(plan.tasks.flatMap((t) => (t.elements ?? []).map((e) => `${e.design} ${e.element}`)))
   for (const [id, d] of Object.entries(designs)) {
+    // a Design of another context's DomainModel realises that context's names: ids and labels repeat across contexts
+    if (d?.domainModel && spec?.domainModel && d.domainModel !== spec.domainModel) continue
     for (const e of d?.elements ?? []) if (needed.has(e.realises?.name) && !realised.has(`${id} ${e.id}`)) bad('element-unplanned', `${id} ${e.id} (${e.name}) realises ${e.realises.name}, which the capability needs, but no task realises it`)
   }
 
