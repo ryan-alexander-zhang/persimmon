@@ -924,6 +924,7 @@ describe('sdd/v1 over an Architecture', () => {
     // a second context listing the same four, realised by no block
     expect(await archCodes((a) => a.contexts.push(structuredClone(a.contexts[0])), { contexts: { kind: 'artifacts', refs: [ref('BoundedContext', 'expenses'), ref('BoundedContext', 'expenses-two')] } })).toEqual(['context-unrealised', ...Array(4).fill('capability-twice')])
     expect(await archCodes((a) => (a.architecture.buildingBlocks[0].parent = 'BB-9'))).toEqual(['unknown-parent'])
+    expect(await archCodes((a) => delete a.architecture.buildingBlocks[0].technology)).toEqual(['technology-missing']) // a level 1 block names its stack
   })
   it('fails a listed model, glossary or Adr that was not evaluated, and one evaluated but not listed', async () => {
     expect(await archCodes((a) => (a.architecture.domainModels = ['expenses-model']))).toEqual(['model-mismatch'])
@@ -941,7 +942,7 @@ describe('sdd/v1 over an Architecture', () => {
     expect(await archCodes((a) => (a.architecture.relations[0].to = 'approver'))).toEqual(['relation-no-block'])
     expect(await archCodes((a) => (a.architecture.relations[3].interface = 'blob API'))).toEqual(['unknown-interface'])
     expect(await archCodes((a) => a.architecture.relations.splice(8, 1))).toEqual(['partner-unrelated'])
-    expect(await archCodes((a) => a.architecture.buildingBlocks.push({ id: 'BB-6', name: 'spare', responsibility: 'nothing yet', interfaces: [], contexts: [] }))).toEqual(['block-unrelated'])
+    expect(await archCodes((a) => a.architecture.buildingBlocks.push({ id: 'BB-6', name: 'spare', technology: 'Node 22', responsibility: 'nothing yet', interfaces: [], contexts: [] }))).toEqual(['block-unrelated'])
   })
   it('fails an Adr that is not accepted, and a driver that resolves nowhere; a superseded slot is skipped', async () => {
     expect(await archCodes((a) => (a.adrs[0].status = 'proposed'))).toEqual(['adr-status'])

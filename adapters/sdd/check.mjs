@@ -818,6 +818,7 @@ export function checkArchitecture({ architecture, prd, rules, ids = {}, adrs = {
   const realised = new Set()
   for (const b of a.buildingBlocks) {
     if (b.parent && !blocks.has(b.parent)) bad('unknown-parent', `${b.id}: parent ${b.parent} is not a building block`)
+    if (!b.parent && !String(b.technology ?? '').trim()) bad('technology-missing', `${b.id}: a level 1 block names its technology, the language, framework or store it runs on`)
     for (const c of b.contexts ?? []) {
       if (!contexts.has(c)) bad('unknown-context', `${b.id}: context ${c} is not among the BoundedContexts evaluated`)
       else if (!b.parent) realised.add(c)
