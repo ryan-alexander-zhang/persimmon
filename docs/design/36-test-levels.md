@@ -3,7 +3,7 @@
 status: draft · layer: 2 (`35-build-process.md`) · schema: the `TestOutcome` and `AcceptanceRecord` kinds in `packs/sdlc/global/10-artifact-kinds.yaml`
 
 The build process runs one test command per round. This file splits the project's tests by test level
-(`unit`, `integration`, `api`, `e2e`), holds the `unit` level to coverage and mutation minimums,
+(`unit`, `fitness`, `integration`, `api`, `e2e`), holds the `unit` level to coverage and mutation minimums,
 and decides when each level runs. A `round` tier runs on every `build-one` round, but only the
 levels the Change set touches and the tests the record names. Levels run cheapest first, and a
 level after a new red is held. A `plan` tier runs every configured level in full once after the
@@ -25,7 +25,7 @@ Workflow build-all
 Workflow build-work (one round)
   implement ─▶ AcceptanceRecord
   tests:  Task run-tests  (Executor test-runner: unit, then coverage, then mutation) ─▶ TestOutcome <record>-tests
-  levels: Task run-levels (Executor level-runner: integration, api, e2e, in order)   ─▶ TestOutcome <record>-levels-<n>
+  levels: Task run-levels (Executor level-runner: fitness, integration, api, e2e, in order) ─▶ TestOutcome <record>-levels-<n>
   audit ─▶ ValidationResult
   each level: Change set ─▶ selection none | affected | full; held after a new red
 ```
@@ -34,7 +34,7 @@ Workflow build-work (one round)
 
 | Kind | Change |
 |---|---|
-| `TestOutcome` | adds `level?` (`unit`, `integration`, `api`, `e2e`; absent is `unit`), `selection?` (`mode`: `none`, `affected`, `full`; `reason`), `newRed?` (red cases its baseline did not have red; every red one without a baseline), `coverage?` (`min`; `covered`, `total`: executable lines of the Change set; `uncovered[]` `{file, lines}`; or `error`), `mutation?` (`min`; `killed`, `survived`, `noCoverage`, `timeout`, `score`: mutants on the Change set's lines; `survivors[]` `{file, line, mutator}`; or `error`); `outputTail` is not required of a `none` outcome |
+| `TestOutcome` | adds `level?` (`unit`, `fitness`, `integration`, `api`, `e2e`; absent is `unit`), `selection?` (`mode`: `none`, `affected`, `full`; `reason`), `newRed?` (red cases its baseline did not have red; every red one without a baseline), `coverage?` (`min`; `covered`, `total`: executable lines of the Change set; `uncovered[]` `{file, lines}`; or `error`), `mutation?` (`min`; `killed`, `survived`, `noCoverage`, `timeout`, `score`: mutants on the Change set's lines; `survivors[]` `{file, line, mutator}`; or `error`); `outputTail` is not required of a `none` outcome |
 | `AcceptanceRecord` | a `verifies[].tests[]` item is a string (a `unit` test) or `{name, level}` |
 
 ## Members
@@ -42,7 +42,7 @@ Workflow build-work (one round)
 | Member | Content |
 |---|---|
 | Executor `test-runner` | the `unit` level, as today; `junit/v1` configuration adds `paths`, `fullOn`, `affected`, `coverage` and `mutation` (below); its name stays, so an existing override keeps working |
-| Executor `level-runner` | `exclusive: tests` (`13-executor.md`), so the levels of two worktrees never share the app, browser and containers at once; `junit/v1`, configuration `{levels: {integration?, api?, e2e?}}`, each `{program, junit, paths?, fullOn?, affected?}`; the pack's `levels: {}` runs nothing, and a project overrides it by name with the levels it has: `[npm, run, test:integration]` (Testcontainers inside the language's own runner), `[npm, run, test:api]` (a script that starts the app and runs `bru run --reporter-junit`), `[npx, playwright, test]` with its `junit` reporter and `affected: [npx, playwright, test, --only-changed={base}]` |
+| Executor `level-runner` | `exclusive: tests` (`13-executor.md`), so the levels of two worktrees never share the app, browser and containers at once; `junit/v1`, configuration `{levels: {fitness?, integration?, api?, e2e?}}`, each `{program, junit, paths?, fullOn?, affected?}`; the pack's `levels: {}` runs nothing, and a project overrides it by name with the levels it has: `[npm, run, test:integration]` (Testcontainers inside the language's own runner), `[npm, run, test:api]` (a script that starts the app and runs `bru run --reporter-junit`), `[npx, playwright, test]` with its `junit` reporter and `affected: [npx, playwright, test, --only-changed={base}]` |
 | Task `run-tests` | adds input `baseline`, for the Change set's base and `newRed` |
 | Task `run-levels` | inputs `plan`, `repository`, `record?`, `testOutcome?` (the round's `unit` one), `baselines?` (artifacts); output `outcomes`, an `artifacts` list of TestOutcome, one per configured level in order; id prefix `<record>-levels` in a round, `<plan>-baseline-levels` without a record or baselines, `<plan>-final-levels` with baselines and no record |
 | Task `run-final` | inputs `plan`, `repository`, `baseline`; output `final`, id `<plan>-final`; Executor `test-runner` |
@@ -105,7 +105,7 @@ The table in `35-build-process.md` holds, read per level. New or changed:
 | a test the record names always runs, whatever selection says | `junit/v1` re-runs `full`; `test-missing` |
 | a level not touched by the Change set does not run in a round | `junit/v1` selection |
 | when unsure, run more: no baseline head, a `fullOn` match, a named test not selected | selection table |
-| a level after a new red is held, cheapest first: `unit`, its mutation, `integration`, `api`, `e2e` | `newRed`; `level-held` |
+| a level after a new red is held, cheapest first: `unit`, its mutation, `fitness`, `integration`, `api`, `e2e` | `newRed`; `level-held` |
 | coverage and mutation are measured over the Change set, never the whole repository | `junit/v1`; `coverage-low`, `mutation-low` |
 | the minimums are the project's: the Executor sets them, the outcome records them, the Gate reads them from the outcome | Executor override by name |
 | the project's command starts what its tests need: the app, a browser, a container; persimmon starts nothing | convention; the Executor's `program` |
@@ -210,6 +210,16 @@ The table in `35-build-process.md` holds, read per level. New or changed:
   at 100, the plan tier passed. Go: `gotestsum`, `gocover-cobertura` 6 of 6, Gremlins over the
   package with `--timeout-coefficient=30`, testcontainers-go, passed in one round. JavaScript re-run on
   the final readers, unchanged. Bruno and Playwright served all three. Found in UAT.
+
+- `fitness` is a level of its own, run on `level-runner` first, before `integration`: a test that
+  reads the code's structure (no Booking write bypassing the Room aggregate, no dependency across
+  contexts) starts nothing and is the cheapest after `unit`. The Architecture proves a `build`
+  quality scenario by a `test` or a `fitness` method, and the four levels had no place for the
+  second: in the live Autopilot run the harness could not record a `fitness` level, the schema
+  closing `levels` over four names, so `QS-2` and `QS-3` had no case. Folding them into `unit` was
+  rejected: `unit`'s `affected` run selects tests by the files they import, and a test that reads
+  source files imports none, so it would run only in full; and `unit` is held to coverage and
+  mutation minimums a structural test does not move. Found in UAT.
 
 ## Units
 
