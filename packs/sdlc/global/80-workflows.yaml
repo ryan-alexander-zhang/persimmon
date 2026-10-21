@@ -148,7 +148,7 @@ spec:
       inputs:
         model: {fromInput: model}
         prd: {fromInput: prd}
-        rules: {fromInput: rules}
+        rules: {fromInput: rules, onMissing: omit}
         contextId: {expression: "inputs.contexts[state.index - 1]"}
       timeout: 12h
       repeat:
@@ -189,13 +189,13 @@ spec:
   phases:
     - id: big-picture
       uses: {kind: ReviewLoop, name: storm-big-picture}
-      inputs: {prd: {fromInput: prd}, rules: {fromInput: rules}, inventory: {fromInput: inventory, onMissing: omit}, base: {fromInput: base, onMissing: omit}}
+      inputs: {prd: {fromInput: prd}, rules: {fromInput: rules, onMissing: omit}, inventory: {fromInput: inventory, onMissing: omit}, base: {fromInput: base, onMissing: omit}}
       timeout: 240h
     - id: process
       uses: {kind: ReviewLoop, name: storm-process}
       inputs:
         prd: {fromInput: prd}
-        rules: {fromInput: rules}
+        rules: {fromInput: rules, onMissing: omit}
         inventory: {fromInput: inventory, onMissing: omit}
         base: {fromStep: {stepRef: big-picture, output: model}}
       timeout: 240h
@@ -203,7 +203,7 @@ spec:
       uses: {kind: ReviewLoop, name: storm-design}
       inputs:
         prd: {fromInput: prd}
-        rules: {fromInput: rules}
+        rules: {fromInput: rules, onMissing: omit}
         inventory: {fromInput: inventory, onMissing: omit}
         base: {fromStep: {stepRef: process, output: model}}
       timeout: 240h
@@ -212,7 +212,7 @@ spec:
       inputs:
         model: {fromStep: {stepRef: design, output: model}}
         prd: {fromInput: prd}
-        rules: {fromInput: rules}
+        rules: {fromInput: rules, onMissing: omit}
         contexts: {fromStep: {stepRef: design, output: contexts}}
       timeout: 12h
   timeout: 800h

@@ -4,6 +4,7 @@
 import { readFileSync } from 'node:fs'
 import { parseAllDocuments } from 'yaml'
 import { describe, expect, it } from 'vitest'
+import { bind, siteOf } from '../../src/kinds/ports/ports.js'
 
 const docs = (f: string) => parseAllDocuments(readFileSync(`packs/sdlc/global/${f}.yaml`, 'utf8')).map((d) => d.toJS())
 const all = [...docs('50-tasks'), ...docs('80-workflows')]
@@ -33,6 +34,18 @@ describe('the SDLC pack takes a Rewrite pack inventory and base, optionally', ()
     for (const id of ['big-picture', 'process', 'design']) expect({ id, inventory: phase(id).inventory }).toEqual({ id, inventory: { fromInput: 'inventory', onMissing: 'omit' } })
     expect(phase('big-picture').base).toEqual({ fromInput: 'base', onMissing: 'omit' })
     expect(phase('process').base).toEqual({ fromStep: { stepRef: 'big-picture', output: 'model' } }) // the later phases still start from the one before
+  })
+
+  it('domain-discovery binds every phase, and derive-all its step, without rules, inventory or base', () => {
+    const pipeline = named('Pipeline', 'domain-discovery')
+    const ref = (kind: string) => ({ kind: 'artifact' as const, ref: { apiVersion: 'sdd.persimmon.ai/v1', kind, id: 'p', revision: 1 } })
+    const model = { outputs: { model: ref('EventStorming'), contexts: { kind: 'value' as const, value: ['c1'] } } }
+    const sources = { inputs: { prd: ref('Prd'), model: ref('EventStorming'), contexts: model.outputs.contexts }, state: { index: { kind: 'value' as const, value: 1 } }, steps: { 'big-picture': model, process: model, design: model } }
+    const derive = named('Workflow', 'derive-all')
+    const at = siteOf({ inputs: derive.inputs, state: derive.steps[0].repeat.state })
+    // a Workflow's steps and a Pipeline's phases bind as written: an optional input reaches them only with onMissing: omit
+    for (const p of pipeline.phases) expect({ id: p.id, rules: 'rules' in bind(p.inputs, sources, siteOf({})) }).toEqual({ id: p.id, rules: false })
+    for (const s of derive.steps) expect({ id: s.id, rules: 'rules' in bind(s.inputs, sources, at) }).toEqual({ id: s.id, rules: false })
   })
 
   it('write-architecture and architect take the product\'s last Architecture and Adrs as an optional base', () => {
