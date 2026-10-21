@@ -122,21 +122,34 @@ function field(x: unknown, s: Schema | undefined, root: Schema, at: At, name?: s
   return [{ t: "group", ...label, ...d, blocks: [...(meta.length ? [{ t: "element" as const, meta, anchor: anchorAt(at), blocks: [] }] : []), ...blocks] }];
 }
 
-/** An array's entries: an object is an element headed by its id and short name; anything else a paragraph. */
+/** An array's entries: an object is an element headed by its id (else the ref it accounts for) and short name; anything else a paragraph. */
 function elements(xs: unknown[], s: Schema | undefined, root: Schema, at: At): Block[] {
   return xs.map((x, i) => {
     const here = down(at, `#${i + 1}`);
     if (!isObject(x)) return { t: "prose", text: String(x), anchor: anchorAt(here) };
-    const id = typeof x.id === "string" ? x.id : undefined;
+    const key = typeof x.id === "string" ? "id" : typeof x.ref === "string" ? "ref" : undefined;
+    const id = key && (x[key] as string);
     const { title, used } = titleOf(x);
     const inner = id ? { base: id, path: [] } : here;
-    const { meta, blocks } = fields(x, s, root, inner, ["id", ...(used ? [used] : [])]);
+    const { meta, blocks } = fields(x, s, root, inner, [...(key ? [key] : []), ...(used ? [used] : [])]);
     return { t: "element", ...(id ? { id } : {}), ...(title ? { title } : {}), meta, anchor: anchorAt(inner), blocks };
   });
 }
 
+/** Kinds whose content order reads badly (37-progress.md): their sections in this order, any other field after them as it comes. */
+const sectionOrder: Record<string, string[]> = {
+  SourceInventory: ["source", "slice", "entryPoints", "entities", "externalSystems", "guards", "declarations", "stateChanges", "absences", "plumbingPatterns", "tests", "unread", "openQuestions"],
+  ParityLedger: ["verdict", "slice", "slices", "entryPoints", "items", "differences", "unreached"],
+};
+
+const ordered = (content: Record<string, unknown>, kind: string | undefined) => {
+  const order = (kind && sectionOrder[kind]) || [];
+  const rank = (k: string) => (order.includes(k) ? order.indexOf(k) : order.length);
+  return Object.entries(content).sort(([a], [b]) => rank(a) - rank(b)); // stable: the rest keep their order
+};
+
 /** The document of one artifact: its title, its short top-level fields as a meta line, every other top-level field a section. */
-export function toDoc(content: unknown, schema: Schema | undefined, base: string): Doc {
+export function toDoc(content: unknown, schema: Schema | undefined, base: string, kind?: string): Doc {
   const root = schema ?? {};
   const at: At = { base, path: [] };
   if (typeof content === "string") return { meta: [], blocks: [{ t: "prose", text: content, anchor: base }] };
@@ -144,7 +157,7 @@ export function toDoc(content: unknown, schema: Schema | undefined, base: string
   const { title, used } = titleOf(content);
   const meta: Meta[] = [];
   const blocks: Block[] = [];
-  for (const [k, x] of Object.entries(content)) {
+  for (const [k, x] of ordered(content, kind)) {
     if (k === used) continue;
     const s = sub(schema, root, k);
     const here = down(at, k);

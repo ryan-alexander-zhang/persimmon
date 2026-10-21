@@ -67,14 +67,14 @@ export function Review({ namespace, taskRun, task, onAnswered }: { namespace: st
                   <span className="font-medium text-ink-2">{r.ref.id}</span>, revision {r.ref.revision}
                 </>
               )}
-              {prevs[i] && <ChangesSwitch on={!hidden[i]} onChange={(on) => setHidden((h) => ({ ...h, [i]: !on }))} since={prevs[i]!.revision} count={countOf(prevs[i]!.content, r.content, schemas[i], r.ref!.id)} />}
+              {prevs[i] && <ChangesSwitch on={!hidden[i]} onChange={(on) => setHidden((h) => ({ ...h, [i]: !on }))} since={prevs[i]!.revision} count={countOf(prevs[i]!.content, r.content, schemas[i], r.ref!.id, r.ref!.kind)} />}
               {r.ref?.kind === "EventStorming" && (
                 <a className="ml-3 font-medium text-run hover:underline" href={`/tools/eventstorming/?${new URLSearchParams({ ns: namespace, id: r.ref.id, rev: String(r.ref.revision) })}`} target="_blank" rel="noreferrer">
                   Open the board
                 </a>
               )}
             </p>
-            {r.error ? <p className="text-bad">Could not read it: {r.error}</p> : <DocView content={r.content} schema={schemas[i]} base={r.ref?.id ?? r.name ?? r.kind} noting={noting} {...(prevs[i] && !hidden[i] ? { prev: prevs[i]!.content } : {})} />}
+            {r.error ? <p className="text-bad">Could not read it: {r.error}</p> : <DocView content={r.content} schema={schemas[i]} base={r.ref?.id ?? r.name ?? r.kind} kind={r.ref?.kind} noting={noting} {...(prevs[i] && !hidden[i] ? { prev: prevs[i]!.content } : {})} />}
           </article>
         ))}
       </div>
@@ -125,8 +125,8 @@ export function Review({ namespace, taskRun, task, onAnswered }: { namespace: st
   );
 }
 
-const countOf = (prev: unknown, next: unknown, schema: Schema | undefined, base: string) => {
-  const d = diffDoc(toDoc(prev, schema, base), toDoc(next, schema, base));
+const countOf = (prev: unknown, next: unknown, schema: Schema | undefined, base: string, kind: string) => {
+  const d = diffDoc(toDoc(prev, schema, base, kind), toDoc(next, schema, base, kind));
   return countChanges(d.blocks) + d.meta.filter((m) => m.change).length;
 };
 

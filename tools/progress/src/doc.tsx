@@ -10,8 +10,8 @@ export interface Noting {
 }
 
 /** With `prev`, the document is marked with what changed since that earlier revision's content. */
-export function DocView({ content, schema, base, noting, prev }: { content: unknown; schema?: Schema; base: string; noting?: Noting; prev?: unknown }) {
-  const doc = useMemo(() => (prev === undefined ? toDoc(content, schema, base) : diffDoc(toDoc(prev, schema, base), toDoc(content, schema, base))), [content, schema, base, prev]);
+export function DocView({ content, schema, base, kind, noting, prev }: { content: unknown; schema?: Schema; base: string; kind?: string; noting?: Noting; prev?: unknown }) {
+  const doc = useMemo(() => (prev === undefined ? toDoc(content, schema, base, kind) : diffDoc(toDoc(prev, schema, base, kind), toDoc(content, schema, base, kind))), [content, schema, base, kind, prev]);
   const box = useRef<HTMLDivElement>(null);
   const [pick, setPick] = useState<{ anchor: Anchor; quote?: string; x: number; y: number } | undefined>();
   const [draft, setDraft] = useState<typeof pick>();

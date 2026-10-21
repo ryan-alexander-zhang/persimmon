@@ -60,6 +60,31 @@ describe("toDoc", () => {
     expect((doc.blocks[1] as { blocks: unknown[] }).blocks[0]).toMatchObject({ t: "list", tags: false });
   });
 
+  it("sets a SourceInventory in reading order: entry points, then what they reach, then what was read in them", () => {
+    const inv = { source: { repository: "r", commit: "c9a37f2" }, openQuestions: [], unread: [], guards: [], stateChanges: [], externalSystems: [], entities: [], entryPoints: [], declarations: [], absences: [], plumbingPatterns: [], tests: [] };
+    expect(toDoc(inv, undefined, "jp-inventory", "SourceInventory").blocks.map((b) => (b.t === "section" ? b.heading : b.t))).toEqual([
+      "Source",
+      "Entry points",
+      "Entities",
+      "External systems",
+      "Guards",
+      "Declarations",
+      "State changes",
+      "Absences",
+      "Plumbing patterns",
+      "Tests",
+      "Unread",
+      "Open questions",
+    ]);
+  });
+
+  it("puts a ParityLedger's verdict first and heads an item by the ref it accounts for", () => {
+    const ledger = { source: { repository: "r", commit: "c9a37f2" }, items: [{ ref: "GD-3", slice: "SL-1", account: "open", reason: "no test pinned it" }], slices: [{ id: "SL-1", name: "Catalog", entryPoints: ["EP-2"], order: 1 }], verdict: { result: "concerns", rule: "an open item" } };
+    const doc = toDoc(ledger, undefined, "jp-parity", "ParityLedger");
+    expect(doc.blocks.map((b) => (b.t === "section" ? b.heading : b.t))).toEqual(["Verdict", "Slices", "Items", "Source"]);
+    expect((doc.blocks[2] as { blocks: unknown[] }).blocks[0]).toMatchObject({ t: "element", id: "GD-3", anchor: "GD-3", meta: [{ label: "Slice", value: "SL-1" }, { label: "Account", value: "open" }, { label: "Reason", value: "no test pinned it" }] });
+  });
+
   it("keeps a whole-string content as one passage", () => expect(toDoc("# DESIGN.md\n\ntext", undefined, "ds")).toEqual({ meta: [], blocks: [{ t: "prose", text: "# DESIGN.md\n\ntext", anchor: "ds" }] }));
 });
 

@@ -89,7 +89,7 @@ function Artifact({ ref_, namespace }: { ref_: RevisionRef; namespace: string })
       <p className="mb-4 text-[13px] text-ink-3">
         {ref_.kind} <span className="font-medium text-ink-2">{ref_.id}</span>, revision {ref_.revision}
       </p>
-      {error ? <p className="text-bad">{error}</p> : content === undefined ? <p className="text-ink-2">Loading…</p> : <DocView content={content} schema={schema} base={ref_.id} />}
+      {error ? <p className="text-bad">{error}</p> : content === undefined ? <p className="text-ink-2">Loading…</p> : <DocView content={content} schema={schema} base={ref_.id} kind={ref_.kind} />}
     </article>
   );
 }
