@@ -189,6 +189,8 @@ export interface ESState {
   ) => void;
   /** Mark (or clear, with undefined) a Bounded Context as a Big Ball of Mud (decision-00015). */
   setContextBigBallOfMud: (id: string, bigBallOfMud: true | undefined) => void;
+  /** Set (or clear, with undefined) the Prd subdomain a Bounded Context realises (DSL 4.1). */
+  setContextSubdomain: (id: string, subdomain: string | undefined) => void;
   /** Add a directed relationship source→target (default Customer/Supplier); returns its id. */
   addContextRelationship: (source: string, target: string) => string;
   /** Change a context relationship's type. */
@@ -416,6 +418,9 @@ const initializer: StateCreator<ESState> = (set, get) => ({
 
   setContextBigBallOfMud: (id, bigBallOfMud) =>
     set({ contexts: get().contexts.map((c) => (c.id === id ? { ...c, bigBallOfMud } : c)) }),
+
+  setContextSubdomain: (id, subdomain) =>
+    set({ contexts: get().contexts.map((c) => (c.id === id ? { ...c, subdomain } : c)) }),
 
   addContextRelationship: (source, target) => {
     const id = uid();

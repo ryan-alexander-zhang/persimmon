@@ -248,6 +248,14 @@ describe("store (RT3)", () => {
     expect(get().contexts.find((c) => c.id === a)?.classification).toBeUndefined();
   });
 
+  it("sets and clears the subdomain a context realises [DSL 4.1]", () => {
+    const a = get().addContext("Ordering");
+    get().setContextSubdomain(a, "orders");
+    expect(get().contexts.find((c) => c.id === a)?.subdomain).toBe("orders");
+    get().setContextSubdomain(a, undefined);
+    expect(get().contexts.find((c) => c.id === a)?.subdomain).toBeUndefined();
+  });
+
   it("marks and clears a context as a Big Ball of Mud [decision-00015]", () => {
     const a = get().addContext("Legacy ERP");
     get().setContextBigBallOfMud(a, true);
