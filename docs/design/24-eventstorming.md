@@ -121,6 +121,11 @@ executor".
   The grammar reads 4.0 and 4.1 alike and only types the field; which subdomains exist is the
   Prd's, so the pack checks it beside the Prd. The editor copies contexts whole and writes 4.1.
   Found in design review.
+- The context map draws Domain > Subdomain > Bounded Context from the model alone: the model's
+  name, a box per `contexts[].subdomain` typed by its contexts' `classification`, the contexts
+  inside; the chip menu sets the subdomain. A flat grid could not show whether the cut respects
+  the Prd's subdomains. No Prd read in the editor: id and type are in the model, and the gate
+  holds the type to the Prd's; a subdomain's name and description stay the Prd's. Found in review.
 
 ## Examples
 

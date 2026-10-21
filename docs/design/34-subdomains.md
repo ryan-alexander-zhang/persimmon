@@ -95,7 +95,8 @@ brief ─▶ author-prd ─▶ Prd: subdomains[] (core | supporting | generic), 
 - `classification` stays on the storming context because the context map draws it, and is held to
   the subdomain's `type` instead of being dropped. Found in design review.
 - DSL 4.1, not an unversioned extra field: the `EventStorming` kind's schema is closed. The editor
-  copies contexts whole, so the field round-trips without a UI change. The upstream event-storming
+  copies contexts whole, so the field round-trips without a UI change; the context map now draws
+  it (`24-eventstorming.md`). The upstream event-storming
   repository takes the same field on its own schedule. Found in design review.
 - The subdomain rule sits at the storming Gate, not in the grammar: the grammar is the tool's DSL
   and requires not even a classification; which subdomains exist is the Prd's, and a miss found at
