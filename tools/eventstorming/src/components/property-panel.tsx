@@ -330,6 +330,18 @@ export function PropertyPanel() {
         </label>
       )}
 
+      {node.type === "externalSystem" && (
+        <label className="mt-3 block text-xs font-medium text-zinc-600">
+          Product
+          <input
+            className={field}
+            placeholder="Prd id, when it is another product of this project"
+            value={node.data.product ?? ""}
+            onChange={(e) => updateNodeData(node.id, { product: e.target.value.trim() || undefined })}
+          />
+        </label>
+      )}
+
       {node.type === "constraint" && (
         <label className="mt-3 block text-xs font-medium text-zinc-600">
           Rule

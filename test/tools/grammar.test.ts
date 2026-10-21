@@ -77,6 +77,9 @@ describe('every error code fires', () => {
     ['bad-subdomain', model({ version: '4.1', contexts: [{ id: 'c', name: 'C', order: 0, subdomain: '' }] })],
     ['bad-subdomain', model({ version: '4.1', contexts: [{ id: 'c', name: 'C', order: 0, subdomain: 3 }] })],
     ['bad-subdomain', model({ contexts: [{ id: 'c', name: 'C', order: 0, subdomain: 'reservations' }] })], // a 4.0 model
+    ['bad-product', model({ version: '4.2', nodes: [node('x', 'externalSystem', { properties: { product: '' } })] })],
+    ['bad-product', model({ version: '4.1', nodes: [node('x', 'externalSystem', { properties: { product: 'ari-prd' } })] })], // a 4.1 model
+    ['property-not-on-type', model({ version: '4.2', nodes: [node('a', 'actor', { properties: { product: 'ari-prd' } })] })],
   ]
 
   it.each(cases)('%s', (code, content) => {
@@ -84,9 +87,10 @@ describe('every error code fires', () => {
   })
 
   it('not-a-model', () => {
-    expect(check(null)).toEqual([{ severity: 'error', code: 'not-a-model', message: 'content is not a DSL 4.0 or 4.1 model' }])
+    expect(check(null)).toEqual([{ severity: 'error', code: 'not-a-model', message: 'content is not a DSL 4.0 or 4.1 or 4.2 model' }])
     expect(codes({ version: '3.0' })).toEqual(['not-a-model'])
     expect(codes(model({ version: '4.1', contexts: [{ id: 'c', name: 'C', order: 0, subdomain: 'reservations' }] }))).not.toContain('not-a-model')
+    expect(codes(model({ version: '4.2', nodes: [node('x', 'externalSystem', { properties: { product: 'ari-prd' } })] }))).toEqual([])
     expect(codes(model({ nodes: 'nope' }))).toEqual(['not-a-model'])
     expect(codes(model({ nodes: ['nope'] }))).toEqual(['not-a-model'])
   })

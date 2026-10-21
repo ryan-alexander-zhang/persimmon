@@ -1,4 +1,4 @@
-// Types for the event storming DSL v4.1 grammar module (tools/eventstorming/grammar/index.mjs),
+// Types for the event storming DSL v4.2 grammar module (tools/eventstorming/grammar/index.mjs),
 // declared the way src/adapters.d.ts types adapters/lib/skills.mjs: a wildcard ambient module,
 // so a relative import of the .mjs resolves without a build step.
 declare module '*/tools/eventstorming/grammar/index.mjs' {
@@ -51,6 +51,8 @@ declare module '*/tools/eventstorming/grammar/index.mjs' {
     parameters?: { name: string; value: string }[]
     rule?: string
     alternativeSet?: string
+    /** the Prd id of another product of the project this external system is (DSL 4.2); externalSystem only */
+    product?: string
   }
 
   export interface Context {
@@ -102,7 +104,7 @@ declare module '*/tools/eventstorming/grammar/index.mjs' {
     message: string
   }
 
-  export const DSL_VERSION: '4.1'
+  export const DSL_VERSION: '4.2'
   export const elements: ElementType[]
   export const levels: Record<Level, ElementType[]>
   export const levelRank: Record<Level, number>

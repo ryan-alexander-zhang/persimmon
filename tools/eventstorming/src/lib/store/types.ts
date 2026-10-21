@@ -25,6 +25,8 @@ export type ESNodeData = {
   alternativeSet?: string;
   parameters?: { name: string; value: string }[];
   rule?: string;
+  // the Prd id of another product this External System is (DSL 4.2).
+  product?: string;
   // bounded context membership; timeline index (Domain Events carry order).
   context?: string;
   order?: number;

@@ -20,11 +20,11 @@ rises.
 
 | Field | Content |
 |---|---|
-| `version` | `"4.1"`, the grammar version; `"4.0"` is read as 4.1 without `subdomain` |
+| `version` | `"4.2"`, the grammar version; `"4.0"` and `"4.1"` are read as 4.2 without `subdomain` and `product` |
 | `meta` | `{name, level: big-picture \| process \| design}`; the level gates which node types may appear |
 | `contexts[]` | `{id, name, order, classification?: core \| supporting \| generic, bigBallOfMud?, subdomain?}`; `subdomain` (4.1) is the Prd subdomain id the context realises (`34-subdomains.md`) |
 | `contextRelationships[]` | `{id, source, target, type}`; `source` is upstream; the tool's eight camelCase types |
-| `nodes[]` | `{id, type, label, context?, order?, properties}`; ten types; `order` on `domainEvent` only, one global sequence |
+| `nodes[]` | `{id, type, label, context?, order?, properties}`; ten types; `order` on `domainEvent` only, one global sequence; `properties.product` (4.2) on an `externalSystem` only: the Prd id of another product of the project it stands for (`37-progress.md`, Products) |
 | `edges[]` | `{id, source, target, relation}`; eleven relations, each legal for fixed source and target types |
 
 The schema is the shape: closed objects, enumerated `properties` keys, enum values. Which key is
@@ -44,7 +44,7 @@ publish; grammar findings arrive all at once from the Validator.
 
 | Severity | Codes |
 |---|---|
-| error | `not-a-model`, `duplicate-id`, `undeclared-context`, `self-relationship`, `not-at-level`, `order-not-on-event`, `property-not-on-type`, `bad-enum`, `bad-subdomain`, `bad-parameters`, `edge-endpoint-missing`, `illegal-connection`, `wrong-relation` |
+| error | `not-a-model`, `duplicate-id`, `undeclared-context`, `self-relationship`, `not-at-level`, `order-not-on-event`, `property-not-on-type`, `bad-enum`, `bad-subdomain`, `bad-product`, `bad-parameters`, `edge-endpoint-missing`, `illegal-connection`, `wrong-relation` |
 | warning | `event-without-order`, `empty-context`, `no-pivotal-event`, `orphan-event` (not a temporal event, not at big-picture), `dangling-command`, `unissued-command`, `overloaded-aggregate` (over 5 commands or 5 events), `untriggered-policy`, `idle-policy`, `policy-without-execution` (an error at `design`: the DomainModel requires it), `lone-alternative`, `reaction-cycle`, `duplicate-edge`, `unrecorded-resolution` |
 | info | `open-hotspots` |
 
@@ -89,7 +89,7 @@ executor".
 |---|---|
 | content validates the kind schema | engine at publish |
 | grammar findings as above; `passed` iff no error | Adapter |
-| `version` other than `4.0` or `4.1` is `not-a-model`; a `4.0` model carrying `subdomain` is `bad-subdomain` | schema (`enum`), grammar |
+| `version` other than `4.0`, `4.1` or `4.2` is `not-a-model`; a `4.0` model carrying `subdomain` is `bad-subdomain`; a model below `4.2` carrying `product` is `bad-product` | schema (`enum`), grammar |
 | the grammar module and the Adapter answer the same findings the tool's `validate.py` answers for the tool's example models, errors and warnings alike | `test/tools/grammar.test.ts` over two ported models |
 
 ## Decisions
@@ -121,6 +121,14 @@ executor".
   The grammar reads 4.0 and 4.1 alike and only types the field; which subdomains exist is the
   Prd's, so the pack checks it beside the Prd. The editor copies contexts whole and writes 4.1.
   Found in design review.
+- DSL v4.2 adds `properties.product` on an `externalSystem`: the Prd id of another product of the
+  same project. A product spread over several products of one organisation (a CRM and the agent it
+  routes to) had no link between their models but a label; the Progress Tool draws the products
+  from it (`37-progress.md`). A property, not a context relationship: the other product's model is
+  not this model's, so it stays an external system, and the relationship type between products is
+  the Architecture's `context.business`. The grammar types the field; whether the Prd exists is the
+  store's, shown on the Products page, not gated: a Gate cannot query every Prd. Found in a reading
+  of `cai-workspace`.
 - The context map draws Domain > Subdomain > Bounded Context from the model alone: the model's
   name, a box per `contexts[].subdomain` typed by its contexts' `classification`, the contexts
   inside; the chip menu sets the subdomain. A flat grid could not show whether the cut respects

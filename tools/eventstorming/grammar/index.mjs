@@ -1,11 +1,12 @@
-// The event storming DSL v4.1 grammar: element types, level gating, edge rules, context
+// The event storming DSL v4.2 grammar: element types, level gating, edge rules, context
 // relationship types, and `check` — the rules the old tool split between its validator
 // (errors) and its editor health check (model smells). One copy, no dependencies, so
 // `adapters/eventstorming/` and the editor can both import it without a build.
 
-export const DSL_VERSION = '4.1'
-// 4.1 adds `contexts[].subdomain` (34-subdomains.md); a 4.0 model is a 4.1 model without it
-const versions = ['4.0', DSL_VERSION]
+export const DSL_VERSION = '4.2'
+// 4.1 adds `contexts[].subdomain` (34-subdomains.md); 4.2 adds `product` on an externalSystem, the Prd id of another
+// product of the project it stands for; an older model reads as the newer without them
+const versions = ['4.0', '4.1', DSL_VERSION]
 
 export const elements = [
   'domainEvent',
@@ -69,6 +70,7 @@ export const propertyTypes = {
   parameters: ['policy'],
   rule: ['constraint'],
   alternativeSet: ['domainEvent', 'command'],
+  product: ['externalSystem'],
 }
 
 const enums = {
@@ -99,7 +101,7 @@ const order = (a, b) =>
   (a.message < b.message ? -1 : a.message > b.message ? 1 : 0)
 
 /**
- * Check a DSL v4.1 model (or 4.0). Returns findings ordered errors first, then by code, then by
+ * Check a DSL v4.2 model (or 4.0, 4.1). Returns findings ordered errors first, then by code, then by
  * message, so the same model always answers the same list.
  */
 export function check(content) {
@@ -197,6 +199,10 @@ export function check(content) {
       }
       if (k === 'parameters' && (!Array.isArray(v) || !v.every((p) => isObject(p) && typeof p.name === 'string' && typeof p.value === 'string'))) {
         add('error', 'bad-parameters', `node ${nid}: each parameter must be {"name": "...", "value": "..."} with string values`)
+      }
+      if (k === 'product') {
+        if (typeof v !== 'string' || !v) add('error', 'bad-product', `node ${nid}: product must be a Prd id`)
+        else if (content.version !== DSL_VERSION) add('error', 'bad-product', `node ${nid}: product is DSL ${DSL_VERSION} - set version ${DSL_VERSION}`)
       }
     }
   }

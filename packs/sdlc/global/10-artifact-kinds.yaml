@@ -660,7 +660,7 @@ spec:
   revisioned: true
   snapshot: "None"
 ---
-# An event storming model, DSL v4.1 of the event storming tool (24-eventstorming.md) without meta.createdAt: the
+# An event storming model, DSL v4.2 of the event storming tool (24-eventstorming.md) without meta.createdAt: the
 # revision carries time. The schema is the shape only; per-type properties, level gating, edge rules and smells are the
 # grammar's (tools/eventstorming/grammar), run by the evaluator Adapter eventstorming/v1.
 apiVersion: persimmon.ai/v1
@@ -677,7 +677,7 @@ spec:
         required: [version, meta, contexts, contextRelationships, nodes, edges]
         additionalProperties: false
         properties:
-          version: {enum: ["4.0", "4.1"], description: "the grammar version; 4.1 adds contexts[].subdomain"}
+          version: {enum: ["4.0", "4.1", "4.2"], description: "the grammar version; 4.1 adds contexts[].subdomain, 4.2 product on an externalSystem"}
           meta:
             type: object
             required: [name, level]
@@ -741,6 +741,7 @@ spec:
                       items: {type: object, required: [name, value], additionalProperties: false, properties: {name: {type: string, minLength: 1}, value: {type: string}}}
                     alternativeSet: {type: string, minLength: 1, description: "members happen instead of each other; domainEvent and command only"}
                     rule: {type: string, description: "a constraint's invariant"}
+                    product: {type: string, minLength: 1, description: "externalSystem only: the Prd id of another product of this project it stands for (4.2)"}
           edges:
             type: array
             items:

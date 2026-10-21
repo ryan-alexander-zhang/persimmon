@@ -220,7 +220,7 @@ describe("serialize (T2/RT1)", () => {
   it("export omits position and includes contexts + order + level [us-00004]", () => {
     const { nodes, edges } = sampleCanvas();
     const out = toModel(nodes, edges, CONTEXTS, META);
-    expect(out.version).toBe("4.1");
+    expect(out.version).toBe("4.2");
     expect(out.contexts).toEqual(CONTEXTS);
     expect(out.meta.level).toBe("design");
     expect("position" in out.nodes[0]!).toBe(false);

@@ -1,5 +1,5 @@
 // Serialize between the runtime canvas (React Flow nodes + edges + contexts) and
-// the DSL v4.1 Model — the `spec.content` of an EventStorming artifact
+// the DSL v4.2 Model — the `spec.content` of an EventStorming artifact
 // (24-eventstorming.md). Positions are runtime-only (computed by the layout engine)
 // and never stored. There is no `meta.createdAt`: the revision carries time.
 // Shape is the kind schema's and the API answers 400 on a violation; the grammar's
@@ -59,6 +59,7 @@ export function toModel(
           : {}),
         ...(n.data.parameters !== undefined ? { parameters: n.data.parameters } : {}),
         ...(n.data.rule !== undefined ? { rule: n.data.rule } : {}),
+        ...(n.data.product !== undefined ? { product: n.data.product } : {}),
       },
     })) as ModelNode[],
     edges: edges.map((e) => ({
@@ -105,6 +106,7 @@ export function fromModel(model: Model): {
           ...(p.alternativeSet !== undefined ? { alternativeSet: p.alternativeSet } : {}),
           ...(p.parameters !== undefined ? { parameters: p.parameters } : {}),
           ...(p.rule !== undefined ? { rule: p.rule } : {}),
+          ...(p.product !== undefined ? { product: p.product } : {}),
         },
       };
     }),

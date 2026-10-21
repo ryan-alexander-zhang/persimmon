@@ -6,9 +6,9 @@ metadata: {name: storming-dsl}
 spec:
   mediaType: text/markdown
   content: |
-    # Event storming DSL 4.1, the content of an EventStorming artifact
+    # Event storming DSL 4.2, the content of an EventStorming artifact
 
-    You answer the `model` port with one object: `{version: "4.1", meta: {name, level}, contexts: [], contextRelationships: [], nodes: [], edges: []}`.
+    You answer the `model` port with one object: `{version: "4.2", meta: {name, level}, contexts: [], contextRelationships: [], nodes: [], edges: []}`.
     No `createdAt`, no positions; layout is computed from `order` and the relations.
 
     - `meta.level` is `big-picture`, `process` or `design`; it gates which node types may appear and rises as phases complete.
@@ -17,7 +17,7 @@ spec:
     - `nodes[]`: `{id, type, label, context?, order?, properties}`; `properties` is always an object, `{}` when empty.
       - types: `domainEvent` (past tense, carries `order`), `command` (imperative), `actor`, `readModel` (ends in View), `policy` (ends in Policy), `aggregate`, `constraint`, `externalSystem`, `hotspot` (the open question itself), `opportunity`.
       - `order` is an integer on `domainEvent` only, one global sequence from 0 across every context; equal `order` means the same point in time.
-      - properties, each legal on its own type only: `description` (any); `pivotal`, `temporal` (domainEvent); `alternativeSet` (domainEvent, command: members happen instead of each other, at most one does; a set needs two members); `state` open|resolved, `kind` conflict|question|risk, `priority` low|medium|high, `resolution`, `resolvedAt` (hotspot); `condition` (the guard, no "if"), `execution` automatic|manual, `parameters` `[{name, value}]` both strings (policy); `rule` (constraint, the invariant itself).
+      - properties, each legal on its own type only: `description` (any); `pivotal`, `temporal` (domainEvent); `alternativeSet` (domainEvent, command: members happen instead of each other, at most one does; a set needs two members); `state` open|resolved, `kind` conflict|question|risk, `priority` low|medium|high, `resolution`, `resolvedAt` (hotspot); `condition` (the guard, no "if"), `execution` automatic|manual, `parameters` `[{name, value}]` both strings (policy); `rule` (constraint, the invariant itself); `product` (externalSystem: the Prd id of another product of this project it stands for, when the system you talk to is one persimmon models too; absent for the rest of the world).
       - a `temporal` event is raised by time passing and needs no producer; never invent a Clock or Scheduler external system. A timeout our own system runs is a policy with its numbers as parameters, not a temporal event.
     - `edges[]`: `{id, source, target, relation}`; legal pairs only:
       `issues` actor|externalSystem → command · `produces` command → domainEvent · `constrainedBy` command → constraint · `handledBy` command → aggregate|externalSystem · `emits` aggregate|externalSystem → domainEvent · `triggers` domainEvent → policy · `invokes` policy → command · `updates` domainEvent → readModel · `informs` readModel → actor · `annotates` hotspot → any · `highlights` opportunity → any.
