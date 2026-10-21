@@ -30,7 +30,7 @@ export interface Phase {
 
 export const phases: Phase[] = [
   { id: "survey", title: "Survey", workflows: ["survey", "survey-work"], lane: 0.5, step: -3, rewrite: true },
-  { id: "inventory", title: "Inventory", workflows: ["inventory", "inventory-work"], lane: 0.5, step: -2, rewrite: true },
+  { id: "inventory", title: "Slice inventory", workflows: ["inventory", "inventory-work"], lane: 0.5, step: -2, rewrite: true },
   { id: "characterize", title: "Characterize", workflows: ["characterize", "characterize-work"], lane: 0.5, step: -1, rewrite: true },
   { id: "recover", title: "Recover PRD", workflows: ["recover-prd", "recover-work"], lane: 0.5, step: 0, rewrite: true }, // in the PRD station's place
   { id: "prd", title: "PRD", workflows: ["author-prd"], lane: 0.5, step: 0 },
