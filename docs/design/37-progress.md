@@ -2,7 +2,8 @@
 
 status: draft · layer: cross-cutting (`25-ui.md`, `20-pack.md` `cli-human/v1`, `14-gate.md`, `23-pack-sdlc.md`) · schema: none
 
-The second Tool, the home of `persimmon ui`. One product's SDLC phases are drawn as a graph: what is
+The second Tool, the home of `persimmon ui`. One product's phases are drawn as a graph, the SDLC
+pack's and, for a rewrite, the Rewrite pack's around them (`40-pack-rewrite.md`): what is
 done, what runs, which round a review loop is in, and the one step waiting on you. A phase opens a
 side panel with its runs round by round, every artifact a run made readable as a document, and, when
 a human gate waits, the document under review with Approve and Reject. That is the same answer
@@ -41,11 +42,30 @@ map ──click a phase──▶ panel: runs, rounds, verdicts, artifacts ──
            [Build]
 ```
 
+A rewrite's map: the Rewrite pack's phases before Domain, Recover PRD in the PRD station's place
+(the Prd is recovered, not authored), Parity after Build; the SDLC phases between them as above.
+
+```text
+          [Survey]
+              │
+         [Inventory]
+              │
+        [Characterize]
+              │
+        [Recover PRD]
+              │
+           [Domain]
+             ...
+           [Build]
+              │
+           [Parity]
+```
+
 | Part | Behaviour |
 |---|---|
-| product | a product is a Prd id; a run belongs to every Prd its input and output artifacts reach through `provenance.inputs`, and an `author-prd` run with no output yet to `<productId>-prd`; the top bar picks one, the product with a step waiting on you first, then the newest |
-| phase | one node per phase, from the pack's top-level workflows: PRD `author-prd`; Domain `domain-discovery` and its storm and derive workflows; Architecture `architect`; Design system `design-system`; Specs `spec-all`, `spec-one`; Designs `design-all`, `design-one`; Plans `plan-all`, `plan-one`; Test setup `setup-tests`, `harness-work`; Test design `test-design-all`, `test-design-one` (`39-test-process.md`); Build `build-all`, `build-one` |
-| state | from the phase's newest run, the map reading top to bottom beside the panel: not started, running (with the review loop's round), waiting on you, approved, rejected after its last round (`passed: false`), failed with its error; a phase with several runs (one per context) says how many are done |
+| product | a product is a Prd id; a run belongs to every Prd its input and output artifacts reach through `provenance.inputs`, and a run with no Prd upstream but a `productId` input (`author-prd` before its first draft, every Rewrite pack run before `recover-prd`) to `<productId>-prd`, the id the Prd will take; the top bar picks one, the product with a step waiting on you first, then the newest |
+| phase | one node per phase, from the pack's top-level workflows: PRD `author-prd`; Domain `domain-discovery` and its storm and derive workflows; Architecture `architect`; Design system `design-system`; Specs `spec-all`, `spec-one`; Designs `design-all`, `design-one`; Plans `plan-all`, `plan-one`; Test setup `setup-tests`, `harness-work`; Test design `test-design-all`, `test-design-one` (`39-test-process.md`); Build `build-all`, `build-one`; for a rewrite, a product with any Rewrite pack run: Survey `survey`, `survey-work`; Inventory `inventory`, `inventory-work`; Characterize `characterize`, `characterize-work`; Recover PRD `recover-prd`, `recover-work`, in the PRD station's place; Parity `parity`, `parity-work`. A loop's `<name>-round` runs are owned by the loop's run, never top level, so no phase names them |
+| state | from the phase's newest run, the map reading top to bottom beside the panel: not started, running (with the review loop's round), waiting on you, approved, rejected after its last round (`passed: false`), failed with its error; a phase with several runs (one per context) says how many are done; a run for a Slice (a `slice` input, `SL-n`) leads its line with the Slice: `SL-2: Round 1, running` |
 | needs you | the only saturated colour on the map: a phase holding a TaskRun parked on a human here; the top bar counts them across products and jumps to the first |
 | edges | as the artifacts cite upstream (`23-pack-sdlc.md`), Architecture to Designs drawn through Design system, a Spec to its TestDesign through Test setup: solid once the upstream phase is done |
 | refresh | every 3 s; the open panel and the review in progress are kept |
@@ -54,7 +74,7 @@ map ──click a phase──▶ panel: runs, rounds, verdicts, artifacts ──
 
 | Part | Behaviour |
 |---|---|
-| runs | the phase's runs, newest first; the newest opens, on its review when one waits on you |
+| runs | the phase's runs, newest first, each named by its Slice when it has one and its start; the newest opens, on its review when one waits on you |
 | rounds | a review loop's rounds in order, each the produced artifacts and the review: one line per Validator, passed or not, its findings under it, the human's own among them; a fan-out (`spec-all`) lists its children the same way |
 | artifact | any artifact a round made opens as a document in the panel, read-only |
 | review | a TaskRun parked on a human here shows "Review"; it opens the form's Reading as documents, the Task's instructions above them, value inputs (the auditor's verdict) beside them |
@@ -91,7 +111,9 @@ it, the one the last round reviewed. A switch beside the document's title turns 
 
 Shown when every output of the parked Task is a ValidationResult value port, as on the four
 `confirm-*` Tasks of the SDLC pack. Any other form shows its Reading and says to answer with
-`persimmon complete`.
+`persimmon complete`: a draft the pack gives an agent, or a Rewrite pack decision (`cut-slices`,
+`decide-recovery`, `review-parity`), a typed `decisions` value the human writes as a file, the
+form's schema saying its shape.
 
 | Action | Behaviour |
 |---|---|
@@ -157,6 +179,11 @@ but `POST /api/inbox`.
   and only prose is diffed word by word. The word diff is the `diff` package (jsdiff 9.0.0): no
   dependencies of its own, its own types, maintained; a hand-written longest common subsequence was
   the alternative, and the repository reuses a maintained library before it builds one. Found in UAT.
+- A rewrite is a product before it has a Prd: its runs carry `productId`, so they group under
+  `<productId>-prd`, the id `recover-prd` gives, and the SDLC runs that later cite that Prd land on
+  the same map. Keying products by the stem instead was rejected: every link already names the Prd
+  id. The Rewrite phases show only on a product that has a Rewrite pack run, so a product from an
+  idea keeps its map. Found in UAT (a Survey parked on `cut-slices` showed "No product yet").
 - Polling every 3 s: loopback, request-response, and a drain changes a run within seconds.
 - The UI answers the gate, superseding decision 350; reject needs a finding; a non-verdict form is
   answered with `persimmon complete`; only this project directory's parked TaskRuns are offered
