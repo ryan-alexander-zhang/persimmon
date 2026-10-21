@@ -50,6 +50,7 @@ metadata: {name: confirm-storming}
 spec:
   inputs:
     model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict; round one has none (23-pack-sdlc.md)"}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
   executorRef: {kind: Executor, name: local-reviewer}
@@ -58,7 +59,10 @@ spec:
       Confirm this phase of the event storming. Run `persimmon ui` in this project: Progress shows the model, and
       "Open the board" opens it in the editor. Approve when the phase gate holds; reject with one finding per node,
       edge or context that must change, naming its id.
+      Judge as the owner's rules in your context say; `feedback`, when bound, is the last round's verdict: check its
+      findings were fixed first.
     context:
+      - {kind: prompt, ref: {kind: Prompt, name: owner-review}}
       - {kind: artifact, input: model}
   timeout: 72h
   sideEffects: none
@@ -203,6 +207,7 @@ spec:
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}, required: false, description: "the auditor's verdict, passed, read before the human (23-pack-sdlc.md)"}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict; round one has none (23-pack-sdlc.md)"}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
   executorRef: {kind: Executor, name: local-reviewer}
@@ -214,7 +219,10 @@ spec:
       answer of a Q-n whose answer became a rule names that BR-n too, so the rule may change with it.
       `audit`, when bound, is the auditor's verdict on this draft: it passed, and each warning is a doubt for you to judge,
       not a defect already decided.
+      Judge as the owner's rules in your context say; `feedback`, when bound, is the last round's verdict: check its
+      findings were fixed first.
     context:
+      - {kind: prompt, ref: {kind: Prompt, name: owner-review}}
       - {kind: artifact, input: prd}
       - {kind: artifact, input: rules}
   timeout: 72h
@@ -380,6 +388,7 @@ spec:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}}
     audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}, required: false, description: "the auditor's verdict, passed, read before the human (23-pack-sdlc.md)"}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict; round one has none (23-pack-sdlc.md)"}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
   executorRef: {kind: Executor, name: local-reviewer}
@@ -391,7 +400,10 @@ spec:
       finding's message.
       `audit`, when bound, is the auditor's verdict on this draft: it passed, and each warning is a doubt for you to judge,
       not a defect already decided.
+      Judge as the owner's rules in your context say; `feedback`, when bound, is the last round's verdict: check its
+      findings were fixed first.
     context:
+      - {kind: prompt, ref: {kind: Prompt, name: owner-review}}
       - {kind: artifact, input: architecture}
       - {kind: artifact, input: adrs}
   timeout: 72h
@@ -434,6 +446,7 @@ metadata: {name: confirm-design-system}
 spec:
   inputs:
     designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict; round one has none (23-pack-sdlc.md)"}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
   executorRef: {kind: Executor, name: local-reviewer}
@@ -443,7 +456,10 @@ spec:
       Don'ts for the product and the people who look at it; the linter checks the format, the token references and
       the contrast beside you. Approve, or reject with one finding per section or token path that must change,
       naming it in the finding's message.
+      Judge as the owner's rules in your context say; `feedback`, when bound, is the last round's verdict: check its
+      findings were fixed first.
     context:
+      - {kind: prompt, ref: {kind: Prompt, name: owner-review}}
       - {kind: artifact, input: designSystem}
   timeout: 72h
   sideEffects: none
@@ -737,8 +753,10 @@ spec:
     harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, required: false, description: "the project's test tools: when bound, the levels and their commands are its (39-test-process.md)"}
     cases: {type: {kind: value, schema: {type: object}}, required: false, description: "the round's case ids by level, under a TestDesign (39-test-process.md): the tests each level must run"}
     written: {type: {kind: value, schema: {type: object, required: [files, cases], additionalProperties: false, properties: {files: {type: array, items: {type: string, minLength: 1}}, cases: {type: array, items: {type: string, pattern: "^CAP-[0-9]+/TC-[0-9]+$"}}, notWritten: {type: array, items: {type: string, minLength: 1}}}}}, required: false, description: "the api tests the Tester wrote this round, before the code: never edited by the builder"}
+    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}, required: false, description: "the owner's answers to this round's open questions, recorded in this round (23-pack-sdlc.md)"}
   outputs:
     record: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: AcceptanceRecord}}, id: {expression: "inputs.plan.id + '-' + inputs.taskId.lowerAscii()"}}
+    open: {type: {kind: value, schema: {type: array, items: {type: string, pattern: "^Q-[0-9]+$"}}}, description: "the ids of the record's questions without a resolution; empty when none"}
   executorRef: {kind: Executor, name: builder}
   action:
     instructions: |
@@ -746,6 +764,9 @@ spec:
       run, following the build rules in your context; then answer with its AcceptanceRecord. `plan` and `spec` in the
       record are the artifact ids of the inputs with those names; `task` is `taskId`. With `previous`,
       `previousOutcome` and `feedback` bound, fix what the findings name and change nothing else.
+      `open` lists the ids of every `Q-n` the record leaves without a `resolution`. With `decisions` bound, `previous` is this
+      round's record: record each decision as its `Q-n`'s `resolution`, build what the answer implies, and change nothing
+      else; `open` is then what still has none.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: build-rules}}
       - {kind: artifact, input: plan}
@@ -934,6 +955,7 @@ spec:
   inputs:
     harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict; round one has none (23-pack-sdlc.md)"}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
   executorRef: {kind: Executor, name: local-reviewer}
@@ -944,7 +966,10 @@ spec:
       passed beside you. Approve, or reject with one finding per level that must change, naming it in the message.
       Each open Q-n is yours to answer: reject with a finding naming it and giving the answer, which the next round
       records as its resolution.
+      Judge as the owner's rules in your context say; `feedback`, when bound, is the last round's verdict: check its
+      findings were fixed first.
     context:
+      - {kind: prompt, ref: {kind: Prompt, name: owner-review}}
       - {kind: artifact, input: harness}
       - {kind: artifact, input: architecture}
   timeout: 72h
@@ -958,6 +983,7 @@ spec:
     testDesign: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}}
     spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
     audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}, required: false, description: "the auditor's verdict, passed, read before the human (23-pack-sdlc.md)"}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict; round one has none (23-pack-sdlc.md)"}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
   executorRef: {kind: Executor, name: local-reviewer}
@@ -970,7 +996,10 @@ spec:
       records as its resolution.
       `audit`, when bound, is the auditor's verdict on this draft: it passed, and each warning is a doubt for you to judge,
       not a defect already decided.
+      Judge as the owner's rules in your context say; `feedback`, when bound, is the last round's verdict: check its
+      findings were fixed first.
     context:
+      - {kind: prompt, ref: {kind: Prompt, name: owner-review}}
       - {kind: artifact, input: testDesign}
       - {kind: artifact, input: spec}
   timeout: 72h
@@ -1261,5 +1290,32 @@ spec:
       - {kind: artifact, input: spec}
       - {kind: artifact, input: plan}
       - {kind: artifact, input: harness}
+  timeout: 72h
+  sideEffects: none
+---
+# The owner decides a build round's open questions inside the round, before its tests and its Gate (23-pack-sdlc.md): a human
+# at the terminal, or the Autopilot's agent overriding local-reviewer (38-autopilot.md).
+apiVersion: persimmon.ai/v1
+kind: Task
+metadata: {name: decide-build}
+spec:
+  inputs:
+    draft: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: AcceptanceRecord}}, description: "this round's record, with the questions open"}
+    open: {type: {kind: value, schema: {type: array, items: {type: string, pattern: "^Q-[0-9]+$"}}}, description: "the ids to decide"}
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}}
+  outputs:
+    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}}
+  executorRef: {kind: Executor, name: local-reviewer}
+  action:
+    instructions: |
+      Decide every question `open` names in the AcceptanceRecord `draft`, raised by the builder or the Tester of one Plan
+      task, as the product's owner, following the owner's rules in your context. Answer `decisions` with one entry per id
+      in `open` and no other: its `resolution`, and `upstream` when the answer changes an artifact upstream of the task.
+    context:
+      - {kind: prompt, ref: {kind: Prompt, name: owner-decisions}}
+      - {kind: artifact, input: draft}
+      - {kind: artifact, input: spec}
+      - {kind: artifact, input: plan}
   timeout: 72h
   sideEffects: none

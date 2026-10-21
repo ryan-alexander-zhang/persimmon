@@ -24,6 +24,7 @@ spec:
       model: {fromStep: {stepRef: produce, output: model}}
       level: {literal: big-picture}
       prd: {fromInput: prd}
+      feedback: {fromInput: feedback}
     timeout: 72h
   subject: model
   previous: previous
@@ -55,6 +56,7 @@ spec:
       model: {fromStep: {stepRef: produce, output: model}}
       level: {literal: process}
       prd: {fromInput: prd}
+      feedback: {fromInput: feedback}
     timeout: 72h
   subject: model
   previous: previous
@@ -86,6 +88,7 @@ spec:
       model: {fromStep: {stepRef: produce, output: model}}
       level: {literal: design}
       prd: {fromInput: prd}
+      feedback: {fromInput: feedback}
     timeout: 72h
   subject: model
   previous: previous
@@ -369,6 +372,7 @@ spec:
         rules: {fromInput: rules}
         context: {fromInput: context}
       timeout: 12h
+      memo: {when: "outputs.passed"}   # unchanged inputs, a passed loop: done already (11-workflow.md)
       repeat:
         state:
           index: {type: {kind: value, schema: {type: integer, minimum: 1}}}
@@ -376,14 +380,15 @@ spec:
           index: {literal: 1}
         next:
           index: {expression: "state.index + 1"}
-        until: "!iteration.outputs.passed || iteration.index >= inputs.capabilities.size()"
+        until: "iteration.index >= inputs.capabilities.size()"
         maxIterations: 20
+        parallel: 4   # the loops are independent; one rejected does not stop the others (11-workflow.md)
   transitions:
     - id: done
       from: [{stepRef: each, outcomes: [Succeeded, Failed]}]
       to:
-        - {terminal: Succeeded, when: 'steps.each.phase == "Succeeded" && steps.each.outputs.passed'}
-        - {terminal: Failed, reason: spec_inconsistent, when: 'steps.each.phase == "Succeeded"'} # the Gate rejected the last round
+        - {terminal: Succeeded, when: 'steps.each.phase == "Succeeded" && steps.each.results.all(r, r.passed)'}
+        - {terminal: Failed, reason: spec_inconsistent, when: 'steps.each.phase == "Succeeded"'} # a Gate rejected some loop's last round; steps.each.results says which
         - {terminal: Failed, reason: step_failed} # the iteration died before its Gate ran; steps.each.error names the cause
       dispatch: first
   timeout: 12h
@@ -592,6 +597,7 @@ spec:
         designSystem: {fromInput: designSystem, onMissing: omit}
         designs: {fromInput: designs, onMissing: omit}
       timeout: 12h
+      memo: {when: "outputs.passed"}   # unchanged inputs, a passed loop: done already (11-workflow.md)
       repeat:
         state:
           index: {type: {kind: value, schema: {type: integer, minimum: 1}}}
@@ -599,14 +605,15 @@ spec:
           index: {literal: 1}
         next:
           index: {expression: "state.index + 1"}
-        until: "!iteration.outputs.passed || iteration.index >= inputs.blocks.size()"
+        until: "iteration.index >= inputs.blocks.size()"
         maxIterations: 20
+        parallel: 4   # the loops are independent; one rejected does not stop the others (11-workflow.md)
   transitions:
     - id: done
       from: [{stepRef: each, outcomes: [Succeeded, Failed]}]
       to:
-        - {terminal: Succeeded, when: 'steps.each.phase == "Succeeded" && steps.each.outputs.passed'}
-        - {terminal: Failed, reason: design_inconsistent, when: 'steps.each.phase == "Succeeded"'} # the Gate rejected the last round
+        - {terminal: Succeeded, when: 'steps.each.phase == "Succeeded" && steps.each.results.all(r, r.passed)'}
+        - {terminal: Failed, reason: design_inconsistent, when: 'steps.each.phase == "Succeeded"'} # a Gate rejected some loop's last round; steps.each.results says which
         - {terminal: Failed, reason: step_failed} # the iteration died before its Gate ran; steps.each.error names the cause
       dispatch: first
   timeout: 12h
@@ -813,6 +820,7 @@ spec:
         domainModel: {fromInput: domainModel, onMissing: omit}
         base: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}, id: "inputs.prd.id + '-' + inputs.capabilities[state.index - 1].lowerAscii() + '-plan'"}, onMissing: omit}
       timeout: 12h
+      memo: {ignore: [base], when: "outputs.passed"}   # unchanged inputs, a passed loop: done already (11-workflow.md)
       repeat:
         state:
           index: {type: {kind: value, schema: {type: integer, minimum: 1}}}
@@ -820,14 +828,15 @@ spec:
           index: {literal: 1}
         next:
           index: {expression: "state.index + 1"}
-        until: "!iteration.outputs.passed || iteration.index >= inputs.capabilities.size()"
+        until: "iteration.index >= inputs.capabilities.size()"
         maxIterations: 20
+        parallel: 4   # the loops are independent; one rejected does not stop the others (11-workflow.md)
   transitions:
     - id: done
       from: [{stepRef: each, outcomes: [Succeeded, Failed]}]
       to:
-        - {terminal: Succeeded, when: 'steps.each.phase == "Succeeded" && steps.each.outputs.passed'}
-        - {terminal: Failed, reason: plan_inconsistent, when: 'steps.each.phase == "Succeeded"'} # the Gate rejected the last round
+        - {terminal: Succeeded, when: 'steps.each.phase == "Succeeded" && steps.each.results.all(r, r.passed)'}
+        - {terminal: Failed, reason: plan_inconsistent, when: 'steps.each.phase == "Succeeded"'} # a Gate rejected some loop's last round; steps.each.results says which
         - {terminal: Failed, reason: step_failed} # the iteration died before its Gate ran; steps.each.error names the cause
       dispatch: first
   timeout: 12h
@@ -898,6 +907,7 @@ spec:
     uses: {kind: Gate, name: design-system-gate}
     inputs:
       designSystem: {fromStep: {stepRef: produce, output: designSystem}}
+      feedback: {fromInput: feedback}
     timeout: 72h
   subject: designSystem
   previous: previous
@@ -935,7 +945,7 @@ spec:
     levelOutcomes: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}}
     audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
   outputBindings:
-    record: {fromStep: {stepRef: implement, output: record}}
+    record: {first: [{fromStep: {stepRef: record, output: record}}, {fromStep: {stepRef: implement, output: record}}]}   # whichever path ran
     testOutcome: {fromStep: {stepRef: tests, output: testOutcome}}
     levelOutcomes: {fromStep: {stepRef: levels, output: outcomes}}
     audit: {fromStep: {stepRef: audit, output: audit}}
@@ -984,6 +994,34 @@ spec:
         cases: {fromStep: {stepRef: cases, output: cases}}
         written: {fromStep: {stepRef: write-api, output: written}, onMissing: omit}
       timeout: 72h
+    - id: decide # the owner decides the record's open questions inside the round (23-pack-sdlc.md)
+      uses: {kind: Task, name: decide-build}
+      inputs:
+        draft: {fromStep: {stepRef: implement, output: record}}
+        open: {fromStep: {stepRef: implement, output: open}}
+        spec: {fromInput: spec}
+        plan: {fromInput: plan}
+      timeout: 72h
+    - id: record # the builder records the decisions and builds what they imply
+      uses: {kind: Task, name: implement}
+      inputs:
+        plan: {fromInput: plan}
+        taskId: {fromInput: taskId}
+        spec: {fromInput: spec}
+        architecture: {fromInput: architecture}
+        adrs: {fromInput: adrs, onMissing: omit}
+        designs: {fromInput: designs}
+        glossary: {fromInput: glossary}
+        rules: {fromInput: rules}
+        repository: {fromInput: repository}
+        baseline: {fromInput: baseline, onMissing: omit}
+        testDesign: {fromInput: testDesign, onMissing: omit}
+        harness: {fromInput: harness, onMissing: omit}
+        cases: {fromStep: {stepRef: cases, output: cases}}
+        written: {fromStep: {stepRef: write-api, output: written}, onMissing: omit}
+        previous: {fromStep: {stepRef: implement, output: record}}
+        decisions: {fromStep: {stepRef: decide, output: decisions}}
+      timeout: 72h
     - id: write-e2e
       uses: {kind: Task, name: write-e2e-tests}
       inputs: *tester
@@ -991,7 +1029,7 @@ spec:
     - id: tests
       uses: {kind: Task, name: run-tests}
       inputs:
-        record: {fromStep: {stepRef: implement, output: record}}
+        record: {first: [{fromStep: {stepRef: record, output: record}}, {fromStep: {stepRef: implement, output: record}}]}   # whichever path ran
         repository: {fromInput: repository}
         baseline: {fromInput: baseline, onMissing: omit}
         harness: {fromInput: harness, onMissing: omit}
@@ -1002,7 +1040,7 @@ spec:
       inputs:
         plan: {fromInput: plan}
         repository: {fromInput: repository}
-        record: {fromStep: {stepRef: implement, output: record}}
+        record: {first: [{fromStep: {stepRef: record, output: record}}, {fromStep: {stepRef: implement, output: record}}]}   # whichever path ran
         testOutcome: {fromStep: {stepRef: tests, output: testOutcome}}
         baselines: {fromInput: levelBaselines, onMissing: omit}
         harness: {fromInput: harness, onMissing: omit}
@@ -1011,7 +1049,7 @@ spec:
     - id: audit
       uses: {kind: Task, name: audit-acceptance}
       inputs:
-        record: {fromStep: {stepRef: implement, output: record}}
+        record: {first: [{fromStep: {stepRef: record, output: record}}, {fromStep: {stepRef: implement, output: record}}]}   # whichever path ran
         testOutcome: {fromStep: {stepRef: tests, output: testOutcome}}
         plan: {fromInput: plan}
         taskId: {fromInput: taskId}
@@ -1033,8 +1071,18 @@ spec:
     - id: to-implement
       from: [{stepRef: write-api, outcomes: [Succeeded]}]
       to: [{stepRef: implement}]
-    - id: to-write-e2e
+    - id: to-decide
       from: [{stepRef: implement, outcomes: [Succeeded]}]
+      to:
+        - {stepRef: decide, when: 'steps.implement.outputs.open.size() > 0'}   # open questions: the owner first (23-pack-sdlc.md)
+        - {stepRef: write-e2e, when: 'steps.cases.outputs.cases.write.e2e == true'}
+        - {stepRef: tests}
+      dispatch: first
+    - id: after-decide
+      from: [{stepRef: decide, outcomes: [Succeeded]}]
+      to: [{stepRef: record}]
+    - id: to-write-e2e
+      from: [{stepRef: record, outcomes: [Succeeded]}]
       to:
         - {stepRef: write-e2e, when: 'steps.cases.outputs.cases.write.e2e == true'}
         - {stepRef: tests}
@@ -1397,6 +1445,7 @@ spec:
       designs: {fromInput: designs, onMissing: omit}
       base: {fromInput: base, onMissing: omit}
       previous: {fromInput: previous}
+      feedback: {fromInput: feedback}
     timeout: 72h
   subject: harness
   previous: previous
@@ -1554,6 +1603,7 @@ spec:
         rules: {fromInput: rules}
         harness: {fromInput: harness}
       timeout: 2400h   # a ceiling for the whole repeat: each loop waits on a human
+      memo: {ignore: [base], when: "outputs.passed"}   # unchanged inputs, a passed loop: done already (11-workflow.md)
       repeat:
         state:
           index: {type: {kind: value, schema: {type: integer, minimum: 1}}}
@@ -1561,14 +1611,15 @@ spec:
           index: {literal: 1}
         next:
           index: {expression: "state.index + 1"}
-        until: "!iteration.outputs.passed || iteration.index >= inputs.capabilities.size()"
+        until: "iteration.index >= inputs.capabilities.size()"
         maxIterations: 20
+        parallel: 4   # the loops are independent; one rejected does not stop the others (11-workflow.md)
   transitions:
     - id: done
       from: [{stepRef: each, outcomes: [Succeeded, Failed]}]
       to:
-        - {terminal: Succeeded, when: 'steps.each.phase == "Succeeded" && steps.each.outputs.passed'}
-        - {terminal: Failed, reason: test_design_inconsistent, when: 'steps.each.phase == "Succeeded"'} # the Gate rejected the last round
+        - {terminal: Succeeded, when: 'steps.each.phase == "Succeeded" && steps.each.results.all(r, r.passed)'}
+        - {terminal: Failed, reason: test_design_inconsistent, when: 'steps.each.phase == "Succeeded"'} # a Gate rejected some loop's last round; steps.each.results says which
         - {terminal: Failed, reason: step_failed} # the iteration died before its Gate ran; steps.each.error names the cause
       dispatch: first
   timeout: 2400h

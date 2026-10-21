@@ -110,7 +110,7 @@ describe('persimmon CLI', () => {
 
     out = []
     expect(await run('get', 'Task')).toBe(0)
-    expect(out.length).toBe(44) // the SDLC pack's thirty-nine, five decide-* among them, and the demo pack's five
+    expect(out.length).toBe(45) // the SDLC pack's forty, six decide-* among them, and the demo pack's five
     expect(await run('delete', 'Task/write-prd')).toBe(1) // referenced by prd-create
     expect(err.at(-1)).toMatch(/referenced/)
 
@@ -170,7 +170,7 @@ describe('persimmon CLI', () => {
   it('init places the pack files when absent, links CLAUDE.md to the AGENTS.md it wrote, and ignores .persimmon/ once (20-pack.md)', async () => {
     const placed = () => out.filter((l) => /^(wrote|kept|ignored) /.test(l))
     expect([await run('init'), err]).toEqual([0, []])
-    expect(placed()).toEqual(['wrote persimmon.yaml', 'wrote .claude/skills/autopilot-code/SKILL.md', 'wrote .claude/skills/autopilot-doc/SKILL.md', 'wrote .claude/skills/autopilot/SKILL.md', 'wrote .claude/skills/autopilot/driving.md', 'wrote AGENTS.md', 'wrote CLAUDE.md -> AGENTS.md', 'ignored .persimmon/ in .gitignore'])
+    expect(placed()).toEqual(['wrote persimmon.yaml', 'wrote .claude/skills/autopilot-code/SKILL.md', 'wrote .claude/skills/autopilot-doc/SKILL.md', 'wrote .claude/skills/autopilot/SKILL.md', 'wrote .claude/skills/autopilot/autopilot.yaml', 'wrote .claude/skills/autopilot/driving.md', 'wrote AGENTS.md', 'wrote CLAUDE.md -> AGENTS.md', 'ignored .persimmon/ in .gitignore'])
     expect(readFileSync(join(dir, 'AGENTS.md'), 'utf8')).toBe(readFileSync('packs/sdlc/files/AGENTS.md', 'utf8'))
     expect(readlinkSync(join(dir, 'CLAUDE.md'))).toBe('AGENTS.md')
     expect(readFileSync(join(dir, '.gitignore'), 'utf8')).toBe('.persimmon/\n')
@@ -306,7 +306,7 @@ describe('persimmon CLI', () => {
     expect(out).toEqual(['Workflow/prd-approval', 'Workflow/prd-create']) // the SDLC pack is not in this store
     out = [] // so a Workflow stepping into a ReviewLoop of the same files resolves on validate's second pass only (08-store.md)
     expect([await run('validate', ...sdlcPack), out.filter((l) => !l.startsWith('ok'))]).toEqual([0, []])
-    expect(out.length).toBe(159) // 4 draft Workflows, 5 decide Tasks, owner-decisions
+    expect(out.length).toBe(161) // 4 draft Workflows, 6 decide Tasks, owner-decisions and owner-review
   })
 
   it('get --behind lists the latest revision whose pinned inputs moved on; a carried previous input and a run\'s own later output are not behind', async () => {

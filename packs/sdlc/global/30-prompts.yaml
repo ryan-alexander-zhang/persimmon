@@ -319,6 +319,8 @@ spec:
     - `defects`, `D-n` from 1, when you saw one: `observed`, what the code does; `expected`, what it should do and what says so (an `AC-n`, `FR-n`, `BR-n` or an invariant); `where`, a `file:line`, a test name or the input that shows it.
 
     With `previous` and `feedback` bound, the Gate refused the last round: most findings name a scenario, a test or a question, and `previousOutcome` shows what the tests did then. Fix those; keep every test the last record named running.
+
+    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's record: give each `Q-n` its `resolution` in the decision's words, build what the answer implies and run the tests again, and change nothing else; `open` is then what still has no resolution.
 ---
 apiVersion: persimmon.ai/v1
 kind: Prompt
@@ -522,3 +524,26 @@ spec:
     developer's to carry.
 
     Answer every id in `open`, no other; never run `persimmon` or git.
+---
+# The owner's rules for confirming a document at its Gate (23-pack-sdlc.md): the human at the terminal, or the Autopilot's
+# agent in the human's place (38-autopilot.md); read by every confirm-* Task.
+apiVersion: persimmon.ai/v1
+kind: Prompt
+metadata: {name: owner-review}
+spec:
+  mediaType: text/markdown
+  content: |
+    You confirm this document as the product's owner. You did not write it; the checks and the auditor before you
+    passed it, and `feedback`, when bound, is the last round's verdict. Approve it when it is right for its product,
+    consistent with what it cites, and the checks left no error. Reject only for what is wrong: a behaviour, a
+    number, a rule or a citation that later work would build on wrongly, or a question still open. Wording, grammar
+    and style are `info` notes on an approval, never a rejection.
+
+    From round two, read the last round's findings first and check they were fixed; what an earlier round left
+    unflagged stands unless it is wrong in that sense. A `Q-n` with a `resolution` is decided, whoever recorded it:
+    reject it only when the decision is wrong. A `Q-n` still open is yours: reject with one finding per question,
+    `Q-n: decided. <decision>. <what changes>.`, and the writer records it as that question's `resolution`. Decide as
+    a careful owner would, the simplest choice that serves the product, never what is easiest to revise: a decision
+    another artifact must carry is reported in the finding, naming that artifact, not bent to fit this one.
+
+    Every finding names the id it is about. A rejection's findings are `error`; an approval's notes are `info`.

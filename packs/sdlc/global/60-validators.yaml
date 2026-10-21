@@ -20,6 +20,7 @@ metadata: {name: storming-confirmed}
 spec:
   inputs:
     model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict, for the owner (23-pack-sdlc.md)"}
   evaluator:
     type: task
     taskRef: {kind: Task, name: confirm-storming}
@@ -87,6 +88,7 @@ spec:
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}, required: false, description: "the auditor's verdict, passed, read before the human (23-pack-sdlc.md)"}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict, for the owner (23-pack-sdlc.md)"}
   evaluator:
     type: task
     taskRef: {kind: Task, name: confirm-prd}
@@ -176,6 +178,7 @@ spec:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}}
     audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}, required: false, description: "the auditor's verdict, passed, read before the human (23-pack-sdlc.md)"}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict, for the owner (23-pack-sdlc.md)"}
   evaluator:
     type: task
     taskRef: {kind: Task, name: confirm-architecture}
@@ -202,6 +205,7 @@ metadata: {name: design-system-confirmed}
 spec:
   inputs:
     designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict, for the owner (23-pack-sdlc.md)"}
   evaluator:
     type: task
     taskRef: {kind: Task, name: confirm-design-system}
@@ -367,6 +371,7 @@ spec:
   inputs:
     harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict, for the owner (23-pack-sdlc.md)"}
   evaluator:
     type: task
     taskRef: {kind: Task, name: confirm-harness}
@@ -424,6 +429,7 @@ spec:
     testDesign: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}}
     spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
     audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}, required: false, description: "the auditor's verdict, passed, read before the human (23-pack-sdlc.md)"}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict, for the owner (23-pack-sdlc.md)"}
   evaluator:
     type: task
     taskRef: {kind: Task, name: confirm-test-design}

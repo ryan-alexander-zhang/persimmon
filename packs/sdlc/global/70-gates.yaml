@@ -7,6 +7,7 @@ spec:
     model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
     level: {type: {kind: value, schema: {type: string, enum: [big-picture, process, design]}}}
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict, for the owner"}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
   validators:
@@ -21,6 +22,7 @@ spec:
       after: [grammar]   # the human confirms only what the check passed (14-gate.md)
       inputs:
         model: {fromInput: model}
+        feedback: {fromInput: feedback, onMissing: omit}   # the last round's verdict, so the owner checks it was fixed first (23-pack-sdlc.md)
   policy: {strategy: all}
   timeout: 72h
 ---
@@ -130,6 +132,7 @@ spec:
         prd: {fromInput: prd}
         rules: {fromInput: rules}
         audit: {fromValidator: audit}   # the auditor's warnings in the human's form
+        feedback: {fromInput: feedback, onMissing: omit}   # the last round's verdict, so the owner checks it was fixed first (23-pack-sdlc.md)
   policy: {strategy: all}
   timeout: 72h
 ---
@@ -269,6 +272,7 @@ spec:
         architecture: {fromInput: architecture}
         adrs: {fromInput: adrs}
         audit: {fromValidator: audit}   # the auditor's warnings in the human's form
+        feedback: {fromInput: feedback, onMissing: omit}   # the last round's verdict, so the owner checks it was fixed first (23-pack-sdlc.md)
   policy: {strategy: all}
   timeout: 72h
 ---
@@ -279,6 +283,7 @@ metadata: {name: design-system-gate}
 spec:
   inputs:
     designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict, for the owner"}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
   validators:
@@ -291,6 +296,7 @@ spec:
       after: [lint]   # the human confirms only what the check passed (14-gate.md)
       inputs:
         designSystem: {fromInput: designSystem}
+        feedback: {fromInput: feedback, onMissing: omit}   # the last round's verdict, so the owner checks it was fixed first (23-pack-sdlc.md)
   policy: {strategy: all}
   timeout: 72h
 ---
@@ -379,6 +385,7 @@ spec:
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, required: false, description: "the last round's harness; round one has none"}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "the Designs setup-tests was given"}
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, required: false, description: "the harness this one replaces"}
+    feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict, for the owner"}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
   validators:
@@ -398,6 +405,7 @@ spec:
       inputs:
         harness: {fromInput: harness}
         architecture: {fromInput: architecture}
+        feedback: {fromInput: feedback, onMissing: omit}   # the last round's verdict, so the owner checks it was fixed first (23-pack-sdlc.md)
   policy: {strategy: all}
   timeout: 72h
 ---
@@ -452,5 +460,6 @@ spec:
         testDesign: {fromInput: testDesign}
         spec: {fromInput: spec}
         audit: {fromValidator: audit}   # the auditor's warnings in the human's form
+        feedback: {fromInput: feedback, onMissing: omit}   # the last round's verdict, so the owner checks it was fixed first (23-pack-sdlc.md)
   policy: {strategy: all}
   timeout: 72h

@@ -82,7 +82,7 @@ describe('scenario: the Test process', () => {
     writeFileSync(join(repo, 'api.xml'), xml(...apiSeed))
     await answer(f.taskRun, { harness, open: { kind: 'value', value: [] } })
     f = form() // the seed tests pass: the human confirms the harness
-    expect(f.reading.map((r: { kind: string }) => r.kind)).toEqual(['TestHarness', 'Architecture'])
+    expect(f.reading.map((r: { kind: string }) => r.kind)).toEqual(['Prompt', 'TestHarness', 'Architecture']) // the owner's rules, then the document
     await answer(f.taskRun, { result: pass })
     expect(out.find((l) => l.startsWith('WorkflowRun   setup-tests-'))).toMatch(/Succeeded/)
     out = []
@@ -117,7 +117,7 @@ describe('scenario: the Test process', () => {
     expect(f.reading.map((r: { kind: string }) => r.kind)[0]).toBe('Prompt') // the auditor, with the draft audit rules
     await answer(f.taskRun, { audit: pass })
     f = form()
-    expect(f.reading.map((r: { kind: string }) => r.kind)).toEqual(['TestDesign', 'Spec']) // the human reads the cases beside the Spec
+    expect(f.reading.map((r: { kind: string }) => r.kind)).toEqual(['Prompt', 'TestDesign', 'Spec']) // the owner's rules; the human reads the cases beside the Spec
     await answer(f.taskRun, { result: pass })
     expect(out.find((l) => l.startsWith('WorkflowRun   test-design-one-'))).toMatch(/Succeeded/)
   })
@@ -146,7 +146,7 @@ describe('scenario: the Test process', () => {
     writeFileSync(join(repo, 'unit.xml'), xml(...seeds, ...units))
     const { verifies, ...record } = one('AcceptanceRecord').spec.content // no rows: the test names carry the case ids
     expect(verifies).toHaveLength(5)
-    await answer(f.taskRun, { record })
+    await answer(f.taskRun, { record, open: { kind: 'value', value: [] } })
     f = form()
     expect(f.reading.map((r: { kind: string }) => r.kind).at(-1)).toBe('TestDesign') // the auditor judges by case
     await answer(f.taskRun, { audit: pass })
@@ -158,7 +158,7 @@ describe('scenario: the Test process', () => {
     const apis: [string][] = ['TC-1', 'TC-10'].map((c) => [`CAP-1/${c} as designed`]) // T-1's only: T-2 to T-4 are not built
     writeFileSync(join(repo, 'api.xml'), xml(...apiSeed, ...apis))
     await answer(f.taskRun, { written: { kind: 'value', value: { files: ['api.xml'], cases: ['CAP-1/TC-1', 'CAP-1/TC-10'] } } })
-    await answer(form().taskRun, { record })
+    await answer(form().taskRun, { record, open: { kind: 'value', value: [] } })
     await answer(form().taskRun, { audit: pass })
 
     // the plan tier: unit in full, every level; the auditor's evaluation, then the computed report

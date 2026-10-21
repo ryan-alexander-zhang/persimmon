@@ -70,7 +70,7 @@ describe('scenario: build a Plan task', () => {
     const wrong = structuredClone(record)
     wrong.verifies[1].tests = ['claim > per diem']
     out = []
-    expect(await run('complete', taskRun, '--file', file('r1.yaml', [{ outputs: { record: wrong } }]))).toBe(0)
+    expect(await run('complete', taskRun, '--file', file('r1.yaml', [{ outputs: { record: wrong, open: { kind: 'value', value: [] } } }]))).toBe(0)
     await audit('a1.yaml', [{ severity: 'error', code: 'test-unfit', message: 'AC-1: the test asserts no rule' }])
     expect(inbox()).toHaveLength(1) // round two waits on the builder
     taskRun = inbox()[0]!.replace(/\.yaml$/, '')
@@ -82,7 +82,7 @@ describe('scenario: build a Plan task', () => {
     expect(second.reading.map((r: { kind: string }) => r.kind).slice(-2)).toEqual(['AcceptanceRecord', 'TestOutcome']) // the builder reads what failed
 
     out = []
-    expect(await run('complete', taskRun, '--file', file('r2.yaml', [{ outputs: { record } }]))).toBe(0)
+    expect(await run('complete', taskRun, '--file', file('r2.yaml', [{ outputs: { record, open: { kind: 'value', value: [] } } }]))).toBe(0)
     out = []
     await audit('a2.yaml', [{ severity: 'warning', code: 'test-doubt', message: 'AC-3: a value close to the scenario\'s' }]) // a warning passes
     expect(out.find((l) => l.startsWith('WorkflowRun   build-one-'))).toMatch(/Succeeded/)
@@ -111,7 +111,7 @@ describe('scenario: build a Plan task', () => {
     const form = parse(readFileSync(join(dir, '.persimmon', 'inbox', `${taskRun}.yaml`), 'utf8'))
     expect(form.inputs.baseline.ref).toMatchObject({ kind: 'TestOutcome', id: 'submit-a-claim-plan-baseline' }) // the builder sees what was red before
     expect(form.reading.map((r: { kind: string }) => r.kind).at(-1)).toBe('TestOutcome') // in its context, not only its inputs
-    expect(await run('complete', taskRun, '--file', file('r1.yaml', [{ outputs: { record: one('AcceptanceRecord').spec.content } }]))).toBe(0)
+    expect(await run('complete', taskRun, '--file', file('r1.yaml', [{ outputs: { record: one('AcceptanceRecord').spec.content, open: { kind: 'value', value: [] } } }]))).toBe(0)
     out = []
     await audit('a1.yaml', [])
     expect(out.find((l) => l.startsWith('WorkflowRun   build-all-'))).toMatch(/Succeeded/) // one round: the old red test is tolerated
@@ -129,7 +129,7 @@ describe('scenario: build a Plan task', () => {
     const taskRun = inbox()[0]!.replace(/\.yaml$/, '')
     const record = structuredClone(one('AcceptanceRecord').spec.content)
     record.verifies[0].tests.push({ name: 'POST /claims refuses a line without a receipt', level: 'api' })
-    expect(await run('complete', taskRun, '--file', file('r1.yaml', [{ outputs: { record } }]))).toBe(0)
+    expect(await run('complete', taskRun, '--file', file('r1.yaml', [{ outputs: { record, open: { kind: 'value', value: [] } } }]))).toBe(0)
     out = []
     expect(inbox()).toHaveLength(1)
     const form = parse(readFileSync(join(dir, '.persimmon', 'inbox', `${inbox()[0]}`), 'utf8'))
@@ -153,7 +153,7 @@ describe('scenario: build a Plan task', () => {
     out = []
     expect(await run('run', 'build-all', '--input', `plan=${ref('Plan', 'submit-a-claim-plan')}`, '--input', 'tasks=[T-1]', '--input', `spec=${ref('Spec', 'submit-a-claim')}`, '--input', `architecture=${ref('Architecture', 'expense-claims-architecture')}`,
       '--input', `designs={kind: artifacts, refs: [{apiVersion: sdd.persimmon.ai/v1, kind: Design, id: claims-api, revision: 1}]}`, '--input', `glossary=${ref('Glossary', 'expenses-glossary')}`, '--input', `rules=${ref('BusinessRules', 'expenses-rules')}`, '--input', `repository=${repo}`, '--follow')).toBe(0)
-    expect(await run('complete', inbox()[0]!.replace(/\.yaml$/, ''), '--file', file('r1.yaml', [{ outputs: { record: one('AcceptanceRecord').spec.content } }]))).toBe(0)
+    expect(await run('complete', inbox()[0]!.replace(/\.yaml$/, ''), '--file', file('r1.yaml', [{ outputs: { record: one('AcceptanceRecord').spec.content, open: { kind: 'value', value: [] } } }]))).toBe(0)
     out = []
     expect(await run('complete', inbox()[0]!.replace(/\.yaml$/, ''), '--file', file('a1.yaml', [{ outputs: { audit: { kind: 'value', value: { passed: true, findings: [], evidence: [] } } } }]))).toBe(0) // the auditor
     expect(out.find((l) => l.startsWith('WorkflowRun   build-all-'))).toMatch(/Failed/)
@@ -171,7 +171,7 @@ describe('scenario: build a Plan task', () => {
       '--input', `designs={kind: artifacts, refs: [{apiVersion: sdd.persimmon.ai/v1, kind: Design, id: claims-api, revision: 1}]}`, '--input', `glossary=${ref('Glossary', 'expenses-glossary')}`, '--input', `rules=${ref('BusinessRules', 'expenses-rules')}`, '--input', `repository=${repo}`, '--follow')).toBe(0)
     const taskRun = inbox()[0]!.replace(/\.yaml$/, '')
     const record = { ...one('AcceptanceRecord').spec.content, defects: [{ id: 'D-1', observed: 'the export writes no header row', expected: 'a header row (legacy > an old export)', where: 'legacy > an old export' }] }
-    expect(await run('complete', taskRun, '--file', file('r1.yaml', [{ outputs: { record } }]))).toBe(0)
+    expect(await run('complete', taskRun, '--file', file('r1.yaml', [{ outputs: { record, open: { kind: 'value', value: [] } } }]))).toBe(0)
     out = []
     await audit('a1.yaml', [])
     expect(out.find((l) => l.startsWith('WorkflowRun   build-all-'))).toMatch(/Succeeded/) // reported, never this task's: one round
