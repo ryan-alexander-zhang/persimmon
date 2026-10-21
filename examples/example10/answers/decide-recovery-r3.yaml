@@ -1,0 +1,39 @@
+outputs:
+  decisions:
+    kind: value
+    value:
+      approved: false
+      findings:
+        - severity: error
+          code: blocking_1
+          message: "BR-5: it states java's divergence (one line, no receipt) as an active rule, while AB-5 and AB-6 are decided `change`. Deprecate BR-5 and add the decided rule with `source: decision` (every submitted line is read, with its receipt, as js and go read them); Q-2 and Q-3 say the decisions, not proposals."
+      dispositions:
+        - {ref: AB-1, disposition: keep, reason: "a malformed body is not a business case; the three disagree and none is specified"}
+        - {ref: AB-2, disposition: keep, reason: "a receipt supplied in the request is accepted as supplied; BR-3 governs attachment, which no route reaches (Q-1)"}
+        - {ref: AB-3, disposition: keep, reason: "as AB-1"}
+        - {ref: AB-4, disposition: keep, reason: "as AB-2"}
+        - {ref: AB-5, disposition: change, reason: "the brief says a difference between the three is a finding: java reads amount and category only, never receipt; the rule is that a submitted line's receipt is read as js and go read it"}
+        - {ref: AB-6, disposition: change, reason: "same: java reads the first line only; every submitted line is read as js and go read them"}
+      dead: []
+      plumbing: []
+      accepted:
+        - {ref: GD-1, reason: "plumbing (method routing, a port argument, a script's exit) with no rule; analysis only, nothing runs, so no test reaches it"}
+        - {ref: GD-2, reason: "plumbing (method routing, a port argument, a script's exit) with no rule; analysis only, nothing runs, so no test reaches it"}
+        - {ref: GD-6, reason: "plumbing (method routing, a port argument, a script's exit) with no rule; analysis only, nothing runs, so no test reaches it"}
+        - {ref: GD-7, reason: "plumbing (method routing, a port argument, a script's exit) with no rule; analysis only, nothing runs, so no test reaches it"}
+        - {ref: GD-8, reason: "plumbing (method routing, a port argument, a script's exit) with no rule; analysis only, nothing runs, so no test reaches it"}
+        - {ref: GD-9, reason: "plumbing (method routing, a port argument, a script's exit) with no rule; analysis only, nothing runs, so no test reaches it"}
+        - {ref: GD-13, reason: "plumbing (method routing, a port argument, a script's exit) with no rule; analysis only, nothing runs, so no test reaches it"}
+      readers:
+        - {ref: GD-6, resolution: "the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed"}
+        - {ref: GD-7, resolution: "the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed"}
+        - {ref: GD-8, resolution: "the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed"}
+        - {ref: GD-9, resolution: "the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed"}
+        - {ref: GD-10, resolution: "the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed"}
+        - {ref: GD-11, resolution: "the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed"}
+        - {ref: GD-12, resolution: "the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed"}
+        - {ref: GD-13, resolution: "the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed"}
+        - {ref: GD-14, resolution: "the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed"}
+        - {ref: GD-15, resolution: "the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed"}
+        - {ref: GD-16, resolution: "the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed"}
+        - {ref: GD-17, resolution: "the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed"}

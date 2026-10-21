@@ -1,0 +1,36 @@
+# The agents of the Rewrite and SDLC packs this example uses, on claude-sonnet-5.
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: source-reader}
+spec:
+  type: agent
+  adapter: claude-code/v1
+  configuration: {model: claude-sonnet-5, sandbox: read-only}
+  security: {networkAccess: allowlist, allowedHosts: [api.anthropic.com]}
+---
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: second-reader}
+spec:
+  type: agent
+  adapter: claude-code/v1
+  configuration: {model: claude-sonnet-5, sandbox: read-only}
+  security: {networkAccess: allowlist, allowedHosts: [api.anthropic.com]}
+---
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: prd-agent}
+spec:
+  type: agent
+  adapter: claude-code/v1
+  configuration: {model: claude-sonnet-5, sandbox: read-only}
+  security: {networkAccess: allowlist, allowedHosts: [api.anthropic.com]}
+---
+apiVersion: persimmon.ai/v1
+kind: Executor
+metadata: {name: storming-agent}
+spec:
+  type: agent
+  adapter: claude-code/v1
+  configuration: {model: claude-sonnet-5, sandbox: read-only}
+  security: {networkAccess: allowlist, allowedHosts: [api.anthropic.com]}

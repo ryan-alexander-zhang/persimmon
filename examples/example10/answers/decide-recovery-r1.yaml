@@ -1,0 +1,28 @@
+outputs:
+  decisions:
+    kind: value
+    value:
+      approved: false
+      findings:
+        - severity: error
+          code: blocking_1
+          message: "CAP-2 and BR-3: the ownership rule (GD-5, GD-12, GD-17) is implemented in each repository's claim entity and reached by no HTTP entry point (AB-2, AB-4, Q-1); say so in CAP-2 and BR-3's rationale, and do not claim CAP-2 applies it at EP-2, EP-4 and EP-6. Keep BR-3 active: the rule is the business's, its reachability is the finding."
+      dispositions:
+        - {ref: AB-5, disposition: change, reason: "the brief says a difference between the three is a finding: java reads amount and category only, never receipt; the rule is that a submitted line's receipt is read as js and go read it"}
+        - {ref: AB-6, disposition: change, reason: "same: java reads the first line only; every submitted line is read as js and go read them"}
+      dead: []
+      plumbing: []
+      accepted: []
+      readers:
+        - {ref: GD-6, resolution: "the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed"}
+        - {ref: GD-7, resolution: "the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed"}
+        - {ref: GD-8, resolution: "the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed"}
+        - {ref: GD-9, resolution: "the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed"}
+        - {ref: GD-10, resolution: "the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed"}
+        - {ref: GD-11, resolution: "the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed"}
+        - {ref: GD-12, resolution: "the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed"}
+        - {ref: GD-13, resolution: "the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed"}
+        - {ref: GD-14, resolution: "the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed"}
+        - {ref: GD-15, resolution: "the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed"}
+        - {ref: GD-16, resolution: "the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed"}
+        - {ref: GD-17, resolution: "the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed"}

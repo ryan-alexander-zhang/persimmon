@@ -1,0 +1,12 @@
+- {severity: warning, code: reader-disagreement, message: "the first reader's GD-6 at js/scripts/api.mjs:7-7 overlaps no guard of the other reader"}
+- {severity: warning, code: reader-disagreement, message: "the first reader's GD-7 at java/scripts/api.sh:3-8 overlaps no guard of the other reader"}
+- {severity: warning, code: reader-disagreement, message: "the first reader's GD-8 at go/scripts/api.sh:3-8 overlaps no guard of the other reader"}
+- {severity: warning, code: reader-disagreement, message: "the first reader's GD-9 at go/cmd/server/main.go:17-27 overlaps no guard of the other reader"}
+- {severity: warning, code: reader-disagreement, message: "the first reader's GD-10 at go/claims/claim.go:24-26, go/claims/claim.go:6-6 overlaps no guard of the other reader"}
+- {severity: warning, code: reader-disagreement, message: "the first reader's GD-11 at go/claims/claim.go:28-35 overlaps no guard of the other reader"}
+- {severity: warning, code: reader-disagreement, message: "the first reader's GD-12 at go/claims/claim.go:37-44 overlaps no guard of the other reader"}
+- {severity: warning, code: reader-disagreement, message: "the first reader's GD-13 at java/src/main/java/claims/Server.java:20-26 overlaps no guard of the other reader"}
+- {severity: warning, code: reader-disagreement, message: "the first reader's GD-14 at java/src/main/java/claims/Server.java:23-23, java/src/main/java/claims/Server.java:14-14 overlaps no guard of the other reader"}
+- {severity: warning, code: reader-disagreement, message: "the first reader's GD-15 at java/src/main/java/claims/Claim.java:23-25, java/src/main/java/claims/Claim.java:8-8 overlaps no guard of the other reader"}
+- {severity: warning, code: reader-disagreement, message: "the first reader's GD-16 at java/src/main/java/claims/Claim.java:27-29 overlaps no guard of the other reader"}
+- {severity: warning, code: reader-disagreement, message: "the first reader's GD-17 at java/src/main/java/claims/Claim.java:31-39 overlaps no guard of the other reader"}

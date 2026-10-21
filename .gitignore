@@ -185,6 +185,7 @@ examples/*/persimmon.yaml
 examples/*/AGENTS.md
 examples/*/CLAUDE.md
 examples/*/.gitignore
+examples/*/.claude/
 # example02: the agent writes the app; only its skeleton is source
 examples/example02/app/*
 !examples/example02/app/package.json

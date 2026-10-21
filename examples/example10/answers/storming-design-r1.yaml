@@ -1,0 +1,11 @@
+outputs:
+  result:
+    kind: value
+    value:
+      passed: false
+      findings:
+        - severity: error
+          code: blocking_1
+          message: "expense-claims-completeness-h-claim-aggregate-size: resolved, one aggregate stands. The claim is the only entity; its five commands are one submission's chain (submit, draft, judge complete or incomplete) plus receipt attachment, and the smell counts them past a threshold, not a second consistency boundary. Set state resolved with this resolution; change nothing else."
+      evidence:
+        - {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming, namespace: default, id: claims-prd-storming, revision: 4}

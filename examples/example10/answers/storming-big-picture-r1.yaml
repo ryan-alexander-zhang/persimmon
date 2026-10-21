@@ -1,0 +1,11 @@
+outputs:
+  result:
+    kind: value
+    value:
+      passed: false
+      findings:
+        - severity: error
+          code: blocking_1
+          message: "expense-claims-completeness-e-submission-rejected-as-malformed: no implementation rejects a malformed submission (AB-1: js throws uncaught; AB-3: go answers as if empty; Java matches nothing), and AB-1 and AB-3 are decided keep. Remove the event; the gap stays an opportunity."
+      evidence:
+        - {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming, namespace: default, id: claims-prd-storming, revision: 1}

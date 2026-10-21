@@ -1,0 +1,7 @@
+outputs:
+  result:
+    kind: value
+    value:
+      passed: true
+      findings: []
+      evidence: []

@@ -1,0 +1,18 @@
+Analysis of the expense claims checker; no rewrite decided.
+
+The system: an expense claims completeness check that exists three times, once per language, in
+the repositories js, java and go. Each is one small HTTP app: GET / serves a page with a form, POST
+/claims takes {employee, lines: [{amount, category, receipt?}]} and answers {complete}. A claim is
+complete when every line is: a per-diem line needs no receipt, a line under the receipt threshold
+needs none, any other line needs one. A receipt attaches only under the claim's own URL and by the
+claim's own employee; a refused attachment is logged. The three implementations are meant to be the
+same business; where they differ, that is a finding. Record each repository's facts on their own:
+a branch in java or go is a guard of its own even when it reads as the js one.
+
+Why: understand and model the business before any decision to merge the three into one, or to
+rebuild. No target stack chosen.
+
+How the source runs: it does not run in this analysis. The directory of checkouts is read only;
+no suite level, no records.
+
+Default Disposition: keep. The interface: not decided.

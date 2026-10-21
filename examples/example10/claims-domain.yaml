@@ -1,0 +1,1800 @@
+# example10, recorded: what one run of the README's steps produced on claude-sonnet-5 from the three checkouts source.sh
+# makes, the brief and the forms under answers/. See README.md. Every artifact is at revision 1: the rounds collapsed into the
+# revision that passed; of the storming, the design level.
+apiVersion: rewrite.persimmon.ai/v1
+kind: SourceInventory
+metadata:
+  name: claims-inventory.r1
+spec:
+  identity:
+    id: claims-inventory
+    revision: 1
+  content:
+    source:
+      repository: "ex10-source (directory of checkouts: js, java, go)"
+      repositories:
+        - name: js
+          repository: ex10-source/js
+          commit: 7acfbf0956a66f34c2ed9af51ca401277c411f27
+        - name: java
+          repository: ex10-source/java
+          commit: 850b7de8a9bd701b6b38d6e154dea744c6f40a9e
+        - name: go
+          repository: ex10-source/go
+          commit: 43eb9112332d54a00fae13154dc6772cdfc876b1
+    slice: SL-1
+    entryPoints:
+      - id: EP-1
+        kind: http
+        name: GET / — serve claims form page (js)
+        where:
+          - js/src/server.js:8
+        reaches:
+          files:
+            - js/src/server.js
+            - js/scripts/api.mjs
+      - id: EP-2
+        kind: http
+        name: POST (any path, non-GET) — check claim completeness (js)
+        where:
+          - js/src/server.js:9-14
+        reaches:
+          files:
+            - js/src/server.js
+            - js/src/claim.js
+            - js/scripts/api.mjs
+          entities:
+            - EN-1
+      - id: EP-3
+        kind: http
+        name: GET / — serve claims form page (java)
+        where:
+          - java/src/main/java/claims/Server.java:20
+        reaches:
+          files:
+            - java/src/main/java/claims/Server.java
+            - java/scripts/api.sh
+      - id: EP-4
+        kind: http
+        name: POST (any path, non-GET) — check claim completeness (java)
+        where:
+          - java/src/main/java/claims/Server.java:21-26
+        reaches:
+          files:
+            - java/src/main/java/claims/Server.java
+            - java/src/main/java/claims/Claim.java
+            - java/scripts/api.sh
+          entities:
+            - EN-1
+      - id: EP-5
+        kind: http
+        name: GET / — serve claims form page (go)
+        where:
+          - go/cmd/server/main.go:17-19
+        reaches:
+          files:
+            - go/cmd/server/main.go
+            - go/scripts/api.sh
+      - id: EP-6
+        kind: http
+        name: POST (any path, non-GET) — check claim completeness (go)
+        where:
+          - go/cmd/server/main.go:20-27
+        reaches:
+          files:
+            - go/cmd/server/main.go
+            - go/claims/claim.go
+            - go/scripts/api.sh
+          entities:
+            - EN-1
+    stateChanges: []
+    guards:
+      - id: GD-1
+        condition: req.method === 'GET'
+        outcome: "true: respond immediately with the static form page (res.end(page)); false (any other method, any path): fall through to read the request body and answer the completeness check"
+        role: plumbing
+        where:
+          - js/src/server.js:8-15
+        in:
+          - EP-1
+          - EP-2
+      - id: GD-2
+        condition: process.argv[2] is given (a port argument)
+        outcome: "true: server.listen(Number(process.argv[2])) binds a port; false: the module loads without binding a port (e.g. when imported by a test), so the exported `server` never accepts connections on its own"
+        role: plumbing
+        where:
+          - js/src/server.js:16
+        in:
+          - EP-1
+          - EP-2
+      - id: GD-3
+        condition: line.category === 'per-diem' || line.amount < RECEIPT_THRESHOLD || Boolean(line.receipt)
+        outcome: "true: the line counts complete — a per-diem line needs no receipt, nor does one under the 25 threshold, nor does one that already carries a truthy receipt value; false: the line counts incomplete and fails the claim's overall completeness"
+        role: rule
+        where:
+          - js/src/claim.js:7
+          - js/src/claim.js:2
+        in:
+          - EP-2
+      - id: GD-4
+        condition: claim.lines.every(lineComplete) — every line of the claim must individually satisfy lineComplete
+        outcome: "true: claimComplete returns true, answered to the client as {complete:true}; false (any single line fails lineComplete): claimComplete returns false, answered as {complete:false}"
+        role: rule
+        where:
+          - js/src/claim.js:10-11
+        in:
+          - EP-2
+      - id: GD-5
+        condition: "!url.includes(`/claims/${claim.id}/`) || employee !== claim.employee"
+        outcome: "true (the URL is not under the claim's own path, or the employee is not the claim's own employee): push `refused ${url} by ${employee}` onto claim.log and return false, no receipt attached; false (URL under the claim's own path and the claim's own employee): set claim.lines[0].receipt = url and return true"
+        role: rule
+        where:
+          - js/src/claim.js:15-20
+        in:
+          - EP-2
+        note: attachReceipt is never called from the POST handler (server.js:9-14 builds the claim with draftClaim and passes it straight to claimComplete); in this slice's reached files its only caller is js/test/claim.test.js:18-22. The POST /claims handler accepts whatever value a client puts in a line's `receipt` field directly in the submitted JSON, so this ownership/URL check never runs against a real request (see AB-2).
+      - id: GD-6
+        condition: r.status is null/undefined (spawnSync's result has no numeric exit status, e.g. the bru process was killed by a signal)
+        outcome: "true: process.exit(1); false: process.exit(r.status) — the script's own exit code propagates the Bruno collection run's exit code"
+        role: plumbing
+        where:
+          - js/scripts/api.mjs:7
+        in:
+          - EP-1
+          - EP-2
+        note: This script is the only thing that starts js/src/server.js (on port 3997) and drives the Bruno API collection (js/api/refuse-without-receipt.bru) against it; it has no business logic of its own.
+      - id: GD-7
+        condition: mvn -q compile exits non-zero (line 3), or cd api fails before bru run executes (line 6, within the `(cd api && bru run ...)` chain)
+        outcome: "line 3 failure: script exits 1 immediately, server never started, tests never run; line 6's cd failure short-circuits bru run but the script still proceeds to kill the (possibly unset) app pid and exit with bru's/the subshell's status; otherwise: compiles, starts the java Server as a background process on port 3996, waits 1s, runs the Bruno collection against it, kills the server, exits with the Bruno run's exit code"
+        role: plumbing
+        where:
+          - java/scripts/api.sh:3-8
+        in:
+          - EP-3
+          - EP-4
+        note: The only thing that starts java/src/main/java/claims/Server.java and drives the Bruno API collection (java/api/refuse-without-receipt.bru) against it; no business logic of its own.
+      - id: GD-8
+        condition: go build -o bin/server ./cmd/server exits non-zero (line 3), or cd api fails before bru run executes (line 6, within the `(cd api && bru run ...)` chain)
+        outcome: "line 3 failure: script exits 1 immediately, server never started, tests never run; line 6's cd failure short-circuits bru run but the script still proceeds to kill the (possibly unset) app pid and exit with the subshell's status; otherwise: builds, starts the compiled server as a background process on port 3994, waits 1s, runs the Bruno collection against it, kills the server, exits with the Bruno run's exit code"
+        role: plumbing
+        where:
+          - go/scripts/api.sh:3-8
+        in:
+          - EP-5
+          - EP-6
+        note: The only thing that builds and starts go/cmd/server/main.go and drives the Bruno API collection (go/api/refuse-without-receipt.bru) against it; no business logic of its own.
+      - id: GD-9
+        condition: r.Method == http.MethodGet
+        outcome: 'true: write the static form page to the response and return immediately; false (any other method, any path): decode the request body into {Employee, Lines}, draft a claim and answer {"complete": ...}'
+        role: plumbing
+        where:
+          - go/cmd/server/main.go:17-27
+        in:
+          - EP-5
+          - EP-6
+      - id: GD-10
+        condition: l.Category == "per-diem" || l.Amount < ReceiptThreshold || l.Receipt != ""
+        outcome: "true: the line counts complete — a per-diem line needs no receipt, nor does one under the 25 threshold, nor does one with a non-empty Receipt; false: the line counts incomplete"
+        role: rule
+        where:
+          - go/claims/claim.go:24-26
+          - go/claims/claim.go:6
+        in:
+          - EP-6
+      - id: GD-11
+        condition: "!LineComplete(l), tested per line while ranging over c.Lines"
+        outcome: "true: Complete returns false immediately, remaining lines never checked (short-circuit, order-dependent on c.Lines); false: loop continues; if every line passes, Complete returns true after the loop"
+        role: rule
+        where:
+          - go/claims/claim.go:28-35
+        in:
+          - EP-6
+        volatile:
+          - order
+      - id: GD-12
+        condition: '!strings.Contains(url, "/claims/"+c.ID+"/") || by != c.Employee'
+        outcome: "true (URL not under the claim's own path, or the attaching party is not the claim's own employee): append `refused {url} by {by}` to c.Log and return false, no receipt attached; false: set c.Lines[0].Receipt = url and return true"
+        role: rule
+        where:
+          - go/claims/claim.go:37-44
+        in:
+          - EP-6
+        note: AttachReceipt is never called from the POST handler in main.go (main.go:21-27 builds the claim with Draft and calls Complete directly); in this slice's reached files its only caller is go/claims/claim_test.go:33-38. POST / accepts whatever value a client puts in a line's Receipt field directly in the submitted JSON (matched case-insensitively onto the Line struct by encoding/json), so this ownership/URL check never runs against a real request (see AB-4).
+      - id: GD-13
+        condition: ex.getRequestMethod().equals("GET")
+        outcome: 'true: body = PAGE (serve the static form); false (any other method, any path): regex-parse the body into at most one Claim.Line, build a Claim, compute body = {"complete": c.complete()}'
+        role: plumbing
+        where:
+          - java/src/main/java/claims/Server.java:20-26
+        in:
+          - EP-3
+          - EP-4
+      - id: GD-14
+        condition: m.find() — whether the LINE regex finds a match anywhere in the raw request body
+        outcome: "true: the claim gets exactly one line, built from the first regex match's captured amount and category, with receipt always hard-coded null; false (no match found anywhere in the body): the claim gets zero lines, so complete() is vacuously true"
+        role: rule
+        where:
+          - java/src/main/java/claims/Server.java:23
+          - java/src/main/java/claims/Server.java:14
+        in:
+          - EP-4
+        note: LINE regex captures only amount and category, never receipt, and Matcher.find() is called once over the whole body (not looped), so only the first line of a multi-line submission is ever read and the resulting Claim.Line's receipt is always null regardless of what the client sends (see AB-5, AB-6). This differs materially from js (server.js/claim.js) and go (main.go/claim.go), which parse the full JSON lines array including each line's client-supplied receipt (see AB-2, AB-4).
+      - id: GD-15
+        condition: line.category().equals("per-diem") || line.amount() < RECEIPT_THRESHOLD || line.receipt() != null
+        outcome: "true: the line counts complete; false: the line counts incomplete and fails the claim's overall completeness"
+        role: rule
+        where:
+          - java/src/main/java/claims/Claim.java:23-25
+          - java/src/main/java/claims/Claim.java:8
+        in:
+          - EP-4
+      - id: GD-16
+        condition: lines.stream().allMatch(Claim::lineComplete)
+        outcome: 'true: complete() returns true, answered as {"complete":true}; false (any single line fails lineComplete): complete() returns false, answered as {"complete":false}'
+        role: rule
+        where:
+          - java/src/main/java/claims/Claim.java:27-29
+        in:
+          - EP-4
+      - id: GD-17
+        condition: '!url.contains("/claims/" + id + "/") || !by.equals(employee)'
+        outcome: 'true: log.add("refused " + url + " by " + by) and return false, no receipt attached; false: replace lines.get(0) with a copy carrying receipt = url and return true'
+        role: rule
+        where:
+          - java/src/main/java/claims/Claim.java:31-39
+        in:
+          - EP-4
+        note: attachReceipt is never called from the Server.java route (Server.java:18-31 only ever constructs a Claim via regex parsing and calls complete()); in this slice's reached files its only caller is java/src/test/java/claims/ClaimTest.java:21-25. Because the route's regex parser (GD-14) never populates a Line's receipt field from the request at all, there is no path by which the HTTP endpoint could even attempt to set a receipt-bearing line — stricter in practice than js/go's bypass (see AB-5).
+    declarations:
+      - id: DC-1
+        kind: data
+        statement: "RECEIPT_THRESHOLD is fixed at 25: a line's amount must be strictly less than 25 to need no receipt under the completeness rule"
+        where:
+          - js/src/claim.js:2
+      - id: DC-2
+        kind: key
+        statement: draftClaim derives the claim id deterministically as `c-${employee}` with no sequence, timestamp or random component, so every claim drafted for the same employee within the process gets the identical id string
+        where:
+          - js/src/claim.js:4
+      - id: DC-3
+        kind: data
+        statement: ReceiptThreshold is fixed at 25 in go, same value and role as js's RECEIPT_THRESHOLD and java's RECEIPT_THRESHOLD
+        where:
+          - go/claims/claim.go:6
+      - id: DC-4
+        kind: key
+        statement: Draft derives the claim ID deterministically as `c-` + employee with no sequence, timestamp or random component
+        where:
+          - go/claims/claim.go:21
+      - id: DC-5
+        kind: data
+        statement: RECEIPT_THRESHOLD is fixed at 25 in java, same value and role as js's RECEIPT_THRESHOLD and go's ReceiptThreshold
+        where:
+          - java/src/main/java/claims/Claim.java:8
+      - id: DC-6
+        kind: key
+        statement: The java Claim constructor derives id deterministically as "c-" + employee with no sequence, timestamp or random component
+        where:
+          - java/src/main/java/claims/Claim.java:18
+    absences:
+      - id: AB-1
+        statement: The POST handler parses the request body with JSON.parse(body) and never catches a parse failure; a malformed body throws inside the 'end' listener uncaught, instead of the handler returning an error response to the client
+        where:
+          - js/src/server.js:11
+      - id: AB-2
+        statement: POST /claims accepts line.receipt exactly as supplied by the client in the request JSON; the attachReceipt rule (a receipt attaches only under the claim's own URL and by the claim's own employee, a refusal logged) exists in claim.js but is never invoked by the route, so a client can mark any line as having a receipt by sending any truthy value, bypassing the ownership/URL check entirely
+        where:
+          - js/src/server.js:9-14
+          - js/src/claim.js:15-20
+      - id: AB-3
+        statement: main.go decodes the request body with json.NewDecoder(r.Body).Decode(&in) and discards the returned error entirely; a malformed or non-JSON body therefore never produces an error response — `in` simply keeps its zero value (Employee empty, Lines nil) and the handler answers {"complete":true} (vacuously true, zero lines), unlike js which throws uncaught on the same input
+        where:
+          - go/cmd/server/main.go:25
+      - id: AB-4
+        statement: POST / accepts a line's Receipt exactly as supplied by the client in the request JSON (matched case-insensitively onto the Line struct); AttachReceipt's ownership/URL rule exists in claim.go but is never invoked by the route, so a client can mark any line as having a receipt by sending any non-empty value, bypassing the ownership/URL check entirely, the same gap as js's AB-2
+        where:
+          - go/cmd/server/main.go:21-27
+          - go/claims/claim.go:37-44
+      - id: AB-5
+        statement: The LINE regex in Server.java captures only amount and category and has no capture group for receipt at all; every Claim.Line built from an HTTP request therefore has receipt == null regardless of what the client sends for a line's receipt field, unlike js and go which pass the client's raw receipt value straight through to the completeness check (see AB-2, AB-4)
+        where:
+          - java/src/main/java/claims/Server.java:14
+          - java/src/main/java/claims/Server.java:22-23
+      - id: AB-6
+        statement: Server.java calls LINE.matcher(body).find() only once (not in a loop), so only the first line of a multi-line submission in the request body is ever read into the Claim; any further lines the client submitted in the `lines` array are silently dropped and never considered for completeness
+        where:
+          - java/src/main/java/claims/Server.java:22-23
+    plumbingPatterns: []
+    entities:
+      - id: EN-1
+        name: Claim (employee, lines[{amount, category, receipt?}], log)
+        where:
+          - js/src/claim.js:4
+          - java/src/main/java/claims/Claim.java:7-21
+          - go/claims/claim.go:14-18
+    externalSystems: []
+    tests:
+      - name: a 30 EUR meals line without a receipt is not complete and names BR-2
+        where: js/test/claim.test.js:5-7
+        covers:
+          - GD-3
+          - GD-4
+      - name: a per diem line needs no receipt
+        where: js/test/claim.test.js:8-10
+        covers:
+          - GD-3
+          - GD-4
+      - name: drafting a claim records each line's amount, date and category
+        where: js/test/claim.test.js:11-14
+        covers: []
+      - name: a 25.00 EUR taxi line without a receipt is not complete and names BR-2
+        where: js/test/claim.test.js:15-17
+        covers:
+          - GD-3
+          - GD-4
+      - name: attaching a receipt to another employee's claim by URL is refused and logged
+        where: js/test/claim.test.js:18-22
+        covers:
+          - GD-5
+      - name: a drafted claim is written to a real container and read back
+        where: js/test-int/store.test.js:5-11
+        covers: []
+      - name: an employee sees a 30 EUR meals line without a receipt is incomplete
+        where: js/e2e/claim.spec.js:3-7
+        covers:
+          - EP-1
+          - EP-2
+          - GD-3
+          - GD-4
+      - name: POST claims refuses a meals line without a receipt
+        where: js/api/refuse-without-receipt.bru:1-21
+        covers:
+          - EP-2
+          - GD-3
+          - GD-4
+      - name: a meals line of 30 without a receipt is not complete (java)
+        where: java/src/test/java/claims/ClaimTest.java:9-11
+        covers:
+          - GD-15
+          - GD-16
+      - name: a per diem line needs no receipt (java)
+        where: java/src/test/java/claims/ClaimTest.java:12-14
+        covers:
+          - GD-15
+          - GD-16
+      - name: drafting a claim records each line (java)
+        where: java/src/test/java/claims/ClaimTest.java:15-17
+        covers: []
+      - name: a taxi line of 25 without a receipt is not complete (java)
+        where: java/src/test/java/claims/ClaimTest.java:18-20
+        covers:
+          - GD-15
+          - GD-16
+      - name: attaching a receipt to another employee's claim is refused and logged (java)
+        where: java/src/test/java/claims/ClaimTest.java:21-25
+        covers:
+          - GD-17
+      - name: a drafted claim is written to a real container and read back (java)
+        where: java/src/test/java/claims/StoreIT.java:9-15
+        covers: []
+      - name: an employee sees a 30 EUR meals line without a receipt is incomplete (java)
+        where: java/e2e/claim.spec.js:3-7
+        covers:
+          - EP-3
+          - EP-4
+          - GD-13
+          - GD-14
+          - GD-15
+          - GD-16
+      - name: POST claims refuses a meals line without a receipt (java)
+        where: java/api/refuse-without-receipt.bru:1-21
+        covers:
+          - EP-4
+          - GD-13
+          - GD-14
+          - GD-15
+          - GD-16
+      - name: a meals line of 30 without a receipt is not complete (go)
+        where: go/claims/claim_test.go:8-12
+        covers:
+          - GD-10
+          - GD-11
+      - name: a per diem line needs no receipt (go)
+        where: go/claims/claim_test.go:14-18
+        covers:
+          - GD-10
+          - GD-11
+      - name: drafting a claim records each line (go)
+        where: go/claims/claim_test.go:20-25
+        covers: []
+      - name: a taxi line of 25 without a receipt is not complete (go)
+        where: go/claims/claim_test.go:27-31
+        covers:
+          - GD-10
+          - GD-11
+      - name: attaching a receipt to another employee's claim is refused and logged (go)
+        where: go/claims/claim_test.go:33-38
+        covers:
+          - GD-12
+      - name: a drafted claim is written to a real container and read back (go, integration build tag)
+        where: go/claims/store_integration_test.go:14-27
+        covers: []
+      - name: an employee sees a 30 EUR meals line without a receipt is incomplete (go)
+        where: go/e2e/claim.spec.js:3-7
+        covers:
+          - EP-5
+          - EP-6
+          - GD-9
+          - GD-10
+          - GD-11
+      - name: POST claims refuses a meals line without a receipt (go)
+        where: go/api/refuse-without-receipt.bru:1-21
+        covers:
+          - EP-6
+          - GD-9
+          - GD-10
+          - GD-11
+    unread:
+      - path: js/.git
+        reason: git internal metadata, not source
+      - path: java/.git
+        reason: git internal metadata, not source
+      - path: go/.git
+        reason: git internal metadata, not source
+      - path: go/go.sum
+        reason: dependency checksum lockfile, no behavior to read
+      - path: go/go.mod
+        reason: module/dependency manifest, no behavior to read
+      - path: js/vitest.config.js
+        reason: unit test runner config, no business logic
+      - path: js/vitest.int.config.js
+        reason: integration test runner config, no business logic
+      - path: js/playwright.config.js
+        reason: e2e test runner config, no business logic
+      - path: js/stryker.config.json
+        reason: mutation testing tool config, no business logic
+      - path: js/api/bruno.json
+        reason: Bruno API test collection manifest, no business logic
+      - path: js/api/environments/ci.bru
+        reason: Bruno environment variables for the API test run, no business logic
+      - path: js/.gitignore
+        reason: VCS ignore list, no behavior
+      - path: js/package.json
+        reason: npm manifest for test tooling (vitest/playwright/stryker/bruno), no business logic
+      - path: java/pom.xml
+        reason: Maven build/dependency manifest, no business logic
+      - path: java/playwright.config.js
+        reason: e2e test runner config, no business logic
+      - path: java/.gitignore
+        reason: VCS ignore list, no behavior
+      - path: java/api/bruno.json
+        reason: Bruno API test collection manifest, no business logic
+      - path: java/api/environments/ci.bru
+        reason: Bruno environment variables for the API test run, no business logic
+      - path: java/package.json
+        reason: npm manifest for test tooling (playwright/bruno), no business logic
+      - path: java/scripts/pit.sh
+        reason: mutation-testing (PIT) runner invoked externally by changed-file lists; does not start the server or any HTTP entry point, no business logic
+      - path: go/playwright.config.js
+        reason: e2e test runner config, no business logic
+      - path: go/.gitignore
+        reason: VCS ignore list, no behavior
+      - path: go/api/bruno.json
+        reason: Bruno API test collection manifest, no business logic
+      - path: go/api/environments/ci.bru
+        reason: Bruno environment variables for the API test run, no business logic
+      - path: go/package.json
+        reason: npm manifest for test tooling (playwright/bruno), no business logic
+      - path: go/scripts/unit.sh
+        reason: unit test + coverage runner (gotestsum/gocover-cobertura); runs go test directly, does not start the server or any HTTP entry point, no business logic
+    openQuestions:
+      - id: Q-1
+        question: "Propose Slice SL-1 = the js implementation (EP-1, EP-2; files js/src/server.js, js/src/claim.js). Smallest and fully self-contained: its in-memory Claim is never shared with the java or go process, so cutting it alone touches no other Slice."
+        resolution: "Superseded: the ParityLedger cuts SL-1 as all six entry points (js, java, go) together, since the three implementations are meant to be the same business and are compared as one Slice."
+      - id: Q-2
+        question: Propose Slice SL-2 = the java implementation (EP-3, EP-4; files java/src/main/java/claims/Server.java, java/src/main/java/claims/Claim.java). Independent of js and go; its request body parsing (a single regex match over the raw body) is its own small, self-contained area to read closely.
+        resolution: "Superseded: the ParityLedger cuts SL-1 as all six entry points (js, java, go) together, since the three implementations are meant to be the same business and are compared as one Slice."
+      - id: Q-3
+        question: Propose Slice SL-3 = the go implementation (EP-5, EP-6; files go/cmd/server/main.go, go/claims/claim.go). Independent of js and java.
+        resolution: "Superseded: the ParityLedger cuts SL-1 as all six entry points (js, java, go) together, since the three implementations are meant to be the same business and are compared as one Slice."
+      - id: Q-4
+        question: The brief states 'a receipt attaches only under the claim's own URL and by the claim's own employee; a refused attachment is logged' — each repo's Claim/claims type has an attachReceipt/AttachReceipt method implementing exactly this, but in none of the three repos does any HTTP route call it (Server.java, server.js and main.go each only ever construct a claim and call its completeness check). It is reached only from each repo's own unit test. Was an attach-receipt HTTP endpoint planned, removed, or never built, and is this absence the same across all three by design or by parallel oversight?
+        resolution: Code cannot answer intent; the human should confirm with whoever owns the brief whether an endpoint is expected. Recorded as AB-2/GD-5 (js), AB-4/GD-12 (go) and AB-5/AB-6/GD-17 (java, where the gap is even wider since the route never even captures a receipt field from the request).
+      - id: Q-5
+        question: js/test/claim.test.js drafts a line carrying a `date` field and asserts draftClaim preserves it verbatim, but no Line type in java (a record of amount/category/receipt) or go (a struct of Amount/Category/Receipt) has a date field at all, and js's own completeness check never reads it. Is `date` a real attribute of a claim line that java and go are missing, or is it incidental to that one js test with no business meaning?
+        resolution: Code cannot answer; a Slice should treat this as an open flag rather than assume either answer.
+      - id: Q-6
+        question: "js/test-int/store.test.js ('a drafted claim is written to a real container and read back') never calls draftClaim or anything in claim.js: it starts a throwaway alpine container, writes the literal string 'c-e1' to a file with `sh -c echo`, reads it back, and asserts the echoed literal equals itself. It does not exercise the DC-2 claim-id format or any persistence of a drafted claim (there is no real store — claims are never persisted in this slice). Is this integration test a stand-in for a store that was never built, or dead/vestigial test scaffolding? The same pattern repeats verbatim in java/src/test/java/claims/StoreIT.java and go/claims/store_integration_test.go (each also just writes/reads the literal 'c-e1' in a throwaway alpine container, exercising no production code)."
+        resolution: Code cannot answer; the human should confirm whether a persistent claim store is planned (in which case these three tests are placeholders to replace) or whether they should be removed as misleading.
+      - id: Q-7
+        question: java's HTTP endpoint (Server.java) parses the request body with a single regex match capturing only amount and category, never receipt, and only the first match in the whole body is used (GD-14, AB-5, AB-6) — so every claim submitted via POST /claims is judged by java using at most one line, with receipt always null, while js and go read the full JSON `lines` array including each line's client-supplied receipt (AB-2, AB-4). Is java's regex-based parser a known simplification/placeholder, or a defect against the shared business rule the three repos are meant to implement identically?
+        resolution: Code cannot answer intent; a human should confirm with whoever owns the brief whether java's single-line, receipt-blind parsing is acceptable as-is or must be brought in line with js/go before any merge or rebuild decision.
+  provenance:
+    producerRef:
+      apiVersion: persimmon.ai/v1
+      kind: TaskRun
+      namespace: default
+      name: inventory-796e1a-rounds-2-produce-read
+      uid: a7764eb1-aa8b-46ed-8e02-c9c841f388cb
+    inputs:
+      - apiVersion: rewrite.persimmon.ai/v1
+        kind: SourceInventory
+        namespace: default
+        id: claims-inventory
+        revision: 1
+      - apiVersion: rewrite.persimmon.ai/v1
+        kind: ParityLedger
+        namespace: default
+        id: claims-parity
+        revision: 1
+      - apiVersion: rewrite.persimmon.ai/v1
+        kind: SourceInventory
+        namespace: default
+        id: claims-inventory
+        revision: 1
+    actor:
+      kind: service
+      id: claude-code/v1
+---
+apiVersion: rewrite.persimmon.ai/v1
+kind: ParityLedger
+metadata:
+  name: claims-parity.r1
+spec:
+  identity:
+    id: claims-parity
+    revision: 1
+  content:
+    source:
+      repository: "ex10-source (directory of checkouts: js, java, go)"
+      repositories:
+        - name: js
+          repository: ex10-source/js
+          commit: 7acfbf0956a66f34c2ed9af51ca401277c411f27
+        - name: java
+          repository: ex10-source/java
+          commit: 850b7de8a9bd701b6b38d6e154dea744c6f40a9e
+        - name: go
+          repository: ex10-source/go
+          commit: 43eb9112332d54a00fae13154dc6772cdfc876b1
+    slices:
+      - id: SL-1
+        name: claims completeness check, all three implementations
+        entryPoints:
+          - EP-1
+          - EP-2
+          - EP-3
+          - EP-4
+          - EP-5
+          - EP-6
+        order: 1
+    entryPoints:
+      - id: EP-1
+        oracle: static
+      - id: EP-2
+        oracle: static
+      - id: EP-3
+        oracle: static
+      - id: EP-4
+        oracle: static
+      - id: EP-5
+        oracle: static
+      - id: EP-6
+        oracle: static
+    items:
+      - ref: GD-1
+        slice: SL-1
+        reached: false
+        pinnable: false
+        pinned: false
+        tests: []
+        rules: []
+        accepted: plumbing (method routing, a port argument, a script's exit) with no rule; analysis only, nothing runs, so no test reaches it
+        account: complete
+      - ref: GD-2
+        slice: SL-1
+        reached: false
+        pinnable: false
+        pinned: false
+        tests: []
+        rules: []
+        accepted: plumbing (method routing, a port argument, a script's exit) with no rule; analysis only, nothing runs, so no test reaches it
+        account: complete
+      - ref: GD-3
+        slice: SL-1
+        reached: false
+        pinnable: false
+        pinned: false
+        tests: []
+        rules:
+          - BR-2
+        account: unverified
+        reason: its Oracle cannot pin it
+      - ref: GD-4
+        slice: SL-1
+        reached: false
+        pinnable: false
+        pinned: false
+        tests: []
+        rules:
+          - BR-1
+        account: unverified
+        reason: its Oracle cannot pin it
+      - ref: GD-5
+        slice: SL-1
+        reached: false
+        pinnable: false
+        pinned: false
+        tests: []
+        rules:
+          - BR-3
+        account: unverified
+        reason: its Oracle cannot pin it
+      - ref: GD-6
+        slice: SL-1
+        reached: false
+        pinnable: false
+        pinned: false
+        tests: []
+        rules: []
+        accepted: plumbing (method routing, a port argument, a script's exit) with no rule; analysis only, nothing runs, so no test reaches it
+        reader: the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed
+        account: complete
+      - ref: GD-7
+        slice: SL-1
+        reached: false
+        pinnable: false
+        pinned: false
+        tests: []
+        rules: []
+        accepted: plumbing (method routing, a port argument, a script's exit) with no rule; analysis only, nothing runs, so no test reaches it
+        reader: the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed
+        account: complete
+      - ref: GD-8
+        slice: SL-1
+        reached: false
+        pinnable: false
+        pinned: false
+        tests: []
+        rules: []
+        accepted: plumbing (method routing, a port argument, a script's exit) with no rule; analysis only, nothing runs, so no test reaches it
+        reader: the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed
+        account: complete
+      - ref: GD-9
+        slice: SL-1
+        reached: false
+        pinnable: false
+        pinned: false
+        tests: []
+        rules: []
+        accepted: plumbing (method routing, a port argument, a script's exit) with no rule; analysis only, nothing runs, so no test reaches it
+        reader: the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed
+        account: complete
+      - ref: GD-10
+        slice: SL-1
+        reached: false
+        pinnable: false
+        pinned: false
+        tests: []
+        rules:
+          - BR-2
+        reader: the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed
+        account: unverified
+        reason: its Oracle cannot pin it
+      - ref: GD-11
+        slice: SL-1
+        reached: false
+        pinnable: false
+        pinned: false
+        tests: []
+        rules:
+          - BR-1
+        reader: the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed
+        account: unverified
+        reason: its Oracle cannot pin it
+      - ref: GD-12
+        slice: SL-1
+        reached: false
+        pinnable: false
+        pinned: false
+        tests: []
+        rules:
+          - BR-3
+        reader: the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed
+        account: unverified
+        reason: its Oracle cannot pin it
+      - ref: GD-13
+        slice: SL-1
+        reached: false
+        pinnable: false
+        pinned: false
+        tests: []
+        rules: []
+        accepted: plumbing (method routing, a port argument, a script's exit) with no rule; analysis only, nothing runs, so no test reaches it
+        reader: the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed
+        account: complete
+      - ref: GD-14
+        slice: SL-1
+        reached: false
+        pinnable: false
+        pinned: false
+        tests: []
+        rules:
+          - BR-5
+        reader: the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed
+        account: unverified
+        reason: its Oracle cannot pin it
+      - ref: GD-15
+        slice: SL-1
+        reached: false
+        pinnable: false
+        pinned: false
+        tests: []
+        rules:
+          - BR-2
+        reader: the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed
+        account: unverified
+        reason: its Oracle cannot pin it
+      - ref: GD-16
+        slice: SL-1
+        reached: false
+        pinnable: false
+        pinned: false
+        tests: []
+        rules:
+          - BR-1
+        reader: the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed
+        account: unverified
+        reason: its Oracle cannot pin it
+      - ref: GD-17
+        slice: SL-1
+        reached: false
+        pinnable: false
+        pinned: false
+        tests: []
+        rules:
+          - BR-3
+        reader: the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed
+        account: unverified
+        reason: its Oracle cannot pin it
+      - ref: DC-1
+        slice: SL-1
+        reached: false
+        pinnable: false
+        pinned: false
+        tests: []
+        rules:
+          - BR-2
+        account: unverified
+        reason: its Oracle cannot pin it
+      - ref: DC-2
+        slice: SL-1
+        reached: false
+        pinnable: false
+        pinned: false
+        tests: []
+        rules:
+          - BR-4
+        account: unverified
+        reason: its Oracle cannot pin it
+      - ref: DC-3
+        slice: SL-1
+        reached: false
+        pinnable: false
+        pinned: false
+        tests: []
+        rules:
+          - BR-2
+        account: unverified
+        reason: its Oracle cannot pin it
+      - ref: DC-4
+        slice: SL-1
+        reached: false
+        pinnable: false
+        pinned: false
+        tests: []
+        rules:
+          - BR-4
+        account: unverified
+        reason: its Oracle cannot pin it
+      - ref: DC-5
+        slice: SL-1
+        reached: false
+        pinnable: false
+        pinned: false
+        tests: []
+        rules:
+          - BR-2
+        account: unverified
+        reason: its Oracle cannot pin it
+      - ref: DC-6
+        slice: SL-1
+        reached: false
+        pinnable: false
+        pinned: false
+        tests: []
+        rules:
+          - BR-4
+        account: unverified
+        reason: its Oracle cannot pin it
+      - ref: AB-1
+        slice: SL-1
+        reached: false
+        pinnable: false
+        pinned: false
+        tests: []
+        rules: []
+        disposition: keep
+        account: complete
+      - ref: AB-2
+        slice: SL-1
+        reached: false
+        pinnable: false
+        pinned: false
+        tests: []
+        rules: []
+        disposition: keep
+        account: complete
+      - ref: AB-3
+        slice: SL-1
+        reached: false
+        pinnable: false
+        pinned: false
+        tests: []
+        rules: []
+        disposition: keep
+        account: complete
+      - ref: AB-4
+        slice: SL-1
+        reached: false
+        pinnable: false
+        pinned: false
+        tests: []
+        rules: []
+        disposition: keep
+        account: complete
+      - ref: AB-5
+        slice: SL-1
+        reached: false
+        pinnable: false
+        pinned: false
+        tests: []
+        rules: []
+        disposition: change
+        account: complete
+      - ref: AB-6
+        slice: SL-1
+        reached: false
+        pinnable: false
+        pinned: false
+        tests: []
+        rules: []
+        disposition: change
+        account: complete
+    answers: []
+    differences: []
+    unreached:
+      - ref: EP-1
+        slice: SL-1
+        why: no test passed on the source, its units or its records
+      - ref: EP-2
+        slice: SL-1
+        why: no test passed on the source, its units or its records
+      - ref: EP-3
+        slice: SL-1
+        why: no test passed on the source, its units or its records
+      - ref: EP-4
+        slice: SL-1
+        why: no test passed on the source, its units or its records
+      - ref: EP-5
+        slice: SL-1
+        why: no test passed on the source, its units or its records
+      - ref: EP-6
+        slice: SL-1
+        why: no test passed on the source, its units or its records
+    inventory:
+      id: claims-inventory
+      revision: 1
+    decisions:
+      dispositions:
+        - ref: AB-1
+          disposition: keep
+          reason: a malformed body is not a business case; the three disagree and none is specified
+        - ref: AB-2
+          disposition: keep
+          reason: a receipt supplied in the request is accepted as supplied; BR-3 governs attachment, which no route reaches (Q-1)
+        - ref: AB-3
+          disposition: keep
+          reason: as AB-1
+        - ref: AB-4
+          disposition: keep
+          reason: as AB-2
+        - ref: AB-5
+          disposition: change
+          reason: "the brief says a difference between the three is a finding: java reads amount and category only, never receipt; the rule is that a submitted line's receipt is read as js and go read it"
+        - ref: AB-6
+          disposition: change
+          reason: "same: java reads the first line only; every submitted line is read as js and go read them"
+      dead: []
+      accepted:
+        - ref: GD-1
+          reason: plumbing (method routing, a port argument, a script's exit) with no rule; analysis only, nothing runs, so no test reaches it
+        - ref: GD-2
+          reason: plumbing (method routing, a port argument, a script's exit) with no rule; analysis only, nothing runs, so no test reaches it
+        - ref: GD-6
+          reason: plumbing (method routing, a port argument, a script's exit) with no rule; analysis only, nothing runs, so no test reaches it
+        - ref: GD-7
+          reason: plumbing (method routing, a port argument, a script's exit) with no rule; analysis only, nothing runs, so no test reaches it
+        - ref: GD-8
+          reason: plumbing (method routing, a port argument, a script's exit) with no rule; analysis only, nothing runs, so no test reaches it
+        - ref: GD-9
+          reason: plumbing (method routing, a port argument, a script's exit) with no rule; analysis only, nothing runs, so no test reaches it
+        - ref: GD-13
+          reason: plumbing (method routing, a port argument, a script's exit) with no rule; analysis only, nothing runs, so no test reaches it
+      readers:
+        - ref: GD-6
+          resolution: the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed
+        - ref: GD-7
+          resolution: the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed
+        - ref: GD-8
+          resolution: the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed
+        - ref: GD-9
+          resolution: the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed
+        - ref: GD-10
+          resolution: the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed
+        - ref: GD-11
+          resolution: the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed
+        - ref: GD-12
+          resolution: the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed
+        - ref: GD-13
+          resolution: the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed
+        - ref: GD-14
+          resolution: the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed
+        - ref: GD-15
+          resolution: the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed
+        - ref: GD-16
+          resolution: the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed
+        - ref: GD-17
+          resolution: the second reader read the js checkout only; the first reader's guard stands, its where read and confirmed
+      plumbing: []
+    rules:
+      id: claims-rules
+      revision: 1
+    slice: SL-1
+    verdict:
+      result: concerns
+      rule: 16 unverified item(s), 6 unreached entry point(s)
+  provenance:
+    producerRef:
+      apiVersion: persimmon.ai/v1
+      kind: TaskRun
+      namespace: default
+      name: recover-prd-852453-rounds-2-produce-ledger
+      uid: 57336ff1-f91a-4272-aabe-53c6cba416f0
+    inputs:
+      - apiVersion: rewrite.persimmon.ai/v1
+        kind: SourceInventory
+        namespace: default
+        id: claims-inventory
+        revision: 1
+      - apiVersion: rewrite.persimmon.ai/v1
+        kind: ParityLedger
+        namespace: default
+        id: claims-parity
+        revision: 1
+      - apiVersion: sdd.persimmon.ai/v1
+        kind: BusinessRules
+        namespace: default
+        id: claims-rules
+        revision: 1
+    actor:
+      kind: service
+      id: parity-run/v1
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: Prd
+metadata:
+  name: claims-prd.r1
+spec:
+  identity:
+    id: claims-prd
+    revision: 1
+  content:
+    title: Expense Claims Completeness
+    businessRules: claims-rules
+    problem: "Expense claims are checked for completeness today by three independent implementations of what is meant to be the same policy, one each in js, java and go, with no Prd or rule set that says what \"complete\" should mean across all three. An employee who submits a claim has no guarantee that the completeness answer they get is the same business decision regardless of which implementation evaluates it: the three already diverge on how a line's receipt is read from the request, on what happens when a submission is malformed, and on whether a receipt's ownership is ever actually checked. Nobody auditing the three codebases today can tell, from the code alone, whether a divergence between them is an intentional difference or a defect, because the business rules the code is supposed to encode have never been written down in one place."
+    users:
+      - name: Employee
+        description: Submits an expense claim (their lines of amount, category and, where needed, a receipt) and wants to know right away whether the claim is complete, and wants a receipt they attach to be recognized only on their own claim.
+    goals:
+      - id: G-1
+        statement: An employee learns whether their submitted claim is complete without having to work out the receipt rules themselves.
+      - id: G-2
+        statement: A receipt an employee attaches is recognized only for their own claim, so one employee cannot alter another employee's claim.
+      - id: G-3
+        statement: The completeness decision is the same business decision no matter which of the three implementations answers it.
+    nonGoals:
+      - 'Persisting submitted claims to a durable store: no implementation has one, and the three "store" integration tests exercise no production code (see Q-5).'
+      - "Approving, paying out, or routing a complete claim for reimbursement: the system only answers whether a claim is complete."
+      - "Choosing a merged or rebuilt target implementation or stack: this analysis precedes that decision."
+    subdomains:
+      - id: expense-claims-completeness
+        name: Expense Claims Completeness
+        description: Checking whether a submitted expense claim's lines are complete — a per-diem line needs no receipt, a line under the receipt threshold needs none, any other line needs one — and governing how a receipt may attach to a claim's line.
+        type: core
+    capabilities:
+      - id: CAP-1
+        name: Claims form page
+        description: Serves the static page carrying the claim submission form to the employee's browser, reached at EP-1 (js), EP-3 (java) and EP-5 (go). It is the same page in all three implementations and carries no business logic of its own.
+        priority: P2
+        subdomain: expense-claims-completeness
+        rules: []
+      - id: CAP-2
+        name: Claim completeness check
+        description: Accepts a submitted claim (an employee and lines of amount, category and an optional receipt), derives its id (BR-4), and answers whether it is complete, applying the per-diem/threshold/receipt rule (BR-2) to every line (BR-1); reached at EP-2 (js), EP-4 (java) and EP-6 (go). Every submitted line, including its receipt field, must be read the same way in all three implementations (BR-6); java's current regex-based parser, which reads only the first line of a submission and never its receipt, is a defect recorded as BR-5 that BR-6 requires be corrected. The receipt-ownership rule (BR-3) is implemented and unit-tested on each repository's claim entity, but no route at EP-2, EP-4 or EP-6 ever calls it, so at these live entry points a client's claimed receipt is accepted without the ownership check — see Q-1.
+        priority: P1
+        subdomain: expense-claims-completeness
+        rules:
+          - BR-1
+          - BR-2
+          - BR-3
+          - BR-4
+          - BR-5
+          - BR-6
+    successCriteria:
+      - id: SC-1
+        statement: Every claim submitted to the completeness check receives a true/false completeness verdict consistent with the per-diem/threshold/receipt rule, in every one of the three implementations.
+        capabilities:
+          - CAP-2
+      - id: SC-2
+        statement: The claim submission form loads for an employee without any setup beyond reaching the page.
+        capabilities:
+          - CAP-1
+      - id: SC-3
+        statement: A receipt is accepted onto a claim's line only when submitted under that claim's own URL by that claim's own employee; every other attempt is logged as refused.
+        capabilities:
+          - CAP-2
+    assumptions:
+      - The three repositories (js, java, go) are meant to implement one identical business process, so an observed divergence between them is a defect to resolve, not an accepted feature.
+      - The receipt threshold of 25 is one monetary amount in one currency, consistent across every line and all three implementations.
+      - An employee's identity (the claim's "employee" field) is already trusted by the time it reaches the completeness check; no authentication mechanism is in scope of this product.
+      - No persistent store is required for the completeness check itself; a claim is evaluated in memory per request.
+    openQuestions:
+      - id: Q-1
+        question: "The receipt-attachment ownership rule (BR-3) is implemented and unit-tested in all three repositories' claim entities, but no HTTP entry point in js, java or go ever calls it: POST /claims only drafts a claim and checks completeness. In js (AB-2) and go (AB-4) a client can satisfy a line's receipt requirement by sending any truthy/non-empty receipt value directly in the request JSON, bypassing the ownership check entirely; in java the HTTP parser never reads a receipt field from the request at all (AB-5, AB-6). Was an attach-receipt endpoint planned, removed, or never built, and should BR-3 be enforced for real requests?"
+        resolution: "Decided: keep (ledger dispositions for AB-2 and AB-4). A receipt supplied in the request is accepted as supplied; BR-3 governs attachment, which no route reaches. A capability/entry point that routes receipt attachment through BR-3's check remains a proposed change a human has not yet approved; BR-3 stays documented as a rule the entities implement but that no capability currently enforces end to end."
+      - id: Q-2
+        question: js's POST handler parses the request body with JSON.parse and never catches a failure (AB-1), so a malformed body throws uncaught inside the request handler rather than the API returning an error response; go's handler discards the JSON decode error entirely (AB-3) and silently answers {complete:true} for a non-JSON or empty body, since zero lines is vacuously complete. Should a malformed submission produce one defined error response, and should the three implementations agree on it?
+        resolution: "Decided: keep (ledger dispositions for AB-1 and AB-3). A malformed body is not a business case; the three disagree and none is specified, so no rule is added. Defining one error-response behavior across all three remains an open improvement, not a rule."
+      - id: Q-3
+        question: java's HTTP endpoint reads the request body with a single regex match that captures only amount and category and never receipt, and only the first line of a multi-line submission is ever read; every claim submitted to java's POST /claims is judged on at most one line with its receipt always treated as absent, while js and go read the full lines array including each line's client-supplied receipt. Is java's parser a known simplification, or a defect against the shared process the three repositories are meant to implement identically?
+        resolution: "Decided: change (ledger dispositions for AB-5 and AB-6). java's single-line, receipt-blind parsing was a defect, not an accepted simplification: every submitted line, and each line's client-supplied receipt, must be read as js and go read them. BR-5 records java's current behavior as observed; BR-6 states the corrected rule the three must converge on."
+      - id: Q-4
+        question: js's test for drafting a claim asserts that a line's date is preserved verbatim, but java's and go's line types carry no date field at all, and no completeness logic in any of the three reads a line's date. Is date a real attribute of a claim line that java and go are missing, or incidental to that one test with no business meaning?
+        resolution: "Decided: keep — no rule in any implementation depends on a line's date; carried as an open flag rather than added as a rule."
+      - id: Q-5
+        question: 'Each repository has an integration test claiming to show "a drafted claim is written to a real container and read back" (js/test-int/store.test.js, java StoreIT.java, go store_integration_test.go), but none of the three actually calls the claim-drafting code: each only writes and reads back a literal string in a throwaway container, exercising no production behavior. Is a persistent claim store planned, making these placeholders for real persistence, or should the tests be removed as misleading?'
+        resolution: "Decided: keep — this Prd specs no persistence capability (see nonGoals); the three tests should be flagged to a human as misleading rather than treated as evidence that a store exists."
+  provenance:
+    producerRef:
+      apiVersion: persimmon.ai/v1
+      kind: TaskRun
+      namespace: default
+      name: recover-prd-852453-rounds-2-produce-recover
+      uid: de47d606-ee20-4e16-b53b-8fce4b02cc18
+    inputs:
+      - apiVersion: rewrite.persimmon.ai/v1
+        kind: SourceInventory
+        namespace: default
+        id: claims-inventory
+        revision: 1
+      - apiVersion: rewrite.persimmon.ai/v1
+        kind: ParityLedger
+        namespace: default
+        id: claims-parity
+        revision: 1
+      - apiVersion: sdd.persimmon.ai/v1
+        kind: Prd
+        namespace: default
+        id: claims-prd
+        revision: 1
+      - apiVersion: sdd.persimmon.ai/v1
+        kind: Prd
+        namespace: default
+        id: claims-prd
+        revision: 1
+      - apiVersion: sdd.persimmon.ai/v1
+        kind: BusinessRules
+        namespace: default
+        id: claims-rules
+        revision: 1
+      - apiVersion: sdd.persimmon.ai/v1
+        kind: BusinessRules
+        namespace: default
+        id: claims-rules
+        revision: 1
+    actor:
+      kind: service
+      id: claude-code/v1
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: BusinessRules
+metadata:
+  name: claims-rules.r1
+spec:
+  identity:
+    id: claims-rules
+    revision: 1
+  content:
+    title: Expense Claims Completeness Business Rules
+    owner: Unassigned — no owner named in the brief
+    rules:
+      - id: BR-1
+        type: derivation
+        statement: A claim's completeness must be computed as true only when every line of the claim is complete, and as false if any line is incomplete.
+        rationale: The API answers {complete} as the logical result of checking every line of the claim; one incomplete line makes the whole claim incomplete. This is how js's claimComplete, java's Claim.complete() and go's Claim.Complete() all work.
+        source: "inventory: GD-4, GD-11, GD-16"
+        status: active
+        examples:
+          - an employee sees a 30 EUR meals line without a receipt is incomplete (js/e2e/claim.spec.js:3-7)
+          - POST claims refuses a meals line without a receipt (js/api/refuse-without-receipt.bru:1-21)
+          - an employee sees a 30 EUR meals line without a receipt is incomplete (java) (java/e2e/claim.spec.js:3-7)
+          - an employee sees a 30 EUR meals line without a receipt is incomplete (go) (go/e2e/claim.spec.js:3-7)
+      - id: BR-2
+        type: constraint
+        statement: A claim line must have a receipt unless it is a per-diem line or its amount is under the receipt threshold of 25.
+        rationale: A per-diem line is a fixed allowance that needs no supporting document, and an expense small enough (under 25) is exempted from proof; any other line must be backed by a receipt to count as complete. This is consistent across js, java and go.
+        source: "inventory: GD-3, DC-1, GD-10, DC-3, GD-15, DC-5"
+        status: active
+        examples:
+          - a 30 EUR meals line without a receipt is not complete and names BR-2 (js/test/claim.test.js:5-7)
+          - a per diem line needs no receipt (js/test/claim.test.js:8-10)
+          - a 25.00 EUR taxi line without a receipt is not complete and names BR-2 (js/test/claim.test.js:15-17)
+          - a meals line of 30 without a receipt is not complete (java) (java/src/test/java/claims/ClaimTest.java:9-11)
+          - a per diem line needs no receipt (java) (java/src/test/java/claims/ClaimTest.java:12-14)
+          - a taxi line of 25 without a receipt is not complete (java) (java/src/test/java/claims/ClaimTest.java:18-20)
+          - a meals line of 30 without a receipt is not complete (go) (go/claims/claim_test.go:8-12)
+          - a per diem line needs no receipt (go) (go/claims/claim_test.go:14-18)
+          - a taxi line of 25 without a receipt is not complete (go) (go/claims/claim_test.go:27-31)
+      - id: BR-3
+        type: constraint
+        statement: A receipt may attach to a claim's line only when submitted under that claim's own URL and by that claim's own employee; any other attempt must be refused and logged.
+        rationale: This prevents one employee's submission from attaching a receipt to, or satisfying the receipt requirement of, another employee's claim, whenever attachReceipt/AttachReceipt is actually invoked. js's attachReceipt, java's attachReceipt and go's AttachReceipt all enforce this and log a refusal when it fails. None of the three HTTP entry points (EP-2, EP-4, EP-6) ever calls this method — POST /claims only drafts a claim and checks completeness — so today the check governs no request the system actually receives; it remains the business's intended rule regardless, and its unreachability from any entry point is tracked as Q-1.
+        source: "inventory: GD-5, GD-12, GD-17"
+        status: active
+        examples:
+          - attaching a receipt to another employee's claim by URL is refused and logged (js/test/claim.test.js:18-22)
+          - attaching a receipt to another employee's claim is refused and logged (java) (java/src/test/java/claims/ClaimTest.java:21-25)
+          - attaching a receipt to another employee's claim is refused and logged (go) (go/claims/claim_test.go:33-38)
+      - id: BR-4
+        type: derivation
+        statement: A claim's id must be computed as `c-` followed by the employee, with no sequence, timestamp or random component.
+        rationale: js's draftClaim, java's Claim constructor and go's Draft all derive a claim's id this same deterministic way, so the same employee drafting within one run always gets the identical claim id string.
+        source: "inventory: DC-2, DC-4, DC-6"
+        status: active
+      - id: BR-5
+        type: fact
+        statement: A claim submitted to java's POST /claims endpoint must be given at most one line, taken from the first amount-and-category match found in the request body, with that line's receipt always considered absent; a body with no match must be considered to have no lines.
+        rationale: "java's Server.java reads the raw request body with a single regex match (LINE.matcher(body).find()) rather than decoding the full lines array the brief describes ({employee, lines: [{amount, category, receipt?}]}); the regex captures only amount and category and is never looped, so only the first submitted line is ever read and a line's receipt is always null. This is java's actual, observed behavior and diverges from js and go, which read every submitted line including its client-supplied receipt — recorded as a divergence in Q-3; BR-6 states the corrected behavior the three must converge on."
+        source: "inventory: GD-14"
+        status: active
+      - id: BR-6
+        type: decision
+        statement: A claim submitted to any implementation's POST /claims endpoint must have every submitted line read, with each line's receipt read exactly as supplied by the client, consistent across js, java and go.
+        rationale: java's prior regex-based parser read only the first line of a multi-line submission and never captured a line's receipt, judging every claim on at most one line with its receipt always treated as absent (BR-5), while js and go already read the full lines array including each line's client-supplied receipt. The three implementations are meant to be the same business, so this divergence (AB-5, AB-6) is a defect to fix, not an accepted difference.
+        source: "decision: AB-5, AB-6 — java reads amount and category only from the first match found in the body, never receipt nor any further line; every submitted line, with its receipt, must be read as js and go read them"
+        status: active
+  provenance:
+    producerRef:
+      apiVersion: persimmon.ai/v1
+      kind: TaskRun
+      namespace: default
+      name: recover-prd-852453-rounds-2-produce-recover
+      uid: de47d606-ee20-4e16-b53b-8fce4b02cc18
+    inputs:
+      - apiVersion: rewrite.persimmon.ai/v1
+        kind: SourceInventory
+        namespace: default
+        id: claims-inventory
+        revision: 1
+      - apiVersion: rewrite.persimmon.ai/v1
+        kind: ParityLedger
+        namespace: default
+        id: claims-parity
+        revision: 1
+      - apiVersion: sdd.persimmon.ai/v1
+        kind: Prd
+        namespace: default
+        id: claims-prd
+        revision: 1
+      - apiVersion: sdd.persimmon.ai/v1
+        kind: Prd
+        namespace: default
+        id: claims-prd
+        revision: 1
+      - apiVersion: sdd.persimmon.ai/v1
+        kind: BusinessRules
+        namespace: default
+        id: claims-rules
+        revision: 1
+      - apiVersion: sdd.persimmon.ai/v1
+        kind: BusinessRules
+        namespace: default
+        id: claims-rules
+        revision: 1
+    actor:
+      kind: service
+      id: claude-code/v1
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: EventStorming
+metadata:
+  name: claims-prd-storming.r1
+spec:
+  identity:
+    id: claims-prd-storming
+    revision: 1
+  content:
+    version: "4.2"
+    meta:
+      name: Expense Claims Completeness
+      level: design
+    contexts:
+      - id: expense-claims-completeness
+        name: Expense Claims Completeness
+        order: 0
+        classification: core
+        subdomain: expense-claims-completeness
+    contextRelationships: []
+    nodes:
+      - id: employee
+        type: actor
+        label: Employee
+        properties:
+          description: Submits an expense claim's lines (amount, category, optional receipt) and wants to know right away whether the claim is complete; wants a receipt they attach recognized only on their own claim.
+      - id: expense-claims-completeness-e-claim-submitted
+        type: domainEvent
+        label: Claim submitted
+        context: expense-claims-completeness
+        order: 0
+        properties:
+          description: An employee submits a claim's lines (amount, category, and an optional receipt per line) for a completeness check (CAP-2; EP-2, EP-4, EP-6).
+      - id: expense-claims-completeness-e-claim-drafted
+        type: domainEvent
+        label: Claim drafted
+        context: expense-claims-completeness
+        order: 1
+        properties:
+          pivotal: true
+          description: The claim's id is derived deterministically as c-<employee> (BR-4) and its lines are structured, each carrying its receipt exactly as the client supplied it (BR-6).
+      - id: expense-claims-completeness-e-claim-judged-complete
+        type: domainEvent
+        label: Claim judged complete
+        context: expense-claims-completeness
+        order: 2
+        properties:
+          pivotal: true
+          alternativeSet: completeness-verdict
+          description: Every line of the drafted claim satisfies the per-diem/threshold/receipt rule (BR-1, BR-2).
+      - id: expense-claims-completeness-e-claim-judged-incomplete
+        type: domainEvent
+        label: Claim judged incomplete
+        context: expense-claims-completeness
+        order: 2
+        properties:
+          pivotal: true
+          alternativeSet: completeness-verdict
+          description: At least one line of the drafted claim fails the per-diem/threshold/receipt rule (BR-1, BR-2).
+      - id: expense-claims-completeness-e-receipt-attached
+        type: domainEvent
+        label: Receipt attached to claim
+        context: expense-claims-completeness
+        order: 3
+        properties:
+          pivotal: true
+          alternativeSet: receipt-attachment
+          description: A receipt is attached to a claim's line when submitted under that claim's own URL and by that claim's own employee (BR-3). Reachable today only through the claim entity's own attach method, not through any live HTTP entry point.
+      - id: expense-claims-completeness-e-receipt-attachment-refused
+        type: domainEvent
+        label: Receipt attachment refused
+        context: expense-claims-completeness
+        order: 3
+        properties:
+          pivotal: true
+          alternativeSet: receipt-attachment
+          description: An attempt to attach a receipt under another claim's URL, or by another employee, is refused and logged (BR-3).
+      - id: expense-claims-completeness-op-wire-attach-receipt-endpoint
+        type: opportunity
+        label: Wire receipt attachment to a live entry point
+        properties:
+          description: No HTTP entry point calls the attach-receipt method today; a capability routing receipt attachment through BR-3's ownership check is a proposed change a human has not yet approved.
+      - id: expense-claims-completeness-op-unify-malformed-response
+        type: opportunity
+        label: Unify the malformed-submission error response
+        properties:
+          description: "No implementation defines or rejects a malformed submission as a business outcome: js throws uncaught (AB-1), go silently answers as if the claim were empty (AB-3), and java's parser simply matches nothing. Both are decided keep, so this is not modeled as an event; defining one error response across js, java and go remains an open improvement a human has not approved."
+      - id: expense-claims-completeness-c-submit-claim
+        type: command
+        label: Submit claim
+        context: expense-claims-completeness
+        properties:
+          description: An employee submits a claim's lines (amount, category, optional receipt) for a completeness check (CAP-2; EP-2, EP-4, EP-6).
+      - id: expense-claims-completeness-p-draft-claim-policy
+        type: policy
+        label: Draft claim on submission policy
+        context: expense-claims-completeness
+        properties:
+          description: "Reacts automatically to a claim submission by drafting the claim: no actor decision is involved between submission and drafting."
+          execution: automatic
+      - id: expense-claims-completeness-c-draft-claim
+        type: command
+        label: Draft claim
+        context: expense-claims-completeness
+        properties:
+          description: Derives the claim id deterministically as c-<employee> (BR-4) and structures each submitted line, reading every submitted line and each line's receipt exactly as supplied by the client (BR-6), correcting java's prior single-line, receipt-blind parsing recorded as a defect (BR-5).
+      - id: expense-claims-completeness-p-judge-completeness-policy
+        type: policy
+        label: Judge completeness on draft policy
+        context: expense-claims-completeness
+        properties:
+          description: Reacts automatically to a drafted claim by judging its completeness against the per-diem/threshold/receipt rule (BR-1, BR-2); no actor decision is involved.
+          execution: automatic
+          condition: every line of the drafted claim is per-diem, or its amount is under the receipt threshold, or it carries a receipt
+          parameters:
+            - name: receiptThreshold
+              value: "25"
+      - id: expense-claims-completeness-c-judge-claim-complete
+        type: command
+        label: Judge claim complete
+        context: expense-claims-completeness
+        properties:
+          alternativeSet: judge-claim-completeness
+          description: Every line of the drafted claim satisfies the per-diem/threshold/receipt rule (BR-1, BR-2).
+      - id: expense-claims-completeness-c-judge-claim-incomplete
+        type: command
+        label: Judge claim incomplete
+        context: expense-claims-completeness
+        properties:
+          alternativeSet: judge-claim-completeness
+          description: At least one line of the drafted claim fails the per-diem/threshold/receipt rule (BR-1, BR-2).
+      - id: expense-claims-completeness-rm-claim-completeness-view
+        type: readModel
+        label: Claim Completeness View
+        context: expense-claims-completeness
+        properties:
+          description: The true/false completeness verdict returned to the employee for their submitted claim, so they learn completeness without working out the receipt rules themselves (G-1, SC-1).
+      - id: expense-claims-completeness-c-attach-receipt
+        type: command
+        label: Attach receipt
+        context: expense-claims-completeness
+        properties:
+          description: Attaches a submitted receipt to a claim's line only when submitted under that claim's own URL and by that claim's own employee, refusing and logging any other attempt (BR-3). Implemented and unit-tested on each repository's claim entity, but reachable today only via that entity's own method, not through any live HTTP entry point (Q-1).
+      - id: expense-claims-completeness-ag-claim
+        type: aggregate
+        label: Claim
+        context: expense-claims-completeness
+        properties:
+          description: The single consistency boundary (EN-1 in all three implementations) that owns a claim's drafting (id derivation BR-4, line reading BR-6), its completeness verdict (BR-1, BR-2) and its receipt-attachment ownership check (BR-3).
+      - id: expense-claims-completeness-cons-receipt-ownership
+        type: constraint
+        label: Receipt ownership
+        context: expense-claims-completeness
+        properties:
+          rule: a receipt may attach to a claim's line only when submitted under that claim's own URL and by that claim's own employee
+          description: "BR-3: any other attempt must be refused and logged. Implemented and unit-tested on the Claim aggregate in all three repositories, but reachable today only through the aggregate's own method, not through any live HTTP entry point (Q-1)."
+      - id: expense-claims-completeness-h-claim-aggregate-size
+        type: hotspot
+        label: Claim aggregate handles 5 commands and 6 events
+        properties:
+          kind: risk
+          priority: low
+          state: resolved
+          description: The Claim aggregate is handledBy for 5 commands (submit, draft, judge-complete, judge-incomplete, attach-receipt) and emits 6 events, above the usual five-event single-aggregate guideline. Kept as one because js, java and go all model drafting, completeness judging and receipt attachment as methods of the one Claim entity (EN-1); worth revisiting into a separate receipt-attachment aggregate if the wire-attach-receipt-endpoint opportunity is ever approved.
+          resolution: One aggregate stands. The claim is the only entity; its five commands are one submission's chain (submit, draft, judge complete or incomplete) plus receipt attachment, and the smell counts them past a threshold, not a second consistency boundary.
+    edges:
+      - id: e-expense-claims-completeness-01
+        source: expense-claims-completeness-op-wire-attach-receipt-endpoint
+        target: expense-claims-completeness-e-receipt-attached
+        relation: highlights
+      - id: e-expense-claims-completeness-02
+        source: expense-claims-completeness-op-wire-attach-receipt-endpoint
+        target: expense-claims-completeness-e-receipt-attachment-refused
+        relation: highlights
+      - id: e-expense-claims-completeness-03
+        source: expense-claims-completeness-op-unify-malformed-response
+        target: expense-claims-completeness-e-claim-submitted
+        relation: highlights
+      - id: e-expense-claims-completeness-04
+        source: employee
+        target: expense-claims-completeness-c-submit-claim
+        relation: issues
+      - id: e-expense-claims-completeness-05
+        source: expense-claims-completeness-c-submit-claim
+        target: expense-claims-completeness-e-claim-submitted
+        relation: produces
+      - id: e-expense-claims-completeness-06
+        source: expense-claims-completeness-e-claim-submitted
+        target: expense-claims-completeness-p-draft-claim-policy
+        relation: triggers
+      - id: e-expense-claims-completeness-07
+        source: expense-claims-completeness-p-draft-claim-policy
+        target: expense-claims-completeness-c-draft-claim
+        relation: invokes
+      - id: e-expense-claims-completeness-08
+        source: expense-claims-completeness-c-draft-claim
+        target: expense-claims-completeness-e-claim-drafted
+        relation: produces
+      - id: e-expense-claims-completeness-09
+        source: expense-claims-completeness-e-claim-drafted
+        target: expense-claims-completeness-p-judge-completeness-policy
+        relation: triggers
+      - id: e-expense-claims-completeness-10
+        source: expense-claims-completeness-p-judge-completeness-policy
+        target: expense-claims-completeness-c-judge-claim-complete
+        relation: invokes
+      - id: e-expense-claims-completeness-11
+        source: expense-claims-completeness-p-judge-completeness-policy
+        target: expense-claims-completeness-c-judge-claim-incomplete
+        relation: invokes
+      - id: e-expense-claims-completeness-12
+        source: expense-claims-completeness-c-judge-claim-complete
+        target: expense-claims-completeness-e-claim-judged-complete
+        relation: produces
+      - id: e-expense-claims-completeness-13
+        source: expense-claims-completeness-c-judge-claim-incomplete
+        target: expense-claims-completeness-e-claim-judged-incomplete
+        relation: produces
+      - id: e-expense-claims-completeness-14
+        source: expense-claims-completeness-e-claim-judged-complete
+        target: expense-claims-completeness-rm-claim-completeness-view
+        relation: updates
+      - id: e-expense-claims-completeness-15
+        source: expense-claims-completeness-e-claim-judged-incomplete
+        target: expense-claims-completeness-rm-claim-completeness-view
+        relation: updates
+      - id: e-expense-claims-completeness-16
+        source: expense-claims-completeness-rm-claim-completeness-view
+        target: employee
+        relation: informs
+      - id: e-expense-claims-completeness-17
+        source: employee
+        target: expense-claims-completeness-c-attach-receipt
+        relation: issues
+      - id: e-expense-claims-completeness-18
+        source: expense-claims-completeness-c-attach-receipt
+        target: expense-claims-completeness-e-receipt-attached
+        relation: produces
+      - id: e-expense-claims-completeness-19
+        source: expense-claims-completeness-c-attach-receipt
+        target: expense-claims-completeness-e-receipt-attachment-refused
+        relation: produces
+      - id: e-expense-claims-completeness-20
+        source: expense-claims-completeness-c-submit-claim
+        target: expense-claims-completeness-ag-claim
+        relation: handledBy
+      - id: e-expense-claims-completeness-21
+        source: expense-claims-completeness-c-draft-claim
+        target: expense-claims-completeness-ag-claim
+        relation: handledBy
+      - id: e-expense-claims-completeness-22
+        source: expense-claims-completeness-c-judge-claim-complete
+        target: expense-claims-completeness-ag-claim
+        relation: handledBy
+      - id: e-expense-claims-completeness-23
+        source: expense-claims-completeness-c-judge-claim-incomplete
+        target: expense-claims-completeness-ag-claim
+        relation: handledBy
+      - id: e-expense-claims-completeness-24
+        source: expense-claims-completeness-c-attach-receipt
+        target: expense-claims-completeness-ag-claim
+        relation: handledBy
+      - id: e-expense-claims-completeness-25
+        source: expense-claims-completeness-ag-claim
+        target: expense-claims-completeness-e-claim-submitted
+        relation: emits
+      - id: e-expense-claims-completeness-26
+        source: expense-claims-completeness-ag-claim
+        target: expense-claims-completeness-e-claim-drafted
+        relation: emits
+      - id: e-expense-claims-completeness-27
+        source: expense-claims-completeness-ag-claim
+        target: expense-claims-completeness-e-claim-judged-complete
+        relation: emits
+      - id: e-expense-claims-completeness-28
+        source: expense-claims-completeness-ag-claim
+        target: expense-claims-completeness-e-claim-judged-incomplete
+        relation: emits
+      - id: e-expense-claims-completeness-29
+        source: expense-claims-completeness-ag-claim
+        target: expense-claims-completeness-e-receipt-attached
+        relation: emits
+      - id: e-expense-claims-completeness-30
+        source: expense-claims-completeness-ag-claim
+        target: expense-claims-completeness-e-receipt-attachment-refused
+        relation: emits
+      - id: e-expense-claims-completeness-31
+        source: expense-claims-completeness-c-attach-receipt
+        target: expense-claims-completeness-cons-receipt-ownership
+        relation: constrainedBy
+      - id: e-expense-claims-completeness-32
+        source: expense-claims-completeness-h-claim-aggregate-size
+        target: expense-claims-completeness-ag-claim
+        relation: annotates
+  provenance:
+    producerRef:
+      apiVersion: persimmon.ai/v1
+      kind: TaskRun
+      namespace: default
+      name: domain-discovery-f45c1d-design-rounds-2-produce
+      uid: 59f5f7f9-643b-40dd-918f-5f80635ae416
+    inputs:
+      - apiVersion: sdd.persimmon.ai/v1
+        kind: EventStorming
+        namespace: default
+        id: claims-prd-storming
+        revision: 1
+      - apiVersion: sdd.persimmon.ai/v1
+        kind: Prd
+        namespace: default
+        id: claims-prd
+        revision: 1
+      - apiVersion: sdd.persimmon.ai/v1
+        kind: EventStorming
+        namespace: default
+        id: claims-prd-storming
+        revision: 1
+      - apiVersion: sdd.persimmon.ai/v1
+        kind: BusinessRules
+        namespace: default
+        id: claims-rules
+        revision: 1
+    actor:
+      kind: service
+      id: claude-code/v1
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: BoundedContext
+metadata:
+  name: expense-claims-completeness.r1
+spec:
+  identity:
+    id: expense-claims-completeness
+    revision: 1
+  content:
+    name: Expense Claims Completeness
+    purpose: This context owns the Claim aggregate, the single consistency boundary that drafts a submitted expense claim by deriving its id deterministically from the employee and structuring its submitted lines, each carrying its receipt exactly as the client supplied it (BR-4, BR-6); judges the drafted claim's completeness by applying the per-diem/threshold/receipt rule to every line (BR-1, BR-2) and reports the true/false verdict back to the employee; and governs the ownership check that lets a receipt attach to a claim's line only when submitted under that claim's own URL and by that claim's own employee, refusing and logging any other attempt (BR-3).
+    inScope:
+      - Claim
+      - Employee
+      - Claim Completeness View
+    outOfScope: []
+    classification: core
+    subdomain: expense-claims-completeness
+    capabilities:
+      - CAP-1
+      - CAP-2
+    relationships: []
+  provenance:
+    producerRef:
+      apiVersion: persimmon.ai/v1
+      kind: TaskRun
+      namespace: default
+      name: domain-discovery-f45c1d-derive-each-1-rounds-1-produce
+      uid: ee9bb182-dfee-4733-979d-9be03e179ac6
+    inputs:
+      - apiVersion: sdd.persimmon.ai/v1
+        kind: EventStorming
+        namespace: default
+        id: claims-prd-storming
+        revision: 1
+      - apiVersion: sdd.persimmon.ai/v1
+        kind: Prd
+        namespace: default
+        id: claims-prd
+        revision: 1
+      - apiVersion: sdd.persimmon.ai/v1
+        kind: BusinessRules
+        namespace: default
+        id: claims-rules
+        revision: 1
+    actor:
+      kind: service
+      id: claude-code/v1
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: Glossary
+metadata:
+  name: expense-claims-completeness-glossary.r1
+spec:
+  identity:
+    id: expense-claims-completeness-glossary
+    revision: 1
+  content:
+    title: Expense Claims Completeness Glossary
+    context: expense-claims-completeness
+    terms:
+      - name: Claim
+        definition: The single consistency boundary that owns a claim's drafting (id derivation, BR-4; line reading, BR-6), its completeness verdict (BR-1, BR-2) and its receipt-attachment ownership check (BR-3).
+        status: active
+        related:
+          - Employee
+          - Claim Completeness View
+      - name: Employee
+        definition: Submits an expense claim's lines (amount, category, optional receipt) and wants to know right away whether the claim is complete; wants a receipt they attach recognized only on their own claim.
+        status: active
+        related:
+          - Claim
+      - name: Claim Completeness View
+        definition: The true/false completeness verdict returned to the employee for their submitted claim, so they learn completeness without working out the receipt rules themselves (G-1, SC-1).
+        status: active
+        related:
+          - Claim
+          - Employee
+    factTypes:
+      - name: claim has id
+        subject: Claim
+        predicate: has
+        object:
+          type: string
+        status: active
+        description: A claim's id, derived deterministically as c-<employee> (BR-4).
+      - name: claim has employee
+        subject: Claim
+        predicate: has
+        object: Employee
+        status: active
+        description: The employee who submitted the claim; a receipt may attach only when submitted by this same employee (BR-3).
+      - name: claim has completeness verdict
+        subject: Claim
+        predicate: has
+        object:
+          type: boolean
+        status: active
+        description: Whether every line of the claim satisfies the per-diem/threshold/receipt rule (BR-1, BR-2).
+  provenance:
+    producerRef:
+      apiVersion: persimmon.ai/v1
+      kind: TaskRun
+      namespace: default
+      name: domain-discovery-f45c1d-derive-each-1-rounds-1-produce
+      uid: ee9bb182-dfee-4733-979d-9be03e179ac6
+    inputs:
+      - apiVersion: sdd.persimmon.ai/v1
+        kind: EventStorming
+        namespace: default
+        id: claims-prd-storming
+        revision: 1
+      - apiVersion: sdd.persimmon.ai/v1
+        kind: Prd
+        namespace: default
+        id: claims-prd
+        revision: 1
+      - apiVersion: sdd.persimmon.ai/v1
+        kind: BusinessRules
+        namespace: default
+        id: claims-rules
+        revision: 1
+    actor:
+      kind: service
+      id: claude-code/v1
+---
+apiVersion: sdd.persimmon.ai/v1
+kind: DomainModel
+metadata:
+  name: expense-claims-completeness-model.r1
+spec:
+  identity:
+    id: expense-claims-completeness-model
+    revision: 1
+  content:
+    context: expense-claims-completeness
+    source: claims-prd-storming
+    aggregates:
+      - id: AG-1
+        name: Claim
+        root: Claim
+        entities:
+          - name: Claim
+            attributes:
+              - claim has id
+              - claim has employee
+              - claim has completeness verdict
+        valueObjects: []
+        commands:
+          - Submit claim
+          - Draft claim
+          - Judge claim complete
+          - Judge claim incomplete
+          - Attach receipt
+        events:
+          - Claim submitted
+          - Claim drafted
+          - Claim judged complete
+          - Claim judged incomplete
+          - Receipt attached to claim
+          - Receipt attachment refused
+        invariants:
+          - statement: a receipt may attach to a claim's line only when submitted under that claim's own URL and by that claim's own employee
+            rules:
+              - BR-3
+    events:
+      - name: Claim submitted
+        attributes:
+          - claim has employee
+      - name: Claim drafted
+        pivotal: true
+        attributes:
+          - claim has id
+      - name: Claim judged complete
+        pivotal: true
+        attributes:
+          - claim has completeness verdict
+      - name: Claim judged incomplete
+        pivotal: true
+        attributes:
+          - claim has completeness verdict
+      - name: Receipt attached to claim
+        pivotal: true
+        attributes:
+          - claim has employee
+      - name: Receipt attachment refused
+        pivotal: true
+        attributes:
+          - claim has employee
+    policies:
+      - id: POL-1
+        name: Draft claim on submission policy
+        when:
+          - Claim submitted
+        then:
+          - Draft claim
+        execution: automatic
+      - id: POL-2
+        name: Judge completeness on draft policy
+        when:
+          - Claim drafted
+        then:
+          - Judge claim complete
+          - Judge claim incomplete
+        execution: automatic
+        condition: every line of the drafted claim is per-diem, or its amount is under the receipt threshold, or it carries a receipt
+        parameters:
+          - name: receiptThreshold
+            value: "25"
+    readModels:
+      - name: Claim Completeness View
+        informs:
+          - Employee
+        updatedBy:
+          - Claim judged complete
+          - Claim judged incomplete
+        fields:
+          - claim has id
+          - claim has completeness verdict
+    externalSystems: []
+  provenance:
+    producerRef:
+      apiVersion: persimmon.ai/v1
+      kind: TaskRun
+      namespace: default
+      name: domain-discovery-f45c1d-derive-each-1-rounds-1-produce
+      uid: ee9bb182-dfee-4733-979d-9be03e179ac6
+    inputs:
+      - apiVersion: sdd.persimmon.ai/v1
+        kind: EventStorming
+        namespace: default
+        id: claims-prd-storming
+        revision: 1
+      - apiVersion: sdd.persimmon.ai/v1
+        kind: Prd
+        namespace: default
+        id: claims-prd
+        revision: 1
+      - apiVersion: sdd.persimmon.ai/v1
+        kind: BusinessRules
+        namespace: default
+        id: claims-rules
+        revision: 1
+    actor:
+      kind: service
+      id: claude-code/v1
