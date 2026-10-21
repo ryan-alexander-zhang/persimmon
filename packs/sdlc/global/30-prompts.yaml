@@ -362,6 +362,8 @@ spec:
 
     `architecture` is the artifact id of the input with that name. `openQuestions`, `Q-n` from 1. A question is the human's to answer when they confirm the harness: leave it without a `resolution`. A `resolution` is only an answer a finding in `feedback` gave, in its words; never one you decide, and never in the human's name. An answer that changes an artifact upstream of yours, settling one of its open questions or correcting what it says (a Glossary term, a Spec, a Design, the Plan), names it in the question's `upstream`: its artifact id, with the `Q-n` it settles (`submit-a-claim Q-2`). Once that artifact in your inputs says the answer, drop the entry from `upstream`. Never revise that artifact yourself.
 
+    With `base` and `changes` bound, this run applies answers given downstream (each `<artifact id> Q-n: <resolution>`) to the harness as it stands: keep every level, add or change only what the answers ask, a level, its seed test or its conventions, set up in the repository and run green like any other.
+
     With `previous` and `feedback` bound, the seed run, its check or the human refused the last harness: a finding naming a level is fixed in the repository and in the record; one answering a `Q-n` gives that question its `resolution`, in the finding's words, and whatever the answer changes. Change nothing else.
 ---
 # How an agent designs the test cases of one Spec before it is built (39-test-process.md).
