@@ -183,6 +183,11 @@ $defs:
               where: {type: string, minLength: 1, description: "a CEL bool over the site's roots and `content`, the revision tested"}
         required: [fromQuery]
         additionalProperties: false
+      - properties:
+          first: {type: array, minItems: 2, items: {$ref: "#/$defs/Binding"}, description: "the first alternative whose source is present; absent when none is"}
+          onMissing: true
+        required: [first]
+        additionalProperties: false
 
   Bindings:
     type: object

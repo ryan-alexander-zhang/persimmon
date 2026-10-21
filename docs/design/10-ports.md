@@ -55,10 +55,11 @@ Equality: `kind` and every field equal after expanding `$ref`. No subtyping.
 | `{expression: <cel>}` | CEL result, a `value` port | anywhere |
 | `{fromEvent: <root path>}` | engine projection of the Outbox event; roots per event kind in `16-trigger.md` | Trigger only |
 | `{fromArtifact: {kind: {apiVersion, kind}, id: <cel>}}` | the latest committed revision, in the run's Namespace, of the artifact whose id the expression yields; an `artifact` port of that kind; absent when no revision exists | Workflow steps, `repeat` bindings, `outputBindings`; never a Gate, Trigger or Task output `id` |
+| `{first: [Binding, Binding, …]}` | the first alternative whose source is present, in order; absent when none is; every alternative of one type, so an output comes from whichever of two exclusive paths ran | Workflow steps, output bindings |
 | `{fromQuery: {kind: {apiVersion, kind}, where: <cel>}}` | every id of that kind in the run's Namespace, at its latest committed revision, for which `where` holds, ordered by id; an `artifacts` port of that kind; `where` reads the site's roots and `content`, the revision tested; none matching is an empty list, never absent, so no `onMissing`; a `where` that throws on a revision (an unguarded optional field: `has(content.x)`) or answers no bool fails the bind, naming the revision | Workflow steps, `repeat` bindings, `outputBindings`; never a Gate, Trigger or Task output `id` |
 
 `onMissing: omit` on `fromInput`, `fromStep`, `fromState`, `fromIterationOutput`, `fromEvent`,
-`fromArtifact`: skip the port when the source is absent; optional inputs only. An input is optional
+`fromArtifact`, `first` (never on an alternative inside it): skip the port when the source is absent; optional inputs only. An input is optional
 when `required` is `false` or an expression: what the expression decides, only the run's values can
 tell, so every static rule on required inputs treats it as optional and the bind refuses the run.
 
@@ -104,7 +105,7 @@ Values enter CEL typed by the port schema: `integer` → `int`, `number` → `do
 | `default.kind` equals `type.kind` | static checker |
 | `value.schema` carries no `$ref` outside the well-known set, at any depth | static checker |
 | producer type equals consumer type; `literal` and `expression` feed `value` ports only; `fromArtifact` produces an `artifact` of its `kind`, and its `id` expression type-checks as a string at the site; `fromQuery` produces an `artifacts` of its `kind`, and its `where` type-checks as a `bool` (or `dyn`) at the site plus `content` | static checker |
-| a Binding reads only causal predecessors in scope | static checker |
+| a Binding reads only causal predecessors in scope; a `first` alternative too, each checked as a Binding of its own, and all its alternatives agree on the type | static checker |
 | `fromState`, `fromIterationOutput` only inside `repeat`; `fromEvent` only in Trigger | static checker |
 | `onMissing: omit` only on optional inputs, never in output bindings | static checker |
 | every `expression` parses and type-checks against its site's environment; a `required` expression against the definition's own `inputs`, as `bool`; never on a `repeat` state var (`11-workflow.md`) | static checker |

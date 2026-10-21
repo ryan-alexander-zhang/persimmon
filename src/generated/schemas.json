@@ -3418,6 +3418,23 @@
        "fromQuery"
       ],
       "additionalProperties": false
+     },
+     {
+      "properties": {
+       "first": {
+        "type": "array",
+        "minItems": 2,
+        "items": {
+         "$ref": "#/$defs/Binding"
+        },
+        "description": "the first alternative whose source is present; absent when none is"
+       },
+       "onMissing": true
+      },
+      "required": [
+       "first"
+      ],
+      "additionalProperties": false
      }
     ]
    },

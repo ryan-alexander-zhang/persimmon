@@ -166,6 +166,14 @@ export function evaluateBinding(b: Binding, s: Sources, site: Site): RuntimeValu
   if ('fromState' in b) return s.state?.[b.fromState]
   if ('fromIterationOutput' in b) return s.iteration?.outputs?.[b.fromIterationOutput]
   if ('expression' in b) return { kind: 'value', value: site.evaluate(b.expression, celContext(s)) }
+  if ('first' in b) {
+    // the first alternative with a source: an output that one of two exclusive paths made (10-ports.md)
+    for (const alt of b.first) {
+      const v = evaluateBinding(alt, s, site)
+      if (v) return v
+    }
+    return undefined
+  }
   if ('fromArtifact' in b) {
     const id = site.evaluate(b.fromArtifact.id, celContext(s))
     if (typeof id !== 'string') throw new PortError(`fromArtifact: id ${JSON.stringify(id)} is not a string`)

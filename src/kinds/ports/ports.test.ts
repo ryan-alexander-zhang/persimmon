@@ -141,7 +141,11 @@ describe('bindings', () => {
       p6: { kind: 'value', value: { id: 'checkout-v2' } },
       p7: { kind: 'value', value: 'x' },
       p8: { kind: 'artifact', ref: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement', namespace: 'demo', id: 'checkout-v2', revision: 3 } }, // the latest revision, not the input's r1
+      p9: report, // first: the state is absent, the research report is the first source present
     })
+    // first with no source present is absent, as one Binding is
+    expect(() => bind({ x: { first: [{ fromState: 'draft' }, { fromStep: { stepRef: 'gone', output: 'report' } }] } }, sources, site)).toThrow(/x: source absent/)
+    expect(bind({ x: { first: [{ fromState: 'draft' }, { fromStep: { stepRef: 'gone', output: 'report' } }], onMissing: 'omit' } }, sources, site)).toEqual({})
     // no revision of that id: absent; no lookup at the site: absent; an id that is no string: an error
     const gone = { fromArtifact: { kind: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement' }, id: '"nope"' } }
     expect(() => bind({ x: gone }, sources, site)).toThrow(/x: source absent/)

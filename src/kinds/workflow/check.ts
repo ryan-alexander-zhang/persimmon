@@ -133,6 +133,16 @@ export function checkWorkflow(spec: WorkflowSpec, resolve: Resolve): Finding[] {
       }
       return { kind: 'artifact', artifactKind: b.fromArtifact.kind }
     }
+    if ('first' in b) {
+      // every alternative is checked as a binding of its own and all agree on the type; a predecessor one path skips may be absent here by design
+      const types = b.first.map((alt, i) => {
+        if (alt.onMissing) bad(`${path}/first/${i}`, 'onMissing inside first; put it on first')
+        return bindingType(alt, step, visible, `${path}/first/${i}`)
+      })
+      const t0 = types.find((t) => t !== undefined)
+      for (const [i, t] of types.entries()) if (t && t0 && !(t === 'value' ? t0 === 'value' : t0 !== 'value' && sameType(t, t0))) bad(`${path}/first/${i}`, 'alternatives differ in type')
+      return t0
+    }
     if ('fromQuery' in b) {
       try {
         const type = siteFor(visible, step).extend({ content: {} }).check(b.fromQuery.where) // `content` is the revision tested, dyn: its fields show at bind

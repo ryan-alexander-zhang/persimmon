@@ -59,6 +59,12 @@ describe('checkWorkflow', () => {
     const t = linear()
     t.steps[1]!.inputs = { research: { fromInput: 'repository' } }
     expect(checkWorkflow(t, resolve).map((f) => f.message)).toEqual(['producer type differs from consumer type'])
+    // first: each alternative is a Binding of its own, all of one type, none with onMissing
+    const f = linear()
+    f.steps[1]!.inputs = { research: { first: [{ fromStep: { stepRef: 'research', output: 'report' } }, { fromStep: { stepRef: 'research', output: 'report' } }] } }
+    expect(checkWorkflow(f, resolve)).toEqual([])
+    f.steps[1]!.inputs = { research: { first: [{ fromStep: { stepRef: 'research', output: 'report' } }, { fromInput: 'repository', onMissing: 'omit' }] } }
+    expect(checkWorkflow(f, resolve).map((f) => [f.path, f.message])).toEqual([['/spec/steps/1/inputs/research/first/1', 'onMissing inside first; put it on first'], ['/spec/steps/1/inputs/research/first/1', 'alternatives differ in type']])
     // fromArtifact: the kind is the producer type, the id expression must be a string at the site
     const byId = linear()
     byId.steps[1]!.inputs = { research: { fromArtifact: { kind: report.artifactKind, id: '"research-" + inputs.repository.id' } } }

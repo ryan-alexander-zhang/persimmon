@@ -8,3 +8,4 @@
 - {fromEvent: artifact}                                                         # artifactPublished root
 - {fromEvent: content.targetPrd}
 - {fromArtifact: {kind: {apiVersion: engineering.persimmon.ai/v1, kind: ProductRequirement}, id: "inputs.prd.id"}, onMissing: omit}  # the latest revision of that id
+- {first: [{fromState: draft}, {fromStep: {stepRef: research, output: report}}]}  # the first source present: the state's draft, else the research report
