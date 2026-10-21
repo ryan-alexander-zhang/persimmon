@@ -84,8 +84,9 @@ every run of the used kind in the run's Namespace with the same snapshot digest,
 `<kind>Ref` names the step's `uses`, whose `spec.inputs` equal the bound inputs except the ports
 `ignore` lists, whose phase is Succeeded and whose outputs satisfy `when` (CEL over `outputs`;
 default true). The newest one is reused: the step is Succeeded at once with that run's outputs,
-`steps.<id>.runRef` and `steps.<id>.reusedFrom` name it, `steps.<id>.outputs` holds its outputs,
-and no child is created. A `repeat` iteration is looked up the same way, one lookup per
+`steps.<id>.runRef` and `steps.<id>.reusedFrom` name it, `steps.<id>.reused` lists every reuse by
+iteration (`persimmon tree` prints each as `reused`, since the run is no child of this one),
+`steps.<id>.outputs` holds its outputs, and no child is created. A `repeat` iteration is looked up the same way, one lookup per
 iteration, so a loop over capabilities redoes only the ones whose inputs changed.
 
 | Field | Rule |

@@ -44,7 +44,7 @@ export async function tree(cli: Cli, ref: string, o: Where = {}): Promise<number
   )
 }
 
-export type Status = { phase?: string; waitingReason?: string; error?: { code: string; message: string }; outputs?: Record<string, Output>; result?: Verdict; attempts?: { finishedAt?: string }[] }
+export type Status = { phase?: string; waitingReason?: string; error?: { code: string; message: string }; outputs?: Record<string, Output>; result?: Verdict; attempts?: { finishedAt?: string }[]; steps?: Record<string, { reused?: { iteration?: number; runRef: { kind: string; name: string } }[] }> }
 type Output = { kind: string; ref?: { kind: string; id: string; revision: number }; refs?: { kind: string; id: string; revision: number }[]; value?: unknown }
 type Verdict = { passed: boolean; findings?: { severity: string; code?: string; message: string }[] }
 interface Row {
@@ -71,6 +71,9 @@ export function renderTree(engine: Engine, root: Resource): string[] {
     const s = (node.status ?? {}) as Status
     rows.push({ left: `${branch}${parts.join('   ')}`, state: stateOf(node, s), duration: elapsed(engine, node, now), extra: extraLines(engine, node, s), extraPrefix: `${child}   ` })
     const kids = ownedBy(engine, node)
+    // a memo step's reused runs are no children of this run; they are listed where their iteration would be (11-workflow.md)
+    const reused = Object.entries(s.steps ?? {}).flatMap(([id, st]) => (st.reused ?? []).map((r) => ({ id, ...r })))
+    reused.forEach((r, i) => rows.push({ left: `${child}${i === reused.length - 1 && !kids.length ? '└─ ' : '├─ '}${r.iteration ? `${r.id}-${r.iteration}` : r.id}   ${r.runRef.kind}`, state: 'reused', duration: '', extra: [`from ${r.runRef.kind}/${r.runRef.name}`], extraPrefix: `${child}   ` }))
     kids.forEach((k, i) => walk(k, node, child, i === kids.length - 1))
   }
   walk(root, undefined, '', true)

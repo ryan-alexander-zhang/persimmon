@@ -5310,6 +5310,26 @@
               ]
              },
              "description": "each finished repeat iteration's outputs, by index; null while a parallel iteration still runs"
+            },
+            "reused": {
+             "type": "array",
+             "description": "every earlier run a memo step reused, by iteration",
+             "items": {
+              "type": "object",
+              "required": [
+               "runRef"
+              ],
+              "additionalProperties": false,
+              "properties": {
+               "iteration": {
+                "type": "integer",
+                "minimum": 1
+               },
+               "runRef": {
+                "$ref": "resource.yaml#/$defs/ObjectRef"
+               }
+              }
+             }
             }
            }
           }

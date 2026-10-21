@@ -164,7 +164,8 @@ export function workflowHandler(deps: HandlerDeps): HandlerImpl {
         if (earlier) {
           // the work was done: the step is Succeeded with that run's outputs and no child starts (11-workflow.md memo)
           const { uid: _e, ...ref } = refOf(earlier.run)
-          steps[step.id] = { ...(parallel ? steps[step.id]! : steps[step.id]?.results ? { results: steps[step.id]!.results! } : {}), phase: parallel ? (steps[step.id]!.phase === 'Pending' ? 'Running' : steps[step.id]!.phase) : 'Succeeded', runRef: ref, reusedFrom: ref, ...(parallel ? {} : { outputs: earlier.outputs }), deadline: rfc3339(deadline), ...(iteration ? { iteration } : {}), ...(state ? { state } : {}) }
+          const reused = [...(steps[step.id]?.reused ?? []), { ...(iteration ? { iteration } : {}), runRef: ref }]
+          steps[step.id] = { ...(parallel ? steps[step.id]! : steps[step.id]?.results ? { results: steps[step.id]!.results! } : {}), phase: parallel ? (steps[step.id]!.phase === 'Pending' ? 'Running' : steps[step.id]!.phase) : 'Succeeded', runRef: ref, reusedFrom: ref, reused, ...(parallel ? {} : { outputs: earlier.outputs }), deadline: rfc3339(deadline), ...(iteration ? { iteration } : {}), ...(state ? { state } : {}) }
           succeeded(step.id, earlier.outputs, iteration)
           return
         }
@@ -173,7 +174,7 @@ export function workflowHandler(deps: HandlerDeps): HandlerImpl {
         const resource: Resource = { apiVersion: runRef.apiVersion, kind: runRef.kind, metadata: { name, namespace: ns }, spec: childSpec(u.contract.runKind.kind, step, inputs, address, deadline, now, run) }
         actions.push({ type: 'createResource', resource, snapshot: 'inherit', owned: true })
         if (parallel) steps[step.id] = { ...steps[step.id]!, phase: 'Running', runRef, deadline: rfc3339(deadline), iteration: iteration!, ...(state ? { state } : {}), active: [...(steps[step.id]!.active ?? []), { iteration: iteration!, runRef }] } // iteration and state: the last started, so `next` goes on from it
-        else steps[step.id] = { phase: 'Pending', runRef, deadline: rfc3339(deadline), ...(iteration ? { iteration } : {}), ...(state ? { state } : {}), ...(steps[step.id]?.results ? { results: steps[step.id]!.results! } : {}) } // the child reports its phase through ChildFinished; the state is kept for `next`, the earlier rounds' results too
+        else steps[step.id] = { phase: 'Pending', runRef, deadline: rfc3339(deadline), ...(iteration ? { iteration } : {}), ...(state ? { state } : {}), ...(steps[step.id]?.results ? { results: steps[step.id]!.results! } : {}), ...(steps[step.id]?.reused ? { reused: steps[step.id]!.reused! } : {}) } // the child reports its phase through ChildFinished; the state is kept for `next`, the earlier rounds' results and reuses too
       }
 
       /** A repeat step starts: round one, and a parallel one as many as it may run at once. */

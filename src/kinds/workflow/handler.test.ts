@@ -235,7 +235,7 @@ describe('workflow Handler', () => {
     const all = run('per-item', { items: { kind: 'value', value: ['a'] } }, 'memo2')
     const done = h.reconcile(input(all, { type: 'Created', dedupeKey: 'created' })) as ReconcileResult
     expect(created(done)).toEqual([])
-    expect(clean(done.statusPatch)).toMatchObject({ phase: 'Succeeded', outputs: { last: { kind: 'value', value: 'A1' } }, steps: { each: { phase: 'Succeeded', reusedFrom: { kind: 'TaskRun', name: 'new-a' }, outputs: { echo: { kind: 'value', value: 'A1' } } } } })
+    expect(clean(done.statusPatch)).toMatchObject({ phase: 'Succeeded', outputs: { last: { kind: 'value', value: 'A1' } }, steps: { each: { phase: 'Succeeded', reusedFrom: { kind: 'TaskRun', name: 'new-a' }, reused: [{ iteration: 1, runRef: { kind: 'TaskRun', name: 'new-a' } }], outputs: { echo: { kind: 'value', value: 'A1' } } } } })
     // ignore: an input left out of the comparison
     Object.assign(wf.spec.steps[0]!, { memo: { ignore: ['item'] } })
     const any = h.reconcile(input(run('per-item', { items: { kind: 'value', value: ['z'] } }, 'memo3'), { type: 'Created', dedupeKey: 'created' })) as ReconcileResult

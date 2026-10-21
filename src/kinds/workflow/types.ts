@@ -85,6 +85,8 @@ export interface StepStatus {
   outputs?: RuntimeValues
   /** a parallel repeat's running iterations */
   active?: { iteration: number; runRef: ObjectRef }[]
+  /** every earlier run a memo step reused, by iteration, so the tree shows the work this run carried */
+  reused?: { iteration?: number; runRef: ObjectRef }[]
   /** each finished iteration's outputs, by index; null while a parallel iteration still runs */
   results?: (RuntimeValues | null)[]
 }
