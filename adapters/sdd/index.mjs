@@ -86,7 +86,7 @@ function evaluate(payload) {
     return done(payload, findings, artifacts.testDesign)
   }
   if (artifacts.harness) {
-    const findings = checkHarness({ harness: required(artifacts, 'harness'), seed: artifacts.seed?.content, levelOutcomes: (artifacts.levelOutcomes ?? []).map((a) => a.content), designs: boundDesigns(payload, artifacts), ids: { architecture: payload.inputs?.architecture?.ref?.id } })
+    const findings = checkHarness({ harness: required(artifacts, 'harness'), seed: artifacts.seed?.content, levelOutcomes: (artifacts.levelOutcomes ?? []).map((a) => a.content), designs: boundDesigns(payload, artifacts), base: artifacts.base?.content, ids: { architecture: payload.inputs?.architecture?.ref?.id } })
     return done(payload, findings, artifacts.harness)
   }
   if (artifacts.plan) {

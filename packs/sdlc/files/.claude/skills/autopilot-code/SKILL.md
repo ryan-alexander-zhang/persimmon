@@ -81,7 +81,7 @@ After the last task the TestReport follows (`persimmon get TestReport/<plan>-tes
 verdict and every residual risk go in the report.
 
 `setup-tests` warned `level-deferred` and this `build-all` built the screens of the `ui` Design it
-names: before the next Plan, run `setup-tests` again with the same inputs, which adds the `e2e`
+names: before the next Plan, run `setup-tests` again with the same inputs and `base` the TestHarness, which adds the `e2e`
 level, then `test-design-one` for each Spec with a screen case, `base` its TestDesign, so those
 cases move to `e2e`. Once per Autopilot run.
 

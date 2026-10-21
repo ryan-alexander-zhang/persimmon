@@ -1046,6 +1046,7 @@ spec:
     adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}, required: false}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false}
     repository: {type: {kind: externalResource, provider: git, type: repository}}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, required: false}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
   outputs:
@@ -1065,6 +1066,7 @@ spec:
         adrs: {fromInput: adrs, onMissing: omit}
         designs: {fromInput: designs, onMissing: omit}
         repository: {fromInput: repository}
+        base: {fromInput: base, onMissing: omit}
         previous: {fromInput: previous, onMissing: omit}
         feedback: {fromInput: feedback, onMissing: omit}
       timeout: 72h
@@ -1103,6 +1105,7 @@ spec:
     adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}, required: false, description: "the Adrs the Architecture applies"}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "the product's Designs: which levels the project needs"}
     repository: {type: {kind: externalResource, provider: git, type: repository}}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, required: false, description: "the harness before this run, set up again: its levels are kept"}
   produce:
     uses: {kind: Workflow, name: harness-work}
     inputs:
@@ -1110,6 +1113,7 @@ spec:
       adrs: {fromInput: adrs}
       designs: {fromInput: designs}
       repository: {fromInput: repository}
+      base: {fromInput: base, onMissing: omit}
     timeout: 80h
   review:
     uses: {kind: Gate, name: harness-gate}
@@ -1119,6 +1123,7 @@ spec:
       levelOutcomes: {fromStep: {stepRef: produce, output: levelOutcomes}}
       architecture: {fromInput: architecture}
       designs: {fromInput: designs, onMissing: omit}
+      base: {fromInput: base, onMissing: omit}
       previous: {fromInput: previous}
     timeout: 72h
   subject: harness

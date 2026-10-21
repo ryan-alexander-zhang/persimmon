@@ -1090,6 +1090,9 @@ describe('sdd/v1 over the Test process', () => {
     const deferred = checkHarness({ harness, seed, levelOutcomes: [apiSeed], designs: { 'claims-api': { type: 'http-api' }, 'claims-ui': { type: 'ui' } } })
     expect(deferred).toEqual([{ severity: 'warning', code: 'level-deferred', message: 'claims-ui is a ui Design and the harness has no e2e level: run setup-tests again once the screens are built' }])
     expect(checkHarness({ harness, seed, levelOutcomes: [apiSeed], designs: { 'claims-api': { type: 'http-api' } } })).toEqual([])
+    // set up again: the levels of base are kept (39-test-process.md)
+    expect(checkHarness({ harness: { ...harness, levels: { unit: harness.levels.unit } }, seed, levelOutcomes: [], base: harness }).map((f: { code: string }) => f.code)).toEqual(['level-dropped'])
+    expect(checkHarness({ harness, seed, levelOutcomes: [apiSeed], base: { ...harness, levels: { unit: harness.levels.unit } } })).toEqual([]) // a level added
   })
 
   it('selects a task\'s cases by level, and whether the Tester writes this round', () => {

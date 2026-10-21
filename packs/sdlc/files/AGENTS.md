@@ -80,7 +80,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
   `build-all` with `testDesign` and `harness` bound. Each artifact cites upstream only.
   `setup-tests` needs the app's skeleton in the repository: its seed tests run on it. A
   `level-deferred` warning is an `e2e` level waiting for the screens: once a `build-all` has built
-  them, run `setup-tests` again, then `test-design-one` with `base` for the Specs with screen cases.
+  them, run `setup-tests` again with `base` the TestHarness, then `test-design-one` with `base` for the Specs with screen cases.
 - Read an artifact with `persimmon get <Kind>/<id>`; `--files <dir>` exports its representations,
   for a kind that has them. An exported file is a copy: change the artifact through its process, never the copy.
 - A Gate's finding is fixed where it points, upstream; never worked around downstream. A
