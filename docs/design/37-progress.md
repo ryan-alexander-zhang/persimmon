@@ -48,7 +48,7 @@ A rewrite's map: the Rewrite pack's phases before Domain, Recover PRD in the PRD
 ```text
           [Survey]
               │
-         [Inventory]
+      [Slice inventory]
               │
         [Characterize]
               │
@@ -64,7 +64,7 @@ A rewrite's map: the Rewrite pack's phases before Domain, Recover PRD in the PRD
 | Part | Behaviour |
 |---|---|
 | product | a product is a Prd id; a run belongs to every Prd its input and output artifacts reach through `provenance.inputs`, and a run with no Prd upstream but a `productId` input (`author-prd` before its first draft, every Rewrite pack run before `recover-prd`) to `<productId>-prd`, the id the Prd will take; the top bar picks one, the product with a step waiting on you first, then the newest |
-| phase | one node per phase, from the pack's top-level workflows: PRD `author-prd`; Domain `domain-discovery` and its storm and derive workflows; Architecture `architect`; Design system `design-system`; Specs `spec-all`, `spec-one`; Designs `design-all`, `design-one`; Plans `plan-all`, `plan-one`; Test setup `setup-tests`, `harness-work`; Test design `test-design-all`, `test-design-one` (`39-test-process.md`); Build `build-all`, `build-one`; for a rewrite, a product with any Rewrite pack run: Survey `survey`, `survey-work`; Inventory `inventory`, `inventory-work`; Characterize `characterize`, `characterize-work`; Recover PRD `recover-prd`, `recover-work`, in the PRD station's place; Parity `parity`, `parity-work`. A loop's `<name>-round` runs are owned by the loop's run, never top level, so no phase names them |
+| phase | one node per phase, from the pack's top-level workflows: PRD `author-prd`; Domain `domain-discovery` and its storm and derive workflows; Architecture `architect`; Design system `design-system`; Specs `spec-all`, `spec-one`; Designs `design-all`, `design-one`; Plans `plan-all`, `plan-one`; Test setup `setup-tests`, `harness-work`; Test design `test-design-all`, `test-design-one` (`39-test-process.md`); Build `build-all`, `build-one`; for a rewrite, a product with any Rewrite pack run: Survey `survey`, `survey-work`; Slice inventory `inventory`, `inventory-work` (named apart from the SourceInventory the Survey already wrote, its first revision); Characterize `characterize`, `characterize-work`; Recover PRD `recover-prd`, `recover-work`, in the PRD station's place; Parity `parity`, `parity-work`. A loop's `<name>-round` runs are owned by the loop's run, never top level, so no phase names them |
 | state | from the phase's newest run, the map reading top to bottom beside the panel: not started, running (with the review loop's round), waiting on you, approved, rejected after its last round (`passed: false`), failed with its error; a phase with several runs (one per context) says how many are done; a run for a Slice (a `slice` input, `SL-n`) leads its line with the Slice: `SL-2: Round 1, running` |
 | needs you | the only saturated colour on the map: a phase holding a TaskRun parked on a human here; the top bar counts them across products and jumps to the first |
 | edges | as the artifacts cite upstream (`23-pack-sdlc.md`), Architecture to Designs drawn through Design system, a Spec to its TestDesign through Test setup: solid once the upstream phase is done |
