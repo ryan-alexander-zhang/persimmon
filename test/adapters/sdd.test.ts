@@ -1076,6 +1076,20 @@ describe('sdd/v1 over the Test process', () => {
     expect(checkTestDesign({ testDesign: { title: 'x' } }).map((f: { code: string }) => f.code)).toEqual(['not-a-test-design'])
   })
 
+  it('a build scenario no harness level can reach waits on a question on the harness, until a run whose base has it answered', () => {
+    const pending = (q: any) => { const t = td(); t.cases = t.cases.filter((c: any) => c.id !== 'TC-10'); t.openQuestions = [{ id: 'Q-1', ...q }]; return t } // QS-3, proven at build
+    const ask = { question: 'QS-3 is a fitness check; the harness has no level that reads the source', upstream: ['expense-claims-architecture-harness'] }
+    expect(designFindings(pending(ask))).toEqual([]) // open: the human answers it at the Gate
+    expect(designFindings(pending({ ...ask, resolution: 'add a fitness level' }))).toEqual([]) // answered this run: the harness revision comes next
+    expect(designFindings(pending({ ...ask, upstream: ['submit-a-claim'] }))).toEqual([]) // the Spec's gap waits the same
+    expect(designFindings(pending({ ...ask, upstream: undefined }))).toEqual(['scenario-uncovered']) // a question changing nothing upstream excuses nothing
+    expect(designFindings(pending({ ...ask, question: 'which level runs it?' }))).toEqual(['scenario-uncovered']) // naming no scenario
+    expect(designFindings(pending({ ...ask, upstream: ['other-artifact'] }))).toEqual(['scenario-uncovered'])
+    const answered = pending({ ...ask, resolution: 'add a fitness level' })
+    const rerun = checkTestDesign({ testDesign: answered, spec: content('Spec'), architecture: content('Architecture'), rules: content('BusinessRules'), harness: content('TestHarness'), base: answered }).map((f: any) => f.code)
+    expect(rerun).toEqual(['scenario-uncovered']) // answered in base: the harness's revision exists, the case is due
+  })
+
   it('a harness passes when every level ran and its seed test is green', () => {
     const harness = content('TestHarness')
     const seed = unit([{ classname: 'test/claim.test.ts', name: 'claim > a drafted claim starts with no lines', status: 'passed' }])

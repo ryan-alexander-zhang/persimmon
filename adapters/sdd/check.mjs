@@ -578,8 +578,14 @@ export function checkTestDesign({ testDesign, spec, architecture, rules, harness
     const now = anchors(testDesign.cases.find((c) => c.id === b.id))
     if (now.length && !anchors(b).some((v) => now.includes(v))) bad('case-renumbered', `${b.id} verified ${anchors(b).join(', ')} in the TestDesign it replaces and now verifies ${now.join(', ')}: a case keeps its id`)
   }
-  for (const id of acs) if (!verified.has(id)) bad('scenario-uncovered', `${id}: no case verifies it`)
-  for (const id of cited) if (provenAt.get(id) === 'build' && !verified.has(id)) bad('scenario-uncovered', `quality scenario ${id} is proven at build but no case verifies it`)
+  // a scenario a question names, the Spec or the harness in its upstream, waits on that revision while the question is open or
+  // answered in this run; one already answered in `base` does not: by now the revision exists
+  const answeredBefore = new Set((base?.openQuestions ?? []).filter((q) => q.resolution).map((q) => q.id))
+  const upstreams = new Set([testDesign.spec, testDesign.harness])
+  const asks = (testDesign.openQuestions ?? []).filter((q) => !answeredBefore.has(q.id) && (q.upstream ?? []).some((u) => upstreams.has(u.split(' ')[0])))
+  const pending = (id) => asks.some((q) => new RegExp(`\\b${id}\\b`).test(q.question ?? ''))
+  for (const id of acs) if (!verified.has(id) && !pending(id)) bad('scenario-uncovered', `${id}: no case verifies it`)
+  for (const id of cited) if (provenAt.get(id) === 'build' && !verified.has(id) && !pending(id)) bad('scenario-uncovered', `quality scenario ${id} is proven at build but no case verifies it`)
   sequence(bad, 'TC', testDesign.cases.map((c) => c.id))
   sequence(bad, 'Q', (testDesign.openQuestions ?? []).map((q) => q.id))
   return findings
