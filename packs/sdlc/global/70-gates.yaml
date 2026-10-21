@@ -371,6 +371,7 @@ spec:
     levelOutcomes: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestOutcome}}}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, required: false, description: "the last round's harness; round one has none"}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "the Designs setup-tests was given"}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
   validators:
@@ -382,6 +383,7 @@ spec:
         seed: {fromInput: seed}
         levelOutcomes: {fromInput: levelOutcomes}
         architecture: {fromInput: architecture}
+        designs: {fromInput: designs, onMissing: omit}
     - name: confirmed
       ref: {kind: Validator, name: harness-confirmed}
       after: [evidence]   # the human confirms only a harness whose seed tests pass (14-gate.md)

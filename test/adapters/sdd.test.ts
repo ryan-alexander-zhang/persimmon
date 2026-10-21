@@ -1086,6 +1086,10 @@ describe('sdd/v1 over the Test process', () => {
     expect(codes({ ...harness, openQuestions: [{ id: 'Q-1', question: 'Bruno or Hurl?' }] }, seed, [apiSeed])).toEqual([]) // the human's, at the Gate
     expect(codes({ ...harness, architecture: 'other' }, seed, [apiSeed])).toEqual(['architecture-mismatch'])
     expect(codes({ levels: {} }, seed, [])).toEqual(['not-a-harness'])
+    // a ui Design and no e2e level: told, never refused (39-test-process.md)
+    const deferred = checkHarness({ harness, seed, levelOutcomes: [apiSeed], designs: { 'claims-api': { type: 'http-api' }, 'claims-ui': { type: 'ui' } } })
+    expect(deferred).toEqual([{ severity: 'warning', code: 'level-deferred', message: 'claims-ui is a ui Design and the harness has no e2e level: run setup-tests again once the screens are built' }])
+    expect(checkHarness({ harness, seed, levelOutcomes: [apiSeed], designs: { 'claims-api': { type: 'http-api' } } })).toEqual([])
   })
 
   it('selects a task\'s cases by level, and whether the Tester writes this round', () => {

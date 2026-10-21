@@ -502,7 +502,7 @@ export function selectCases({ plan, taskId, spec, testDesign, feedback }) {
 
 /** One TestHarness against the seed runs of its levels (39-test-process.md): every level ran and its seed test is green.
  * `seed`: the unit level's outcome; `levelOutcomes` the others'. `ids`: {architecture} bound. Every finding `error`. */
-export function checkHarness({ harness, seed, levelOutcomes = [], ids = {} }) {
+export function checkHarness({ harness, seed, levelOutcomes = [], designs = {}, ids = {} }) {
   if (!harness?.levels?.unit) return [{ severity: 'error', code: 'not-a-harness', message: 'content is not a TestHarness: it has no levels.unit' }]
   const findings = []
   const bad = (code, message) => findings.push({ severity: 'error', code, message })
@@ -522,6 +522,9 @@ export function checkHarness({ harness, seed, levelOutcomes = [], ids = {} }) {
     if (m.length === 0) bad('seed-missing', `${level}: no test is named ${l.seed}`)
     else if (!m.every((c) => c.status === 'passed')) bad('seed-failed', `${level}: ${l.seed} ${m.find((c) => c.status !== 'passed').status}`)
   }
+  // an e2e level may wait for the screens its seed opens, and is told while it waits (39-test-process.md)
+  const ui = Object.entries(designs).filter(([, d]) => d?.type === 'ui').map(([id]) => id)
+  if (ui.length && !harness.levels.e2e) findings.push({ severity: 'warning', code: 'level-deferred', message: `${ui.join(', ')} ${ui.length > 1 ? 'are ui Designs' : 'is a ui Design'} and the harness has no e2e level: run setup-tests again once the screens are built` })
   return findings
 }
 
