@@ -18,9 +18,12 @@ const PER_ROW = 3;
 
 const byOrder = (a: Context, b: Context) => a.order - b.order || a.id.localeCompare(b.id);
 
-/** Room above a group's contexts for its header, and between groups. */
+/** Room above a group's contexts for its header, and between groups; a box ends
+ *  one context's footprint past its last column and row, not a full grid cell. */
 export const GROUP_PAD = 48;
 export const GROUP_GAP = 40;
+const NODE_W = 220;
+const NODE_H = 90;
 
 /** One row of the map per subdomain (DSL 4.1 `contexts[].subdomain`): the Prd's
  *  problem space, drawn around the contexts that realise it. Groups order by their
@@ -47,8 +50,9 @@ export function contextMapGroups(contexts: Context[]): SubdomainGroup[] {
     const list = bySub.get(subdomain)!;
     const cols = Math.min(list.length, PER_ROW);
     const rows = Math.ceil(list.length / PER_ROW);
-    const h = GROUP_PAD + rows * CONTEXT_ROW_H;
-    const g = { subdomain, contexts: list, box: { x: 0, y, w: cols * CONTEXT_COL_W, h } };
+    const h = GROUP_PAD + (rows - 1) * CONTEXT_ROW_H + NODE_H;
+    const w = (cols - 1) * CONTEXT_COL_W + NODE_W;
+    const g = { subdomain, contexts: list, box: { x: 0, y, w, h } };
     y += h + GROUP_GAP;
     return g;
   });

@@ -14,10 +14,10 @@ export function SubdomainNode({ data }: NodeProps<SubdomainFlowNode>) {
   return (
     <div
       data-testid="subdomain-node"
-      className="rounded-xl border-2 border-dashed border-zinc-300 bg-zinc-50/60"
-      style={{ width: data.w, height: data.h }}
+      className="w-max rounded-xl border-2 border-dashed border-zinc-300 bg-zinc-50/60"
+      style={{ minWidth: data.w, height: data.h }}
     >
-      <div className="flex items-center gap-2 px-3 py-2">
+      <div className="flex items-center gap-2 whitespace-nowrap px-3 py-2">
         <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
           Subdomain
         </span>

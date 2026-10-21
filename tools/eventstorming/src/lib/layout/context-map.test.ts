@@ -58,14 +58,14 @@ describe("contextMapGroups", () => {
     ]);
     expect(groups.map((g) => g.subdomain)).toEqual(["billing", "accounts", undefined]);
     expect(groups[0].contexts.map((c) => c.id)).toEqual(["b", "b2"]);
-    expect(groups[0].box).toEqual({ x: 0, y: 0, w: 2 * CONTEXT_COL_W, h: GROUP_PAD + CONTEXT_ROW_H });
-    expect(groups[1].box.y).toBe(GROUP_PAD + CONTEXT_ROW_H + GROUP_GAP);
+    expect(groups[0].box).toEqual({ x: 0, y: 0, w: CONTEXT_COL_W + 220, h: GROUP_PAD + 90 });
+    expect(groups[1].box.y).toBe(GROUP_PAD + 90 + GROUP_GAP);
   });
 
   it("places each context inside its group's box, under the header", () => {
     const pos = contextMapPositions([ctx("a", 0, "accounts"), ctx("b", 1, "billing")]);
     expect(pos.get("a")).toEqual({ x: 0, y: GROUP_PAD });
-    expect(pos.get("b")).toEqual({ x: 0, y: GROUP_PAD + CONTEXT_ROW_H + GROUP_GAP + GROUP_PAD });
+    expect(pos.get("b")).toEqual({ x: 0, y: GROUP_PAD + 90 + GROUP_GAP + GROUP_PAD });
   });
 });
 
