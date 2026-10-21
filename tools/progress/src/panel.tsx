@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import * as api from "./api";
 import { DocView } from "./doc";
 import { type RevisionRef, type Schema, words } from "./lib/document";
-import { type PhaseView, roundOf, type State } from "./lib/flow";
+import { type PhaseView, roundOf, sliceOf, type State } from "./lib/flow";
 import { Glyph } from "./map";
 import { Review } from "./review";
 
@@ -61,6 +61,7 @@ export function Panel({ view, onClose, onAnswered }: { view: PhaseView; onClose:
               <div className="mb-5 flex flex-wrap gap-1.5" role="tablist" aria-label="Runs">
                 {view.runs.map((r, i) => (
                   <button key={r.name} role="tab" aria-selected={i === runIndex} onClick={() => setRunIndex(i)} className={`rounded-full px-3 py-1 text-[13px] ${i === runIndex ? "bg-ink text-white" : "bg-line-2 text-ink-2 hover:text-ink"}`}>
+                    {sliceOf(r) ? `${sliceOf(r)}, ` : ""}
                     {new Date(r.created).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                   </button>
                 ))}

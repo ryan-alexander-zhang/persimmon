@@ -17,10 +17,12 @@ export function Map({ views, selected, onSelect }: { views: PhaseView[]; selecte
   const state = (id: string) => views.find((v) => v.phase.id === id)?.state;
   const edges = useMemo<Edge[]>(
     () =>
-      flowEdges.map(([from, to]) => {
-        const reached = state(from) === "done";
-        return { id: `${from}-${to}`, source: from, target: to, type: "smoothstep", style: { stroke: reached ? "var(--color-ink-2)" : "var(--color-line)", strokeWidth: 1.5, strokeDasharray: reached ? undefined : "5 5" } };
-      }),
+      flowEdges
+        .filter(([from, to]) => state(from) && state(to)) // a rewrite's map and an idea's draw different stations
+        .map(([from, to]) => {
+          const reached = state(from) === "done";
+          return { id: `${from}-${to}`, source: from, target: to, type: "smoothstep", style: { stroke: reached ? "var(--color-ink-2)" : "var(--color-line)", strokeWidth: 1.5, strokeDasharray: reached ? undefined : "5 5" } };
+        }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [views],
   );

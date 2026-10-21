@@ -1,7 +1,7 @@
 // Progress (37-progress.md): the product picker, the map, and the panel of the phase you open.
 import { useCallback, useEffect, useMemo, useState } from "react";
 import * as api from "./api";
-import { products, phases, type Run, view } from "./lib/flow";
+import { phasesOf, products, type Run, view } from "./lib/flow";
 import { Map } from "./map";
 import { Panel } from "./panel";
 
@@ -40,8 +40,8 @@ export function App() {
     if (product) history.replaceState(null, "", `#${product}${phase ? `/${phase}` : ""}`);
   }, [product, phase]);
 
-  const views = useMemo(() => (runs && product ? phases.map((p) => view(p, product, runs)) : []), [runs, product]);
-  const waiting = useMemo(() => all.map((p) => ({ product: p, phase: phases.map((ph) => view(ph, p, runs ?? [])).find((v) => v.state === "needs-you") })).filter((w) => w.phase), [all, runs]);
+  const views = useMemo(() => (runs && product ? phasesOf(product, runs).map((p) => view(p, product, runs)) : []), [runs, product]);
+  const waiting = useMemo(() => all.map((p) => ({ product: p, phase: phasesOf(p, runs ?? []).map((ph) => view(ph, p, runs ?? [])).find((v) => v.state === "needs-you") })).filter((w) => w.phase), [all, runs]);
   const reviews = waiting.every((w) => w.phase!.runs.every((r) => r.parked.every((t) => t.verdict)));
   const open = views.find((v) => v.phase.id === phase);
 

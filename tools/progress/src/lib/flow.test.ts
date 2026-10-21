@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { edges, phases, products, productsOf, type Run, view } from "./flow";
+import { edges, phases, phasesOf, products, productsOf, type Run, view } from "./flow";
 
 const run = (o: Partial<Run>): Run => ({ namespace: "default", name: "r", workflow: "author-prd", phase: "Running", created: "2026-10-20T01:00:00Z", steps: {}, inputs: {}, outputs: {}, upstream: [], parked: [], ...o });
 const phase = (id: string) => phases.find((p) => p.id === id)!;
@@ -9,6 +9,13 @@ describe("productsOf", () => {
     expect(productsOf(run({ workflow: "architect", upstream: [{ kind: "Prd", id: "claims-prd" }, { kind: "BusinessRules", id: "claims-rules" }] }))).toEqual(["claims-prd"]);
     expect(productsOf(run({ inputs: { productId: { kind: "value", value: "claims" } } }))).toEqual(["claims-prd"]);
     expect(productsOf(run({ workflow: "design-check" }))).toEqual([]);
+  });
+
+  it("puts a rewrite under the Prd id recover-prd will give, until its runs cite that Prd", () => {
+    const stem = { productId: { kind: "value", value: "jpetstore" } };
+    expect(productsOf(run({ workflow: "survey", inputs: stem }))).toEqual(["jpetstore-prd"]);
+    expect(productsOf(run({ workflow: "inventory", inputs: stem, upstream: [{ kind: "SourceInventory", id: "jpetstore-inventory" }] }))).toEqual(["jpetstore-prd"]);
+    expect(productsOf(run({ workflow: "parity", inputs: stem, upstream: [{ kind: "Prd", id: "jpetstore-prd" }] }))).toEqual(["jpetstore-prd"]);
   });
 
   it("orders products with a step waiting on you first, then the most recent", () => {
@@ -45,9 +52,37 @@ describe("view", () => {
     expect(edges.filter(([from, to]) => to === "build" || from.startsWith("test-"))).toEqual([["plans", "build"], ["test-setup", "test-design"], ["test-design", "build"]]);
   });
 
+  it("leads a run for a Slice with its Slice", () => {
+    const slice = (s: string, created: string, o: Partial<Run> = {}) => run({ workflow: "inventory", upstream: prd, inputs: { slice: { kind: "value", value: s } }, created, ...o });
+    expect(view(phase("inventory"), "p", [slice("SL-1", "2026-10-20T00:00:00Z", { phase: "Succeeded", outputs: { passed: { kind: "value", value: true }, rounds: { kind: "value", value: 1 } } }), slice("SL-2", "2026-10-21T00:00:00Z", { steps: { rounds: { phase: "Pending", iteration: 1 } } })])).toMatchObject({
+      state: "running",
+      detail: "SL-2: Round 1, running",
+    });
+    expect(view(phase("survey"), "p", [run({ workflow: "survey", upstream: prd, steps: { rounds: { phase: "Running", iteration: 1 } }, parked: [{ taskRun: "t", task: "cut-slices", verdict: false }] })])).toMatchObject({ state: "needs-you", detail: "Round 1, your input" });
+  });
+
   it("takes only the product's runs of the phase's workflows", () => {
     const other = run({ workflow: "architect", upstream: [{ kind: "Prd", id: "q" }] });
     expect(view(phase("architecture"), "p", [other]).state).toBe("idle");
     expect(view(phase("architecture"), "q", [other]).state).toBe("running");
+  });
+});
+
+describe("phasesOf", () => {
+  const ids = (ps: { id: string }[]) => ps.map((p) => p.id);
+  const sdlc = ["prd", "domain", "architecture", "specs", "design-system", "designs", "plans", "test-setup", "test-design", "build"];
+  it("is the SDLC phases for a product from an idea", () => expect(ids(phasesOf("p", [run({ upstream: [{ kind: "Prd", id: "p" }] })]))).toEqual(sdlc));
+
+  it("frames a rewrite's SDLC phases with the Rewrite pack's, Recover PRD in the PRD station's place", () => {
+    const survey = run({ workflow: "survey", inputs: { productId: { kind: "value", value: "jp" } } });
+    expect(ids(phasesOf("jp-prd", [survey]))).toEqual(["survey", "inventory", "characterize", "recover", ...sdlc.slice(1), "parity"]);
+    expect(phasesOf("other", [survey]).map((p) => p.id)).toEqual(sdlc);
+    expect(edges.filter(([from, to]) => [from, to].some((id) => ["survey", "inventory", "characterize", "recover", "parity"].includes(id)))).toEqual([
+      ["survey", "inventory"],
+      ["inventory", "characterize"],
+      ["characterize", "recover"],
+      ["recover", "domain"],
+      ["build", "parity"],
+    ]);
   });
 });
