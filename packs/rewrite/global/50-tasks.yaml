@@ -136,9 +136,11 @@ spec:
   action:
     instructions: |
       Read the Slice `slice` of the Source system in your working directory, its entry points as the ledger's `slices` cut
-      them, following the reading method and the inventory rules in your context. Answer the inventory's next revision:
-      `base` whole, every id kept, plus the Slice's items, `slice` set to the Slice. Start from `previous` when bound, and
-      fix what `feedback` found and nothing else.
+      them, following the reading method and the inventory rules in your context. First list every file those entry
+      points reach (`reaches.files` of each in `base`, in every checkout), then read each one: the check refuses an
+      inventory that leaves a branch of any of them outside a guard. Answer the inventory's next revision: `base` whole,
+      every id kept, plus the Slice's items, `slice` set to the Slice. Start from `previous` when bound, and fix what
+      `feedback` found and nothing else.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: source-reading}}
       - {kind: prompt, ref: {kind: Prompt, name: inventory-rules}}
