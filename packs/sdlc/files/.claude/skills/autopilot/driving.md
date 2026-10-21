@@ -115,9 +115,14 @@ answer and the artifact as the revision the developer owes before resuming.
 Stop and report, never work around it, when:
 
 - a run ends Failed, or prints a reconcile error (`PERSIMMON_DEBUG=1` shows it);
-- a ReviewLoop runs out of rounds a second time. The first time, start the same Workflow again
-  over only what did not pass (the capabilities, blocks or tasks left), with the same inputs: a
-  loop's agent may pass from a fresh start, and its Gate still judges;
+- a ReviewLoop runs out of rounds a second time. The first time, continue it from its last round,
+  so the answers its Reviewer gave there reach the artifact: run the loop that ran out itself (the
+  `-one` loop of the capability, block or task, or the top-level loop) with the inputs that run had
+  (`persimmon describe WorkflowRun/<loop run>`), plus `previous`, the last round's subject as one
+  artifact; `feedback`, the `value` of its review's result (`persimmon get
+  GateRun/<loop run>-rounds-<n>-review`, `status.outputs.result`), in a file passed with `@`; and
+  each input its `carry` names (`persimmon get ReviewLoop/<name>`) from that round's output. Once it
+  passes, start the `-all` Workflow again over what came after it;
 - a subagent's answer is refused twice for the same form;
 - an `Issue`'s fix fails its Gate (`autopilot-code`).
 - a Spec revision fails its Gate (Upstream answers, above).
