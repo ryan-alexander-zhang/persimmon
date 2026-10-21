@@ -1090,6 +1090,20 @@ describe('sdd/v1 over the Test process', () => {
     expect(rerun).toEqual(['scenario-uncovered']) // answered in base: the harness's revision exists, the case is due
   })
 
+  it('a case its Plan task cannot run yet waits on a question to the Plan, until a run whose base has it answered', () => {
+    const late = (q?: any) => { const t = td(); t.cases[0].steps.push({ action: 'POST /claims/{claimId}/submission' }); if (q) t.openQuestions = [{ id: 'Q-1', ...q }]; return t } // TC-1 is T-1's; T-3 builds submission
+    const check = (testDesign: any, base?: any) => checkTestDesign({ testDesign, spec: content('Spec'), architecture: content('Architecture'), rules: content('BusinessRules'), harness: content('TestHarness'), plan: content('Plan'), designs: { 'claims-api': content('Design') }, base, ids: { spec: 'submit-a-claim', harness: 'expense-claims-architecture-harness', plan: 'submit-a-claim-plan' } }).map((f: any) => f.code)
+    const ask = { question: 'TC-1 observes the submission T-3 builds: move AC-1 to T-3?', upstream: ['submit-a-claim-plan'] }
+    expect(check(late())).toEqual(['step-premature'])
+    expect(check(late(ask))).toEqual([]) // open: the human answers it at the Gate
+    expect(check(late({ ...ask, question: 'AC-1 needs what T-3 builds' }))).toEqual([]) // named by its scenario
+    expect(check(late({ ...ask, resolution: 'move AC-1 to T-3' }))).toEqual([]) // answered this run: the Plan revision comes next
+    expect(check(late({ ...ask, upstream: undefined }))).toEqual(['step-premature'])
+    expect(check(late({ ...ask, question: 'which task?' }))).toEqual(['step-premature'])
+    const answered = late({ ...ask, resolution: 'move AC-1 to T-3' })
+    expect(check(answered, answered)).toEqual(['step-premature']) // answered in base: the Plan's revision exists, the case is due
+  })
+
   it('a harness passes when every level ran and its seed test is green', () => {
     const harness = content('TestHarness')
     const seed = unit([{ classname: 'test/claim.test.ts', name: 'claim > a drafted claim starts with no lines', status: 'passed' }])

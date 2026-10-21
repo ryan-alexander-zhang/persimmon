@@ -535,7 +535,7 @@ export function checkHarness({ harness, seed, levelOutcomes = [], designs = {}, 
 /** One TestDesign against its Spec, the Architecture's quality scenarios, the BusinessRules, the TestHarness and the Plan
  * (39-test-process.md): an api step's `METHOD /path` is a Design element its case's task, or one before it, realises.
  * `designs` maps a Design id to its content; `base`, the TestDesign this one replaces, whose ids it keeps. `ids`: {spec,
- * harness} bound. Every finding `error`. */
+ * harness, plan} bound. Every finding `error`. */
 export function checkTestDesign({ testDesign, spec, architecture, rules, harness, plan, designs = {}, base, ids = {} }) {
   if (!testDesign || !Array.isArray(testDesign.cases) || !testDesign.spec) {
     return [{ severity: 'error', code: 'not-a-test-design', message: 'content is not a TestDesign: it has no cases array or no spec' }]
@@ -557,6 +557,12 @@ export function checkTestDesign({ testDesign, spec, architecture, rules, harness
       if (name && !realisedAt.has(name)) realisedAt.set(name, i)
     }
   })
+  // a case or scenario a question names, the Spec, the harness or the Plan in its upstream, waits on that revision while the
+  // question is open or answered in this run; one already answered in `base` does not: by now the revision exists
+  const answeredBefore = new Set((base?.openQuestions ?? []).filter((q) => q.resolution).map((q) => q.id))
+  const upstreams = new Set([testDesign.spec, testDesign.harness, ids.plan].filter(Boolean))
+  const asks = (testDesign.openQuestions ?? []).filter((q) => !answeredBefore.has(q.id) && (q.upstream ?? []).some((u) => upstreams.has(u.split(' ')[0])))
+  const pending = (...named) => asks.some((q) => named.some((id) => new RegExp(`\\b${id}\\b`).test(q.question ?? '')))
   const verified = new Set()
   for (const c of testDesign.cases) {
     for (const v of c.verifies ?? []) {
@@ -568,7 +574,7 @@ export function checkTestDesign({ testDesign, spec, architecture, rules, harness
     if ((c.level === 'api' || c.level === 'e2e' || c.execution === 'manual') && !(c.steps ?? []).length) bad('steps-missing', `${c.id}: a${c.execution === 'manual' ? ' manual' : `n ${c.level}`} case names its steps`)
     if (c.priority === 'P0' && c.execution === 'manual') bad('p0-manual', `${c.id}: a P0 case is automated`)
     const at = tasks.findIndex((t) => (t.verifiedBy ?? []).some((v) => (c.verifies ?? []).includes(v)))
-    for (const s of c.level === 'api' && at >= 0 ? c.steps ?? [] : []) {
+    for (const s of c.level === 'api' && at >= 0 && !pending(c.id, ...(c.verifies ?? [])) ? c.steps ?? [] : []) {
       const op = /^[A-Z]+ \S+/.exec(s.action ?? '')?.[0]
       if (realisedAt.get(op) > at) bad('step-premature', `${c.id}: ${op} is built by ${tasks[realisedAt.get(op)].id}, after ${tasks[at].id}, the task of this case`)
     }
@@ -578,12 +584,6 @@ export function checkTestDesign({ testDesign, spec, architecture, rules, harness
     const now = anchors(testDesign.cases.find((c) => c.id === b.id))
     if (now.length && !anchors(b).some((v) => now.includes(v))) bad('case-renumbered', `${b.id} verified ${anchors(b).join(', ')} in the TestDesign it replaces and now verifies ${now.join(', ')}: a case keeps its id`)
   }
-  // a scenario a question names, the Spec or the harness in its upstream, waits on that revision while the question is open or
-  // answered in this run; one already answered in `base` does not: by now the revision exists
-  const answeredBefore = new Set((base?.openQuestions ?? []).filter((q) => q.resolution).map((q) => q.id))
-  const upstreams = new Set([testDesign.spec, testDesign.harness])
-  const asks = (testDesign.openQuestions ?? []).filter((q) => !answeredBefore.has(q.id) && (q.upstream ?? []).some((u) => upstreams.has(u.split(' ')[0])))
-  const pending = (id) => asks.some((q) => new RegExp(`\\b${id}\\b`).test(q.question ?? ''))
   for (const id of acs) if (!verified.has(id) && !pending(id)) bad('scenario-uncovered', `${id}: no case verifies it`)
   for (const id of cited) if (provenAt.get(id) === 'build' && !verified.has(id) && !pending(id)) bad('scenario-uncovered', `quality scenario ${id} is proven at build but no case verifies it`)
   sequence(bad, 'TC', testDesign.cases.map((c) => c.id))
