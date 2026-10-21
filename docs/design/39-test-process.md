@@ -72,7 +72,7 @@ several cases; one case may have several tests.
 | Prompt `harness-rules` | per test level, the tool the Architecture's `testing` concepts or its Adrs name, else the one the repository already has, else a `Q-n`, never one chosen; a level the Designs need (an `http-api` Design: `api`; a `ui` Design: `e2e`) and the project lacks is scaffolded; every level gets one seed test that passes on the app as it is; the commands are the project's own scripts, written once; an `api` or `e2e` level's `conventions` say how a test asserts a refused request, its `4xx` or `5xx` status, so the client in use never throws on one; every level's `conventions` say how a test keeps its data apart from the other tests of the same run (its own caller or ids, or a reset between tests); never a change to the app's code |
 | Task `write-harness` | inputs `architecture`, `adrs`, `designs` (artifacts), `repository`, `previous`, `feedback`; output `harness`, id `<architecture>-harness`; `workspace: {input: repository}`; `sideEffects: nonIdempotent` |
 | Tasks `run-seed`, `run-seed-levels` | as `run-baseline` and `run-levels` with no Plan: inputs `harness`, `repository`; ids `<harness>-seed`, `<harness>-seed-levels` |
-| Validator `harness-evidence` | `sdd/v1`, `checkHarness`, below; with `previous?`, the last round's harness, so an answer already told is not told again |
+| Validator `harness-evidence` | `sdd/v1`, `checkHarness`, below; with `previous?`, the last round's harness, so an answer already told is not told again; with `designs?`, the Designs `setup-tests` was given |
 | Task `confirm-harness`, Validator `harness-confirmed` | the human reads the harness once its seed tests pass and answers each open `Q-n`, on `local-reviewer` |
 | Prompt `test-design-rules` | at least one case per `AC-n` and per `build` `QS-n` the Spec cites; the level from the boundary the scenario's When crosses: the API `api`, a screen `e2e`, a store or a queue `integration`, a rule inside one block `unit`; steps and data from the Designs' operations and screens, the Glossary's terms; `P0` when a failure loses data, money or access or stops the capability's main path, `P1` a variant of the main path or a rule's edge, `P2` a secondary path, `P3` the rest; `P0` is `automated`; a case the harness's tools cannot run is `manual`, the reason in `preconditions`; a case's steps use only the operations its Plan task, or a task before it, builds; a rule's threshold the Spec has no scenario at or beside is no case but a `Q-n` whose answer names the Spec in `upstream` |
 | Task `design-tests` | inputs `spec`, `plan`, `base?` (the Spec's TestDesign before this run), `architecture`, `designs` (artifacts), `glossary`, `rules`, `harness`, `previous`, `feedback`; output `testDesign`, id `<spec>-tests`; read only |
@@ -93,7 +93,7 @@ several cases; one case may have several tests.
 
 ## `checkHarness`
 
-Every finding `error`:
+Every finding `error`, except `level-deferred`:
 
 | Code | Finding |
 |---|---|
@@ -102,6 +102,7 @@ Every finding `error`:
 | `level-unrun` | a level of the harness with no outcome among the seed runs |
 | `suite-empty` | a level's seed run read no test |
 | `seed-missing`, `seed-failed` | a level's seed test is not in its outcome, or is not green |
+| `level-deferred` | warning: a `ui` Design is bound and the harness has no `e2e` level; `setup-tests` runs again once its screens are built |
 
 ## `checkTestDesign`
 
@@ -269,6 +270,15 @@ no case has none to miss.
   show for the employee" could not be asserted as written; the Tester located its own claims among
   the others instead. `harness-rules` asked how test data is "set up and reset", and the harness
   said neither. Found in UAT.
+- An `e2e` level may wait for the screens, and is told while it waits: `level-deferred`, a warning,
+  when a `ui` Design is bound and the harness has no `e2e` level. Its seed must pass on the app as
+  it is, and before `build-all` the app has no screen to open, so in the UAT the Tester left the
+  level out and nothing asked for it again; the screen cases ran at `api` or not at all. Once
+  `build-all` has built a `ui` block's screens, `setup-tests` runs again and adds the level, and
+  `test-design-one` runs from `base` to move the screen cases to `e2e`. A warning, not an error:
+  refusing the harness would stop every build before the screens could exist. A scaffold serving a
+  first page was rejected: a seed that opens a placeholder proves the browser runs, not that a
+  screen's test can. Found in UAT.
 - Not adopted: `TestRun` and `TestResult` kinds (a TestOutcome is already one run of one level at
   one commit); a test plan document (ISO 29119-3's agile example puts its content in the plan, here
   the Plan and the harness); a `waived` verdict (it needs a human sign-off of its own, later); a test
