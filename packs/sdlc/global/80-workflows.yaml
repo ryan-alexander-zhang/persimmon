@@ -567,8 +567,8 @@ spec:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     blockId: {type: {kind: value, schema: {type: string, pattern: "^BB-[0-9]+$"}}}
     type: {type: {kind: value, schema: {type: string, enum: [http-api, async-api, data-schema, ui]}}}
-    interface: {type: {kind: value, schema: {type: string, minLength: 1}}, required: false}
-    qualifier: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}, required: false, description: "tells two Designs of one block and type apart in the id (a block with two APIs, or realising two contexts): the interface or the context, as a label (29-design-process.md)"}
+    interface: {type: {kind: value, schema: {type: string}}, required: false, description: "which provided interface; empty or unbound: the block's first"}
+    qualifier: {type: {kind: value, schema: {type: string, pattern: "^([a-z0-9]([-a-z0-9]*[a-z0-9])?)?$", maxLength: 40}}, required: false, description: "empty or unbound: none; else tells two Designs of one block and type apart in the id (a block with two APIs, or realising two contexts): the interface or the context, as a label (29-design-process.md)"}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: {expression: "inputs.type != 'ui'"}, description: "what the elements realise; a ui Design realises operations of `designs` instead"}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: {expression: "inputs.type != 'ui'"}, description: "the names the document uses; not for a ui Design"}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
@@ -648,8 +648,8 @@ spec:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     blockId: {type: {kind: value, schema: {type: string, pattern: "^BB-[0-9]+$"}}}
     type: {type: {kind: value, schema: {type: string, enum: [http-api, async-api, data-schema, ui]}}}
-    interface: {type: {kind: value, schema: {type: string, minLength: 1}}, required: false}
-    qualifier: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}, required: false}
+    interface: {type: {kind: value, schema: {type: string}}, required: false, description: "empty or unbound: the block's first provided interface"}
+    qualifier: {type: {kind: value, schema: {type: string, pattern: "^([a-z0-9]([-a-z0-9]*[a-z0-9])?)?$", maxLength: 40}}, required: false, description: "empty or unbound: none"}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: {expression: "inputs.type != 'ui'"}}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: {expression: "inputs.type != 'ui'"}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
@@ -698,15 +698,10 @@ metadata: {name: design-all}
 spec:
   inputs:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
-    blocks: {type: {kind: value, schema: {type: array, minItems: 1, maxItems: 20, items: {type: string, pattern: "^BB-[0-9]+$"}}}}
-    type: {type: {kind: value, schema: {type: string, enum: [http-api, async-api, data-schema, ui]}}}
-    interface: {type: {kind: value, schema: {type: string, minLength: 1}}, required: false, description: "one block, one interface: bind it to design a second API of a block"}
-    qualifier: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}, required: false, description: "a label in the Design id when a block gets two Designs of one type"}
-    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: {expression: "inputs.type != 'ui'"}, description: "every type but ui"}
-    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: {expression: "inputs.type != 'ui'"}, description: "every type but ui"}
+    blocks: {type: {kind: value, schema: {type: array, minItems: 1, maxItems: 40, items: {type: object, required: [block, type], additionalProperties: false, properties: {block: {type: string, pattern: "^BB-[0-9]+$"}, type: {type: string, enum: [http-api, async-api, data-schema, ui]}, interface: {type: string, minLength: 1, description: "which provided interface, for a block with several"}, qualifier: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40, description: "a label in the Design id when a block gets two Designs of one type"}, context: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40, description: "the bounded context whose DomainModel and Glossary the Design realises, <context>-model and <context>-glossary; every type but ui"}}}}}, description: "one entry per Design: the block, the type, its interface and qualifier when it has several of one type, and its context for every type but ui"}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
-    designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: {expression: "inputs.type == 'ui'"}, description: "ui only"}
-    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: {expression: "inputs.type == 'ui'"}, description: "ui only: the http-api Designs its screens call"}
+    designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: {expression: "inputs.blocks.exists(b, b.type == 'ui')"}, description: "with a ui entry"}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: {expression: "inputs.blocks.exists(b, b.type == 'ui')"}, description: "with a ui entry: the http-api Designs its screens call"}
   outputs:
     written: {type: {kind: value, schema: {type: integer}}}
   outputBindings:
@@ -717,12 +712,12 @@ spec:
       uses: {kind: ReviewLoop, name: design-one}
       inputs:
         architecture: {fromInput: architecture}
-        blockId: {expression: "inputs.blocks[state.index - 1]"}
-        type: {fromInput: type}
-        interface: {fromInput: interface, onMissing: omit}
-        qualifier: {fromInput: qualifier, onMissing: omit}
-        domainModel: {fromInput: domainModel, onMissing: omit}
-        glossary: {fromInput: glossary, onMissing: omit}
+        blockId: {expression: "state.block.block"}
+        type: {expression: "state.block.type"}
+        interface: {expression: "has(state.block.interface) ? state.block.interface : ''"}   # empty: the block's first provided interface (design-asset)
+        qualifier: {expression: "has(state.block.qualifier) ? state.block.qualifier : ''"}
+        domainModel: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}, id: "has(state.block.context) ? state.block.context + '-model' : ''"}, onMissing: omit}   # the context's, as derive-domain names it (26-domain-discovery.md)
+        glossary: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}, id: "has(state.block.context) ? state.block.context + '-glossary' : ''"}, onMissing: omit}
         rules: {fromInput: rules}
         designSystem: {fromInput: designSystem, onMissing: omit}
         designs: {fromInput: designs, onMissing: omit}
@@ -731,12 +726,15 @@ spec:
       repeat:
         state:
           index: {type: {kind: value, schema: {type: integer, minimum: 1}}}
+          block: {type: {kind: value, schema: {type: object, required: [block, type], additionalProperties: false, properties: {block: {type: string, pattern: "^BB-[0-9]+$"}, type: {type: string, enum: [http-api, async-api, data-schema, ui]}, interface: {type: string, minLength: 1, description: "which provided interface, for a block with several"}, qualifier: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40, description: "a label in the Design id when a block gets two Designs of one type"}, context: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40, description: "the bounded context whose DomainModel and Glossary the Design realises, <context>-model and <context>-glossary; every type but ui"}}}}}
         initial:
           index: {literal: 1}
+          block: {expression: "inputs.blocks[0]"}
         next:
           index: {expression: "state.index + 1"}
+          block: {expression: "inputs.blocks[state.index]"}
         until: "iteration.index >= inputs.blocks.size()"
-        maxIterations: 20
+        maxIterations: 40
         parallel: 4   # the loops are independent; one rejected does not stop the others (11-workflow.md)
   transitions:
     - id: done

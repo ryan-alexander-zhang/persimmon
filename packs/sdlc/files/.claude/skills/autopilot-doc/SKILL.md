@@ -32,13 +32,17 @@ is a question in the brief, for the Prd's `Q-n`.
    Gives the Architecture and its Adrs.
 4. `spec-all`, once per BoundedContext: `prd`, `capabilities` (the context's `capabilities`),
    `architecture`, `context`, and that context's `domainModel` and `glossary`, `rules`.
-5. `design-all`, for each non-client building block: one run per interface it `provides` (HTTP
-   `http-api`, messages `async-api`) with `interface` bound, and `qualifier` too for its second of
-   one type; one `data-schema` run when it or a child block stores data. Inputs: `blocks`, `type`,
-   `architecture`, the block's context's `domainModel` and `glossary`, `rules`.
+5. `design-all`, one run for every non-client building block: `blocks`, a list with one entry
+   per Design, `{block: BB-n, type, interface?, qualifier?, context}`: one `http-api` entry per HTTP
+   interface the block `provides` and one `async-api` per message interface (`interface` named when
+   the block has several of one type, `qualifier` for its second of one type), one `data-schema`
+   entry when it or a child block stores data; `context` the bounded context the block (or that
+   interface) realises, from the Architecture's block `contexts`. A block with no context (an event
+   bus, a scheduler, a database) gets no entry. Inputs: `blocks`, `architecture`, `rules`. The
+   blocks run side by side.
 6. When the Architecture has client blocks: `design-system` (`prd`, `architecture`), then
-   `design-all` with `type=ui` over the client blocks: `designSystem`, and `designs` the
-   `http-api` Designs they call, `architecture`, `rules`.
+   `design-all` again with one `{block, type: ui}` entry per client block, `designSystem`, and
+   `designs` the `http-api` Designs they call, `architecture`, `rules`.
 7. `plan-all`: `prd`, every `capabilities` id, `architecture`, `designs` (every Design), `domainModel`.
    With several bounded contexts, one `plan-all` per context over its `capabilities`, each with that
    context's DomainModel.
