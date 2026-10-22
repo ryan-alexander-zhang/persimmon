@@ -61,16 +61,19 @@ the order:
    `spec-one` with the inputs `spec-all` gave it (`prd`, `capabilityId`, `architecture`, `context`,
    `domainModel`, `glossary`, `rules`); `setup-tests` with the inputs it had (`architecture`, `adrs`,
    `designs`, `repository`); `design-one` with the inputs `design-all` gave it; `plan-one` with the
-   inputs `plan-all` gave it. Specs first, then the harness, Designs and Plans; one answer may name
-   several artifacts.
+   inputs `plan-all` gave it; `architect` with the inputs it had (`prd`, `rules`, `contexts`,
+   `domainModels`, `glossaries`), `base` the latest passed Architecture and `baseAdrs` its Adrs.
+   The Architecture first, then Specs, the harness, Designs and Plans; one answer may name several
+   artifacts.
 2. Its Gate passed: run the order again from the first `*-all` after the revised kind (`design-all`
    for a Spec; `plan-all`; `test-design-all`), with the same inputs as before. Unchanged capabilities
-   and blocks are reused; the ones the revision touched run again.
+   and blocks are reused; the ones the revision touched run again. A revised Architecture is an
+   input of every kind below it, so after one the order runs again from `design-all` in full.
 3. As often as a run tells new answers: each is told only in the round that writes it.
 
-A `question-upstream` naming the Architecture, an Adr or a Glossary has no revision the Autopilot
-runs: an architecture decision is the developer's. It stops the Autopilot after that run, and the
-report names the answer and the artifact as the revision the developer owes before resuming.
+A `question-upstream` naming a Glossary has no revision the Autopilot runs: a term is the
+developer's. It stops the Autopilot after that run, and the report names the answer and the
+artifact as the revision the developer owes before resuming.
 
 ## Stop
 
@@ -86,8 +89,7 @@ Stop and report, never work around it, when:
   (`persimmon get ReviewLoop/<name>`) from that round's output; then the `*-all` run again;
 - a form parks (above);
 - an `Issue`'s fix fails its Gate (`autopilot-code`);
-- an upstream revision fails its Gate, or a run names the Architecture, an Adr or a Glossary in a
-  `question-upstream` (above).
+- an upstream revision fails its Gate, or a run names a Glossary in a `question-upstream` (above).
 
 ## Report
 

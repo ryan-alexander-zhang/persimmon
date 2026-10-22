@@ -133,13 +133,15 @@ else `artifacts.prd`.
   Rewrite pack Slice judged a revised Architecture without the one it revises, and could flag a
   block or an Adr the base already settled. The human's form does not take them; the auditor's
   verdict reaches it. Found in review.
-
 - The Architecture names what the builder installs and the Tester tests with: a block's
   `technology` says how it reaches its store, and a `testing` concept names a product per test
   level the product needs; the auditor refuses `testing-tool-missing` and `dependency-unnamed`.
   The downstream rules already forbade a dependency or a tool no Adr names, so the first harness
   asked the Architecture for the DB driver and the e2e tool and the Autopilot stopped there on
   every project. Found in the Autopilot retest.
+- `write-architecture` and `architect` take `changes` beside `base` and `baseAdrs`: a downstream
+  answer that names a library, a tool or a decision is applied to the last passed Architecture
+  like a Spec's, and everything below runs again. Found in the Autopilot retest.
 
 ## Examples
 

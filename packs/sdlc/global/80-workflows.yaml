@@ -984,6 +984,7 @@ spec:
     glossaries: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}, required: false, description: "the product's last Architecture, when a later Rewrite pack Slice extends it"}
     baseAdrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}, required: false}
+    changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false, description: "the downstream answers this run applies to base"}
   produce:
     uses: {kind: Task, name: write-architecture}
     inputs:
@@ -994,6 +995,7 @@ spec:
       glossaries: {fromInput: glossaries}
       base: {fromInput: base}
       baseAdrs: {fromInput: baseAdrs}
+      changes: {fromInput: changes}
     timeout: 30m
   review:
     uses: {kind: Gate, name: architecture-gate}

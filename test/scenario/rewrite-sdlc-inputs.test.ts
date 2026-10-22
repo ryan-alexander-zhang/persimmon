@@ -54,6 +54,8 @@ describe('the SDLC pack takes a Rewrite pack inventory and base, optionally', ()
     expect(task.action.context).toEqual(expect.arrayContaining([{ kind: 'artifact', input: 'base' }, { kind: 'artifact', input: 'baseAdrs' }]))
     const loop = named('ReviewLoop', 'architect')
     expect([loop.produce.inputs.base, loop.produce.inputs.baseAdrs]).toEqual([{ fromInput: 'base' }, { fromInput: 'baseAdrs' }])
+    expect([task.inputs.changes.required, loop.inputs.changes.required, loop.produce.inputs.changes]).toEqual([false, false, { fromInput: 'changes' }]) // a downstream answer is applied to base, as a Spec's is
+    expect(task.action.instructions).toMatch(/With `base` and `changes` bound/)
   })
 
   it('the Architecture\'s auditor takes the same base, through the gate, so round one judges what changed', () => {
