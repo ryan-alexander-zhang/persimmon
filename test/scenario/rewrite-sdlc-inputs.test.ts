@@ -92,10 +92,11 @@ describe('the SDLC pack takes a Rewrite pack inventory and base, optionally', ()
   it('a Spec, Design, Plan or TestDesign draft checks itself before the owner and the Gate', () => {
     for (const [draft, check, port] of [['spec-draft', 'spec-check', 'spec'], ['design-draft', 'design-check', 'design'], ['plan-draft', 'plan-check', 'plan'], ['test-design-draft', 'test-design-check', 'testDesign']]) {
       const wf = named('Workflow', draft!)
-      expect(wf.steps.map((s: { id: string }) => s.id)).toEqual(['write', 'check', 'fix', 'decide', 'record'])
-      expect(wf.steps[1].uses).toEqual({ kind: 'Gate', name: check })
-      expect(wf.steps[2].inputs.feedback).toEqual({ fromStep: { stepRef: 'check', output: 'result' } })
-      expect(wf.steps[2].inputs.previous).toEqual({ fromStep: { stepRef: 'write', output: port } })
+      expect(wf.steps.map((s: { id: string }) => s.id)).toEqual(['write', 'decide', 'record', 'check', 'fix'])
+      expect(wf.steps[3].uses).toEqual({ kind: 'Gate', name: check })
+      expect(wf.steps[4].inputs.feedback).toEqual({ fromStep: { stepRef: 'check', output: 'result' } })
+      expect(wf.steps[4].inputs.previous).toEqual({ first: [{ fromStep: { stepRef: 'record', output: port } }, { fromStep: { stepRef: 'write', output: port } }] }) // the last draft written
+      expect(wf.transitions.find((t: { id: string }) => t.id === 'after-record').to).toEqual([{ stepRef: 'check' }])
       expect(wf.transitions.find((t: { id: string }) => t.id === 'after-check').to[0]).toEqual({ stepRef: 'fix', when: '!steps.check.outputs.result.passed' })
       expect(named('Gate', check!).validators.map((v: { name: string }) => v.name)).toEqual(['consistency'])
     }

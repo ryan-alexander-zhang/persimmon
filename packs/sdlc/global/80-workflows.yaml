@@ -307,7 +307,7 @@ spec:
   outputs:
     spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
   outputBindings:
-    spec: {first: [{fromStep: {stepRef: record, output: spec}}, {fromStep: {stepRef: fix, output: spec}}, {fromStep: {stepRef: write, output: spec}}]}   # whichever path ran
+    spec: {first: [{fromStep: {stepRef: fix, output: spec}}, {fromStep: {stepRef: record, output: spec}}, {fromStep: {stepRef: write, output: spec}}]}   # whichever path ran
   entry: [write]
   steps:
     - id: write
@@ -325,10 +325,32 @@ spec:
         base: {fromInput: base, onMissing: omit}
         changes: {fromInput: changes, onMissing: omit}
       timeout: 30m
+    - id: decide
+      uses: {kind: Task, name: decide-spec}
+      inputs:
+        draft: {fromStep: {stepRef: write, output: spec}}
+        open: {fromStep: {stepRef: write, output: open}}
+        prd: {fromInput: prd}
+        rules: {fromInput: rules}
+        glossary: {fromInput: glossary}
+      timeout: 72h
+    - id: record
+      uses: {kind: Task, name: write-spec}
+      inputs:
+        prd: {fromInput: prd}
+        capabilityId: {fromInput: capabilityId}
+        architecture: {fromInput: architecture}
+        domainModel: {fromInput: domainModel}
+        glossary: {fromInput: glossary}
+        rules: {fromInput: rules}
+        context: {fromInput: context}
+        previous: {fromStep: {stepRef: write, output: spec}}
+        decisions: {fromStep: {stepRef: decide, output: decisions}}
+      timeout: 30m
     - id: check
       uses: {kind: Gate, name: spec-check}
       inputs:
-        spec: {fromStep: {stepRef: write, output: spec}}
+        spec: {first: [{fromStep: {stepRef: record, output: spec}}, {fromStep: {stepRef: write, output: spec}}]}
         prd: {fromInput: prd}
         domainModel: {fromInput: domainModel}
         architecture: {fromInput: architecture}
@@ -347,48 +369,26 @@ spec:
         glossary: {fromInput: glossary}
         rules: {fromInput: rules}
         context: {fromInput: context}
-        previous: {fromStep: {stepRef: write, output: spec}}
+        previous: {first: [{fromStep: {stepRef: record, output: spec}}, {fromStep: {stepRef: write, output: spec}}]}
         feedback: {fromStep: {stepRef: check, output: result}}
-      timeout: 30m
-    - id: decide
-      uses: {kind: Task, name: decide-spec}
-      inputs:
-        draft: {first: [{fromStep: {stepRef: fix, output: spec}}, {fromStep: {stepRef: write, output: spec}}]}
-        open: {first: [{fromStep: {stepRef: fix, output: open}}, {fromStep: {stepRef: write, output: open}}]}
-        prd: {fromInput: prd}
-        rules: {fromInput: rules}
-        glossary: {fromInput: glossary}
-      timeout: 72h
-    - id: record
-      uses: {kind: Task, name: write-spec}
-      inputs:
-        prd: {fromInput: prd}
-        capabilityId: {fromInput: capabilityId}
-        architecture: {fromInput: architecture}
-        domainModel: {fromInput: domainModel}
-        glossary: {fromInput: glossary}
-        rules: {fromInput: rules}
-        context: {fromInput: context}
-        previous: {first: [{fromStep: {stepRef: fix, output: spec}}, {fromStep: {stepRef: write, output: spec}}]}
-        decisions: {fromStep: {stepRef: decide, output: decisions}}
       timeout: 30m
   transitions:
     - id: after-write
       from: [{stepRef: write, outcomes: [Succeeded]}]
-      to: [{stepRef: check}]
-    - id: after-check   # a draft the check refuses goes back to the writer once, with the findings; a round is not lost to it
-      from: [{stepRef: check, outcomes: [Succeeded]}]
-      to: [{stepRef: fix, when: "!steps.check.outputs.result.passed"}, {stepRef: decide, when: "steps.write.outputs.open.size() > 0"}, {terminal: Succeeded}]
-      dispatch: first
-    - id: after-fix
-      from: [{stepRef: fix, outcomes: [Succeeded]}]
-      to: [{stepRef: decide, when: "steps.fix.outputs.open.size() > 0"}, {terminal: Succeeded}]
+      to: [{stepRef: decide, when: "steps.write.outputs.open.size() > 0"}, {stepRef: check}]
       dispatch: first
     - id: after-decide
       from: [{stepRef: decide, outcomes: [Succeeded]}]
       to: [{stepRef: record}]
     - id: after-record
       from: [{stepRef: record, outcomes: [Succeeded]}]
+      to: [{stepRef: check}]
+    - id: after-check   # the last draft written is checked; one the check refuses goes back to the writer once, with the findings, so the Gate never spends a round on it
+      from: [{stepRef: check, outcomes: [Succeeded]}]
+      to: [{stepRef: fix, when: "!steps.check.outputs.result.passed"}, {terminal: Succeeded}]
+      dispatch: first
+    - id: after-fix
+      from: [{stepRef: fix, outcomes: [Succeeded]}]
       to: [{terminal: Succeeded}]
   timeout: 73h
 ---
@@ -613,7 +613,7 @@ spec:
   outputs:
     design: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
   outputBindings:
-    design: {first: [{fromStep: {stepRef: record, output: design}}, {fromStep: {stepRef: fix, output: design}}, {fromStep: {stepRef: write, output: design}}]}   # whichever path ran
+    design: {first: [{fromStep: {stepRef: fix, output: design}}, {fromStep: {stepRef: record, output: design}}, {fromStep: {stepRef: write, output: design}}]}   # whichever path ran
   entry: [write]
   steps:
     - id: write
@@ -634,10 +634,34 @@ spec:
         previous: {fromInput: previous, onMissing: omit}
         feedback: {fromInput: feedback, onMissing: omit}
       timeout: 30m
+    - id: decide
+      uses: {kind: Task, name: decide-design}
+      inputs:
+        draft: {fromStep: {stepRef: write, output: design}}
+        open: {fromStep: {stepRef: write, output: open}}
+        architecture: {fromInput: architecture}
+        rules: {fromInput: rules}
+      timeout: 72h
+    - id: record
+      uses: {kind: Task, name: design-asset}
+      inputs:
+        architecture: {fromInput: architecture}
+        blockId: {fromInput: blockId}
+        type: {fromInput: type}
+        interface: {fromInput: interface, onMissing: omit}
+        qualifier: {fromInput: qualifier, onMissing: omit}
+        domainModel: {fromInput: domainModel, onMissing: omit}
+        glossary: {fromInput: glossary, onMissing: omit}
+        rules: {fromInput: rules}
+        designSystem: {fromInput: designSystem, onMissing: omit}
+        designs: {fromInput: designs, onMissing: omit}
+        previous: {fromStep: {stepRef: write, output: design}}
+        decisions: {fromStep: {stepRef: decide, output: decisions}}
+      timeout: 30m
     - id: check
       uses: {kind: Gate, name: design-check}
       inputs:
-        design: {fromStep: {stepRef: write, output: design}}
+        design: {first: [{fromStep: {stepRef: record, output: design}}, {fromStep: {stepRef: write, output: design}}]}
         architecture: {fromInput: architecture}
         domainModel: {fromInput: domainModel, onMissing: omit}
         glossary: {fromInput: glossary, onMissing: omit}
@@ -658,50 +682,26 @@ spec:
         rules: {fromInput: rules}
         designSystem: {fromInput: designSystem, onMissing: omit}
         designs: {fromInput: designs, onMissing: omit}
-        previous: {fromStep: {stepRef: write, output: design}}
+        previous: {first: [{fromStep: {stepRef: record, output: design}}, {fromStep: {stepRef: write, output: design}}]}
         feedback: {fromStep: {stepRef: check, output: result}}
-      timeout: 30m
-    - id: decide
-      uses: {kind: Task, name: decide-design}
-      inputs:
-        draft: {first: [{fromStep: {stepRef: fix, output: design}}, {fromStep: {stepRef: write, output: design}}]}
-        open: {first: [{fromStep: {stepRef: fix, output: open}}, {fromStep: {stepRef: write, output: open}}]}
-        architecture: {fromInput: architecture}
-        rules: {fromInput: rules}
-      timeout: 72h
-    - id: record
-      uses: {kind: Task, name: design-asset}
-      inputs:
-        architecture: {fromInput: architecture}
-        blockId: {fromInput: blockId}
-        type: {fromInput: type}
-        interface: {fromInput: interface, onMissing: omit}
-        qualifier: {fromInput: qualifier, onMissing: omit}
-        domainModel: {fromInput: domainModel, onMissing: omit}
-        glossary: {fromInput: glossary, onMissing: omit}
-        rules: {fromInput: rules}
-        designSystem: {fromInput: designSystem, onMissing: omit}
-        designs: {fromInput: designs, onMissing: omit}
-        previous: {first: [{fromStep: {stepRef: fix, output: design}}, {fromStep: {stepRef: write, output: design}}]}
-        decisions: {fromStep: {stepRef: decide, output: decisions}}
       timeout: 30m
   transitions:
     - id: after-write
       from: [{stepRef: write, outcomes: [Succeeded]}]
-      to: [{stepRef: check}]
-    - id: after-check   # a draft the check refuses goes back to the writer once, with the findings; a round is not lost to it
-      from: [{stepRef: check, outcomes: [Succeeded]}]
-      to: [{stepRef: fix, when: "!steps.check.outputs.result.passed"}, {stepRef: decide, when: "steps.write.outputs.open.size() > 0"}, {terminal: Succeeded}]
-      dispatch: first
-    - id: after-fix
-      from: [{stepRef: fix, outcomes: [Succeeded]}]
-      to: [{stepRef: decide, when: "steps.fix.outputs.open.size() > 0"}, {terminal: Succeeded}]
+      to: [{stepRef: decide, when: "steps.write.outputs.open.size() > 0"}, {stepRef: check}]
       dispatch: first
     - id: after-decide
       from: [{stepRef: decide, outcomes: [Succeeded]}]
       to: [{stepRef: record}]
     - id: after-record
       from: [{stepRef: record, outcomes: [Succeeded]}]
+      to: [{stepRef: check}]
+    - id: after-check   # the last draft written is checked; one the check refuses goes back to the writer once, with the findings, so the Gate never spends a round on it
+      from: [{stepRef: check, outcomes: [Succeeded]}]
+      to: [{stepRef: fix, when: "!steps.check.outputs.result.passed"}, {terminal: Succeeded}]
+      dispatch: first
+    - id: after-fix
+      from: [{stepRef: fix, outcomes: [Succeeded]}]
       to: [{terminal: Succeeded}]
   timeout: 73h
 ---
@@ -902,7 +902,7 @@ spec:
   outputs:
     plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}}
   outputBindings:
-    plan: {first: [{fromStep: {stepRef: record, output: plan}}, {fromStep: {stepRef: fix, output: plan}}, {fromStep: {stepRef: write, output: plan}}]}   # whichever path ran
+    plan: {first: [{fromStep: {stepRef: fix, output: plan}}, {fromStep: {stepRef: record, output: plan}}, {fromStep: {stepRef: write, output: plan}}]}   # whichever path ran
   entry: [write]
   steps:
     - id: write
@@ -917,10 +917,28 @@ spec:
         previous: {fromInput: previous, onMissing: omit}
         feedback: {fromInput: feedback, onMissing: omit}
       timeout: 30m
+    - id: decide
+      uses: {kind: Task, name: decide-plan}
+      inputs:
+        draft: {fromStep: {stepRef: write, output: plan}}
+        open: {fromStep: {stepRef: write, output: open}}
+        spec: {fromInput: spec}
+        architecture: {fromInput: architecture}
+      timeout: 72h
+    - id: record
+      uses: {kind: Task, name: write-plan}
+      inputs:
+        spec: {fromInput: spec}
+        architecture: {fromInput: architecture}
+        designs: {fromInput: designs}
+        domainModel: {fromInput: domainModel, onMissing: omit}
+        previous: {fromStep: {stepRef: write, output: plan}}
+        decisions: {fromStep: {stepRef: decide, output: decisions}}
+      timeout: 30m
     - id: check
       uses: {kind: Gate, name: plan-check}
       inputs:
-        plan: {fromStep: {stepRef: write, output: plan}}
+        plan: {first: [{fromStep: {stepRef: record, output: plan}}, {fromStep: {stepRef: write, output: plan}}]}
         spec: {fromInput: spec}
         architecture: {fromInput: architecture}
         designs: {fromInput: designs}
@@ -934,44 +952,26 @@ spec:
         architecture: {fromInput: architecture}
         designs: {fromInput: designs}
         domainModel: {fromInput: domainModel, onMissing: omit}
-        previous: {fromStep: {stepRef: write, output: plan}}
+        previous: {first: [{fromStep: {stepRef: record, output: plan}}, {fromStep: {stepRef: write, output: plan}}]}
         feedback: {fromStep: {stepRef: check, output: result}}
-      timeout: 30m
-    - id: decide
-      uses: {kind: Task, name: decide-plan}
-      inputs:
-        draft: {first: [{fromStep: {stepRef: fix, output: plan}}, {fromStep: {stepRef: write, output: plan}}]}
-        open: {first: [{fromStep: {stepRef: fix, output: open}}, {fromStep: {stepRef: write, output: open}}]}
-        spec: {fromInput: spec}
-        architecture: {fromInput: architecture}
-      timeout: 72h
-    - id: record
-      uses: {kind: Task, name: write-plan}
-      inputs:
-        spec: {fromInput: spec}
-        architecture: {fromInput: architecture}
-        designs: {fromInput: designs}
-        domainModel: {fromInput: domainModel, onMissing: omit}
-        previous: {first: [{fromStep: {stepRef: fix, output: plan}}, {fromStep: {stepRef: write, output: plan}}]}
-        decisions: {fromStep: {stepRef: decide, output: decisions}}
       timeout: 30m
   transitions:
     - id: after-write
       from: [{stepRef: write, outcomes: [Succeeded]}]
-      to: [{stepRef: check}]
-    - id: after-check   # a draft the check refuses goes back to the writer once, with the findings; a round is not lost to it
-      from: [{stepRef: check, outcomes: [Succeeded]}]
-      to: [{stepRef: fix, when: "!steps.check.outputs.result.passed"}, {stepRef: decide, when: "steps.write.outputs.open.size() > 0"}, {terminal: Succeeded}]
-      dispatch: first
-    - id: after-fix
-      from: [{stepRef: fix, outcomes: [Succeeded]}]
-      to: [{stepRef: decide, when: "steps.fix.outputs.open.size() > 0"}, {terminal: Succeeded}]
+      to: [{stepRef: decide, when: "steps.write.outputs.open.size() > 0"}, {stepRef: check}]
       dispatch: first
     - id: after-decide
       from: [{stepRef: decide, outcomes: [Succeeded]}]
       to: [{stepRef: record}]
     - id: after-record
       from: [{stepRef: record, outcomes: [Succeeded]}]
+      to: [{stepRef: check}]
+    - id: after-check   # the last draft written is checked; one the check refuses goes back to the writer once, with the findings, so the Gate never spends a round on it
+      from: [{stepRef: check, outcomes: [Succeeded]}]
+      to: [{stepRef: fix, when: "!steps.check.outputs.result.passed"}, {terminal: Succeeded}]
+      dispatch: first
+    - id: after-fix
+      from: [{stepRef: fix, outcomes: [Succeeded]}]
       to: [{terminal: Succeeded}]
   timeout: 73h
 ---
@@ -1751,7 +1751,7 @@ spec:
   outputs:
     testDesign: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}}
   outputBindings:
-    testDesign: {first: [{fromStep: {stepRef: record, output: testDesign}}, {fromStep: {stepRef: fix, output: testDesign}}, {fromStep: {stepRef: write, output: testDesign}}]}   # whichever path ran
+    testDesign: {first: [{fromStep: {stepRef: fix, output: testDesign}}, {fromStep: {stepRef: record, output: testDesign}}, {fromStep: {stepRef: write, output: testDesign}}]}   # whichever path ran
   entry: [write]
   steps:
     - id: write
@@ -1768,10 +1768,32 @@ spec:
         previous: {fromInput: previous, onMissing: omit}
         feedback: {fromInput: feedback, onMissing: omit}
       timeout: 30m
+    - id: decide
+      uses: {kind: Task, name: decide-test-design}
+      inputs:
+        draft: {fromStep: {stepRef: write, output: testDesign}}
+        open: {fromStep: {stepRef: write, output: open}}
+        spec: {fromInput: spec}
+        plan: {fromInput: plan}
+        harness: {fromInput: harness}
+      timeout: 72h
+    - id: record
+      uses: {kind: Task, name: design-tests}
+      inputs:
+        spec: {fromInput: spec}
+        plan: {fromInput: plan}
+        architecture: {fromInput: architecture}
+        designs: {fromInput: designs}
+        glossary: {fromInput: glossary}
+        rules: {fromInput: rules}
+        harness: {fromInput: harness}
+        previous: {fromStep: {stepRef: write, output: testDesign}}
+        decisions: {fromStep: {stepRef: decide, output: decisions}}
+      timeout: 30m
     - id: check
       uses: {kind: Gate, name: test-design-check}
       inputs:
-        testDesign: {fromStep: {stepRef: write, output: testDesign}}
+        testDesign: {first: [{fromStep: {stepRef: record, output: testDesign}}, {fromStep: {stepRef: write, output: testDesign}}]}
         plan: {fromInput: plan}
         designs: {fromInput: designs}
         base: {fromInput: base, onMissing: omit}
@@ -1791,48 +1813,26 @@ spec:
         glossary: {fromInput: glossary}
         rules: {fromInput: rules}
         harness: {fromInput: harness}
-        previous: {fromStep: {stepRef: write, output: testDesign}}
+        previous: {first: [{fromStep: {stepRef: record, output: testDesign}}, {fromStep: {stepRef: write, output: testDesign}}]}
         feedback: {fromStep: {stepRef: check, output: result}}
-      timeout: 30m
-    - id: decide
-      uses: {kind: Task, name: decide-test-design}
-      inputs:
-        draft: {first: [{fromStep: {stepRef: fix, output: testDesign}}, {fromStep: {stepRef: write, output: testDesign}}]}
-        open: {first: [{fromStep: {stepRef: fix, output: open}}, {fromStep: {stepRef: write, output: open}}]}
-        spec: {fromInput: spec}
-        plan: {fromInput: plan}
-        harness: {fromInput: harness}
-      timeout: 72h
-    - id: record
-      uses: {kind: Task, name: design-tests}
-      inputs:
-        spec: {fromInput: spec}
-        plan: {fromInput: plan}
-        architecture: {fromInput: architecture}
-        designs: {fromInput: designs}
-        glossary: {fromInput: glossary}
-        rules: {fromInput: rules}
-        harness: {fromInput: harness}
-        previous: {first: [{fromStep: {stepRef: fix, output: testDesign}}, {fromStep: {stepRef: write, output: testDesign}}]}
-        decisions: {fromStep: {stepRef: decide, output: decisions}}
       timeout: 30m
   transitions:
     - id: after-write
       from: [{stepRef: write, outcomes: [Succeeded]}]
-      to: [{stepRef: check}]
-    - id: after-check   # a draft the check refuses goes back to the writer once, with the findings; a round is not lost to it
-      from: [{stepRef: check, outcomes: [Succeeded]}]
-      to: [{stepRef: fix, when: "!steps.check.outputs.result.passed"}, {stepRef: decide, when: "steps.write.outputs.open.size() > 0"}, {terminal: Succeeded}]
-      dispatch: first
-    - id: after-fix
-      from: [{stepRef: fix, outcomes: [Succeeded]}]
-      to: [{stepRef: decide, when: "steps.fix.outputs.open.size() > 0"}, {terminal: Succeeded}]
+      to: [{stepRef: decide, when: "steps.write.outputs.open.size() > 0"}, {stepRef: check}]
       dispatch: first
     - id: after-decide
       from: [{stepRef: decide, outcomes: [Succeeded]}]
       to: [{stepRef: record}]
     - id: after-record
       from: [{stepRef: record, outcomes: [Succeeded]}]
+      to: [{stepRef: check}]
+    - id: after-check   # the last draft written is checked; one the check refuses goes back to the writer once, with the findings, so the Gate never spends a round on it
+      from: [{stepRef: check, outcomes: [Succeeded]}]
+      to: [{stepRef: fix, when: "!steps.check.outputs.result.passed"}, {terminal: Succeeded}]
+      dispatch: first
+    - id: after-fix
+      from: [{stepRef: fix, outcomes: [Succeeded]}]
       to: [{terminal: Succeeded}]
   timeout: 73h
 ---
