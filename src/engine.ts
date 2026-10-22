@@ -211,7 +211,7 @@ export class Engine {
       const out = await this.#upsert(bare as unknown as Resource, actor)
       const stored = this.store.resources.put({ ...out.resource, status: described.status as Record<string, unknown> })
       this.adapters.register(stored as unknown as Adapter)
-      return { resource: stored, created: out.created, changed: true } // re-described every time
+      return { resource: stored, created: out.created, changed: out.changed } // re-described every time; changed only when its spec is
     }
     const out = await this.#upsert(input, actor)
     if (input.kind === 'Handler') this.handlers.register(out.resource, { replace: true })
