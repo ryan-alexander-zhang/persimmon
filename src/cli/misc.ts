@@ -6,15 +6,38 @@ import { conformance } from '../conformance/suite.js'
 import { audit } from '../handler/write.js'
 import { ajv, formatErrors } from '../resource/ajv.js'
 import { localActor } from '../engine.js'
+import { owns } from '../reconcile/dispatch.js'
 import type { Cli } from './context.js'
 import { withEngine } from './context.js'
 import { find, type Where } from './get.js'
 import { parseRef } from './io.js'
 
-/** `persimmon resume`: redeliver unacked Events and outstanding calls, drain the Outbox. start() marks open calls unknown. */
-export async function resume(cli: Cli): Promise<number> {
+/** `persimmon resume [--follow]`: redeliver unacked Events and outstanding calls, drain the Outbox. start() marks open calls unknown.
+ * `--follow` keeps draining until no run of this project has a timer pending, so the open runs end or park. */
+export async function resume(cli: Cli, o: { follow?: boolean } = {}): Promise<number> {
   return withEngine(cli, async (engine) => {
     cli.out(`open events: ${engine.store.runLog.listOpen().length}`)
+    if (!o.follow) return 0
+    for (;;) {
+      await engine.drain()
+      const next = engine.store.timers.due('9999-12-31T23:59:59Z').find((t) => owns(engine.dispatch, t.uid))
+      if (!next) return 0
+      await new Promise((r) => setTimeout(r, Math.max(0, Date.parse(next.at) - Date.now())))
+    }
+  })
+}
+
+/** `persimmon cancel <kind>/<name>`: CancelRequested as the local Actor; the drain on exit delivers it, children and calls included. */
+export async function cancel(cli: Cli, ref: string, o: Where = {}): Promise<number> {
+  return withEngine(cli, async (engine) => {
+    const { kind, name } = parseRef(ref)
+    const r = name && find(engine, kind, name, o)
+    if (!r) {
+      cli.err(`${ref} not found`)
+      return 1
+    }
+    engine.cancel(r.metadata.uid as string, 'cancelled at the terminal')
+    cli.out(`cancelled ${ref}`)
     return 0
   })
 }

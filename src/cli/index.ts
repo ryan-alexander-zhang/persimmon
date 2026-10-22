@@ -8,7 +8,7 @@ import { skillInstall } from './skill.js'
 import { get, logs } from './get.js'
 import { tree } from './tree.js'
 import { init, namedPackDir } from './init.js'
-import { adapterList, adapterTest, del, resume } from './misc.js'
+import { adapterList, adapterTest, cancel, del, resume } from './misc.js'
 import { complete, signal } from './signal.js'
 import { ui } from './ui.js'
 import { validate } from './validate.js'
@@ -20,7 +20,8 @@ const usage = `usage: persimmon <verb> [args]
   run <Workflow> [--input <port>=<yaml | @file>]... [--timeout <d>] [-n ns] [--follow]
   signal <kind>/<name> --payload <file> [--event-id <id>]
   complete <taskRun> [--file <result.yaml>]         no file: answer the inbox form at the terminal
-  resume
+  resume [--follow]                                 --follow: keep draining until the project's open runs end or park
+  cancel <kind>/<name> [-n ns]
   get <kind>[/<name>] [-n ns | --global] [--behind | --files <dir>]  --behind: the latest revisions whose pinned inputs have a newer one; --files: write a revision's representations into <dir>
   describe <kind>/<name> [-n ns]
   logs <kind>/<name> [-n ns | --global]
@@ -109,7 +110,10 @@ async function dispatchVerb(cli: Cli, verb: string, rest: string[], values: Retu
         need(1, '<taskRun>')
         return await complete(cli, rest[0]!, values.file, values.namespace)
       case 'resume':
-        return await resume(cli)
+        return await resume(cli, values.follow ? { follow: true } : {})
+      case 'cancel':
+        need(1, '<kind>/<name>')
+        return await cancel(cli, rest[0]!, where)
       case 'get':
       case 'describe':
         need(1, '<kind>[/<name>]')

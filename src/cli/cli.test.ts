@@ -470,6 +470,26 @@ describe('persimmon CLI', () => {
     out = []
     expect(await run('get', `WorkflowRun/${name}`)).toBe(0)
     expect(parse(out.join('\n')).spec.timeout).toBeUndefined() // the Workflow's 3h applies in the Handler
+    // cancel: the parked run and its Task end Cancelled in the drain on exit
+    out = []
+    expect(await run('cancel', `WorkflowRun/${name}`)).toBe(0)
+    expect(out).toEqual([`cancelled WorkflowRun/${name}`])
+    out = []
+    expect(await run('tree', `WorkflowRun/${name}`)).toBe(0)
+    expect(out[0]).toMatch(/Cancelled/)
+    expect(out.some((l) => /ask   TaskRun   cli-human\/v1\s+Cancelled/.test(l))).toBe(true)
+    // resume --follow keeps the engine until no timer of this project is pending, and fires the one that is
+    const peek = new Engine({ config: loadConfig(join(dir, 'persimmon.yaml')), cwd: dir })
+    await peek.start({ recover: false })
+    const uid = peek.store.resources.get({ kind: 'WorkflowRun', namespace: 'default', name })!.metadata.uid as string
+    peek.store.timers.set(uid, 'later', new Date(Date.now() + 400).toISOString())
+    await peek.close()
+    const t0 = Date.now()
+    out = []
+    expect(await run('resume', '--follow')).toBe(0)
+    expect(out).toEqual(['open events: 0'])
+    expect(Date.now() - t0).toBeGreaterThanOrEqual(350)
+    expect(await run('cancel', 'WorkflowRun/nope')).toBe(1)
     // a string port takes a file's text as is: prose with colons is not YAML
     writeFileSync(join(dir, 'q.txt'), 'Title: a brief\nwith: colons, and a list:\n- not yaml\n')
     out = []

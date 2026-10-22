@@ -99,7 +99,8 @@ A Namespaced Resource may bind only its own Namespace's names and Global names.
 | `persimmon create <file> [--follow]` | store any Resource; a revisioned one is stamped like a publish (`05-revisioned-kind.md`); `--follow` runs the engine until it reaches a `terminal.values` value or waits only on human Tasks, prints every phase change as `<labels from the root>   <Kind>   <Adapter>   <state>` (the root line is `<Kind>   <name>`), then the `tree` and the `complete` command for each parked Task; Ctrl-C leaves it resumable |
 | `persimmon run <Workflow \| Pipeline \| ReviewLoop> [--input <port>=<yaml \| @file>]... [--timeout <d>] [--follow]` | a manual WorkflowRun named `<workflow>-<hex6>` without writing its YAML; `workflowRef.kind` is the kind found (`21-composition.md`); a scalar becomes `{kind: value, value}`, a RuntimeValue object passes through, `@file` on a `value` port of `type: string` is the file's text as is (less one final newline; a RuntimeValue document still passes through), a path on an `externalResource` port becomes a git ref, a revision document (`@spec.yaml`) on an `artifact` port is stored once and referenced, a list of documents or RevisionRefs on an `artifacts` port likewise; a ref without a Namespace is in the run's, one in another Namespace is refused (a Namespaced Resource binds its own, `00-resource.md`), one not in the store is refused before the run exists; `timeout` absent means the Workflow's |
 | `persimmon signal <kind>/<name> --payload <file> [--event-id <id>]` | Signal `{source: api}` as the local Actor; id generated when absent |
-| `persimmon resume` | redeliver unacked Events and outstanding calls, drain the Outbox |
+| `persimmon resume [--follow]` | redeliver unacked Events and outstanding calls, drain the Outbox; `--follow` keeps the engine draining until no run of this project has a timer pending, so the open runs end or park |
+| `persimmon cancel <kind>/<name>` | CancelRequested on a run as the local Actor; a Workflow cancels its children, a Task its attempt's call, and the drain delivers it |
 | `persimmon get` · `describe` · `logs` | read Resources, status, RunLog; `get <Kind>/<id>` with no `.r<n>` is the id's latest committed revision, revisioned kinds only, never for `delete` |
 | `persimmon get <Kind> --behind [-n ns \| --global]` | revisioned kinds only, one Namespace or with `--global` every one: the latest revision of each id with an input in `provenance.inputs` that has a newer revision, one line per input (`<Kind>/<name>  -n <ns>  behind <Kind>/<id> [-n <ns>] r<pinned> → r<current>`, the input's Namespace shown when it differs); per input id the highest revision pinned counts, and a newer revision whose `producerRef` is the document's own run (by uid, else Namespace, kind and name) does not; a hand-loaded revision pins nothing; a name beside `--behind` is refused |
 | `persimmon get <Kind>/<name> --files <dir> [-n ns \| --global]` | writes every representation of the revision into `<dir>` as `<name>.<ext>`, the extension from the media type (`text/html` `html`, `image/svg+xml` `svg`, `text/markdown` `md`, `text/vnd.mermaid` `mmd`), one `wrote <path>  <mediaType>  <bytes>` line each; a revision with none is refused (`18-artifact.md`) |
@@ -211,6 +212,11 @@ imports into a server unchanged.
   reconciles the first to end and starts what that unblocks while the others run. The race
   also wakes for the next due timer, so a retry backoff or a query timer fires on time while a
   sibling's call runs on for minutes. Found in UAT.
+- `resume --follow` and `cancel`: an orchestrator that restarted on new definitions found the old
+  run could neither be followed to its end (`resume` drained once and exited, its retry backoff
+  waiting for the next engine) nor abandoned (`delete` refuses a referenced run, no verb sent
+  CancelRequested), so it had to let the old run finish beside the new one. Found in the
+  Autopilot retest.
 - `--follow` prints the lines of one tick in commit order, the latest applied RunLog entry of each
   run: one drain commits a child's finish and its parent's reaction together, and the walk order
   printed the parent first. Found in UAT.
