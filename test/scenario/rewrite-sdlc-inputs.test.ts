@@ -104,4 +104,12 @@ describe('the SDLC pack takes a Rewrite pack inventory and base, optionally', ()
       expect(named('Gate', check!).validators.map((v: { name: string }) => v.name)).toEqual(['consistency'])
     }
   })
+
+  it('a writer with base and changes applies upstream parts revised since base, not only downstream answers', () => {
+    const prompts = parseAllDocuments(readFileSync('packs/sdlc/global/30-prompts.yaml', 'utf8')).map((d) => d.toJS())
+    for (const name of ['spec-rules', 'design-rules', 'plan-rules', 'harness-rules']) {
+      const content: string = prompts.find((d) => d.metadata.name === name).spec.content
+      expect(content).toMatch(/<artifact id> <part id>: <what changed>/)
+    }
+  })
 })

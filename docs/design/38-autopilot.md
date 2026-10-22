@@ -40,7 +40,7 @@ autopilot = autopilot-doc then autopilot-code
 | before the first `build-all` the orchestrator does what the pack leaves to the developer: when the project has no app, it scaffolds one on the Architecture's technology and Adrs, with a unit test command that writes JUnit XML; then `setup-tests` and `test-design-all`; the project must already be a git repository | skill |
 | a `D-n` whose task passed becomes an `Issue`, its fix a `build-one`, then the Issue's `resolved` revision; one fix attempt per Issue, then stop; an Issue that finds the Spec wrong or missing stops it, a Spec revision being the developer's call | skill |
 | `plan_regressed` is an Issue with the red test as its `reproduction`, fixed the same way | skill |
-| a `question-upstream` warning naming a Spec, the TestHarness, a Design or a Plan is applied before the next run: that artifact's `-one` loop with `base` its latest passed revision and the answers as `changes`, Specs first; then the run order again from the first `*-all` after the revised kind, whose loops reuse every capability or block the revision did not touch (`memo`, `11-workflow.md`) and run the others again; as often as a run tells new answers; one naming the Architecture or an Adr goes through `architect` the same way, with `base` and `baseAdrs`, and the order runs again from `design-all`, since every kind below takes the Architecture; one naming a Glossary stops it, reported as the revision the developer owes | skill |
+| a `question-upstream` warning naming a Spec, the TestHarness, a Design or a Plan is applied before the next run: that artifact's `-one` loop with `base` its latest passed revision and the answers as `changes`, Specs first; then by impact: the revision diffed against its base, each artifact below that cites, realises or rests on a changed part revised through its `-one` loop with `base` and `changes` naming the changed parts, the rest left behind and right (`get --behind`), and the order continued from the first phase not yet run; as often as a run tells new answers; one naming the Architecture or an Adr goes through `architect` the same way, with `base` and `baseAdrs`, its impact applied the same way; one naming a Glossary stops it, reported as the revision the developer owes | skill |
 | the report names every Prd, Architecture, Adr, Spec, Plan and AcceptanceRecord revision, every `Q-n` the owner agent decided, every `question-upstream` warning, every Issue, the files changed and the overrides in place; the developer reviews the diff and commits | skill |
 
 ## Decisions
@@ -85,6 +85,13 @@ autopilot = autopilot-doc then autopilot-code
 - The `*-all` loops run their capabilities side by side (`parallel: 4`), and one rejected stops
   none: the live run's agent time equalled its wall clock, and one failing capability blocked the
   ones after it. Found in UAT.
+- An upstream revision is applied by impact, as a developer applies one: the parts that changed,
+  the artifacts that cite or realise them, their `-one` loops with `base` and `changes`; the rest
+  stay behind the revision and right. The first rule ran the order again from the first `*-all`
+  below the revised kind and, for an Architecture, in full: `memo` keys on the inputs' revisions,
+  so a new Architecture revision reused nothing, and one refusal code re-ran every Design and Plan
+  for two hours. The Autopilot's agent does the diff and the impact reading; a deterministic
+  impact check is a later step. Found in the Autopilot retest.
 - Quality is capped by the checks: the Autopilot passes what `sdd/v1`, the Auditor, the tests and
   the owner agent pass, nothing more. Every `Q-n` the owner agent decided is listed in the report
   (each `decide-*` TaskRun's `decisions`), so the developer reads the guesses an idea alone forced.

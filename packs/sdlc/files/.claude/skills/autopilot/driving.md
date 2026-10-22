@@ -65,10 +65,20 @@ the order:
    `domainModels`, `glossaries`), `base` the latest passed Architecture and `baseAdrs` its Adrs.
    The Architecture first, then Specs, the harness, Designs and Plans; one answer may name several
    artifacts.
-2. Its Gate passed: run the order again from the first `*-all` after the revised kind (`design-all`
-   for a Spec; `plan-all`; `test-design-all`), with the same inputs as before. Unchanged capabilities
-   and blocks are reused; the ones the revision touched run again. A revised Architecture is an
-   input of every kind below it, so after one the order runs again from `design-all` in full.
+2. Its Gate passed, apply the revision by impact, never by running the order again. Diff the
+   revision against `base` (`persimmon get <Kind>/<id>.r<n>` for both) and list the parts that
+   changed, by id: a Spec's `AC-n`, `R-n` or story; an Architecture's `BB-n` (its `technology` or
+   `interfaces` too), `REL-n`, `CC-n`, `QS-n`, an Adr; a Design's element; a harness level. An
+   artifact below is impacted when it cites, realises or rests on a changed part: a Design through
+   its `block` or `interface`, a Spec through a `QS-n` or `CC-n` it cites, a Plan through a task on a
+   changed Design, block or scenario, the harness through a `testing` concept or a block's
+   technology, a TestDesign through a changed Spec, Plan or Design. One that does not stays as it
+   is: behind the new revision (`persimmon get <Kind> --behind`), not wrong. Revise each impacted
+   artifact through its `-one` loop with `base` its latest passed revision and `changes=@<file>`
+   listing each changed part as `<artifact id> <part id>: <what changed>`, in order: Specs, Designs,
+   Plans, the harness (`setup-tests` with `base` and `changes`), then TestDesigns (`test-design-one`
+   with `base`; its revised inputs are its change). Then continue the order from the first phase not
+   yet run, with the latest revisions as inputs; a `*-all` run that passed is not run again.
 3. As often as a run tells new answers: each is told only in the round that writes it.
 
 A `question-upstream` naming a Glossary has no revision the Autopilot runs: a term is the
