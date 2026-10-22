@@ -23,7 +23,9 @@ When the project has no app yet, stand in for the developer once:
 - Scaffold the app the Architecture describes, on the technology its Adrs chose, in the repository
   root unless the Architecture says otherwise. Add no dependency an Adr does not name.
 - Give it a unit test command that writes JUnit XML and passes on the empty app, and a health
-  check the api and e2e seed tests can reach.
+  check the api and e2e seed tests can reach. When no Adr names a test tool, the runtime's own
+  runner is the command (`node --test`, `go test`, `pytest`), and the command creates the
+  directory its XML goes in: a reporter does not.
 
 An app already there: use it as it is.
 
