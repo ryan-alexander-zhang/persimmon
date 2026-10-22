@@ -635,3 +635,4 @@ appears twice; the earlier file owns it.
 | 616 | `19-adapter-roles.md` | `claude-code/v1` logs init, rate-limit and result events as one line each instead of dropping them: a killed or stalled agent otherwise leaves no line at all, and the engine cannot say whether the CLI started, waited on a rate limit, or hung. |
 
 | 617 | `03-reconcile.md` | An `unknown` answer carries the dispatcher's reason (`deadline`, `exited 1 before responding`) into the attempt error. `no recorded answer` alone left a run that a sleeping laptop carried past its deadline indistinguishable from a crashed Adapter or an engine restart. |
+| 618 | `08-store.md` | The drain's race over calls in flight also wakes for the next due timer. Timers were pumped only when a call ended, so under `parallel` a retry backoff or a query timer waited for a sibling's call, minutes for a writer. |

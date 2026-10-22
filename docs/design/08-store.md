@@ -208,7 +208,9 @@ imports into a server unchanged.
   ended. The dispatcher awaited all its calls before reconciling any, so three capabilities
   written side by side waited for the slowest at every step, a barrier the Autopilot retest
   measured as identical durations for every loop; now the drain races the calls in flight,
-  reconciles the first to end and starts what that unblocks while the others run. Found in UAT.
+  reconciles the first to end and starts what that unblocks while the others run. The race
+  also wakes for the next due timer, so a retry backoff or a query timer fires on time while a
+  sibling's call runs on for minutes. Found in UAT.
 - `--follow` prints the lines of one tick in commit order, the latest applied RunLog entry of each
   run: one drain commits a child's finish and its parent's reaction together, and the walk order
   printed the parent first. Found in UAT.

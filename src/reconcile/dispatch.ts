@@ -205,7 +205,11 @@ export async function drain(engine: Engine): Promise<void> {
     moved = dispatched > 0 || moved
     if (moved) continue
     if (engine.inFlight.size) {
-      await Promise.race(engine.inFlight.values()) // the first call to end is reconciled now; its siblings keep running (11-workflow.md parallel)
+      // the first call to end is reconciled now; its siblings keep running (11-workflow.md parallel); a timer due before then (a retry backoff) fires on time
+      const next = engine.store.timers.due('9999-12-31T23:59:59Z').find((t) => owns(engine, t.uid))
+      let wake: NodeJS.Timeout | undefined
+      await Promise.race([...engine.inFlight.values(), ...(next ? [new Promise<void>((r) => (wake = setTimeout(r, Math.max(0, Date.parse(next.at) - engine.now().getTime()))))] : [])])
+      clearTimeout(wake)
       continue
     }
     if (!waiting) return

@@ -140,6 +140,21 @@ describe('dispatcher', () => {
     expect(store.resources.getByUid(r.metadata.uid!)?.status?.error?.message).toBe('no recorded answer: deadline')
   })
 
+  it('a timer due while a call is in flight fires then, not when the call ends', async () => {
+    const at: Record<string, number> = {}
+    impl.reconcile = (i) => {
+      at[i.event.type] = Date.now()
+      if (i.event.type === 'Created') return { statusPatch: { phase: 'Running' }, actions: [{ type: 'callAdapter', adapterId: 'fake/v1', op: 'hang', payload: {}, idempotencyKey: 'k/1', deadline: new Date(clock + 1500).toISOString() }, { type: 'setTimer', key: 'tick', at: new Date(clock + 100).toISOString() }] }
+      if (i.event.type === 'AdapterFinished') return { statusPatch: { phase: 'Failed', error: { code: 'unknown_result', message: 'x', retryable: false } }, actions: [] }
+      return { actions: [] }
+    }
+    const r = startRun()
+    setTimeout(() => (clock += 200), 50) // the clock passes the timer while the call still hangs
+    await drain(engine)
+    expect(store.resources.getByUid(r.metadata.uid!)?.status?.phase).toBe('Failed')
+    expect(at.AdapterFinished! - at.TimerFired!).toBeGreaterThan(1000) // the timer was reconciled long before the call's deadline ended it
+  })
+
   it('a Signal reconcile\'s token carries its actor and dies with the reconcile', async () => {
     const r = startRun()
     await drain(engine)
