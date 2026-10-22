@@ -52,6 +52,12 @@ the round, the tests run and the Gate judges. A rejected round starts the next w
 `feedback`. After the last task the TestReport follows (`persimmon get TestReport/<plan>-test-report`):
 its verdict and every residual risk go in the report.
 
+A round's `question-upstream` is applied when the run ends (`driving.md`, Upstream answers): the
+Architecture or the Design revised, then its impact. A task already built stands unless its Plan,
+a Design it realises or its TestDesign changed in that impact; each such task is built again with
+`build-one` (`taskId`, `baseline` the Plan's first TestOutcome); the next Plan then takes the
+latest revisions.
+
 `setup-tests` warned `level-deferred` and this `build-all` built the screens of the `ui` Design it
 names: before the next Plan, run `setup-tests` again with the same inputs and `base` the TestHarness,
 which adds the `e2e` level, then `test-design-one` for each Spec with a screen case, `base` its
