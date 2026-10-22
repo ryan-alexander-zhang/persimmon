@@ -464,3 +464,123 @@ spec:
         feedback: {fromInput: feedback, onMissing: omit}   # the last round's verdict, so the owner checks it was fixed first (23-pack-sdlc.md)
   policy: {strategy: all}
   timeout: 72h
+---
+# The deterministic check of a Design draft, run inside design-draft right after the writer (23-pack-sdlc.md): a draft it refuses goes back to the writer once, so a round is never lost to a check that takes a second.
+apiVersion: persimmon.ai/v1
+kind: Gate
+metadata: {name: design-check}
+spec:
+  inputs:
+    design: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: false, description: "what the elements realise; not for a ui Design"}
+    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: false, description: "what the document's field names are held to; not for a ui Design; unbound, the fields are unchecked"}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: false, description: "for a ui Design: the DesignSystem it must cite"}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "for a ui Design: the API Designs whose operations its elements realise"}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
+  validators:
+    - name: consistency
+      ref: {kind: Validator, name: design-consistency}
+      inputs:
+        design: {fromInput: design}
+        architecture: {fromInput: architecture}
+        domainModel: {fromInput: domainModel, onMissing: omit}
+        glossary: {fromInput: glossary, onMissing: omit}
+        rules: {fromInput: rules}
+        designSystem: {fromInput: designSystem, onMissing: omit}
+        designs: {fromInput: designs, onMissing: omit}
+  policy: {strategy: all}
+  timeout: 5m
+---
+# The deterministic check of a Spec draft, run inside spec-draft right after the writer (23-pack-sdlc.md): a draft it refuses goes back to the writer once, so a round is never lost to a check that takes a second.
+apiVersion: persimmon.ai/v1
+kind: Gate
+metadata: {name: spec-check}
+spec:
+  inputs:
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
+    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    context: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext}}, required: false, description: "the BoundedContext that lists the capability; its DomainModel is the one bound (34-subdomains.md)"}
+    capabilityId: {type: {kind: value, schema: {type: string, pattern: "^CAP-[0-9]+$"}}, required: false, description: "the capability the Spec was written for; its `capability` must be it"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, required: false, description: "the Spec this one revises: its ids are kept"}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
+  validators:
+    - name: consistency
+      ref: {kind: Validator, name: spec-consistency}
+      inputs:
+        spec: {fromInput: spec}
+        prd: {fromInput: prd}
+        domainModel: {fromInput: domainModel}
+        architecture: {fromInput: architecture}
+        rules: {fromInput: rules}
+        context: {fromInput: context, onMissing: omit}
+        capabilityId: {fromInput: capabilityId, onMissing: omit}
+        base: {fromInput: base, onMissing: omit}
+  policy: {strategy: all}
+  timeout: 5m
+---
+# The deterministic check of a Plan draft, run inside plan-draft right after the writer (23-pack-sdlc.md): a draft it refuses goes back to the writer once, so a round is never lost to a check that takes a second.
+apiVersion: persimmon.ai/v1
+kind: Gate
+metadata: {name: plan-check}
+spec:
+  inputs:
+    plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}}
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
+    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: false, description: "which aggregate handles each of the Spec's commands"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}, required: false, description: "the Plan this one replaces: its task ids are kept"}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
+  validators:
+    - name: consistency
+      ref: {kind: Validator, name: plan-consistency}
+      inputs:
+        plan: {fromInput: plan}
+        spec: {fromInput: spec}
+        architecture: {fromInput: architecture}
+        designs: {fromInput: designs}
+        domainModel: {fromInput: domainModel, onMissing: omit}
+        base: {fromInput: base, onMissing: omit}
+  policy: {strategy: all}
+  timeout: 5m
+---
+# The deterministic check of a TestDesign draft, run inside test-design-draft right after the writer (23-pack-sdlc.md): a draft it refuses goes back to the writer once, so a round is never lost to a check that takes a second.
+apiVersion: persimmon.ai/v1
+kind: Gate
+metadata: {name: test-design-check}
+spec:
+  inputs:
+    testDesign: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}}
+    plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}, description: "the Spec's Plan: which task builds each operation a step names"}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, description: "the operations a step names, by element"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, required: false, description: "the TestDesign this one replaces: its ids are kept"}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, required: false, description: "the last round's TestDesign: an answer it had is not told again"}
+    spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
+  validators:
+    - name: consistency
+      ref: {kind: Validator, name: test-design-consistency}
+      inputs:
+        testDesign: {fromInput: testDesign}
+        plan: {fromInput: plan}
+        designs: {fromInput: designs}
+        base: {fromInput: base, onMissing: omit}
+        previous: {fromInput: previous, onMissing: omit}
+        spec: {fromInput: spec}
+        architecture: {fromInput: architecture}
+        rules: {fromInput: rules}
+        harness: {fromInput: harness}
+  policy: {strategy: all}
+  timeout: 5m

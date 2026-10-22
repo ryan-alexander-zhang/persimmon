@@ -101,18 +101,21 @@ describe('scenario: the Test process', () => {
     const short = { ...cases, cases: cases.cases.filter((c: { id: string }) => c.id !== 'TC-10') } // QS-3 has no case
     const asked = { ...short, openQuestions: [{ id: 'Q-1', question: 'Is QS-3 proven at build, or only observed in production?' }] }
     await answer(f.taskRun, { testDesign: asked, open: { kind: 'value', value: ['Q-1'] } })
-    f = form() // an open question: the owner decides it inside the round, before any check
+    f = form() // the check refused the draft inside the round: the designer again with the findings, before the owner, no round lost
+    expect(f.reading.map((r: { kind: string }) => r.kind)).toEqual(['Prompt', 'Spec', 'Plan', 'Architecture', 'Design', 'Glossary', 'BusinessRules', 'TestHarness', 'TestDesign'])
+    expect(f.inputs.feedback.value.results.consistency.findings.map((x: { message: string }) => x.message)).toEqual(['quality scenario QS-3 is proven at build but no case verifies it'])
+    expect(f.inputs.previous.ref).toMatchObject({ kind: 'TestDesign', revision: 1 })
+    await answer(f.taskRun, { testDesign: { ...cases, openQuestions: asked.openQuestions }, open: { kind: 'value', value: ['Q-1'] } })
+    f = form() // an open question: the owner decides it inside the round
     expect(f.reading.map((r: { kind: string }) => r.kind)).toEqual(['Prompt', 'TestDesign', 'Spec', 'Plan', 'TestHarness'])
     expect(f.inputs.open.value).toEqual(['Q-1'])
+    expect(f.inputs.draft.ref).toMatchObject({ kind: 'TestDesign', revision: 2 }) // the fixed draft, not the refused one
     await answer(f.taskRun, { decisions: { kind: 'value', value: [{ id: 'Q-1', resolution: 'At build: QS-3 is a fitness scenario, so it gets a case.' }] } })
     f = form() // the writer records the decision in the same round
     expect(f.inputs.decisions.value).toEqual([{ id: 'Q-1', resolution: 'At build: QS-3 is a fitness scenario, so it gets a case.' }])
-    expect(f.inputs.previous.ref).toMatchObject({ kind: 'TestDesign', revision: 1 })
+    expect(f.inputs.previous.ref).toMatchObject({ kind: 'TestDesign', revision: 2 })
     expect(f.inputs).not.toHaveProperty('feedback')
-    await answer(f.taskRun, { testDesign: { ...short, openQuestions: [{ ...asked.openQuestions[0]!, resolution: 'At build: QS-3 is a fitness scenario, so it gets a case.' }] }, open: { kind: 'value', value: [] } })
-    f = form() // the check refused: round two, the designer again, no auditor call
-    expect(f.inputs.feedback.value.results.consistency.findings.map((x: { message: string }) => x.message)).toEqual(['quality scenario QS-3 is proven at build but no case verifies it'])
-    await answer(f.taskRun, { testDesign: cases, open: { kind: 'value', value: [] } })
+    await answer(f.taskRun, { testDesign: { ...cases, openQuestions: [{ ...asked.openQuestions[0]!, resolution: 'At build: QS-3 is a fitness scenario, so it gets a case.' }] }, open: { kind: 'value', value: [] } })
     f = form()
     expect(f.reading.map((r: { kind: string }) => r.kind)[0]).toBe('Prompt') // the auditor, with the draft audit rules
     await answer(f.taskRun, { audit: pass })
