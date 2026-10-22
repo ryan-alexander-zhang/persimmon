@@ -537,8 +537,13 @@ spec:
     Design lacks, a level the harness lacks, a task the Plan orders wrongly) is still your decision, recorded here;
     it names that artifact in `upstream`, `<artifact id>` or `<artifact id> Q-n`, and asks the writer for no case,
     step or element that rests on it: that follows once the upstream artifact's revision exists, through its own
-    process. An answer that would change the Architecture, an Adr or a Glossary names it the same way and is the
-    developer's to carry.
+    process. An answer that would change the Architecture, an Adr or a Glossary names it the same way.
+    An answer goes to the nearest artifact that owns the thing, and every artifact below the one named runs again,
+    so name no higher one than owns it: a refusal code, an operation or a field is a Design's, a scenario a
+    Spec's, a task a Plan's, a level or a convention the harness's own; the Architecture owns a block, a relation,
+    a strategy, a concept and a technology, nothing finer. A draft that contradicts the Architecture changes the
+    draft (a package manager, a tool, a library the Architecture names is used as named), never the Architecture,
+    unless the evidence rule above shows the Architecture wrong.
 
     Answer every id in `open`, no other; never run `persimmon` or git.
 ---
@@ -572,5 +577,11 @@ spec:
     edge the Prd never asked for is no reason to reopen it: the decision stands, and the round is not lost on it.
     You are not the Prd's author: a gap the Prd leaves gets one decision at the Prd's own granularity, recorded
     once, never a rule refined round after round; one the Prd must settle names the Prd as the artifact to carry it.
+    A decision another artifact must carry goes to the nearest one that owns the thing, since every artifact below
+    it runs again: a refusal code, an operation or a field is a Design's, a scenario a Spec's, a task a Plan's, a
+    level or a convention the harness's own; the Architecture owns a block, a relation, a strategy, a concept and
+    a technology, nothing finer, and a draft that contradicts it changes the draft, not the Architecture, unless
+    the evidence rule shows the Architecture wrong. With `base` bound, this document applies answers to `base`:
+    confirm what changed against it; what `base` settled stands unless it is wrong in that sense.
 
     Every finding names the id it is about. A rejection's findings are `error`; an approval's notes are `info`.

@@ -407,6 +407,12 @@ that kept its own `AGENTS.md` or `CLAUDE.md` carries section 8 itself.
   stopped the Autopilot, a Design Gate having no owner to continue it. A Validator cannot be a
   Workflow step, a Gate can, so the check Gate is the consistency Validator wrapped. Found in the
   Autopilot retest.
+- An answer goes to the nearest artifact that owns the thing, and a draft that contradicts the
+  Architecture changes the draft: a refusal code and a package manager were sent to the
+  Architecture, which re-ran every Design and Plan below it (two hours) and reopened the whole
+  Architecture to the owner, who decided two things nobody asked. `confirm-architecture` takes
+  `base` and `baseAdrs` like its auditor, so a revision from answers is confirmed for what changed.
+  Found in the Autopilot retest.
 
 ## Examples
 

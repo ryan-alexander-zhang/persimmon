@@ -180,6 +180,8 @@ spec:
     adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}}
     audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}, required: false, description: "the auditor's verdict, passed, read before the human (23-pack-sdlc.md)"}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict, for the owner (23-pack-sdlc.md)"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}, required: false}
+    baseAdrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}, required: false}
   evaluator:
     type: task
     taskRef: {kind: Task, name: confirm-architecture}

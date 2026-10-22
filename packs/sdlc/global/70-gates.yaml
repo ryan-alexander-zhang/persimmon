@@ -274,6 +274,8 @@ spec:
         adrs: {fromInput: adrs}
         audit: {fromValidator: audit}   # the auditor's warnings in the human's form
         feedback: {fromInput: feedback, onMissing: omit}   # the last round's verdict, so the owner checks it was fixed first (23-pack-sdlc.md)
+        base: {fromInput: base, onMissing: omit}   # a revision from downstream answers: the owner confirms what changed, what base settled stands
+        baseAdrs: {fromInput: baseAdrs, onMissing: omit}
   policy: {strategy: all}
   timeout: 72h
 ---

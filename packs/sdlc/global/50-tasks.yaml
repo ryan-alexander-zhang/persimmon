@@ -405,12 +405,16 @@ spec:
     adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}}
     audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}, required: false, description: "the auditor's verdict, passed, read before the human (23-pack-sdlc.md)"}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict; round one has none (23-pack-sdlc.md)"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}, required: false, description: "the Architecture this revision applies answers to; what it settled stands"}
+    baseAdrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}, required: false, description: "the Adrs that Architecture applies"}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
   executorRef: {kind: Executor, name: local-reviewer}
   action:
     instructions: |
-      Confirm the Architecture and the Adrs it applies. Judge the block cut, the strategy and its Adrs, the quality
+      Confirm the Architecture and the Adrs it applies. With `base` bound, this revision applies answers to it:
+      confirm what changed against `base` and `baseAdrs`; what they settled stands unless it is wrong in the
+      owner's rules' sense. Judge the block cut, the strategy and its Adrs, the quality
       goals and their order, and the constraints; the Validator checks ids and citations beside you. Approve, or
       reject with one finding per BB-n, S-n, QG-n, C-n, QS-n or Adr id that must change, naming the id in the
       finding's message.
@@ -422,6 +426,8 @@ spec:
       - {kind: prompt, ref: {kind: Prompt, name: owner-review}}
       - {kind: artifact, input: architecture}
       - {kind: artifact, input: adrs}
+      - {kind: artifact, input: base}
+      - {kind: artifact, input: baseAdrs}
   timeout: 72h
   sideEffects: none
 ---

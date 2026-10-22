@@ -131,7 +131,7 @@ else `artifacts.prd`.
   its README. Found in UAT; the field built from the roadmap.
 - The auditor takes `base` and `baseAdrs` as the writer does: without them, round one of a later
   Rewrite pack Slice judged a revised Architecture without the one it revises, and could flag a
-  block or an Adr the base already settled. The human's form does not take them; the auditor's
+  block or an Adr the base already settled. The human's form takes them too since the Autopilot retest (decision 629); the auditor's
   verdict reaches it. Found in review.
 - The Architecture names what the builder installs and the Tester tests with: a block's
   `technology` says how it reaches its store, and a `testing` concept names a product per test
