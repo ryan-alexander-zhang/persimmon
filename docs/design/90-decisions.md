@@ -636,3 +636,4 @@ appears twice; the earlier file owns it.
 
 | 617 | `03-reconcile.md` | An `unknown` answer carries the dispatcher's reason (`deadline`, `exited 1 before responding`) into the attempt error. `no recorded answer` alone left a run that a sleeping laptop carried past its deadline indistinguishable from a crashed Adapter or an engine restart. |
 | 618 | `08-store.md` | The drain's race over calls in flight also wakes for the next due timer. Timers were pumped only when a call ended, so under `parallel` a retry backoff or a query timer waited for a sibling's call, minutes for a writer. |
+| 619 | `31-architecture-process.md` | The Architecture names every library a block cannot be built without and a test tool per level, and the auditor refuses `testing-tool-missing` and `dependency-unnamed`: the downstream rules forbid an unnamed dependency or tool, so an Architecture silent on them sent every first harness upstream. |
