@@ -41,7 +41,7 @@ autopilot = autopilot-doc then autopilot-code
 | a `D-n` whose task passed becomes an `Issue`, its fix a `build-one`, then the Issue's `resolved` revision; one fix attempt per Issue, then stop; an Issue that finds the Spec wrong or missing stops it, a Spec revision being the developer's call | skill |
 | `plan_regressed` is an Issue with the red test as its `reproduction`, fixed the same way | skill |
 | a `question-upstream` warning naming a Spec, the TestHarness, a Design or a Plan is applied before the next run: that artifact's `-one` loop with `base` its latest passed revision and the answers as `changes`, Specs first; then the run order again from the first `*-all` after the revised kind, whose loops reuse every capability or block the revision did not touch (`memo`, `11-workflow.md`) and run the others again; as often as a run tells new answers; one naming the Architecture or an Adr goes through `architect` the same way, with `base` and `baseAdrs`, and the order runs again from `design-all`, since every kind below takes the Architecture; one naming a Glossary stops it, reported as the revision the developer owes | skill |
-| the report names every Prd, Architecture, Adr, Spec, Plan and AcceptanceRecord revision, every `Q-n` an agent decided, every `question-agent-resolved` and `question-upstream` warning, every Issue, the files changed and the overrides in place; the developer reviews the diff and commits | skill |
+| the report names every Prd, Architecture, Adr, Spec, Plan and AcceptanceRecord revision, every `Q-n` the owner agent decided, every `question-upstream` warning, every Issue, the files changed and the overrides in place; the developer reviews the diff and commits | skill |
 
 ## Decisions
 
@@ -86,8 +86,8 @@ autopilot = autopilot-doc then autopilot-code
   none: the live run's agent time equalled its wall clock, and one failing capability blocked the
   ones after it. Found in UAT.
 - Quality is capped by the checks: the Autopilot passes what `sdd/v1`, the Auditor, the tests and
-  the owner agent pass, nothing more. Agent-resolved `Q-n` are warned (`question-agent-resolved`)
-  and listed in the report, so the developer reads the guesses an idea alone forced.
+  the owner agent pass, nothing more. Every `Q-n` the owner agent decided is listed in the report
+  (each `decide-*` TaskRun's `decisions`), so the developer reads the guesses an idea alone forced.
 - Shipped as `files/.claude/skills/<name>/SKILL.md` and `autopilot.yaml`, so `init` places them and
   updates untouched ones like `AGENTS.md`; `init` places files below `files/` at their relative
   path. Claude Code only: Codex reads `.agents/skills/`, a second copy added when a Codex user asks.

@@ -790,21 +790,12 @@ describe('sdd/v1 over an AcceptanceRecord', () => {
   })
 
   // an answer an agent gave in a human's place is told to the human, never refused (35-build-process.md)
-  it('warns of a question an agent answered, read from the provenance actor; a human\'s answer is not one', async () => {
+  it('a resolution an agent wrote is no finding: the decide step makes every answer the owner\'s', async () => {
     const answered = structuredClone(recordExample())
     answered.record.openQuestions = [{ id: 'Q-1', question: 'which currency?', resolution: 'EUR' }]
-    const by = (actor: Record<string, string>) => {
-      const p = recordPayload(answered)
-      p.artifacts.record.provenance = { ...provenance, actor }
-      return adapter({ id: ++id, op: 'evaluate', payload: p })
-    }
-    expect((await by({ kind: 'service', id: 'claude-code/v1' })).result).toEqual({ passed: true, evidence: [], findings: [{ severity: 'warning', code: 'question-agent-resolved', message: "Q-1's resolution was written by claude-code/v1; check a human gave it: which currency? — EUR" }] })
-    expect((await by({ kind: 'user', id: 'local' })).result).toEqual({ passed: true, findings: [], evidence: [] })
-    answered.previous = { ...structuredClone(answered.record), openQuestions: [{ id: 'Q-1', question: 'which currency?' }] }
-    answered.previousOutcome = answered.testOutcome
-    expect((await by({ kind: 'service', id: 'claude-code/v1' })).result.findings.map((f: { code: string }) => f.code)).toEqual(['question-agent-resolved']) // newly resolved this round
-    answered.previous.openQuestions[0].resolution = 'EUR'
-    expect((await by({ kind: 'service', id: 'claude-code/v1' })).result.findings).toEqual([]) // carried from the last round: told then
+    const p = recordPayload(answered)
+    p.artifacts.record.provenance = { ...provenance, actor: { kind: 'service', id: 'claude-code/v1' } }
+    expect((await adapter({ id: ++id, op: 'evaluate', payload: p })).result).toEqual({ passed: true, findings: [], evidence: [] })
   })
 
   // an answer that changes an upstream artifact is told once, so its revision is not forgotten (23-pack-sdlc.md)
@@ -1183,11 +1174,11 @@ describe('sdd/v1 over the Test process', () => {
   it('the Adapter dispatches a TestDesign and a TestHarness to their checks', async () => {
     const r = await adapter({ id: ++id, op: 'evaluate', payload: payload({ testDesign: content('TestDesign'), spec: content('Spec'), architecture: content('Architecture'), rules: content('BusinessRules'), harness: content('TestHarness'), plan: content('Plan') }) })
     expect(r.result).toEqual({ passed: true, findings: [], evidence: [] })
-    // an answer the last round had was told then: with previous bound only a new one is (39-test-process.md)
+    // a resolution an agent wrote is the owner's by construction and no finding (23-pack-sdlc.md)
     const answered = { ...content('TestDesign'), openQuestions: [{ id: 'Q-1', question: 'which formats?', resolution: 'PNG and PDF' }, { id: 'Q-2', question: 'which limit?', resolution: '500 EUR' }] }
     const told = payload({ testDesign: answered, spec: content('Spec'), architecture: content('Architecture'), rules: content('BusinessRules'), harness: content('TestHarness'), plan: content('Plan'), previous: { ...answered, openQuestions: [answered.openQuestions[0], { id: 'Q-2', question: 'which limit?' }] } })
     told.artifacts.testDesign.provenance = { ...provenance, actor: { kind: 'service', id: 'claude-code/v1' } }
-    expect((await adapter({ id: ++id, op: 'evaluate', payload: told })).result.findings.map((f: { message: string }) => f.message.slice(0, 3))).toEqual(['Q-2'])
+    expect((await adapter({ id: ++id, op: 'evaluate', payload: told })).result.findings).toEqual([])
     const h = await adapter({ id: ++id, op: 'evaluate', payload: payload({ harness: content('TestHarness'), seed: unit([]) }) })
     expect(h.result.findings.map((f: { code: string }) => f.code)).toEqual(['suite-empty', 'level-unrun'])
   })
