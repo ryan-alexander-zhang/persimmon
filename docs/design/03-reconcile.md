@@ -66,7 +66,8 @@ reconcile commits callAdapter ──▶ RunLog records the call ──▶ engine
                                                                   │
    AdapterFinished {state: succeeded, result}   ◀── ok ──────────┤
    AdapterFinished {state: failed, error}       ◀── error ───────┤
-   AdapterFinished {state: unknown}             ◀── engine restarted with no recorded answer
+   AdapterFinished {state: unknown, reason?}    ◀── no recorded answer: the engine restarted, the deadline
+                                                    passed, or the Adapter exited without one (reason, when known)
 ```
 
 An `exclusive` call is dispatched only under its Lease, renewed while the call runs and released

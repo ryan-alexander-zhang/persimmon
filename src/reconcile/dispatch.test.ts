@@ -129,6 +129,17 @@ describe('dispatcher', () => {
     expect(store.resources.getByUid(r2.metadata.uid!)?.status?.phase).toBe('Failed')
   })
 
+  it('a call past its deadline answers unknown with the reason', async () => {
+    impl.reconcile = (i) => {
+      if (i.event.type === 'Created') return { statusPatch: { phase: 'Running' }, actions: [{ type: 'callAdapter', adapterId: 'fake/v1', op: 'hang', payload: {}, idempotencyKey: 'k/1', deadline: new Date(clock + 200).toISOString() }] }
+      if (i.event.type === 'AdapterFinished') return { statusPatch: { phase: 'Failed', error: { code: 'unknown_result', message: `no recorded answer: ${(i.event.payload as { reason?: string }).reason}`, retryable: false } }, actions: [] }
+      return { actions: [] }
+    }
+    const r = startRun()
+    await drain(engine)
+    expect(store.resources.getByUid(r.metadata.uid!)?.status?.error?.message).toBe('no recorded answer: deadline')
+  })
+
   it('a Signal reconcile\'s token carries its actor and dies with the reconcile', async () => {
     const r = startRun()
     await drain(engine)

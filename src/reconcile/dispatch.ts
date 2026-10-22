@@ -148,7 +148,7 @@ export function dispatchCalls(engine: Engine): { dispatched: number; waiting: nu
             ? { idempotencyKey: a.idempotencyKey, state: 'succeeded', result: out.result }
             : out.state === 'failed'
               ? { idempotencyKey: a.idempotencyKey, state: 'failed', error: out.error }
-              : { idempotencyKey: a.idempotencyKey, state: 'unknown' },
+              : { idempotencyKey: a.idempotencyKey, state: 'unknown', reason: out.reason },
         )
       } catch (e) {
         // an unresolvable credential or a refused Adapter fails the attempt, never the engine (13-executor.md per attempt)

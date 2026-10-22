@@ -298,7 +298,7 @@ export function taskHandler(deps: HandlerDeps): HandlerImpl {
             return succeed(current, p.result as unknown as TaskResult)
           }
           if (p.state === 'failed') return attemptFailed(current, p.error)
-          return unknown(current)
+          return unknown(current, p.reason)
         }
 
         case 'Signal': {
@@ -332,14 +332,14 @@ export function taskHandler(deps: HandlerDeps): HandlerImpl {
           return { actions: [] }
       }
 
-      function unknown(a: Attempt): ReconcileResult {
+      function unknown(a: Attempt, reason?: string): ReconcileResult {
         if (a.acknowledged) return { actions: [] }
         const { describe } = load(run)
         if (describe.supports?.query) {
           const marked: Attempt = { ...a, state: 'unknown' }
           return { statusPatch: patch({ phase: 'Waiting', waitingReason: 'adapter', attempts: [...attempts.slice(0, -1), marked] }), actions: query(marked).actions }
         }
-        return attemptFailed(a, err('unknown_result', 'no recorded answer', load(run).task.spec.sideEffects !== 'nonIdempotent'))
+        return attemptFailed(a, err('unknown_result', reason ? `no recorded answer: ${reason}` : 'no recorded answer', load(run).task.spec.sideEffects !== 'nonIdempotent'))
       }
 
       function query(a: Attempt): ReconcileResult {

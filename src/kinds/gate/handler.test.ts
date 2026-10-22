@@ -203,5 +203,7 @@ describe('validator Handler', () => {
     expect(clean(fin.statusPatch)).toMatchObject({ phase: 'Succeeded', result: { passed: false } })
     const bad = handler.reconcile(input({ ...r, status: { phase: 'Running' } } as unknown as Resource, { type: 'AdapterFinished', dedupeKey: 'a', payload: { idempotencyKey: 'k', state: 'succeeded', result: { nope: 1 } } })) as ReconcileResult
     expect(clean(bad.statusPatch)).toMatchObject({ phase: 'Failed', error: { code: 'schema_violation' } })
+    const lost = handler.reconcile(input({ ...r, status: { phase: 'Running' } } as unknown as Resource, { type: 'AdapterFinished', dedupeKey: 'a', payload: { idempotencyKey: 'k', state: 'unknown', reason: 'deadline' } })) as ReconcileResult
+    expect(clean(lost.statusPatch)).toMatchObject({ phase: 'Failed', error: { code: 'unknown_result', message: 'no recorded answer: deadline' } }) // the dispatcher's reason, so a timeout reads as one
   })
 })

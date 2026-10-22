@@ -10,7 +10,7 @@ export interface ReconcileError {
 export type AdapterFinishedPayload = { finishedAt?: string } & ( // when the answer arrived; the Event is delivered later (03-reconcile.md)
   | { idempotencyKey: string; state: 'succeeded'; result: Record<string, unknown> }
   | { idempotencyKey: string; state: 'failed'; error: ReconcileError }
-  | { idempotencyKey: string; state: 'unknown' })
+  | { idempotencyKey: string; state: 'unknown'; reason?: string }) // reason: why no answer was recorded (deadline, the Adapter's exit), when known
 
 interface EventBase {
   sequence: number

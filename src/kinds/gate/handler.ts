@@ -319,7 +319,7 @@ export function validatorHandler(deps: HandlerDeps): HandlerImpl {
           const p = ev.payload
           if (p.state === 'succeeded') return finishWith(p.result)
           if (p.state === 'failed') return done({ phase: 'Failed', error: p.error })
-          return done({ phase: 'Failed', error: err('unknown_result', 'no recorded answer') })
+          return done({ phase: 'Failed', error: err('unknown_result', p.reason ? `no recorded answer: ${p.reason}` : 'no recorded answer') })
         }
 
         case 'TimerFired':
