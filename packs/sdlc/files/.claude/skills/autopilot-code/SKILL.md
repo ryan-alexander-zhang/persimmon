@@ -21,7 +21,7 @@ Tester sets up and writes the tests, all inside the engine.
 When the project has no app yet, stand in for the developer once:
 
 - Scaffold the app the Architecture describes, on the technology its Adrs chose, in the repository
-  root unless the Architecture says otherwise. Add no dependency an Adr does not name.
+  root unless the Architecture says otherwise. Add no dependency the Architecture or an Adr does not name.
 - Give it a unit test command that writes JUnit XML and passes on the empty app, and a health
   check the api and e2e seed tests can reach. When no Adr names a test tool, the runtime's own
   runner is the command (`node --test`, `go test`, `pytest`), and the command creates the
@@ -65,10 +65,12 @@ says: investigate it yourself, write it with `persimmon create`, schema from
 `persimmon get KindDefinition/issues.sdd.persimmon.ai`. One Issue per root cause, however many
 records report it.
 
-The fix: when the Spec was wrong or missing, stop and report; a Spec revision is the developer's
-call. Otherwise `build-one` on the task the Issue `blocks` (inputs as `build-all`, `taskId`, and
-`baseline`, the TestOutcome `build-all` took first). Its Gate passed: write the Issue's `resolved`
-revision citing that record in `fixedBy`. Its Gate failed: stop.
+The fix: when the Issue finds the Spec wrong or missing, the Spec is revised first as an upstream
+answer (`driving.md`, Upstream answers: `spec-one` with `base` and `changes` naming the Issue's
+finding, then its impact, the Plan and the TestDesign). Then `build-one` on the task the Issue
+`blocks` (inputs as `build-all`, `taskId`, and `baseline`, the TestOutcome `build-all` took first).
+Its Gate passed: write the Issue's `resolved` revision citing that record in `fixedBy`. Its Gate
+failed: stop.
 
 ## 4. End
 

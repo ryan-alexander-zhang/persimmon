@@ -36,9 +36,9 @@ autopilot = autopilot-doc then autopilot-code
 | before the first run the skill applies `files/.claude/skills/autopilot/autopilot.yaml`: Executors `local-reviewer`, `builder` and `tester` in the project's Namespace, `claude-code/v1`, `claude-opus-5`, the owner read-only, the builder and the Tester `workspace-write` with the stack's commands in `allowedTools`; the report says they are in place, and `persimmon delete Executor/<name> -n default` gives a role back to the human | skill; `autopilot.yaml` |
 | a question is decided where it is raised: the writer's open `Q-n` by the owner inside the round (`decide-<kind>`), the builder's or Tester's by the owner inside the build round (`decide-build`), the ones the confirm finds itself at the Gate, as a rejection `Q-n: decided.` the next round records; every decision an agent took is in the report | pack (`23-pack-sdlc.md`); skill |
 | a form that parks is a Task on a human Executor the overrides do not cover: the Autopilot stops and reports it, never answers it | skill |
-| a loop out of rounds whose last verdict decided something (a finding opening `<id>: decided.`, a question or a conflict the owner settled) is continued once from its last round (`previous`, `feedback`, its carried inputs, `21-composition.md`), so the writer records the answers and its Gate judges again; one whose last verdict decided nothing, a Failed run for another reason or a reconcile error stops the Autopilot with a report | skill |
+| a loop out of rounds whose last verdict left the writer something to act on (a finding opening `<id>: decided.`, or an error naming an id the writer can fix) is continued once from its last round (`previous`, `feedback`, its carried inputs, `21-composition.md`), as a developer gives one more round; its passed revision is the artifact and no `*-all` runs again; a continuation out of rounds again with no new decision, a Failed run for another reason or a reconcile error stops the Autopilot with a report | skill |
 | before the first `build-all` the orchestrator does what the pack leaves to the developer: when the project has no app, it scaffolds one on the Architecture's technology and Adrs, with a unit test command that writes JUnit XML; then `setup-tests` and `test-design-all`; the project must already be a git repository | skill |
-| a `D-n` whose task passed becomes an `Issue`, its fix a `build-one`, then the Issue's `resolved` revision; one fix attempt per Issue, then stop; an Issue that finds the Spec wrong or missing stops it, a Spec revision being the developer's call | skill |
+| a `D-n` whose task passed becomes an `Issue`, its fix a `build-one`, then the Issue's `resolved` revision; one fix attempt per Issue, then stop; an Issue that finds the Spec wrong or missing revises the Spec first as an upstream answer (`spec-one` with `base` and `changes`, then its impact), then fixes the task | skill |
 | `plan_regressed` is an Issue with the red test as its `reproduction`, fixed the same way | skill |
 | a `question-upstream` warning naming a Spec, the TestHarness, a Design or a Plan is applied before the next run: that artifact's `-one` loop with `base` its latest passed revision and the answers as `changes`, Specs first; then by impact: the revision diffed against its base, each artifact below that cites, realises or rests on a changed part revised through its `-one` loop with `base` and `changes` naming the changed parts, the rest left behind and right (`get --behind`), and the order continued from the first phase not yet run; as often as a run tells new answers; one naming the Architecture or an Adr goes through `architect` the same way, with `base` and `baseAdrs`, its impact applied the same way; one naming a Glossary stops it, reported as the revision the developer owes | skill |
 | the report names every Prd, Architecture, Adr, Spec, Plan and AcceptanceRecord revision, every `Q-n` the owner agent decided, every `question-upstream` warning, every Issue, the files changed and the overrides in place; the developer reviews the diff and commits | skill |
@@ -70,18 +70,22 @@ autopilot = autopilot-doc then autopilot-code
   model for the owner was weighed against the live run's cost and refused: the owner's decisions
   are the product's, and the time went to rounds and reruns, not to the model. Chosen by the
   developer.
-- A loop out of rounds is continued only while its last verdict decided something, a question or a
-  conflict the owner found, each a finding opening `<id>: decided.` (`owner-review`): the confirm's
-  own decisions reach the artifact through one more round; a loop whose last round decided nothing
-  is stuck, and a person reads why. The first cut continued once and stopped at the second
-  exhaustion whatever the verdict said. Found in UAT.
-- Upstream answers are applied through the artifact's own loop and then the run order again, not
-  through a dependency table the skill keeps. The first cut listed what each revised kind
-  invalidates (a Design: its Plans, the `ui` Designs calling it, their TestDesigns) and still reran
-  too much (CAP-1's TestDesign four times in ten hours with nothing changed). A `*-all` loop with
-  `memo` reuses a capability whose inputs are unchanged since it passed and runs the others, so the
-  engine decides what a revision touched from the revisions themselves (`11-workflow.md`). Found in
-  UAT.
+- A loop out of rounds is continued once when its last verdict left the writer something to act
+  on: a decision, a finding opening `<id>: decided.` (`owner-review`), or an error naming an id the
+  writer can fix, as a developer gives one more round; a continuation out of rounds again with no
+  new decision is stuck, and a person reads why. Its passed revision is the artifact: the first cut
+  ran the `*-all` again after it, which ran the same capability once more from nothing, its memo
+  having no passed loop to reuse. An earlier cut continued only on a decision, so a Design loop,
+  whose Gate has no owner, stopped the Autopilot on any second audit miss. Found in UAT and the
+  Autopilot retest.
+- Upstream answers are applied through the artifact's own loop and then by impact (above), not
+  through a dependency table the skill keeps nor by the run order again. The first cut listed what
+  each revised kind invalidates (a Design: its Plans, the `ui` Designs calling it, their
+  TestDesigns) and still reran too much (CAP-1's TestDesign four times in ten hours with nothing
+  changed); the second ran the `*-all` loops again under `memo`, which reuses only a capability
+  whose input revisions are unchanged, so a global input's revision (the Architecture) reused
+  nothing. `memo` still serves a `*-all` run started again after a stop (`11-workflow.md`). Found
+  in UAT.
 - The `*-all` loops run their capabilities side by side (`parallel: 4`), and one rejected stops
   none: the live run's agent time equalled its wall clock, and one failing capability blocked the
   ones after it. Found in UAT.

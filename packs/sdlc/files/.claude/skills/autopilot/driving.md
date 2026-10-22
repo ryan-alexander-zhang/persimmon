@@ -46,8 +46,8 @@ review `passed`. The next run takes those revisions. A `*-all` run's loops run s
 one rejected does not stop the others; its tree says which capability or block failed.
 
 A step that found the same work done already (same inputs, same definitions, a passed loop) is
-reused, not run again: `tree` shows it as reused. So a `*-all` run after an upstream change redoes
-only the capabilities or blocks that change touched.
+reused, not run again: `tree` shows it as reused. So a `*-all` run started again after a stop (a
+usage limit, one failed iteration) redoes only the capabilities or blocks with no passed loop yet.
 
 ## Upstream answers
 
@@ -90,13 +90,15 @@ artifact as the revision the developer owes before resuming.
 Stop and report, never work around it, when:
 
 - a run ends Failed, or prints a reconcile error (`PERSIMMON_DEBUG=1` shows it);
-- a ReviewLoop runs out of rounds and its last verdict decided nothing (no finding opening `<id>: decided.`).
-  One whose last verdict did decide something, a question or a conflict the owner settled, is
-  continued from its last round, so the decisions reach the artifact: run the loop that ran out (`persimmon describe WorkflowRun/<loop run>` names
-  its inputs) with the same inputs plus `previous`, the last round's subject, `feedback`, the `value`
-  of its review's result (`persimmon get GateRun/<loop run>-rounds-<n>-review`,
-  `status.outputs.result`, in a file passed with `@`), and each input its `carry` names
-  (`persimmon get ReviewLoop/<name>`) from that round's output; then the `*-all` run again;
+- a ReviewLoop runs out of rounds twice. The first time, when its last verdict left the writer
+  something to act on, a decision (a finding opening `<id>: decided.`) or an error naming an id the
+  writer can fix, continue it from its last round, as a developer gives one more round: run the loop
+  that ran out (`persimmon describe WorkflowRun/<loop run>` names its inputs) with the same inputs
+  plus `previous`, the last round's subject, `feedback`, the `value` of its review's result
+  (`persimmon get GateRun/<loop run>-rounds-<n>-review`, `status.outputs.result`, in a file passed
+  with `@`), and each input its `carry` names (`persimmon get ReviewLoop/<name>`) from that round's
+  output. Its passed revision is the artifact: the `*-all` run is not run again, the order goes on
+  with it. A continuation that runs out again with no new decision stops;
 - a form parks (above);
 - an `Issue`'s fix fails its Gate (`autopilot-code`);
 - an upstream revision fails its Gate, or a run names a Glossary in a `question-upstream` (above).
@@ -107,7 +109,7 @@ At the end, or at a stop: the runs, the revisions each produced (Prd, BusinessRu
 kinds, Architecture, Adrs, DesignSystem, Designs, Specs, Plans, TestHarness, TestDesigns,
 AcceptanceRecords, TestOutcomes, TestReports with their verdicts and residual risks, Issues), every
 `Q-n` the owner agent decided (each `decide-*` TaskRun's `decisions`, and each confirm verdict's
-`Q-n: decided.` finding), every `question-agent-resolved` and `defect-reported` warning, every
+`Q-n: decided.` finding), every `defect-reported` warning, every
 `question-upstream` warning as an upstream revision the developer owes, the files changed, the
 Executor overrides in place, and, at a stop, what stopped it and the command that resumes. The
 developer reads it, reviews the diff and commits.
