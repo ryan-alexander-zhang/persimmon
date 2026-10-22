@@ -3900,6 +3900,10 @@
      "error": {
       "$ref": "#/$defs/Error"
      },
+     "reason": {
+      "type": "string",
+      "description": "unknown only: why no answer was recorded, when known (deadline, the Adapter's exit)"
+     },
      "finishedAt": {
       "type": "string",
       "format": "date-time",
