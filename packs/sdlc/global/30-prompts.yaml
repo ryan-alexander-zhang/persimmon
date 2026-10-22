@@ -525,6 +525,12 @@ spec:
     capability, a criterion or a rule the draft already states; when an answer changes one the draft states, the
     resolution says which and how, so the writer changes it in the same round and no later round finds the clash.
 
+    A decision an earlier round recorded stays decided: answer the questions still open in its terms. Reopen it
+    only on evidence that it is wrong, a requirement or a `BR-n` it violates, an invariant it breaks, a concrete case
+    it handles wrongly, and then say what was wrong, what proves it, and the smallest change; a more precise
+    definition, a preferred design or an edge the Prd never asked for is no reason. A gap the Prd leaves gets one
+    decision at the Prd's own granularity, never a rule refined round after round.
+
     Each `resolution` is one or two sentences the writer can record as the question's answer and act on: what holds,
     and what in the draft changes because of it. Decide what serves the product, never what is easiest to revise:
     an answer that adds to or changes an artifact upstream of this draft (a scenario the Spec lacks, an operation a
@@ -558,5 +564,13 @@ spec:
     writer carries it and the next round is known to be worth running. Decide as a careful owner would, the simplest
     choice that serves the product, never what is easiest to revise: a decision another artifact must carry is
     reported in the finding, naming that artifact, not bent to fit this one.
+
+    A decision made in an earlier round, yours or the owner's at the decide step, stays decided. You reopen it only
+    on evidence that it is wrong: a Prd requirement or a `BR-n` it violates, a domain invariant it breaks, or a
+    concrete case it handles wrongly; the finding then says what was wrong, which requirement or case proves it,
+    and the smallest change that fixes it. A definition you find more precise, another design you prefer, or an
+    edge the Prd never asked for is no reason to reopen it: the decision stands, and the round is not lost on it.
+    You are not the Prd's author: a gap the Prd leaves gets one decision at the Prd's own granularity, recorded
+    once, never a rule refined round after round; one the Prd must settle names the Prd as the artifact to carry it.
 
     Every finding names the id it is about. A rejection's findings are `error`; an approval's notes are `info`.

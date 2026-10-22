@@ -78,4 +78,14 @@ describe('the SDLC pack takes a Rewrite pack inventory and base, optionally', ()
     const based = bind(audit, { inputs: { ...round, base: ref('Architecture'), baseAdrs: adrs } }, siteOf({}))
     expect([based.base, based.baseAdrs]).toEqual([ref('Architecture'), adrs])
   })
+
+  it('an earlier round\'s decision stays decided for the owner, reopened only on evidence', () => {
+    const prompts = parseAllDocuments(readFileSync('packs/sdlc/global/30-prompts.yaml', 'utf8')).map((d) => d.toJS())
+    for (const name of ['owner-review', 'owner-decisions']) {
+      const content: string = prompts.find((d) => d.metadata.name === name).spec.content
+      expect(content).toMatch(/stays decided/)
+      expect(content).toMatch(/smallest change/)
+      expect(content).toMatch(/edge the Prd never asked for is no reason/)
+    }
+  })
 })

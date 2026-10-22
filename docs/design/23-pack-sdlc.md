@@ -390,6 +390,14 @@ that kept its own `AGENTS.md` or `CLAUDE.md` carries section 8 itself.
   Task's agent (section 8). example02 and example04 keep their own `AGENTS.md`: a Task workspace
   inside the persimmon checkout needs its fence, and their rules name the example's files. Found in
   design review.
+- A decision from an earlier round stays decided; the owner reopens it only on evidence that it is
+  wrong (a requirement or rule it violates, an invariant it breaks, a concrete case it handles
+  wrongly), naming what was wrong, what proves it and the smallest change. A more precise
+  definition, a preferred design or an edge the Prd never asked for is no reason, and a Prd gap gets
+  one decision at the Prd's granularity. The domain design stage of a retest lost three rounds, 38
+  minutes, to the owner agent refining its own quarter-hour rule and finding new mismatches each
+  time; a flat "an earlier decision stands" was rejected, since it would freeze a wrong one.
+  Found in the Autopilot retest.
 
 ## Examples
 
