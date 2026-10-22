@@ -69,11 +69,14 @@ the order:
    revision against `base` (`persimmon get <Kind>/<id>.r<n>` for both) and list the parts that
    changed, by id: a Spec's `AC-n`, `R-n` or story; an Architecture's `BB-n` (its `technology` or
    `interfaces` too), `REL-n`, `CC-n`, `QS-n`, an Adr; a Design's element; a harness level. An
-   artifact below is impacted when it cites, realises or rests on a changed part: a Design through
-   its `block` or `interface`, a Spec through a `QS-n` or `CC-n` it cites, a Plan through a task on a
-   changed Design, block or scenario, the harness through a `testing` concept or a block's
-   technology, a TestDesign through a changed Spec, Plan or Design. One that does not stays as it
-   is: behind the new revision (`persimmon get <Kind> --behind`), not wrong. Revise each impacted
+   artifact below is impacted when something it states rests on what changed in the part, judged
+   sentence by sentence, not by the citation alone: a Design realising a block whose interface
+   changed, a Spec whose scenario states a rule a `CC-n` or `QS-n` now states otherwise, a Plan
+   with a task on a changed Design or scenario, the harness on a `testing` concept or a block's
+   technology, a TestDesign on a changed Spec, Plan or Design. A Design that lists an Adr in its
+   `decisions`, or a Spec citing a `QS-n` whose changed sentence it never used, is not impacted.
+   One that is not stays as it is: behind the new revision (`persimmon get <Kind> --behind`), not
+   wrong. Say in the report which artifacts you judged impacted and why. Revise each impacted
    artifact through its `-one` loop with `base` its latest passed revision and `changes=@<file>`
    listing each changed part as `<artifact id> <part id>: <what changed>`, in order: Specs, Designs,
    Plans, the harness (`setup-tests` with `base` and `changes`), then TestDesigns (`test-design-one`
