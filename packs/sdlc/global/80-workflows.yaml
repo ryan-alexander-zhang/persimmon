@@ -567,7 +567,7 @@ spec:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     blockId: {type: {kind: value, schema: {type: string, pattern: "^BB-[0-9]+$"}}}
     type: {type: {kind: value, schema: {type: string, enum: [http-api, async-api, data-schema, ui]}}}
-    interface: {type: {kind: value, schema: {type: string}}, required: false, description: "which provided interface; empty or unbound: the block's first"}
+    interface: {type: {kind: value, schema: {type: string}}, required: false, description: "which provided interface; empty or unbound: the one provided interface the type describes"}
     qualifier: {type: {kind: value, schema: {type: string, pattern: "^([a-z0-9]([-a-z0-9]*[a-z0-9])?)?$", maxLength: 40}}, required: false, description: "empty or unbound: none; else tells two Designs of one block and type apart in the id (a block with two APIs, or realising two contexts): the interface or the context, as a label (29-design-process.md)"}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: {expression: "inputs.type != 'ui'"}, description: "what the elements realise; a ui Design realises operations of `designs` instead"}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: {expression: "inputs.type != 'ui'"}, description: "the names the document uses; not for a ui Design"}
@@ -648,7 +648,7 @@ spec:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     blockId: {type: {kind: value, schema: {type: string, pattern: "^BB-[0-9]+$"}}}
     type: {type: {kind: value, schema: {type: string, enum: [http-api, async-api, data-schema, ui]}}}
-    interface: {type: {kind: value, schema: {type: string}}, required: false, description: "empty or unbound: the block's first provided interface"}
+    interface: {type: {kind: value, schema: {type: string}}, required: false, description: "empty or unbound: the one provided interface the type describes"}
     qualifier: {type: {kind: value, schema: {type: string, pattern: "^([a-z0-9]([-a-z0-9]*[a-z0-9])?)?$", maxLength: 40}}, required: false, description: "empty or unbound: none"}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: {expression: "inputs.type != 'ui'"}}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: {expression: "inputs.type != 'ui'"}}
@@ -714,7 +714,7 @@ spec:
         architecture: {fromInput: architecture}
         blockId: {expression: "state.block.block"}
         type: {expression: "state.block.type"}
-        interface: {expression: "has(state.block.interface) ? state.block.interface : ''"}   # empty: the block's first provided interface (design-asset)
+        interface: {expression: "has(state.block.interface) ? state.block.interface : ''"}   # empty: the one provided interface the type describes (design-asset)
         qualifier: {expression: "has(state.block.qualifier) ? state.block.qualifier : ''"}
         domainModel: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}, id: "has(state.block.context) ? state.block.context + '-model' : ''"}, onMissing: omit}   # the context's, as derive-domain names it (26-domain-discovery.md)
         glossary: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}, id: "has(state.block.context) ? state.block.context + '-glossary' : ''"}, onMissing: omit}

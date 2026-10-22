@@ -248,7 +248,7 @@ spec:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     blockId: {type: {kind: value, schema: {type: string, pattern: "^BB-[0-9]+$"}}}
     type: {type: {kind: value, schema: {type: string, enum: [http-api, async-api, data-schema, ui]}}}
-    interface: {type: {kind: value, schema: {type: string}}, required: false, description: "which provided interface; empty or unbound: the block's first"}
+    interface: {type: {kind: value, schema: {type: string}}, required: false, description: "which provided interface; empty or unbound: the one provided interface the type describes"}
     qualifier: {type: {kind: value, schema: {type: string, pattern: "^([a-z0-9]([-a-z0-9]*[a-z0-9])?)?$", maxLength: 40}}, required: false, description: "empty or unbound: none; else tells two Designs of one block and type apart in the id (a block with two APIs, or realising two contexts): the interface or the context, as a label (29-design-process.md)"}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: {expression: "inputs.type != 'ui'"}, description: "what the elements realise; a ui Design realises operations of `designs` instead"}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: {expression: "inputs.type != 'ui'"}, description: "the names the document uses; not for a ui Design"}
@@ -268,8 +268,10 @@ spec:
     instructions: |
       Write the Design of `type` for the building block `blockId` of the Architecture, following the Design rules in
       your context. `architecture`, `domainModel` and `businessRules` in the Design are the artifact ids of the inputs
-      `architecture`, `domainModel` and `rules`; `block` is `blockId`; for an API, `interface` is the input `interface` when bound and not empty, else the block's first
-      provided interface. Every element realises a label the DomainModel names; every rule id is in `rules`. For a `ui` Design,
+      `architecture`, `domainModel` and `rules`; `block` is `blockId`; for an API, `interface` is the input `interface` when bound and not empty; else the one
+      interface the block provides whose description is what `type` describes (events for `async-api`, operations for
+      `http-api`): never one the block requires, never a name the Architecture lacks; when none or several fit, the
+      Design's `interface` is a `Q-n`, naming the Architecture when it lacks the interface. Every element realises a label the DomainModel names; every rule id is in `rules`. For a `ui` Design,
       `designSystem` is the artifact id of the DesignSystem in your context, there is no `domainModel`, and every
       element realises an operation of the Designs in your context.
       With `base` and `changes` bound, revise `base` as the Design rules say for a revision.

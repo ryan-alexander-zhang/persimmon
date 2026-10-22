@@ -142,6 +142,9 @@ else `artifacts.prd`.
 - `write-architecture` and `architect` take `changes` beside `base` and `baseAdrs`: a downstream
   answer that names a library, a tool or a decision is applied to the last passed Architecture
   like a Spec's, and everything below runs again. Found in the Autopilot retest.
+- A block that publishes domain events provides an interface for them, apart from the handler
+  interfaces it requires; the auditor refuses `publisher-no-interface`. Without one, an
+  `async-api` Design of a publisher had no honest interface to name. Found in the Autopilot retest.
 
 ## Examples
 
