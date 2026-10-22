@@ -182,8 +182,11 @@ Result: a ValidationResult (`10-ports.md`). No `credentials`, no `security` (`14
   `-p` has nobody to answer a permission prompt. Found in UAT.
 - `claude-code/v1` runs `--output-format stream-json --verbose` and turns the events into log
   lines: the agent's text, `> <tool> <input>`, `< <result>`; init, rate limit and result events
-  are dropped; the `result` event is the answer. A driver's `transcript` may be a line mapper. One
-  line logger per stream, so a partial stdout line no longer joins a stderr line. Found in UAT.
+  are one line each, `[system init] …`, `[result success] 12 turns, 80000 ms`, and the answer
+  itself is not logged; the `result` event is the answer. A driver's `transcript` may be a line
+  mapper. One line logger per stream, so a partial stdout line no longer joins a stderr line.
+  Found in UAT; a write that a laptop's sleep ran into its deadline left a RunLog with no line
+  from the agent, and nothing said whether claude had started.
 - A Skill reaches the agent where its CLI discovers skills, `<workspace>/.claude/skills/<name>`
   (claude) or `<workspace>/.agents/skills/<name>` (codex), installed there by `persimmon skill
   install` and left in place. The Adapter neither fetches nor writes: it hashes the installed

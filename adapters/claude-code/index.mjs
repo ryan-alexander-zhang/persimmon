@@ -43,7 +43,7 @@ const shortJson = (v, n = 160) => {
   return s.length > n ? `${s.slice(0, n - 3)}...` : s
 }
 
-/** One stream-json event as a log line: what the agent said, which tool it called, what came back. Everything else is dropped. */
+/** One stream-json event as a log line: what the agent said, which tool it called, what came back; any other event as `[type subtype] …`. */
 function transcript(line) {
   const e = JSON.parse(line)
   if (e.type === 'assistant') {
@@ -59,7 +59,10 @@ function transcript(line) {
     for (const c of e.message?.content ?? []) if (c.type === 'tool_result') out.push(`< ${shortJson(Array.isArray(c.content) ? c.content.map((x) => x.text ?? '').join(' ') : c.content)}`)
     return out.length ? out.join('\n') : undefined
   }
-  return undefined // system, result, rate limit events
+  // init, rate limit and result events stay as one line each: a run that ends with none of the above shows whether claude started at all
+  const { type, subtype, ...rest } = e
+  if (type === 'result') return `[result ${subtype}] ${e.is_error ? shortJson(e.result) : `${e.num_turns ?? '?'} turns, ${e.duration_ms ?? '?'} ms`}`
+  return `[${type}${subtype ? ` ${subtype}` : ''}] ${shortJson(rest, 120)}`
 }
 
 serve({

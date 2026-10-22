@@ -196,8 +196,10 @@ describe('claude-code/v1', () => {
     const logs = r.lines.filter((l) => l.event === 'log').map((l) => l.text)
     expect(logs).toContain('thinking about [redacted]') // stderr streams as log lines, credentials redacted
     expect(logs).toContain('Reading the brief.\n> Bash npm test') // stream-json events become a transcript: what it said, what it ran
-    expect(logs).toContain('< 6 passed') // and what came back; init and result events are dropped
-    expect(logs.some((t) => t.includes('structured_output'))).toBe(false)
+    expect(logs).toContain('< 6 passed') // and what came back
+    expect(logs).toContain('[system init] {"tools":["Bash"]}') // every other event is one line, so an agent that printed nothing else is known to have started
+    expect(logs).toContain('[result success] ? turns, ? ms')
+    expect(logs.some((t) => t.includes('structured_output'))).toBe(false) // the answer is not a log line
   })
 
   it('an artifacts input: every ref in provenance, none in the Inputs block', async () => {
