@@ -29,7 +29,8 @@ Input shapes:
 
 - one artifact: `'prd={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: Prd, namespace: default, id: <id>, revision: <n>}}'`
 - a list of artifacts: a file of `- {apiVersion: sdd.persimmon.ai/v1, kind: <Kind>, id: <id>, revision: <n>}` lines, `--input designs=@designs.yaml`
-- a value: `--input productId=<id>`, `--input 'capabilities=[CAP-1, CAP-2]'`
+- a value: `--input productId=<id>`; a list of capability entries, one per capability with its
+  bounded context, as a file: `- {id: CAP-1, context: room-bookings}` lines, `--input capabilities=@caps.yaml`
 - the repository: `--input repository=<path>`
 
 ## Parked

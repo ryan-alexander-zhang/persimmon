@@ -30,8 +30,10 @@ is a question in the brief, for the Prd's `Q-n`.
    BoundedContext, Glossary and DomainModel per context.
 3. `architect`: `prd`, `rules`, `contexts`, `domainModels`, `glossaries` (lists of every context's).
    Gives the Architecture and its Adrs.
-4. `spec-all`, once per BoundedContext: `prd`, `capabilities` (the context's `capabilities`),
-   `architecture`, `context`, and that context's `domainModel` and `glossary`, `rules`.
+4. `spec-all`, one run for the product: `prd`, `capabilities` (one entry per capability of every
+   BoundedContext, `{id: CAP-n, context: <context id>}`; the run binds each capability's
+   BoundedContext, DomainModel and Glossary itself), `architecture`, `rules`. The capabilities run
+   side by side.
 5. `design-all`, one run for every non-client building block: `blocks`, a list with one entry
    per Design, `{block: BB-n, type, interface?, qualifier?, context}`: one `http-api` entry per HTTP
    interface the block `provides` and one `async-api` per message interface (`interface` named when
@@ -44,9 +46,8 @@ is a question in the brief, for the Prd's `Q-n`.
 6. When the Architecture has client blocks: `design-system` (`prd`, `architecture`), then
    `design-all` again with one `{block, type: ui}` entry per client block, `designSystem`, and
    `designs` the `http-api` Designs they call, `architecture`, `rules`.
-7. `plan-all`: `prd`, every `capabilities` id, `architecture`, `designs` (every Design), `domainModel`.
-   With several bounded contexts, one `plan-all` per context over its `capabilities`, each with that
-   context's DomainModel.
+7. `plan-all`, one run: `prd`, `capabilities` (the same entries as `spec-all`), `architecture`,
+   `designs` (every Design). Each capability's DomainModel is bound from its context.
 
 Read the Architecture with `persimmon get Architecture/<id>` to pick the blocks and types of steps
 5 and 6.

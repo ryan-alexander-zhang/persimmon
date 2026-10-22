@@ -415,12 +415,9 @@ metadata: {name: spec-all}
 spec:
   inputs:
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
-    capabilities: {type: {kind: value, schema: {type: array, minItems: 1, maxItems: 20, items: {type: string, pattern: "^CAP-[0-9]+$"}}}}
+    capabilities: {type: {kind: value, schema: {type: array, minItems: 1, maxItems: 40, items: {type: object, required: [id, context], additionalProperties: false, properties: {id: {type: string, pattern: "^CAP-[0-9]+$"}, context: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40, description: "the bounded context that lists the capability: its BoundedContext, <context>-model and <context>-glossary are bound (26-domain-discovery.md)"}}}}}, description: "one entry per capability, with its bounded context, so one run covers every context"}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
-    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}}
-    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
-    context: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext}}, description: "the BoundedContext that lists the capabilities; its DomainModel and Glossary are the ones bound"}
   outputs:
     written: {type: {kind: value, schema: {type: integer}}}
   outputBindings:
@@ -431,23 +428,26 @@ spec:
       uses: {kind: ReviewLoop, name: spec-one}
       inputs:
         prd: {fromInput: prd}
-        capabilityId: {expression: "inputs.capabilities[state.index - 1]"}
+        capabilityId: {expression: "state.cap.id"}
         architecture: {fromInput: architecture}
-        domainModel: {fromInput: domainModel}
-        glossary: {fromInput: glossary}
+        domainModel: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}, id: "state.cap.context + '-model'"}}   # the context's, as derive-domain names them
+        glossary: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}, id: "state.cap.context + '-glossary'"}}
         rules: {fromInput: rules}
-        context: {fromInput: context}
+        context: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext}, id: "state.cap.context"}}
       timeout: 12h
       memo: {when: "outputs.passed"}   # unchanged inputs, a passed loop: done already (11-workflow.md)
       repeat:
         state:
           index: {type: {kind: value, schema: {type: integer, minimum: 1}}}
+          cap: {type: {kind: value, schema: {type: object, required: [id, context], additionalProperties: false, properties: {id: {type: string, pattern: "^CAP-[0-9]+$"}, context: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40, description: "the bounded context that lists the capability: its BoundedContext, <context>-model and <context>-glossary are bound (26-domain-discovery.md)"}}}}}
         initial:
           index: {literal: 1}
+          cap: {expression: "inputs.capabilities[0]"}
         next:
           index: {expression: "state.index + 1"}
+          cap: {expression: "inputs.capabilities[state.index]"}
         until: "iteration.index >= inputs.capabilities.size()"
-        maxIterations: 20
+        maxIterations: 40
         parallel: 4   # the loops are independent; one rejected does not stop the others (11-workflow.md)
   transitions:
     - id: done
@@ -929,10 +929,9 @@ metadata: {name: plan-all}
 spec:
   inputs:
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
-    capabilities: {type: {kind: value, schema: {type: array, minItems: 1, maxItems: 20, items: {type: string, pattern: "^CAP-[0-9]+$"}}}}
+    capabilities: {type: {kind: value, schema: {type: array, minItems: 1, maxItems: 40, items: {type: object, required: [id, context], additionalProperties: false, properties: {id: {type: string, pattern: "^CAP-[0-9]+$"}, context: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40, description: "the bounded context that lists the capability: its BoundedContext, <context>-model and <context>-glossary are bound (26-domain-discovery.md)"}}}}}, description: "one entry per capability, with its bounded context, so one run covers every context"}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
-    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: false, description: "which aggregate handles each of the Spec's commands"}
   outputs:
     written: {type: {kind: value, schema: {type: integer}}}
   outputBindings:
@@ -942,22 +941,25 @@ spec:
     - id: each
       uses: {kind: ReviewLoop, name: plan-one}
       inputs:
-        spec: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}, id: "inputs.prd.id + '-' + inputs.capabilities[state.index - 1].lowerAscii()"}}
+        spec: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}, id: "inputs.prd.id + '-' + state.cap.id.lowerAscii()"}}
         architecture: {fromInput: architecture}
         designs: {fromInput: designs}
-        domainModel: {fromInput: domainModel, onMissing: omit}
-        base: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}, id: "inputs.prd.id + '-' + inputs.capabilities[state.index - 1].lowerAscii() + '-plan'"}, onMissing: omit}
+        domainModel: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}, id: "state.cap.context + '-model'"}, onMissing: omit}   # the context's, as derive-domain names it
+        base: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}, id: "inputs.prd.id + '-' + state.cap.id.lowerAscii() + '-plan'"}, onMissing: omit}
       timeout: 12h
       memo: {ignore: [base], when: "outputs.passed"}   # unchanged inputs, a passed loop: done already (11-workflow.md)
       repeat:
         state:
           index: {type: {kind: value, schema: {type: integer, minimum: 1}}}
+          cap: {type: {kind: value, schema: {type: object, required: [id, context], additionalProperties: false, properties: {id: {type: string, pattern: "^CAP-[0-9]+$"}, context: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40, description: "the bounded context that lists the capability: its BoundedContext, <context>-model and <context>-glossary are bound (26-domain-discovery.md)"}}}}}
         initial:
           index: {literal: 1}
+          cap: {expression: "inputs.capabilities[0]"}
         next:
           index: {expression: "state.index + 1"}
+          cap: {expression: "inputs.capabilities[state.index]"}
         until: "iteration.index >= inputs.capabilities.size()"
-        maxIterations: 20
+        maxIterations: 40
         parallel: 4   # the loops are independent; one rejected does not stop the others (11-workflow.md)
   transitions:
     - id: done
@@ -1760,10 +1762,9 @@ metadata: {name: test-design-all}
 spec:
   inputs:
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
-    capabilities: {type: {kind: value, schema: {type: array, minItems: 1, maxItems: 20, items: {type: string, pattern: "^CAP-[0-9]+$"}}}}
+    capabilities: {type: {kind: value, schema: {type: array, minItems: 1, maxItems: 40, items: {type: object, required: [id, context], additionalProperties: false, properties: {id: {type: string, pattern: "^CAP-[0-9]+$"}, context: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40, description: "the bounded context that lists the capability: its BoundedContext, <context>-model and <context>-glossary are bound (26-domain-discovery.md)"}}}}}, description: "one entry per capability, with its bounded context, so one run covers every context"}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
-    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}}
   outputs:
@@ -1775,12 +1776,12 @@ spec:
     - id: each
       uses: {kind: ReviewLoop, name: test-design-one}
       inputs:
-        spec: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}, id: "inputs.prd.id + '-' + inputs.capabilities[state.index - 1].lowerAscii()"}}
-        plan: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}, id: "inputs.prd.id + '-' + inputs.capabilities[state.index - 1].lowerAscii() + '-plan'"}}
-        base: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}, id: "inputs.prd.id + '-' + inputs.capabilities[state.index - 1].lowerAscii() + '-tests'"}, onMissing: omit}
+        spec: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}, id: "inputs.prd.id + '-' + state.cap.id.lowerAscii()"}}
+        plan: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}, id: "inputs.prd.id + '-' + state.cap.id.lowerAscii() + '-plan'"}}
+        base: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}, id: "inputs.prd.id + '-' + state.cap.id.lowerAscii() + '-tests'"}, onMissing: omit}
         architecture: {fromInput: architecture}
         designs: {fromInput: designs}
-        glossary: {fromInput: glossary}
+        glossary: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}, id: "state.cap.context + '-glossary'"}}   # the context's, as derive-domain names it
         rules: {fromInput: rules}
         harness: {fromInput: harness}
       timeout: 2400h   # a ceiling for the whole repeat: each loop waits on a human
@@ -1788,12 +1789,15 @@ spec:
       repeat:
         state:
           index: {type: {kind: value, schema: {type: integer, minimum: 1}}}
+          cap: {type: {kind: value, schema: {type: object, required: [id, context], additionalProperties: false, properties: {id: {type: string, pattern: "^CAP-[0-9]+$"}, context: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40, description: "the bounded context that lists the capability: its BoundedContext, <context>-model and <context>-glossary are bound (26-domain-discovery.md)"}}}}}
         initial:
           index: {literal: 1}
+          cap: {expression: "inputs.capabilities[0]"}
         next:
           index: {expression: "state.index + 1"}
+          cap: {expression: "inputs.capabilities[state.index]"}
         until: "iteration.index >= inputs.capabilities.size()"
-        maxIterations: 20
+        maxIterations: 40
         parallel: 4   # the loops are independent; one rejected does not stop the others (11-workflow.md)
   transitions:
     - id: done

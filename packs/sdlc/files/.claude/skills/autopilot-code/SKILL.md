@@ -31,8 +31,9 @@ Then, once per product:
 
 1. `setup-tests`: `architecture`, `adrs` (the Adrs it applies), `designs` (every Design),
    `repository`. Gives the TestHarness.
-2. `test-design-all`, once per BoundedContext: `prd`, `capabilities` (the context's), `architecture`,
-   `designs` (every Design), the context's `glossary`, `rules`, `harness`. Each Spec's TestDesign,
+2. `test-design-all`, one run: `prd`, `capabilities` (one entry per capability with its context,
+   `{id: CAP-n, context: <context id>}`, as `spec-all` took), `architecture`, `designs` (every
+   Design), `rules`, `harness`; each capability's Glossary is bound from its context. Each Spec's TestDesign,
    `<spec>-tests`. Then apply its upstream answers (`driving.md`, Upstream answers) before any
    build.
 
