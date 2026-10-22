@@ -6,6 +6,8 @@
 // against the Prd, the contexts, models and glossaries it lists and the Adrs it applies. Plain data in, findings out.
 // the document a Design of each type carries
 import { bareSql, contractNames, designSystemNames, fieldNames, methods, uiParts } from './contract.mjs'
+// RFC 7807 problem details are a protocol's fields, not the product's vocabulary; an http-api answers errors with them
+const problemFields = new Set(['type', 'title', 'status', 'detail', 'instance'])
 
 const mediaTypes = { 'http-api': ['application/openapi+yaml'], 'async-api': ['application/asyncapi+yaml'], 'data-schema': ['application/schema+json', 'application/sql'], ui: ['text/markdown'] }
 const keyword = { ubiquitous: 'The', 'event-driven': 'When', 'state-driven': 'While', 'unwanted-behaviour': 'If', optional: 'Where' }
@@ -308,7 +310,7 @@ export function checkDesign({ design, architecture, domainModel, rules, designs 
     const seen = new Set()
     for (const name of fieldNames(design.document)) {
       const w = words(name)
-      if (/(^| )id$/.test(w) || seen.has(name)) continue
+      if (/(^| )id$/.test(w) || seen.has(name) || problemFields.has(name)) continue
       seen.add(name)
       // the name as written first, then one trailing `s` forgiven: `caps` is the alias `cap`, `lines` an alias before `line` a term
       const why = avoid.get(w) ?? (fine.has(w) || fine.has(w.replace(/s$/, '')) ? undefined : avoid.get(w.replace(/s$/, '')))

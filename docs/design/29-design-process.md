@@ -195,3 +195,6 @@ The Adapter picks the mode from the payload: `artifacts.spec` (or `artifacts.mod
   a name for the events rather than describe the handlers, which `unknown-interface` refused twice
   and the loop ran out. None or several fitting is a `Q-n`; the Architecture rules now give a
   publisher an interface for its events. Found in the Autopilot retest.
+- RFC 7807 problem fields (`type`, `title`, `status`, `detail`, `instance`) are no `term-unknown`:
+  an http-api answers errors with them and no Glossary names a protocol's fields. Found in the
+  Autopilot retest.

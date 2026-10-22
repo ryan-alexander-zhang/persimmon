@@ -480,6 +480,9 @@ describe('sdd/v1 over a Design', () => {
     // a plural of a term, an id in any case, an array and a field named `properties` are not findings; a name is reported once per document
     const fine = await withGlossary((c) => c.replace('properties: {reason: {type: string}}', 'properties: {receipts: {type: boolean}, tripId: {type: string}, LINE_ID: {type: string}, legs: {type: array, items: {type: string}}, properties: {type: string, format: date}, rule: {type: string}}'))
     expect(label(fine)).toEqual(['warning:term-unknown:rule', 'warning:term-unknown:route', 'warning:term-unknown:reason', 'warning:term-unknown:properties'])
+    // RFC 7807 problem fields are protocol, not vocabulary
+    const problem = await withGlossary((c) => c.replace('properties: {reason: {type: string}}', 'properties: {type: {type: string}, title: {type: string}, status: {type: integer}, detail: {type: string}, instance: {type: string}}'))
+    expect(label(problem)).toEqual(['warning:term-unknown:rule', 'warning:term-unknown:route', 'warning:term-unknown:reason'])
     // the name as written is looked up before its singular: `caps` is the alias `cap`, not a plural of nothing
     const caps = await withGlossary((c) => c.replace('properties: {reason: {type: string}}', 'properties: {caps: {type: number}}'))
     expect(label(caps)).toContain('error:alias-used:caps')
