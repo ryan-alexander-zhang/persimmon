@@ -103,7 +103,7 @@ iteration, so a loop over capabilities redoes only the ones whose inputs changed
 | `state` | `{<var>: InputSpec}`, `required` a boolean (an expression has no site to evaluate at, `10-ports.md`); readable as `state.<var>` in the step's `inputs` and in `next`, nowhere else |
 | `initial` | `{<var>: Binding}`; outer scope, no `state`; every required var bound |
 | `next` | `{<var>: Binding}`; `fromState`, `fromIterationOutput` and `state.<var>` read the state and outputs of the iteration that just finished; every required var bound; keys ⊆ `state` |
-| `until` | CEL over `iteration.outputs`, `iteration.index`, `inputs`; no `state`; boolean |
+| `until` | CEL over `iteration.outputs`, `iteration.index`, `inputs` and, in a serial repeat, `state` (the state this iteration ran with, before `next`); boolean |
 | `maxIterations` | ≥ 1; includes the first |
 | `parallel` | optional, ≥ 2: that many iterations run at once; `until` and `next` then read `iteration.index`, `state` and `inputs` only, never an iteration's outputs, and `fromIterationOutput` is refused, since the iterations do not wait for one another |
 
@@ -199,6 +199,9 @@ has no `repeat`; the run name already carries the enclosing iterations (`<parent
   an iteration's outputs; a failed iteration leaves its siblings running, since one Design's bad id
   cancelled seven others in the retest, and what passed is kept for `memo`; `steps.<id>.results` gives the outputs the serial `until` used to read,
   so a loop over capabilities ends Succeeded only when every loop passed. Found in UAT.
+- A serial `until` reads `state`, the state the iteration ran with: a ReviewLoop ends when a
+  round's verdict equals the last round's (`21-composition.md`), and the last round's verdict is
+  the `feedback` state this round ran with. Found in the Autopilot retest.
 - A memo reads a candidate run's inputs on the step's ports only, so a run with more inputs is
   reused. The Autopilot continues a loop out of rounds by hand, with `previous` and `feedback`,
   and revises an artifact through its `-one` loop with `base` and `changes`; a `*-all` run started
