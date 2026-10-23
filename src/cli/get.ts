@@ -5,6 +5,7 @@ import type { Cli } from './context.js'
 import { withEngine } from './context.js'
 import { describe } from './create.js'
 import { parseRef, toYaml } from './io.js'
+import type { Output } from './tree.js'
 
 export interface Where {
   namespace?: string
@@ -17,15 +18,47 @@ const extension = (mediaType: string): string => {
   return { markdown: 'md', plain: 'txt', jpeg: 'jpg', javascript: 'js', 'vnd.mermaid': 'mmd', 'octet-stream': 'bin' }[sub] ?? sub
 }
 
-/** `persimmon get <kind>[/<name>] [-n ns | --global] [--behind | --files <dir>]`. */
-export async function get(cli: Cli, ref: string, o: Where & { behind?: boolean; files?: string } = {}): Promise<number> {
+/** `persimmon get <kind>[/<name>] [-n ns | --global] [--behind | --passed | --files <dir>]`. */
+export async function get(cli: Cli, ref: string, o: Where & { behind?: boolean; passed?: boolean; files?: string } = {}): Promise<number> {
   return withEngine(
     cli,
     async (engine) => {
       const { kind, name } = parseRef(ref)
-      if (o.files !== undefined && (!name || o.behind)) {
-        cli.err('--files takes <Kind>/<name> and no --behind')
+      if (o.files !== undefined && (!name || o.behind || o.passed)) {
+        cli.err('--files takes <Kind>/<name> and no --behind or --passed')
         return 1
+      }
+      if (o.passed) {
+        if (o.behind) {
+          cli.err('--passed takes no --behind')
+          return 1
+        }
+        const kd = engine.kinds.byKind(kind)
+        if (!kd?.definition.spec.revisioned) {
+          cli.err(kd ? `${kind} is not revisioned` : `unknown kind ${kind}`)
+          return 1
+        }
+        if (name && o.global) {
+          cli.err('--passed with a name takes -n, not --global')
+          return 1
+        }
+        const ns = o.namespace ?? engine.dispatch.defaultNamespace
+        const best = passed(engine, kind, o.global ? undefined : ns)
+        if (name) {
+          const hit = best.get(`${ns}/${name}`)
+          const r = hit && engine.store.resources.get({ kind, namespace: ns, name: `${name}.r${hit}` })
+          if (!r) {
+            cli.err(`${kind}/${name} has no passed revision`)
+            return 1
+          }
+          cli.out(toYaml(r))
+          return 0
+        }
+        for (const [key, revision] of [...best].sort()) {
+          const [namespace, id] = key.split('/') as [string, string]
+          cli.out(`${kind}/${id}.r${revision}  -n ${namespace}`)
+        }
+        return 0
       }
       if (o.behind) {
         if (name) {
@@ -133,6 +166,24 @@ export function behind(engine: Finder, kind: string, namespace: string | undefin
     }
   }
   return lines
+}
+
+/** `get <Kind>[/<id>] --passed` (08-store.md): per id the highest revision a WorkflowRun put out beside `passed: true`, a loop's round
+ * or the loop itself. A revision carries no verdict and every round publishes its draft before the Gate judges it, so the latest
+ * revision is the latest draft; a rejected, cancelled or failed round's draft is never picked. Keyed `<namespace>/<id>`. */
+export function passed(engine: Finder, kind: string, namespace: string | undefined): Map<string, number> {
+  const best = new Map<string, number>()
+  for (const run of engine.store.resources.list('WorkflowRun', namespace)) {
+    const outputs = (run.status as { outputs?: Record<string, Output> } | undefined)?.outputs ?? {}
+    if (outputs.passed?.kind !== 'value' || outputs.passed.value !== true) continue
+    for (const o of Object.values(outputs)) {
+      for (const r of o.kind === 'artifact' && o.ref ? [o.ref] : o.kind === 'artifacts' ? (o.refs ?? []) : []) {
+        const key = `${(r as { namespace?: string }).namespace ?? run.metadata.namespace}/${r.id}`
+        if (r.kind === kind && (best.get(key) ?? 0) < r.revision) best.set(key, r.revision)
+      }
+    }
+  }
+  return best
 }
 
 /** `--global` or `-n` when given; else defaultNamespace, then Global: the LocalDefinitionRef order (00-resource.md). */

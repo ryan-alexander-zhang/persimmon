@@ -309,6 +309,48 @@ describe('persimmon CLI', () => {
     expect(out.length).toBe(171) // 7 draft Workflows, 9 decide Tasks, owner-decisions and owner-review, 4 check Gates
   })
 
+  it('get --passed picks the latest revision a run put out beside passed: true; a rejected round\'s later draft is never one', async () => {
+    await run('init')
+    const engine = new Engine({ config: loadConfig(join(dir, 'persimmon.yaml')), cwd: dir })
+    await engine.start()
+    const rev = (id: string, revision: number) => ({
+      apiVersion: 'sdd.persimmon.ai/v1',
+      kind: 'Spec',
+      metadata: { name: `${id}.r${revision}`, namespace: 'default' },
+      spec: { identity: { id, revision }, content: {}, provenance: { producerRef: { apiVersion: 'persimmon.ai/v1', kind: 'TaskRun', namespace: 'default', name: `w-${id}-${revision}` }, inputs: [], actor: { kind: 'user', id: 'local' } } },
+      status: { contentDigest: 'sha256:' + '0'.repeat(64), representations: [] },
+    })
+    const scope = { uid: 'test', key: 'k' }
+    for (const [id, revision] of [['cap-1', 1], ['cap-1', 2], ['cap-1', 3], ['cap-2', 1]] as const) engine.store.resources.stage(rev(id, revision), scope)
+    engine.store.resources.commitScope(scope)
+    const round = (name: string, passed: boolean, id: string, revision: number) =>
+      engine.store.resources.put({
+        apiVersion: 'persimmon.ai/v1',
+        kind: 'WorkflowRun',
+        metadata: { name, namespace: 'default' },
+        spec: { workflowRef: { kind: 'Workflow', name: 'spec-one-round' }, inputs: {}, timeout: '1h', origin: { kind: 'manual' } },
+        status: { phase: 'Succeeded', outputs: { passed: { kind: 'value', value: passed }, spec: { kind: 'artifact', ref: { apiVersion: 'sdd.persimmon.ai/v1', kind: 'Spec', namespace: 'default', id, revision } } } },
+      })
+    round('r1', true, 'cap-1', 1)
+    round('r2', true, 'cap-1', 2)
+    round('r3', false, 'cap-1', 3) // the latest revision: a rejected draft
+    round('r4', false, 'cap-2', 1)
+    await engine.close()
+    out = []
+    expect([await run('get', 'Spec', '--passed'), out]).toEqual([0, ['Spec/cap-1.r2  -n default']])
+    out = []
+    expect([await run('get', 'Spec/cap-1', '--passed'), out.some((l) => l.includes('name: cap-1.r2'))]).toEqual([0, true])
+    out = []
+    expect([await run('get', 'Spec/cap-1'), out.some((l) => l.includes('name: cap-1.r3'))]).toEqual([0, true]) // without --passed: the draft
+    expect(await run('get', 'Spec/cap-2', '--passed')).toBe(1)
+    expect(err.at(-1)).toBe('Spec/cap-2 has no passed revision')
+    expect(await run('get', 'Spec/cap-1', '--passed', '--global')).toBe(1)
+    expect(await run('get', 'Spec', '--passed', '--behind')).toBe(1)
+    expect(await run('get', 'Spec/cap-1', '--passed', '--files', 'out')).toBe(1)
+    expect(await run('get', 'Workflow', '--passed')).toBe(1)
+    expect(err.at(-1)).toBe('Workflow is not revisioned')
+  })
+
   it('get --behind lists the latest revision whose pinned inputs moved on; a carried previous input and a run\'s own later output are not behind', async () => {
     await run('init')
     const engine = new Engine({ config: loadConfig(join(dir, 'persimmon.yaml')), cwd: dir })
@@ -376,7 +418,7 @@ describe('persimmon CLI', () => {
     expect(await run('get', 'Design/bare.r1', '--files', 'out/bare')).toBe(1)
     expect(err.at(-1)).toBe('Design/bare.r1 has no representations')
     expect(await run('get', 'Design', '--files', 'out/all')).toBe(1) // a Kind alone writes nothing: refused, not silent
-    expect(err.at(-1)).toBe('--files takes <Kind>/<name> and no --behind')
+    expect(err.at(-1)).toBe('--files takes <Kind>/<name> and no --behind or --passed')
     expect(await run('get', 'Design/ui.r1', '--behind', '--files', 'out/all')).toBe(1)
     expect(await run('get', 'Spec/cap-1', '--behind')).toBe(1)
     expect(err.at(-1)).toBe('--behind takes a Kind, not a name')

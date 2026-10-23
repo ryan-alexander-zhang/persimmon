@@ -22,7 +22,7 @@ const usage = `usage: persimmon <verb> [args]
   complete <taskRun> [--file <result.yaml>]         no file: answer the inbox form at the terminal
   resume [--follow]                                 --follow: keep draining until the project's open runs end or park
   cancel <kind>/<name> [-n ns]
-  get <kind>[/<name>] [-n ns | --global] [--behind | --files <dir>]  --behind: the latest revisions whose pinned inputs have a newer one; --files: write a revision's representations into <dir>
+  get <kind>[/<name>] [-n ns | --global] [--behind | --passed | --files <dir>]  --behind: the latest revisions whose pinned inputs have a newer one; --passed: the latest revision a run put out beside passed: true, per id or one id's; --files: write a revision's representations into <dir>
   describe <kind>/<name> [-n ns]
   logs <kind>/<name> [-n ns | --global]
   tree <kind>/<name> [-n ns]                        a run, what it produced, and every run it owns, nested
@@ -76,6 +76,7 @@ function parseCliArgs(argv: string[]) {
       for: { type: 'string' },
       force: { type: 'boolean' },
       behind: { type: 'boolean' },
+      passed: { type: 'boolean' },
       files: { type: 'string' },
       pack: { type: 'string' },
       server: { type: 'string' },
@@ -117,7 +118,7 @@ async function dispatchVerb(cli: Cli, verb: string, rest: string[], values: Retu
       case 'get':
       case 'describe':
         need(1, '<kind>[/<name>]')
-        return await get(cli, rest[0]!, { ...where, ...(values.behind ? { behind: true } : {}), ...(values.files !== undefined ? { files: values.files } : {}) })
+        return await get(cli, rest[0]!, { ...where, ...(values.behind ? { behind: true } : {}), ...(values.passed ? { passed: true } : {}), ...(values.files !== undefined ? { files: values.files } : {}) })
       case 'logs':
         need(1, '<kind>/<name>')
         return await logs(cli, rest[0]!, where)

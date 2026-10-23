@@ -45,7 +45,7 @@ export async function tree(cli: Cli, ref: string, o: Where = {}): Promise<number
 }
 
 export type Status = { phase?: string; waitingReason?: string; error?: { code: string; message: string }; outputs?: Record<string, Output>; result?: Verdict; attempts?: { finishedAt?: string }[]; steps?: Record<string, { reused?: { iteration?: number; runRef: { kind: string; name: string } }[] }> }
-type Output = { kind: string; ref?: { kind: string; id: string; revision: number }; refs?: { kind: string; id: string; revision: number }[]; value?: unknown }
+export type Output = { kind: string; ref?: { kind: string; id: string; revision: number }; refs?: { kind: string; id: string; revision: number }[]; value?: unknown }
 type Verdict = { passed: boolean; findings?: { severity: string; code?: string; message: string }[] }
 interface Row {
   left: string
