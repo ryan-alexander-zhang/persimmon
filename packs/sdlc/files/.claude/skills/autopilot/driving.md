@@ -64,13 +64,17 @@ the order:
    `domainModel`, `glossary`, `rules`); `setup-tests` with the inputs it had (`architecture`, `adrs`,
    `designs`, `repository`); `design-one` with the inputs `design-all` gave it; `plan-one` with the
    inputs `plan-all` gave it; `architect` with the inputs it had (`prd`, `rules`, `contexts`,
-   `domainModels`, `glossaries`), `base` the latest passed Architecture (`--passed`) and `baseAdrs` its Adrs.
-   The Architecture first, then Specs, the harness, Designs and Plans; one answer may name several
+   `domainModels`, `glossaries`), `base` the latest passed Architecture (`--passed`) and `baseAdrs` its Adrs;
+   `derive-one` for a Glossary, a DomainModel or a BoundedContext, with the inputs `derive-all` gave
+   that context (`model`, `prd`, `rules`, `contextId`) and `base` its latest passed DomainModel,
+   `baseGlossary` its Glossary, `baseContext` its BoundedContext (`--passed` on each). The derivation
+   first, then the Architecture, Specs, the harness, Designs and Plans; one answer may name several
    artifacts.
 2. Its Gate passed, apply the revision by impact, never by running the order again. Diff the
    revision against `base` (`persimmon get <Kind>/<id>.r<n>` for both) and list the parts that
    changed, by id: a Spec's `AC-n`, `R-n` or story; an Architecture's `BB-n` (its `technology` or
-   `interfaces` too), `REL-n`, `CC-n`, `QS-n`, an Adr; a Design's element; a harness level. An
+   `interfaces` too), `REL-n`, `CC-n`, `QS-n`, an Adr; a Glossary's term or fact type (its enum values
+   too); a DomainModel's aggregate or read model; a Design's element; a harness level. An
    artifact below is impacted when something it states rests on what changed in the part, judged
    sentence by sentence, not by the citation alone: a Design realising a block whose interface
    changed, a Spec whose scenario states a rule a `CC-n` or `QS-n` now states otherwise, a Plan
@@ -85,10 +89,6 @@ the order:
    with `base`; its revised inputs are its change). Then continue the order from the first phase not
    yet run, with the latest revisions as inputs; a `*-all` run that passed is not run again.
 3. As often as a run tells new answers: each is told only in the round that writes it.
-
-A `question-upstream` naming a Glossary has no revision the Autopilot runs: a term is the
-developer's. It stops the Autopilot after that run, and the report names the answer and the
-artifact as the revision the developer owes before resuming.
 
 ## Stop
 
@@ -106,7 +106,7 @@ Stop and report, never work around it, when:
   with it. A continuation that runs out again with no new decision stops;
 - a form parks (above);
 - an `Issue`'s fix fails its Gate (`autopilot-code`);
-- an upstream revision fails its Gate, or a run names a Glossary in a `question-upstream` (above).
+- an upstream revision fails its Gate.
 
 ## Report
 
