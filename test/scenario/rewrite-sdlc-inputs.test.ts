@@ -58,6 +58,15 @@ describe('the SDLC pack takes a Rewrite pack inventory and base, optionally', ()
     expect(task.action.instructions).toMatch(/With `base` and `changes` bound/)
   })
 
+  it('derive-domain and derive-one take the context\'s last DomainModel, Glossary and BoundedContext as an optional base with changes', () => {
+    const task = named('Task', 'derive-domain')
+    for (const name of ['base', 'baseGlossary', 'baseContext', 'changes']) expect({ name, required: task.inputs[name].required }).toEqual({ name, required: false })
+    expect(task.action.context).toEqual(expect.arrayContaining([{ kind: 'artifact', input: 'base' }, { kind: 'artifact', input: 'baseGlossary' }, { kind: 'artifact', input: 'baseContext' }]))
+    expect(task.action.instructions).toMatch(/With `base`, `baseGlossary`, `baseContext` and `changes` bound/)
+    const loop = named('ReviewLoop', 'derive-one')
+    for (const name of ['base', 'baseGlossary', 'baseContext', 'changes']) expect({ name, required: loop.inputs[name].required, bound: loop.produce.inputs[name] }).toEqual({ name, required: false, bound: { fromInput: name } })
+  })
+
   it('the Architecture\'s auditor takes the same base, through the gate, so round one judges what changed', () => {
     const task = named('Task', 'audit-architecture')
     expect([task.inputs.base.required, task.inputs.baseAdrs.required]).toEqual([false, false])

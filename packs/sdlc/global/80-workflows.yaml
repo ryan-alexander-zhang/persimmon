@@ -170,6 +170,10 @@ spec:
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
     contextId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: false, description: "the context's last DomainModel, when this run applies downstream answers (38-autopilot.md)"}
+    baseGlossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: false}
+    baseContext: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext}}, required: false}
+    changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false, description: "the downstream answers this run applies to base, baseGlossary and baseContext"}
   produce:
     uses: {kind: Task, name: derive-domain}
     inputs:
@@ -177,6 +181,10 @@ spec:
       prd: {fromInput: prd}
       rules: {fromInput: rules}
       contextId: {fromInput: contextId}
+      base: {fromInput: base}
+      baseGlossary: {fromInput: baseGlossary}
+      baseContext: {fromInput: baseContext}
+      changes: {fromInput: changes}
     timeout: 30m
   review:
     uses: {kind: Gate, name: derived-gate}

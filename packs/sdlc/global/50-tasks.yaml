@@ -83,6 +83,10 @@ spec:
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: false}
     previousContext: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext}}, required: false, description: "the BoundedContext the last round answered; the loop carries it (21-composition.md)"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: false, description: "the context's last DomainModel, when this run applies downstream answers to it (38-autopilot.md)"}
+    baseGlossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: false, description: "the context's last Glossary"}
+    baseContext: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext}}, required: false, description: "the context's last BoundedContext"}
+    changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false, description: "the downstream answers this run applies to base, baseGlossary and baseContext"}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
   outputs:
     context: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext}}, id: {expression: "inputs.contextId"}}
@@ -99,6 +103,11 @@ spec:
       a DomainModel label that differs from the model, or a BoundedContext subdomain, classification, capability or
       relationship that differs from the storming and the Prd; fix those and change nothing else: start from
       `previous` and `previousContext`, the last round's DomainModel and BoundedContext.
+      With `base`, `baseGlossary`, `baseContext` and `changes` bound, apply each answer (`<artifact id> Q-n: <resolution>`)
+      to those three and nothing else: a term, a fact type or an enum value an answer adds is added where the answer
+      names it, in the answer's words; every label stays the model's; every other term, fact type, aggregate, command,
+      event, read model and relationship stays as `base`, `baseGlossary` and `baseContext` have it. With `previous`
+      bound as well, `previous` and `previousContext` are the last round's, already carrying the answers.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: derive-domain-rules}}
       - {kind: artifact, input: model}
@@ -106,6 +115,9 @@ spec:
       - {kind: artifact, input: rules}
       - {kind: artifact, input: previous}
       - {kind: artifact, input: previousContext}
+      - {kind: artifact, input: base}
+      - {kind: artifact, input: baseGlossary}
+      - {kind: artifact, input: baseContext}
     parameters: {effort: high}
   timeout: 30m
   retryPolicy: # a transient API refusal (19-adapter-roles.md) gets another attempt within the step deadline; a dead login is permission_denied and never retried
