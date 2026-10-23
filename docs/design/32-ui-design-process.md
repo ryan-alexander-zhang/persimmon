@@ -62,9 +62,9 @@ an invented one. No `interface`: a client block provides none.
 |---|---|
 | Prompt `design-system-rules` | the DESIGN.md spec as the pack reads it: every section present and in order, `omitted` for token groups only, with a reason; the Overview from the Prd's users and the client blocks' `technology` (a kiosk read at ten metres is not a phone); contrast WCAG AA; components for every control the client blocks need; nothing the product does not show |
 | Executor `design-system-agent` | `claude-code/v1`, read-only, its own name for per-Namespace override |
-| Task `write-design-system` | inputs `prd`, `architecture`, `previous`, `feedback`; output `designSystem` (id `<prd>-design-system`); `decisions?` (the owner's answers to this round's open questions, recorded with `previous` the draft); output `open`, the ids of its open `Q-n` |
+| Task `write-design-system` | inputs `prd`, `architecture`, `previous`, `feedback`, and optional `base` with `changes` (downstream answers applied to the DesignSystem as it stands, `38-autopilot.md`); output `designSystem` (id `<prd>-design-system`); `decisions?` (the owner's answers to this round's open questions, recorded with `previous` the draft); output `open`, the ids of its open `Q-n` |
 | Task `decide-design-system`, Workflow `design-system-draft` | the owner decides a draft's open questions inside the round (`23-pack-sdlc.md`): `design-system-draft` runs `write-design-system`, then, when `open` names any, `decide-design-system` on `local-reviewer` (inputs `draft`, `open`, `prd`; output `decisions`; Prompt `owner-decisions`) and `write-design-system` again with `decisions`; output `designSystem` from whichever path ran (`first`) |
-| Task `confirm-design-system` | human on `cli-human/v1`: reads the DESIGN.md; approve, or one finding per section or token that must change |
+| Task `confirm-design-system` | human on `cli-human/v1`: reads the DESIGN.md; approve, or one finding per section or token that must change; with `base` bound, confirms what changed against it |
 | Validator `design-system-lint` | `designmd/v1` over `designSystem`, `failOnWarning: true` |
 | Validator `design-system-confirmed` | over `confirm-design-system` |
 | Gate `design-system-gate` | lint and confirmed, `all`, 72h; `confirmed` `after: [lint]` (`14-gate.md`) |
