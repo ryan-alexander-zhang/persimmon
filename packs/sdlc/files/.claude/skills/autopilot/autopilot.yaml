@@ -24,7 +24,7 @@ spec:
   configuration:
     model: claude-sonnet-5-5  # builds what a confirmed Plan task says, as the auditor's model (38-autopilot.md)
     sandbox: workspace-write  # builds in the repository the Task names
-    allowedTools: ["Bash(npm:*)", "Bash(npx:*)", "Bash(node:*)", "Bash(pnpm:*)", "Bash(yarn:*)", "Bash(python:*)", "Bash(python3:*)", "Bash(pytest:*)", "Bash(pip:*)", "Bash(mvn:*)", "Bash(gradle:*)", "Bash(go:*)", "Bash(cargo:*)", "Bash(dotnet:*)", "Bash(make:*)"]   # its test and build commands; a project widens this list for its stack
+    allowedTools: ["Bash(npm:*)", "Bash(npx:*)", "Bash(node:*)", "Bash(pnpm:*)", "Bash(yarn:*)", "Bash(python:*)", "Bash(python3:*)", "Bash(pytest:*)", "Bash(pip:*)", "Bash(mvn:*)", "Bash(gradle:*)", "Bash(go:*)", "Bash(cargo:*)", "Bash(dotnet:*)", "Bash(make:*)"]   # its test and build commands, one program per call (a compound `cd x && …` is denied as a whole); a project widens this list for its stack
   security:
     networkAccess: allowlist
     allowedHosts: [api.anthropic.com]

@@ -18,6 +18,14 @@ Tester sets up and writes the tests, all inside the engine.
 
 ## 1. The app and its tests
 
+First, the runtime: the version the Architecture's blocks name (`technology`) must be the one on
+`PATH` at that major (`node --version`, `python3 --version`, `go version`, `java -version`). A
+mismatch is an upstream answer the Architecture owes, never a change to the machine: `architect`
+with `base`, `baseAdrs` and `changes` listing `<architecture id> BB-n: the build machine runs
+<tool> <version>; name that version and libraries that build on it`, then its impact
+(`driving.md`, Upstream answers), then come back here. Never scaffold on a version the
+Architecture does not name.
+
 When the project has no app yet, stand in for the developer once:
 
 - Scaffold the app the Architecture describes, on the technology its Adrs chose, in the repository

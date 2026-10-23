@@ -20,8 +20,11 @@ below, and when to stop. Every run takes the passed revisions the runs before it
 ## 1. Brief
 
 Write `.persimmon/autopilot/brief.md` from the idea: the problem, who has it, what they need done,
-and every constraint the developer stated. Add nothing the idea does not say; what it leaves open
-is a question in the brief, for the Prd's `Q-n`.
+and every constraint the developer stated. Add one constraint of your own, the build machine's
+toolchain: run `node --version`, `python3 --version`, `go version`, `java -version`,
+`docker --version` (whichever answer) and state "the build machine runs <tool> <version>" for each,
+so the Architecture names versions this machine runs and libraries that build on them. Add nothing
+else the idea does not say; what it leaves open is a question in the brief, for the Prd's `Q-n`.
 
 ## 2. The runs, in order
 
