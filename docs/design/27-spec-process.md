@@ -21,7 +21,7 @@ Workflow spec-all: repeat over `capabilities` ─▶ ReviewLoop spec-one per CAP
 
 | Member | Content |
 |---|---|
-| Prompt `spec-rules` | how a Spec is written: cite, never restate; Connextra stories covering EARS requirements enforcing rules; Given/When/Then scenarios with values; an unknown is a `Q-n` |
+| Prompt `spec-rules` | how a Spec is written: cite, never restate; Connextra stories covering EARS requirements enforcing rules; Given/When/Then scenarios with values, one at every boundary a command's outcome can turn on, rule or none (a value's edge, a period's edge, a clock change, a repeated or late command, two things touching); an unknown is a `Q-n` |
 | Executor `spec-agent` | `claude-code/v1`, read-only, the same configuration as `storming-agent` under its own name, so a Namespace overrides the model per Task |
 | Task `write-spec` | inputs `prd`, `capabilityId`, `architecture`, `context` (the BoundedContext, `34-subdomains.md`), `domainModel`, `glossary`, `rules`, `previous`, `feedback`, `base?` (the Spec this run revises), `changes?` (the downstream answers it applies, each `<artifact id> Q-n: <resolution>`), `decisions?` (the owner's answers to this round's open questions, recorded with `previous` the draft); outputs `spec`, `open` (the ids of its open `Q-n`) |
 | Task `decide-spec`, Workflow `spec-draft` | the owner decides a draft's open questions inside the round (`23-pack-sdlc.md`): `spec-draft` runs `write-spec`, then, when `open` names any, `decide-spec` on `local-reviewer` (inputs `draft`, `open`, `prd`, `rules`, `glossary`; output `decisions`; Prompt `owner-decisions`) and `write-spec` again with `decisions`; output `spec` from whichever path ran (`first`) ; `check` (Gate `spec-check`, the consistency Validator alone) runs on the last draft written, after `record` or straight after `write`, and `fix` (`write-spec` with `previous` and `feedback`) when it refuses |
@@ -63,6 +63,7 @@ nothing: the schema refuses those (`minItems: 1`).
 | Rule | Enforcer |
 |---|---|
 | a Spec cites and never restates: a name the DomainModel lacks is a finding, fixed upstream, never invented in the Spec | `spec-consistency` |
+| every boundary a command's outcome can turn on has a scenario, whether or not a rule states it: a value's edge (zero, empty, the maximum, an end equal to or before its start), a period's edge (its first and last unit, a day or week boundary, a clock change where the product keeps local time), a state the command meets again (repeated, after the thing ended or was cancelled, out of order), two things touching (abutting, overlapping by one unit); the outcome at each is decided in the Spec, accepted, refused with its reason, or nothing happens, never left to the builder | `spec-rules`; the auditor's `boundary-untested` |
 | a scenario's values ("25 EUR") are example data of the revision the Spec read, never the rule's authority; provenance pins the BusinessRules revision, and `persimmon get Spec --behind` lists the Specs whose pinned revision is behind (`08-store.md`), a query, not a field | convention; `get --behind` |
 | the Spec's `prd`, `architecture`, `domainModel` artifact ids are not checked against the inputs: the evaluator payload carries content and provenance, no RevisionRef (`19-adapter-roles.md`); provenance pins what was read | convention; Validator later |
 | the capability lives in the bound BoundedContext and the DomainModel is that context's (`context-mismatch`, `34-subdomains.md`) | `spec-consistency` |
@@ -153,6 +154,17 @@ nothing: the schema refuses those (`minItems: 1`).
   per diem line only another capability's Add Trip creates reachable, a warning, until the rule
   said so. A Design operation for every command is the coverage Gate's, so no later Gate needs
   the Spec beside the Designs.
+- A boundary is any edge a command's outcome can turn on, not only a rule's threshold. In the
+  Autopilot retest the TestDesigns raised 15 upstream answers in their first cycle and 7 in the
+  next, most of them Spec gaps of this kind and none a `BR-n` threshold: a clock change on
+  2026-10-25 under a horizon counted in elapsed time, a cancel of a booking already cancelled, a
+  Saturday slot, two bookings abutting at 16:00, a remainder freed from the next quarter-hour, an
+  end not after its start. `spec-rules` asked for a scenario at each rule's threshold and the
+  auditor's `boundary-untested` judged only that, so every other edge waited for the TestDesign,
+  a cycle of revisions each time. Now `spec-rules` names the boundary kinds (a value's edge, a
+  period's edge and a clock change, a repeated or late command, two things touching) and
+  `boundary-untested` refuses a command with no scenario at one its outcome turns on; the
+  TestDesign's `spec-gap` reads the same way. Chosen by the developer in the Autopilot retest.
 - The Spec's auditor reads the Glossary, and `term-unknown` refuses a scenario value that stands
   for a domain category and is no term of it. In the full-Plan UAT the Spec's AC-8 and AC-9 named
   "a taxi line" where the categories are travel, meals, lodging, equipment, per diem and other;
