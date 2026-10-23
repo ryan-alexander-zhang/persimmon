@@ -109,10 +109,10 @@ describe('the SDLC pack takes a Rewrite pack inventory and base, optionally', ()
     expect(each.memo).toEqual({ ignore: ['baseline', 'levelBaselines', 'harness'], when: 'outputs.passed' }) // a harness revision alone rebuilds no passed task: the plan tier runs every level under it
     expect([buildAll.outputs.report.required, buildAll.outputBindings.passed, buildAll.outputBindings.report]).toEqual([false, { expression: 'steps.plan.outputs.result.passed' }, { fromStep: { stepRef: 'report', output: 'report' }, onMissing: 'omit' }]) // the TestReport beside passed: get --passed finds it
     for (const phase of named('Pipeline', 'domain-discovery').phases) expect({ id: phase.id, memo: !!phase.memo }).toEqual({ id: phase.id, memo: true })
-    for (const [gate, validator] of [['spec-gate', 'spec-consistency'], ['spec-check', 'spec-consistency'], ['design-gate', 'design-consistency'], ['design-check', 'design-consistency'], ['plan-gate', 'plan-consistency'], ['plan-check', 'plan-consistency']]) {
+    for (const [gate, validator] of [['prd-gate', 'prd-consistency'], ['spec-gate', 'spec-consistency'], ['spec-check', 'spec-consistency'], ['design-gate', 'design-consistency'], ['design-check', 'design-consistency'], ['plan-gate', 'plan-consistency'], ['plan-check', 'plan-consistency'], ['test-design-gate', 'test-design-consistency'], ['test-design-check', 'test-design-consistency']]) {
       const v = named('Gate', gate).validators.find((x: { ref: { name: string } }) => x.ref.name === validator)
-      expect({ gate, previous: v.inputs.previous }).toEqual({ gate, previous: { fromInput: 'previous', onMissing: 'omit' } })
-      expect({ validator, required: named('Validator', validator).inputs.previous.required }).toEqual({ validator, required: false })
+      expect({ gate, previous: v.inputs.previous, base: v.inputs.base }).toEqual({ gate, previous: { fromInput: 'previous', onMissing: 'omit' }, base: { fromInput: 'base', onMissing: 'omit' } }) // an answer the last round or the base told is not told again
+      expect({ validator, required: [named('Validator', validator).inputs.previous.required, named('Validator', validator).inputs.base.required] }).toEqual({ validator, required: [false, false] })
     }
     const ds = named('ReviewLoop', 'design-system')
     expect([ds.inputs.base.required, ds.produce.inputs.changes, ds.review.inputs.base]).toEqual([false, { fromInput: 'changes' }, { fromInput: 'base' }])

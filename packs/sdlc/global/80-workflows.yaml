@@ -696,6 +696,7 @@ spec:
       uses: {kind: Gate, name: design-check}
       inputs:
         previous: {fromInput: previous, onMissing: omit}
+        base: {fromInput: base, onMissing: omit}
         design: {first: [{fromStep: {stepRef: record, output: design}}, {fromStep: {stepRef: write, output: design}}]}
         architecture: {fromInput: architecture}
         domainModel: {fromInput: domainModel, onMissing: omit}

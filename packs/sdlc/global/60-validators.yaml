@@ -77,6 +77,7 @@ spec:
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     previousRules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false, description: "with feedback: a rule changed or dropped since, unnamed by any finding, is rule-drift"}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false, description: "the last round's Prd, so an answer already told as question-agent-resolved is not told again (23-pack-sdlc.md)"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false, description: "the Prd this one revises: an upstream answer it already told is not told again"}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
   evaluator:
     type: adapter
@@ -114,6 +115,7 @@ spec:
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: false, description: "what the document's field names are held to; not for a ui Design; unbound, the fields are unchecked"}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "the last round's draft: an upstream answer it already told is not told again"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "the Design this one revises: an upstream answer it already told is not told again"}
     designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: false, description: "for a ui Design: the DesignSystem it must cite"}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "for a ui Design: the API Designs whose operations its elements realise"}
   evaluator:

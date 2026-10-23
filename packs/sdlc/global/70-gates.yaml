@@ -123,6 +123,7 @@ spec:
         rules: {fromInput: rules}
         previousRules: {fromInput: previousRules, onMissing: omit}
         previous: {fromInput: previous, onMissing: omit}
+        base: {fromInput: base, onMissing: omit}   # an upstream answer the base already told is not told again (23-pack-sdlc.md)
         feedback: {fromInput: feedback, onMissing: omit}
     - name: audit
       ref: {kind: Validator, name: prd-audited}
@@ -168,6 +169,7 @@ spec:
       ref: {kind: Validator, name: design-consistency}
       inputs:
         previous: {fromInput: previous, onMissing: omit}   # an upstream answer the last round told is not told again (23-pack-sdlc.md)
+        base: {fromInput: base, onMissing: omit}   # nor one the base already told
         design: {fromInput: design}
         architecture: {fromInput: architecture}
         domainModel: {fromInput: domainModel, onMissing: omit}
@@ -491,6 +493,7 @@ metadata: {name: design-check}
 spec:
   inputs:
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "the last round's draft; round one has none"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "the Design a revision applies answers to"}
     design: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: false, description: "what the elements realise; not for a ui Design"}
@@ -505,6 +508,7 @@ spec:
       ref: {kind: Validator, name: design-consistency}
       inputs:
         previous: {fromInput: previous, onMissing: omit}
+        base: {fromInput: base, onMissing: omit}
         design: {fromInput: design}
         architecture: {fromInput: architecture}
         domainModel: {fromInput: domainModel, onMissing: omit}
