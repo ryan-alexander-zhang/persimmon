@@ -1,0 +1,4 @@
+<project>
+  <parent><artifactId>ordering-service</artifactId></parent>
+  <artifactId>ordering-domain</artifactId>
+</project>

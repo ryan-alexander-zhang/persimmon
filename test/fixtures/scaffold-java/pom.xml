@@ -2,4 +2,8 @@
   <groupId>com.example</groupId>
   <artifactId>ordering-service</artifactId>
   <name>ordering-service</name>
+  <modules>
+    <module>ordering-domain</module>
+    <module>ordering-start</module>
+  </modules>
 </project>

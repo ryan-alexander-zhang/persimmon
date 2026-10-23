@@ -1,0 +1,5 @@
+<project>
+  <parent><artifactId>ordering-service</artifactId></parent>
+  <artifactId>ordering-start</artifactId>
+  <dependencies><dependency><artifactId>ordering-domain</artifactId></dependency></dependencies>
+</project>

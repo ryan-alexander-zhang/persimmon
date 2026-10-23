@@ -14,15 +14,16 @@ developer: persimmon new <dir> --lang java --framework ddd [--group <groupId>] [
   ─▶ every file copied into <dir>, `target/` and `.git/` left out
        the Scaffold's groupId      → --group, default com.example
        the Scaffold's artifactId   → basename of <dir>
+       its modules <prefix>-<layer> → <artifact>-<layer>, directories renamed to match
        the Scaffold's root package → <group>.<artifact with non-alphanumerics removed>, directories moved to match
   ─▶ persimmon init in <dir>: .persimmon/, persimmon.yaml, the SDLC pack, AGENTS.md
 ```
 
 ## Registry
 
-| `--lang` | `--framework` | Repository | Path | groupId | artifactId | root package |
-|---|---|---|---|---|---|---|
-| `java` | `ddd` | `https://github.com/ryan-alexander-zhang/persimmon-java-ddd.git` | `scaffold` | `com.example` | `ordering-service` | `com.example.ordering` |
+| `--lang` | `--framework` | Repository | Path | groupId | artifactId | root package | modules |
+|---|---|---|---|---|---|---|---|
+| `java` | `ddd` | `https://github.com/ryan-alexander-zhang/persimmon-java-ddd.git` | `scaffold` | `com.example` | `ordering-service` | `com.example.ordering` | `ordering-{domain,api,application,infrastructure,adapter,start}` |
 
 The registry is a table in `src/cli/new.ts`; a Scaffold's coordinates are the strings `new`
 replaces, so a Scaffold repository changes them only together with this table.
@@ -34,8 +35,8 @@ replaces, so a Scaffold repository changes them only together with this table.
 | an unknown `--lang`/`--framework` pair is refused with the known pairs listed; both flags are required | `persimmon new` |
 | `<dir>` must not exist or must be empty; nothing is written otherwise | `persimmon new` |
 | `--group` is a Java package name (`[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*`); the artifactId is `<dir>`'s basename and must match `[a-z0-9][a-z0-9-]*` | `persimmon new` |
-| replacement is textual, longest string first (package, then group, then artifactId), in every copied file; a file under the Scaffold's package directory moves to the new package directory | `persimmon new` |
-| the sample bounded context (`ordering`, its classes and tables) is kept: it is the developer's to rewrite, and the ArchUnit and flow tests keep passing on the renamed copy | `persimmon new` |
+| replacement is textual, longest string first (package, group, each module `<prefix>-<layer>` → `<artifact>-<layer>`, then the artifactId), in every copied file; a module directory is renamed the same way and a file under the Scaffold's package directory moves to the new package directory | `persimmon new` |
+| the sample bounded context (`ordering` as a package segment, its classes and tables) is kept: it is the developer's to rewrite, and the ArchUnit and flow tests keep passing on the renamed copy; the Java DDD Scaffold is one context in six Maven modules, one per layer, so the module graph enforces the layer dependencies at compile time | `persimmon new` |
 | without `--from`, the repository is cloned with `git clone --depth 1` into a temporary directory that is removed afterwards; no git on the PATH or no network is reported as such | `persimmon new` |
 | `init` runs with the new directory as its project directory, after the copy succeeded | `persimmon new` |
 

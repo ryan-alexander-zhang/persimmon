@@ -5,9 +5,13 @@ import { basename, dirname, join, relative, resolve, sep } from 'node:path'
 import type { Cli } from './context.js'
 import { init } from './init.js'
 
-/** The Scaffold registry (42-scaffold.md): where each (lang, framework) lives and the coordinates `new` renames. */
-const scaffolds: Record<string, { repo: string; path: string; group: string; artifact: string; pkg: string }> = {
-  'java/ddd': { repo: 'https://github.com/ryan-alexander-zhang/persimmon-java-ddd.git', path: 'scaffold', group: 'com.example', artifact: 'ordering-service', pkg: 'com.example.ordering' },
+/** The Scaffold registry (42-scaffold.md): where each (lang, framework) lives and the coordinates `new` renames; `modules` are `<prefix>-<layer>` directories and artifactIds. */
+const scaffolds: Record<string, { repo: string; path: string; group: string; artifact: string; pkg: string; modulePrefix: string; modules: string[] }> = {
+  'java/ddd': {
+    repo: 'https://github.com/ryan-alexander-zhang/persimmon-java-ddd.git', path: 'scaffold',
+    group: 'com.example', artifact: 'ordering-service', pkg: 'com.example.ordering',
+    modulePrefix: 'ordering', modules: ['domain', 'api', 'application', 'infrastructure', 'adapter', 'start'],
+  },
 }
 
 export interface NewOptions {
@@ -51,12 +55,23 @@ export async function newProject(cli: Cli, dir: string, o: NewOptions): Promise<
       .map((e) => relative(source, join(e.parentPath, e.name)))
       .filter((f) => !f.split(sep).some((part) => part === 'target' || part === '.git'))
       .sort()
-    // longest first, so the package wins over the group it starts with
-    const renames: [string, string][] = [[scaffold.pkg, pkg], [scaffold.group, group], [scaffold.artifact, artifact]]
+    // longest first, so the package wins over the group it starts with; module names before the bare artifactId
+    const renames: [string, string][] = [
+      [scaffold.pkg, pkg],
+      [scaffold.group, group],
+      ...scaffold.modules.map((m): [string, string] => [`${scaffold.modulePrefix}-${m}`, `${artifact}-${m}`]),
+      [scaffold.artifact, artifact],
+    ]
     const pkgDir = scaffold.pkg.split('.').join(sep)
     const newPkgDir = pkg.split('.').join(sep)
+    const moved = (f: string) => {
+      const [head, ...rest] = f.split(sep)
+      const module = scaffold.modules.find((m) => head === `${scaffold.modulePrefix}-${m}`)
+      const parts = module ? [`${artifact}-${module}`, ...rest] : [head!, ...rest]
+      return parts.join(sep).split(pkgDir).join(newPkgDir)
+    }
     for (const f of files) {
-      const to = join(target, f.split(pkgDir).join(newPkgDir))
+      const to = join(target, moved(f))
       mkdirSync(dirname(to), { recursive: true })
       let text = readFileSync(join(source, f), 'utf8')
       for (const [from, replacement] of renames) text = text.split(from).join(replacement)
