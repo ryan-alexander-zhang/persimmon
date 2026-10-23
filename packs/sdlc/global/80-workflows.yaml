@@ -1518,8 +1518,12 @@ spec:
     harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, required: false, description: "the project's test tools: every level runs as it names (39-test-process.md)"}
   outputs:
     built: {type: {kind: value, schema: {type: integer}}}
+    passed: {type: {kind: value, schema: {type: boolean}}, description: "the regression Gate's verdict; a run that ends Succeeded passed"}
+    report: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestReport}}, required: false, description: "the TestReport, under a TestDesign: put out beside passed, so get --passed and fromArtifact find it (08-store.md)"}
   outputBindings:
     built: {expression: "steps.each.iterations"}
+    passed: {expression: "steps.plan.outputs.result.passed"}
+    report: {fromStep: {stepRef: report, output: report}, onMissing: omit}
   entry: [baseline]
   steps:
     - id: baseline

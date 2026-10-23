@@ -21,6 +21,7 @@ Workflow build-all
   final:           Task run-final    (Executor test-runner)                      ─▶ TestOutcome <plan>-final      tier plan
   final-levels:    Task run-levels   (Executor level-runner, every level, full)  ─▶ TestOutcome <plan>-final-levels-<n>
   plan:            Gate regression-gate = Validator plan-regression (sdd/v1); refused ─▶ Failed plan_regressed
+  outputs:         built, passed, and under a TestDesign the TestReport (39-test-process.md), beside passed
 
 Workflow build-work (one round)
   implement ─▶ AcceptanceRecord

@@ -37,6 +37,8 @@ Plan, TestDesign, TestHarness
        Task evaluate-tests (Executor auditor) ─▶ evaluation
        Task report-tests (Executor test-reporter) ─▶ TestReport <plan>-test-report
        Gate regression-gate = plan-regression (sdd/v1) + report-verdict (cel); refused ─▶ Failed plan_regressed
+       outputs built, passed, report: the TestReport beside passed, so `get TestReport --passed` and
+       `fromArtifact` find the one a passed build-all wrote; absent without a TestDesign (10-ports.md)
 ```
 
 The run order becomes `author-prd`, `domain-discovery`, `architect`, `spec-all`, `design-all`,
