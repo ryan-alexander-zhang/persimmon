@@ -39,6 +39,7 @@ spec:
     context: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}
     boundedContext: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext}}, required: false, description: "the derived BoundedContext: its subdomain, capabilities and relationships against the storming (34-subdomains.md)"}
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false, description: "with boundedContext: the capabilities of its subdomain"}
+    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: false, description: "with it: every term is an aggregate, entity, value object, read model, actor or external system of the context (26-domain-discovery.md)"}
   evaluator:
     type: adapter
     adapter: eventstorming/v1
@@ -59,6 +60,7 @@ spec:
     context: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext}}, required: false, description: "the BoundedContext that lists the capability; its DomainModel is the one bound (34-subdomains.md)"}
     capabilityId: {type: {kind: value, schema: {type: string, pattern: "^CAP-[0-9]+$"}}, required: false, description: "the capability the Spec was written for; its `capability` must be it"}
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, required: false, description: "the Spec this one revises: its ids are kept"}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, required: false, description: "the last round's draft: an upstream answer it already told is not told again"}
   evaluator:
     type: adapter
     adapter: sdd/v1
@@ -111,6 +113,7 @@ spec:
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: false, description: "what the elements realise; not for a ui Design"}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: false, description: "what the document's field names are held to; not for a ui Design; unbound, the fields are unchecked"}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "the last round's draft: an upstream answer it already told is not told again"}
     designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: false, description: "for a ui Design: the DesignSystem it must cite"}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "for a ui Design: the API Designs whose operations its elements realise"}
   evaluator:
@@ -147,6 +150,7 @@ spec:
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: false, description: "which aggregate handles each of the Spec's commands"}
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}, required: false, description: "the Plan this one replaces: its task ids are kept"}
+    previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}, required: false, description: "the last round's draft: an upstream answer it already told is not told again"}
   evaluator:
     type: adapter
     adapter: sdd/v1
@@ -211,6 +215,7 @@ spec:
   inputs:
     designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict, for the owner (23-pack-sdlc.md)"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: false}
   evaluator:
     type: task
     taskRef: {kind: Task, name: confirm-design-system}

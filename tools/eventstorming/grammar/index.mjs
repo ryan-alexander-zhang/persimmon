@@ -338,6 +338,20 @@ const parameterKey = (list) => (Array.isArray(list) ? list : []).map((p) => `${t
  * storming context id and is required; the DomainModel's own `context` is a BoundedContext artifact
  * id, so it is never a fallback. Findings in `check`'s order and shape.
  */
+/** A derived Glossary invents nothing (26-domain-discovery.md): every term is a label of the context, an aggregate, a read model, an
+ * actor or an external system of the storming, or an entity or a value object the DomainModel names under an aggregate. */
+export function checkGlossary(model, domainModel, glossary, context) {
+  const nodes = arr(model?.nodes).filter((n) => n?.context === context)
+  const known = new Set(nodes.filter((n) => ['aggregate', 'readModel', 'actor', 'externalSystem'].includes(n.type)).map((n) => trim(n.label)))
+  for (const a of arr(isObject(domainModel) ? domainModel.aggregates : [])) {
+    for (const e of arr(a.entities)) known.add(trim(e.name))
+    for (const v of Array.isArray(a.valueObjects) ? a.valueObjects : []) known.add(trim(typeof v === 'string' ? v : v?.name))
+  }
+  return arr(isObject(glossary) ? glossary.terms : [])
+    .filter((t) => !known.has(trim(t.name)))
+    .map((t) => ({ severity: 'error', code: 'derived-term-unknown', message: `term '${trim(t.name)}' is no aggregate, entity, value object, read model, actor or external system of context '${context}'` }))
+}
+
 export function checkDerived(model, domainModel, context) {
   const findings = []
   const add = (severity, code, message) => findings.push({ severity, code, message })

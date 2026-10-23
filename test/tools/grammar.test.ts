@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseAllDocuments } from 'yaml'
 import { describe, expect, it } from 'vitest'
-import { check, checkBoundedContext, checkDerived, checkSubdomains } from '../../tools/eventstorming/grammar/index.mjs'
+import { check, checkBoundedContext, checkDerived, checkGlossary, checkSubdomains } from '../../tools/eventstorming/grammar/index.mjs'
 
 const fixture = (name: string): Record<string, unknown> => {
   const model = JSON.parse(readFileSync(join(import.meta.dirname, name), 'utf8'))
@@ -237,6 +237,15 @@ describe('checkDerived', () => {
 
   it('is silent on the model the storming describes', () => {
     expect(checkDerived(storming, derived, 'c')).toEqual([])
+  })
+
+  it('checkGlossary: a term is a label of the context or an entity or value object of the DomainModel, else derived-term-unknown', () => {
+    const glossary = { context: 'bc-claims', terms: [{ name: 'Claim' }, { name: 'Claim List' }, { name: 'Adjuster' }, { name: 'Payments' }], factTypes: [] }
+    expect(checkGlossary(storming, derived, glossary, 'c')).toEqual([])
+    const extra = { ...glossary, terms: [...glossary.terms, { name: 'Taxi Line' }] }
+    expect(checkGlossary(storming, derived, extra, 'c').map((f) => [f.severity, f.code])).toEqual([['error', 'derived-term-unknown']])
+    const entity = mutate((d) => d.aggregates[0].entities.push({ name: 'Taxi Line', attributes: [] }))
+    expect(checkGlossary(storming, entity, extra, 'c')).toEqual([]) // an entity the DomainModel names under an aggregate
   })
 
   it('refuses a call with no context: the domain model own context is a BoundedContext id, not a storming one', () => {

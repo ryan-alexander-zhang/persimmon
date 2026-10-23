@@ -100,7 +100,25 @@ describe('the SDLC pack takes a Rewrite pack inventory and base, optionally', ()
     }
     expect(named('Task', 'draft-prd').inputs.productId.type.schema.maxLength).toBe(20)
     expect(named('ReviewLoop', 'author-prd').inputs.productId.type.schema.maxLength).toBe(20)
-    expect(named('Task', 'design-asset').inputs.qualifier.type.schema.maxLength).toBe(8)
+    expect(named('Task', 'design-asset').inputs.qualifier.type.schema.maxLength).toBe(7)
+  })
+
+  it('build-all and domain-discovery resume under memo, answers are told once, the DesignSystem revises, the Glossary passes its Gate', () => {
+    const each = named('Workflow', 'build-all').steps.find((st: { id: string }) => st.id === 'each')
+    expect(each.memo).toEqual({ ignore: ['baseline', 'levelBaselines'], when: 'outputs.passed' })
+    for (const phase of named('Pipeline', 'domain-discovery').phases) expect({ id: phase.id, memo: !!phase.memo }).toEqual({ id: phase.id, memo: true })
+    for (const [gate, validator] of [['spec-gate', 'spec-consistency'], ['spec-check', 'spec-consistency'], ['design-gate', 'design-consistency'], ['design-check', 'design-consistency'], ['plan-gate', 'plan-consistency'], ['plan-check', 'plan-consistency']]) {
+      const v = named('Gate', gate).validators.find((x: { ref: { name: string } }) => x.ref.name === validator)
+      expect({ gate, previous: v.inputs.previous }).toEqual({ gate, previous: { fromInput: 'previous', onMissing: 'omit' } })
+      expect({ validator, required: named('Validator', validator).inputs.previous.required }).toEqual({ validator, required: false })
+    }
+    const ds = named('ReviewLoop', 'design-system')
+    expect([ds.inputs.base.required, ds.produce.inputs.changes, ds.review.inputs.base]).toEqual([false, { fromInput: 'changes' }, { fromInput: 'base' }])
+    expect(named('Task', 'write-design-system').action.instructions).toMatch(/With `base` and `changes` bound/)
+    expect(named('Task', 'confirm-design-system').inputs.base.required).toBe(false)
+    expect(named('ReviewLoop', 'derive-one').review.inputs.glossary).toEqual({ fromStep: { stepRef: 'produce', output: 'glossary' } })
+    expect(named('Validator', 'domain-consistency').inputs.glossary.required).toBe(false)
+    expect(named('Task', 'design-asset').inputs.qualifier.type.schema.maxLength).toBe(7)
   })
 
   it('the Architecture\'s auditor takes the same base, through the gate, so round one judges what changed', () => {

@@ -198,6 +198,7 @@ spec:
       domainModel: {fromStep: {stepRef: produce, output: domainModel}}
       contextId: {fromInput: contextId}
       boundedContext: {fromStep: {stepRef: produce, output: context}}
+      glossary: {fromStep: {stepRef: produce, output: glossary}}
       prd: {fromInput: prd}
     timeout: 5m
   subject: domainModel
@@ -271,10 +272,12 @@ spec:
   phases:
     - id: big-picture
       uses: {kind: ReviewLoop, name: storm-big-picture}
+      memo: {when: "outputs.passed"}   # a run started again reuses a phase that passed (11-workflow.md)
       inputs: {prd: {fromInput: prd}, rules: {fromInput: rules, onMissing: omit}, inventory: {fromInput: inventory, onMissing: omit}, base: {fromInput: base, onMissing: omit}}
       timeout: 240h
     - id: process
       uses: {kind: ReviewLoop, name: storm-process}
+      memo: {when: "outputs.passed"}   # a run started again reuses a phase that passed (11-workflow.md)
       inputs:
         prd: {fromInput: prd}
         rules: {fromInput: rules, onMissing: omit}
@@ -283,6 +286,7 @@ spec:
       timeout: 240h
     - id: design
       uses: {kind: ReviewLoop, name: storm-design}
+      memo: {when: "outputs.passed"}   # a run started again reuses a phase that passed (11-workflow.md)
       inputs:
         prd: {fromInput: prd}
         rules: {fromInput: rules, onMissing: omit}
@@ -291,6 +295,7 @@ spec:
       timeout: 240h
     - id: derive
       uses: {kind: Workflow, name: derive-all}
+      memo: {}   # a run started again reuses a derivation that succeeded
       inputs:
         model: {fromStep: {stepRef: design, output: model}}
         prd: {fromInput: prd}
@@ -363,6 +368,7 @@ spec:
     - id: check
       uses: {kind: Gate, name: spec-check}
       inputs:
+        previous: {fromInput: previous, onMissing: omit}
         spec: {first: [{fromStep: {stepRef: record, output: spec}}, {fromStep: {stepRef: write, output: spec}}]}
         prd: {fromInput: prd}
         domainModel: {fromInput: domainModel}
@@ -625,7 +631,7 @@ spec:
     blockId: {type: {kind: value, schema: {type: string, pattern: "^BB-[0-9]+$"}}}
     type: {type: {kind: value, schema: {type: string, enum: [http-api, async-api, data-schema, ui]}}}
     interface: {type: {kind: value, schema: {type: string}}, required: false, description: "which provided interface; empty or unbound: the one provided interface the type describes"}
-    qualifier: {type: {kind: value, schema: {type: string, pattern: "^([a-z0-9]([-a-z0-9]*[a-z0-9])?)?$", maxLength: 8}}, required: false, description: "empty or unbound: none; else tells two Designs of one block and type apart in the id (a block with two APIs, or realising two contexts): the interface or the context, as a label (29-design-process.md)"}
+    qualifier: {type: {kind: value, schema: {type: string, pattern: "^([a-z0-9]([-a-z0-9]*[a-z0-9])?)?$", maxLength: 7}}, required: false, description: "empty or unbound: none; else tells two Designs of one block and type apart in the id (a block with two APIs, or realising two contexts): the interface or the context, as a label (29-design-process.md)"}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: {expression: "inputs.type != 'ui'"}, description: "what the elements realise; a ui Design realises operations of `designs` instead"}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: {expression: "inputs.type != 'ui'"}, description: "the names the document uses; not for a ui Design"}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
@@ -689,6 +695,7 @@ spec:
     - id: check
       uses: {kind: Gate, name: design-check}
       inputs:
+        previous: {fromInput: previous, onMissing: omit}
         design: {first: [{fromStep: {stepRef: record, output: design}}, {fromStep: {stepRef: write, output: design}}]}
         architecture: {fromInput: architecture}
         domainModel: {fromInput: domainModel, onMissing: omit}
@@ -745,7 +752,7 @@ spec:
     blockId: {type: {kind: value, schema: {type: string, pattern: "^BB-[0-9]+$"}}}
     type: {type: {kind: value, schema: {type: string, enum: [http-api, async-api, data-schema, ui]}}}
     interface: {type: {kind: value, schema: {type: string}}, required: false, description: "empty or unbound: the one provided interface the type describes"}
-    qualifier: {type: {kind: value, schema: {type: string, pattern: "^([a-z0-9]([-a-z0-9]*[a-z0-9])?)?$", maxLength: 8}}, required: false, description: "empty or unbound: none"}
+    qualifier: {type: {kind: value, schema: {type: string, pattern: "^([a-z0-9]([-a-z0-9]*[a-z0-9])?)?$", maxLength: 7}}, required: false, description: "empty or unbound: none"}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: {expression: "inputs.type != 'ui'"}}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: {expression: "inputs.type != 'ui'"}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
@@ -795,7 +802,7 @@ metadata: {name: design-all}
 spec:
   inputs:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
-    blocks: {type: {kind: value, schema: {type: array, minItems: 1, maxItems: 40, items: {type: object, required: [block, type], additionalProperties: false, properties: {block: {type: string, pattern: "^BB-[0-9]+$"}, type: {type: string, enum: [http-api, async-api, data-schema, ui]}, interface: {type: string, minLength: 1, description: "which provided interface, for a block with several"}, qualifier: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 8, description: "a label in the Design id when a block gets two Designs of one type; short: the id <architecture>-<block>-<qualifier>-<type> is at most 63 characters"}, context: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40, description: "the bounded context whose DomainModel and Glossary the Design realises, <context>-model and <context>-glossary; every type but ui"}}}}}, description: "one entry per Design: the block, the type, its interface and qualifier when it has several of one type, and its context for every type but ui"}
+    blocks: {type: {kind: value, schema: {type: array, minItems: 1, maxItems: 40, items: {type: object, required: [block, type], additionalProperties: false, properties: {block: {type: string, pattern: "^BB-[0-9]+$"}, type: {type: string, enum: [http-api, async-api, data-schema, ui]}, interface: {type: string, minLength: 1, description: "which provided interface, for a block with several"}, qualifier: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 7, description: "a label in the Design id when a block gets two Designs of one type; short: the id <architecture>-<block>-<qualifier>-<type> is at most 63 characters"}, context: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40, description: "the bounded context whose DomainModel and Glossary the Design realises, <context>-model and <context>-glossary; every type but ui"}}}}}, description: "one entry per Design: the block, the type, its interface and qualifier when it has several of one type, and its context for every type but ui"}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: {expression: "inputs.blocks.exists(b, b.type == 'ui')"}, description: "with a ui entry"}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: {expression: "inputs.blocks.exists(b, b.type == 'ui')"}, description: "with a ui entry: the http-api Designs its screens call"}
@@ -823,7 +830,7 @@ spec:
       repeat:
         state:
           index: {type: {kind: value, schema: {type: integer, minimum: 1}}}
-          block: {type: {kind: value, schema: {type: object, required: [block, type], additionalProperties: false, properties: {block: {type: string, pattern: "^BB-[0-9]+$"}, type: {type: string, enum: [http-api, async-api, data-schema, ui]}, interface: {type: string, minLength: 1, description: "which provided interface, for a block with several"}, qualifier: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 8, description: "a label in the Design id when a block gets two Designs of one type; short: the id <architecture>-<block>-<qualifier>-<type> is at most 63 characters"}, context: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40, description: "the bounded context whose DomainModel and Glossary the Design realises, <context>-model and <context>-glossary; every type but ui"}}}}}
+          block: {type: {kind: value, schema: {type: object, required: [block, type], additionalProperties: false, properties: {block: {type: string, pattern: "^BB-[0-9]+$"}, type: {type: string, enum: [http-api, async-api, data-schema, ui]}, interface: {type: string, minLength: 1, description: "which provided interface, for a block with several"}, qualifier: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 7, description: "a label in the Design id when a block gets two Designs of one type; short: the id <architecture>-<block>-<qualifier>-<type> is at most 63 characters"}, context: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40, description: "the bounded context whose DomainModel and Glossary the Design realises, <context>-model and <context>-glossary; every type but ui"}}}}}
         initial:
           index: {literal: 1}
           block: {expression: "inputs.blocks[0]"}
@@ -971,6 +978,7 @@ spec:
     - id: check
       uses: {kind: Gate, name: plan-check}
       inputs:
+        previous: {fromInput: previous, onMissing: omit}
         plan: {first: [{fromStep: {stepRef: record, output: plan}}, {fromStep: {stepRef: write, output: plan}}]}
         spec: {fromInput: spec}
         architecture: {fromInput: architecture}
@@ -1042,6 +1050,7 @@ spec:
       designs: {fromInput: designs}
       domainModel: {fromInput: domainModel, onMissing: omit}
       base: {fromInput: base, onMissing: omit}
+      previous: {fromInput: previous}
     timeout: 5m
   subject: plan
   previous: previous
@@ -1159,6 +1168,8 @@ spec:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: false}
+    changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false}
   outputs:
     designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}}
   outputBindings:
@@ -1172,6 +1183,8 @@ spec:
         architecture: {fromInput: architecture}
         previous: {fromInput: previous, onMissing: omit}
         feedback: {fromInput: feedback, onMissing: omit}
+        base: {fromInput: base, onMissing: omit}
+        changes: {fromInput: changes, onMissing: omit}
       timeout: 30m
     - id: decide
       uses: {kind: Task, name: decide-design-system}
@@ -1211,17 +1224,22 @@ spec:
   inputs:
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: false, description: "the DesignSystem as it stands, when this run applies downstream answers (38-autopilot.md)"}
+    changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false}
   produce:
     uses: {kind: Workflow, name: design-system-draft}
     inputs:
       prd: {fromInput: prd}
       architecture: {fromInput: architecture}
+      base: {fromInput: base}
+      changes: {fromInput: changes}
     timeout: 73h   # the owner may be a human (23-pack-sdlc.md decide step)
   review:
     uses: {kind: Gate, name: design-system-gate}
     inputs:
       designSystem: {fromStep: {stepRef: produce, output: designSystem}}
       feedback: {fromInput: feedback}
+      base: {fromInput: base}
     timeout: 72h
   subject: designSystem
   previous: previous
@@ -1520,7 +1538,7 @@ spec:
       timeout: 4h
     - id: each
       uses: {kind: ReviewLoop, name: build-one}
-      memo: {when: "outputs.passed"}   # a passed build is done: a run started again after a stop builds no task twice (11-workflow.md)
+      memo: {ignore: [baseline, levelBaselines], when: "outputs.passed"}   # a passed build is done; the baselines are new TestOutcomes every run: a run started again after a stop builds no task twice (11-workflow.md)
       inputs:
         plan: {fromInput: plan}
         taskId: {expression: "inputs.tasks[state.index - 1]"}

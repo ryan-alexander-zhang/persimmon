@@ -283,7 +283,7 @@ spec:
     blockId: {type: {kind: value, schema: {type: string, pattern: "^BB-[0-9]+$"}}}
     type: {type: {kind: value, schema: {type: string, enum: [http-api, async-api, data-schema, ui]}}}
     interface: {type: {kind: value, schema: {type: string}}, required: false, description: "which provided interface; empty or unbound: the one provided interface the type describes"}
-    qualifier: {type: {kind: value, schema: {type: string, pattern: "^([a-z0-9]([-a-z0-9]*[a-z0-9])?)?$", maxLength: 8}}, required: false, description: "empty or unbound: none; else tells two Designs of one block and type apart in the id (a block with two APIs, or realising two contexts): the interface or the context, as a label (29-design-process.md)"}
+    qualifier: {type: {kind: value, schema: {type: string, pattern: "^([a-z0-9]([-a-z0-9]*[a-z0-9])?)?$", maxLength: 7}}, required: false, description: "empty or unbound: none; else tells two Designs of one block and type apart in the id (a block with two APIs, or realising two contexts): the interface or the context, as a label (29-design-process.md)"}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: {expression: "inputs.type != 'ui'"}, description: "what the elements realise; a ui Design realises operations of `designs` instead"}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: {expression: "inputs.type != 'ui'"}, description: "the names the document uses; not for a ui Design"}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
@@ -475,6 +475,8 @@ spec:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: false, description: "the DesignSystem as it stands, when this run applies downstream answers to it (38-autopilot.md)"}
+    changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false, description: "the downstream answers this run applies to base"}
     decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}, required: false, description: "the owner's answers to this draft's open questions, recorded in this round (23-pack-sdlc.md)"}
   outputs:
     designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, id: {expression: "inputs.prd.id + '-design-system'"}}
@@ -489,11 +491,15 @@ spec:
       `open` lists the ids of every `Q-n` the DesignSystem leaves without a `resolution`. With `decisions` bound, `previous` is this
       round's draft: record each decision as its `Q-n`'s `resolution` (and `upstream` when it names one), apply what the
       answer implies and change nothing else; `open` is then what still has none.
+      With `base` and `changes` bound, this run revises `base`, the DesignSystem as it stands, to apply answers given
+      downstream (each `<artifact id> Q-n: <resolution>`): start from it, keep every token, component and section that
+      still holds, change only what an answer asks, and add what it names in its words.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: design-system-rules}}
       - {kind: artifact, input: prd}
       - {kind: artifact, input: architecture}
       - {kind: artifact, input: previous}
+      - {kind: artifact, input: base}
     parameters: {effort: high}
   timeout: 30m
   retryPolicy: # a transient API refusal (19-adapter-roles.md) gets another attempt within the step deadline; a dead login is permission_denied and never retried
@@ -507,6 +513,7 @@ metadata: {name: confirm-design-system}
 spec:
   inputs:
     designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: false, description: "the DesignSystem this revision applies answers to; what it settled stands"}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict; round one has none (23-pack-sdlc.md)"}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
@@ -514,6 +521,8 @@ spec:
   action:
     instructions: |
       Confirm the DesignSystem. Judge the look and feel, the palette, the type, the components and the Do's and
+      With `base` bound, this revision applies answers to it: confirm what changed against `base`; what it settled
+      stands unless it is wrong in the owner's rules' sense.
       Don'ts for the product and the people who look at it; the linter checks the format, the token references and
       the contrast beside you. Approve, or reject with one finding per section or token path that must change,
       naming it in the finding's message.
@@ -522,6 +531,7 @@ spec:
     context:
       - {kind: prompt, ref: {kind: Prompt, name: owner-review}}
       - {kind: artifact, input: designSystem}
+      - {kind: artifact, input: base}
   timeout: 72h
   sideEffects: none
 ---
