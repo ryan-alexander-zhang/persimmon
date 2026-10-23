@@ -54,7 +54,7 @@ Equality: `kind` and every field equal after expanding `$ref`. No subtyping.
 | `{fromIterationOutput: <port>}` | last iteration's output | `repeat.next` only |
 | `{expression: <cel>}` | CEL result, a `value` port | anywhere |
 | `{fromEvent: <root path>}` | engine projection of the Outbox event; roots per event kind in `16-trigger.md` | Trigger only |
-| `{fromArtifact: {kind: {apiVersion, kind}, id: <cel>}}` | the latest committed revision, in the run's Namespace, of the artifact whose id the expression yields; an `artifact` port of that kind; absent when no revision exists | Workflow steps, `repeat` bindings, `outputBindings`; never a Gate, Trigger or Task output `id` |
+| `{fromArtifact: {kind: {apiVersion, kind}, id: <cel>}}` | the latest passed revision, in the run's Namespace, of the artifact whose id the expression yields: the highest revision a WorkflowRun put out beside an output `passed` of `true` (a ReviewLoop's round or the loop, `21-composition.md`; the same reading as `get --passed`, `08-store.md`), else, when no run passed one, the latest committed revision; an `artifact` port of that kind; absent when no revision exists | Workflow steps, `repeat` bindings, `outputBindings`; never a Gate, Trigger or Task output `id` |
 | `{first: [Binding, Binding, …]}` | the first alternative whose source is present, in order; absent when none is; every alternative of one type, so an output comes from whichever of two exclusive paths ran | Workflow steps, output bindings |
 | `{fromQuery: {kind: {apiVersion, kind}, where: <cel>}}` | every id of that kind in the run's Namespace, at its latest committed revision, for which `where` holds, ordered by id; an `artifacts` port of that kind; `where` reads the site's roots and `content`, the revision tested; none matching is an empty list, never absent, so no `onMissing`; a `where` that throws on a revision (an unguarded optional field: `has(content.x)`) or answers no bool fails the bind, naming the revision | Workflow steps, `repeat` bindings, `outputBindings`; never a Gate, Trigger or Task output `id` |
 
@@ -162,6 +162,14 @@ Values enter CEL typed by the port schema: `integer` → `int`, `number` → `do
   through; a Task output of it names an id prefix and the Adapter publishes the list's items as
   `<prefix>-<n>` in order (`12-task.md`), a rule that came when the Architecture process needed one
   Adr per strategy decision. Found in design review; the output in UAT.
+- `fromArtifact` binds the latest passed revision, not the latest committed one, and falls back to
+  the latest committed only when no run passed any. Every round of a ReviewLoop publishes its
+  draft before the Gate judges it, so the latest revision of an id is the latest draft, and a
+  `-one` loop out of rounds, a cancelled run or a hand-edit leaves a rejected draft as the latest.
+  The `*-all` Workflows bind each capability's DomainModel, Glossary, Spec and Plan this way inside
+  the engine, where the Autopilot's `get --passed` rule had no say, so a rejected derivation would
+  have been the upstream of every Spec. The fallback keeps a hand-loaded revision, which no run
+  put out, bindable. Found in a pack review.
 
 ## Examples
 
