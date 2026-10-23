@@ -92,7 +92,7 @@ Expansion:
 | Resource | Content |
 |---|---|
 | Workflow `<name>-round` | inputs: the loop's, plus `previous` and `feedback` as declared and every `carry` input under its own name, `required: false`; steps `produce` (its bindings, plus `previous: {fromInput: previous, onMissing: omit}`, the same for `feedback` and for each carried input) and `review`; Transitions `produce Succeeded → review`, `review Succeeded → terminal Succeeded`; outputs: every `produce` output, each `fromStep: {stepRef: produce, output: <port>}`, plus `verdict` (GateResult) from `review.result` and `passed` from `steps.review.outputs.result.passed` |
-| Workflow `<name>` | inputs: the loop's plus `maxRounds` (integer, `required: false`, default `<maxRounds>`), plus `previous`, `feedback` and each carried input as the round body declares them, `required: false`, so a run may start where an earlier run's last round ended; one step `rounds` using `<name>-round`, every input `fromInput` (with `onMissing: omit` when the loop input is `required: false`, in the round body's `produce` and `review` bindings too), `previous: {fromState: previous, onMissing: omit}`, `feedback: {fromState: feedback, onMissing: omit}`, each carried input `fromState` the same; `repeat: {state: {previous?, feedback?, <carried>...}, initial: {<each>: {fromInput: <each>, onMissing: omit}}, next: {previous: {fromIterationOutput: <subject>}, feedback: {fromIterationOutput: verdict}, <carried input>: {fromIterationOutput: <output>}}, until: 'iteration.outputs.passed \|\| iteration.index >= (inputs.maxRounds < <maxRounds> ? inputs.maxRounds : <maxRounds>)', maxIterations: <maxRounds>}`; `timeout`; Transition `rounds Succeeded → terminal Succeeded`; outputs: every `produce` output and `passed`, each `fromStep: {stepRef: rounds, output: <port>}`, plus `rounds: {expression: 'steps.rounds.iterations'}` |
+| Workflow `<name>` | inputs: the loop's plus `maxRounds` (integer, `required: false`, default `<maxRounds>`), plus `previous`, `feedback` and each carried input as the round body declares them, `required: false`, so a run may start where an earlier run's last round ended; one step `rounds` using `<name>-round`, every input `fromInput` (with `onMissing: omit` when the loop input is `required: false`, in the round body's `produce` and `review` bindings too), `previous: {fromState: previous, onMissing: omit}`, `feedback: {fromState: feedback, onMissing: omit}`, each carried input `fromState` the same; `repeat: {state: {previous?, feedback?, <carried>...}, initial: {<each>: {fromInput: <each>, onMissing: omit}}, next: {previous: {fromIterationOutput: <subject>}, feedback: {fromIterationOutput: verdict}, <carried input>: {fromIterationOutput: <output>}}, until: 'iteration.outputs.passed \|\| iteration.index >= (inputs.maxRounds < <maxRounds> ? inputs.maxRounds : <maxRounds>) \|\| (has(state.feedback) && iteration.outputs.verdict == state.feedback)' (the last clause with `feedback` declared: a round whose verdict repeats the last round's is stuck), maxIterations: <maxRounds>}`; `timeout`; Transition `rounds Succeeded → terminal Succeeded`; outputs: every `produce` output and `passed`, each `fromStep: {stepRef: rounds, output: <port>}`, plus `rounds: {expression: 'steps.rounds.iterations'}` |
 
 `passed: false` after `maxRounds` is a verdict: the run Succeeds with `passed false`, as
 `workflow-review-loop.yaml` does by hand today.
@@ -108,6 +108,13 @@ Expansion:
 | everything else | the Workflow and Gate rules on the expansion; a finding's path is rebased onto what the user wrote (a Pipeline phase; a ReviewLoop's `produce`, `review`, `inputs` or `maxRounds`, else `/spec`), its message names the expanded Resource |
 
 ## Decisions
+
+- A round whose verdict equals the last round's ends the loop, `passed` false and `rounds` below
+  `maxRounds`: the same findings twice means the writer cannot or will not fix them, and every
+  further round costs the same calls for the same answer. In the retest `setup-tests` spent three
+  rounds on one deterministic `seed-missing` finding the machine caused. A GateResult of
+  deterministic Validators compares exactly; one with an agent's words rarely repeats verbatim,
+  and when it does the loop is stuck the same way. Found in the Autopilot retest.
 
 - Composition kinds are engine-shipped under `persimmon.ai/v1` with builtin Handlers, like
   Workflow; a pack ships YAML and cannot ship a Handler. The reference placed them in the SDLC

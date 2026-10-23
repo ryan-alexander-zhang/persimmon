@@ -184,6 +184,9 @@ Result: a ValidationResult (`10-ports.md`). No `credentials`, no `security` (`14
   lines: the agent's text, `> <tool> <input>`, `< <result>`; init, rate limit and result events
   are one line each, `[system init] …`, `[result success] 12 turns, 80000 ms`, and the answer
   itself is not logged; the `result` event is the answer. A driver's `transcript` may be a line
+  The `result` event's `permission_denials` are logged one line each, `[denied] <tool> <command or input>`:
+  a Task that fails for a denied call names the call in `persimmon logs`, where the agent's own
+  session is not kept (`--no-session-persistence`). Found in the Autopilot retest.
   mapper. One line logger per stream, so a partial stdout line no longer joins a stderr line.
   Found in UAT; a write that a laptop's sleep ran into its deadline left a RunLog with no line
   from the agent, and nothing said whether claude had started.
