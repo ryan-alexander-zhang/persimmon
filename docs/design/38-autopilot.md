@@ -32,7 +32,7 @@ autopilot = autopilot-doc then autopilot-code
 
 | Rule | Enforcer |
 |---|---|
-| the run order is `AGENTS.md` section 6's; each run takes the latest revision whose Gate passed | skill |
+| the run order is `AGENTS.md` section 6's; each run takes the latest revision whose Gate passed, `persimmon get <Kind>/<id> --passed` (`08-store.md`), never the latest revision: a rejected or cancelled round leaves its draft in the store | skill |
 | before the first run the skill applies `files/.claude/skills/autopilot/autopilot.yaml`: Executors `local-reviewer`, `builder` and `tester` in the project's Namespace, `claude-code/v1`, `claude-opus-5`, the owner read-only, the builder and the Tester `workspace-write` with the stack's commands in `allowedTools`; the report says they are in place, and `persimmon delete Executor/<name> -n default` gives a role back to the human | skill; `autopilot.yaml` |
 | a question is decided where it is raised: the writer's open `Q-n` by the owner inside the round (`decide-<kind>`), the builder's or Tester's by the owner inside the build round (`decide-build`), the ones the confirm finds itself at the Gate, as a rejection `Q-n: decided.` the next round records; every decision an agent took is in the report | pack (`23-pack-sdlc.md`); skill |
 | a form that parks is a Task on a human Executor the overrides do not cover: the Autopilot stops and reports it, never answers it | skill |
@@ -40,7 +40,7 @@ autopilot = autopilot-doc then autopilot-code
 | before the first `build-all` the orchestrator does what the pack leaves to the developer: when the project has no app, it scaffolds one on the Architecture's technology and Adrs, with a unit test command that writes JUnit XML; then `setup-tests` and `test-design-all`; the project must already be a git repository | skill |
 | a `D-n` whose task passed becomes an `Issue`, its fix a `build-one`, then the Issue's `resolved` revision; one fix attempt per Issue, then stop; an Issue that finds the Spec wrong or missing revises the Spec first as an upstream answer (`spec-one` with `base` and `changes`, then its impact), then fixes the task; a build round's `question-upstream` is applied when its run ends, and only a built task whose Plan, Design or TestDesign that impact changed is built again with `build-one` | skill |
 | `plan_regressed` is an Issue with the red test as its `reproduction`, fixed the same way | skill |
-| a `question-upstream` warning naming a Spec, the TestHarness, a Design or a Plan is applied before the next run: that artifact's `-one` loop with `base` its latest passed revision and the answers as `changes`, Specs first; then by impact: the revision diffed against its base, each artifact below whose own statements rest on what changed (judged sentence by sentence, a citation alone impacting nothing) revised through its `-one` loop with `base` and `changes` naming the changed parts, the rest left behind and right (`get --behind`), and the order continued from the first phase not yet run; as often as a run tells new answers; one naming the Architecture or an Adr goes through `architect` the same way, with `base` and `baseAdrs`, its impact applied the same way; one naming a Glossary stops it, reported as the revision the developer owes | skill |
+| a `question-upstream` warning naming a Spec, the TestHarness, a Design or a Plan is applied before the next run: that artifact's `-one` loop with `base` its latest passed revision (`get --passed`) and the answers as `changes`, Specs first; then by impact: the revision diffed against its base, each artifact below whose own statements rest on what changed (judged sentence by sentence, a citation alone impacting nothing) revised through its `-one` loop with `base` and `changes` naming the changed parts, the rest left behind and right (`get --behind`), and the order continued from the first phase not yet run; as often as a run tells new answers; one naming the Architecture or an Adr goes through `architect` the same way, with `base` and `baseAdrs`, its impact applied the same way; one naming a Glossary stops it, reported as the revision the developer owes | skill |
 | the report names every Prd, Architecture, Adr, Spec, Plan and AcceptanceRecord revision, every `Q-n` the owner agent decided, every `question-upstream` warning, every Issue, the files changed and the overrides in place; the developer reviews the diff and commits | skill |
 
 ## Decisions
@@ -107,5 +107,9 @@ autopilot = autopilot-doc then autopilot-code
   Architecture and its Adrs, with a unit test command. The test levels are then the Tester's:
   `setup-tests` records each level the Designs need with the tool the Architecture names, so the
   api and e2e levels exist before the first case needs them (`39-test-process.md`).
+- `base` is the latest passed revision, read with `get --passed`, never the latest revision: the
+  retest's cancelled chain left an unapproved draft as the latest revision of four artifacts, and
+  the skill's "latest passed" had no verb behind it, so `get <Kind>/<id>` gave the draft and four
+  revisions were based on it. Found in the Autopilot retest.
 - The Autopilot never runs git, as no agent in the pack does: the developer commits the diff once,
   after reading the report.

@@ -103,6 +103,7 @@ A Namespaced Resource may bind only its own Namespace's names and Global names.
 | `persimmon cancel <kind>/<name>` | CancelRequested on a run as the local Actor; a Workflow cancels its children, a Task its attempt's call, and the drain delivers it |
 | `persimmon get` · `describe` · `logs` | read Resources, status, RunLog; `get <Kind>/<id>` with no `.r<n>` is the id's latest committed revision, revisioned kinds only, never for `delete` |
 | `persimmon get <Kind> --behind [-n ns \| --global]` | revisioned kinds only, one Namespace or with `--global` every one: the latest revision of each id with an input in `provenance.inputs` that has a newer revision, one line per input (`<Kind>/<name>  -n <ns>  behind <Kind>/<id> [-n <ns>] r<pinned> → r<current>`, the input's Namespace shown when it differs); per input id the highest revision pinned counts, and a newer revision whose `producerRef` is the document's own run (by uid, else Namespace, kind and name) does not; a hand-loaded revision pins nothing; a name beside `--behind` is refused |
+| `persimmon get <Kind>[/<id>] --passed [-n ns \| --global]` | revisioned kinds only: per id the highest revision a WorkflowRun put out beside an output `passed` of `true`, a ReviewLoop's round or the loop itself (`21-composition.md`); with a Kind one line per id (`<Kind>/<id>.r<n>  -n <ns>`), `--global` over every Namespace; with an id that revision's document, refused when none passed, `--global` refused; a draft a rejected, cancelled or failed round left is never picked |
 | `persimmon get <Kind>/<name> --files <dir> [-n ns \| --global]` | writes every representation of the revision into `<dir>` as `<name>.<ext>`, the extension from the media type (`text/html` `html`, `image/svg+xml` `svg`, `text/markdown` `md`, `text/vnd.mermaid` `mmd`), one `wrote <path>  <mediaType>  <bytes>` line each; a revision with none is refused (`18-artifact.md`) |
 | `persimmon skill install <name> --into <dir> [--for claude \| codex]` | fetch and verify a Skill, copy its bundle into the workspace's native skill directories (`15-prompt-skill.md`); replaces an earlier install, refuses a hand-made directory under that name unless `--force` |
 | `persimmon digest <dir>` | the Skill bundle digest of a directory (`15-prompt-skill.md`), to paste into `spec.digest` |
@@ -230,6 +231,12 @@ imports into a server unchanged.
   applied: the kind order (Task before Workflow before ReviewLoop before Pipeline) cannot settle a
   Workflow that steps into a ReviewLoop of the same files, so the AI Native pack validated only
   after it was applied. Found in UAT.
+- `get --passed` reads runs, not revisions: a revision says who produced it and from what, never
+  whether a Gate passed it, and every round publishes its draft before the Gate judges it, so the
+  latest revision of an id is the latest draft. The verdict sits where the loop put it, a round's
+  `passed` beside its subject (`21-composition.md`), so the query is over WorkflowRuns and needs no
+  field on the revision. The Autopilot read "latest passed" as `get <Kind>/<id>` and based four
+  revisions on drafts a cancelled chain had left. Found in the Autopilot retest.
 - `get <Kind> --behind` is a read verb over provenance, not a Gate finding: at gate time inside
   a loop the revision bound is the one the document pins, so a document behind is never seen
   there; `design-check` (`29-design-process.md`) is the deliberate exception, a Gate run by hand
