@@ -1,0 +1,5 @@
+<project>
+  <parent><groupId>__group__</groupId><artifactId>__artifact__</artifactId></parent>
+  <artifactId>__context__</artifactId>
+  <modules><module>__context__-domain</module></modules>
+</project>

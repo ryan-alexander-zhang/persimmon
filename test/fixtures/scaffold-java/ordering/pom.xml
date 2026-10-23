@@ -1,0 +1,5 @@
+<project>
+  <parent><artifactId>example-app</artifactId></parent>
+  <artifactId>ordering</artifactId>
+  <modules><module>ordering-domain</module></modules>
+</project>

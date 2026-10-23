@@ -1,9 +1,11 @@
 <project>
+  <parent><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-parent</artifactId></parent>
   <groupId>com.example</groupId>
-  <artifactId>ordering-service</artifactId>
-  <name>ordering-service</name>
+  <artifactId>example-app</artifactId>
+  <name>example-app</name>
   <modules>
-    <module>ordering-domain</module>
-    <module>ordering-start</module>
+    <module>ordering</module>
+    <!-- contexts -->
+    <module>start</module>
   </modules>
 </project>

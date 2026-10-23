@@ -1,0 +1,4 @@
+<project>
+  <parent><artifactId>__context__</artifactId></parent>
+  <artifactId>__context__-domain</artifactId>
+</project>

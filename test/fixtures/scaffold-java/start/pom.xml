@@ -1,0 +1,8 @@
+<project>
+  <parent><artifactId>example-app</artifactId></parent>
+  <artifactId>example-app-start</artifactId>
+  <dependencies>
+    <dependency><artifactId>ordering-domain</artifactId></dependency>
+    <!-- contexts -->
+  </dependencies>
+</project>
