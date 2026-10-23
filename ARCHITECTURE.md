@@ -76,7 +76,7 @@ the static checker calls.
 
 | Path | Design file | Holds |
 |---|---|---|
-| `src/cli/` | `08-store.md` CLI verbs | one file per verb or verb family; `index.ts` dispatches; `tree.ts` also renders the run tree `--follow` ends with; no engine logic |
+| `src/cli/` | `08-store.md` CLI verbs, `42-scaffold.md` | one file per verb or verb family; `index.ts` dispatches; `tree.ts` also renders the run tree `--follow` ends with; `new.ts` holds the Scaffold registry; no engine logic |
 | `src/server/` | `25-ui.md`, `08-store.md` server Mode | the HTTP API over the Engine: artifacts by kind, one revision, create a revision, revisioned kinds; static files of `tools/`; `persimmon ui` binds it to loopback in local mode; server mode adds https and `server.auth.tokens[]` later |
 | `packs/demo/global/`, `packs/demo/namespaced/` | `20-pack.md` | the demo pack, applied by hand: `global/` as Global, `namespaced/` into a Namespace |
 | `packs/sdlc/files/` | `20-pack.md`, `23-pack-sdlc.md`, `35-build-process.md` | project files `persimmon init` copies when absent: `AGENTS.md` |

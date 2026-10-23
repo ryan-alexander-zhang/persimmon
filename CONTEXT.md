@@ -426,6 +426,13 @@ into a **Namespace**; `files/` copied into the project by `init`. Overridable by
 KindDefinitions and adds no Resource kind of its own.
 _Avoid_: bundle, library, preset, plugin
 
+**Scaffold**:
+A complete, buildable project for one language and framework, kept in that framework's
+repository and copied by `persimmon new`, which renames its coordinates to the developer's and
+runs `init` inside it. Not a **Pack**: a pack's `files/` are copied verbatim into an existing
+project; a Scaffold is the project.
+_Avoid_: template, starter, archetype, boilerplate
+
 **SDLC pack**:
 The built-in default flow (`packs/sdlc/`, `23-pack-sdlc.md`), applied by `persimmon init`: a
 spec-driven delivery process, domain artifacts first. Group `sdd.persimmon.ai`.

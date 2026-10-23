@@ -77,6 +77,7 @@ Read top to bottom within a layer; a file depends only on files above it.
 | `docs/design/25-ui.md` | `persimmon ui`: the local JSON API over the Store (server mode's first slice) and the event storming editor under `tools/` | draft |
 | `docs/design/37-progress.md` | the Progress Tool, home of `persimmon ui`: a product's SDLC phases as a map, runs round by round in a side panel, artifacts as documents, the human gate answered there | draft |
 | `docs/design/38-autopilot.md` | the developer's agent runs the whole run order from one idea: `autopilot-doc` to the Plans, `autopilot-code` from them; `autopilot.yaml` puts an agent on the pack's human Executors (the owner, the builder, the Tester) so the engine runs them; Issues for defects; three agent skills and the override file `init` places | draft |
+| `docs/design/42-scaffold.md` | `persimmon new <dir> --lang --framework`: a Scaffold per language and framework, copied from its framework's repository, coordinates renamed, `init` run inside | draft |
 | `docs/design/41-copilot.md` | the developer's agent drives the run order step by step and the developer decides: a yes before each run, every `Q-n` and Gate confirm relayed with a recommended answer and alternatives, the builder and the Tester on the Autopilot's agents, the next step read from the store | draft |
 | `docs/design/90-decisions.md` | Decision log | active |
 | `docs/design/91-roadmap.md` | Deferred items, open questions | active |
