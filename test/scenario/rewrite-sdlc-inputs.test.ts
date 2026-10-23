@@ -114,6 +114,16 @@ describe('the SDLC pack takes a Rewrite pack inventory and base, optionally', ()
     }
   })
 
+  it('a Spec covers every boundary a command turns on, rule or none, and its auditor refuses one without a scenario', () => {
+    const prompts = parseAllDocuments(readFileSync('packs/sdlc/global/30-prompts.yaml', 'utf8')).map((d) => d.toJS())
+    const text = (name: string): string => prompts.find((d) => d.metadata.name === name).spec.content
+    expect(text('spec-rules')).toMatch(/every other boundary a command's outcome can turn on, whether or not a rule states it/)
+    expect(text('spec-rules')).toMatch(/a clock change/)
+    const audit = text('draft-audit-rules')
+    expect(audit).toMatch(/`boundary-untested` \(error\): a threshold of a rule[^\n]*or a boundary a command's outcome can turn on with no scenario at it/)
+    expect(audit).toMatch(/`spec-gap` \(warning\)[^\n]*or a boundary a command's outcome can turn on/)
+  })
+
   it('a writer with base and changes applies upstream parts revised since base, not only downstream answers', () => {
     const prompts = parseAllDocuments(readFileSync('packs/sdlc/global/30-prompts.yaml', 'utf8')).map((d) => d.toJS())
     for (const name of ['spec-rules', 'design-rules', 'plan-rules', 'harness-rules']) {
