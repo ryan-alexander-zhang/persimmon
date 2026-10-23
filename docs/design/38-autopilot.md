@@ -33,7 +33,7 @@ autopilot = autopilot-doc then autopilot-code
 | Rule | Enforcer |
 |---|---|
 | the run order is `AGENTS.md` section 6's; each run takes the latest revision whose Gate passed, `persimmon get <Kind>/<id> --passed` (`08-store.md`), never the latest revision: a rejected or cancelled round leaves its draft in the store | skill |
-| before the first run the skill applies `files/.claude/skills/autopilot/autopilot.yaml`: Executors `local-reviewer`, `builder` and `tester` in the project's Namespace, `claude-code/v1`, `claude-opus-5`, the owner read-only, the builder and the Tester `workspace-write` with the stack's commands in `allowedTools`; the report says they are in place, and `persimmon delete Executor/<name> -n default` gives a role back to the human | skill; `autopilot.yaml` |
+| before the first run the skill applies `files/.claude/skills/autopilot/autopilot.yaml`: Executors `local-reviewer`, `builder` and `tester` in the project's Namespace, `claude-code/v1`, the owner on `claude-opus-5-5` read-only, the builder and the Tester on `claude-sonnet-5-5` `workspace-write` with the stack's commands in `allowedTools`; the report says they are in place, and `persimmon delete Executor/<name> -n default` gives a role back to the human | skill; `autopilot.yaml` |
 | a question is decided where it is raised: the writer's open `Q-n` by the owner inside the round (`decide-<kind>`), the builder's or Tester's by the owner inside the build round (`decide-build`), the ones the confirm finds itself at the Gate, as a rejection `Q-n: decided.` the next round records; every decision an agent took is in the report | pack (`23-pack-sdlc.md`); skill |
 | a form that parks is a Task on a human Executor the overrides do not cover: the Autopilot stops and reports it, never answers it | skill |
 | a loop out of rounds whose last verdict left the writer something to act on (a finding opening `<id>: decided.`, or an error naming an id the writer can fix) is continued once from its last round (`previous`, `feedback`, its carried inputs, `21-composition.md`), as a developer gives one more round; its passed revision is the artifact and no `*-all` runs again; a continuation out of rounds again with no new decision, a Failed run for another reason or a reconcile error stops the Autopilot with a report | skill |
@@ -66,10 +66,12 @@ autopilot = autopilot-doc then autopilot-code
   judges a document with no open question of the writer's. The confirm still decides what it finds
   itself, by rejecting with `Q-n: decided.`, so no round is lost to a decision alone when the
   decide step had nothing to decide. Found in UAT.
-- The owner, the builder and the Tester keep the pack's strongest model, `claude-opus-5`. A cheaper
-  model for the owner was weighed against the live run's cost and refused: the owner's decisions
-  are the product's, and the time went to rounds and reruns, not to the model. Chosen by the
-  developer.
+- The owner keeps the pack's strongest model, `claude-opus-5-5`, as the writers do: the owner's
+  decisions are the product's, and a cheaper model for it was weighed against the live run's cost
+  and refused, since the time went to rounds and reruns, not to the model. The builder and the
+  Tester run on `claude-sonnet-5-5`, as the auditor does: a build or a test file follows a Plan
+  task and a TestDesign the owner already confirmed, and the retest's wall clock was the ask. An
+  earlier cut had all three on the strongest model. Chosen by the developer.
 - A loop out of rounds is continued once when its last verdict left the writer something to act
   on: a decision, a finding opening `<id>: decided.` (`owner-review`), or an error naming an id the
   writer can fix, as a developer gives one more round; a continuation out of rounds again with no
