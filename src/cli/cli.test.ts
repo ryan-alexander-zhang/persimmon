@@ -709,6 +709,17 @@ describe('persimmon CLI', () => {
     out = []
     expect(await run('get', `WorkflowRun/${kindRun}`)).toBe(0)
     expect(parse(out.join('\n')).spec.inputs.prds).toEqual({ kind: 'artifacts', refs: [r2] })
+    // a run put r1 out beside passed: true: kind:<Kind> binds the latest passed revision, not the latest (10-ports.md)
+    const peek = new Engine({ config: loadConfig(join(dir, 'persimmon.yaml')), cwd: dir })
+    await peek.start()
+    peek.store.resources.put({ apiVersion: 'persimmon.ai/v1', kind: 'WorkflowRun', metadata: { name: 'passed-r1', namespace: 'default' }, spec: { workflowRef: { kind: 'Workflow', name: 'pair-wf' }, inputs: {}, timeout: '1h', origin: { kind: 'manual' } }, status: { phase: 'Succeeded', outputs: { passed: { kind: 'value', value: true }, prd: { kind: 'artifact', ref: { ...r2, revision: 1 } } } } })
+    await peek.close()
+    out = []
+    expect(await run('run', 'pair-wf', '--input', 'prds=kind:ProductRequirement', '--follow')).toBe(0)
+    const passedRun = out[0]!.split('/')[1]!
+    out = []
+    expect(await run('get', `WorkflowRun/${passedRun}`)).toBe(0)
+    expect(parse(out.join('\n')).spec.inputs.prds).toEqual({ kind: 'artifacts', refs: [{ ...r2, revision: 1 }] })
     out = []
     expect(await run('get', `TaskRun/${pairRun}-pair`)).toBe(0)
     expect(parse(out.join('\n')).status.context.map((c: { ref: { revision: number } }) => c.ref.revision)).toEqual([1, 2]) // one context entry per ref, in order
