@@ -186,7 +186,8 @@ imports into a server unchanged.
   and passes its RevisionRef; a second run with the same file reuses the revision. One command
   instead of `create` then `run`. Found in UAT.
 - `--input <port>=kind:<Kind>` on an `artifacts` port lists every artifact of that kind in the
-  run's Namespace at its latest committed revision, by id: a local project is one product, so the
+  run's Namespace at its latest passed revision, the latest committed when no run passed one (the
+  `fromArtifact` reading, `10-ports.md`), by id: a local project is one product, so the
   list is the product's (`33-multi-context-product.md`). Refused on any other port and when the
   Namespace has none. Found in design review.
 - `--input <port>=@<file>` on a `value` port of `type: string` takes the file's text as is: a

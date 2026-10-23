@@ -56,8 +56,9 @@ are migrated by the rename alone, said in their README.
 ## `kind:` query at `run`
 
 `persimmon run <wf> --input <port>=kind:<Kind>` on an `artifacts` port: the CLI lists every
-artifact of that kind in the run's Namespace at its latest committed revision, ordered by id, and
-binds the refs as if given in a file. Refused on any other port, and when nothing of that kind is in
+artifact of that kind in the run's Namespace at its latest passed revision (the latest committed
+when no run passed one, as `fromArtifact` reads, `10-ports.md`), ordered by id, and binds the refs
+as if given in a file. Refused on any other port, and when nothing of that kind is in
 the Namespace. Inside a Workflow, a step filters the same set by content with `fromQuery`
 (`10-ports.md`). In local mode a project is one product, so "every BoundedContext" is the product's;
 `persimmon run architect --input contexts=kind:BoundedContext --input domainModels=kind:DomainModel --input glossaries=kind:Glossary ...`.
