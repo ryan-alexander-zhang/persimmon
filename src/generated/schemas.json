@@ -3195,6 +3195,10 @@
      "type": {
       "$ref": "#/$defs/PortType"
      },
+     "required": {
+      "const": false,
+      "description": "absent when the path producing it did not run; its binding says onMissing: omit (10-ports.md)"
+     },
      "description": {
       "type": "string"
      }
