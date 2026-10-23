@@ -153,7 +153,8 @@ else `artifacts.prd`.
   "Node service" and "object store, EU region", and the scaffold, the TestHarness and every
   builder chose for themselves. `checkArchitecture` refuses `technology-missing`; whether a label
   names a product is the auditor's `technology-vague`, since no word list tells a product from a
-  category. A choice the Prd and the Adrs do not settle is an Adr or a `Q-n` for the human.
+  category. A choice the Prd and the Adrs do not settle is an Adr, or a risk or a constraint stated as an
+  assumption: the Architecture has no `Q-n`, the owner confirms it at its Gate.
   `examples/` keeps the labels its live runs wrote. Found in UAT.
 - `docs/design/examples/sdlc-domain.yaml`: `Architecture/expense-claims-architecture` with its
   two Adrs; passes `checkArchitecture` against the Prd, the `expenses` context, its Glossary and the
