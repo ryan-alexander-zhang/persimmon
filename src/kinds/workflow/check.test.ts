@@ -99,7 +99,7 @@ describe('checkWorkflow', () => {
     expect(checkWorkflow(w, resolve).map((f) => f.message)).toEqual(['onMissing: omit only on optional inputs'])
   })
 
-  it('state is in scope for a repeat body input and next, nowhere else', () => {
+  it('state is in scope for a repeat body input, next and a serial until, nowhere else', () => {
     const perItem = (expr: string, repeat: boolean, until = 'iteration.index >= inputs.items.size()') =>
       ({
         inputs: { items: { type: { kind: 'value', schema: { type: 'array', items: { type: 'string' } } } } },
@@ -136,7 +136,8 @@ describe('checkWorkflow', () => {
     expect(memo({ when: 'outputs.echo', ignore: ['nope'] })).toEqual([['/spec/steps/0/memo/ignore', 'nope: not an input of Task handle-item'], ['/spec/steps/0/memo/when', 'when is string, not bool']])
     expect(checkWorkflow(perItem('state.items[state.index - 1]', false), resolve).map((f) => f.message)[0]).toMatch(/^expression: Unknown variable: state/)
     expect(checkWorkflow(perItem("state.index + 'x'", true), resolve).map((f) => f.message)[0]).toMatch(/^expression: /) // state carries its declared InputSpec type
-    expect(checkWorkflow(perItem('state.items[state.index - 1]', true, 'state.index >= 2'), resolve).map((f) => f.message)[0]).toMatch(/^until: Unknown variable: state/)
+    expect(checkWorkflow(perItem('state.items[state.index - 1]', true, 'state.index >= 2'), resolve)).toEqual([]) // a serial until reads the state the round ran with (11-workflow.md)
+    expect(par('state.index >= 2')[0]).toEqual(['/spec/steps/0/repeat/until', expect.stringMatching(/^until: Unknown variable: state/)]) // a parallel one does not
     const byExpression = perItem('state.items[state.index - 1]', true)
     ;(byExpression.steps[0]!.repeat!.state.index as { required?: unknown }).required = { expression: 'true' }
     expect(checkWorkflow(byExpression, resolve).map((f) => f.path)).toEqual(['/spec/steps/0/repeat/state/index/required']) // a state var is required or not

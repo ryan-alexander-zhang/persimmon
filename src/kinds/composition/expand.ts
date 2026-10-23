@@ -124,7 +124,8 @@ export function expandReviewLoop(r: ReviewLoop, ports: Ports): [Workflow, Workfl
             state: carried,
             initial: Object.fromEntries(Object.keys(carried).map((p) => [p, { fromInput: p, onMissing: 'omit' as const }])),
             next: { ...(previous ? { previous: { fromIterationOutput: subject } } : {}), ...(feedback ? { feedback: { fromIterationOutput: 'verdict' } } : {}), ...Object.fromEntries(Object.entries(carry).map(([out, inp]) => [inp, { fromIterationOutput: out }])) },
-            until: `iteration.outputs.passed || iteration.index >= (inputs.maxRounds < ${maxRounds} ? inputs.maxRounds : ${maxRounds})`,
+            // a round whose verdict repeats the last round's is stuck: the same findings twice, no round will fix them (21-composition.md)
+            until: `iteration.outputs.passed || iteration.index >= (inputs.maxRounds < ${maxRounds} ? inputs.maxRounds : ${maxRounds})${feedback ? ' || (has(state.feedback) && dyn(iteration.outputs.verdict) == dyn(state.feedback))' : ''}`,
             maxIterations: maxRounds,
           },
         },

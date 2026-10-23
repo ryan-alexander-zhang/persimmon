@@ -10,6 +10,18 @@ const example = (name: string) => parse(readFileSync(`docs/design/examples/${nam
 const obj = (properties: Record<string, JsonSchema>): JsonSchema => ({ type: 'object', properties })
 
 describe('celTypeOf', () => {
+  it('a ReviewLoop ends when a round\'s verdict equals the last round\'s: dyn equality over two GateResult values (21-composition.md)', () => {
+    const gate = { $ref: 'persimmon.ai/v1#/GateResult' } // a $ref is dyn to CEL, as the loop's state and the round's output are typed; two structured types would not compare equal
+    const site = new Site({ state: { type: 'object', properties: { feedback: gate } }, iteration: { type: 'object', properties: { index: { type: 'integer' }, outputs: { type: 'object', properties: { passed: { type: 'boolean' }, verdict: gate } } } } })
+    const until = 'iteration.outputs.passed || (has(state.feedback) && dyn(iteration.outputs.verdict) == dyn(state.feedback))'
+    const verdict = { passed: false, results: { seed: { passed: false, findings: [{ severity: 'error', code: 'seed-missing', message: 'integration: no seed' }], evidence: [] } } }
+    const other = { passed: false, results: { seed: { passed: false, findings: [{ severity: 'error', code: 'seed-missing', message: 'fitness: no seed' }], evidence: [] } } }
+    expect(site.check(until)).toBe('bool')
+    expect(site.evaluate(until, { state: {}, iteration: { index: 1, outputs: { passed: false, verdict } } })).toBe(false) // round one: nothing to repeat
+    expect(site.evaluate(until, { state: { feedback: verdict }, iteration: { index: 2, outputs: { passed: false, verdict: other } } })).toBe(false) // a different verdict: go on
+    expect(site.evaluate(until, { state: { feedback: verdict }, iteration: { index: 2, outputs: { passed: false, verdict: structuredClone(verdict) } } })).toBe(true) // the same findings twice: stuck
+  })
+
   it('maps scalar and container types', () => {
     expect(celTypeOf({ type: 'integer' })).toBe('int')
     expect(celTypeOf({ type: 'number' })).toBe('double')

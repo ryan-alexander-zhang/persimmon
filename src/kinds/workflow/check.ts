@@ -196,7 +196,7 @@ export function checkWorkflow(spec: WorkflowSpec, resolve: Resolve): Finding[] {
       checkBindings(s.repeat.initial, s.repeat.state, undefined, visible, `/spec/steps/${i}/repeat/initial`, true)
       checkBindings(s.repeat.next, s.repeat.state, s, visible, `/spec/steps/${i}/repeat/next`, true)
       try {
-        const t = siteFor(visible, s, false).check(s.repeat.until)
+        const t = siteFor(visible, s, s.repeat.parallel === undefined).check(s.repeat.until) // a serial until reads the state the round ran with
         if (t !== 'bool') bad(`/spec/steps/${i}/repeat/until`, `until is ${t}, not bool`)
       } catch (e) {
         if (e instanceof ExpressionError) bad(`/spec/steps/${i}/repeat/until`, `until: ${e.message}`)

@@ -147,7 +147,7 @@ describe('expandReviewLoop', () => {
         uses: { kind: 'Workflow', name: 'prd-with-review-round' },
         inputs: { research: { fromInput: 'research' }, previous: { fromState: 'previous', onMissing: 'omit' }, feedback: { fromState: 'feedback', onMissing: 'omit' } },
         timeout: '24h',
-        repeat: { state: { previous: { ...prd, required: false }, feedback: { type: gateResult, required: false } }, initial: { previous: { fromInput: 'previous', onMissing: 'omit' }, feedback: { fromInput: 'feedback', onMissing: 'omit' } }, next: { previous: { fromIterationOutput: 'prd' }, feedback: { fromIterationOutput: 'verdict' } }, until: 'iteration.outputs.passed || iteration.index >= (inputs.maxRounds < 3 ? inputs.maxRounds : 3)', maxIterations: 3 },
+        repeat: { state: { previous: { ...prd, required: false }, feedback: { type: gateResult, required: false } }, initial: { previous: { fromInput: 'previous', onMissing: 'omit' }, feedback: { fromInput: 'feedback', onMissing: 'omit' } }, next: { previous: { fromIterationOutput: 'prd' }, feedback: { fromIterationOutput: 'verdict' } }, until: 'iteration.outputs.passed || iteration.index >= (inputs.maxRounds < 3 ? inputs.maxRounds : 3) || (has(state.feedback) && dyn(iteration.outputs.verdict) == dyn(state.feedback))', maxIterations: 3 },
       }],
       transitions: [{ id: 'after-rounds', from: [{ stepRef: 'rounds', outcomes: ['Succeeded'] }], to: [{ terminal: 'Succeeded' }] }],
       timeout: '24h',

@@ -244,7 +244,7 @@ export function workflowHandler(deps: HandlerDeps): HandlerImpl {
           steps[id] = { ...steps[id]!, active: (steps[id]!.active ?? []).filter((a) => a.iteration !== iteration) }
           return fill(step)
         }
-        const done = site(step, false).evaluate(step.repeat.until, { ...celContext(sources()), iteration: { index: iteration, outputs: unwrap(outputs) } }) === true
+        const done = site(step).evaluate(step.repeat.until, { ...celContext(sources(steps[id]!.state ? { state: steps[id]!.state } : {})), iteration: { index: iteration, outputs: unwrap(outputs) } }) === true // `state` is the one this round ran with (11-workflow.md)
         if (done) steps[id] = { ...steps[id]!, phase: 'Succeeded' }
         else if (iteration >= step.repeat.maxIterations) steps[id] = { ...steps[id]!, phase: 'Failed', error: err('iteration_limit', `${step.repeat.maxIterations} iterations`) }
         else iterate(step, iteration + 1, step.repeat.next, sources({ ...(steps[id]!.state ? { state: steps[id]!.state } : {}), iteration: { index: iteration, outputs } }))
