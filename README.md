@@ -67,6 +67,7 @@ Developing on it: `npm link` instead of `npm install -g .`, then `npm run build`
 Initialize a project, then start a run:
 
 ```sh
+persimmon new order-service --lang java --framework ddd --group com.acme   # a new Java DDD project from its Scaffold, coordinates renamed, init run inside
 cd <your project>
 persimmon init                                  # creates .persimmon/, persimmon.yaml, shipped Adapters, the SDLC pack, AGENTS.md (CLAUDE.md links to it), ignores .persimmon/
 persimmon run <Workflow> --input k=v --follow   # starts a WorkflowRun and prints each phase change until done or parked

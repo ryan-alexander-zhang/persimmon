@@ -8,6 +8,7 @@ import { skillInstall } from './skill.js'
 import { get, logs } from './get.js'
 import { tree } from './tree.js'
 import { init, namedPackDir } from './init.js'
+import { newProject } from './new.js'
 import { adapterList, adapterTest, cancel, del, resume } from './misc.js'
 import { complete, signal } from './signal.js'
 import { ui } from './ui.js'
@@ -29,6 +30,7 @@ const usage = `usage: persimmon <verb> [args]
   skill install <name> --into <dir> [--for claude|codex] [--force] [-n ns | --global]   copy a verified Skill where the agent CLIs find it
   digest <dir>                                      the bundle digest a Skill declares for that directory
   init [--pack <name>]                              --pack: also install packs/<name> after the SDLC pack (the rewrite pack)
+  new <dir> --lang java --framework ddd [--group <groupId>] [--from <path>]   copy that Scaffold into <dir>, rename its coordinates, init inside
   ui [--port <n>]                                   the local API and the built tools on 127.0.0.1 (default port 4747)
   delete <kind>/<name> [-n ns | --global]
   adapter install <manifest> | adapter list | adapter test <id> [--config <file>] [--live]   conformance suite, one line per rule`
@@ -75,6 +77,10 @@ function parseCliArgs(argv: string[]) {
       into: { type: 'string' },
       for: { type: 'string' },
       force: { type: 'boolean' },
+      lang: { type: 'string' },
+      framework: { type: 'string' },
+      group: { type: 'string' },
+      from: { type: 'string' },
       behind: { type: 'boolean' },
       passed: { type: 'boolean' },
       files: { type: 'string' },
@@ -133,6 +139,9 @@ async function dispatchVerb(cli: Cli, verb: string, rest: string[], values: Retu
         throw new Error('skill: install <name> --into <dir> [--for claude|codex]')
       case 'init':
         return await init(cli, values.pack !== undefined ? { also: namedPackDir(values.pack) } : {})
+      case 'new':
+        need(1, '<dir>')
+        return await newProject(cli, rest[0]!, { lang: values.lang, framework: values.framework, group: values.group, from: values.from })
       case 'ui':
         return await ui(cli, values.port ? { port: Number(values.port) } : {})
       case 'delete':
