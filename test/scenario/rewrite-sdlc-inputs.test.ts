@@ -67,6 +67,27 @@ describe('the SDLC pack takes a Rewrite pack inventory and base, optionally', ()
     for (const name of ['base', 'baseGlossary', 'baseContext', 'changes']) expect({ name, required: loop.inputs[name].required, bound: loop.produce.inputs[name] }).toEqual({ name, required: false, bound: { fromInput: name } })
   })
 
+  it('the Prd and the storming model take base and changes, and their auditor and owner judge what changed', () => {
+    const prd = named('Task', 'draft-prd')
+    expect([prd.inputs.base.required, prd.inputs.changes.required]).toEqual([false, false])
+    expect(prd.action.context).toEqual(expect.arrayContaining([{ kind: 'artifact', input: 'base' }]))
+    expect(prd.action.instructions).toMatch(/With `base` and `changes` bound/)
+    const draft = named('Workflow', 'prd-draft')
+    expect(draft.steps.find((st: { id: string }) => st.id === 'write').inputs.changes).toEqual({ fromInput: 'changes', onMissing: 'omit' })
+    const loop = named('ReviewLoop', 'author-prd')
+    expect([loop.produce.inputs.base, loop.produce.inputs.changes, loop.review.inputs.base]).toEqual([{ fromInput: 'base' }, { fromInput: 'changes' }, { fromInput: 'base' }])
+    for (const name of ['audit-prd', 'confirm-prd', 'confirm-storming']) {
+      const task = named('Task', name)
+      expect({ name, required: task.inputs.base.required, told: /With `base` bound/.test(task.action.instructions) }).toEqual({ name, required: false, told: true })
+    }
+    for (const name of ['prd-audited', 'prd-confirmed', 'storming-confirmed']) expect({ name, required: named('Validator', name).inputs.base.required }).toEqual({ name, required: false })
+    const storm = named('Task', 'event-storm')
+    expect([storm.inputs.changes.required, /With `changes` bound, `base` is this phase's model as it stands/.test(storm.action.instructions)]).toEqual([false, true])
+    const design = named('ReviewLoop', 'storm-design')
+    expect([design.inputs.changes.required, design.produce.inputs.changes, design.review.inputs.base]).toEqual([false, { fromInput: 'changes' }, { fromInput: 'base' }])
+    expect(named('Workflow', 'storming-draft').steps.find((st: { id: string }) => st.id === 'write').inputs.changes).toEqual({ fromInput: 'changes', onMissing: 'omit' })
+  })
+
   it('the Architecture\'s auditor takes the same base, through the gate, so round one judges what changed', () => {
     const task = named('Task', 'audit-architecture')
     expect([task.inputs.base.required, task.inputs.baseAdrs.required]).toEqual([false, false])

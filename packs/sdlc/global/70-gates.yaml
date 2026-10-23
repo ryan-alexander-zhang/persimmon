@@ -8,6 +8,7 @@ spec:
     level: {type: {kind: value, schema: {type: string, enum: [big-picture, process, design]}}}
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict, for the owner"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}, required: false, description: "the model a revision applies answers to; the owner confirms what changed"}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
   validators:
@@ -22,6 +23,7 @@ spec:
       after: [grammar]   # the human confirms only what the check passed (14-gate.md)
       inputs:
         model: {fromInput: model}
+        base: {fromInput: base, onMissing: omit}
         feedback: {fromInput: feedback, onMissing: omit}   # the last round's verdict, so the owner checks it was fixed first (23-pack-sdlc.md)
   policy: {strategy: all}
   timeout: 72h
@@ -106,6 +108,7 @@ spec:
     previousRules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false, description: "the last round's rules (28-prd-process.md); round one has none"}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict: the findings that may change a rule"}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false, description: "the last round's Prd; round one has none"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false, description: "the Prd a revision applies answers to; the auditor and the owner judge what changed"}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
   validators:
@@ -125,6 +128,7 @@ spec:
         rules: {fromInput: rules}
         previous: {fromInput: previous, onMissing: omit}
         previousRules: {fromInput: previousRules, onMissing: omit}
+        base: {fromInput: base, onMissing: omit}
         feedback: {fromInput: feedback, onMissing: omit}
     - name: confirmed
       ref: {kind: Validator, name: prd-confirmed}
@@ -133,6 +137,7 @@ spec:
         prd: {fromInput: prd}
         rules: {fromInput: rules}
         audit: {fromValidator: audit}   # the auditor's warnings in the human's form
+        base: {fromInput: base, onMissing: omit}
         feedback: {fromInput: feedback, onMissing: omit}   # the last round's verdict, so the owner checks it was fixed first (23-pack-sdlc.md)
   policy: {strategy: all}
   timeout: 72h

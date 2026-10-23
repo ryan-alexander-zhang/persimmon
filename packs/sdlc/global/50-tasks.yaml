@@ -10,6 +10,7 @@ spec:
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
     inventory: {type: {kind: value, schema: {type: object}}, required: false, description: "the content of a Rewrite pack SourceInventory (40-pack-rewrite.md): the existing system's facts; a value, so this pack names no kind of another"}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}, required: false}
+    changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false, description: "the downstream answers this run applies to base, then this phase's model as it stands (38-autopilot.md)"}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
     decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, minLength: 1, description: "a hotspot node id"}, resolution: {type: string, minLength: 1}}}}}, required: false, description: "the owner's answers to this round's open hotspots, recorded in this round (23-pack-sdlc.md)"}
   outputs:
@@ -32,6 +33,11 @@ spec:
       `open` lists the ids of every `hotspot` node left `open`, without a `resolution`. With `decisions` bound, `previous` is
       this round's model: give each named hotspot `state: resolved` and its `resolution` in the decision's words, model
       what the answer implies at this phase's level, and change nothing else; `open` is then what still has none.
+      With `changes` bound, `base` is this phase's model as it stands, not the phase before: apply each answer
+      (`<artifact id> Q-n: <resolution>`, or `<artifact id> <part id>: <what changed>` for a Prd part revised since) to it
+      and nothing else: a command, an event, a read model, an aggregate, a policy or an edge an answer asks for is added
+      or changed in the answer's words, in the context the answer names; every other node, edge and context keeps its
+      id and text; `open` lists only a hotspot an answer raises.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: storming-dsl}}
       - {kind: prompt, ref: {kind: Prompt, name: storming-big-picture}}
@@ -55,6 +61,7 @@ metadata: {name: confirm-storming}
 spec:
   inputs:
     model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}, required: false, description: "the model this revision applies answers to; what it settled stands"}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict; round one has none (23-pack-sdlc.md)"}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}}
@@ -65,10 +72,12 @@ spec:
       "Open the board" opens it in the editor. Approve when the phase gate holds; reject with one finding per node,
       edge or context that must change, naming its id.
       Judge as the owner's rules in your context say; `feedback`, when bound, is the last round's verdict: check its
-      findings were fixed first.
+      findings were fixed first. With `base` bound, this revision applies answers to it: confirm what changed against
+      `base`; what it settled stands unless it is wrong in the owner's rules' sense.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: owner-review}}
       - {kind: artifact, input: model}
+      - {kind: artifact, input: base}
   timeout: 72h
   sideEffects: none
 ---
@@ -189,6 +198,8 @@ spec:
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: false}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false}
     previousRules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false, description: "the rules the last round answered; the loop carries them (21-composition.md)"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false, description: "the Prd as it stands, when this run applies downstream answers to it; rules is then its BusinessRules (38-autopilot.md)"}
+    changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false, description: "the downstream answers this run applies to base and rules"}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
     decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}, required: false, description: "the owner's answers to this draft's open questions, recorded in this round (23-pack-sdlc.md)"}
   outputs:
@@ -208,12 +219,18 @@ spec:
       `open` lists the ids of every `Q-n` the Prd leaves without a `resolution`. With `decisions` bound, `previous` is this
       round's draft (the rules start from `previousRules`, as in a round): record each decision as its `Q-n`'s `resolution`, apply what the
       answer implies and change nothing else; `open` is then what still has none.
+      With `base` and `changes` bound, this run revises `base`, the Prd as it stands, and `rules`, its BusinessRules as they
+      stand, to apply answers given downstream (each `<artifact id> Q-n: <resolution>`): start from both, keep every
+      `CAP-n`, `G-n`, `BR-n` and `Q-n` with its text, change only what an answer asks and every sentence that rested on
+      it, a new capability, criterion or rule takes the next unused number, and every `Q-n` of `base` keeps its
+      resolution; `open` lists only a question an answer raises.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: prd-rules}}
       - {kind: artifact, input: rules}
       - {kind: artifact, input: previousRules}
       - {kind: artifact, input: glossary}
       - {kind: artifact, input: previous}
+      - {kind: artifact, input: base}
     parameters: {effort: high}
   timeout: 30m
   retryPolicy: # a transient API refusal (19-adapter-roles.md) gets another attempt within the step deadline; a dead login is permission_denied and never retried
@@ -228,6 +245,7 @@ spec:
   inputs:
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false, description: "the Prd this revision applies answers to; what it settled stands"}
     audit: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/ValidationResult"}}, required: false, description: "the auditor's verdict, passed, read before the human (23-pack-sdlc.md)"}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict; round one has none (23-pack-sdlc.md)"}
   outputs:
@@ -239,6 +257,8 @@ spec:
       cut; the Validator checks ids and citations beside you. Approve, or reject with one finding per G-n,
       CAP-n, SC-n, Q-n or BR-n that must change, naming the id in the finding's message. A finding that changes the
       answer of a Q-n whose answer became a rule names that BR-n too, so the rule may change with it.
+      With `base` bound, this revision applies answers to it: confirm what changed against `base`; what it settled
+      stands unless it is wrong in the owner's rules' sense.
       `audit`, when bound, is the auditor's verdict on this draft: it passed, and each warning is a doubt for you to judge,
       not a defect already decided.
       Judge as the owner's rules in your context say; `feedback`, when bound, is the last round's verdict: check its
@@ -247,6 +267,7 @@ spec:
       - {kind: prompt, ref: {kind: Prompt, name: owner-review}}
       - {kind: artifact, input: prd}
       - {kind: artifact, input: rules}
+      - {kind: artifact, input: base}
   timeout: 72h
   sideEffects: none
 ---
@@ -672,6 +693,7 @@ spec:
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false, description: "the last round's, beside the draft; round one has none"}
     previousRules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false, description: "the last round's, beside the draft; round one has none"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false, description: "the Prd this draft applies answers to; what it settled stands"}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict; round one has none"}
   outputs:
     audit: {type: {kind: value, schema: {allOf: [{$ref: "persimmon.ai/v1#/ValidationResult"}, {if: {required: [findings], properties: {findings: {contains: {required: [severity], properties: {severity: {const: error}}}}}}, then: {properties: {passed: {const: false}}}, else: {properties: {passed: {const: true}}}}]}}}
@@ -679,12 +701,14 @@ spec:
   action:
     instructions: |
       Audit the Prd `prd` following the draft audit rules in your context, their part for a Prd.
+      With `base` bound, the draft applies answers to it: judge what changed against `base`, never what it already settled.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: draft-audit-rules}}
       - {kind: artifact, input: prd}
       - {kind: artifact, input: rules}
       - {kind: artifact, input: previous}
       - {kind: artifact, input: previousRules}
+      - {kind: artifact, input: base}
   timeout: 30m
   retryPolicy: # a transient API refusal gets another attempt
     maxAttempts: 3

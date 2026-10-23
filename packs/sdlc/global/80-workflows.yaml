@@ -12,6 +12,7 @@ spec:
     inventory: {type: {kind: value, schema: {type: object}}, required: false}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+    changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false}
   outputs:
     model: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
     contexts: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}}
@@ -30,6 +31,7 @@ spec:
         inventory: {fromInput: inventory, onMissing: omit}
         previous: {fromInput: previous, onMissing: omit}
         feedback: {fromInput: feedback, onMissing: omit}
+        changes: {fromInput: changes, onMissing: omit}
       timeout: 30m
     - id: decide
       uses: {kind: Task, name: decide-storming}
@@ -136,7 +138,8 @@ spec:
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
     inventory: {type: {kind: value, schema: {type: object}}, required: false}
-    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: EventStorming}}, description: "the process-level model; with changes bound, the design-level model as it stands (38-autopilot.md)"}
+    changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false, description: "the downstream answers this run applies to base"}
   produce:
     uses: {kind: Workflow, name: storming-draft}
     inputs:
@@ -144,6 +147,7 @@ spec:
       rules: {fromInput: rules}
       inventory: {fromInput: inventory}
       base: {fromInput: base}
+      changes: {fromInput: changes}
       level: {literal: design}
     timeout: 73h   # the owner may be a human (23-pack-sdlc.md decide step)
   review:
@@ -153,6 +157,7 @@ spec:
       level: {literal: design}
       prd: {fromInput: prd}
       feedback: {fromInput: feedback}
+      base: {fromInput: base}
     timeout: 72h
   subject: model
   previous: previous
@@ -513,6 +518,8 @@ spec:
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false}
     previousRules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false}
+    changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false}
   outputs:
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
@@ -531,6 +538,8 @@ spec:
         previous: {fromInput: previous, onMissing: omit}
         previousRules: {fromInput: previousRules, onMissing: omit}
         feedback: {fromInput: feedback, onMissing: omit}
+        base: {fromInput: base, onMissing: omit}
+        changes: {fromInput: changes, onMissing: omit}
       timeout: 30m
     - id: decide
       uses: {kind: Task, name: decide-prd}
@@ -573,6 +582,8 @@ spec:
     productId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: false}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false, description: "the Prd as it stands, when this run applies downstream answers; rules is then its BusinessRules (38-autopilot.md)"}
+    changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false, description: "the downstream answers this run applies to base and rules"}
   produce:
     uses: {kind: Workflow, name: prd-draft}
     inputs:
@@ -580,6 +591,8 @@ spec:
       productId: {fromInput: productId}
       rules: {fromInput: rules}
       glossary: {fromInput: glossary}
+      base: {fromInput: base}
+      changes: {fromInput: changes}
     timeout: 73h   # the owner may be a human (23-pack-sdlc.md decide step)
   review:
     uses: {kind: Gate, name: prd-gate}
@@ -589,6 +602,7 @@ spec:
       previousRules: {fromInput: previousRules} # the last round's rules, so the gate refuses a rule changed unasked; absent in round one
       feedback: {fromInput: feedback}
       previous: {fromInput: previous}
+      base: {fromInput: base}
     timeout: 72h
   subject: prd
   previous: previous
