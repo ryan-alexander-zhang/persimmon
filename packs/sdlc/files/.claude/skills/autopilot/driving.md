@@ -65,16 +65,23 @@ the order:
    `designs`, `repository`); `design-one` with the inputs `design-all` gave it; `plan-one` with the
    inputs `plan-all` gave it; `architect` with the inputs it had (`prd`, `rules`, `contexts`,
    `domainModels`, `glossaries`), `base` the latest passed Architecture (`--passed`) and `baseAdrs` its Adrs;
-   `derive-one` for a Glossary, a DomainModel or a BoundedContext, with the inputs `derive-all` gave
-   that context (`model`, `prd`, `rules`, `contextId`) and `base` its latest passed DomainModel,
-   `baseGlossary` its Glossary, `baseContext` its BoundedContext (`--passed` on each). The derivation
-   first, then the Architecture, Specs, the harness, Designs and Plans; one answer may name several
-   artifacts.
+   `derive-one` for a Glossary term or fact type, a DomainModel attribute or a BoundedContext, with
+   the inputs `derive-all` gave that context (`model`, `prd`, `rules`, `contextId`) and `base` its
+   latest passed DomainModel, `baseGlossary` its Glossary, `baseContext` its BoundedContext
+   (`--passed` on each); `storm-design` for a DomainModel's command, event, read model or aggregate
+   the model lacks (a derivation is a projection and cannot add one), with the inputs
+   `domain-discovery` had (`prd`, `rules`) and `base` the latest passed design-level EventStorming
+   (`get EventStorming --passed`), then `derive-one` for each context the model changed, its
+   `changes` naming the changed parts; `author-prd` for the Prd or a `BR-n`, with the inputs it had
+   (`brief`, `productId`, `glossary`), `rules` the latest passed BusinessRules and `base` the
+   latest passed Prd. The Prd first, then the storming model, the derivation, the Architecture,
+   Specs, the harness, Designs and Plans; one answer may name several artifacts.
 2. Its Gate passed, apply the revision by impact, never by running the order again. Diff the
    revision against `base` (`persimmon get <Kind>/<id>.r<n>` for both) and list the parts that
    changed, by id: a Spec's `AC-n`, `R-n` or story; an Architecture's `BB-n` (its `technology` or
-   `interfaces` too), `REL-n`, `CC-n`, `QS-n`, an Adr; a Glossary's term or fact type (its enum values
-   too); a DomainModel's aggregate or read model; a Design's element; a harness level. An
+   `interfaces` too), `REL-n`, `CC-n`, `QS-n`, an Adr; a Prd's `CAP-n`, `G-n` or a `BR-n`; a storming
+   model's node or edge; a Glossary's term or fact type (its enum values too); a DomainModel's
+   aggregate or read model; a Design's element; a harness level. An
    artifact below is impacted when something it states rests on what changed in the part, judged
    sentence by sentence, not by the citation alone: a Design realising a block whose interface
    changed, a Spec whose scenario states a rule a `CC-n` or `QS-n` now states otherwise, a Plan
