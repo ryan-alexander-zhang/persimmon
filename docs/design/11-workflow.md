@@ -81,8 +81,10 @@ Per-step phase, recorded in `WorkflowRun.status.steps.<id>` (`17-runs.md`):
 
 A step with `memo` looks for the work already done before it starts a child. The engine takes
 every run of the used kind in the run's Namespace with the same snapshot digest, whose
-`<kind>Ref` names the step's `uses`, whose `spec.inputs` equal the bound inputs except the ports
-`ignore` lists, whose phase is Succeeded and whose outputs satisfy `when` (CEL over `outputs`;
+`<kind>Ref` names the step's `uses`, whose `spec.inputs`, read on the ports the step binds, equal
+the bound inputs except the ports `ignore` lists (a run with more inputs counts: a loop continued
+by hand with `previous` and `feedback`, a `-one` revision with `base` and `changes`), whose phase
+is Succeeded and whose outputs satisfy `when` (CEL over `outputs`;
 default true). The newest one is reused: the step is Succeeded at once with that run's outputs,
 `steps.<id>.runRef` and `steps.<id>.reusedFrom` name it, `steps.<id>.reused` lists every reuse by
 iteration (`persimmon tree` prints each as `reused`, since the run is no child of this one),
@@ -197,6 +199,11 @@ has no `repeat`; the run name already carries the enclosing iterations (`<parent
   an iteration's outputs; a failed iteration leaves its siblings running, since one Design's bad id
   cancelled seven others in the retest, and what passed is kept for `memo`; `steps.<id>.results` gives the outputs the serial `until` used to read,
   so a loop over capabilities ends Succeeded only when every loop passed. Found in UAT.
+- A memo reads a candidate run's inputs on the step's ports only, so a run with more inputs is
+  reused. The Autopilot continues a loop out of rounds by hand, with `previous` and `feedback`,
+  and revises an artifact through its `-one` loop with `base` and `changes`; a `*-all` run started
+  again after either found no match on the extra ports and did the capability's or the task's
+  work once more, three rounds of a build for a task already passed. Found in a pack walkthrough.
 - A step may reuse an earlier run, `memo`. In the live Autopilot run `test-design-all` walked
   CAP-1 four times in ten hours, three of them with its Spec, Plan and harness unchanged, each
   time a writer, an auditor and a reviewer again; the skill kept a hand-written dependency table
