@@ -88,6 +88,21 @@ describe('the SDLC pack takes a Rewrite pack inventory and base, optionally', ()
     expect(named('Workflow', 'storming-draft').steps.find((st: { id: string }) => st.id === 'write').inputs.changes).toEqual({ fromInput: 'changes', onMissing: 'omit' })
   })
 
+  it('every draft kind records upstream, every *-all repeat fits its loops, and the product id fits every id built on it', () => {
+    const text = readFileSync('packs/sdlc/global/10-artifact-kinds.yaml', 'utf8')
+    expect(text.match(/^\s+openQuestions:$/gm)?.length).toBe(8)
+    expect(text.match(/^\s+upstream: \{type: array/gm)?.length).toBe(8) // one per openQuestions block: a Prd, a Spec, a Design, a DesignSystem, a Plan, a TestHarness, a TestDesign, an AcceptanceRecord
+    for (const name of ['write-spec', 'design-asset', 'write-plan', 'draft-prd', 'write-design-system', 'implement']) expect({ name, told: /`upstream` when it names one/.test(named('Task', name).action.instructions) }).toEqual({ name, told: true })
+    const hours = (t: string) => Number(t.replace('h', ''))
+    for (const [name, items, loop] of [['spec-all', 40, 240], ['design-all', 40, 240], ['plan-all', 40, 240], ['test-design-all', 40, 240], ['build-all', 20, 240]] as const) {
+      const step = named('Workflow', name).steps.find((st: { repeat?: unknown }) => st.repeat)
+      expect({ name, fits: hours(step.timeout) >= items * loop }).toEqual({ name, fits: true })
+    }
+    expect(named('Task', 'draft-prd').inputs.productId.type.schema.maxLength).toBe(20)
+    expect(named('ReviewLoop', 'author-prd').inputs.productId.type.schema.maxLength).toBe(20)
+    expect(named('Task', 'design-asset').inputs.qualifier.type.schema.maxLength).toBe(8)
+  })
+
   it('the Architecture\'s auditor takes the same base, through the gate, so round one judges what changed', () => {
     const task = named('Task', 'audit-architecture')
     expect([task.inputs.base.required, task.inputs.baseAdrs.required]).toEqual([false, false])

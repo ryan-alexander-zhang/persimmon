@@ -13,7 +13,8 @@ below, and when to stop. Every run takes the passed revisions the runs before it
 - `persimmon.yaml` in the project directory; if absent, `persimmon init`.
 - The Executor overrides: `persimmon apply .claude/skills/autopilot/autopilot.yaml -n default`
   (`driving.md`, Before the first run).
-- A `productId`: lowercase kebab from the idea, at most 40 characters, no Prd with that stem in
+- A `productId`: lowercase kebab from the idea, at most 20 characters (every artifact id below is
+  built on it and a Design's must fit 63), no Prd with that stem in
   `persimmon get Prd`.
 
 ## 1. Brief

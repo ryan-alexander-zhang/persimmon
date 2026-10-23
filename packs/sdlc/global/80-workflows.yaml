@@ -230,7 +230,7 @@ spec:
         prd: {fromInput: prd}
         rules: {fromInput: rules, onMissing: omit}
         contextId: {expression: "inputs.contexts[state.index - 1]"}
-      timeout: 12h
+      timeout: 30h   # a ceiling for the whole repeat: twenty contexts at derive-one's 90m
       memo: {when: "outputs.passed"}   # unchanged inputs, a passed loop: done already (11-workflow.md)
       repeat:
         state:
@@ -250,7 +250,7 @@ spec:
         - {terminal: Failed, reason: derivation_inconsistent, when: 'steps.each.phase == "Succeeded"'} # a Gate rejected some loop's last round; steps.each.results says which
         - {terminal: Failed, reason: step_failed} # the iteration died before its Gate ran; steps.each.error names the cause
       dispatch: first
-  timeout: 12h
+  timeout: 30h
 ---
 # Prd and its rules in, a design-level model and one derived context per storming context out.
 apiVersion: persimmon.ai/v1
@@ -479,7 +479,7 @@ spec:
         glossary: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}, id: "state.cap.context + '-glossary'"}}
         rules: {fromInput: rules}
         context: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext}, id: "state.cap.context"}}
-      timeout: 12h
+      timeout: 9600h   # a ceiling for the whole repeat: forty loops at a loop's full 240h (a repeat timeout bounds the whole loop, 11-workflow.md)
       memo: {when: "outputs.passed"}   # unchanged inputs, a passed loop: done already (11-workflow.md)
       repeat:
         state:
@@ -502,7 +502,7 @@ spec:
         - {terminal: Failed, reason: spec_inconsistent, when: 'steps.each.phase == "Succeeded"'} # a Gate rejected some loop's last round; steps.each.results says which
         - {terminal: Failed, reason: step_failed} # the iteration died before its Gate ran; steps.each.error names the cause
       dispatch: first
-  timeout: 12h
+  timeout: 9614h
 ---
 # One round's Prd and rules (23-pack-sdlc.md): the writer drafts; a draft with open questions goes to the owner, decide-prd, and
 # the writer records the decisions in the same round, the rules kept as the loop keeps them; a draft with none goes to the Gate.
@@ -512,7 +512,7 @@ metadata: {name: prd-draft}
 spec:
   inputs:
     brief: {type: {kind: value, schema: {type: string, minLength: 1}}}
-    productId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}
+    productId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 20}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: false}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false}
@@ -579,7 +579,7 @@ metadata: {name: author-prd}
 spec:
   inputs:
     brief: {type: {kind: value, schema: {type: string, minLength: 1}}}
-    productId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}}
+    productId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 20}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: false}
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false, description: "the Prd as it stands, when this run applies downstream answers; rules is then its BusinessRules (38-autopilot.md)"}
@@ -622,7 +622,7 @@ spec:
     blockId: {type: {kind: value, schema: {type: string, pattern: "^BB-[0-9]+$"}}}
     type: {type: {kind: value, schema: {type: string, enum: [http-api, async-api, data-schema, ui]}}}
     interface: {type: {kind: value, schema: {type: string}}, required: false, description: "which provided interface; empty or unbound: the one provided interface the type describes"}
-    qualifier: {type: {kind: value, schema: {type: string, pattern: "^([a-z0-9]([-a-z0-9]*[a-z0-9])?)?$", maxLength: 40}}, required: false, description: "empty or unbound: none; else tells two Designs of one block and type apart in the id (a block with two APIs, or realising two contexts): the interface or the context, as a label (29-design-process.md)"}
+    qualifier: {type: {kind: value, schema: {type: string, pattern: "^([a-z0-9]([-a-z0-9]*[a-z0-9])?)?$", maxLength: 8}}, required: false, description: "empty or unbound: none; else tells two Designs of one block and type apart in the id (a block with two APIs, or realising two contexts): the interface or the context, as a label (29-design-process.md)"}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: {expression: "inputs.type != 'ui'"}, description: "what the elements realise; a ui Design realises operations of `designs` instead"}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: {expression: "inputs.type != 'ui'"}, description: "the names the document uses; not for a ui Design"}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
@@ -737,7 +737,7 @@ spec:
     blockId: {type: {kind: value, schema: {type: string, pattern: "^BB-[0-9]+$"}}}
     type: {type: {kind: value, schema: {type: string, enum: [http-api, async-api, data-schema, ui]}}}
     interface: {type: {kind: value, schema: {type: string}}, required: false, description: "empty or unbound: the one provided interface the type describes"}
-    qualifier: {type: {kind: value, schema: {type: string, pattern: "^([a-z0-9]([-a-z0-9]*[a-z0-9])?)?$", maxLength: 40}}, required: false, description: "empty or unbound: none"}
+    qualifier: {type: {kind: value, schema: {type: string, pattern: "^([a-z0-9]([-a-z0-9]*[a-z0-9])?)?$", maxLength: 8}}, required: false, description: "empty or unbound: none"}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: {expression: "inputs.type != 'ui'"}}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: {expression: "inputs.type != 'ui'"}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
@@ -786,7 +786,7 @@ metadata: {name: design-all}
 spec:
   inputs:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
-    blocks: {type: {kind: value, schema: {type: array, minItems: 1, maxItems: 40, items: {type: object, required: [block, type], additionalProperties: false, properties: {block: {type: string, pattern: "^BB-[0-9]+$"}, type: {type: string, enum: [http-api, async-api, data-schema, ui]}, interface: {type: string, minLength: 1, description: "which provided interface, for a block with several"}, qualifier: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40, description: "a label in the Design id when a block gets two Designs of one type; short: the id <architecture>-<block>-<qualifier>-<type> is at most 63 characters"}, context: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40, description: "the bounded context whose DomainModel and Glossary the Design realises, <context>-model and <context>-glossary; every type but ui"}}}}}, description: "one entry per Design: the block, the type, its interface and qualifier when it has several of one type, and its context for every type but ui"}
+    blocks: {type: {kind: value, schema: {type: array, minItems: 1, maxItems: 40, items: {type: object, required: [block, type], additionalProperties: false, properties: {block: {type: string, pattern: "^BB-[0-9]+$"}, type: {type: string, enum: [http-api, async-api, data-schema, ui]}, interface: {type: string, minLength: 1, description: "which provided interface, for a block with several"}, qualifier: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 8, description: "a label in the Design id when a block gets two Designs of one type; short: the id <architecture>-<block>-<qualifier>-<type> is at most 63 characters"}, context: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40, description: "the bounded context whose DomainModel and Glossary the Design realises, <context>-model and <context>-glossary; every type but ui"}}}}}, description: "one entry per Design: the block, the type, its interface and qualifier when it has several of one type, and its context for every type but ui"}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: {expression: "inputs.blocks.exists(b, b.type == 'ui')"}, description: "with a ui entry"}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: {expression: "inputs.blocks.exists(b, b.type == 'ui')"}, description: "with a ui entry: the http-api Designs its screens call"}
@@ -809,12 +809,12 @@ spec:
         rules: {fromInput: rules}
         designSystem: {fromInput: designSystem, onMissing: omit}
         designs: {fromInput: designs, onMissing: omit}
-      timeout: 12h
+      timeout: 9600h   # a ceiling for the whole repeat: forty loops at a loop's full 240h (a repeat timeout bounds the whole loop, 11-workflow.md)
       memo: {when: "outputs.passed"}   # unchanged inputs, a passed loop: done already (11-workflow.md)
       repeat:
         state:
           index: {type: {kind: value, schema: {type: integer, minimum: 1}}}
-          block: {type: {kind: value, schema: {type: object, required: [block, type], additionalProperties: false, properties: {block: {type: string, pattern: "^BB-[0-9]+$"}, type: {type: string, enum: [http-api, async-api, data-schema, ui]}, interface: {type: string, minLength: 1, description: "which provided interface, for a block with several"}, qualifier: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40, description: "a label in the Design id when a block gets two Designs of one type; short: the id <architecture>-<block>-<qualifier>-<type> is at most 63 characters"}, context: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40, description: "the bounded context whose DomainModel and Glossary the Design realises, <context>-model and <context>-glossary; every type but ui"}}}}}
+          block: {type: {kind: value, schema: {type: object, required: [block, type], additionalProperties: false, properties: {block: {type: string, pattern: "^BB-[0-9]+$"}, type: {type: string, enum: [http-api, async-api, data-schema, ui]}, interface: {type: string, minLength: 1, description: "which provided interface, for a block with several"}, qualifier: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 8, description: "a label in the Design id when a block gets two Designs of one type; short: the id <architecture>-<block>-<qualifier>-<type> is at most 63 characters"}, context: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40, description: "the bounded context whose DomainModel and Glossary the Design realises, <context>-model and <context>-glossary; every type but ui"}}}}}
         initial:
           index: {literal: 1}
           block: {expression: "inputs.blocks[0]"}
@@ -832,7 +832,7 @@ spec:
         - {terminal: Failed, reason: design_inconsistent, when: 'steps.each.phase == "Succeeded"'} # a Gate rejected some loop's last round; steps.each.results says which
         - {terminal: Failed, reason: step_failed} # the iteration died before its Gate ran; steps.each.error names the cause
       dispatch: first
-  timeout: 12h
+  timeout: 9614h
 ---
 # The coverage report (29-design-process.md): one Gate, no Task. `persimmon run design-coverage --input domainModel=<ref>
 # --follow`, once per DomainModel; the step queries the Designs naming the model (10-ports.md `fromQuery`), and the tree
@@ -1061,7 +1061,7 @@ spec:
         designs: {fromInput: designs}
         domainModel: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}, id: "state.cap.context + '-model'"}, onMissing: omit}   # the context's, as derive-domain names it
         base: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}, id: "inputs.prd.id + '-' + state.cap.id.lowerAscii() + '-plan'"}, onMissing: omit}
-      timeout: 12h
+      timeout: 9600h   # a ceiling for the whole repeat: forty loops at a loop's full 240h (a repeat timeout bounds the whole loop, 11-workflow.md)
       memo: {ignore: [base], when: "outputs.passed"}   # unchanged inputs, a passed loop: done already (11-workflow.md)
       repeat:
         state:
@@ -1084,7 +1084,7 @@ spec:
         - {terminal: Failed, reason: plan_inconsistent, when: 'steps.each.phase == "Succeeded"'} # a Gate rejected some loop's last round; steps.each.results says which
         - {terminal: Failed, reason: step_failed} # the iteration died before its Gate ran; steps.each.error names the cause
       dispatch: first
-  timeout: 12h
+  timeout: 9614h
 ---
 # The Architecture process (31-architecture-process.md): write the baseline and its Adrs, check, confirm at the terminal, up to three rounds.
 apiVersion: persimmon.ai/v1
@@ -1516,7 +1516,7 @@ spec:
         levelBaselines: {fromStep: {stepRef: level-baselines, output: outcomes}}
         testDesign: {fromInput: testDesign, onMissing: omit}
         harness: {fromInput: harness, onMissing: omit}
-      timeout: 2400h   # a ceiling for the whole repeat, as spec-all's: ten tasks at a loop's full 240h
+      timeout: 4800h   # a ceiling for the whole repeat, as spec-all's: twenty tasks at a loop's full 240h
       repeat:
         state:
           index: {type: {kind: value, schema: {type: integer, minimum: 1}}}
@@ -1625,7 +1625,7 @@ spec:
         - {terminal: Succeeded, when: 'steps.plan.outputs.result.passed'}
         - {terminal: Failed, reason: plan_regressed} # a red no task's round showed, or a fail verdict: investigated as an Issue (36-test-levels.md)
       dispatch: first
-  timeout: 2414h
+  timeout: 4814h
 ---
 # The test setup once per product (39-test-process.md): the Tester sets up each level's tool and seed test, then each level
 # runs once; harness-gate finds every seed test green.
@@ -1934,7 +1934,7 @@ spec:
         glossary: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}, id: "state.cap.context + '-glossary'"}}   # the context's, as derive-domain names it
         rules: {fromInput: rules}
         harness: {fromInput: harness}
-      timeout: 2400h   # a ceiling for the whole repeat: each loop waits on a human
+      timeout: 9600h   # a ceiling for the whole repeat: forty loops at a loop's full 240h, each waiting on a human
       memo: {ignore: [base], when: "outputs.passed"}   # unchanged inputs, a passed loop: done already (11-workflow.md)
       repeat:
         state:
@@ -1957,4 +1957,4 @@ spec:
         - {terminal: Failed, reason: test_design_inconsistent, when: 'steps.each.phase == "Succeeded"'} # a Gate rejected some loop's last round; steps.each.results says which
         - {terminal: Failed, reason: step_failed} # the iteration died before its Gate ran; steps.each.error names the cause
       dispatch: first
-  timeout: 2400h
+  timeout: 9614h

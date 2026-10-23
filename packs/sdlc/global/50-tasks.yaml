@@ -167,7 +167,7 @@ spec:
       scenario id is in `architecture`. With `previous` and `feedback` bound, fix what the findings name, and with it what
       restated or rested on it, and change nothing else. With `base` and `changes` bound, revise `base` as the Spec rules say for a revision.
       `open` lists the ids of every `Q-n` the Spec leaves without a `resolution`. With `decisions` bound, `previous` is this
-      round's draft: record each decision as its `Q-n`'s `resolution`, apply what the
+      round's draft: record each decision as its `Q-n`'s `resolution` (and `upstream` when it names one), apply what the
       answer implies and change nothing else; `open` is then what still has none.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: spec-rules}}
@@ -193,7 +193,7 @@ metadata: {name: draft-prd}
 spec:
   inputs:
     brief: {type: {kind: value, schema: {type: string, minLength: 1}}}
-    productId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40}}, description: "the id stem of the Prd and the rules"}
+    productId: {type: {kind: value, schema: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 20}}, description: "the id stem of the Prd and the rules"}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: false}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false}
@@ -217,7 +217,7 @@ spec:
       rationale; a finding that names a `BR-n` changes that rule; a new policy takes the next number. Never renumber,
       reorder or reword a rule unasked: the gate refuses a rule that changed without a finding naming it.
       `open` lists the ids of every `Q-n` the Prd leaves without a `resolution`. With `decisions` bound, `previous` is this
-      round's draft (the rules start from `previousRules`, as in a round): record each decision as its `Q-n`'s `resolution`, apply what the
+      round's draft (the rules start from `previousRules`, as in a round): record each decision as its `Q-n`'s `resolution` (and `upstream` when it names one), apply what the
       answer implies and change nothing else; `open` is then what still has none.
       With `base` and `changes` bound, this run revises `base`, the Prd as it stands, and `rules`, its BusinessRules as they
       stand, to apply answers given downstream (each `<artifact id> Q-n: <resolution>`): start from both, keep every
@@ -282,7 +282,7 @@ spec:
     blockId: {type: {kind: value, schema: {type: string, pattern: "^BB-[0-9]+$"}}}
     type: {type: {kind: value, schema: {type: string, enum: [http-api, async-api, data-schema, ui]}}}
     interface: {type: {kind: value, schema: {type: string}}, required: false, description: "which provided interface; empty or unbound: the one provided interface the type describes"}
-    qualifier: {type: {kind: value, schema: {type: string, pattern: "^([a-z0-9]([-a-z0-9]*[a-z0-9])?)?$", maxLength: 40}}, required: false, description: "empty or unbound: none; else tells two Designs of one block and type apart in the id (a block with two APIs, or realising two contexts): the interface or the context, as a label (29-design-process.md)"}
+    qualifier: {type: {kind: value, schema: {type: string, pattern: "^([a-z0-9]([-a-z0-9]*[a-z0-9])?)?$", maxLength: 8}}, required: false, description: "empty or unbound: none; else tells two Designs of one block and type apart in the id (a block with two APIs, or realising two contexts): the interface or the context, as a label (29-design-process.md)"}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: {expression: "inputs.type != 'ui'"}, description: "what the elements realise; a ui Design realises operations of `designs` instead"}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: {expression: "inputs.type != 'ui'"}, description: "the names the document uses; not for a ui Design"}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
@@ -311,7 +311,7 @@ spec:
       With `previous` and `feedback` bound, fix what the error findings name and change nothing else; a warning
       (a `dialect` word the block's store lacks) is advice you may take without changing anything else.
       `open` lists the ids of every `Q-n` the Design leaves without a `resolution`. With `decisions` bound, `previous` is this
-      round's draft: record each decision as its `Q-n`'s `resolution`, apply what the
+      round's draft: record each decision as its `Q-n`'s `resolution` (and `upstream` when it names one), apply what the
       answer implies and change nothing else; `open` is then what still has none.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: design-rules}}
@@ -357,7 +357,7 @@ spec:
       With `base` and `changes` bound, apply the answers to `base` as the Plan rules say.
       With `previous` and `feedback` bound, fix what the findings name, and with it what restated or rested on it, and change nothing else.
       `open` lists the ids of every `Q-n` the Plan leaves without a `resolution`. With `decisions` bound, `previous` is this
-      round's draft: record each decision as its `Q-n`'s `resolution`, apply what the
+      round's draft: record each decision as its `Q-n`'s `resolution` (and `upstream` when it names one), apply what the
       answer implies and change nothing else; `open` is then what still has none.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: plan-rules}}
@@ -486,7 +486,7 @@ spec:
       artifact id. With `previous` and `feedback` bound, fix what the findings name, and with it what restated or rested on it, and change nothing else; answer
       the whole file again.
       `open` lists the ids of every `Q-n` the DesignSystem leaves without a `resolution`. With `decisions` bound, `previous` is this
-      round's draft: record each decision as its `Q-n`'s `resolution`, apply what the
+      round's draft: record each decision as its `Q-n`'s `resolution` (and `upstream` when it names one), apply what the
       answer implies and change nothing else; `open` is then what still has none.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: design-system-rules}}
@@ -828,7 +828,7 @@ spec:
       record are the artifact ids of the inputs with those names; `task` is `taskId`. With `previous`,
       `previousOutcome` and `feedback` bound, fix what the findings name, and with it what restated or rested on it, and change nothing else.
       `open` lists the ids of every `Q-n` the record leaves without a `resolution`. With `decisions` bound, `previous` is this
-      round's record: record each decision as its `Q-n`'s `resolution`, build what the answer implies, and change nothing
+      round's record: record each decision as its `Q-n`'s `resolution` (and `upstream` when it names one), build what the answer implies, and change nothing
       else; `open` is then what still has none.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: build-rules}}

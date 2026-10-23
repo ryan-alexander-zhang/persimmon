@@ -148,7 +148,7 @@ spec:
 
     With `previous` and `feedback` bound, the consistency check refused the last Spec: every finding names an id, a label or a rule; fix those, and with each every sentence that restated or rested on what changed (a story's text, a scenario's given, a requirement's rationale), which the finding need not name; change nothing else.
 
-    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's draft: give each `Q-n` its `resolution` in the decision's words, apply what the answer implies everywhere the draft deferred to the question (a scenario, a requirement, a story, a statement that waited on it), and change nothing else; `open` is then what still has no resolution.
+    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's draft: give each `Q-n` its `resolution` in the decision's words and its `upstream` when the decision names one, apply what the answer implies everywhere the draft deferred to the question (a scenario, a requirement, a story, a statement that waited on it), and change nothing else; `open` is then what still has no resolution.
 
     With `base` and `changes` bound, this run revises `base`, the Spec as it stands, to apply answers given downstream (each `<artifact id> Q-n: <resolution>`) or parts of an input revised since `base` (each `<artifact id> <part id>: <what changed>`): start from it, keep every id, and change only what the answers ask or what rests on a changed part, a scenario, a requirement or a story; an item added takes the next unused number. An answer that settles one of `base`'s own open questions gives it that `resolution`.
 ---
@@ -182,7 +182,7 @@ spec:
 
     With `previous` and `feedback` bound, the last round was refused: a Validator finding names an id or a rule, a human finding names what to change; fix those and carry each fix into every sentence that restated or rested on what changed (a rule's rationale, a capability's text, a criterion), which the finding need not name; change nothing else. Answer the whole Prd and the whole rules artifact again.
 
-    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's Prd, `previousRules` its rules: give each `Q-n` its `resolution` in the decision's words, apply what the answer implies everywhere the draft deferred to the question (a capability, a criterion, a rule's statement and rationale that waited on it, a new rule with the next `BR-n` when the answer is a policy), and change nothing else; `open` is then what still has no resolution.
+    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's Prd, `previousRules` its rules: give each `Q-n` its `resolution` in the decision's words and its `upstream` when the decision names one, apply what the answer implies everywhere the draft deferred to the question (a capability, a criterion, a rule's statement and rationale that waited on it, a new rule with the next `BR-n` when the answer is a policy), and change nothing else; `open` is then what still has no resolution.
 ---
 # The Design author's rules (29-design-process.md): one standard contract per block and type, indexed against the DomainModel.
 apiVersion: persimmon.ai/v1
@@ -213,7 +213,7 @@ spec:
 
     With `previous` and `feedback` bound, the consistency check refused the last Design: every finding names an id, a label or a rule; fix those, and with each every part of the document that restated or rested on what changed, which the finding need not name; change nothing else.
 
-    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's draft: give each `Q-n` its `resolution` in the decision's words, apply what the answer implies everywhere the draft deferred to the question, in the document and its index, and change nothing else; `open` is then what still has no resolution.
+    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's draft: give each `Q-n` its `resolution` in the decision's words and its `upstream` when the decision names one, apply what the answer implies everywhere the draft deferred to the question, in the document and its index, and change nothing else; `open` is then what still has no resolution.
 ---
 apiVersion: persimmon.ai/v1
 kind: Prompt
@@ -242,7 +242,7 @@ spec:
 
     With `previous` and `feedback` bound, the consistency check refused the last Plan: every finding names a task, a requirement, a scenario, a block or an element; fix those, and with each every task description that restated or rested on what changed, which the finding need not name; change nothing else.
 
-    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's draft: give each `Q-n` its `resolution` in the decision's words, apply what the answer implies everywhere the draft deferred to the question, in the tasks, and change nothing else; `open` is then what still has no resolution.
+    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's draft: give each `Q-n` its `resolution` in the decision's words and its `upstream` when the decision names one, apply what the answer implies everywhere the draft deferred to the question, in the tasks, and change nothing else; `open` is then what still has no resolution.
 ---
 apiVersion: persimmon.ai/v1
 kind: Prompt
@@ -259,7 +259,7 @@ spec:
     - `constraints` (`C-n`): what is fixed before design starts, from the brief and the Prd's assumptions (sign-in, hosting, who edits what without a release); `kind` technical, organizational or convention.
     - `context`: `business` partners are the Prd's users and every external system, each with what crosses the boundary in Glossary words and its direction; a partner that is another bounded context names it in `context`. `technical` channels carry those exchanges.
     - `strategy` (`S-n`): the few decisions that shape everything, each naming the `QG-n` and `C-n` it addresses.
-    - `buildingBlocks` (`BB-n`): one block per deployable or per clearly owned responsibility; `technology` as a C4 container label naming products with their major version: the language and framework ("Node 22, Fastify 5"), the store ("PostgreSQL 16", "MinIO"), the client framework ("React 18, Vite"), and how the block reaches its store ("pg 8, hand-written SQL", "Prisma 5"): a builder installs no library the Architecture and its Adrs do not name, so each one a block cannot be built without is named here or in an Adr; a level 1 block always has one. A choice the Prd and the Adrs do not settle is an Adr, or a `Q-n` for the human, never a category ("Node service", "object store"); `interfaces` it provides and requires, by name: a block that publishes domain events provides an interface for them, named for what it publishes ("Room bookings events"), apart from the handlers it requires, so an `async-api` Design has an interface to describe; `contexts` the artifact ids of the BoundedContexts it realises, so that every context is realised by at least one level 1 block; a client block realises no context. `relations` (`REL-n`): every level 1 block and every partner has at least one; `interface` names an interface the `to` block provides, or the `from` block requires when `to` is a partner.
+    - `buildingBlocks` (`BB-n`): one block per deployable or per clearly owned responsibility; `technology` as a C4 container label naming products with their major version: the language and framework ("Node 22, Fastify 5"), the store ("PostgreSQL 16", "MinIO"), the client framework ("React 18, Vite"), and how the block reaches its store ("pg 8, hand-written SQL", "Prisma 5"): a builder installs no library the Architecture and its Adrs do not name, so each one a block cannot be built without is named here or in an Adr; a level 1 block always has one. A choice the Prd and the Adrs do not settle is an Adr, or a risk or a constraint stated as an assumption, never a category and never a `Q-n`: the Architecture has none ("Node service", "object store"); `interfaces` it provides and requires, by name: a block that publishes domain events provides an interface for them, named for what it publishes ("Room bookings events"), apart from the handlers it requires, so an `async-api` Design has an interface to describe; `contexts` the artifact ids of the BoundedContexts it realises, so that every context is realised by at least one level 1 block; a client block realises no context. `relations` (`REL-n`): every level 1 block and every partner has at least one; `interface` names an interface the `to` block provides, or the `from` block requires when `to` is a partner.
     - `concepts` (`CC-n`): domain (where each context's model lives and its transaction boundary, from the DomainModel's aggregates), security, persistence, errors (a refused command names its `BR-n`), transactions, testing (the tool of every test level the product needs, each a product with its major version: unit always, integration when a block has a store, api when a block provides an HTTP interface, e2e when a client block exists ("Playwright 1, headless Chromium"), fitness when a `QS-n` is proven by `fitness`; the Tester takes a level's tool from here and asks upstream otherwise), and whatever else cuts across blocks.
     - `domainModels` and `glossaries`: the artifact ids of the inputs with those names, all of them. `businessRules`: the input `rules`'s, the artifact the Prd names. `decisions`: the ids of the Adrs you take (below).
     - `qualityScenarios` (`QS-n`): at least one per `QG-n`: stimulus, response, a measurable `measure`, and how and when it is proven: `method` (`test` a behaviour under one stimulus, `fitness` a structural property such as dependency direction or a module boundary, `load` a measure under a stated volume, `chaos` a response to an injected failure, `observe` a measure watched in production) and `provenAt` (`build`, `release`, `runtime`). A `build` scenario is a `test` or a `fitness` one: each Plan task whose `verifiedBy` names it needs a passing test for it, so put a scenario at `build` only when a test the builder can write proves its measure. A Spec will hold its capability to these by id.
@@ -291,7 +291,7 @@ spec:
 
     With `previous` and `feedback` bound, the last round was refused: a linter finding names a token path or a section, a human finding names a section or a token to change; fix those, and with each every rule, Do or Don't and component note that restated or rested on what changed, so no screen is left governed by two rules; change nothing else. Answer the whole file again.
 
-    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's draft: give each `Q-n` its `resolution` in the decision's words, apply what the answer implies everywhere the draft deferred to the question, and change nothing else; `open` is then what still has no resolution.
+    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's draft: give each `Q-n` its `resolution` in the decision's words and its `upstream` when the decision names one, apply what the answer implies everywhere the draft deferred to the question, and change nothing else; `open` is then what still has no resolution.
 ---
 apiVersion: persimmon.ai/v1
 kind: Prompt
@@ -324,7 +324,7 @@ spec:
 
     With `previous` and `feedback` bound, the Gate refused the last round: most findings name a scenario, a test or a question, and `previousOutcome` shows what the tests did then. Fix those; keep every test the last record named running.
 
-    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's record: give each `Q-n` its `resolution` in the decision's words, build what the answer implies and run the tests again, and change nothing else; `open` is then what still has no resolution.
+    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's record: give each `Q-n` its `resolution` in the decision's words and its `upstream` when the decision names one, build what the answer implies and run the tests again, and change nothing else; `open` is then what still has no resolution.
 ---
 apiVersion: persimmon.ai/v1
 kind: Prompt
