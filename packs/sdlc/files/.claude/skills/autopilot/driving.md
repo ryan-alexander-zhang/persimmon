@@ -56,13 +56,15 @@ Q-n`) carries an answer that artifact does not have yet: a scenario the Spec lac
 harness lacks, an operation a Design lacks, a task the Plan moves. Apply it before the next run of
 the order:
 
-1. Revise the artifact through its own loop with `base` its latest passed revision and
-   `changes=@<file>` listing each answer as `<artifact id> Q-n: <resolution>`, from the warnings:
+1. Revise the artifact through its own loop with `base` its latest passed revision
+   (`persimmon get <Kind>/<id> --passed`; never the latest revision, a rejected or cancelled round
+   leaves its draft in the store) and `changes=@<file>` listing each answer as
+   `<artifact id> Q-n: <resolution>`, from the warnings:
    `spec-one` with the inputs `spec-all` gave it (`prd`, `capabilityId`, `architecture`, `context`,
    `domainModel`, `glossary`, `rules`); `setup-tests` with the inputs it had (`architecture`, `adrs`,
    `designs`, `repository`); `design-one` with the inputs `design-all` gave it; `plan-one` with the
    inputs `plan-all` gave it; `architect` with the inputs it had (`prd`, `rules`, `contexts`,
-   `domainModels`, `glossaries`), `base` the latest passed Architecture and `baseAdrs` its Adrs.
+   `domainModels`, `glossaries`), `base` the latest passed Architecture (`--passed`) and `baseAdrs` its Adrs.
    The Architecture first, then Specs, the harness, Designs and Plans; one answer may name several
    artifacts.
 2. Its Gate passed, apply the revision by impact, never by running the order again. Diff the
@@ -77,7 +79,7 @@ the order:
    `decisions`, or a Spec citing a `QS-n` whose changed sentence it never used, is not impacted.
    One that is not stays as it is: behind the new revision (`persimmon get <Kind> --behind`), not
    wrong. Say in the report which artifacts you judged impacted and why. Revise each impacted
-   artifact through its `-one` loop with `base` its latest passed revision and `changes=@<file>`
+   artifact through its `-one` loop with `base` its latest passed revision (`--passed`) and `changes=@<file>`
    listing each changed part as `<artifact id> <part id>: <what changed>`, in order: Specs, Designs,
    Plans, the harness (`setup-tests` with `base` and `changes`), then TestDesigns (`test-design-one`
    with `base`; its revised inputs are its change). Then continue the order from the first phase not

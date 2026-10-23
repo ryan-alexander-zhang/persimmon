@@ -14,7 +14,7 @@ Tester sets up and writes the tests, all inside the engine.
 
 - The project directory is a git repository (`.git` present). If not, stop: the developer creates
   it. You never run git.
-- The Plans: from `autopilot-doc`, or the latest passed revisions in `persimmon get Plan`.
+- The Plans: from `autopilot-doc`, or the latest passed revisions, `persimmon get Plan --passed`.
 
 ## 1. The app and its tests
 
