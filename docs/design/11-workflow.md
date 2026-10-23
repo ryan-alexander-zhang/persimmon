@@ -94,7 +94,7 @@ iteration, so a loop over capabilities redoes only the ones whose inputs changed
 | Field | Rule |
 |---|---|
 | `when` | CEL over `outputs`, the earlier run's, `bool`; a ReviewLoop step says `outputs.passed`, so a rejected loop is run again |
-| `ignore` | input ports left out of the comparison: a `base` the earlier run itself produced |
+| `ignore` | input ports left out of the comparison: a `base` the earlier run itself produced; `build-all`'s `harness`, whose revision the plan tier covers (`36-test-levels.md`) |
 
 ## RepeatPolicy
 

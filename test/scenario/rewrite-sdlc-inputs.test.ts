@@ -106,7 +106,7 @@ describe('the SDLC pack takes a Rewrite pack inventory and base, optionally', ()
   it('build-all and domain-discovery resume under memo, answers are told once, the DesignSystem revises, the Glossary passes its Gate', () => {
     const buildAll = named('Workflow', 'build-all')
     const each = buildAll.steps.find((st: { id: string }) => st.id === 'each')
-    expect(each.memo).toEqual({ ignore: ['baseline', 'levelBaselines'], when: 'outputs.passed' })
+    expect(each.memo).toEqual({ ignore: ['baseline', 'levelBaselines', 'harness'], when: 'outputs.passed' }) // a harness revision alone rebuilds no passed task: the plan tier runs every level under it
     expect([buildAll.outputs.report.required, buildAll.outputBindings.passed, buildAll.outputBindings.report]).toEqual([false, { expression: 'steps.plan.outputs.result.passed' }, { fromStep: { stepRef: 'report', output: 'report' }, onMissing: 'omit' }]) // the TestReport beside passed: get --passed finds it
     for (const phase of named('Pipeline', 'domain-discovery').phases) expect({ id: phase.id, memo: !!phase.memo }).toEqual({ id: phase.id, memo: true })
     for (const [gate, validator] of [['spec-gate', 'spec-consistency'], ['spec-check', 'spec-consistency'], ['design-gate', 'design-consistency'], ['design-check', 'design-consistency'], ['plan-gate', 'plan-consistency'], ['plan-check', 'plan-consistency']]) {

@@ -63,9 +63,10 @@ its verdict and every residual risk go in the report.
 A round's `question-upstream` is applied when the run ends (`driving.md`, Upstream answers): the
 artifact it names revised, then its impact. Then `build-all` again for every Plan already built
 whose Plan, a Design it lists, its TestDesign or the harness has a new passed revision, with the
-latest passed inputs: `memo` reuses each task whose inputs are unchanged and passed, builds the
-rest (a task the Plan added, one whose Design or TestDesign changed) and runs the plan tier again
-(the final tests, the evaluation, the TestReport, the regression Gate). Never `build-one` by hand
+latest passed inputs: `memo` reuses each task whose inputs but the harness are unchanged and
+passed, builds the rest (a task the Plan added, one whose Design or TestDesign changed; a harness
+revision alone rebuilds none) and runs the plan tier again (the final tests, the evaluation, the
+TestReport, the regression Gate), every level under the harness as it now is. Never `build-one` by hand
 for an impact. The next Plan takes the latest passed revisions.
 
 `setup-tests` warned `level-deferred` and this `build-all` built the screens of the `ui` Design it

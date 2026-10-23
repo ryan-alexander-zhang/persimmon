@@ -1542,7 +1542,7 @@ spec:
       timeout: 4h
     - id: each
       uses: {kind: ReviewLoop, name: build-one}
-      memo: {ignore: [baseline, levelBaselines], when: "outputs.passed"}   # a passed build is done; the baselines are new TestOutcomes every run: a run started again after a stop builds no task twice (11-workflow.md)
+      memo: {ignore: [baseline, levelBaselines, harness], when: "outputs.passed"}   # a passed build is done; the baselines are new TestOutcomes every run, and a harness revision alone rebuilds no passed task (the plan tier runs every level under it; a task whose TestDesign moved cases to a new level is rebuilt by that input): a run started again after a stop builds no task twice (11-workflow.md)
       inputs:
         plan: {fromInput: plan}
         taskId: {expression: "inputs.tasks[state.index - 1]"}
