@@ -28,7 +28,9 @@ files under `.persimmon/autopilot/` and pass them with `@`.
 Input shapes:
 
 - one artifact: `'prd={kind: artifact, ref: {apiVersion: sdd.persimmon.ai/v1, kind: Prd, namespace: default, id: <id>, revision: <n>}}'`
-- a list of artifacts: a file of `- {apiVersion: sdd.persimmon.ai/v1, kind: <Kind>, id: <id>, revision: <n>}` lines, `--input designs=@designs.yaml`
+- a list of artifacts: a file of `- {apiVersion: sdd.persimmon.ai/v1, kind: <Kind>, id: <id>, revision: <n>}` lines, `--input designs=@designs.yaml`,
+  one line per line `persimmon get <Kind> --passed` prints (the latest passed revision of each id);
+  `--input designs=kind:Design` binds the same set without a file
 - a value: `--input productId=<id>`; a list of capability entries, one per capability with its
   bounded context, as a file: `- {id: CAP-1, context: room-bookings}` lines, `--input capabilities=@caps.yaml`
 - the repository: `--input repository=<path>`
@@ -58,8 +60,9 @@ the order:
 
 1. Revise the artifact through its own loop with `base` its latest passed revision
    (`persimmon get <Kind>/<id> --passed`; never the latest revision, a rejected or cancelled round
-   leaves its draft in the store) and `changes=@<file>` listing each answer as
-   `<artifact id> Q-n: <resolution>`, from the warnings:
+   leaves its draft in the store), every other input at its latest passed revision too (not the
+   revision the `*-all` run read: an input revised since is the change), and `changes=@<file>`
+   listing each answer as `<artifact id> Q-n: <resolution>`, from the warnings:
    `spec-one` with the inputs `spec-all` gave it (`prd`, `capabilityId`, `architecture`, `context`,
    `domainModel`, `glossary`, `rules`); `setup-tests` with the inputs it had (`architecture`, `adrs`,
    `designs`, `repository`); `design-one` with the inputs `design-all` gave it; `plan-one` with the
@@ -74,8 +77,10 @@ the order:
    (`get EventStorming --passed`), then `derive-one` for each context the model changed, its
    `changes` naming the changed parts; `author-prd` for the Prd or a `BR-n`, with the inputs it had
    (`brief`, `productId`, `glossary`), `rules` the latest passed BusinessRules and `base` the
-   latest passed Prd. The Prd first, then the storming model, the derivation, the Architecture,
-   Specs, the harness, Designs and Plans; one answer may name several artifacts.
+   latest passed Prd; `design-system` for the DesignSystem, with the inputs it had (`prd`,
+   `architecture`) and `base` its latest passed DesignSystem. The Prd first, then the storming
+   model, the derivation, the Architecture, Specs, the harness, the DesignSystem, Designs and Plans;
+   one answer may name several artifacts.
 2. Its Gate passed, apply the revision by impact, never by running the order again. Diff the
    revision against `base` (`persimmon get <Kind>/<id>.r<n>` for both) and list the parts that
    changed, by id: a Spec's `AC-n`, `R-n` or story; an Architecture's `BB-n` (its `technology` or
@@ -94,23 +99,35 @@ the order:
    listing each changed part as `<artifact id> <part id>: <what changed>`, in order: Specs, Designs,
    Plans, the harness (`setup-tests` with `base` and `changes`), then TestDesigns (`test-design-one`
    with `base`; its revised inputs are its change). Then continue the order from the first phase not
-   yet run, with the latest revisions as inputs; a `*-all` run that passed is not run again.
-3. As often as a run tells new answers: each is told only in the round that writes it.
+   yet run, with the latest passed revisions as inputs; a `*-all` run of documents that passed is
+   not run again. A Plan already built whose Plan, a Design it lists, its TestDesign or the harness
+   now has a new passed revision gets `build-all` again (`autopilot-code`).
+3. As often as a run tells new answers: each is told only in the round that writes it, and once
+   its artifact carries the resolution (`previous` or `base`) it is not told again.
 
 ## Stop
 
 Stop and report, never work around it, when:
 
-- a run ends Failed, or prints a reconcile error (`PERSIMMON_DEBUG=1` shows it);
+- a run ends Failed for a reason other than a loop out of rounds (`spec_inconsistent`,
+  `design_inconsistent`, `plan_inconsistent`, `test_design_inconsistent`,
+  `derivation_inconsistent`, `build_inconsistent`, or a `domain-discovery` phase rejected: the
+  next bullet) or `plan_regressed` (an Issue, `autopilot-code`); or a run prints a reconcile error
+  (`PERSIMMON_DEBUG=1` shows it). `persimmon tree <run>` prints the reason under the run;
 - a ReviewLoop runs out of rounds twice. The first time, when its last verdict left the writer
   something to act on, a decision (a finding opening `<id>: decided.`) or an error naming an id the
   writer can fix, continue it from its last round, as a developer gives one more round: run the loop
   that ran out (`persimmon describe WorkflowRun/<loop run>` names its inputs) with the same inputs
-  plus `previous`, the last round's subject, `feedback`, the `value` of its review's result
-  (`persimmon get GateRun/<loop run>-rounds-<n>-review`, `status.outputs.result`, in a file passed
-  with `@`), and each input its `carry` names (`persimmon get ReviewLoop/<name>`) from that round's
-  output. Its passed revision is the artifact: the `*-all` run is not run again, the order goes on
-  with it. A continuation that runs out again with no new decision stops;
+  plus `previous`, the last round's subject (`persimmon get WorkflowRun/<loop run>`,
+  `status.outputs.<subject>`: the one place the rejected draft is the right revision), `feedback`,
+  the `value` of its review's result (`persimmon get GateRun/<loop run>-rounds-<n>-review`,
+  `status.outputs.result`, in a file passed with `@`), and each input its `carry` names
+  (`persimmon get ReviewLoop/<name>`) from that round's output. Its passed revision is the
+  artifact. A `*-all` of documents (`spec-all`, `design-all`, `plan-all`, `test-design-all`) is
+  not run again: the order goes on with it. `build-all` and `domain-discovery` are run again with
+  the same inputs: `memo` reuses every task or phase that passed, the continuation too, and runs
+  the tail only the whole run has (the derivation; the final tests, the evaluation, the
+  TestReport). A continuation that runs out again with no new decision stops;
 - a form parks (above);
 - an `Issue`'s fix fails its Gate (`autopilot-code`);
 - an upstream revision fails its Gate.

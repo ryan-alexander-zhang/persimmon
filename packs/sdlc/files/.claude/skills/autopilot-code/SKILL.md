@@ -53,30 +53,41 @@ the round, the tests run and the Gate judges. A rejected round starts the next w
 its verdict and every residual risk go in the report.
 
 A round's `question-upstream` is applied when the run ends (`driving.md`, Upstream answers): the
-Architecture or the Design revised, then its impact. A task already built stands unless its Plan,
-a Design it realises or its TestDesign changed in that impact; each such task is built again with
-`build-one` (`taskId`, `baseline` the Plan's first TestOutcome); the next Plan then takes the
-latest revisions.
+artifact it names revised, then its impact. Then `build-all` again for every Plan already built
+whose Plan, a Design it lists, its TestDesign or the harness has a new passed revision, with the
+latest passed inputs: `memo` reuses each task whose inputs are unchanged and passed, builds the
+rest (a task the Plan added, one whose Design or TestDesign changed) and runs the plan tier again
+(the final tests, the evaluation, the TestReport, the regression Gate). Never `build-one` by hand
+for an impact. The next Plan takes the latest passed revisions.
 
 `setup-tests` warned `level-deferred` and this `build-all` built the screens of the `ui` Design it
 names: before the next Plan, run `setup-tests` again with the same inputs and `base` the TestHarness,
 which adds the `e2e` level, then `test-design-one` for each Spec with a screen case, `base` its
-TestDesign, so those cases move to `e2e`. Once per Autopilot run.
+TestDesign, so those cases move to `e2e`, then `build-all` again for each Plan already built whose
+TestDesign moved a case: `memo` reuses its other tasks, the moved cases are written and run, and
+its TestReport is written again. Once per Autopilot run.
 
 ## 3. Defects
 
 Once a task's Gate passed, each `D-n` its record reports (`defect-reported`), and a run ended
-`plan_regressed` (a red no round showed, or a `fail` verdict), is an `Issue`, as `AGENTS.md` section 6
-says: investigate it yourself, write it with `persimmon create`, schema from
-`persimmon get KindDefinition/issues.sdd.persimmon.ai`. One Issue per root cause, however many
-records report it.
+`plan_regressed` (a red no round showed, or a `fail` verdict; a Failed run, not a stop), is an
+`Issue`, as `AGENTS.md` section 6 says: investigate it yourself, write it with `persimmon create`
+(`metadata.name: <id>.r1`, the id a kebab name of the root cause under the product id), schema from
+`persimmon get KindDefinition/issues.sdd.persimmon.ai`. Its `reproduction` is a test already red
+for that reason (the Tester's or the builder's, by name and failure) when the suite has one, else
+`why`, the record's or the TestReport's evidence in your words; you write no test. One Issue per
+root cause, however many records report it.
 
 The fix: when the Issue finds the Spec wrong or missing, the Spec is revised first as an upstream
 answer (`driving.md`, Upstream answers: `spec-one` with `base` and `changes` naming the Issue's
 finding, then its impact, the Plan and the TestDesign). Then `build-one` on the task the Issue
-`blocks` (inputs as `build-all`, `taskId`, and `baseline`, the TestOutcome `build-all` took first).
-Its Gate passed: write the Issue's `resolved` revision citing that record in `fixedBy`. Its Gate
-failed: stop.
+names (`blocks[].items`, the `T-n` under the Plan's artifact; a `plan_regressed`: the task whose
+test went red) with the inputs `build-all` gave that task, `taskId`, `baseline` and
+`levelBaselines`, the TestOutcomes `build-all` took first (`persimmon tree` names them under its
+`baseline` and `level-baselines` steps). Its Gate passed: `build-all` for the Plan again with the
+same inputs, so the plan tier runs over the fix (`memo` reuses the other tasks) and the TestReport
+is written again; its verdict passed: write the Issue's `resolved` revision citing the fix's
+record in `fixedBy`. Either Gate failed: stop.
 
 ## 4. End
 
