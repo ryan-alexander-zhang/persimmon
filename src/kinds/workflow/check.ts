@@ -171,7 +171,7 @@ export function checkWorkflow(spec: WorkflowSpec, resolve: Resolve): Finding[] {
       if (t === 'value') {
         if (spec.type.kind !== 'value') bad(`${path}/${port}`, 'literal and expression feed value ports only')
       } else if (t && !sameType(t, spec.type)) bad(`${path}/${port}`, 'producer type differs from consumer type')
-      if (b.onMissing === 'omit' && (!requiredCheck || !optional(spec as InputSpec))) bad(`${path}/${port}`, 'onMissing: omit only on optional inputs')
+      if (b.onMissing === 'omit' && !optional(spec)) bad(`${path}/${port}`, 'onMissing: omit only on optional ports')
     }
     if (requiredCheck) for (const [port, s] of Object.entries(consumer)) if (!optional(s as InputSpec) && !bindings[port]) bad(path, `required input ${port} unbound`)
   }

@@ -88,7 +88,7 @@ export function checkValue(port: string, type: PortType, v: RuntimeValue): void 
 }
 
 /** May the port be unbound: `required: false`, or an expression, which only the values present at bind decide (10-ports.md). */
-export const optional = (spec: InputSpec): boolean => spec.required === false || typeof spec.required === 'object'
+export const optional = (spec: InputSpec | OutputSpec): boolean => spec.required === false || typeof spec.required === 'object'
 
 /** Static rule: every `required` expression type-checks as bool against the definition's own inputs. */
 export function requiredFindings(inputs: Record<string, InputSpec> = {}, path = '/spec/inputs'): Finding[] {
@@ -135,7 +135,7 @@ export function checkInputs(specs: Record<string, InputSpec>, values: RuntimeVal
 
 /** Exactly the declared outputs, each of its type (12-task.md TaskResult). */
 export function checkOutputs(specs: Record<string, OutputSpec>, values: RuntimeValues): void {
-  for (const port of Object.keys(specs)) if (!values[port]) throw new PortError(`${port}: output missing`)
+  for (const [port, spec] of Object.entries(specs)) if (!values[port] && !optional(spec)) throw new PortError(`${port}: output missing`)
   for (const [port, v] of Object.entries(values)) {
     const spec = specs[port]
     if (!spec) throw new PortError(`${port}: not an output`)

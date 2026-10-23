@@ -96,7 +96,12 @@ describe('checkWorkflow', () => {
     expect(checkWorkflow(v, resolve).map((f) => f.message)).toEqual(['keys must equal outputs keys', 'unknown port extra'])
     const w = linear()
     w.steps[1]!.inputs!.research!.onMissing = 'omit'
-    expect(checkWorkflow(w, resolve).map((f) => f.message)).toEqual(['onMissing: omit only on optional inputs'])
+    expect(checkWorkflow(w, resolve).map((f) => f.message)).toEqual(['onMissing: omit only on optional ports'])
+    const o = linear()
+    o.outputBindings!.prd!.onMissing = 'omit'
+    expect(checkWorkflow(o, resolve).map((f) => f.message)).toEqual(['onMissing: omit only on optional ports'])
+    o.outputs!.prd!.required = false // a path the run may skip leaves it absent
+    expect(checkWorkflow(o, resolve)).toEqual([])
   })
 
   it('state is in scope for a repeat body input, next and a serial until, nowhere else', () => {

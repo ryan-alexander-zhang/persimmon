@@ -37,7 +37,7 @@ Equality: `kind` and every field equal after expanding `$ref`. No subtyping.
 | Field | InputSpec | OutputSpec |
 |---|---|---|
 | `type` | PortType | PortType |
-| `required` | default true; or `{expression: <cel>}` over `inputs.<port>` of the same definition, `bool`: the input is required when it holds, decided at bind from the inputs present (`has(inputs.x)` for presence) | — |
+| `required` | default true; or `{expression: <cel>}` over `inputs.<port>` of the same definition, `bool`: the input is required when it holds, decided at bind from the inputs present (`has(inputs.x)` for presence) | default true; `false`: absent when its binding omits, a path the run may skip (a Workflow's TestReport without a TestDesign); a step reading it binds `onMissing: omit` or `first` |
 | `default` | RuntimeValue of the port's kind; `required: false` only; applied when the binding omits | — |
 | `description` | text | text |
 
@@ -107,7 +107,7 @@ Values enter CEL typed by the port schema: `integer` → `int`, `number` → `do
 | producer type equals consumer type; `literal` and `expression` feed `value` ports only; `fromArtifact` produces an `artifact` of its `kind`, and its `id` expression type-checks as a string at the site; `fromQuery` produces an `artifacts` of its `kind`, and its `where` type-checks as a `bool` (or `dyn`) at the site plus `content` | static checker |
 | a Binding reads only causal predecessors in scope; a `first` alternative too, each checked as a Binding of its own, and all its alternatives agree on the type | static checker |
 | `fromState`, `fromIterationOutput` only inside `repeat`; `fromEvent` only in Trigger | static checker |
-| `onMissing: omit` only on optional inputs, never in output bindings | static checker |
+| `onMissing: omit` only on optional ports: an optional input, an optional output in output bindings | static checker |
 | every `expression` parses and type-checks against its site's environment; a `required` expression against the definition's own `inputs`, as `bool`; never on a `repeat` state var (`11-workflow.md`) | static checker |
 | an input whose `required` expression holds and is unbound fails the bind (`required input missing`), where a plainly required one does: at `run` for a Workflow, at the step for a Task, Gate or Validator; plainly required ports are checked first, and an expression that fails to evaluate is the same bind error | bind |
 | `artifactKind` resolves to a registered revisioned kind at snapshot time; admission warns | walk (`04-snapshot.md`) |

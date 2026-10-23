@@ -24,6 +24,7 @@ export interface InputSpec {
 
 export interface OutputSpec {
   type: PortType
+  required?: false // absent when the path that produces it did not run (10-ports.md)
   description?: string
 }
 

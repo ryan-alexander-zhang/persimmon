@@ -68,7 +68,7 @@ Per-step phase, recorded in `WorkflowRun.status.steps.<id>` (`17-runs.md`):
 | `steps.<id>.results` | each finished iteration's outputs, by index, `null` while a parallel iteration still runs; absent without `repeat` |
 | a step input reads an unfinished or `Skipped` step | absent; requires `onMissing: omit` (static) |
 | no `to` matches | `noMatch: fail` fails the run with `no_match`; `skip` skips every `to` step |
-| terminal Succeeded selected | wait for every activated step; then a step ended `Failed` whose Transition does not list `Failed` fails the run with `unconsumed_failure`; else evaluate `outputBindings`, a source absent fails with `output_unbound`; else Succeeded |
+| terminal Succeeded selected | wait for every activated step; then a step ended `Failed` whose Transition does not list `Failed` fails the run with `unconsumed_failure`; else evaluate `outputBindings`, a source absent fails with `output_unbound` unless the output is optional (`required: false`, `onMissing: omit`), left absent; else Succeeded |
 | terminal Failed selected | cancel every activated step (`Cancelled`); run Failed with `error.code = reason` |
 | two terminals selected | the first selection wins; the second is ignored |
 | every activated step finished, no terminal selected | run Failed with the first Failed step's error, its message prefixed `step <id>: `; with no Failed step, `no_progress` |

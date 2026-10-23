@@ -96,6 +96,7 @@ describe('port types', () => {
     const prd: RuntimeValue = { kind: 'artifact', ref: { apiVersion: 'engineering.persimmon.ai/v1', kind: 'ProductRequirement', namespace: 'demo', id: 'checkout-v2', revision: 3 } }
     expect(() => checkOutputs(task.outputs, { prd })).not.toThrow()
     expect(() => checkOutputs(task.outputs, {})).toThrow(/prd: output missing/)
+    expect(() => checkOutputs({ prd: { ...task.outputs.prd!, required: false } }, {})).not.toThrow() // optional: the path producing it did not run
     expect(() => checkOutputs(task.outputs, { prd, extra: num })).toThrow(/not an output/)
     const validationResult = { kind: 'value' as const, schema: { $ref: 'persimmon.ai/v1#/ValidationResult' } }
     expect(() => checkOutputs({ result: { type: validationResult } }, { result: validation })).not.toThrow()
