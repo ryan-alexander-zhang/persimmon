@@ -189,6 +189,23 @@ describe('persimmon ui server', () => {
     expect(runs.runs[0]!.upstream).toEqual([{ kind: 'Prd', id: 'expense-claims' }]) // a hand-written revision cites nothing further
   })
 
+  it('a poll reads each run once: hundreds of runs cost a handful of store lists, not one per node (37-progress.md)', async () => {
+    const ask = { apiVersion: 'persimmon.ai/v1', kind: 'Task', metadata: { name: 'ask', namespace: 'default' }, spec: { inputs: {}, outputs: { result: { type: { kind: 'value', schema: { $ref: 'persimmon.ai/v1#/ValidationResult' } } } }, executorRef: { kind: 'Executor', name: 'local-reviewer' }, action: { instructions: 'Answer' }, timeout: '1h', sideEffects: 'none' } }
+    const wf = { apiVersion: 'persimmon.ai/v1', kind: 'Workflow', metadata: { name: 'ask-wf', namespace: 'default' }, spec: { entry: ['ask'], steps: [{ id: 'ask', uses: { kind: 'Task', name: 'ask' }, timeout: '1h' }], transitions: [{ id: 'done', from: [{ stepRef: 'ask', outcomes: ['Succeeded'] }], to: [{ terminal: 'Succeeded' }] }], timeout: '3h' } }
+    for (const d of [ask, wf]) await engine.apply(d as never)
+    for (let i = 0; i < 150; i++) await engine.create({ apiVersion: 'persimmon.ai/v1', kind: 'WorkflowRun', metadata: { name: `r${i}`, namespace: 'default' }, spec: { workflowRef: { kind: 'Workflow', name: 'ask-wf' }, inputs: {}, origin: { kind: 'manual' } } } as never)
+    await engine.drain()
+    const list = vi.spyOn(engine.store.resources, 'list')
+    const runs = (await (await get('/api/runs')).json()) as { runs: { parked: unknown[] }[] }
+    expect(runs.runs).toHaveLength(150)
+    expect(runs.runs[0]!.parked).toHaveLength(1)
+    expect(list.mock.calls.length).toBeLessThanOrEqual(8) // tops plus one pass per run kind
+    list.mockClear()
+    const tree = (await (await get('/api/runs/default/r0')).json()) as { children: unknown[] }
+    expect(tree.children).toHaveLength(1)
+    expect(list.mock.calls.length).toBeLessThanOrEqual(8)
+  })
+
   it('a project directory sharing the store neither lists nor answers another directory\'s TaskRun (08-store.md)', async () => {
     const ask = { apiVersion: 'persimmon.ai/v1', kind: 'Task', metadata: { name: 'ask', namespace: 'default' }, spec: { inputs: {}, outputs: { result: { type: { kind: 'value', schema: { $ref: 'persimmon.ai/v1#/ValidationResult' } } } }, executorRef: { kind: 'Executor', name: 'local-reviewer' }, action: { instructions: 'Answer' }, timeout: '1h', sideEffects: 'none' } }
     const wf = { apiVersion: 'persimmon.ai/v1', kind: 'Workflow', metadata: { name: 'ask-wf', namespace: 'default' }, spec: { entry: ['ask'], steps: [{ id: 'ask', uses: { kind: 'Task', name: 'ask' }, timeout: '1h' }], transitions: [{ id: 'done', from: [{ stepRef: 'ask', outcomes: ['Succeeded'] }], to: [{ terminal: 'Succeeded' }] }], timeout: '3h' } }

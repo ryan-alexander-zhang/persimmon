@@ -6,7 +6,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { parse } from 'yaml'
 import { createRevision } from '../cli/create.js'
 import { answer, type Form, formPath, fromFile, isValidationResult, notAnswerable } from '../cli/signal.js'
-import { labelOf, ownedBy } from '../cli/tree.js'
+import { labelOf, ownedBy, ownerIndex } from '../cli/tree.js'
 import type { Engine } from '../engine.js'
 import type { KindDefinition } from '../kind-definition/types.js'
 import type { Resource } from '../resource/types.js'
@@ -196,10 +196,10 @@ function upstream(engine: Engine, namespace: string, refs: RevisionRef[]): { kin
 }
 
 /** The TaskRuns under `run` parked on a human that this engine drives and that have a form: what the map offers to answer. */
-function parkedUnder(engine: Engine, run: Resource): { taskRun: string; task: string; verdict: boolean }[] {
-  return ownedBy(engine, run).flatMap((c) => {
+function parkedUnder(engine: Engine, run: Resource, index: Map<string, Resource[]>): { taskRun: string; task: string; verdict: boolean }[] {
+  return ownedBy(engine, run, index).flatMap((c) => {
     const form = c.kind === 'TaskRun' && notAnswerable(engine, c) === undefined ? readForm(engine, c) : undefined
-    return [...(form ? [{ taskRun: c.metadata.name, task: (c.spec as { taskRef: { name: string } }).taskRef.name, verdict: isVerdict(form) }] : []), ...parkedUnder(engine, c)]
+    return [...(form ? [{ taskRun: c.metadata.name, task: (c.spec as { taskRef: { name: string } }).taskRef.name, verdict: isVerdict(form) }] : []), ...parkedUnder(engine, c, index)]
   })
 }
 
@@ -207,7 +207,7 @@ function parkedUnder(engine: Engine, run: Resource): { taskRun: string; task: st
 function runs(engine: Engine, rest: string[], url: URL): { status: number; body: unknown } {
   type Status = { phase?: string; waitingReason?: string; error?: unknown; steps?: Record<string, { phase: string; iteration?: number }>; outputs?: Record<string, unknown>; result?: unknown }
   if (rest.length === 0) {
-    // ponytail: every poll walks every run's tree (ownedBy lists per call); an index by owner when projects hold thousands of runs
+    const index = ownerIndex(engine, undefined) // one pass over every run; each poll reads each run once
     const tops = engine.store.resources.list('WorkflowRun').filter((r) => !r.metadata.ownerReferences?.length)
     const body = tops.map((r) => {
       const s = (r.status ?? {}) as Status
@@ -224,7 +224,7 @@ function runs(engine: Engine, rest: string[], url: URL): { status: number; body:
         inputs: spec.inputs ?? {},
         outputs: s.outputs ?? {},
         upstream: upstream(engine, r.metadata.namespace!, [...refsIn(spec.inputs), ...refsIn(s.outputs)]),
-        parked: parkedUnder(engine, r),
+        parked: parkedUnder(engine, r, index),
       }
     })
     return { status: 200, body: { directory: engine.cwd, runs: body } }
@@ -233,6 +233,7 @@ function runs(engine: Engine, rest: string[], url: URL): { status: number; body:
   if (!namespace || !name || rest.length > 2) throw new HttpError(404, 'not_found', `no route GET ${url.pathname}`)
   const root = engine.store.resources.get({ kind: 'WorkflowRun', namespace, name })
   if (!root) throw new HttpError(404, 'not_found', `WorkflowRun ${name} not found in ${namespace}`)
+  const index = ownerIndex(engine, namespace)
   const node = (r: Resource, owner: Resource | undefined): unknown => {
     const s = (r.status ?? {}) as Status
     return {
@@ -247,7 +248,7 @@ function runs(engine: Engine, rest: string[], url: URL): { status: number; body:
       ...((r.spec as { inputs?: Record<string, unknown> }).inputs ? { inputs: (r.spec as { inputs?: Record<string, unknown> }).inputs } : {}),
       ...(s.outputs ? { outputs: s.outputs } : {}),
       ...(s.result ? { result: s.result } : {}),
-      children: ownedBy(engine, r).map((c) => node(c, r)),
+      children: ownedBy(engine, r, index).map((c) => node(c, r)),
     }
   }
   return { status: 200, body: node(root, undefined) }

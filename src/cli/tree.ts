@@ -16,13 +16,18 @@ function lookup(engine: Engine, kind: string, namespace: string | undefined, nam
   return (namespace ? engine.store.resources.get({ kind, namespace, name }) : undefined) ?? engine.store.resources.get({ kind, name })
 }
 
-/** Runs `owner` owns directly, oldest first. */
-export function ownedBy(engine: Engine, owner: Resource): Resource[] {
-  const ns = owner.metadata.namespace
-  const out: Resource[] = []
+/** Every run in `namespace` (all namespaces when undefined) under its owner's uid, oldest first: one pass over the run kinds, so a walk reads each run once. */
+export function ownerIndex(engine: Engine, namespace: string | undefined): Map<string, Resource[]> {
+  const out = new Map<string, Resource[]>()
   for (const kind of ['WorkflowRun', 'TaskRun', 'GateRun', 'ValidationRun'])
-    for (const r of engine.store.resources.list(kind, ns)) if (r.metadata.ownerReferences?.some((o) => o.uid === owner.metadata.uid)) out.push(r)
-  return out.sort((a, b) => String(a.metadata.creationTimestamp).localeCompare(String(b.metadata.creationTimestamp)))
+    for (const r of engine.store.resources.list(kind, namespace)) for (const o of r.metadata.ownerReferences ?? []) (out.get(o.uid as string) ?? out.set(o.uid as string, []).get(o.uid as string)!).push(r)
+  for (const kids of out.values()) kids.sort((a, b) => String(a.metadata.creationTimestamp).localeCompare(String(b.metadata.creationTimestamp)))
+  return out
+}
+
+/** Runs `owner` owns directly, oldest first; pass one `ownerIndex` when walking a tree. */
+export function ownedBy(engine: Engine, owner: Resource, index = ownerIndex(engine, owner.metadata.namespace)): Resource[] {
+  return index.get(owner.metadata.uid as string) ?? []
 }
 
 
@@ -61,6 +66,7 @@ const done = new Set(['Succeeded', 'Failed', 'Cancelled'])
 export function renderTree(engine: Engine, root: Resource): string[] {
   const rows: Row[] = []
   const now = Date.now()
+  const index = ownerIndex(engine, root.metadata.namespace)
   const walk = (node: Resource, owner: Resource | undefined, prefix: string, last: boolean) => {
     const branch = owner ? `${prefix}${last ? '└─ ' : '├─ '}` : ''
     const child = owner ? `${prefix}${last ? '   ' : '│  '}` : ''
@@ -70,7 +76,7 @@ export function renderTree(engine: Engine, root: Resource): string[] {
     if (adapter) parts.push(adapter)
     const s = (node.status ?? {}) as Status
     rows.push({ left: `${branch}${parts.join('   ')}`, state: stateOf(node, s), duration: elapsed(engine, node, now), extra: extraLines(engine, node, s), extraPrefix: `${child}   ` })
-    const kids = ownedBy(engine, node)
+    const kids = ownedBy(engine, node, index)
     // a memo step's reused runs are no children of this run; they are listed where their iteration would be (11-workflow.md)
     const reused = Object.entries(s.steps ?? {}).flatMap(([id, st]) => (st.reused ?? []).map((r) => ({ id, ...r })))
     reused.forEach((r, i) => rows.push({ left: `${child}${i === reused.length - 1 && !kids.length ? '└─ ' : '├─ '}${r.iteration ? `${r.id}-${r.iteration}` : r.id}   ${r.runRef.kind}`, state: 'reused', duration: '', extra: [`from ${r.runRef.kind}/${r.runRef.name}`], extraPrefix: `${child}   ` }))
