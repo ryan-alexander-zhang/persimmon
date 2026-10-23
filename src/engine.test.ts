@@ -67,6 +67,33 @@ describe('Engine', () => {
     await expect(engine.apply(report)).resolves.toMatchObject({ changed: true })
   })
 
+  it('latestRevision, behind fromArtifact, is the latest passed revision, the latest committed only when no run passed any', async () => {
+    await engine.start()
+    const kind = { apiVersion: 'sdd.persimmon.ai/v1', kind: 'Spec' }
+    const rev = (id: string, revision: number) => ({
+      ...kind,
+      metadata: { name: `${id}.r${revision}`, namespace: 'default' },
+      spec: { identity: { id, revision }, content: {}, provenance: { producerRef: { apiVersion: 'persimmon.ai/v1', kind: 'TaskRun', namespace: 'default', name: `w-${id}-${revision}` }, inputs: [], actor: localActor } },
+      status: { contentDigest: 'sha256:' + '0'.repeat(64), representations: [] },
+    })
+    const scope = { uid: 'test', key: 'k' }
+    for (const [id, revision] of [['cap-1', 1], ['cap-1', 2], ['cap-1', 3], ['cap-2', 1]] as const) engine.store.resources.stage(rev(id, revision), scope)
+    engine.store.resources.commitScope(scope)
+    const round = (name: string, passed: boolean, id: string, revision: number) =>
+      engine.store.resources.put({
+        apiVersion: 'persimmon.ai/v1',
+        kind: 'WorkflowRun',
+        metadata: { name, namespace: 'default' },
+        spec: { workflowRef: { kind: 'Workflow', name: 'spec-one-round' }, inputs: {}, timeout: '1h', origin: { kind: 'manual' } },
+        status: { phase: 'Succeeded', outputs: { passed: { kind: 'value', value: passed }, spec: { kind: 'artifact', ref: { ...kind, namespace: 'default', id, revision } } } },
+      })
+    round('r2', true, 'cap-1', 2)
+    round('r3', false, 'cap-1', 3) // the latest revision: a rejected draft
+    expect(engine.latestRevision(kind, 'default', 'cap-1')?.revision).toBe(2)
+    expect(engine.latestRevision(kind, 'default', 'cap-2')?.revision).toBe(1) // no run passed one: the latest committed, a hand-loaded revision stays bindable
+    expect(engine.latestRevision(kind, 'default', 'cap-9')).toBeUndefined()
+  })
+
   it('a missing Executor credential fails the attempt with permission_denied', async () => {
     await engine.start()
     await engine.apply(fakeAdapter('claude-code/v1'))

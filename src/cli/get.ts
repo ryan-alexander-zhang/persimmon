@@ -5,7 +5,7 @@ import type { Cli } from './context.js'
 import { withEngine } from './context.js'
 import { describe } from './create.js'
 import { parseRef, toYaml } from './io.js'
-import type { Output } from './tree.js'
+import { passedRevisions } from '../store/passed.js'
 
 export interface Where {
   namespace?: string
@@ -168,22 +168,9 @@ export function behind(engine: Finder, kind: string, namespace: string | undefin
   return lines
 }
 
-/** `get <Kind>[/<id>] --passed` (08-store.md): per id the highest revision a WorkflowRun put out beside `passed: true`, a loop's round
- * or the loop itself. A revision carries no verdict and every round publishes its draft before the Gate judges it, so the latest
- * revision is the latest draft; a rejected, cancelled or failed round's draft is never picked. Keyed `<namespace>/<id>`. */
+/** `get <Kind>[/<id>] --passed` (08-store.md): the store's passed revisions of a kind, keyed `<namespace>/<id>`. */
 export function passed(engine: Finder, kind: string, namespace: string | undefined): Map<string, number> {
-  const best = new Map<string, number>()
-  for (const run of engine.store.resources.list('WorkflowRun', namespace)) {
-    const outputs = (run.status as { outputs?: Record<string, Output> } | undefined)?.outputs ?? {}
-    if (outputs.passed?.kind !== 'value' || outputs.passed.value !== true) continue
-    for (const o of Object.values(outputs)) {
-      for (const r of o.kind === 'artifact' && o.ref ? [o.ref] : o.kind === 'artifacts' ? (o.refs ?? []) : []) {
-        const key = `${(r as { namespace?: string }).namespace ?? run.metadata.namespace}/${r.id}`
-        if (r.kind === kind && (best.get(key) ?? 0) < r.revision) best.set(key, r.revision)
-      }
-    }
-  }
-  return best
+  return passedRevisions(engine.store.resources, kind, namespace)
 }
 
 /** `--global` or `-n` when given; else defaultNamespace, then Global: the LocalDefinitionRef order (00-resource.md). */

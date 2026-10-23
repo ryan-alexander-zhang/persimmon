@@ -1,4 +1,5 @@
 // Engine bootstrap: config ─▶ Store ─▶ registries ─▶ builtin Handlers ─▶ callbacks server ─▶ dispatcher (ARCHITECTURE.md).
+import { passedRevisions } from './store/passed.js'
 import { createHash, randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
@@ -23,7 +24,7 @@ import { triggerHandler } from './kinds/trigger/handler.js'
 import { workflowHandler } from './kinds/workflow/handler.js'
 import { compositionHandler } from './kinds/composition/handler.js'
 import { appendEvent, drain, type Engine as DispatchEngine, recoverCalls } from './reconcile/dispatch.js'
-import type { Actor, Resource } from './resource/types.js'
+import type { Actor, Resource, RevisionRef } from './resource/types.js'
 import { readClosure } from './snapshot/snapshot.js'
 import { liveResolver } from './snapshot/resolver.js'
 import { ConfigCredentialStore } from './store/credentials.js'
@@ -55,6 +56,15 @@ export class Engine {
   #server?: Server
   #started = false
 
+  /** `fromArtifact` (10-ports.md): the latest passed revision of an id, the highest a WorkflowRun put out beside `passed: true`;
+   * the latest committed one only when no run passed any (a hand-loaded revision, a kind no loop judges). */
+  latestRevision(kind: { apiVersion: string; kind: string }, ns: string, id: string): RevisionRef | undefined {
+    const passed = passedRevisions(this.store.resources, kind.kind, ns).get(`${ns}/${id}`)
+    const last = this.store.resources.listRevisions(kind.kind, ns, id).filter((r) => r.apiVersion === kind.apiVersion).at(-1) // ascending; committed only
+    const revision = passed ?? (last ? (last.spec as { identity: { revision: number } }).identity.revision : undefined)
+    return revision === undefined ? undefined : { apiVersion: kind.apiVersion, kind: kind.kind, namespace: ns, id, revision }
+  }
+
   constructor(o: EngineOptions) {
     const cwd = o.cwd ?? process.cwd()
     this.cwd = cwd
@@ -82,10 +92,7 @@ export class Engine {
       listResources: (kind, ns) => this.store.resources.list(kind, ns),
       random: Math.random,
       expand: (r, ns) => this.handlers.get(r.apiVersion, r.kind).impl?.expand?.(r, ns).resources ?? [],
-      latestRevision: (kind, ns, id) => {
-        const last = this.store.resources.listRevisions(kind.kind, ns, id).filter((r) => r.apiVersion === kind.apiVersion).at(-1) // ascending; committed only
-        return last ? { apiVersion: kind.apiVersion, kind: kind.kind, namespace: ns, id, revision: (last.spec as { identity: { revision: number } }).identity.revision } : undefined
-      },
+      latestRevision: (kind, ns, id) => this.latestRevision(kind, ns, id),
       latestRevisions: (kind, ns) => {
         const latest = new Map<string, { revision: number; content: unknown }>()
         for (const r of this.store.resources.list(kind.kind, ns)) {
