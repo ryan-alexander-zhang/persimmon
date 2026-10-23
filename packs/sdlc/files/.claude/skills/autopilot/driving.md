@@ -127,7 +127,9 @@ Stop and report, never work around it, when:
   not run again: the order goes on with it. `build-all` and `domain-discovery` are run again with
   the same inputs: `memo` reuses every task or phase that passed, the continuation too, and runs
   the tail only the whole run has (the derivation; the final tests, the evaluation, the
-  TestReport). A continuation that runs out again with no new decision stops;
+  TestReport). A continuation that runs out again with no new decision stops. A loop that ended
+  with `passed` false below its `maxRounds` repeated its verdict (the same findings two rounds
+  running): it is stuck, nothing a round can fix, stop and report it, never continue it;
 - a form parks (above);
 - an `Issue`'s fix fails its Gate (`autopilot-code`);
 - an upstream revision fails its Gate.
