@@ -102,7 +102,7 @@ describe('scenario: the Test process', () => {
     const asked = { ...short, openQuestions: [{ id: 'Q-1', question: 'Is QS-3 proven at build, or only observed in production?' }] }
     await answer(f.taskRun, { testDesign: asked, open: { kind: 'value', value: ['Q-1'] } })
     f = form() // an open question: the owner decides it inside the round
-    expect(f.reading.map((r: { kind: string }) => r.kind)).toEqual(['Prompt', 'TestDesign', 'Spec', 'Plan', 'TestHarness'])
+    expect(f.reading.map((r: { kind: string }) => r.kind)).toEqual(['Prompt', 'TestDesign', 'Architecture', 'Design', 'BusinessRules', 'Spec', 'Plan', 'TestHarness'])
     expect(f.inputs.open.value).toEqual(['Q-1'])
     await answer(f.taskRun, { decisions: { kind: 'value', value: [{ id: 'Q-1', resolution: 'At build: QS-3 is a fitness scenario, so it gets a case.' }] } })
     f = form() // the writer records the decision in the same round

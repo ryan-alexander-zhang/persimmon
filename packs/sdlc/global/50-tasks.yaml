@@ -68,9 +68,10 @@ spec:
   executorRef: {kind: Executor, name: local-reviewer}
   action:
     instructions: |
-      Confirm this phase of the event storming. Run `persimmon ui` in this project: Progress shows the model, and
-      "Open the board" opens it in the editor. Approve when the phase gate holds; reject with one finding per node,
-      edge or context that must change, naming its id.
+      Confirm this phase of the event storming from the model in your context (a person at the terminal may also
+      open it with `persimmon ui`, Progress then "Open the board"; an agent reads the context alone and runs no
+      command). Approve when the phase gate holds; reject with one finding per node, edge or context that must
+      change, naming its id.
       Judge as the owner's rules in your context say; `feedback`, when bound, is the last round's verdict: check its
       findings were fixed first. With `base` bound, this revision applies answers to it: confirm what changed against
       `base`; what it settled stands unless it is wrong in the owner's rules' sense.
@@ -162,7 +163,7 @@ spec:
       `prd`, `architecture`, `domainModel` and `businessRules` in the Spec are the artifact ids of the inputs with those
       names (`businessRules` is the input `rules`: the artifact every `BR-n` you cite belongs to).
       The capability is one `context` lists, and the DomainModel is that context's; `capability` is always
-      `capabilityId`: a finding that the context does not list it is the caller's to fix, so answer it with a `Q-n`.
+      `capabilityId`: a finding that the context does not list it (`context-mismatch`) is the caller's pairing to fix, never the Spec's: leave the draft as it is and raise no `Q-n` for it, no round clears it.
       Every command, event and read model label is the DomainModel's; every rule id is in `rules`; every quality
       scenario id is in `architecture`. With `previous` and `feedback` bound, fix what the findings name, and with it what
       restated or rested on it, and change nothing else. With `base` and `changes` bound, revise `base` as the Spec rules say for a revision.
@@ -622,6 +623,7 @@ spec:
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: false, description: "every type but ui"}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "a ui Design: the API Designs it calls"}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "the last round's, beside the draft; round one has none"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "the Design this draft applies answers to; what it settled stands"}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict; round one has none"}
   outputs:
     audit: {type: {kind: value, schema: {allOf: [{$ref: "persimmon.ai/v1#/ValidationResult"}, {if: {required: [findings], properties: {findings: {contains: {required: [severity], properties: {severity: {const: error}}}}}}, then: {properties: {passed: {const: false}}}, else: {properties: {passed: {const: true}}}}]}}}
@@ -629,6 +631,7 @@ spec:
   action:
     instructions: |
       Audit the Design `design` following the draft audit rules in your context, their part for a Design.
+      With `base` bound, the draft applies answers to it: judge what changed against `base`, never what it already settled.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: draft-audit-rules}}
       - {kind: artifact, input: design}
@@ -637,6 +640,7 @@ spec:
       - {kind: artifact, input: domainModel}
       - {kind: artifact, input: designs}
       - {kind: artifact, input: previous}
+      - {kind: artifact, input: base}
   timeout: 30m
   retryPolicy: # a transient API refusal gets another attempt
     maxAttempts: 3
@@ -729,6 +733,7 @@ spec:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: false, description: "the context's: a scenario's category is one of its terms"}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, required: false, description: "the last round's, beside the draft; round one has none"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, required: false, description: "the Spec this draft applies answers to; what it settled stands"}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict; round one has none"}
   outputs:
     audit: {type: {kind: value, schema: {allOf: [{$ref: "persimmon.ai/v1#/ValidationResult"}, {if: {required: [findings], properties: {findings: {contains: {required: [severity], properties: {severity: {const: error}}}}}}, then: {properties: {passed: {const: false}}}, else: {properties: {passed: {const: true}}}}]}}}
@@ -736,6 +741,7 @@ spec:
   action:
     instructions: |
       Audit the Spec `spec` following the draft audit rules in your context, their part for a Spec.
+      With `base` bound, the draft applies answers to it: judge what changed against `base`, never what it already settled.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: draft-audit-rules}}
       - {kind: artifact, input: spec}
@@ -745,6 +751,7 @@ spec:
       - {kind: artifact, input: architecture}
       - {kind: artifact, input: glossary}
       - {kind: artifact, input: previous}
+      - {kind: artifact, input: base}
   timeout: 30m
   retryPolicy: # a transient API refusal gets another attempt
     maxAttempts: 3
@@ -987,6 +994,7 @@ spec:
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, required: false, description: "the last round's, beside the draft; round one has none"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, required: false, description: "the TestDesign this draft applies answers to; what it settled stands"}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict; round one has none"}
   outputs:
     audit: {type: {kind: value, schema: {allOf: [{$ref: "persimmon.ai/v1#/ValidationResult"}, {if: {required: [findings], properties: {findings: {contains: {required: [severity], properties: {severity: {const: error}}}}}}, then: {properties: {passed: {const: false}}}, else: {properties: {passed: {const: true}}}}]}}}
@@ -994,6 +1002,7 @@ spec:
   action:
     instructions: |
       Audit the TestDesign `testDesign` following the draft audit rules in your context, their part for a TestDesign.
+      With `base` bound, the draft applies answers to it: judge what changed against `base`, never what it already settled.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: draft-audit-rules}}
       - {kind: artifact, input: testDesign}
@@ -1003,6 +1012,7 @@ spec:
       - {kind: artifact, input: rules}
       - {kind: artifact, input: harness}
       - {kind: artifact, input: previous}
+      - {kind: artifact, input: base}
   timeout: 30m
   retryPolicy: # a transient API refusal gets another attempt
     maxAttempts: 3
@@ -1181,7 +1191,7 @@ spec:
   action:
     instructions: |
       Evaluate what the Plan's tests prove, as the completion evaluation of a test report: `summary`, a few sentences in
-      the Glossary's words on what ran and what it shows; `residualRisks`, one line each for what is left unproven: a
+      the TestDesign's words on what ran and what it shows; `residualRisks`, one line each for what is left unproven: a
       manual case, a case no test carries or whose level did not run, a flaky test, a defect a record reports. Count
       nothing: the report counts. Read only.
     context:
@@ -1257,6 +1267,9 @@ spec:
   inputs:
     draft: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, description: "this round's Design, with the questions open"}
     open: {type: {kind: value, schema: {type: array, items: {type: string, pattern: "^Q-[0-9]+$"}}}, description: "the ids to decide"}
+    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: false}
+    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: false}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
   outputs:
@@ -1270,6 +1283,9 @@ spec:
     context:
       - {kind: prompt, ref: {kind: Prompt, name: owner-decisions}}
       - {kind: artifact, input: draft}
+      - {kind: artifact, input: domainModel}
+      - {kind: artifact, input: glossary}
+      - {kind: artifact, input: designs}
       - {kind: artifact, input: architecture}
       - {kind: artifact, input: rules}
   timeout: 72h
@@ -1284,6 +1300,8 @@ spec:
   inputs:
     draft: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}, description: "this round's Plan, with the questions open"}
     open: {type: {kind: value, schema: {type: array, items: {type: string, pattern: "^Q-[0-9]+$"}}}, description: "the ids to decide"}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false}
+    domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: false}
     spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
   outputs:
@@ -1297,6 +1315,8 @@ spec:
     context:
       - {kind: prompt, ref: {kind: Prompt, name: owner-decisions}}
       - {kind: artifact, input: draft}
+      - {kind: artifact, input: designs}
+      - {kind: artifact, input: domainModel}
       - {kind: artifact, input: spec}
       - {kind: artifact, input: architecture}
   timeout: 72h
@@ -1311,6 +1331,8 @@ spec:
   inputs:
     draft: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, description: "this round's TestHarness, with the questions open"}
     open: {type: {kind: value, schema: {type: array, items: {type: string, pattern: "^Q-[0-9]+$"}}}, description: "the ids to decide"}
+    adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}, required: false}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
   outputs:
     decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}}
@@ -1323,6 +1345,8 @@ spec:
     context:
       - {kind: prompt, ref: {kind: Prompt, name: owner-decisions}}
       - {kind: artifact, input: draft}
+      - {kind: artifact, input: adrs}
+      - {kind: artifact, input: designs}
       - {kind: artifact, input: architecture}
   timeout: 72h
   sideEffects: none
@@ -1336,6 +1360,9 @@ spec:
   inputs:
     draft: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, description: "this round's TestDesign, with the questions open"}
     open: {type: {kind: value, schema: {type: array, items: {type: string, pattern: "^Q-[0-9]+$"}}}, description: "the ids to decide"}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}, required: false}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
     spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
     plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}}
     harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}}
@@ -1350,6 +1377,9 @@ spec:
     context:
       - {kind: prompt, ref: {kind: Prompt, name: owner-decisions}}
       - {kind: artifact, input: draft}
+      - {kind: artifact, input: architecture}
+      - {kind: artifact, input: designs}
+      - {kind: artifact, input: rules}
       - {kind: artifact, input: spec}
       - {kind: artifact, input: plan}
       - {kind: artifact, input: harness}
@@ -1365,6 +1395,10 @@ spec:
   inputs:
     draft: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: AcceptanceRecord}}, description: "this round's record, with the questions open"}
     open: {type: {kind: value, schema: {type: array, items: {type: string, pattern: "^Q-[0-9]+$"}}}, description: "the ids to decide"}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}, required: false}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false}
+    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: false}
+    rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, required: false}
     spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
     plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}}
   outputs:
@@ -1378,6 +1412,10 @@ spec:
     context:
       - {kind: prompt, ref: {kind: Prompt, name: owner-decisions}}
       - {kind: artifact, input: draft}
+      - {kind: artifact, input: architecture}
+      - {kind: artifact, input: designs}
+      - {kind: artifact, input: glossary}
+      - {kind: artifact, input: rules}
       - {kind: artifact, input: spec}
       - {kind: artifact, input: plan}
   timeout: 72h
@@ -1392,6 +1430,7 @@ spec:
   inputs:
     draft: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, description: "this round's Prd, with the questions open"}
     open: {type: {kind: value, schema: {type: array, items: {type: string, pattern: "^Q-[0-9]+$"}}}, description: "the ids to decide"}
+    glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: false}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, description: "the rules the draft cites"}
     brief: {type: {kind: value, schema: {type: string, minLength: 1}}, description: "the developer's brief, the only source the Prd had"}
   outputs:
@@ -1405,6 +1444,7 @@ spec:
     context:
       - {kind: prompt, ref: {kind: Prompt, name: owner-decisions}}
       - {kind: artifact, input: draft}
+      - {kind: artifact, input: glossary}
       - {kind: artifact, input: rules}
   timeout: 72h
   sideEffects: none
@@ -1417,6 +1457,7 @@ spec:
   inputs:
     draft: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, description: "this round's DesignSystem, with the questions open"}
     open: {type: {kind: value, schema: {type: array, items: {type: string, pattern: "^Q-[0-9]+$"}}}, description: "the ids to decide"}
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}, required: false}
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
   outputs:
     decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}}
@@ -1428,6 +1469,7 @@ spec:
     context:
       - {kind: prompt, ref: {kind: Prompt, name: owner-decisions}}
       - {kind: artifact, input: draft}
+      - {kind: artifact, input: architecture}
       - {kind: artifact, input: prd}
   timeout: 72h
   sideEffects: none

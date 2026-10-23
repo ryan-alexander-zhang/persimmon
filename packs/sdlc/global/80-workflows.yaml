@@ -384,6 +384,8 @@ spec:
         context: {fromInput: context}
         previous: {first: [{fromStep: {stepRef: record, output: spec}}, {fromStep: {stepRef: write, output: spec}}]}
         feedback: {fromStep: {stepRef: check, output: result}}
+        base: {fromInput: base, onMissing: omit}
+        changes: {fromInput: changes, onMissing: omit}
       timeout: 30m
   transitions:
     - id: after-write
@@ -546,6 +548,7 @@ spec:
       inputs:
         draft: {fromStep: {stepRef: write, output: prd}}
         open: {fromStep: {stepRef: write, output: open}}
+        glossary: {fromInput: glossary, onMissing: omit}
         rules: {fromStep: {stepRef: write, output: rules}}
         brief: {fromInput: brief}
       timeout: 72h
@@ -661,6 +664,9 @@ spec:
       inputs:
         draft: {fromStep: {stepRef: write, output: design}}
         open: {fromStep: {stepRef: write, output: open}}
+        domainModel: {fromInput: domainModel, onMissing: omit}
+        glossary: {fromInput: glossary, onMissing: omit}
+        designs: {fromInput: designs, onMissing: omit}
         architecture: {fromInput: architecture}
         rules: {fromInput: rules}
       timeout: 72h
@@ -706,6 +712,8 @@ spec:
         designs: {fromInput: designs, onMissing: omit}
         previous: {first: [{fromStep: {stepRef: record, output: design}}, {fromStep: {stepRef: write, output: design}}]}
         feedback: {fromStep: {stepRef: check, output: result}}
+        base: {fromInput: base, onMissing: omit}
+        changes: {fromInput: changes, onMissing: omit}
       timeout: 30m
   transitions:
     - id: after-write
@@ -773,6 +781,7 @@ spec:
       designs: {fromInput: designs}
       previous: {fromInput: previous}
       feedback: {fromInput: feedback}
+      base: {fromInput: base}
     timeout: 35m
   subject: design
   previous: previous
@@ -944,6 +953,8 @@ spec:
       inputs:
         draft: {fromStep: {stepRef: write, output: plan}}
         open: {fromStep: {stepRef: write, output: open}}
+        designs: {fromInput: designs, onMissing: omit}
+        domainModel: {fromInput: domainModel, onMissing: omit}
         spec: {fromInput: spec}
         architecture: {fromInput: architecture}
       timeout: 72h
@@ -976,6 +987,8 @@ spec:
         domainModel: {fromInput: domainModel, onMissing: omit}
         previous: {first: [{fromStep: {stepRef: record, output: plan}}, {fromStep: {stepRef: write, output: plan}}]}
         feedback: {fromStep: {stepRef: check, output: result}}
+        base: {fromInput: base, onMissing: omit}
+        changes: {fromInput: changes, onMissing: omit}
       timeout: 30m
   transitions:
     - id: after-write
@@ -1165,6 +1178,7 @@ spec:
       inputs:
         draft: {fromStep: {stepRef: write, output: designSystem}}
         open: {fromStep: {stepRef: write, output: open}}
+        architecture: {fromInput: architecture, onMissing: omit}
         prd: {fromInput: prd}
       timeout: 72h
     - id: record
@@ -1299,6 +1313,10 @@ spec:
       inputs:
         draft: {fromStep: {stepRef: implement, output: record}}
         open: {fromStep: {stepRef: implement, output: open}}
+        architecture: {fromInput: architecture, onMissing: omit}
+        designs: {fromInput: designs, onMissing: omit}
+        glossary: {fromInput: glossary, onMissing: omit}
+        rules: {fromInput: rules, onMissing: omit}
         spec: {fromInput: spec}
         plan: {fromInput: plan}
       timeout: 72h
@@ -1502,6 +1520,7 @@ spec:
       timeout: 4h
     - id: each
       uses: {kind: ReviewLoop, name: build-one}
+      memo: {when: "outputs.passed"}   # a passed build is done: a run started again after a stop builds no task twice (11-workflow.md)
       inputs:
         plan: {fromInput: plan}
         taskId: {expression: "inputs.tasks[state.index - 1]"}
@@ -1669,6 +1688,8 @@ spec:
       inputs:
         draft: {fromStep: {stepRef: write, output: harness}}
         open: {fromStep: {stepRef: write, output: open}}
+        adrs: {fromInput: adrs, onMissing: omit}
+        designs: {fromInput: designs, onMissing: omit}
         architecture: {fromInput: architecture}
       timeout: 72h
     - id: record
@@ -1795,6 +1816,9 @@ spec:
       inputs:
         draft: {fromStep: {stepRef: write, output: testDesign}}
         open: {fromStep: {stepRef: write, output: open}}
+        architecture: {fromInput: architecture, onMissing: omit}
+        designs: {fromInput: designs, onMissing: omit}
+        rules: {fromInput: rules, onMissing: omit}
         spec: {fromInput: spec}
         plan: {fromInput: plan}
         harness: {fromInput: harness}
@@ -1837,6 +1861,7 @@ spec:
         harness: {fromInput: harness}
         previous: {first: [{fromStep: {stepRef: record, output: testDesign}}, {fromStep: {stepRef: write, output: testDesign}}]}
         feedback: {fromStep: {stepRef: check, output: result}}
+        base: {fromInput: base, onMissing: omit}
       timeout: 30m
   transitions:
     - id: after-write

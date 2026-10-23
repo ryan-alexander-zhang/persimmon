@@ -32,8 +32,10 @@ is a question in the brief, for the Prd's `Q-n`.
 3. `architect`: `prd`, `rules`, `contexts`, `domainModels`, `glossaries` (lists of every context's).
    Gives the Architecture and its Adrs.
 4. `spec-all`, one run for the product: `prd`, `capabilities` (one entry per capability of every
-   BoundedContext, `{id: CAP-n, context: <context id>}`; the run binds each capability's
-   BoundedContext, DomainModel and Glossary itself), `architecture`, `rules`. The capabilities run
+   BoundedContext, `{id: CAP-n, context: <context id>}`, read from each BoundedContext's own
+   `capabilities` list (`persimmon get BoundedContext/<context id>`), never from the Prd's order or a
+   guess: a wrong pairing is a `context-mismatch` no Spec round can clear; the run binds each
+   capability's BoundedContext, DomainModel and Glossary itself), `architecture`, `rules`. The capabilities run
    side by side.
 5. `design-all`, one run for every non-client building block: `blocks`, a list with one entry
    per Design, `{block: BB-n, type, interface?, qualifier?, context}`: one `http-api` entry per HTTP

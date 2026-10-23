@@ -94,6 +94,7 @@ spec:
         architecture: {fromInput: architecture}
         glossary: {fromInput: glossary, onMissing: omit}
         previous: {fromInput: previous, onMissing: omit}
+        base: {fromInput: base, onMissing: omit}
         feedback: {fromInput: feedback, onMissing: omit}
   policy: {strategy: all}
   timeout: 35m   # the check, then the auditor's 30m
@@ -155,6 +156,7 @@ spec:
     designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: false}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "the last round's Design; round one has none"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "the Design a revision applies answers to; the auditor judges what changed"}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict"}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
@@ -179,6 +181,7 @@ spec:
         domainModel: {fromInput: domainModel, onMissing: omit}
         designs: {fromInput: designs, onMissing: omit}
         previous: {fromInput: previous, onMissing: omit}
+        base: {fromInput: base, onMissing: omit}
         feedback: {fromInput: feedback, onMissing: omit}
   policy: {strategy: all}
   timeout: 35m   # the check, then the auditor's 30m
@@ -460,6 +463,7 @@ spec:
         rules: {fromInput: rules}
         harness: {fromInput: harness}
         previous: {fromInput: previous, onMissing: omit}
+        base: {fromInput: base, onMissing: omit}
         feedback: {fromInput: feedback, onMissing: omit}
     - name: confirmed
       ref: {kind: Validator, name: test-design-confirmed}
