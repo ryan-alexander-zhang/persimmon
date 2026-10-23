@@ -218,6 +218,11 @@ describe('workflow Handler', () => {
       earlier('old-a', 'a', 'A0', 1), earlier('new-a', 'a', 'A1', 2), // two for a: the newest wins
       earlier('b-other-snapshot', 'b', 'B', 3, 'sha256:y'), // another snapshot: not the same work
       earlier('c-rejected', 'c', 'retry', 4), // when fails: run again
+      (() => {
+        const r = earlier('a-continued', 'a', 'A2', 5) // the newest for a, with an input the step does not bind: a loop continued by hand
+        ;(r.spec as { inputs: Record<string, unknown> }).inputs.previous = { kind: 'value', value: 'A1' }
+        return r
+      })(),
     ]
     const h = workflowHandler({ kinds, adapters: new AdapterRegistry({ resolve: () => undefined }), now: () => new Date(clock), closure: () => altered, callback: () => undefined, getResource: () => undefined, getByUid: () => undefined, random: () => 0, listResources: (kind) => (kind === 'TaskRun' ? runs : []) })
     let r = run('per-item', { items: { kind: 'value', value: ['a', 'b', 'c'] } }, 'memo')
@@ -235,12 +240,12 @@ describe('workflow Handler', () => {
     const all = run('per-item', { items: { kind: 'value', value: ['a'] } }, 'memo2')
     const done = h.reconcile(input(all, { type: 'Created', dedupeKey: 'created' })) as ReconcileResult
     expect(created(done)).toEqual([])
-    expect(clean(done.statusPatch)).toMatchObject({ phase: 'Succeeded', outputs: { last: { kind: 'value', value: 'A1' } }, steps: { each: { phase: 'Succeeded', reusedFrom: { kind: 'TaskRun', name: 'new-a' }, reused: [{ iteration: 1, runRef: { kind: 'TaskRun', name: 'new-a' } }], outputs: { echo: { kind: 'value', value: 'A1' } } } } })
+    expect(clean(done.statusPatch)).toMatchObject({ phase: 'Succeeded', outputs: { last: { kind: 'value', value: 'A2' } }, steps: { each: { phase: 'Succeeded', reusedFrom: { kind: 'TaskRun', name: 'a-continued' }, reused: [{ iteration: 1, runRef: { kind: 'TaskRun', name: 'a-continued' } }], outputs: { echo: { kind: 'value', value: 'A2' } } } } })
     // ignore: an input left out of the comparison
     Object.assign(wf.spec.steps[0]!, { memo: { ignore: ['item'] } })
     const any = h.reconcile(input(run('per-item', { items: { kind: 'value', value: ['z'] } }, 'memo3'), { type: 'Created', dedupeKey: 'created' })) as ReconcileResult
     expect(created(any)).toEqual([])
-    expect(clean(any.statusPatch).steps.each.reusedFrom.name).toBe('c-rejected') // the newest of every run of the Task, whatever its item
+    expect(clean(any.statusPatch).steps.each.reusedFrom.name).toBe('a-continued') // the newest of every run of the Task, whatever its item
   })
 
   it('a parallel repeat runs its iterations side by side, records every result, and one failure stops the rest', () => {

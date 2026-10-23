@@ -207,11 +207,12 @@ export function workflowHandler(deps: HandlerDeps): HandlerImpl {
         }
       }
 
-      /** An earlier Succeeded run of the step's definition, same snapshot, same inputs but `memo.ignore`, outputs passing `memo.when`; the newest (11-workflow.md). */
+      /** An earlier Succeeded run of the step's definition, same snapshot, same inputs on the step's ports but `memo.ignore`, outputs passing `memo.when`; the newest (11-workflow.md). */
       const reusable = (step: Step, u: Used & { definition: Entry }, inputs: RuntimeValues): { run: Resource; outputs: RuntimeValues } | undefined => {
         const memo = step.memo!
         const ignore = new Set(memo.ignore ?? [])
-        const key = (v: RuntimeValues) => canonicalJson(Object.fromEntries(Object.entries(v).filter(([k]) => !ignore.has(k))))
+        const ports = new Set(Object.keys(inputs)) // a candidate with more inputs (a loop continued by hand, a -one revision with base and changes) still matches
+        const key = (v: RuntimeValues) => canonicalJson(Object.fromEntries(Object.entries(v).filter(([k]) => ports.has(k) && !ignore.has(k))))
         const want = key(inputs)
         const refField = u.contract.runKind.kind === 'WorkflowRun' ? 'workflowRef' : `${step.uses.kind[0]!.toLowerCase()}${step.uses.kind.slice(1)}Ref`
         const site = memo.when ? siteOf({ outputs: u.outputs }) : undefined
