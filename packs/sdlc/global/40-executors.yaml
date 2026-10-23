@@ -6,7 +6,7 @@ spec:
   type: agent
   adapter: claude-code/v1
   configuration:
-    model: claude-opus-5
+    model: claude-opus-5-5
     sandbox: read-only      # the storming and derive Tasks answer JSON and write no file
   security:
     networkAccess: allowlist
@@ -27,7 +27,7 @@ spec:
   type: agent
   adapter: claude-code/v1
   configuration:
-    model: claude-opus-5
+    model: claude-opus-5-5
     sandbox: read-only      # write-spec answers JSON and writes no file
   security:
     networkAccess: allowlist
@@ -40,7 +40,7 @@ spec:
   type: agent
   adapter: claude-code/v1
   configuration:
-    model: claude-opus-5
+    model: claude-opus-5-5
     sandbox: read-only      # draft-prd answers JSON and writes no file
   security:
     networkAccess: allowlist
@@ -53,7 +53,7 @@ spec:
   type: agent
   adapter: claude-code/v1
   configuration:
-    model: claude-opus-5
+    model: claude-opus-5-5
     sandbox: read-only      # design-asset answers JSON and writes no file
   security:
     networkAccess: allowlist
@@ -66,7 +66,7 @@ spec:
   type: agent
   adapter: claude-code/v1
   configuration:
-    model: claude-opus-5
+    model: claude-opus-5-5
     sandbox: read-only      # write-plan answers JSON and writes no file
   security:
     networkAccess: allowlist
@@ -79,7 +79,7 @@ spec:
   type: agent
   adapter: claude-code/v1
   configuration:
-    model: claude-opus-5
+    model: claude-opus-5-5
     sandbox: read-only      # write-architecture answers JSON and writes no file
   security:
     networkAccess: allowlist
@@ -92,7 +92,7 @@ spec:
   type: agent
   adapter: claude-code/v1
   configuration:
-    model: claude-opus-5
+    model: claude-opus-5-5
     sandbox: read-only      # write-design-system answers JSON and writes no file
   security:
     networkAccess: allowlist
@@ -151,7 +151,7 @@ spec:
   type: agent
   adapter: claude-code/v1
   configuration:
-    model: claude-sonnet-5
+    model: claude-sonnet-5-5
     sandbox: read-only      # audit-acceptance reads the tests and answers JSON; it writes no file
   security:
     networkAccess: allowlist
@@ -175,7 +175,7 @@ spec:
   type: agent
   adapter: claude-code/v1
   configuration:
-    model: claude-opus-5
+    model: claude-opus-5-5
     sandbox: read-only      # design-tests answers JSON and writes no file
   security:
     networkAccess: allowlist
