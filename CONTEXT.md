@@ -613,6 +613,14 @@ starts each run, applies upstream answers, and writes the **Issue**s. `autopilot
 `init` places in the project.
 _Avoid_: Reviewer subagent (the first cut's stand-in, gone), auto mode, agent mode
 
+**Copilot**:
+The developer's agent driving the run order step by step with the developer as the **Owner**: it
+proposes each run and starts it on a yes, relays every open `Q-n` and Gate confirm to the developer
+with a recommended answer and the alternatives, answers the form with their choice, and reads the
+next step from the store. The **Builder** and the Tester are the **Autopilot**'s agents. One agent skill
+`init` places in the project.
+_Avoid_: guided mode, assisted mode, semi-autopilot, human in the loop (the property, not the mode)
+
 **Owner**:
 Who decides a draft's open questions inside its round (Task `decide-<kind>`, Prompt `owner-decisions`)
 and confirms a document at its Gate (Task `confirm-<kind>`, Prompt `owner-review`): a human on the
