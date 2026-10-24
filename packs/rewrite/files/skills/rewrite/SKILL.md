@@ -9,7 +9,7 @@ The developer names an existing system to rebuild. The project directory is the 
 repository; the Source system is a checkout outside it, read and never changed. Changing the source
 in its own repository is a refactor, not this skill's: say so and stop.
 
-Read `.claude/skills/rewrite/driving.md` first: how to start each run, answer its forms and end it.
+Read `skills/rewrite/driving.md` first: how to start each run, answer its forms and end it.
 
 ## 0. Before
 

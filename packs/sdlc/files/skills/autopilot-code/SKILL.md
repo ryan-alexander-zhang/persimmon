@@ -5,7 +5,7 @@ description: Build approved persimmon Plans into tested code with no human - sca
 
 # Autopilot: Plans to code
 
-Read `.claude/skills/autopilot/driving.md` first: it says how to start and end each run below,
+Read `skills/autopilot/driving.md` first: it says how to start and end each run below,
 how an upstream answer is applied, and when to stop. The Executor overrides it names are applied:
 the owner decides every open question inside its round, the builder builds each task and the
 Tester sets up and writes the tests, all inside the engine.

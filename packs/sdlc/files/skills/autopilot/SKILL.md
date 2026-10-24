@@ -8,8 +8,8 @@ description: Build a product from one idea with persimmon and no human at any Ga
 The developer gives an idea. You take it to built, tested code with every artifact in the
 persimmon store, and stop only on a failure.
 
-1. Follow `.claude/skills/autopilot-doc/SKILL.md` with the idea. It ends with the Plans.
-2. Follow `.claude/skills/autopilot-code/SKILL.md` over those Plans.
-3. One report, as `.claude/skills/autopilot/driving.md` says, covering both.
+1. Follow `skills/autopilot-doc/SKILL.md` with the idea. It ends with the Plans.
+2. Follow `skills/autopilot-code/SKILL.md` over those Plans.
+3. One report, as `skills/autopilot/driving.md` says, covering both.
 
 If `autopilot-doc` stops, report and do not start `autopilot-code`.

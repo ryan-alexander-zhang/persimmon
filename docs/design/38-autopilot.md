@@ -33,7 +33,7 @@ autopilot = autopilot-doc then autopilot-code
 | Rule | Enforcer |
 |---|---|
 | the run order is `AGENTS.md` section 6's; each run takes the latest revision whose Gate passed, `persimmon get <Kind>/<id> --passed` (`08-store.md`), never the latest revision: a rejected or cancelled round leaves its draft in the store | skill |
-| before the first run the skill applies `files/.claude/skills/autopilot/autopilot.yaml`: Executors `local-reviewer`, `builder` and `tester` in the project's Namespace, `claude-code/v1`, the owner on `claude-opus-5-5` read-only, the builder and the Tester on `claude-sonnet-5-5` `workspace-write` with the stack's commands in `allowedTools`; the report says they are in place, and `persimmon delete Executor/<name> -n default` gives a role back to the human | skill; `autopilot.yaml` |
+| before the first run the skill applies `files/skills/autopilot/autopilot.yaml`: Executors `local-reviewer`, `builder` and `tester` in the project's Namespace, `claude-code/v1`, the owner on `claude-opus-5-5` read-only, the builder and the Tester on `claude-sonnet-5-5` `workspace-write` with the stack's commands in `allowedTools`; the report says they are in place, and `persimmon delete Executor/<name> -n default` gives a role back to the human | skill; `autopilot.yaml` |
 | a question is decided where it is raised: the writer's open `Q-n` by the owner inside the round (`decide-<kind>`), the builder's or Tester's by the owner inside the build round (`decide-build`), the ones the confirm finds itself at the Gate, as a rejection `Q-n: decided.` the next round records; every decision an agent took is in the report | pack (`23-pack-sdlc.md`); skill |
 | a form that parks is a Task on a human Executor the overrides do not cover: the Autopilot stops and reports it, never answers it | skill |
 | a loop out of rounds whose last verdict left the writer something to act on (a finding opening `<id>: decided.`, or an error naming an id the writer can fix) is continued once from its last round (`previous`, `feedback`, its carried inputs, `21-composition.md`), as a developer gives one more round; its passed revision is the artifact and a `*-all` of documents does not run again, while `build-all` and `domain-discovery` run again with the same inputs, `memo` reusing every loop or phase that passed, the continuation too (`11-workflow.md`), and running the tail only the whole run has (the derivation; the final tests, the evaluation, the TestReport); a loop ended below `maxRounds` with `passed` false repeated its verdict and is stuck, reported, never continued (`21-composition.md`); a continuation out of rounds again with no new decision, a Failed run for another reason than a loop out of rounds (`*_inconsistent`) or `plan_regressed`, or a reconcile error stops the Autopilot with a report | skill |
@@ -102,9 +102,9 @@ autopilot = autopilot-doc then autopilot-code
 - Quality is capped by the checks: the Autopilot passes what `sdd/v1`, the Auditor, the tests and
   the owner agent pass, nothing more. Every `Q-n` the owner agent decided is listed in the report
   (each `decide-*` TaskRun's `decisions`), so the developer reads the guesses an idea alone forced.
-- Shipped as `files/.claude/skills/<name>/SKILL.md` and `autopilot.yaml`, so `init` places them and
-  updates untouched ones like `AGENTS.md`; `init` places files below `files/` at their relative
-  path. Claude Code only: Codex reads `.agents/skills/`, a second copy added when a Codex user asks.
+- Shipped as `files/skills/<name>/SKILL.md` and `autopilot.yaml`, so `init` places them and
+  updates untouched ones like `AGENTS.md`, then links each into `.claude/skills/` and
+  `.agents/skills/` (`20-pack.md`): one copy, found by Claude Code and Codex alike.
 - An idea has no app, and the pack expects the developer's own app and test setup, which a builder
   never changes. The orchestrator stands in for the developer there too: one scaffold from the
   Architecture and its Adrs, with a unit test command. The test levels are then the Tester's:

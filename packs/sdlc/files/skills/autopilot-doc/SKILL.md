@@ -5,13 +5,13 @@ description: Take one idea to approved persimmon Plans with no human - Prd, doma
 
 # Autopilot: idea to Plans
 
-Read `.claude/skills/autopilot/driving.md` first: it says how to start, answer and end each run
+Read `skills/autopilot/driving.md` first: it says how to start, answer and end each run
 below, and when to stop. Every run takes the passed revisions the runs before it produced.
 
 ## 0. Before
 
 - `persimmon.yaml` in the project directory; if absent, `persimmon init`.
-- The Executor overrides: `persimmon apply .claude/skills/autopilot/autopilot.yaml -n default`
+- The Executor overrides: `persimmon apply skills/autopilot/autopilot.yaml -n default`
   (`driving.md`, Before the first run).
 - A `productId`: lowercase kebab from the idea, at most 20 characters (every artifact id below is
   built on it and a Design's must fit 63), no Prd with that stem in

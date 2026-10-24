@@ -7,7 +7,7 @@ project directory. You answer no form and you never run git.
 ## Before the first run
 
 ```sh
-persimmon apply .claude/skills/autopilot/autopilot.yaml -n default
+persimmon apply skills/autopilot/autopilot.yaml -n default
 ```
 
 It overrides the pack's three human Executors in the project's Namespace with agents: `local-reviewer`

@@ -1,7 +1,7 @@
 # Driving a rewrite run
 
 How the `rewrite` skill starts each persimmon run and answers its forms. Start, park, complete, End,
-Stop and the Reviewer subagent are `.claude/skills/autopilot/driving.md`'s; read it first. This file
+Stop and the Reviewer subagent are `skills/autopilot/driving.md`'s; read it first. This file
 adds what a rewrite run differs in. You run every `persimmon` command from the project directory;
 you never run git and never touch the source checkout.
 

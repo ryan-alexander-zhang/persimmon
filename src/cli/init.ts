@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, symlinkSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Resource } from '../resource/types.js'
@@ -7,6 +7,7 @@ import { applyDocs } from './apply.js'
 import type { Cli } from './context.js'
 import { withEngine } from './context.js'
 import { loadDocs } from './io.js'
+import { skillDirs } from './skill.js'
 
 const root = () => join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
@@ -84,6 +85,48 @@ function placeFiles(cli: Cli, dir: string, claimed: Set<string>): void {
   cli.out('ignored .persimmon/ in .gitignore')
 }
 
+/** Every regular file below `dir` (dotfiles aside) is one init wrote, by the record: then the directory is init's to replace. */
+function writtenByInit(dir: string, prefix: string, written: Record<string, string>): boolean {
+  const files = readdirSync(dir, { recursive: true, withFileTypes: true }).filter((e) => e.isFile() && !e.name.startsWith('.'))
+  return files.length > 0 && files.every((e) => written[prefix + relative(dir, join(e.parentPath, e.name))] === digestOf(readFileSync(join(e.parentPath, e.name))))
+}
+
+/**
+ * Every `skills/<name>/SKILL.md` in the project, whoever put it there, reaches each agent CLI through
+ * a link `<agent dir>/<name> -> ../../skills/<name>`. A directory there that an older init wrote
+ * (every file of it recorded) gives way to the link; anything else of the project's is kept (20-pack.md).
+ */
+function linkSkills(cli: Cli): void {
+  const skills = join(cli.cwd, 'skills')
+  if (!existsSync(skills)) return
+  const names = readdirSync(skills, { withFileTypes: true }).filter((e) => e.isDirectory() && existsSync(join(skills, e.name, 'SKILL.md'))).map((e) => e.name).sort()
+  const record = join(cli.cwd, '.persimmon', 'files.json')
+  const written = readRecord(record)
+  const before = JSON.stringify(written)
+  for (const agentDir of Object.values(skillDirs).sort()) {
+    for (const name of names) {
+      const link = join(cli.cwd, agentDir, name)
+      const target = relative(join(cli.cwd, agentDir), join(skills, name))
+      const shown = `${agentDir}/${name}`
+      if (present(link)) {
+        const stat = lstatSync(link)
+        if (stat.isSymbolicLink() && readlinkSync(link) === target) continue
+        if (!(stat.isDirectory() && writtenByInit(link, `${shown}/`, written))) {
+          cli.out(`kept ${shown} (not a link to skills/${name})`)
+          continue
+        }
+        rmSync(link, { recursive: true })
+        for (const k of Object.keys(written)) if (k.startsWith(`${shown}/`)) delete written[k]
+        cli.out(`replaced ${shown} with a link to skills/${name}`)
+      }
+      mkdirSync(dirname(link), { recursive: true })
+      symlinkSync(target, link)
+      cli.out(`linked ${shown} -> ${target}`)
+    }
+  }
+  if (JSON.stringify(written) !== before) writeFileSync(record, `${JSON.stringify(written, null, 2)}\n`)
+}
+
 const yamlFiles = (dir: string) => (existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.yaml')).sort().map((f) => join(dir, f)) : [])
 
 /** Shipped Adapter manifests, with their script paths made absolute. */
@@ -109,7 +152,7 @@ export function namedPackDir(name: string): string {
 
 const keysOf = (dir: string) => new Set((loadDocs([...yamlFiles(join(dir, 'global')), ...yamlFiles(join(dir, 'namespaced'))]) as Resource[]).map((d) => `${d.kind}/${d.metadata.name}`))
 
-/** `persimmon init`: create `.persimmon/`, a default `persimmon.yaml`, place the pack's files, apply the SDLC pack, then `also` when given (20-pack.md). */
+/** `persimmon init`: create `.persimmon/`, a default `persimmon.yaml`, apply the SDLC pack, then `also` when given, place the packs' files, link `skills/` into the agent directories (20-pack.md). */
 export async function init(cli: Cli, o: { pack?: string; also?: string } = {}): Promise<number> {
   if (o.also !== undefined) {
     if (yamlFiles(join(o.also, 'global')).length === 0) throw new Error(`no pack at ${o.also}`)
@@ -144,6 +187,9 @@ export async function init(cli: Cli, o: { pack?: string; also?: string } = {}): 
   })
   // after every pack applied: a pack that fails leaves no files behind; the SDLC pack's first, so a file both ship is its
   const claimed = new Set<string>()
-  if (code === 0) for (const dir of dirs) placeFiles(cli, join(dir, 'files'), claimed)
+  if (code === 0) {
+    for (const dir of dirs) placeFiles(cli, join(dir, 'files'), claimed)
+    linkSkills(cli)
+  }
   return code
 }

@@ -170,13 +170,36 @@ describe('persimmon CLI', () => {
   it('init places the pack files when absent, links CLAUDE.md to the AGENTS.md it wrote, and ignores .persimmon/ once (20-pack.md)', async () => {
     const placed = () => out.filter((l) => /^(wrote|kept|ignored) /.test(l))
     expect([await run('init'), err]).toEqual([0, []])
-    expect(placed()).toEqual(['wrote persimmon.yaml', 'wrote .claude/skills/autopilot-code/SKILL.md', 'wrote .claude/skills/autopilot-doc/SKILL.md', 'wrote .claude/skills/autopilot/SKILL.md', 'wrote .claude/skills/autopilot/autopilot.yaml', 'wrote .claude/skills/autopilot/driving.md', 'wrote .claude/skills/copilot/SKILL.md', 'wrote AGENTS.md', 'wrote CLAUDE.md -> AGENTS.md', 'ignored .persimmon/ in .gitignore'])
+    expect(placed()).toEqual(['wrote persimmon.yaml', 'wrote AGENTS.md', 'wrote CLAUDE.md -> AGENTS.md', 'wrote skills/autopilot-code/SKILL.md', 'wrote skills/autopilot-doc/SKILL.md', 'wrote skills/autopilot/SKILL.md', 'wrote skills/autopilot/autopilot.yaml', 'wrote skills/autopilot/driving.md', 'wrote skills/copilot/SKILL.md', 'ignored .persimmon/ in .gitignore'])
     expect(readFileSync(join(dir, 'AGENTS.md'), 'utf8')).toBe(readFileSync('packs/sdlc/files/AGENTS.md', 'utf8'))
     expect(readlinkSync(join(dir, 'CLAUDE.md'))).toBe('AGENTS.md')
     expect(readFileSync(join(dir, '.gitignore'), 'utf8')).toBe('.persimmon/\n')
+    // every skill reaches both agent CLIs through a link; the files stay in skills/
+    const links = out.filter((l) => l.startsWith('linked '))
+    expect(links).toEqual(['.agents/skills', '.claude/skills'].flatMap((d) => ['autopilot', 'autopilot-code', 'autopilot-doc', 'copilot'].map((n) => `linked ${d}/${n} -> ../../skills/${n}`)))
+    expect(readFileSync(join(dir, '.claude', 'skills', 'copilot', 'SKILL.md'), 'utf8')).toBe(readFileSync('packs/sdlc/files/skills/copilot/SKILL.md', 'utf8'))
+    expect(readlinkSync(join(dir, '.agents', 'skills', 'autopilot'))).toBe('../../skills/autopilot')
     out = []
     expect(await run('init')).toBe(0)
-    expect(placed().filter((l) => !l.includes('.claude/'))).toEqual(['kept AGENTS.md']) // never overwritten, never ignored twice
+    expect(placed().filter((l) => !l.includes('skills/'))).toEqual(['kept AGENTS.md']) // never overwritten, never ignored twice
+    expect(out.filter((l) => /^(linked|replaced) /.test(l))).toEqual([]) // links in place say nothing
+  })
+
+  it('init replaces a skill directory an older init wrote with the link, and keeps one of the project\'s own (20-pack.md)', async () => {
+    const older = join(dir, '.claude', 'skills', 'autopilot')
+    mkdirSync(older, { recursive: true })
+    writeFileSync(join(older, 'SKILL.md'), 'older\n')
+    mkdirSync(join(dir, '.persimmon'), { recursive: true })
+    writeFileSync(join(dir, '.persimmon', 'files.json'), JSON.stringify({ '.claude/skills/autopilot/SKILL.md': digestOf(Buffer.from('older\n')) }))
+    const mine = join(dir, '.agents', 'skills', 'copilot')
+    mkdirSync(mine, { recursive: true })
+    writeFileSync(join(mine, 'SKILL.md'), 'mine\n')
+    expect([await run('init'), err]).toEqual([0, []])
+    expect(out).toContain('replaced .claude/skills/autopilot with a link to skills/autopilot')
+    expect(out).toContain('kept .agents/skills/copilot (not a link to skills/copilot)')
+    expect(readlinkSync(older)).toBe('../../skills/autopilot')
+    expect(readFileSync(join(mine, 'SKILL.md'), 'utf8')).toBe('mine\n')
+    expect(Object.keys(JSON.parse(readFileSync(join(dir, '.persimmon', 'files.json'), 'utf8')))).not.toContain('.claude/skills/autopilot/SKILL.md')
   })
 
   it('init keeps a project\'s own AGENTS.md, links no CLAUDE.md to it, and appends to its .gitignore', async () => {
@@ -227,14 +250,14 @@ describe('persimmon CLI', () => {
     writeFileSync(join(dir, 'CLAUDE.md'), 'mine\n')
     writeFileSync(join(dir, '.gitignore'), '/.persimmon\n')
     expect([await run('init'), err]).toEqual([0, []])
-    expect(out.filter((l) => /^(wrote|kept|ignored) (?!\.claude\/)/.test(l))).toEqual(['wrote persimmon.yaml', 'wrote AGENTS.md', 'kept CLAUDE.md (not linked to AGENTS.md: claude-code agents do not read it)'])
+    expect(out.filter((l) => /^(wrote|kept|ignored) (?!skills\/)/.test(l))).toEqual(['wrote persimmon.yaml', 'wrote AGENTS.md', 'kept CLAUDE.md (not linked to AGENTS.md: claude-code agents do not read it)'])
     expect([readFileSync(join(dir, 'CLAUDE.md'), 'utf8'), readFileSync(join(dir, '.gitignore'), 'utf8')]).toEqual(['mine\n', '/.persimmon\n'])
     rmSync(join(dir, 'AGENTS.md'))
     rmSync(join(dir, 'CLAUDE.md'))
     symlinkSync('gone.md', join(dir, 'AGENTS.md'))
     out = []
     expect(await run('init')).toBe(0)
-    expect(out.filter((l) => /^(wrote|kept|ignored) (?!\.claude\/)/.test(l))).toEqual(['kept AGENTS.md']) // lstat: a dangling link is present, never written through
+    expect(out.filter((l) => /^(wrote|kept|ignored) (?!skills\/)/.test(l))).toEqual(['kept AGENTS.md']) // lstat: a dangling link is present, never written through
     expect(readlinkSync(join(dir, 'AGENTS.md'))).toBe('gone.md')
   })
 
@@ -284,7 +307,8 @@ describe('persimmon CLI', () => {
     expect(out).toContain('created KindDefinition/parityledgers.rewrite.persimmon.ai')
     expect(out).toContain('created KindDefinition/prds.sdd.persimmon.ai')
     for (const loop of ['survey', 'inventory', 'characterize', 'recover-prd', 'parity']) expect(out).toContain(`created ReviewLoop/${loop}`)
-    for (const f of ['SKILL.md', 'driving.md']) expect(out).toContain(`wrote .claude/skills/rewrite/${f}`)
+    for (const f of ['SKILL.md', 'driving.md']) expect(out).toContain(`wrote skills/rewrite/${f}`)
+    expect(out).toContain('linked .claude/skills/rewrite -> ../../skills/rewrite')
   })
 
   it('init --pack names a pack under packs/, and refuses one that is not there or a name that leaves packs/', async () => {

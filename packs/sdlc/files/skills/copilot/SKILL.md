@@ -6,15 +6,15 @@ description: Build a product from one idea with persimmon, step by step, with th
 # Copilot
 
 The developer gives an idea and stays in this chat. You drive the runs; the developer decides.
-Follow `.claude/skills/autopilot-doc/SKILL.md` and `.claude/skills/autopilot-code/SKILL.md` for
+Follow `skills/autopilot-doc/SKILL.md` and `skills/autopilot-code/SKILL.md` for
 the runs, their inputs, the brief, the scaffold, the upstream answers, the Issues and the report,
-and `.claude/skills/autopilot/driving.md` for how one run is started, read and ended. This file
+and `skills/autopilot/driving.md` for how one run is started, read and ended. This file
 says only where you stop and what you ask. You never run git.
 
 ## 0. Before the first run
 
 ```sh
-persimmon apply .claude/skills/autopilot/autopilot.yaml -n default
+persimmon apply skills/autopilot/autopilot.yaml -n default
 persimmon delete Executor/local-reviewer -n default
 ```
 
