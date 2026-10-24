@@ -28,7 +28,7 @@ thing is defined.
 | `context`, `source` | the BoundedContext id; the EventStorming id (the revision is provenance) |
 | `aggregates[]` | `{id AG-n, name, root, entities[] {name, attributes[]}, valueObjects[], commands[], events[], invariants[] {statement, rules?}}`; `commands` are the labels `handledBy` it, `events` the labels it `emits`, invariants the `rule` of the constraints on its commands |
 | `events[]` | `{name, pivotal?, temporal?, attributes?}`, every domain event of the context |
-| `policies[]` | `{id POL-n, name, when[], then[], condition?, execution, parameters?}` from `triggers` and `invokes` |
+| `policies[]` | `{id POL-n, name, when[], then[], condition?, execution, parameters?}` from `triggers` and `invokes`; `when` and `then` may be empty, as the storming keeps `untriggered-policy` and `idle-policy` (a policy that answers its caller) as warnings |
 | `readModels[]` | `{name, informs[], updatedBy?, fields[]}` from `informs` and `updates` |
 | `externalSystems[]` | `{name, issues?, handles?, emits?}`, every external system with an edge into or out of the context |
 

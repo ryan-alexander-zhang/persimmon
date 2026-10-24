@@ -825,8 +825,8 @@ spec:
               properties:
                 id: {type: string, pattern: "^POL-[0-9]+$"}
                 name: {type: string, minLength: 1}
-                when: {type: array, minItems: 1, items: {type: string, minLength: 1}, description: "domain event labels that trigger it"}
-                then: {type: array, minItems: 1, items: {type: string, minLength: 1}, description: "command labels it invokes"}
+                when: {type: array, items: {type: string, minLength: 1}, description: "domain event labels that trigger it; may be empty: an untriggered policy the storming kept as a warning"}
+                then: {type: array, items: {type: string, minLength: 1}, description: "command labels it invokes; may be empty: a policy that answers its caller and invokes no command"}
                 condition: {type: string}
                 execution: {enum: [automatic, manual]}
                 parameters: {type: array, items: {type: object, required: [name, value], additionalProperties: false, properties: {name: {type: string, minLength: 1}, value: {type: string}}}}
