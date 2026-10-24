@@ -66,5 +66,11 @@ replaces, so a Scaffold repository changes them only together with this table.
 - A second context comes from a template with placeholders, not from the sample: a sample copied
   under a new name would carry `Order` into `inventory`. The template holds the five poms and a
   `package-info` per layer, so the module graph exists before the first class.
+- The framework's agent instructions travel as a skill inside the Scaffold
+  (`.claude/skills/persimmon-ddd/SKILL.md`), not as a section of `AGENTS.md`: `AGENTS.md` is the
+  SDLC pack's file, updated whole by digest on every `init`, and a second writer would end that. A
+  skill loads when the agent writes code; the pack's files and the Scaffold's share `.claude/skills/`
+  without touching each other. `init` does not refresh the skill (it is not a pack file); a newer
+  Scaffold brings a newer skill to new projects.
 - Two comment markers in the poms are the registration points. A pom parser would be heavier and
   would reformat the developer's file; a developer who removes the markers adds contexts by hand.
