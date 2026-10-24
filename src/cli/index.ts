@@ -1,4 +1,8 @@
 // persimmon CLI (08-store.md verbs). Local mode: every verb drains before exit.
+import { execFileSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import { apply } from './apply.js'
 import type { Cli } from './context.js'
@@ -14,7 +18,7 @@ import { complete, signal } from './signal.js'
 import { ui } from './ui.js'
 import { validate } from './validate.js'
 
-const usage = `usage: persimmon <verb> [args]
+const usage = `usage: persimmon <verb> [args]   (--version, --help)
   validate <files>                         schema plus static rules
   apply <files> [-n ns | --global] [--skip-adapter-validation]
   create <file> [-n ns] [--follow]
@@ -36,6 +40,19 @@ const usage = `usage: persimmon <verb> [args]
   delete <kind>/<name> [-n ns | --global]
   adapter install <manifest> | adapter list | adapter test <id> [--config <file>] [--live]   conformance suite, one line per rule`
 
+/** `persimmon 0.0.0 (a00bdbd)`: the package version and, when run from a checkout, its commit. */
+function versionLine(): string {
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
+  const { version } = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { version: string }
+  let commit = ''
+  try {
+    commit = ` (${execFileSync('git', ['-C', root, 'rev-parse', '--short', 'HEAD'], { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()})`
+  } catch {
+    // installed from a package, no checkout to name
+  }
+  return `persimmon ${version}${commit}`
+}
+
 export async function runCli(argv: string[], cli: Cli): Promise<number> {
   let parsed: ReturnType<typeof parseCliArgs>
   try {
@@ -46,6 +63,10 @@ export async function runCli(argv: string[], cli: Cli): Promise<number> {
     return 2
   }
   const { values, positionals } = parsed
+  if (values.version) {
+    cli.out(versionLine())
+    return 0
+  }
   const [verb, ...rest] = positionals
   if (!verb || values.help) {
     cli.out(usage)
@@ -89,6 +110,7 @@ function parseCliArgs(argv: string[]) {
       pack: { type: 'string' },
       server: { type: 'string' },
       help: { type: 'boolean', short: 'h' },
+      version: { type: 'boolean', short: 'V' },
     },
   })
 }

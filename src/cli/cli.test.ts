@@ -775,6 +775,12 @@ describe('persimmon CLI', () => {
     expect(() => parseInput('novalue')).toThrow(/<port>=<value>/)
   }, 30_000) // init applies the whole SDLC pack before the runs: near five seconds, the default limit
 
+  it('--version prints the package version and the checkout commit, exit 0', async () => {
+    expect(await run('--version')).toBe(0)
+    expect(out.at(-1)).toMatch(/^persimmon \d+\.\d+\.\d+ \([0-9a-f]{7,}\)$/)
+    expect(await run('-V')).toBe(0)
+  })
+
   it('an unknown flag is an error with usage, exit 2', async () => {
     expect(await run('run', 'wf', '--inputs', 'x=1')).toBe(2)
     expect(err.at(-1)).toMatch(/Unknown option '--inputs'/)

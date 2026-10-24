@@ -52,8 +52,8 @@ body:
     id: version
     attributes:
       label: persimmon version
-      description: "`npm ls -g persimmon` or the commit you built from (`git rev-parse --short HEAD`)."
-      placeholder: 0.3.1 / a00bdbd
+      description: "`persimmon --version` (the package version and, from a checkout, the commit)."
+      placeholder: persimmon 0.0.0 (a00bdbd)
     validations:
       required: true
 
