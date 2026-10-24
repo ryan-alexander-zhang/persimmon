@@ -1,0 +1,125 @@
+name: Feature request
+description: A capability persimmon lacks, or a change to how one works.
+title: "[area]: the capability in one line"
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A good request describes a problem a real project hit, not only a solution. persimmon stays small on purpose
+        (one canonical term per concept, one way to do a thing, nothing speculative), so the problem statement decides more than the design.
+        Every design lives in `docs/design/`; a request that names the file it extends is easier to place.
+
+  - type: checkboxes
+    id: before
+    attributes:
+      label: Before you file
+      options:
+        - label: I searched the open and closed issues; this is not a duplicate.
+          required: true
+        - label: I read the README and the `docs/design/` file(s) nearest to this and confirmed persimmon does not already cover it (or covers it badly, and I say how below).
+          required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      multiple: true
+      options:
+        - CLI
+        - persimmon init / packs
+        - persimmon new / Scaffold (a language or framework, a new context shape)
+        - engine (runs, phases, timeouts, parking, retries)
+        - snapshot / digests / revisions / provenance
+        - Gates, Validators, ReviewLoops, Pipelines, Triggers
+        - a new Adapter or an existing one's protocol
+        - Skills
+        - Autopilot / Copilot flow
+        - UI
+        - store
+        - documentation
+        - not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: |
+        What you are trying to do, in which Workflow or project, and what stops you today. Concrete: the Task, the Executor, the number of runs, the failure you saw. "It would be nice if" is not a problem.
+      placeholder: "Our `implement` Task needs the builder to see the previous Plan revision as well as the current one; today a Task context pins one revision, so the agent re-derives the diff ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: today
+    attributes:
+      label: How you work around it today
+      description: The definitions, scripts or manual steps you have instead, and what is wrong with them (duplicated in every Workflow, breaks replayability, a human step that should be a Validator, a second pack ...).
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: |
+        What persimmon would offer. Show the YAML or the command a user would write first; the engine or Adapter change second, if you have one in mind.
+        Name the kinds, fields, commands or flags it adds or changes, and the `docs/design/NN-*.md` file it extends.
+      render: markdown
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other designs, and why they lose. Including "do nothing, document the workaround", "a Namespaced override of a shipped definition", and "a library or tool that already does this" (name it).
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: fit
+    attributes:
+      label: Fit with persimmon's rules
+      description: Tick what the proposal keeps true. An untickable box is not a veto, but say why in the proposal.
+      options:
+        - label: Swapping a worker (human, agent, script) still changes one `executorRef` and nothing else.
+        - label: A run in progress still sees only the definitions it froze by digest.
+        - label: Every reference to produced data still points to an exact revision; no implicit latest.
+        - label: Failed still means "could not complete"; a business rejection stays Succeeded plus a verdict.
+        - label: No business concept enters the engine; shipped kinds and user kinds register the same way.
+        - label: One canonical term per concept (`CONTEXT.md`), one way to do the thing, no new dependency without a decision.
+
+  - type: dropdown
+    id: breaking
+    attributes:
+      label: Compatibility
+      options:
+        - Additive, nothing existing changes
+        - Changes a default (behaviour differs for users who set nothing)
+        - Changes a kind's schema, a command's output, the store layout or the Adapter protocol (a migration or change for users)
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope and non-goals
+      description: What is explicitly out of this request, so a reviewer does not design the whole feature family. Rough size if you can judge it (files under `src/`, a new kind yes/no, a new Adapter yes/no).
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: How we would know it works
+      description: The test or scenario that passes when this is done, as a command sequence or a `*.test.ts` sketch ("apply the Workflow, run it, cancel at the second Task, resume, the third Task sees revision 2").
+
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contribution
+      options:
+        - label: I can write the design section (`docs/design/`, `DESIGN.md` index, `CONTEXT.md` term).
+        - label: I can open a pull request with the implementation and tests.

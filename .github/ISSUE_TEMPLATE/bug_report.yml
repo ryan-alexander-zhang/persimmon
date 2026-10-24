@@ -1,0 +1,168 @@
+name: Bug report
+description: Something persimmon does wrong, crashes on, or documents differently from what it does.
+title: "[area]: one line, the symptom not the guess"
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. A bug we can reproduce in minutes gets fixed in hours; one we cannot reproduce waits.
+        Fill in every section that applies. Paste text, not screenshots of text. Redact prompts and artifacts you cannot share, say so where you did.
+
+  - type: checkboxes
+    id: before
+    attributes:
+      label: Before you file
+      options:
+        - label: I searched the open and closed issues and found no report of this.
+          required: true
+        - label: I reproduced it on the latest `main` (or the latest published version) with `persimmon init` run again in the project.
+          required: true
+        - label: I read the README section and the `docs/design/` file that covers this and the behaviour still looks wrong.
+          required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Where the wrong behaviour lives. Pick the closest; several are fine.
+      multiple: true
+      options:
+        - CLI (apply, run, signal, complete, resume, cancel, get, describe, logs, tree, digest, delete)
+        - persimmon init / packs (sdlc, rewrite, files, skills)
+        - persimmon new / Scaffold / --context
+        - engine (WorkflowRun, TaskRun, phases, timeouts, parking)
+        - snapshot / digests / revisions / provenance
+        - Gates, Validators, ReviewLoops, Pipelines, Triggers
+        - Adapter claude-code/v1
+        - Adapter codex/v1
+        - Adapter subprocess/v1, junit/v1, cli-human/v1
+        - Adapter sdd/v1, eventstorming/v1, designmd/v1, testdesign/v1, parity
+        - Skills (persimmon skill install, skills/ links)
+        - Autopilot / Copilot flow
+        - UI (persimmon ui)
+        - store (sqlite, blobs)
+        - documentation (README, docs/design, CONTEXT.md)
+        - build / tests / CI
+        - not sure
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: persimmon version
+      description: "`npm ls -g persimmon` or the commit you built from (`git rev-parse --short HEAD`)."
+      placeholder: 0.3.1 / a00bdbd
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Fill in what applies. Agent CLIs matter only when an agent Executor is involved.
+      value: |
+        - Node (`node --version`): 
+        - OS: 
+        - Install (`npm i -g` / `npm link` from a checkout): 
+        - `persimmon.yaml` mode (local / other): 
+        - Claude Code (`claude --version`), if involved: 
+        - Codex (`codex --version`), if involved: 
+        - Pack (`init` default sdlc / `--pack rewrite` / your own): 
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened
+      description: The symptom, in the order you saw it. What you ran, what persimmon did. One bug per issue.
+      placeholder: "`persimmon run build-all --input plan=... --follow` parks the run at `implement` with no inbox file, and `persimmon tree` shows the TaskRun as Running ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+      description: The behaviour you believe is correct, and why (a sentence of the README, a `docs/design/NN-*.md` rule, or the principle of least surprise).
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: |
+        The fastest path for a maintainer to see the bug. In order of preference:
+        1. A link to a repository or branch with a project (`persimmon init` done) and the command to run.
+        2. A failing test in `src/**/*.test.ts` or `test/` of this repository.
+        3. Exact numbered commands from an empty directory, with the definition YAML they need pasted below.
+        Prose descriptions of a Workflow rarely suffice; paste the YAML.
+      placeholder: |
+        1. `mkdir repro && cd repro && persimmon init`
+        2. `persimmon apply wf.yaml --global` (YAML below)
+        3. `persimmon run demo --follow`
+        4. observe: ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: definitions
+    attributes:
+      label: Definitions involved
+      description: The YAML of the Workflow, Task, Executor, Gate or Adapter in question, or `persimmon get <Kind>/<name> -n <ns>` output. Trim what is unrelated; keep names and refs exact.
+      render: yaml
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: How often
+      options:
+        - Always
+        - Often (more than half the time)
+        - Sometimes (timing, concurrency or ordering dependent)
+        - Seen once
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and output
+      description: The command's full stderr and stdout, `persimmon logs <run>` and `persimmon tree <run>` for a run problem, the TaskRun's `describe` for an Adapter problem (its exit code, `errorCode`, the raw result). Not just the first line.
+      render: text
+
+  - type: textarea
+    id: state
+    attributes:
+      label: Run and store state (engine, snapshot, adapter bugs)
+      description: "`persimmon describe WorkflowRun/<name> -n <ns>`, the TaskRun(s) in question, and for a revision or digest problem the `persimmon digest` output. Artifacts redacted is fine; keep ids, revisions, phases and timestamps."
+      render: text
+
+  - type: textarea
+    id: regression
+    attributes:
+      label: Regression?
+      description: Did this work on an earlier version or commit? Which one? If you bisected, the commit where it broke.
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Workaround
+      description: What you did to get past it, if anything. Helps others until the fix ships.
+
+  - type: textarea
+    id: analysis
+    attributes:
+      label: Your analysis (optional)
+      description: If you read the code, where you think it goes wrong (file and line under `src/` or `adapters/`), which design file it contradicts, and why. A guess labelled as a guess is welcome.
+
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contribution
+      options:
+        - label: I can open a pull request with a failing test.
+        - label: I can open a pull request with a fix.
