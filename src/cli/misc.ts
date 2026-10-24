@@ -9,17 +9,23 @@ import { localActor } from '../engine.js'
 import { owns } from '../reconcile/dispatch.js'
 import type { Cli } from './context.js'
 import { withEngine } from './context.js'
+import { parkedOn } from './create.js'
 import { find, type Where } from './get.js'
 import { parseRef } from './io.js'
 
 /** `persimmon resume [--follow]`: redeliver unacked Events and outstanding calls, drain the Outbox. start() marks open calls unknown.
- * `--follow` keeps draining until no run of this project has a timer pending, so the open runs end or park. */
+ * `--follow` keeps draining until the open runs end or park: no timer pending, or every live TaskRun waits on a human (then the `complete` command of each, as `run --follow` prints it). */
 export async function resume(cli: Cli, o: { follow?: boolean } = {}): Promise<number> {
   return withEngine(cli, async (engine) => {
     cli.out(`open events: ${engine.store.runLog.listOpen().length}`)
     if (!o.follow) return 0
     for (;;) {
       await engine.drain()
+      const parked = parkedOn(engine.store.resources.list('TaskRun')) // a parked run still holds its deadline timer; waiting for it is not draining
+      if (parked.length) {
+        for (const p of parked) cli.out(`parked on you: persimmon complete ${p.metadata.name}`)
+        return 0
+      }
       const next = engine.store.timers.due('9999-12-31T23:59:59Z').find((t) => owns(engine.dispatch, t.uid))
       if (!next) return 0
       await new Promise((r) => setTimeout(r, Math.max(0, Date.parse(next.at) - Date.now())))

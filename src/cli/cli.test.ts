@@ -533,6 +533,10 @@ describe('persimmon CLI', () => {
     expect(out).toContain('ask   TaskRun   cli-human/v1   Waiting human') // follow lines carry the tree's words
     expect(out.some((l) => /^└─ ask   TaskRun   cli-human\/v1\s+Waiting human/.test(l))).toBe(true) // the tree once it parks
     expect(out).toContain(`      persimmon complete ${name}-ask`)
+    // resume --follow returns too: the parked Task holds its deadline timer, which is no reason to wait
+    out = []
+    expect(await run('resume', '--follow')).toBe(0)
+    expect(out).toEqual(['open events: 0', `parked on you: persimmon complete ${name}-ask`])
     out = []
     expect(await run('get', `WorkflowRun/${name}`)).toBe(0)
     expect(parse(out.join('\n')).spec.timeout).toBeUndefined() // the Workflow's 3h applies in the Handler

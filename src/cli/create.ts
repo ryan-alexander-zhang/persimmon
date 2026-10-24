@@ -187,7 +187,7 @@ function children(engine: Engine, owner: Resource, seen: Set<string>): Resource[
 
 /** The human Tasks the run waits on, when nothing else is in flight: every TaskRun is finished or waits on a human, at least one does. */
 // ponytail: only TaskRuns can idle on a timer today; a run kind that gains a poll or backoff wait must count as busy here too
-function parkedOn(runs: Resource[]): Resource[] {
+export function parkedOn(runs: Resource[]): Resource[] {
   const tasks = runs.filter((r) => r.kind === 'TaskRun')
   const human = tasks.filter((r) => phaseOf(r) === 'Waiting' && (r.status as { waitingReason?: string }).waitingReason === 'human')
   const busy = tasks.some((r) => !['Succeeded', 'Failed', 'Cancelled'].includes(phaseOf(r) ?? '') && !human.includes(r))
