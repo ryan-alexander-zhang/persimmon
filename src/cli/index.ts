@@ -36,7 +36,7 @@ const usage = `usage: persimmon <verb> [args]   (--version, --help)
   init [--pack <name>]                              --pack: also install packs/<name> after the SDLC pack (the rewrite pack)
   new <dir> --lang java --framework ddd [--group <groupId>] [--from <path>]   copy that Scaffold into <dir>, rename its coordinates, init inside
   new --context <name> [--from <path>]              add an empty bounded context to the project here: <name>/ with its five modules, registered in pom.xml and start/pom.xml
-  ui [--port <n>]                                   the local API and the built tools on 127.0.0.1 (default port 4747)
+  ui [--port <n>] [--read-only]                     the local API and the built tools on 127.0.0.1 (default port 4747); --read-only: no lock, no POST, watch a project another verb drives
   delete <kind>/<name> [-n ns | --global]
   adapter install <manifest> | adapter list | adapter test <id> [--config <file>] [--live]   conformance suite, one line per rule`
 
@@ -93,6 +93,7 @@ function parseCliArgs(argv: string[]) {
       config: { type: 'string' },
       live: { type: 'boolean' },
       port: { type: 'string' },
+      'read-only': { type: 'boolean' },
       payload: { type: 'string' },
       'event-id': { type: 'string' },
       file: { type: 'string' },
@@ -167,7 +168,7 @@ async function dispatchVerb(cli: Cli, verb: string, rest: string[], values: Retu
         if (values.context === undefined) need(1, '<dir>')
         return await newProject(cli, rest[0], { lang: values.lang, framework: values.framework, group: values.group, from: values.from, context: values.context })
       case 'ui':
-        return await ui(cli, values.port ? { port: Number(values.port) } : {})
+        return await ui(cli, { ...(values.port ? { port: Number(values.port) } : {}), ...(values['read-only'] ? { readOnly: true } : {}) })
       case 'delete':
         need(1, '<kind>/<name>')
         return await del(cli, rest[0]!, where)

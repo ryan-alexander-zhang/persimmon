@@ -38,6 +38,14 @@ describe('persimmon ui server', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
+  it('read-only: reads but refuses every POST', async () => {
+    await server.close()
+    server = await serve(engine, { port: 0, toolsDir: tools, readOnly: true })
+    expect((await get('/api/kinds')).status).toBe(200)
+    const r = await post(`/api/artifacts/default/${KIND}/x`, { content: model('x') })
+    expect([r.status, (await r.json()).error.code]).toEqual([409, 'read_only'])
+  })
+
   it('lists revisioned kinds, creates revisions and reads them back', async () => {
     const kinds = (await (await get('/api/kinds')).json()) as { name: string }[]
     expect(kinds).toContainEqual({ name: KIND, apiVersion: 'sdd.persimmon.ai/v1', kind: 'EventStorming', plural: 'eventstormings' })

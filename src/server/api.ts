@@ -24,8 +24,9 @@ class HttpError extends Error {
 const maxBody = 16 * 1024 * 1024
 
 /** Answers one `/api/...` request. */
-export async function api(engine: Engine, req: IncomingMessage, res: ServerResponse): Promise<void> {
+export async function api(engine: Engine, req: IncomingMessage, res: ServerResponse, readOnly = false): Promise<void> {
   try {
+    if (readOnly && req.method !== 'GET') throw new HttpError(409, 'read_only', 'persimmon ui --read-only: answer at the terminal with persimmon complete')
     // a page on any origin can reach loopback: a DNS-rebound host reads the Store, a cross-site no-cors POST writes it;
     // the Host header and a JSON content type (which forces a CORS preflight no page passes) keep it to this user's tabs
     const port = (req.socket.address() as { port?: number }).port

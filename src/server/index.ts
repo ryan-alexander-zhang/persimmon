@@ -8,6 +8,8 @@ import { serveStatic, toolsRoot } from './static.js'
 export interface ServeOptions {
   port?: number
   toolsDir?: string
+  /** no POST: the engine is not listening (25-ui.md read-only) */
+  readOnly?: boolean
 }
 
 export async function serve(engine: Engine, o: ServeOptions = {}): Promise<{ close: () => Promise<void>; port: number }> {
@@ -21,7 +23,7 @@ export async function serve(engine: Engine, o: ServeOptions = {}): Promise<{ clo
       return res.end(JSON.stringify({ error: { code: 'bad_request', message: (e as Error).message } }))
     }
     if (path === '/') return redirect(res, '/tools/progress/') // where the product stands, and the gate waiting on you (37-progress.md)
-    if (path.startsWith('/api/')) return void api(engine, req, res)
+    if (path.startsWith('/api/')) return void api(engine, req, res, o.readOnly === true)
     if (path.startsWith('/tools/') && serveStatic(toolsDir, path.slice('/tools/'.length), res)) return
     res.writeHead(404, { 'content-type': 'application/json; charset=utf-8' })
     res.end(JSON.stringify({ error: { code: 'not_found', message: `no route ${req.method} ${path}` } }))
