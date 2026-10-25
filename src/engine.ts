@@ -189,8 +189,8 @@ export class Engine {
       if (alive)
         try {
           process.kill(pid, 0)
-        } catch {
-          alive = false // stale lock from a killed process
+        } catch (e) {
+          if ((e as NodeJS.ErrnoException).code === 'ESRCH') alive = false // stale lock from a killed process; EPERM is a live process of another user
         }
       if (alive) throw new Error(`another persimmon process (pid ${pid}) is running in this project; wait for it or stop it`)
       rmSync(file, { force: true }) // stale: take it over, once
