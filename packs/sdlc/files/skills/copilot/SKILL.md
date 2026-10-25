@@ -103,6 +103,8 @@ persimmon complete <taskRun> --file .persimmon/autopilot/<taskRun>.yaml
 Never edit the form; never answer one the developer has not decided; a form that is neither
 `decide-*` nor `confirm-*` is a Task on a human Executor the overrides do not cover: report it.
 Before you ask, read the store again: a form the developer answered in `persimmon ui` is gone.
+Tell the developer to watch with `persimmon ui --read-only`: a listening `persimmon ui` holds the
+project lock, and `run`, `complete` and `resume` refuse to start while it runs.
 
 ## 4. After each run
 
