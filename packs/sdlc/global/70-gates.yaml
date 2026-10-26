@@ -212,6 +212,24 @@ spec:
 ---
 apiVersion: persimmon.ai/v1
 kind: Gate
+metadata: {name: block-gate}
+spec:
+  inputs:
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+    designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}}
+  outputs:
+    result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
+  validators:
+    - name: coverage
+      ref: {kind: Validator, name: block-coverage}
+      inputs:
+        architecture: {fromInput: architecture}
+        designs: {fromInput: designs}
+  policy: {strategy: all}
+  timeout: 5m
+---
+apiVersion: persimmon.ai/v1
+kind: Gate
 metadata: {name: plan-gate}
 spec:
   inputs:

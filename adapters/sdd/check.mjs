@@ -376,6 +376,22 @@ export function checkCoverage({ domainModel, designs = {}, ids = {} }) {
   })
 }
 
+// One Architecture against every Design that names it (29-design-process.md): each level-1 block that provides an interface
+// has a Design whose `block` is it, or is `block-undesigned`, a warning naming the interfaces it provides, so a block left
+// out of design-all's blocks is seen before plan-all. A block with only `requires` interfaces (a client, a release loop)
+// needs no contract. `designs` is artifact id → content; `ids.architecture` is the bound Architecture's artifact id.
+export function checkBlocks({ architecture, designs = {}, ids = {} }) {
+  if (!architecture || !Array.isArray(architecture.buildingBlocks)) {
+    return [{ severity: 'error', code: 'not-an-architecture', message: 'content is not an Architecture: it has no buildingBlocks array' }]
+  }
+  const designed = new Set(Object.values(designs).filter((d) => d?.architecture === ids.architecture).map((d) => d.block))
+  return architecture.buildingBlocks
+    .filter((b) => !b.parent && !designed.has(b.id))
+    .map((b) => ({ block: b, provides: (b.interfaces ?? []).filter((i) => i.kind === 'provides').map((i) => i.name) }))
+    .filter(({ provides }) => provides.length)
+    .map(({ block, provides }) => ({ severity: 'warning', code: 'block-undesigned', message: `${block.id} ${block.name}: provides ${provides.join(', ')}; no Design of ${ids.architecture} names it` }))
+}
+
 // One Plan against the Spec it builds, the Architecture its tasks name blocks of, and the Designs it realises elements
 // of; `designs` is artifact id → content, paired by the caller from inputs.designs.refs and artifacts.designs.
 // `ids` are the bound inputs' artifact ids, `{spec, architecture}`, which a content never carries. `domainModel`: which

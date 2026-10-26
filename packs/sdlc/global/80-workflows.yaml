@@ -635,6 +635,7 @@ spec:
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: {expression: "inputs.type != 'ui'"}, description: "what the elements realise; a ui Design realises operations of `designs` instead"}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: {expression: "inputs.type != 'ui'"}, description: "the names the document uses; not for a ui Design"}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}, required: false, description: "the Adrs the Architecture applies, so the writer names in `decisions` the ones that concern the block"}
     designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: {expression: "inputs.type == 'ui'"}, description: "for a ui Design: the product's DesignSystem (32-ui-design-process.md)"}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: {expression: "inputs.type == 'ui'"}, description: "for a ui Design: the http-api Designs of the interfaces the block requires; its elements realise their operations"}
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "the Design this run revises"}
@@ -658,6 +659,7 @@ spec:
         domainModel: {fromInput: domainModel, onMissing: omit}
         glossary: {fromInput: glossary, onMissing: omit}
         rules: {fromInput: rules}
+        adrs: {fromInput: adrs, onMissing: omit}
         designSystem: {fromInput: designSystem, onMissing: omit}
         designs: {fromInput: designs, onMissing: omit}
         base: {fromInput: base, onMissing: omit}
@@ -687,6 +689,7 @@ spec:
         domainModel: {fromInput: domainModel, onMissing: omit}
         glossary: {fromInput: glossary, onMissing: omit}
         rules: {fromInput: rules}
+        adrs: {fromInput: adrs, onMissing: omit}
         designSystem: {fromInput: designSystem, onMissing: omit}
         designs: {fromInput: designs, onMissing: omit}
         previous: {fromStep: {stepRef: write, output: design}}
@@ -716,6 +719,7 @@ spec:
         domainModel: {fromInput: domainModel, onMissing: omit}
         glossary: {fromInput: glossary, onMissing: omit}
         rules: {fromInput: rules}
+        adrs: {fromInput: adrs, onMissing: omit}
         designSystem: {fromInput: designSystem, onMissing: omit}
         designs: {fromInput: designs, onMissing: omit}
         previous: {first: [{fromStep: {stepRef: record, output: design}}, {fromStep: {stepRef: write, output: design}}]}
@@ -757,6 +761,7 @@ spec:
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: {expression: "inputs.type != 'ui'"}}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: {expression: "inputs.type != 'ui'"}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}, required: false, description: "the Adrs the Architecture applies, so the writer names in `decisions` the ones that concern the block"}
     designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: {expression: "inputs.type == 'ui'"}}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: {expression: "inputs.type == 'ui'"}}
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "the Design this run revises; bound with changes"}
@@ -772,6 +777,7 @@ spec:
       domainModel: {fromInput: domainModel}
       glossary: {fromInput: glossary}
       rules: {fromInput: rules}
+      adrs: {fromInput: adrs, onMissing: omit}
       designSystem: {fromInput: designSystem}
       designs: {fromInput: designs}
       base: {fromInput: base}
@@ -805,6 +811,7 @@ spec:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     blocks: {type: {kind: value, schema: {type: array, minItems: 1, maxItems: 40, items: {type: object, required: [block, type], additionalProperties: false, properties: {block: {type: string, pattern: "^BB-[0-9]+$"}, type: {type: string, enum: [http-api, async-api, data-schema, ui]}, interface: {type: string, minLength: 1, description: "which provided interface, for a block with several"}, qualifier: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 7, description: "a label in the Design id when a block gets two Designs of one type; short: the id <architecture>-<block>-<qualifier>-<type> is at most 63 characters"}, context: {type: string, pattern: "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", maxLength: 40, description: "the bounded context whose DomainModel and Glossary the Design realises, <context>-model and <context>-glossary; every type but ui"}}}}}, description: "one entry per Design: the block, the type, its interface and qualifier when it has several of one type, and its context for every type but ui"}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}, required: false, description: "the Adrs the Architecture applies, so the writer names in `decisions` the ones that concern the block"}
     designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: {expression: "inputs.blocks.exists(b, b.type == 'ui')"}, description: "with a ui entry"}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: {expression: "inputs.blocks.exists(b, b.type == 'ui')"}, description: "with a ui entry: the http-api Designs its screens call"}
   outputs:
@@ -824,6 +831,7 @@ spec:
         domainModel: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}, id: "has(state.block.context) ? state.block.context + '-model' : ''"}, onMissing: omit}   # the context's, as derive-domain names it (26-domain-discovery.md)
         glossary: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}, id: "has(state.block.context) ? state.block.context + '-glossary' : ''"}, onMissing: omit}
         rules: {fromInput: rules}
+        adrs: {fromInput: adrs, onMissing: omit}
         designSystem: {fromInput: designSystem, onMissing: omit}
         designs: {fromInput: designs, onMissing: omit}
       timeout: 9600h   # a ceiling for the whole repeat: forty loops at a loop's full 240h (a repeat timeout bounds the whole loop, 11-workflow.md)
@@ -871,6 +879,35 @@ spec:
       inputs:
         domainModel: {fromInput: domainModel}
         designs: {fromQuery: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}, where: "has(content.domainModel) && content.domainModel == inputs.domainModel.id"}}
+      timeout: 5m
+  transitions:
+    - id: done
+      from: [{stepRef: coverage, outcomes: [Succeeded, Failed]}]
+      to:
+        - {terminal: Succeeded, when: 'steps.coverage.phase == "Succeeded"'}
+        - {terminal: Failed, reason: gate_error}
+      dispatch: first
+  timeout: 1h
+---
+# Every level-1 block of an Architecture that provides an interface has a Design (29-design-process.md): a report before
+# plan-all, so a block left out of design-all's blocks is named here and not by a Plan's open question.
+apiVersion: persimmon.ai/v1
+kind: Workflow
+metadata: {name: block-coverage}
+spec:
+  inputs:
+    architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
+  outputs:
+    passed: {type: {kind: value, schema: {type: boolean}}}
+  outputBindings:
+    passed: {expression: "steps.coverage.outputs.result.passed"}
+  entry: [coverage]
+  steps:
+    - id: coverage
+      uses: {kind: Gate, name: block-gate}
+      inputs:
+        architecture: {fromInput: architecture}
+        designs: {fromQuery: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}, where: "has(content.architecture) && content.architecture == inputs.architecture.id"}}
       timeout: 5m
   transitions:
     - id: done

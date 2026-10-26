@@ -47,8 +47,12 @@ else the idea does not say; what it leaves open is a question in the brief, for 
    `<architecture id>-<block>-<qualifier>-<type>` is at most 63 characters), one `data-schema`
    entry when it or a child block stores data; `context` the bounded context the block (or that
    interface) realises, from the Architecture's block `contexts`. A block with no context (an event
-   bus, a scheduler, a database) gets no entry. Inputs: `blocks`, `architecture`, `rules`. The
-   blocks run side by side.
+   bus, a scheduler, a database) gets no entry. List the entries mechanically from the Architecture's
+   `buildingBlocks`, every level-1 block with a `provides` interface, never from memory. Inputs: `blocks`,
+   `architecture`, `rules`, `adrs` (`kind:Adr`, so the writer names in `decisions` the Adrs that concern
+   the block). The blocks run side by side. Then `block-coverage`, one run: `architecture`; each
+   `block-undesigned` warning names a block `blocks` left out: add its entries and run `design-all`
+   again before `plan-all`.
 6. When the Architecture has client blocks: `design-system` (`prd`, `architecture`), then
    `design-all` again with one `{block, type: ui}` entry per client block, `designSystem`, and
    `designs` the `http-api` Designs they call, `architecture`, `rules`.

@@ -978,6 +978,32 @@ describe('sdd/v1 over an Architecture', () => {
   })
 })
 
+describe('sdd/v1 over an Architecture: block coverage', () => {
+  // block-coverage (29-design-process.md): every level-1 block that provides an interface has a Design naming it, or is block-undesigned, a warning
+  const ref = (kind: string, id: string) => ({ apiVersion: 'sdd.persimmon.ai/v1', kind, namespace: 'default', id, revision: 1 })
+  const findings = async (architecture: unknown, designs: { id: string; content: unknown }[]) => {
+    const r = await adapter({ id: ++id, op: 'evaluate', payload: {
+      ...payload({ architecture }),
+      inputs: { architecture: { kind: 'artifact', ref: ref('Architecture', 'expense-claims-architecture') }, designs: { kind: 'artifacts', refs: designs.map((d) => ref('Design', d.id)) } },
+      artifacts: { architecture: { content: architecture, provenance }, designs: designs.map((d) => ({ content: d.content, provenance })) },
+    } })
+    return r.result as { passed: boolean; findings: { severity: string; code: string; message: string }[] }
+  }
+  it('names every level-1 block providing an interface that no Design names, as warnings on a pass', async () => {
+    const r = await findings(content('Architecture'), [{ id: 'claims-api', content: content('Design') }])
+    expect(r.passed).toBe(true)
+    expect(r.findings.map((f) => [f.severity, f.code, f.message.split(':')[0]])).toEqual([
+      ['warning', 'block-undesigned', 'BB-2 receipt store'], ['warning', 'block-undesigned', 'BB-3 risk check'], ['warning', 'block-undesigned', 'BB-4 export gateway'],
+    ]) // BB-1 has claims-api; BB-5, the web client, provides nothing
+    expect(r.findings[0].message).toBe('BB-2 receipt store: provides blob API; no Design of expense-claims-architecture names it')
+  })
+  it('is silent once every providing block has a Design, and skips a Design of another Architecture', async () => {
+    const of = (block: string, architecture = 'expense-claims-architecture') => ({ ...(content('Design') as object), block, architecture })
+    expect((await findings(content('Architecture'), [{ id: 'a', content: of('BB-1') }, { id: 'b', content: of('BB-2') }, { id: 'c', content: of('BB-3') }, { id: 'd', content: of('BB-4') }])).findings).toEqual([])
+    expect((await findings(content('Architecture'), [{ id: 'a', content: of('BB-1') }, { id: 'b', content: of('BB-2', 'other-architecture') }, { id: 'c', content: of('BB-3') }, { id: 'd', content: of('BB-4') }])).findings.map((f) => f.code)).toEqual(['block-undesigned'])
+  })
+})
+
 describe('sdd/v1 over a DomainModel: coverage', () => {
   // domain-coverage (29-design-process.md): every name the model owns has a Design element realising it, or is unrealised, a warning
   const ref = (kind: string, id: string) => ({ apiVersion: 'sdd.persimmon.ai/v1', kind, namespace: 'default', id, revision: 1 })

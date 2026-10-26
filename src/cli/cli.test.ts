@@ -51,7 +51,7 @@ describe('persimmon CLI', () => {
     expect(out).toContain('created Pipeline/domain-discovery') // the SDLC pack (23-pack-sdlc.md) is the default flow
     out = []
     expect(await run('get', 'Workflow')).toBe(0)
-    expect(out).toEqual(['Workflow/build-all', 'Workflow/build-work', 'Workflow/derive-all', 'Workflow/design-all', 'Workflow/design-check', 'Workflow/design-coverage', 'Workflow/design-draft', 'Workflow/design-system-draft', 'Workflow/harness-work', 'Workflow/plan-all', 'Workflow/plan-draft', 'Workflow/prd-draft', 'Workflow/spec-all', 'Workflow/spec-draft', 'Workflow/storming-draft', 'Workflow/test-design-all', 'Workflow/test-design-draft']) // the pack is Global (20-pack.md)
+    expect(out).toEqual(['Workflow/block-coverage', 'Workflow/build-all', 'Workflow/build-work', 'Workflow/derive-all', 'Workflow/design-all', 'Workflow/design-check', 'Workflow/design-coverage', 'Workflow/design-draft', 'Workflow/design-system-draft', 'Workflow/harness-work', 'Workflow/plan-all', 'Workflow/plan-draft', 'Workflow/prd-draft', 'Workflow/spec-all', 'Workflow/spec-draft', 'Workflow/storming-draft', 'Workflow/test-design-all', 'Workflow/test-design-draft']) // the pack is Global (20-pack.md)
     out = [] // the demo pack (20-pack.md) applies like any user definitions: global/ as Global, its Trigger into the default Namespace
     expect([await run('apply', ...demoPack, '--global'), out.filter((l) => !l.startsWith('created'))]).toEqual([0, ['unchanged Executor/local-reviewer']]) // same definition in both packs
     out = []
@@ -330,7 +330,7 @@ describe('persimmon CLI', () => {
     expect(out).toEqual(['Workflow/prd-approval', 'Workflow/prd-create']) // the SDLC pack is not in this store
     out = [] // so a Workflow stepping into a ReviewLoop of the same files resolves on validate's second pass only (08-store.md)
     expect([await run('validate', ...sdlcPack), out.filter((l) => !l.startsWith('ok'))]).toEqual([0, []])
-    expect(out.length).toBe(171) // 7 draft Workflows, 9 decide Tasks, owner-decisions and owner-review, 4 check Gates
+    expect(out.length).toBe(174) // 7 draft Workflows, 9 decide Tasks, owner-decisions and owner-review, 4 check Gates, block-coverage (a Validator, a Gate, a Workflow)
   })
 
   it('get --passed picks the latest revision a run put out beside passed: true; a rejected round\'s later draft is never one', async () => {

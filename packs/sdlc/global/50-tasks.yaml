@@ -287,6 +287,7 @@ spec:
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: {expression: "inputs.type != 'ui'"}, description: "what the elements realise; a ui Design realises operations of `designs` instead"}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: {expression: "inputs.type != 'ui'"}, description: "the names the document uses; not for a ui Design"}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
+    adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}, required: false, description: "the Adrs the Architecture applies, named in `decisions` where they concern the block"}
     designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: {expression: "inputs.type == 'ui'"}, description: "for a ui Design: the product's DesignSystem (32-ui-design-process.md)"}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: {expression: "inputs.type == 'ui'"}, description: "for a ui Design: the http-api Designs of the interfaces the block requires; its elements realise their operations"}
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "the Design this run revises"}
@@ -320,6 +321,7 @@ spec:
       - {kind: artifact, input: domainModel}
       - {kind: artifact, input: glossary}
       - {kind: artifact, input: rules}
+      - {kind: artifact, input: adrs}
       - {kind: artifact, input: designSystem}
       - {kind: artifact, input: designs}
       - {kind: artifact, input: base}
