@@ -476,8 +476,8 @@ _Avoid_: attribute, column (bare), property (bare), schema field
 **Artifact kind**, one per product (`BR-n` unique across it); a Prd, Spec, Design or Architecture
 names it in `businessRules`, so a `BR-n` there is a pair with that artifact id (a DomainModel,
 DecisionTable or Adr cites `BR-n` through the artifact it hangs off): `BR-n` facts, constraints, derivations, decisions that outlive
-any **Prd** or **Spec**; one RuleSpeak `statement` each, in the business's own words with no
-technical semantics, optional typed `logic` over **Fact types**; withdrawn rules stay `deprecated`.
+any **Prd** or **Spec**; one RuleSpeak `statement` each, holding whatever the system is built
+from, optional typed `logic` over **Fact types**; withdrawn rules stay `deprecated`.
 _Avoid_: policies, domain rules, constraints (bare)
 
 **Decision rule**:

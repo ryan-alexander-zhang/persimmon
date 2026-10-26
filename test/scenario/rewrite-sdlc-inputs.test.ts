@@ -157,13 +157,13 @@ describe('the SDLC pack takes a Rewrite pack inventory and base, optionally', ()
     }
   })
 
-  it('a business rule carries no technical semantics, for the writer, the owner and the auditor', () => {
+  it('a business rule holds whatever the system is built from, for the writer, the owner and the auditor', () => {
     const prompts = parseAllDocuments(readFileSync('packs/sdlc/global/30-prompts.yaml', 'utf8')).map((d) => d.toJS())
     const content = (name: string): string => prompts.find((d) => d.metadata.name === name).spec.content
-    expect(content('prd-rules')).toMatch(/no technical semantics/)
-    expect(content('prd-rules')).toMatch(/answer with technical semantics is no rule/)
-    expect(content('owner-decisions')).toMatch(/Prd question is answered in the business's own words/)
-    expect(content('draft-audit-rules')).toMatch(/`rule-technical` \(error\)/)
+    expect(content('prd-rules')).toMatch(/holds whatever the system is built from/)
+    expect(content('prd-rules')).toMatch(/exists only because of how this system is built is no rule/)
+    expect(content('owner-decisions')).toMatch(/Prd question is answered with what holds whatever the system is/)
+    expect(content('draft-audit-rules')).toMatch(/`rule-build-bound` \(error\)/)
   })
 
   it('a Spec, Design, Plan or TestDesign draft checks itself before the owner and the Gate', () => {

@@ -28,12 +28,12 @@ form is refused by the engine when wrong and the method is a Prompt a Namespace 
 
 | Member | Content |
 |---|---|
-| Prompt `prd-rules` | problem before solution; users as roles; goals are direction and success criteria carry the number, measured in production; the Prd names the brief's subdomains, typed core, supporting or generic (`34-subdomains.md`); a capability is one Spec's worth with its subdomain and the rules that govern it; a rule is written into `BusinessRules`, never into the Prd, in the business's own words with no technical semantics (what exists only because of how the system is built is no rule and belongs to the Spec or Design that owns it); what is refused is a non-goal; an unknown is a `Q-n`, and a `Q-n` answered with a business policy also becomes a `BR-n` sourced from that answer, while an answer with technical semantics stays a resolution carried `upstream` |
+| Prompt `prd-rules` | problem before solution; users as roles; goals are direction and success criteria carry the number, measured in production; the Prd names the brief's subdomains, typed core, supporting or generic (`34-subdomains.md`); a capability is one Spec's worth with its subdomain and the rules that govern it; a rule is written into `BusinessRules`, never into the Prd, and holds whatever the system is built from (what exists only because of how this system is built is no rule and belongs to the Spec or Design that owns it); what is refused is a non-goal; an unknown is a `Q-n`, and a `Q-n` answered with a policy also becomes a `BR-n` sourced from that answer, while an answer of this build alone stays a resolution carried `upstream` |
 | Executor `prd-agent` | `claude-code/v1`, read-only, its own name so a Namespace picks the model per Task |
 | Task `draft-prd` | inputs `brief` (text), `productId` (the id stem), `rules` and `glossary` (optional, the product's current ones), `previous` (the last Prd), `previousRules` (the last round's rules, carried by the loop), `feedback`, and optional `base` (the Prd as it stands, `rules` then its BusinessRules) with `changes` (downstream answers, `<artifact id> Q-n: <resolution>`), applied to both and nothing else, every `CAP-n`, `G-n`, `BR-n` and `Q-n` kept (`38-autopilot.md`); outputs `prd` (with the `subdomains` the brief describes) and `rules` (the product's BusinessRules: the input artifact's rules carried forward plus the brief's); `decisions?` (the owner's answers to this round's open questions, recorded with `previous` the draft and `previousRules` its rules); output `open`, the ids of its open `Q-n` |
 | Task `decide-prd`, Workflow `prd-draft` | the owner decides a draft's open questions inside the round (`23-pack-sdlc.md`): `prd-draft` runs `draft-prd`, then, when `open` names any, `decide-prd` on `local-reviewer` (inputs `draft`, `open`, `rules`, `brief`; output `decisions`; Prompt `owner-decisions`) and `draft-prd` again with `decisions`; outputs `prd` and `rules` from whichever path ran (`first`) |
 | Task `confirm-prd` | human on `cli-human/v1`: reads the Prd and the rules at the terminal, approves or rejects with one finding per id; with `base` bound, confirms what changed against it, what it settled stands |
-| Validators | `prd-consistency`: `sdd/v1` over `prd` and `rules` (`rules-mismatch` when the Prd's `businessRules` is not the artifact bound), and from round two `previousRules` and `feedback` (`rule-drift`: a rule dropped, or changed in statement or status, that no finding of the last verdict names); `prd-audited`: `task` over `audit-prd` (inputs `prd`, `rules`, and from round two `previous`, `previousRules`, `feedback`; Executor `auditor`; the Prompt `draft-audit-rules`, part "A Prd": `rule-conflict`, `rule-misplaced` and `rule-technical` errors, `capability-overlap` and `vague-term` warnings; `23-pack-sdlc.md`); `prd-confirmed`: over `confirm-prd`, whose form shows the auditor's verdict as `audit` (`fromValidator: audit`) |
+| Validators | `prd-consistency`: `sdd/v1` over `prd` and `rules` (`rules-mismatch` when the Prd's `businessRules` is not the artifact bound), and from round two `previousRules` and `feedback` (`rule-drift`: a rule dropped, or changed in statement or status, that no finding of the last verdict names); `prd-audited`: `task` over `audit-prd` (inputs `prd`, `rules`, and from round two `previous`, `previousRules`, `feedback`; Executor `auditor`; the Prompt `draft-audit-rules`, part "A Prd": `rule-conflict`, `rule-misplaced` and `rule-build-bound` errors, `capability-overlap` and `vague-term` warnings; `23-pack-sdlc.md`); `prd-confirmed`: over `confirm-prd`, whose form shows the auditor's verdict as `audit` (`fromValidator: audit`) |
 | Gate `prd-gate` | all three, `all`; `audit` `after: [consistency]`, `confirmed` `after: [consistency, audit]`, so the human confirms only a draft the check and the auditor passed (`14-gate.md`) |
 | ReviewLoop `author-prd` | `produce` `prd-draft` (73h: the owner may be a human), `review` `prd-gate` (`base` passed to its auditor and its confirm), `maxRounds: 4` (a Prd from a brief alone settles the most questions, and each answer can move a rule); the subject is the Prd; `carry: {rules: previousRules}`, and the review reads `previousRules` and `feedback` (`21-composition.md`) |
 
@@ -64,7 +64,7 @@ conformance suite's name) runs `checkSpec`; otherwise `artifacts.prd` runs `chec
 | the `rules` output is `<productId>-rules` and the Prd `<productId>-prd` (`outputs.<port>.id`, `12-task.md`): a second run with the same `productId` publishes their next revisions, so the rules a Prd run writes are revision n+1 of the context's rules when the input was named the same way | `draft-prd` outputs |
 | `author-prd` writes the first Prd of a product: the agent names the subdomains from the brief and the human confirms them at `prd-gate`; the storming cuts the bounded contexts later (`34-subdomains.md`); `productId` stems the Prd's and the rules' ids | convention |
 | the Task writes the whole `BusinessRules` artifact each round, from `previousRules` when the loop carries them and from the input `rules` in round one; a `BR-n` keeps its id, statement and status unless a finding of the last verdict names it, a new policy takes the next number; `prd-consistency` refuses a Prd citing a rule the produced artifact lacks, and `rule-drift` a rule changed or dropped unasked | `prd-consistency`; `21-composition.md` |
-| a new rule carries `status: active`, `source` naming the brief, or the `Q-n` whose answer is a policy, and `logic` only when the brief states the condition; a rule the brief implies but does not state is a `Q-n`, not a rule, until a human answers it with a business policy: then also a rule, one per subdomain it governs, unless an existing `BR-n` already says it | `prd-rules`; `confirm-prd` names the `BR-n` beside a `Q-n` it changes again |
+| a new rule carries `status: active`, `source` naming the brief, or the `Q-n` whose answer is a policy, and `logic` only when the brief states the condition; a rule the brief implies but does not state is a `Q-n`, not a rule, until a human answers it with a policy: then also a rule, one per subdomain it governs, unless an existing `BR-n` already says it | `prd-rules`; `confirm-prd` names the `BR-n` beside a `Q-n` it changes again |
 | the human gate is the Prd's reviewer: `prd-consistency` decides form and citations, the human decides scope, goals and whether the capabilities are the right cut | `prd-gate` |
 
 ## Decisions
@@ -118,16 +118,17 @@ conformance suite's name) runs `checkSpec`; otherwise `artifacts.prd` runs `chec
   it stayed a resolution, the storming modelled the lapse, and no `BR-n` existed for a Spec
   requirement to enforce, so `rule-unenforced` had nothing to hold a Spec to. Which answer is a policy stays the
   agent's call and the human's at `prd-gate`; no check tells a policy from a fact. Found in UAT.
-- A rule carries no technical semantics, in the kind, `prd-rules`, `owner-decisions` and the auditor
-  (`rule-technical`, error): on a live project whose brief was read off a legacy service, 39 of 80
-  `BR-n` named the mechanism (a header, a status code, a byte limit, a retention period, a
-  configured default, a protocol); every one passed RuleSpeak form and `checkPrd`. With the
-  mechanism in the rules, every layer below restated it, and a question a Plan raised about a
-  detail ran back to the Prd and through every artifact again, round after round. The test is
-  generic, not a list: a rule reads the same whatever the system is built from, or it is no rule
-  and belongs to the Spec or Design that owns it; the same holds for an owner's answer to a Prd
-  question, which stays a resolution carried `upstream` instead of becoming a `BR-n`. The auditor
-  holds it, not `sdd/v1`: it is a judgement over words, not a decidable check.
+- A rule holds whatever the system is built from, in the kind, `prd-rules`, `owner-decisions` and
+  the auditor (`rule-build-bound`, error): on a live project whose brief was read off a legacy
+  service, rules such as "the User-Agent is taken from the configured default otherwise" passed
+  RuleSpeak form and `checkPrd`, and a question a Plan raised about that detail ran back to the Prd
+  and through every artifact again. The test is invariance, not a ban on technical words: change
+  the framework, the store, the language or the deployment, and a rule still binds the product and
+  someone outside still relies on it; a gateway's headers and status codes are its contract with
+  its callers and stand. What exists only because of how this build is made is no rule and belongs
+  to the Spec or Design that owns it; the same holds for an owner's answer to a Prd question, which
+  stays a resolution carried `upstream` instead of becoming a `BR-n`. The auditor holds it, not
+  `sdd/v1`: it is a judgement over words, not a decidable check.
 - A downstream answer naming the Prd or a `BR-n` reaches it through `author-prd` with `base` and
   `changes`, as a Spec's does through `spec-one`. The Autopilot had no path: a Spec that found a
   capability's description wrong or a rule missing had nowhere to send it, and an agent
