@@ -103,6 +103,9 @@ spec:
 # Rules of one BoundedContext that outlive any Prd or Spec: facts, constraints, derivations, decisions (Business Rules
 # Group). Every rule is one RuleSpeak sentence in Glossary terms; a rule with `logic` is also a typed condition tree over
 # the Glossary's fact types, so a Validator can check it and a test can be derived from it. Cited as BR-n.
+# A rule carries no technical semantics: it says what the business obliges, forbids or decides, in the business's own
+# words, and reads the same whatever the system is built from; what exists only because of how the system is built is
+# no rule and belongs to the Spec or Design that owns it.
 apiVersion: persimmon.ai/v1
 kind: KindDefinition
 metadata: {name: businessrules.sdd.persimmon.ai}
@@ -130,7 +133,7 @@ spec:
                 id: {type: string, pattern: "^BR-[0-9]+$", description: "never reused; a withdrawn rule stays with status deprecated"}
                 subdomain: {type: string, minLength: 1, description: "the Prd subdomain whose policy the rule is (34-subdomains.md); required by the Validator when the Prd has more than one"}
                 type: {enum: [fact, constraint, derivation, decision], description: "fact: a structural rule over one fact type (cardinality, necessity); constraint: a must or must not; derivation: a computed value; decision: an outcome"}
-                statement: {type: string, minLength: 1, description: "one RuleSpeak sentence in Glossary terms with a rule keyword: 'must', 'must not', 'may ... only', 'must be computed as', 'must be considered <outcome> if'"}
+                statement: {type: string, minLength: 1, description: "one RuleSpeak sentence in Glossary terms with a rule keyword: 'must', 'must not', 'may ... only', 'must be computed as', 'must be considered <outcome> if'; in the business's own words, with no technical semantics: what exists only because of how the system is built is no rule (rule-technical) and belongs to the Spec or Design that owns it"}
                 rationale: {type: string, minLength: 1, description: "an informal rule (no logic) says so here"}
                 source: {type: string, description: "law, policy, contract, decision"}
                 owner: {type: string}

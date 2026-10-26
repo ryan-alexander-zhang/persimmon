@@ -157,6 +157,15 @@ describe('the SDLC pack takes a Rewrite pack inventory and base, optionally', ()
     }
   })
 
+  it('a business rule carries no technical semantics, for the writer, the owner and the auditor', () => {
+    const prompts = parseAllDocuments(readFileSync('packs/sdlc/global/30-prompts.yaml', 'utf8')).map((d) => d.toJS())
+    const content = (name: string): string => prompts.find((d) => d.metadata.name === name).spec.content
+    expect(content('prd-rules')).toMatch(/no technical semantics/)
+    expect(content('prd-rules')).toMatch(/answer with technical semantics is no rule/)
+    expect(content('owner-decisions')).toMatch(/Prd question is answered in the business's own words/)
+    expect(content('draft-audit-rules')).toMatch(/`rule-technical` \(error\)/)
+  })
+
   it('a Spec, Design, Plan or TestDesign draft checks itself before the owner and the Gate', () => {
     for (const [draft, check, port] of [['spec-draft', 'spec-check', 'spec'], ['design-draft', 'design-check', 'design'], ['plan-draft', 'plan-check', 'plan'], ['test-design-draft', 'test-design-check', 'testDesign']]) {
       const wf = named('Workflow', draft!)
