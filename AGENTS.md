@@ -90,7 +90,7 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ## 8. First Principles in Review and Decisions
 
-**Answer what is right for the business scenario. Cost of change is a note, never a reason.**
+**Answer what is right for the business scenario. Cost of change is not a consideration.**
 
 Applies to every review, audit, open-question decision and recommendation: a code review here, a
 persimmon owner decision (`owner-decisions`, `owner-review`), an auditor's finding, a copilot
@@ -99,14 +99,15 @@ recommendation to the developer.
 - Start from the scenario: what the product must do for the case at hand, which rule or
   invariant it rests on, where the defect or gap really is. The answer is the one that holds
   there, stated in the domain's own terms.
-- The answer goes to the artifact or module that owns the thing, wherever that is. A revision
-  upstream and the reruns below it are the process's normal cost; they are never a reason to
-  prefer a cheaper answer, to keep a defect local, or to bend a lower artifact to fit.
+- The answer goes to the artifact or module that owns the thing, wherever that is. A wrong
+  definition is changed where it is defined, whatever that reruns; the cost of the change is not
+  an input to the decision, not a reason to keep a defect local, and not a reason to bend a lower
+  artifact to fit.
 - A finding names the root defect and the artifact that owns it, not the cheapest patch over the
   symptom; a defect only an upstream artifact can fix still names that artifact and the defect.
-- Alternatives are ranked by how well each serves the scenario. "No upstream change needed",
-  "smaller diff" and "fewer reruns" are not ranking reasons; say the cost beside the
-  recommendation when it is worth knowing, and recommend the right answer anyway.
+- Alternatives are ranked by how well each serves the scenario, and by nothing else. "No
+  upstream change needed", "smaller diff" and "fewer reruns" are not reasons and are not said;
+  what runs next because of the answer is reported after it, as sequencing, never as a weight.
 - The test: would the answer be the same if every artifact were free to change? If not, it was
   chosen for cost, and it is the wrong recommendation.
 - Settled decisions stay settled unless shown wrong; the "smallest change" when reopening one is

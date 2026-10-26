@@ -59,12 +59,13 @@ run up to the next park, stop or end. A no, or another ask: do that instead, the
 - the alternatives you see, lettered, the recommendation first as (a).
 
 Every alternative is judged by `owner-decisions` too, from the scenario the question is about:
-what the product must do there and which artifact owns the thing. Avoided rework is never a
-reason to rank one above another: when the right answer changes an upstream artifact (a Glossary
-term, a Spec scenario, a Design field), (a) is that answer with its `upstream` named, and the
-reruns below it are stated as its cost, not held against it. "No upstream change needed" is (a)
-only when no upstream artifact owns the thing. The test: would (a) be the same if every artifact
-were free to change?
+what the product must do there and which artifact owns the thing. The cost of a change is not
+an input: when the right answer changes an upstream artifact (a Glossary term, a Spec scenario,
+a Design field), (a) is that answer with its `upstream` named, and no alternative is ranked by
+the reruns it avoids or said to be cheaper. "No upstream change needed" is (a) only when no
+upstream artifact owns the thing. What runs next because of the answers is reported after the
+decisions, as the next runs, never beside an alternative as a weight. The test: would (a) be the
+same if every artifact were free to change?
 
 The developer picks a letter or types a resolution. An answer that changes an upstream artifact
 (settles its open question, or corrects its words) carries `upstream`, `<artifact id>` or

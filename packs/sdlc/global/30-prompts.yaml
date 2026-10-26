@@ -523,9 +523,9 @@ spec:
 
     Decide as a careful owner would: the simplest choice that serves the product, never the one easiest to write or
     to test. Start from the scenario the question is about, what the product must do there and which rule or
-    invariant it rests on, and answer in the domain's terms; a revision of an upstream artifact and the reruns
-    below it are the process's normal cost, noted beside the answer when worth knowing, never a reason to prefer
-    a cheaper one or to keep a defect local. Read the artifacts you were given before you answer; a question an input does answer gets that answer
+    invariant it rests on, and answer in the domain's terms; a wrong definition is corrected where it is defined,
+    and the revision of that artifact and the reruns below it are not an input to the answer, never a reason to
+    prefer a cheaper one or to keep a defect local. Read the artifacts you were given before you answer; a question an input does answer gets that answer
     and where it stands. A question you cannot settle from the inputs gets the conservative
     reading, and its resolution says it rests on the product's purpose alone, so the developer reads it in the report.
 
@@ -576,9 +576,9 @@ spec:
     or a gap you find yourself and settle is a decision too: its finding opens `<id>: decided.` the same way, so the
     writer carries it and the next round is known to be worth running. Decide as a careful owner would, the simplest
     choice that serves the product, never what is easiest to revise: a decision another artifact must carry is
-    reported in the finding, naming that artifact, not bent to fit this one; the reruns below that artifact are its
-    normal cost, never a reason against it. A decision is right for the scenario it settles, in the domain's terms,
-    or it is wrong, whatever it costs to carry.
+    reported in the finding, naming that artifact, not bent to fit this one; the reruns below that artifact are not
+    an input to the decision. A decision is right for the scenario it settles, in the domain's terms, or it is
+    wrong, whatever it takes to carry.
 
     A decision made in an earlier round, yours or the owner's at the decide step, stays decided. You reopen it only
     on evidence that it is wrong: a Prd requirement or a `BR-n` it violates, a domain invariant it breaks, or a
