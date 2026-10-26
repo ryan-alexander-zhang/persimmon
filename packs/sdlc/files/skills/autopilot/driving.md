@@ -53,7 +53,7 @@ usage limit, one failed iteration) redoes only the capabilities or blocks with n
 
 ## Upstream answers
 
-A run whose tree warns `question-upstream` naming an artifact (`<artifact id>` or `<artifact id>
+A run whose tree warns `question-upstream` naming artifacts (each `<artifact id>` or `<artifact id>
 Q-n`) carries an answer that artifact does not have yet: a scenario the Spec lacks, a level the
 harness lacks, an operation a Design lacks, a task the Plan moves. Apply it before the next run of
 the order:

@@ -148,7 +148,7 @@ spec:
 
     With `previous` and `feedback` bound, the consistency check refused the last Spec: every finding names an id, a label or a rule; fix those, and with each every sentence that restated or rested on what changed (a story's text, a scenario's given, a requirement's rationale), which the finding need not name; change nothing else.
 
-    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's draft: give each `Q-n` its `resolution` in the decision's words and its `upstream` when the decision names one, apply what the answer implies everywhere the draft deferred to the question (a scenario, a requirement, a story, a statement that waited on it), and change nothing else; `open` is then what still has no resolution.
+    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's draft: give each `Q-n` its `resolution` in the decision's words and its `upstream`, the artifacts the decision names, apply what the answer implies everywhere the draft deferred to the question (a scenario, a requirement, a story, a statement that waited on it), and change nothing else; `open` is then what still has no resolution.
 
     With `base` and `changes` bound, this run revises `base`, the Spec as it stands, to apply answers given downstream (each `<artifact id> Q-n: <resolution>`) or parts of an input revised since `base` (each `<artifact id> <part id>: <what changed>`): start from it, keep every id, and change only what the answers ask or what rests on a changed part, a scenario, a requirement or a story; an item added takes the next unused number. An answer that settles one of `base`'s own open questions gives it that `resolution`.
 ---
@@ -182,7 +182,7 @@ spec:
 
     With `previous` and `feedback` bound, the last round was refused: a Validator finding names an id or a rule, a human finding names what to change; fix those and carry each fix into every sentence that restated or rested on what changed (a rule's rationale, a capability's text, a criterion), which the finding need not name; change nothing else. Answer the whole Prd and the whole rules artifact again.
 
-    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's Prd, `previousRules` its rules: give each `Q-n` its `resolution` in the decision's words and its `upstream` when the decision names one, apply what the answer implies everywhere the draft deferred to the question (a capability, a criterion, a rule's statement and rationale that waited on it, a new rule with the next `BR-n` when the answer is a policy), and change nothing else; `open` is then what still has no resolution.
+    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's Prd, `previousRules` its rules: give each `Q-n` its `resolution` in the decision's words and its `upstream`, the artifacts the decision names, apply what the answer implies everywhere the draft deferred to the question (a capability, a criterion, a rule's statement and rationale that waited on it, a new rule with the next `BR-n` when the answer is a policy), and change nothing else; `open` is then what still has no resolution.
 ---
 # The Design author's rules (29-design-process.md): one standard contract per block and type, indexed against the DomainModel.
 apiVersion: persimmon.ai/v1
@@ -213,7 +213,7 @@ spec:
 
     With `previous` and `feedback` bound, the consistency check refused the last Design: every finding names an id, a label or a rule; fix those, and with each every part of the document that restated or rested on what changed, which the finding need not name; change nothing else.
 
-    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's draft: give each `Q-n` its `resolution` in the decision's words and its `upstream` when the decision names one, apply what the answer implies everywhere the draft deferred to the question, in the document and its index, and change nothing else; `open` is then what still has no resolution.
+    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's draft: give each `Q-n` its `resolution` in the decision's words and its `upstream`, the artifacts the decision names, apply what the answer implies everywhere the draft deferred to the question, in the document and its index, and change nothing else; `open` is then what still has no resolution.
 ---
 apiVersion: persimmon.ai/v1
 kind: Prompt
@@ -242,7 +242,7 @@ spec:
 
     With `previous` and `feedback` bound, the consistency check refused the last Plan: every finding names a task, a requirement, a scenario, a block or an element; fix those, and with each every task description that restated or rested on what changed, which the finding need not name; change nothing else.
 
-    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's draft: give each `Q-n` its `resolution` in the decision's words and its `upstream` when the decision names one, apply what the answer implies everywhere the draft deferred to the question, in the tasks, and change nothing else; `open` is then what still has no resolution.
+    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's draft: give each `Q-n` its `resolution` in the decision's words and its `upstream`, the artifacts the decision names, apply what the answer implies everywhere the draft deferred to the question, in the tasks, and change nothing else; `open` is then what still has no resolution.
 ---
 apiVersion: persimmon.ai/v1
 kind: Prompt
@@ -291,7 +291,7 @@ spec:
 
     With `previous` and `feedback` bound, the last round was refused: a linter finding names a token path or a section, a human finding names a section or a token to change; fix those, and with each every rule, Do or Don't and component note that restated or rested on what changed, so no screen is left governed by two rules; change nothing else. Answer the whole file again.
 
-    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's draft: give each `Q-n` its `resolution` in the decision's words and its `upstream` when the decision names one, apply what the answer implies everywhere the draft deferred to the question, and change nothing else; `open` is then what still has no resolution.
+    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's draft: give each `Q-n` its `resolution` in the decision's words and its `upstream`, the artifacts the decision names, apply what the answer implies everywhere the draft deferred to the question, and change nothing else; `open` is then what still has no resolution.
 ---
 apiVersion: persimmon.ai/v1
 kind: Prompt
@@ -325,7 +325,7 @@ spec:
 
     With `previous` and `feedback` bound, the Gate refused the last round: most findings name a scenario, a test or a question, and `previousOutcome` shows what the tests did then. Fix those; keep every test the last record named running.
 
-    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's record: give each `Q-n` its `resolution` in the decision's words and its `upstream` when the decision names one, build what the answer implies and run the tests again, and change nothing else; `open` is then what still has no resolution.
+    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's record: give each `Q-n` its `resolution` in the decision's words and its `upstream`, the artifacts the decision names, build what the answer implies and run the tests again, and change nothing else; `open` is then what still has no resolution.
 ---
 apiVersion: persimmon.ai/v1
 kind: Prompt
@@ -384,7 +384,7 @@ spec:
 
     With `previous` and `feedback` bound, the seed run, its check or the human refused the last harness: a finding naming a level is fixed in the repository and in the record; one answering a `Q-n` gives that question its `resolution`, in the finding's words, and whatever the answer changes. Change nothing else.
 
-    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's draft: give each `Q-n` its `resolution` in the decision's words and its `upstream` when the decision names one, set up in the repository what the answer asks (a level, a tool), and change nothing else; `open` is then what still has no resolution.
+    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's draft: give each `Q-n` its `resolution` in the decision's words and its `upstream`, the artifacts the decision names, set up in the repository what the answer asks (a level, a tool), and change nothing else; `open` is then what still has no resolution.
 ---
 # How an agent designs the test cases of one Spec before it is built (39-test-process.md).
 apiVersion: persimmon.ai/v1
@@ -412,7 +412,7 @@ spec:
 
     With `previous` and `feedback` bound, the check, the auditor or the human refused the last TestDesign: a finding naming a case or a scenario is fixed there; one answering a `Q-n` gives that question its `resolution`, in the finding's words, and changes the cases the answer changes. Change nothing else.
 
-    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's draft: give each `Q-n` its `resolution` in the decision's words and its `upstream` when the decision names one, change the cases the answer changes and add none that rests on an upstream revision not yet made, and change nothing else; `open` is then what still has no resolution.
+    With `decisions` bound, the owner answered this round's open questions and `previous` is this round's draft: give each `Q-n` its `resolution` in the decision's words and its `upstream`, the artifacts the decision names, change the cases the answer changes and add none that rests on an upstream revision not yet made, and change nothing else; `open` is then what still has no resolution.
 ---
 # How the Tester writes the api or e2e tests of one Plan task's cases (39-test-process.md).
 apiVersion: persimmon.ai/v1
@@ -543,7 +543,7 @@ spec:
     and what in the draft changes because of it. Decide what serves the product, never what is easiest to revise:
     an answer that adds to or changes an artifact upstream of this draft (a scenario the Spec lacks, an operation a
     Design lacks, a level the harness lacks, a task the Plan orders wrongly) is still your decision, recorded here;
-    it names that artifact in `upstream`, `<artifact id>` or `<artifact id> Q-n`, and asks the writer for no case,
+    it names every such artifact in `upstream`, each `<artifact id>` or `<artifact id> Q-n`, and asks the writer for no case,
     step or element that rests on it: that follows once the upstream artifact's revision exists, through its own
     process. An answer that would change the Architecture, an Adr or a Glossary names it the same way.
     An answer goes to the nearest artifact that owns the thing, and every artifact below the one named runs again,

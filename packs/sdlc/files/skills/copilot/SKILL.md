@@ -68,8 +68,8 @@ decisions, as the next runs, never beside an alternative as a weight. The test: 
 same if every artifact were free to change?
 
 The developer picks a letter or types a resolution. An answer that changes an upstream artifact
-(settles its open question, or corrects its words) carries `upstream`, `<artifact id>` or
-`<artifact id> Q-n`. Then the file, under `.persimmon/autopilot/`:
+(settles its open question, or corrects its words) carries `upstream`, every artifact it changes,
+each `<artifact id>` or `<artifact id> Q-n`. Then the file, under `.persimmon/autopilot/`:
 
 ```yaml
 outputs:
@@ -77,7 +77,7 @@ outputs:
     kind: value
     value:
       - {id: Q-1, resolution: "<the developer's answer>"}
-      - {id: Q-2, resolution: "<…>", upstream: "<artifact id> Q-n"}
+      - {id: Q-2, resolution: "<…>", upstream: ["<artifact id> Q-n"]}
 ```
 
 **`confirm-<kind>`** (`result` output). One decision:

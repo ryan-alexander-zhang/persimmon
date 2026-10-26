@@ -152,7 +152,7 @@ spec:
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, required: false}
     changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false}
-    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}, required: false, description: "the owner's answers to this draft's open questions, recorded in this round (23-pack-sdlc.md)"}
+    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: array, minItems: 1, items: {type: string, pattern: "^[a-z0-9][a-z0-9.-]*( Q-[0-9]+)?$"}, description: "the upstream artifacts the answer changes, each <artifact id> or <artifact id> Q-n"}}}}}, required: false, description: "the owner's answers to this draft's open questions, recorded in this round (23-pack-sdlc.md)"}
   outputs:
     spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, id: {expression: "inputs.prd.id + '-' + inputs.capabilityId.lowerAscii()"}}
     open: {type: {kind: value, schema: {type: array, items: {type: string, pattern: "^Q-[0-9]+$"}}}, description: "the ids of the questions this draft leaves without a resolution; empty when none"}
@@ -168,7 +168,7 @@ spec:
       scenario id is in `architecture`. With `previous` and `feedback` bound, fix what the findings name, and with it what
       restated or rested on it, and change nothing else. With `base` and `changes` bound, revise `base` as the Spec rules say for a revision.
       `open` lists the ids of every `Q-n` the Spec leaves without a `resolution`. With `decisions` bound, `previous` is this
-      round's draft: record each decision as its `Q-n`'s `resolution` (and `upstream` when it names one), apply what the
+      round's draft: record each decision as its `Q-n`'s `resolution` (and `upstream`, the artifacts it names), apply what the
       answer implies and change nothing else; `open` is then what still has none.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: spec-rules}}
@@ -202,7 +202,7 @@ spec:
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, required: false, description: "the Prd as it stands, when this run applies downstream answers to it; rules is then its BusinessRules (38-autopilot.md)"}
     changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false, description: "the downstream answers this run applies to base and rules"}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
-    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}, required: false, description: "the owner's answers to this draft's open questions, recorded in this round (23-pack-sdlc.md)"}
+    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: array, minItems: 1, items: {type: string, pattern: "^[a-z0-9][a-z0-9.-]*( Q-[0-9]+)?$"}, description: "the upstream artifacts the answer changes, each <artifact id> or <artifact id> Q-n"}}}}}, required: false, description: "the owner's answers to this draft's open questions, recorded in this round (23-pack-sdlc.md)"}
   outputs:
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}, id: {expression: "inputs.productId + '-prd'"}}
     open: {type: {kind: value, schema: {type: array, items: {type: string, pattern: "^Q-[0-9]+$"}}}, description: "the ids of the questions this draft leaves without a resolution; empty when none"}
@@ -218,7 +218,7 @@ spec:
       rationale; a finding that names a `BR-n` changes that rule; a new policy takes the next number. Never renumber,
       reorder or reword a rule unasked: the gate refuses a rule that changed without a finding naming it.
       `open` lists the ids of every `Q-n` the Prd leaves without a `resolution`. With `decisions` bound, `previous` is this
-      round's draft (the rules start from `previousRules`, as in a round): record each decision as its `Q-n`'s `resolution` (and `upstream` when it names one), apply what the
+      round's draft (the rules start from `previousRules`, as in a round): record each decision as its `Q-n`'s `resolution` (and `upstream`, the artifacts it names), apply what the
       answer implies and change nothing else; `open` is then what still has none.
       With `base` and `changes` bound, this run revises `base`, the Prd as it stands, and `rules`, its BusinessRules as they
       stand, to apply answers given downstream (each `<artifact id> Q-n: <resolution>`): start from both, keep every
@@ -293,7 +293,7 @@ spec:
     changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false, description: "the downstream answers this run applies to base"}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
-    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}, required: false, description: "the owner's answers to this draft's open questions, recorded in this round (23-pack-sdlc.md)"}
+    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: array, minItems: 1, items: {type: string, pattern: "^[a-z0-9][a-z0-9.-]*( Q-[0-9]+)?$"}, description: "the upstream artifacts the answer changes, each <artifact id> or <artifact id> Q-n"}}}}}, required: false, description: "the owner's answers to this draft's open questions, recorded in this round (23-pack-sdlc.md)"}
   outputs:
     design: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, id: {expression: "inputs.architecture.id + '-' + inputs.blockId.lowerAscii() + (has(inputs.qualifier) && inputs.qualifier != '' ? '-' + inputs.qualifier : '') + '-' + inputs.type"}}
     open: {type: {kind: value, schema: {type: array, items: {type: string, pattern: "^Q-[0-9]+$"}}}, description: "the ids of the questions this draft leaves without a resolution; empty when none"}
@@ -312,7 +312,7 @@ spec:
       With `previous` and `feedback` bound, fix what the error findings name and change nothing else; a warning
       (a `dialect` word the block's store lacks) is advice you may take without changing anything else.
       `open` lists the ids of every `Q-n` the Design leaves without a `resolution`. With `decisions` bound, `previous` is this
-      round's draft: record each decision as its `Q-n`'s `resolution` (and `upstream` when it names one), apply what the
+      round's draft: record each decision as its `Q-n`'s `resolution` (and `upstream`, the artifacts it names), apply what the
       answer implies and change nothing else; `open` is then what still has none.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: design-rules}}
@@ -344,7 +344,7 @@ spec:
     changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false, description: "the downstream answers this run applies to base"}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
-    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}, required: false, description: "the owner's answers to this draft's open questions, recorded in this round (23-pack-sdlc.md)"}
+    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: array, minItems: 1, items: {type: string, pattern: "^[a-z0-9][a-z0-9.-]*( Q-[0-9]+)?$"}, description: "the upstream artifacts the answer changes, each <artifact id> or <artifact id> Q-n"}}}}}, required: false, description: "the owner's answers to this draft's open questions, recorded in this round (23-pack-sdlc.md)"}
   outputs:
     plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}, id: {expression: "inputs.spec.id + '-plan'"}}
     open: {type: {kind: value, schema: {type: array, items: {type: string, pattern: "^Q-[0-9]+$"}}}, description: "the ids of the questions this draft leaves without a resolution; empty when none"}
@@ -358,7 +358,7 @@ spec:
       With `base` and `changes` bound, apply the answers to `base` as the Plan rules say.
       With `previous` and `feedback` bound, fix what the findings name, and with it what restated or rested on it, and change nothing else.
       `open` lists the ids of every `Q-n` the Plan leaves without a `resolution`. With `decisions` bound, `previous` is this
-      round's draft: record each decision as its `Q-n`'s `resolution` (and `upstream` when it names one), apply what the
+      round's draft: record each decision as its `Q-n`'s `resolution` (and `upstream`, the artifacts it names), apply what the
       answer implies and change nothing else; `open` is then what still has none.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: plan-rules}}
@@ -477,7 +477,7 @@ spec:
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: false, description: "the DesignSystem as it stands, when this run applies downstream answers to it (38-autopilot.md)"}
     changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false, description: "the downstream answers this run applies to base"}
-    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}, required: false, description: "the owner's answers to this draft's open questions, recorded in this round (23-pack-sdlc.md)"}
+    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: array, minItems: 1, items: {type: string, pattern: "^[a-z0-9][a-z0-9.-]*( Q-[0-9]+)?$"}, description: "the upstream artifacts the answer changes, each <artifact id> or <artifact id> Q-n"}}}}}, required: false, description: "the owner's answers to this draft's open questions, recorded in this round (23-pack-sdlc.md)"}
   outputs:
     designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, id: {expression: "inputs.prd.id + '-design-system'"}}
     open: {type: {kind: value, schema: {type: array, items: {type: string, pattern: "^Q-[0-9]+$"}}}, description: "the ids of the questions this draft leaves without a resolution; empty when none"}
@@ -489,7 +489,7 @@ spec:
       artifact id. With `previous` and `feedback` bound, fix what the findings name, and with it what restated or rested on it, and change nothing else; answer
       the whole file again.
       `open` lists the ids of every `Q-n` the DesignSystem leaves without a `resolution`. With `decisions` bound, `previous` is this
-      round's draft: record each decision as its `Q-n`'s `resolution` (and `upstream` when it names one), apply what the
+      round's draft: record each decision as its `Q-n`'s `resolution` (and `upstream`, the artifacts it names), apply what the
       answer implies and change nothing else; `open` is then what still has none.
       With `base` and `changes` bound, this run revises `base`, the DesignSystem as it stands, to apply answers given
       downstream (each `<artifact id> Q-n: <resolution>`): start from it, keep every token, component and section that
@@ -833,7 +833,7 @@ spec:
     harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, required: false, description: "the project's test tools: when bound, the levels and their commands are its (39-test-process.md)"}
     cases: {type: {kind: value, schema: {type: object}}, required: false, description: "the round's case ids by level, under a TestDesign (39-test-process.md): the tests each level must run"}
     written: {type: {kind: value, schema: {type: object, required: [files, cases], additionalProperties: false, properties: {files: {type: array, items: {type: string, minLength: 1}}, cases: {type: array, items: {type: string, pattern: "^CAP-[0-9]+/TC-[0-9]+$"}}, notWritten: {type: array, items: {type: string, minLength: 1}}}}}, required: false, description: "the api tests the Tester wrote this round, before the code: never edited by the builder"}
-    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}, required: false, description: "the owner's answers to this round's open questions, recorded in this round (23-pack-sdlc.md)"}
+    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: array, minItems: 1, items: {type: string, pattern: "^[a-z0-9][a-z0-9.-]*( Q-[0-9]+)?$"}, description: "the upstream artifacts the answer changes, each <artifact id> or <artifact id> Q-n"}}}}}, required: false, description: "the owner's answers to this round's open questions, recorded in this round (23-pack-sdlc.md)"}
   outputs:
     record: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: AcceptanceRecord}}, id: {expression: "inputs.plan.id + '-' + inputs.taskId.lowerAscii()"}}
     open: {type: {kind: value, schema: {type: array, items: {type: string, pattern: "^Q-[0-9]+$"}}}, description: "the ids of the record's questions without a resolution; empty when none"}
@@ -845,7 +845,7 @@ spec:
       record are the artifact ids of the inputs with those names; `task` is `taskId`. With `previous`,
       `previousOutcome` and `feedback` bound, fix what the findings name, and with it what restated or rested on it, and change nothing else.
       `open` lists the ids of every `Q-n` the record leaves without a `resolution`. With `decisions` bound, `previous` is this
-      round's record: record each decision as its `Q-n`'s `resolution` (and `upstream` when it names one), build what the answer implies, and change nothing
+      round's record: record each decision as its `Q-n`'s `resolution` (and `upstream`, the artifacts it names), build what the answer implies, and change nothing
       else; `open` is then what still has none.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: build-rules}}
@@ -883,7 +883,7 @@ spec:
     changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false, description: "the downstream answers this run applies to base"}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
-    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}, required: false, description: "the owner's answers to this draft's open questions, recorded in this round (23-pack-sdlc.md)"}
+    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: array, minItems: 1, items: {type: string, pattern: "^[a-z0-9][a-z0-9.-]*( Q-[0-9]+)?$"}, description: "the upstream artifacts the answer changes, each <artifact id> or <artifact id> Q-n"}}}}}, required: false, description: "the owner's answers to this draft's open questions, recorded in this round (23-pack-sdlc.md)"}
   outputs:
     harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, id: {expression: "inputs.architecture.id + '-harness'"}}
     open: {type: {kind: value, schema: {type: array, items: {type: string, pattern: "^Q-[0-9]+$"}}}, description: "the ids of the questions this draft leaves without a resolution; empty when none"}
@@ -894,7 +894,7 @@ spec:
       context, and answer with the TestHarness that records them. `architecture` in it is the artifact id of the input
       with that name. With `previous` and `feedback` bound, fix what the findings name, and with it what restated or rested on it, and change nothing else.
       `open` lists the ids of every `Q-n` the TestHarness leaves without a `resolution`. With `decisions` bound, `previous` is this
-      round's draft: record each decision as its `Q-n`'s `resolution` (and `upstream` when it names one), apply what the
+      round's draft: record each decision as its `Q-n`'s `resolution` (and `upstream`, the artifacts it names), apply what the
       answer implies and change nothing else; `open` is then what still has none.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: harness-rules}}
@@ -960,7 +960,7 @@ spec:
     harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, required: false}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false}
-    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}, required: false, description: "the owner's answers to this draft's open questions, recorded in this round (23-pack-sdlc.md)"}
+    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: array, minItems: 1, items: {type: string, pattern: "^[a-z0-9][a-z0-9.-]*( Q-[0-9]+)?$"}, description: "the upstream artifacts the answer changes, each <artifact id> or <artifact id> Q-n"}}}}}, required: false, description: "the owner's answers to this draft's open questions, recorded in this round (23-pack-sdlc.md)"}
   outputs:
     testDesign: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestDesign}}, id: {expression: "inputs.spec.id + '-tests'"}}
     open: {type: {kind: value, schema: {type: array, items: {type: string, pattern: "^Q-[0-9]+$"}}}, description: "the ids of the questions this draft leaves without a resolution; empty when none"}
@@ -971,7 +971,7 @@ spec:
       TestDesign are the artifact ids of the inputs with those names. With `previous` and `feedback` bound, fix what
       the findings name and change nothing else.
       `open` lists the ids of every `Q-n` the TestDesign leaves without a `resolution`. With `decisions` bound, `previous` is this
-      round's draft: record each decision as its `Q-n`'s `resolution` (and `upstream` when it names one), apply what the
+      round's draft: record each decision as its `Q-n`'s `resolution` (and `upstream`, the artifacts it names), apply what the
       answer implies and change nothing else; `open` is then what still has none.
     context:
       - {kind: prompt, ref: {kind: Prompt, name: test-design-rules}}
@@ -1252,7 +1252,7 @@ spec:
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}}
   outputs:
-    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}}
+    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: array, minItems: 1, items: {type: string, pattern: "^[a-z0-9][a-z0-9.-]*( Q-[0-9]+)?$"}, description: "the upstream artifacts the answer changes, each <artifact id> or <artifact id> Q-n"}}}}}}
   executorRef: {kind: Executor, name: local-reviewer}
   action:
     instructions: |
@@ -1283,7 +1283,7 @@ spec:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
   outputs:
-    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}}
+    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: array, minItems: 1, items: {type: string, pattern: "^[a-z0-9][a-z0-9.-]*( Q-[0-9]+)?$"}, description: "the upstream artifacts the answer changes, each <artifact id> or <artifact id> Q-n"}}}}}}
   executorRef: {kind: Executor, name: local-reviewer}
   action:
     instructions: |
@@ -1315,7 +1315,7 @@ spec:
     spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
   outputs:
-    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}}
+    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: array, minItems: 1, items: {type: string, pattern: "^[a-z0-9][a-z0-9.-]*( Q-[0-9]+)?$"}, description: "the upstream artifacts the answer changes, each <artifact id> or <artifact id> Q-n"}}}}}}
   executorRef: {kind: Executor, name: local-reviewer}
   action:
     instructions: |
@@ -1345,7 +1345,7 @@ spec:
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false}
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
   outputs:
-    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}}
+    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: array, minItems: 1, items: {type: string, pattern: "^[a-z0-9][a-z0-9.-]*( Q-[0-9]+)?$"}, description: "the upstream artifacts the answer changes, each <artifact id> or <artifact id> Q-n"}}}}}}
   executorRef: {kind: Executor, name: local-reviewer}
   action:
     instructions: |
@@ -1377,7 +1377,7 @@ spec:
     plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}}
     harness: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}}
   outputs:
-    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}}
+    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: array, minItems: 1, items: {type: string, pattern: "^[a-z0-9][a-z0-9.-]*( Q-[0-9]+)?$"}, description: "the upstream artifacts the answer changes, each <artifact id> or <artifact id> Q-n"}}}}}}
   executorRef: {kind: Executor, name: local-reviewer}
   action:
     instructions: |
@@ -1412,7 +1412,7 @@ spec:
     spec: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}}
     plan: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Plan}}}
   outputs:
-    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}}
+    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: array, minItems: 1, items: {type: string, pattern: "^[a-z0-9][a-z0-9.-]*( Q-[0-9]+)?$"}, description: "the upstream artifacts the answer changes, each <artifact id> or <artifact id> Q-n"}}}}}}
   executorRef: {kind: Executor, name: local-reviewer}
   action:
     instructions: |
@@ -1444,7 +1444,7 @@ spec:
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}, description: "the rules the draft cites"}
     brief: {type: {kind: value, schema: {type: string, minLength: 1}}, description: "the developer's brief, the only source the Prd had"}
   outputs:
-    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}}
+    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: array, minItems: 1, items: {type: string, pattern: "^[a-z0-9][a-z0-9.-]*( Q-[0-9]+)?$"}, description: "the upstream artifacts the answer changes, each <artifact id> or <artifact id> Q-n"}}}}}}
   executorRef: {kind: Executor, name: local-reviewer}
   action:
     instructions: |
@@ -1470,7 +1470,7 @@ spec:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}, required: false}
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
   outputs:
-    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: string, minLength: 1, description: "the upstream artifact the answer changes, <artifact id> or <artifact id> Q-n"}}}}}}
+    decisions: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: object, required: [id, resolution], additionalProperties: false, properties: {id: {type: string, pattern: "^Q-[0-9]+$"}, resolution: {type: string, minLength: 1}, upstream: {type: array, minItems: 1, items: {type: string, pattern: "^[a-z0-9][a-z0-9.-]*( Q-[0-9]+)?$"}, description: "the upstream artifacts the answer changes, each <artifact id> or <artifact id> Q-n"}}}}}}
   executorRef: {kind: Executor, name: local-reviewer}
   action:
     instructions: |
