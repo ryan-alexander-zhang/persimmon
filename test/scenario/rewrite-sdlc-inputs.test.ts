@@ -92,7 +92,7 @@ describe('the SDLC pack takes a Rewrite pack inventory and base, optionally', ()
     const text = readFileSync('packs/sdlc/global/10-artifact-kinds.yaml', 'utf8')
     expect(text.match(/^\s+openQuestions:$/gm)?.length).toBe(8)
     expect(text.match(/^\s+upstream: \{type: array/gm)?.length).toBe(8) // one per openQuestions block: a Prd, a Spec, a Design, a DesignSystem, a Plan, a TestHarness, a TestDesign, an AcceptanceRecord
-    for (const name of ['write-spec', 'design-asset', 'write-plan', 'draft-prd', 'write-design-system', 'implement']) expect({ name, told: /`upstream` when it names one/.test(named('Task', name).action.instructions) }).toEqual({ name, told: true })
+    for (const name of ['write-spec', 'design-asset', 'write-plan', 'draft-prd', 'write-design-system', 'implement']) expect({ name, told: /`upstream`, the artifacts it names/.test(named('Task', name).action.instructions) }).toEqual({ name, told: true })
     const hours = (t: string) => Number(t.replace('h', ''))
     for (const [name, items, loop] of [['spec-all', 40, 240], ['design-all', 40, 240], ['plan-all', 40, 240], ['test-design-all', 40, 240], ['build-all', 20, 240]] as const) {
       const step = named('Workflow', name).steps.find((st: { repeat?: unknown }) => st.repeat)
