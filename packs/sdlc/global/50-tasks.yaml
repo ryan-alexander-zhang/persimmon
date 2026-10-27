@@ -288,6 +288,7 @@ spec:
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: {expression: "inputs.type != 'ui'"}, description: "the names the document uses; not for a ui Design"}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}, required: false, description: "the Adrs the Architecture applies, named in `decisions` where they concern the block"}
+    specs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, required: false, description: "the Specs of the capabilities the block serves: read, never cited, so every Then their scenarios observe on this block has an element that shows it"}
     designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: {expression: "inputs.type == 'ui'"}, description: "for a ui Design: the product's DesignSystem (32-ui-design-process.md)"}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: {expression: "inputs.type == 'ui'"}, description: "for a ui Design: the http-api Designs of the interfaces the block requires; its elements realise their operations"}
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "the Design this run revises"}
@@ -322,6 +323,7 @@ spec:
       - {kind: artifact, input: glossary}
       - {kind: artifact, input: rules}
       - {kind: artifact, input: adrs}
+      - {kind: artifact, input: specs}
       - {kind: artifact, input: designSystem}
       - {kind: artifact, input: designs}
       - {kind: artifact, input: base}
@@ -634,6 +636,7 @@ spec:
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     domainModel: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: false, description: "every type but ui"}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "a ui Design: the API Designs it calls"}
+    specs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, required: false, description: "the Specs the block serves, for `scenario-unobservable`"}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "the last round's, beside the draft; round one has none"}
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "the Design this draft applies answers to; what it settled stands"}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict; round one has none"}
@@ -651,6 +654,7 @@ spec:
       - {kind: artifact, input: rules}
       - {kind: artifact, input: domainModel}
       - {kind: artifact, input: designs}
+      - {kind: artifact, input: specs}
       - {kind: artifact, input: previous}
       - {kind: artifact, input: base}
   timeout: 30m
@@ -880,6 +884,7 @@ spec:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}, required: false, description: "the Adrs the Architecture applies: a tool one names is the level's"}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "the product's Designs: an http-api one needs an api level, a ui one an e2e level"}
+    specs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, required: false, description: "the product's Specs: every Given of their scenarios is a state a level's conventions can set up"}
     repository: {type: {kind: externalResource, provider: git, type: repository}, description: "the project's code, where the tests are set up"}
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, required: false, description: "the harness before this run: its levels are kept"}
     changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false, description: "the downstream answers this run applies to base"}
@@ -903,6 +908,7 @@ spec:
       - {kind: artifact, input: architecture}
       - {kind: artifact, input: adrs}
       - {kind: artifact, input: designs}
+      - {kind: artifact, input: specs}
       - {kind: artifact, input: base}
       - {kind: artifact, input: previous}
     workspace: {input: repository}

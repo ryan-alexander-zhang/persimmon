@@ -6,7 +6,9 @@ From an Architecture block to its Designs: an agent writes one contract or schem
 and type (an OpenAPI document for the interface a block provides, an AsyncAPI document for the
 events it publishes, a schema for the aggregates it stores) from the Architecture, the DomainModel,
 the Glossary and the rules; a Validator checks the asset's index against them; the loop feeds
-findings back once. A Design is shared by every capability of the block; no Spec cites it.
+findings back once. A Design is shared by every capability of the block; no Spec cites it, and the
+writer and the auditor read the Specs the block serves so every Then they observe there has an
+element that shows it (`scenario-unobservable`).
 
 ```text
 Workflow design-all: repeat over `blocks` with one `type` ─▶ ReviewLoop design-one per block
@@ -75,9 +77,10 @@ The Adapter picks the mode from the payload: `artifacts.spec` (or `artifacts.mod
 | the document is the truth, the index its checked view: `contract.mjs` reads the names the document declares and `checkDesign` holds the index to them both ways (`element-unbacked`, `document-unindexed`); a document that does not parse is `document-unparsed`. Past the names, the document's field names are held to the Glossary (`alias-used`, `term-unknown`) and a `ui` screen's Actions and Layout prose is read (`32-ui-design-process.md`); schema shapes, types and units are the agent's | `design-consistency` |
 | one Design per block and type by `design-all`, id `<architecture>-<block>-<type>`; a block with two provided interfaces, or realising two contexts, gets its second Design of a type from a run with `qualifier` bound (`interface` beside it for an API), which the id carries: `<architecture>-<block>-<qualifier>-<type>` | `design-rules`; `design-asset` output id |
 | `decisions[]` is not checked: no Adr is in the Validator's payload; the writer reads the Adrs themselves (`adrs`, the optional `artifacts` input of `design-asset`, threaded from `design-all` and `design-one` as `build-all` threads them) and picks the ones that concern the block | convention; Validator later |
+| `specs` (optional `artifacts` input of `design-asset`, `audit-design` and the Gates, threaded from `design-one`; `design-all` queries the Specs whose `domainModel` is the block's context's) are what the block must make observable: the writer reads their scenarios' Thens, the auditor refuses a Design that cannot show one | `design-rules`, `draft-audit-rules` |
 | `references[]` point outside the engine (a Figma file, a design tool's share link, a git path) as `ExternalResourceRef`s, the tool's version pinned when it has one; the Validator never fetches one, and the document stays whole in `document.content`: a reference is never a stand-in for it | shape: schema; pinning and no stand-in: `design-rules` |
 | a `data-schema` asset realises aggregates (`AG-n`), an `http-api` commands and read models, an `async-api` events; an asset of one type may still index the other kinds (an API that also serves an event feed) | `design-rules` |
-| a Design cites Architecture, DomainModel, Glossary, BusinessRules and Adrs; never a Spec or a Prd: the contract follows from the domain and the block, not from one capability. A `ui` Design cites the DesignSystem and the block's API Designs in place of the DomainModel and Glossary (`32-ui-design-process.md`) | `design-rules`; convention; `ui-domainmodel` |
+| a Design cites Architecture, DomainModel, Glossary, BusinessRules and Adrs; never a Spec or a Prd: the contract follows from the domain and the block, not from one capability. The Specs the block serves (`specs`) are read, never cited: every Then they observe on the block has an element that shows it, or the Design has a gap (`scenario-unobservable`, error). A `ui` Design cites the DesignSystem and the block's API Designs in place of the DomainModel and Glossary (`32-ui-design-process.md`) | `design-rules`; convention; `ui-domainmodel` |
 
 ## Decisions
 
@@ -180,6 +183,17 @@ The Adapter picks the mode from the payload: `artifacts.spec` (or `artifacts.mod
   `damage_location`, ten `term-unknown` warnings; the agent-written `http-api` r2 says `slot` and
   `lateCancellationAndNoShowCount` and passes with three. `glossary` is optional on the Validator
   and the Gate so a `ui` Design and a direct run without one are unchanged. Found in UAT.
+- A Design is written and audited beside the Specs its block serves, not only the domain: on a live
+  product every Design passed its Gate against the DomainModel and the block, and the test
+  designers then raised eleven questions for status views and a passthrough API that could show
+  none of what a Spec's Then observed (a task's creator and priority, confirmed not sent, accepted
+  at, a result's source, a 404 fallback, an optional body); four more for harness conventions that
+  could not set up a Given. Nothing between `write-spec` and `design-tests` read a Spec beside a
+  Design. The Specs now reach `design-asset`, `audit-design` and `write-harness` (`specs`, optional,
+  `design-all` querying them by the block's context), the writer makes every Then observable, the
+  auditor refuses one it cannot (`scenario-unobservable`), and the harness conventions cover every
+  Given. The contract still follows from the domain and the block: the Specs are read, never
+  cited. Found in UAT.
 
 ## Examples
 

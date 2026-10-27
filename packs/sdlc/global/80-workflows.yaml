@@ -636,6 +636,7 @@ spec:
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: {expression: "inputs.type != 'ui'"}, description: "the names the document uses; not for a ui Design"}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}, required: false, description: "the Adrs the Architecture applies, so the writer names in `decisions` the ones that concern the block"}
+    specs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, required: false, description: "the Specs of the capabilities the block serves: read by the writer and the auditor, never cited"}
     designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: {expression: "inputs.type == 'ui'"}, description: "for a ui Design: the product's DesignSystem (32-ui-design-process.md)"}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: {expression: "inputs.type == 'ui'"}, description: "for a ui Design: the http-api Designs of the interfaces the block requires; its elements realise their operations"}
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "the Design this run revises"}
@@ -660,6 +661,7 @@ spec:
         glossary: {fromInput: glossary, onMissing: omit}
         rules: {fromInput: rules}
         adrs: {fromInput: adrs, onMissing: omit}
+        specs: {fromInput: specs, onMissing: omit}
         designSystem: {fromInput: designSystem, onMissing: omit}
         designs: {fromInput: designs, onMissing: omit}
         base: {fromInput: base, onMissing: omit}
@@ -690,6 +692,7 @@ spec:
         glossary: {fromInput: glossary, onMissing: omit}
         rules: {fromInput: rules}
         adrs: {fromInput: adrs, onMissing: omit}
+        specs: {fromInput: specs, onMissing: omit}
         designSystem: {fromInput: designSystem, onMissing: omit}
         designs: {fromInput: designs, onMissing: omit}
         previous: {fromStep: {stepRef: write, output: design}}
@@ -720,6 +723,7 @@ spec:
         glossary: {fromInput: glossary, onMissing: omit}
         rules: {fromInput: rules}
         adrs: {fromInput: adrs, onMissing: omit}
+        specs: {fromInput: specs, onMissing: omit}
         designSystem: {fromInput: designSystem, onMissing: omit}
         designs: {fromInput: designs, onMissing: omit}
         previous: {first: [{fromStep: {stepRef: record, output: design}}, {fromStep: {stepRef: write, output: design}}]}
@@ -762,6 +766,7 @@ spec:
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: {expression: "inputs.type != 'ui'"}}
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}, required: false, description: "the Adrs the Architecture applies, so the writer names in `decisions` the ones that concern the block"}
+    specs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, required: false, description: "the Specs of the capabilities the block serves: read by the writer and the auditor, never cited"}
     designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: {expression: "inputs.type == 'ui'"}}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: {expression: "inputs.type == 'ui'"}}
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "the Design this run revises; bound with changes"}
@@ -778,6 +783,7 @@ spec:
       glossary: {fromInput: glossary}
       rules: {fromInput: rules}
       adrs: {fromInput: adrs, onMissing: omit}
+      specs: {fromInput: specs, onMissing: omit}
       designSystem: {fromInput: designSystem}
       designs: {fromInput: designs}
       base: {fromInput: base}
@@ -793,6 +799,7 @@ spec:
       rules: {fromInput: rules}
       designSystem: {fromInput: designSystem}
       designs: {fromInput: designs}
+      specs: {fromInput: specs, onMissing: omit}
       previous: {fromInput: previous}
       feedback: {fromInput: feedback}
       base: {fromInput: base}
@@ -832,6 +839,7 @@ spec:
         glossary: {fromArtifact: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}, id: "has(state.block.context) ? state.block.context + '-glossary' : ''"}, onMissing: omit}
         rules: {fromInput: rules}
         adrs: {fromInput: adrs, onMissing: omit}
+        specs: {fromQuery: {kind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}, where: "has(state.block.context) && has(content.domainModel) && content.domainModel == state.block.context + '-model'"}}   # the Specs of the context the block realises: every Then they observe on the block must have an element (29-design-process.md)
         designSystem: {fromInput: designSystem, onMissing: omit}
         designs: {fromInput: designs, onMissing: omit}
       timeout: 9600h   # a ceiling for the whole repeat: forty loops at a loop's full 240h (a repeat timeout bounds the whole loop, 11-workflow.md)
@@ -1715,6 +1723,7 @@ spec:
   inputs:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}, required: false}
+    specs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, required: false}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false}
     repository: {type: {kind: externalResource, provider: git, type: repository}}
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, required: false}
@@ -1736,6 +1745,7 @@ spec:
       inputs:
         architecture: {fromInput: architecture}
         adrs: {fromInput: adrs, onMissing: omit}
+        specs: {fromInput: specs, onMissing: omit}
         designs: {fromInput: designs, onMissing: omit}
         repository: {fromInput: repository}
         base: {fromInput: base, onMissing: omit}
@@ -1757,6 +1767,7 @@ spec:
       inputs:
         architecture: {fromInput: architecture}
         adrs: {fromInput: adrs, onMissing: omit}
+        specs: {fromInput: specs, onMissing: omit}
         designs: {fromInput: designs, onMissing: omit}
         repository: {fromInput: repository}
         previous: {fromStep: {stepRef: write, output: harness}}
@@ -1802,6 +1813,7 @@ spec:
   inputs:
     architecture: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Architecture}}}
     adrs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Adr}}, required: false, description: "the Adrs the Architecture applies"}
+    specs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, required: false, description: "the product's Specs: every Given of their scenarios is a state a level's conventions can set up"}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "the product's Designs: which levels the project needs"}
     repository: {type: {kind: externalResource, provider: git, type: repository}}
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: TestHarness}}, required: false, description: "the harness before this run, set up again: its levels are kept"}
@@ -1811,6 +1823,7 @@ spec:
     inputs:
       architecture: {fromInput: architecture}
       adrs: {fromInput: adrs}
+      specs: {fromInput: specs, onMissing: omit}
       designs: {fromInput: designs}
       repository: {fromInput: repository}
       base: {fromInput: base, onMissing: omit}

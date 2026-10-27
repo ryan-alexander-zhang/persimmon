@@ -189,6 +189,19 @@ describe('the SDLC pack takes a Rewrite pack inventory and base, optionally', ()
     expect(audit).toMatch(/`spec-gap` \(warning\)[^\n]*or a boundary a command's outcome can turn on/)
   })
 
+  it('a Design and the harness are written beside the Specs the block serves, and the auditor refuses an unobservable Then', () => {
+    const prompts = parseAllDocuments(readFileSync('packs/sdlc/global/30-prompts.yaml', 'utf8')).map((d) => d.toJS())
+    const text = (name: string): string => prompts.find((d) => d.metadata.name === name).spec.content
+    expect(text('design-rules')).toMatch(/are read, never cited: every Then of their acceptance scenarios/)
+    expect(text('draft-audit-rules')).toMatch(/`scenario-unobservable` \(error\)/)
+    expect(text('harness-rules')).toMatch(/every state a Given of the Specs in your context sets up/)
+    expect(text('draft-audit-rules')).toMatch(/`boundary-untested` \(error\): a threshold of a rule the capability enforces, or of a limit the Spec's own requirements state/)
+    for (const task of ['design-asset', 'audit-design', 'write-harness']) expect({ task, specs: named('Task', task).inputs.specs.required }).toEqual({ task, specs: false })
+    expect(named('Task', 'design-asset').action.context).toContainEqual({ kind: 'artifact', input: 'specs' })
+    expect(named('Workflow', 'design-all').steps[0].inputs.specs.fromQuery.where).toMatch(/state\.block\.context/)
+    expect(named('Gate', 'design-gate').validators.find((v: { name: string }) => v.name === 'audit').inputs.specs).toEqual({ fromInput: 'specs', onMissing: 'omit' })
+  })
+
   it('a writer with base and changes applies upstream parts revised since base, not only downstream answers', () => {
     const prompts = parseAllDocuments(readFileSync('packs/sdlc/global/30-prompts.yaml', 'utf8')).map((d) => d.toJS())
     for (const name of ['spec-rules', 'design-rules', 'plan-rules', 'harness-rules']) {

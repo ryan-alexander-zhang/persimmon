@@ -159,6 +159,7 @@ spec:
     rules: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BusinessRules}}}
     designSystem: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DesignSystem}}, required: false}
     designs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false}
+    specs: {type: {kind: artifacts, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Spec}}, required: false, description: "the Specs the block serves, for the auditor's `scenario-unobservable`"}
     previous: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "the last round's Design; round one has none"}
     base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Design}}, required: false, description: "the Design a revision applies answers to; the auditor judges what changed"}
     feedback: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}, required: false, description: "the last round's verdict"}
@@ -186,6 +187,7 @@ spec:
         rules: {fromInput: rules}
         domainModel: {fromInput: domainModel, onMissing: omit}
         designs: {fromInput: designs, onMissing: omit}
+        specs: {fromInput: specs, onMissing: omit}
         previous: {fromInput: previous, onMissing: omit}
         base: {fromInput: base, onMissing: omit}
         feedback: {fromInput: feedback, onMissing: omit}
