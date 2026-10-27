@@ -66,6 +66,12 @@ describe('the SDLC pack takes a Rewrite pack inventory and base, optionally', ()
     expect(named('Prompt', 'derive-domain-rules').content).toMatch(/With `base`, `baseGlossary` and `baseContext` bound beside `changes`.*not an invention/) // the rules the writer reads say so too, not only the Task (decision 667)
     const loop = named('ReviewLoop', 'derive-one')
     for (const name of ['base', 'baseGlossary', 'baseContext', 'changes']) expect({ name, required: loop.inputs[name].required, bound: loop.produce.inputs[name] }).toEqual({ name, required: false, bound: { fromInput: name } })
+    // the gate sees the bases and the changes too, so a revision that applied nothing is refused, derived-changes-unapplied (decision 667)
+    const gate = named('Gate', 'derived-gate')
+    const validator = named('Validator', 'domain-consistency')
+    for (const name of ['base', 'baseGlossary', 'baseContext', 'changes']) {
+      expect({ name, review: loop.review.inputs[name], gate: gate.inputs[name].required, bound: gate.validators[0].inputs[name], validator: validator.inputs[name].required }).toEqual({ name, review: { fromInput: name, onMissing: 'omit' }, gate: false, bound: { fromInput: name, onMissing: 'omit' }, validator: false })
+    }
   })
 
   it('the Prd and the storming model take base and changes, and their auditor and owner judge what changed', () => {

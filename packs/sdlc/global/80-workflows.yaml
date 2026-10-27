@@ -200,6 +200,10 @@ spec:
       boundedContext: {fromStep: {stepRef: produce, output: context}}
       glossary: {fromStep: {stepRef: produce, output: glossary}}
       prd: {fromInput: prd}
+      base: {fromInput: base, onMissing: omit}
+      baseGlossary: {fromInput: baseGlossary, onMissing: omit}
+      baseContext: {fromInput: baseContext, onMissing: omit}
+      changes: {fromInput: changes, onMissing: omit}
     timeout: 5m
   subject: domainModel
   previous: previous

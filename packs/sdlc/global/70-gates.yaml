@@ -40,6 +40,10 @@ spec:
     boundedContext: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext}}}
     prd: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Prd}}}
     glossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: false, description: "the derived Glossary: every term a label of the context (checkGlossary)"}
+    base: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: DomainModel}}, required: false, description: "a revision run's bases and changes: the three produced cannot all equal them (checkApplied, decision 667)"}
+    baseGlossary: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: Glossary}}, required: false}
+    baseContext: {type: {kind: artifact, artifactKind: {apiVersion: sdd.persimmon.ai/v1, kind: BoundedContext}}, required: false}
+    changes: {type: {kind: value, schema: {type: array, minItems: 1, items: {type: string, minLength: 1}}}, required: false}
   outputs:
     result: {type: {kind: value, schema: {$ref: "persimmon.ai/v1#/GateResult"}}}
   validators:
@@ -47,6 +51,10 @@ spec:
       ref: {kind: Validator, name: domain-consistency}
       inputs:
         glossary: {fromInput: glossary, onMissing: omit}
+        base: {fromInput: base, onMissing: omit}
+        baseGlossary: {fromInput: baseGlossary, onMissing: omit}
+        baseContext: {fromInput: baseContext, onMissing: omit}
+        changes: {fromInput: changes, onMissing: omit}
         model: {fromInput: model}
         domainModel: {fromInput: domainModel}
         context: {fromInput: contextId}

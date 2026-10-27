@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseAllDocuments } from 'yaml'
 import { describe, expect, it } from 'vitest'
-import { check, checkBoundedContext, checkDerived, checkGlossary, checkSubdomains } from '../../tools/eventstorming/grammar/index.mjs'
+import { check, checkApplied, checkBoundedContext, checkDerived, checkGlossary, checkSubdomains } from '../../tools/eventstorming/grammar/index.mjs'
 
 const fixture = (name: string): Record<string, unknown> => {
   const model = JSON.parse(readFileSync(join(import.meta.dirname, name), 'utf8'))
@@ -237,6 +237,18 @@ describe('checkDerived', () => {
 
   it('is silent on the model the storming describes', () => {
     expect(checkDerived(storming, derived, 'c')).toEqual([])
+  })
+
+  it('checkApplied: with changes bound, the three produced cannot all equal their bases (derived-changes-unapplied)', () => {
+    const glossary = { context: 'bc-claims', terms: [{ name: 'Claim' }], factTypes: [] }
+    const context = { name: 'Claims', purpose: 'p' }
+    const bases = { base: derived, baseGlossary: glossary, baseContext: context }
+    const same = { domainModel: { ...derived }, glossary: { factTypes: [], terms: [{ name: 'Claim' }], context: 'bc-claims' }, boundedContext: context } // reordered keys are no change
+    expect(checkApplied(bases, same, ['x Q-1: add a fact type']).map((f) => [f.severity, f.code])).toEqual([['error', 'derived-changes-unapplied']])
+    expect(checkApplied(bases, same, [])).toEqual([]) // no changes bound: a first derivation, nothing to apply
+    expect(checkApplied({ base: undefined, baseGlossary: glossary, baseContext: context }, same, ['x Q-1: a'])).toEqual([]) // no base: nothing to compare
+    const applied = { ...same, glossary: { ...glossary, factTypes: [{ subject: 'Claim', predicate: 'has', object: 'total' }] } }
+    expect(checkApplied(bases, applied, ['x Q-1: a'])).toEqual([]) // one of the three moved
   })
 
   it('checkGlossary: a term is a label of the context or an entity or value object of the DomainModel, else derived-term-unknown', () => {

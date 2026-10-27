@@ -3,7 +3,7 @@
 // ValidationResult (10-ports.md); with an
 // `artifacts.domainModel` it runs `checkDerived` instead, and `checkGlossary` beside an `artifacts.glossary` (26-domain-discovery.md). No Engine callbacks.
 import { createInterface } from 'node:readline'
-import { check, checkBoundedContext, checkDerived, checkGlossary, checkSubdomains, levelRank } from '../../tools/eventstorming/grammar/index.mjs'
+import { check, checkApplied, checkBoundedContext, checkDerived, checkGlossary, checkSubdomains, levelRank } from '../../tools/eventstorming/grammar/index.mjs'
 
 const describe = {
   adapterId: 'eventstorming/v1',
@@ -36,6 +36,12 @@ function evaluate(payload) {
       ...(payload.artifacts.boundedContext ? checkBoundedContext(model.content, payload.artifacts.boundedContext.content, context, payload.artifacts.prd?.content) : []),
       // with the derived Glossary beside it: every term a label of the context (26-domain-discovery.md)
       ...(payload.artifacts.glossary ? checkGlossary(model.content, domainModel.content, payload.artifacts.glossary.content, context) : []),
+      // a revision run with changes bound applied them, or the three equal their bases (decision 667)
+      ...checkApplied(
+        { base: payload.artifacts.base?.content, baseGlossary: payload.artifacts.baseGlossary?.content, baseContext: payload.artifacts.baseContext?.content },
+        { domainModel: domainModel.content, glossary: payload.artifacts.glossary?.content, boundedContext: payload.artifacts.boundedContext?.content },
+        payload.inputs?.changes?.value,
+      ),
     ]
     return { passed: !derived.some((f) => f.severity === 'error'), findings: derived, evidence: [] }
   }

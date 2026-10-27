@@ -352,6 +352,16 @@ export function checkGlossary(model, domainModel, glossary, context) {
     .map((t) => ({ severity: 'error', code: 'derived-term-unknown', message: `term '${trim(t.name)}' is no aggregate, entity, value object, read model, actor or external system of context '${context}'` }))
 }
 
+/** A revision run applies its `changes` or is refused (decision 667): with `changes` bound, the BoundedContext, the Glossary and the
+ * DomainModel produced cannot all equal their bases. Compared as canonical JSON, so a reordered key is no change. */
+export function checkApplied({ base, baseGlossary, baseContext }, { domainModel, glossary, boundedContext }, changes) {
+  if (!Array.isArray(changes) || changes.length === 0 || !base || !baseGlossary || !baseContext) return []
+  const same = (a, b) => canon(a) === canon(b)
+  if (!same(base, domainModel) || !same(baseGlossary, glossary) || !same(baseContext, boundedContext)) return []
+  return [{ severity: 'error', code: 'derived-changes-unapplied', message: `changes are bound (${changes.length}) but the BoundedContext, the Glossary and the DomainModel equal their bases: apply each answer where it names, a term, a fact type, an attribute or an enum value it adds in its words` }]
+}
+const canon = (v) => JSON.stringify(v, (_, x) => (isObject(x) && !Array.isArray(x) ? Object.fromEntries(Object.keys(x).sort().map((k) => [k, x[k]])) : x))
+
 export function checkDerived(model, domainModel, context) {
   const findings = []
   const add = (severity, code, message) => findings.push({ severity, code, message })
