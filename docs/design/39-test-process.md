@@ -51,7 +51,7 @@ passed by, and `build-one` is the build of `35-build-process.md`.
 
 | Kind | Content |
 |---|---|
-| `TestHarness` | `architecture` (artifact id); `levels` a map by test level, `unit` required, each `{tool, run, one, affected?, fullOn?, junit, paths?, testDir, seed, conventions}`: the tool and its version, the suite command, the command for one test with `{test}`, the Change set command of `36-test-levels.md`, the globs, the JUnit XML path, where its tests live, the seed test's name as the JUnit XML gives it, and how a test of this level is written here (fixtures, test data reset, the title carrying a case id); `unit` also `coverage?` `{report}` and `mutation?` `{program, report, paths?}`; `app?` `{start, ready}`: the command that starts the app and the URL that answers once it is up; `openQuestions[]` |
+| `TestHarness` | `architecture` (artifact id); `levels` a map by test level, `unit` required, each `{tool, run, one, affected?, fullOn?, junit, paths?, testDir, seed, conventions}`: the tool and its version, the suite command, the command for one test with `{test}`, the Change set command of `36-test-levels.md`, the globs, the JUnit XML path, where its tests live, the seed test's name as the JUnit XML gives it (`name`, or `classname > name`, as a BuildRecord row names a test, `35-build-process.md`), and how a test of this level is written here (fixtures, test data reset, the title carrying a case id); `unit` also `coverage?` `{report}` and `mutation?` `{program, report, paths?}`; `app?` `{start, ready}`: the command that starts the app and the URL that answers once it is up; `openQuestions[]` |
 | `TestDesign` | `spec`, `harness` (artifact ids); `cases[]` (`TC-n` from 1): `title`, `verifies[]` (`AC-n`, `QS-n`, `BR-n`, `FR-n`; at least one `AC-n` or `QS-n`), `level`, `priority` (`P0` to `P3`), `execution` (`automated`, `manual`), `preconditions[]`, `data[]?`, `steps[]` (`{action, expected?}`), `expected`; `openQuestions[]` |
 | `TestReport` | `plan`, `spec`, `testDesign` (artifact ids), `head?`; `verdict` (`result`: `pass`, `concerns`, `fail`; `rule`: the clause that decided it; `thresholds`); `cases[]` (`case`, `level`, `priority`, `execution`, `status`, `reason?`, `tests[]` `{name, status}`); `coverage[]` (`ref`: an `AC-n`, `QS-n`, `BR-n` or `FR-n`; `status`; `cases[]`); `levels[]` (`level`, `selection`, `passed`, `failed`, `skipped`); `defects[]` (`record`, `defect`, `observed`); `evaluation` (`summary`, `residualRisks[]`) |
 | `AcceptanceRecord` | `verifies` becomes optional and is not read when a TestDesign is bound: the test names carry the case ids |
@@ -320,6 +320,15 @@ no case has none to miss.
   the Plan and the harness); a `waived` verdict (it needs a human sign-off of its own, later); a test
   quality score and an NFR assessment (the Auditor judges each test; non-build quality scenarios are
   the `release` tier's). Found in design review.
+- A seed test is named as every test is, `name` or `classname > name`, and the harness writer and
+  the `seed-missing` finding say so: the kind and `harness-rules` said only "named as the JUnit XML
+  names it", the rule stood written for BuildRecord rows alone (`35-build-process.md`), and a live
+  writer wrote `com.creatorcrm.unit.SeedUnitTest.fixedClockReadsUtc`, Java's own join, which the
+  matcher (the pack's one rule, `adapters/junit/select.mjs` and every suite finding) does not
+  accept. The finding echoed the rejected name and said nothing else, so three rounds republished
+  the harness byte-identical with every seed green. The matcher stays as it is: a third grammar
+  for one field is wrong, and `classname.name` is ambiguous over dotted names. `seed-missing` and
+  `test-missing` now name the form, and `seed-missing` what the run held. Found in UAT.
 
 ## References
 

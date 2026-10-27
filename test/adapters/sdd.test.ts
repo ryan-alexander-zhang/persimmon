@@ -833,7 +833,7 @@ describe('sdd/v1 over an AcceptanceRecord', () => {
     a.record.verifies[0].tests.push({ name: 'POST /claims refuses a line without a receipt', level: 'api' })
     expect(await levelCodes(a, [api([{ classname: 'claims', name: 'POST /claims refuses a line without a receipt', status: 'passed' }])])).toEqual([])
     expect(await levelCodes(a, [api([{ classname: 'claims', name: 'POST /claims refuses a line without a receipt', status: 'failed', message: '200' }])])).toEqual(['test-failed: AC-1: POST /claims refuses a line without a receipt failed: 200'])
-    expect(await levelCodes(a, [api([{ classname: 'claims', name: 'other', status: 'passed' }])])).toEqual(['test-missing: AC-1: no api test is named POST /claims refuses a line without a receipt'])
+    expect(await levelCodes(a, [api([{ classname: 'claims', name: 'other', status: 'passed' }])])).toEqual(['test-missing: AC-1: no api test is named POST /claims refuses a line without a receipt; name it as the JUnit XML does, the test\'s name or classname > name'])
     expect(await levelCodes(a, [])).toEqual(['test-missing: AC-1: no api test ran: the project configures no api level'])
     expect(await levelCodes(a, [api([], { selection: { mode: 'none', reason: 'untouched' } })])).toEqual(['test-missing: AC-1: POST /claims refuses a line without a receipt: the api tests did not run (untouched)'])
     const both = [{ classname: 'claims', name: 'POST /claims refuses a line without a receipt', status: 'passed' }, { classname: 'claims', name: 'GET /claims', status: 'failed', message: '500' }]
@@ -1133,6 +1133,13 @@ describe('sdd/v1 over the Test process', () => {
     expect(codes(harness, seed, [])).toEqual(['level-unrun'])
     expect(codes(harness, seed, [api([{ ...apiSeed.tests[0], status: 'failed' }])])).toEqual(['seed-failed'])
     expect(codes(harness, seed, [api([{ classname: 'x', name: 'other', status: 'passed' }])])).toEqual(['seed-missing'])
+    // a seed written as classname.name matches nothing, and the finding says the form and what the run held (39-test-process.md)
+    const dotted = { ...harness, levels: { ...harness.levels, api: { ...harness.levels.api, seed: 'com.acme.SeedApiTest.healthAnswersUp' } } }
+    const dottedRun = api([{ classname: 'com.acme.SeedApiTest', name: 'healthAnswersUp', status: 'passed' }])
+    const finding = checkHarness({ harness: dotted, seed, levelOutcomes: [dottedRun], ids: { architecture: 'expense-claims-architecture' } })[0]
+    expect(finding.code).toBe('seed-missing')
+    expect(finding.message).toMatch(/name it as the JUnit XML does, the test's name or classname > name/)
+    expect(finding.message).toMatch(/the run holds com.acme.SeedApiTest > healthAnswersUp/)
     expect(codes(harness, seed, [{ ...api([]), outputTail: 'bru: not found', exitCode: 127 }])).toEqual(['suite-empty'])
     expect(codes({ ...harness, openQuestions: [{ id: 'Q-1', question: 'Bruno or Hurl?' }] }, seed, [apiSeed])).toEqual([]) // the human's, at the Gate
     expect(codes({ ...harness, architecture: 'other' }, seed, [apiSeed])).toEqual(['architecture-mismatch'])

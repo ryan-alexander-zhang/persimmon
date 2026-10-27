@@ -522,6 +522,8 @@ export function selectCases({ plan, taskId, spec, testDesign, feedback }) {
 
 /** One TestHarness against the seed runs of its levels (39-test-process.md): every level ran and its seed test is green.
  * `seed`: the unit level's outcome; `levelOutcomes` the others'. `ids`: {architecture} bound. Every finding `error`. */
+/** The outcome's test names, for a finding over a name that matched none: `classname > name`, the first three. */
+const held = (o) => { const t = (o.tests ?? []).slice(0, 3).map((c) => `${c.classname} > ${c.name}`); return t.length ? ` (the run holds ${t.join(', ')}${(o.tests ?? []).length > 3 ? ', …' : ''})` : '' }
 export function checkHarness({ harness, seed, levelOutcomes = [], designs = {}, base, ids = {} }) {
   if (!harness?.levels?.unit) return [{ severity: 'error', code: 'not-a-harness', message: 'content is not a TestHarness: it has no levels.unit' }]
   const findings = []
@@ -539,7 +541,7 @@ export function checkHarness({ harness, seed, levelOutcomes = [], designs = {}, 
       continue
     }
     const m = (o.tests ?? []).filter((c) => c.name === l.seed || `${c.classname} > ${c.name}` === l.seed)
-    if (m.length === 0) bad('seed-missing', `${level}: no test is named ${l.seed}`)
+    if (m.length === 0) bad('seed-missing', `${level}: no test is named ${l.seed}; name it as the JUnit XML does, the test's name or classname > name${held(o)}`)
     else if (!m.every((c) => c.status === 'passed')) bad('seed-failed', `${level}: ${l.seed} ${m.find((c) => c.status !== 'passed').status}`)
   }
   // a harness set up again keeps the levels the cases name (39-test-process.md)
@@ -672,7 +674,7 @@ export function checkAcceptance({ record, testOutcome, plan, spec, previous, pre
         if ((o.tests ?? []).length === 0) continue // that level's suite-empty says why
         const m = matching(name, level)
         for (const c of m) named.add(c)
-        if (m.length === 0) bad('test-missing', `${id}: no ${where}test is named ${name}`)
+        if (m.length === 0) bad('test-missing', `${id}: no ${where}test is named ${name}; name it as the JUnit XML does, the test's name or classname > name`)
         else if (tests(m) > 1) bad('test-ambiguous', `${id}: ${tests(m)} ${where}tests are named ${name}; name it as classname > name`)
         else if (m.some(red)) {
           const r = m.find(red)

@@ -1190,7 +1190,7 @@ spec:
                   junit: {type: string, minLength: 1, description: "the JUnit XML it writes: a file, or a directory of .xml files"}
                   paths: {type: array, items: {type: string, minLength: 1}, description: "globs of the code this level tests"}
                   testDir: {type: string, minLength: 1, description: "where its tests live"}
-                  seed: {type: string, minLength: 1, description: "a test that passes on the app as it is, named as the JUnit XML names it"}
+                  seed: {type: string, minLength: 1, description: "a test that passes on the app as it is, named as the JUnit XML names it: the test's `name`, or `classname > name`; never `classname.name`"}
                   conventions: {type: string, minLength: 1, description: "how a test of this level is written here: fixtures, test data, the title carrying a case id"}
                   coverage: {type: object, required: [report], additionalProperties: false, properties: {report: {type: string, minLength: 1, description: "the Cobertura or JaCoCo XML it writes"}}}
                   mutation:
@@ -1214,7 +1214,7 @@ spec:
                   junit: {type: string, minLength: 1, description: "the JUnit XML it writes: a file, or a directory of .xml files"}
                   paths: {type: array, items: {type: string, minLength: 1}, description: "globs of the code this level tests"}
                   testDir: {type: string, minLength: 1, description: "where its tests live"}
-                  seed: {type: string, minLength: 1, description: "a test that passes on the app as it is, named as the JUnit XML names it"}
+                  seed: {type: string, minLength: 1, description: "a test that passes on the app as it is, named as the JUnit XML names it: the test's `name`, or `classname > name`; never `classname.name`"}
                   conventions: {type: string, minLength: 1, description: "how a test of this level is written here: fixtures, test data, the title carrying a case id"}
               api: *level
               e2e: *level
