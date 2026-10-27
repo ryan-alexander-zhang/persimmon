@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest'
 import { bind, siteOf } from '../../src/kinds/ports/ports.js'
 
 const docs = (f: string) => parseAllDocuments(readFileSync(`packs/sdlc/global/${f}.yaml`, 'utf8')).map((d) => d.toJS())
-const all = [...docs('50-tasks'), ...docs('60-validators'), ...docs('70-gates'), ...docs('80-workflows')]
+const all = [...docs('30-prompts'), ...docs('50-tasks'), ...docs('60-validators'), ...docs('70-gates'), ...docs('80-workflows')]
 const named = (kind: string, name: string) => all.find((d) => d.kind === kind && d.metadata.name === name).spec
 
 describe('the SDLC pack takes a Rewrite pack inventory and base, optionally', () => {
@@ -63,6 +63,7 @@ describe('the SDLC pack takes a Rewrite pack inventory and base, optionally', ()
     for (const name of ['base', 'baseGlossary', 'baseContext', 'changes']) expect({ name, required: task.inputs[name].required }).toEqual({ name, required: false })
     expect(task.action.context).toEqual(expect.arrayContaining([{ kind: 'artifact', input: 'base' }, { kind: 'artifact', input: 'baseGlossary' }, { kind: 'artifact', input: 'baseContext' }]))
     expect(task.action.instructions).toMatch(/With `base`, `baseGlossary`, `baseContext` and `changes` bound/)
+    expect(named('Prompt', 'derive-domain-rules').content).toMatch(/With `base`, `baseGlossary` and `baseContext` bound beside `changes`.*not an invention/) // the rules the writer reads say so too, not only the Task (decision 667)
     const loop = named('ReviewLoop', 'derive-one')
     for (const name of ['base', 'baseGlossary', 'baseContext', 'changes']) expect({ name, required: loop.inputs[name].required, bound: loop.produce.inputs[name] }).toEqual({ name, required: false, bound: { fromInput: name } })
   })
